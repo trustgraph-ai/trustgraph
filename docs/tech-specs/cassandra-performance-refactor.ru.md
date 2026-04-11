@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Технические спецификации: Оптимизация производительности базы знаний Cassandra"
+parent: "Russian (Beta)"
+---
+
 # Технические спецификации: Оптимизация производительности базы знаний Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Статус:** Черновик
 **Автор:** Ассистент

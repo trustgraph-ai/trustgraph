@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Arquitetura de Grafos de Conhecimento: Fundamentos"
+parent: "Portuguese (Beta)"
+---
+
 # Arquitetura de Grafos de Conhecimento: Fundamentos
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Fundamento 1: Modelo de Grafo Sujeito-Predicado-Objeto (SPO)
 **Decisão**: Adotar SPO/RDF como o modelo central de representação de conhecimento
@@ -103,4 +111,3 @@
 7. **Compatibilidade Analítica**: Integra os paradigmas de grafos e colunares para consultas abrangentes.
 
 Essas bases estabelecem uma arquitetura de grafo de conhecimento que equilibra a rigidez teórica com os requisitos práticos de escalabilidade, otimizada para a integração com LLM e o processamento distribuído.
-

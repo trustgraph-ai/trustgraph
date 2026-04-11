@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación Técnica de Datos Estructurados (Parte 2)"
+parent: "Spanish (Beta)"
+---
+
 # Especificación Técnica de Datos Estructurados (Parte 2)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

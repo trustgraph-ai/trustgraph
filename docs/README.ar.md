@@ -1,3 +1,9 @@
+---
+layout: default
+title: "وثائق TrustGraph"
+parent: "Arabic (Beta)"
+---
+
 **تعليمات مهمة:**
 
 - الحفاظ على جميع تنسيقات Markdown، والعناوين، والروابط، ووسوم HTML.
@@ -6,6 +12,8 @@
 
 النص المراد ترجمته:
 # وثائق TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 مرحبًا بكم في TrustGraph! للحصول على وثائق شاملة، يرجى زيارة:
 

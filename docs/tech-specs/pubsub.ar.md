@@ -1,4 +1,12 @@
+---
+layout: default
+title: "البنية التحتية للنشر والاشتراك (Pub/Sub)"
+parent: "Arabic (Beta)"
+---
+
 # البنية التحتية للنشر والاشتراك (Pub/Sub)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 
@@ -955,4 +963,3 @@ class Consumer:
 يمكن إضافة طبقة تخزين اختيارية (مثل الرسائل المحفوظة، أو مخزن خارجي)
 سيسمح بدعم `initial_position='earliest'`
 ليس مطلوبًا للتنفيذ الأولي
-

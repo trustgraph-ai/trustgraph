@@ -1,3 +1,9 @@
+---
+layout: default
+title: "TrustGraph Tool Group System"
+parent: "Tech Specs"
+---
+
 # TrustGraph Tool Group System
 ## Technical Specification v1.0
 

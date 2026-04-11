@@ -1,4 +1,12 @@
+---
+layout: default
+title: "संरचित डेटा पल्सर स्कीमा परिवर्तन"
+parent: "Hindi (Beta)"
+---
+
 # संरचित डेटा पल्सर स्कीमा परिवर्तन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "خدمات الأدوات: أدوات وكيل قابلة للتوصيل ديناميكيًا"
+parent: "Arabic (Beta)"
+---
+
 # خدمات الأدوات: أدوات وكيل قابلة للتوصيل ديناميكيًا
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## الحالة
 

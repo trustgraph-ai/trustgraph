@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Сервисы инструментов: Динамически подключаемые инструменты для агентов"
+parent: "Russian (Beta)"
+---
+
 # Сервисы инструментов: Динамически подключаемые инструменты для агентов
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Статус
 

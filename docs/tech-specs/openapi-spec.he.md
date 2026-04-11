@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט OpenAPI - מפרט טכני"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט OpenAPI - מפרט טכני
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## מטרה
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Acordo de Licença para Contribuintes (CLA)"
+parent: "Portuguese (Beta)"
+---
+
 # Acordo de Licença para Contribuintes (CLA)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Pedimos a cada contribuinte que assine um Acordo de Licença para Contribuintes antes
 que possamos mesclar um pull request. O CLA não transfere os direitos autorais —
@@ -16,4 +24,3 @@ e você só precisa fazer isso uma vez em todos os repositórios do TrustGraph.
 
 Contribuindo como um **indivíduo**? Assine o [CLA Individual](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Fiduciary-Contributor-License-Agreement.md)
 Contribuindo em nome de uma **empresa ou organização**? Assine o [CLA para Entidades](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Entity-Fiduciary-Contributor-License-Agreement.md)
-

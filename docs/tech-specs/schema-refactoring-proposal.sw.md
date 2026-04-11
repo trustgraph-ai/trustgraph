@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Pendekezo la Urekebishaji wa Saraka ya Mfumo"
+parent: "Swahili (Beta)"
+---
+
 # Pendekezo la Urekebishaji wa Saraka ya Mfumo
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Masuala Yanayoendelea
 

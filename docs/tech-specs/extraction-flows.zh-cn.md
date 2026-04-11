@@ -1,4 +1,12 @@
+---
+layout: default
+title: "数据提取流程"
+parent: "Chinese (Beta)"
+---
+
 # 数据提取流程
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 本文档描述了数据如何通过 TrustGraph 提取流程进行流动，从文档提交到存储在知识库中。
 

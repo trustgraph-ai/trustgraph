@@ -1,3 +1,9 @@
+---
+layout: default
+title: "ट्रस्टग्राफ दस्तावेज़"
+parent: "Hindi (Beta)"
+---
+
 **महत्वपूर्ण निर्देश:**
 
 - सभी Markdown स्वरूपण, हेडर, लिंक और HTML टैग को बरकरार रखें।
@@ -6,6 +12,8 @@
 
 अनुवाद के लिए पाठ:
 # ट्रस्टग्राफ दस्तावेज़
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ट्रस्टग्राफ में आपका स्वागत है! व्यापक दस्तावेज़ के लिए, कृपया इस पर जाएँ:
 

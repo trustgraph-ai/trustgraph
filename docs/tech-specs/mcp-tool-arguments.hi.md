@@ -1,4 +1,12 @@
+---
+layout: default
+title: "एमसीपी टूल आर्गुमेंट्स स्पेसिफिकेशन"
+parent: "Hindi (Beta)"
+---
+
 # एमसीपी टूल आर्गुमेंट्स स्पेसिफिकेशन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 **फ़ीचर नाम**: एमसीपी टूल आर्गुमेंट्स सपोर्ट

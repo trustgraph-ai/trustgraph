@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Collection Management Technical Specification"
+parent: "Chinese (Beta)"
+---
+
 # Collection Management Technical Specification
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Overview
 
@@ -400,4 +408,3 @@ The queue-based architecture described below has been replaced with a config-bas
 ✅ 移除了存储管理队列主题定义
 ✅ 移除了所有后端中的存储管理生产者/消费者
 ✅ 移除了所有后端中的 `on_storage_management` 处理程序
-

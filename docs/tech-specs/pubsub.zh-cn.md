@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Pub/Sub 基础设施"
+parent: "Chinese (Beta)"
+---
+
 # Pub/Sub 基础设施
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 
@@ -955,4 +963,3 @@ class Consumer:
 可以添加可选的持久层（例如，保留的消息、外部存储）
 将允许支持 `initial_position='earliest'`
 不适用于初始实现
-

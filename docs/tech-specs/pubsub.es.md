@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Infraestructura Pub/Sub"
+parent: "Spanish (Beta)"
+---
+
 # Infraestructura Pub/Sub
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 
@@ -955,4 +963,3 @@ Modelo de publicación/suscripción simple
 Se podría agregar una capa de persistencia opcional (por ejemplo, mensajes retenidos, almacenamiento externo)
 Permitiría soportar `initial_position='earliest'`
 No es necesario para la implementación inicial
-

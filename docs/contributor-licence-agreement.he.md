@@ -1,4 +1,12 @@
+---
+layout: default
+title: "הסכם רישיון לתורמים"
+parent: "Hebrew (Beta)"
+---
+
 # הסכם רישיון לתורמים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 אנו מבקשים מכל תורם לחתום על הסכם רישיון לתורמים לפני שנוכל לשלב בקשת פול. ההסכם **אינו** מעביר זכויות יוצרים – אתם שומרים על בעלות מלאה על עבודתכם. הוא פשוט מעניק לפרויקט TrustGraph רישיון נצחי, ללא תמלוגים, להפצת התרומה שלכם על פי הרישיון [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0), וכן מאשר שאתם רשאים להעביר את התרומה. זה מגן הן על הפרויקט והן על המשתמשים שלו, על ידי הבטחת שכל תרומה תהיה בעלת בסיס משפטי ברור.
 

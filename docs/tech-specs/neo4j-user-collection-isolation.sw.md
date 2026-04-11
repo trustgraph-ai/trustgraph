@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Usaidizi wa Kuhami Mtumiaji/Mkusanyiko katika Neo4j"
+parent: "Swahili (Beta)"
+---
+
 # Usaidizi wa Kuhami Mtumiaji/Mkusanyiko katika Neo4j
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Tatizo
 

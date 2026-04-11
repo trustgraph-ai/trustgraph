@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Mchakato wa Utoaji"
+parent: "Swahili (Beta)"
+---
+
 # Mchakato wa Utoaji
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Hati hii inaeleza jinsi data inapita katika mfumo wa utoaji wa TrustGraph, kuanzia utoaji wa hati hadi uhifadhi katika hifadhia za maarifa.
 

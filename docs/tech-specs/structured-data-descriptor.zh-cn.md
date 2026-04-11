@@ -1,4 +1,12 @@
+---
+layout: default
+title: "结构化数据描述符规范"
+parent: "Chinese (Beta)"
+---
+
 # 结构化数据描述符规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

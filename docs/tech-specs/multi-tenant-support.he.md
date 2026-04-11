@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני: תמיכה בריבוי דיירים"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני: תמיכה בריבוי דיירים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

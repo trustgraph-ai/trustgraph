@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Proveniência no Momento da Extração: Camada de Origem"
+parent: "Portuguese (Beta)"
+---
+
 # Proveniência no Momento da Extração: Camada de Origem
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

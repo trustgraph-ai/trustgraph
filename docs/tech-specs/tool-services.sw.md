@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Huduma za Zana: Zana za Wakala Zinazoweza Kuunganishwa Kwenye Mfumo"
+parent: "Swahili (Beta)"
+---
+
 # Huduma za Zana: Zana za Wakala Zinazoweza Kuunganishwa Kwenye Mfumo
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Hali
 

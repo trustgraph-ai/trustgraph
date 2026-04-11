@@ -1,4 +1,12 @@
+---
+layout: default
+title: "एम्बेडिंग बैच प्रोसेसिंग तकनीकी विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # एम्बेडिंग बैच प्रोसेसिंग तकनीकी विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

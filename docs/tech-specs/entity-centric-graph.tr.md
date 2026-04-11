@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Cassandra'da Varlık Odaklı Bilgi Grafiği Depolama"
+parent: "Turkish (Beta)"
+---
+
 # Cassandra'da Varlık Odaklı Bilgi Grafiği Depolama
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

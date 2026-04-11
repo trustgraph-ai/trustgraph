@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Serviços de Ferramentas: Ferramentas de Agente Dinamicamente Plugáveis"
+parent: "Portuguese (Beta)"
+---
+
 # Serviços de Ferramentas: Ferramentas de Agente Dinamicamente Plugáveis
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Status
 

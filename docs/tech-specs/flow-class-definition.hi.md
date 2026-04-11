@@ -1,4 +1,12 @@
+---
+layout: default
+title: "फ्लो ब्लूप्रिंट परिभाषा विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # फ्लो ब्लूप्रिंट परिभाषा विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

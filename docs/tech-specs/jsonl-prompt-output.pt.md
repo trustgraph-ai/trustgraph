@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Especificação Técnica de Saída de Prompt JSONL"
+parent: "Portuguese (Beta)"
+---
+
 <<<<<<< HEAD
 # Especificação Técnica de Saída de Prompt JSONL
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 =======
 # Especificação Técnica da Saída de Prompt JSONL
 >>>>>>> 82edf2d (New md files from RunPod)

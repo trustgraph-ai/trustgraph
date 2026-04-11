@@ -1,3 +1,9 @@
+---
+layout: default
+title: "स्वचालित रूप से दस्तावेज़ उत्पन्न करना"
+parent: "Hindi (Beta)"
+---
+
 **महत्वपूर्ण निर्देश:**
 
 - सभी Markdown फॉर्मेटिंग, हेडर, लिंक और HTML टैग को बरकरार रखें।
@@ -7,6 +13,8 @@
 अनुवाद करने के लिए पाठ:
 
 # स्वचालित रूप से दस्तावेज़ उत्पन्न करना
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## REST और WebSocket API दस्तावेज़
 

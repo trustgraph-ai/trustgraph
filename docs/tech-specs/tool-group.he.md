@@ -1,4 +1,12 @@
+---
+layout: default
+title: "קבוצת כלים עבור TrustGraph"
+parent: "Hebrew (Beta)"
+---
+
 # קבוצת כלים עבור TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ## מפרט טכני גרסה 1.0
 
 ### תקציר מנהלים

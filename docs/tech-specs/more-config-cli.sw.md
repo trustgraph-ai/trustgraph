@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vipimo vya Zusisi vya Amri ya Utekelezaji (CLI)"
+parent: "Swahili (Beta)"
+---
+
 # Vipimo vya Zusisi vya Amri ya Utekelezaji (CLI)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

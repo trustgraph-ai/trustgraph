@@ -1,4 +1,12 @@
+---
+layout: default
+title: "تخزين الرسم البياني المعرفي المرتكز على الكيانات على Cassandra"
+parent: "Arabic (Beta)"
+---
+
 # تخزين الرسم البياني المعرفي المرتكز على الكيانات على Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 
@@ -258,4 +266,3 @@ AND role = 'O';
 | النفقات التشغيلية | 6 جداول للتعديل/الإصلاح | جدول بيانات واحد |
 | دعم إعادة التعريف | تعقيد إضافي | مناسب بشكل طبيعي |
 | تصفية أنواع الكائنات | غير متوفر | أصلي (عبر التجميع حسب نوع الكائن) |
-

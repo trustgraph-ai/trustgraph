@@ -1,4 +1,12 @@
+---
+layout: default
+title: "MCP Tool Bearer Token Authentication Specification"
+parent: "Swahili (Beta)"
+---
+
 # MCP Tool Bearer Token Authentication Specification
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ MUHIMU: INATUMIWA TU KWA MASHARTI MOJA**
 >

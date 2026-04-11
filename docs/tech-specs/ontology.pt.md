@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica da Estrutura da Ontologia"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica da Estrutura da Ontologia
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

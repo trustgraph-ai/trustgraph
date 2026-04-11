@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica de Dados Estruturados"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica de Dados Estruturados
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 
@@ -250,4 +258,3 @@ Isso pode ser adaptado para funcionar com outros tipos de armazenamento? Estamos
 ## Referências
 
 n/a.
-

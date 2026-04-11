@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Veri Çıkarma Akışları"
+parent: "Turkish (Beta)"
+---
+
 # Veri Çıkarma Akışları
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Bu belge, verilerin TrustGraph veri çıkarma işlem hattı üzerinden nasıl aktığını, belge gönderiminden başlayarak bilgi depolarına kaydedilmesine kadar olan süreci açıklamaktadır.
 

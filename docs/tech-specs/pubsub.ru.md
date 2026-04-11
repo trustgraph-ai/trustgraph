@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Инфраструктура Pub/Sub"
+parent: "Russian (Beta)"
+---
+
 # Инфраструктура Pub/Sub
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 
@@ -955,4 +963,3 @@ class Consumer:
 Можно добавить необязательный слой постоянного хранения (например, сохраненные сообщения, внешний хранилище)
 Это позволит поддерживать `initial_position='earliest'`
 Не требуется для первоначальной реализации
-

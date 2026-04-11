@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Объяснимость во время выполнения запроса"
+parent: "Russian (Beta)"
+---
+
 # Объяснимость во время выполнения запроса
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Статус
 

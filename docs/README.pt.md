@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Documentação do TrustGraph"
+parent: "Portuguese (Beta)"
+---
+
 # Documentação do TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Bem-vindo ao TrustGraph! Para documentação completa, visite:
 
@@ -18,4 +26,3 @@ O site de documentação principal inclui:
 **Pronto para implantar?** Consulte o [Guia de Implantação](https://docs.trustgraph.ai/deployment).
 
 **Integrando com código?** Consulte a [Referência da API](https://docs.trustgraph.ai/reference) para documentação REST, WebSocket e SDK.
-

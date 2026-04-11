@@ -1,4 +1,12 @@
+---
+layout: default
+title: "OntoRAG: Vigezo vya Kiufundi vya Utaratibu wa Kuchimbua Maarifa na Ufuatiliaji Kulingana na Ontolojia."
+parent: "Swahili (Beta)"
+---
+
 # OntoRAG: Vigezo vya Kiufundi vya Utaratibu wa Kuchimbua Maarifa na Ufuatiliaji Kulingana na Ontolojia.
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

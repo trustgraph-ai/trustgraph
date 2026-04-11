@@ -1,4 +1,12 @@
+---
+layout: default
+title: "זרימות חילוץ"
+parent: "Hebrew (Beta)"
+---
+
 # זרימות חילוץ
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 מסמך זה מתאר כיצד נתונים זורמים דרך צינור החילוץ של TrustGraph, החל מהגשת המסמכים ועד לאחסון במאגרי ידע.
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "אחסון גרף ידע ממוקד ישויות ב-Cassandra"
+parent: "Hebrew (Beta)"
+---
+
 # אחסון גרף ידע ממוקד ישויות ב-Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

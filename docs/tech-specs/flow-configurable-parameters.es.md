@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Especificación Técnica de Parámetros Configurables para Flow Blueprint"
+parent: "Spanish (Beta)"
+---
+
 <<<<<<< HEAD
 # Especificación Técnica de Parámetros Configurables para Flow Blueprint
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

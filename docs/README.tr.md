@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph Belgeleri"
+parent: "Turkish (Beta)"
+---
+
 # TrustGraph Belgeleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 TrustGraph'a hoş geldiniz! Kapsamlı belgeler için lütfen şu adresi ziyaret edin:
 
@@ -18,4 +26,3 @@ Ana belge sitesi şunları içerir:
 **Dağıtıma hazır mısınız?** [Dağıtım Kılavuzu](https://docs.trustgraph.ai/deployment) bölümüne göz atın.
 
 **Koduyla entegre mi olmak istiyorsunuz?** REST, WebSocket ve SDK belgeleri için [API Referansı](https://docs.trustgraph.ai/reference) bölümüne bakın.
-

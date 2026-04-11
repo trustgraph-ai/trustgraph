@@ -1,4 +1,12 @@
+---
+layout: default
+title: "المواصفات الفنية: دعم البيئات متعددة المستأجرين"
+parent: "Arabic (Beta)"
+---
+
 # المواصفات الفنية: دعم البيئات متعددة المستأجرين
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

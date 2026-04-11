@@ -1,3 +1,11 @@
+---
+layout: default
+title: "Api Gateway Changes V1.8 To V2.1.Hi"
+parent: "Hindi (Beta)"
+---
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
+
 ## API गेटवे में बदलाव: v1.8 से v2.1
 
 ## सारांश

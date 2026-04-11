@@ -1,4 +1,12 @@
+---
+layout: default
+title: "تغييرات واجهة سطر الأوامر: من v1.8 إلى v2.1"
+parent: "Arabic (Beta)"
+---
+
 # تغييرات واجهة سطر الأوامر: من v1.8 إلى v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## ملخص
 

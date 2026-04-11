@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Katkıda Bulunanlar Lisans Sözleşmesi (KBL)"
+parent: "Turkish (Beta)"
+---
+
 # Katkıda Bulunanlar Lisans Sözleşmesi (KBL)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Her katkıda bulunan kişiden, bir çekme isteğini (pull request) birleştirmeden önce, bir Katkıda Bulunan Lisans Sözleşmesi (Contributor Licence Agreement) imzalamasını rica ediyoruz.
 CLA, telif hakkını devretmez;
@@ -16,4 +24,3 @@ Ve bunu yalnızca TrustGraph'taki tüm depolarda bir kez yapmanız gerekir.
 
 **Bireysel** olarak katkıda bulunuyor musunuz? [Bireysel CLA](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Fiduciary-Contributor-License-Agreement.md) sözleşmesini imzalayın.
 Bir **şirket veya kuruluş** adına katkıda bulunuyor musunuz? [Kuruluş CLA](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Entity-Fiduciary-Contributor-License-Agreement.md) sözleşmesini imzalayın.
-

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "嵌入式批量处理技术规范"
+parent: "Chinese (Beta)"
+---
+
 # 嵌入式批量处理技术规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

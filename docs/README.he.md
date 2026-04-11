@@ -1,3 +1,9 @@
+---
+layout: default
+title: "TrustGraph Documentation"
+parent: "Hebrew (Beta)"
+---
+
 **הוראות חשובות:**
 - שמרו על כל הפורמט של Markdown, כותרות, קישורים ותגי HTML.
 - אל תתרגמו קוד בתוך סימוני backticks או בלוקי קוד.
@@ -5,6 +11,8 @@
 
 טקסט לתרגום:
 # TrustGraph Documentation
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ברוכים הבאים ל-TrustGraph! עבור תיעוד מקיף, אנא בקרו ב:
 

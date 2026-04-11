@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Estrategia de Registro de TrustGraph"
+parent: "Spanish (Beta)"
+---
+
 # Estrategia de Registro de TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visión general
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Kuunda hati moja kwa moja"
+parent: "Swahili (Beta)"
+---
+
 **MAELEZI MUHIMU:**
 
 - Hifadhi KILA muundo wa Markdown, vichwa, viungo, na alama za HTML.
@@ -7,6 +13,8 @@
 Maandishi ya kutafsiri:
 
 # Kuunda hati moja kwa moja
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Ufafanuzi wa API za REST na WebSocket
 

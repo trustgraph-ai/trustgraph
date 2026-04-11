@@ -1,4 +1,12 @@
+---
+layout: default
+title: "संरचित डेटा तकनीकी विनिर्देश (भाग 2)"
+parent: "Hindi (Beta)"
+---
+
 # संरचित डेटा तकनीकी विनिर्देश (भाग 2)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

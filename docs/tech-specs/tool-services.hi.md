@@ -1,4 +1,12 @@
+---
+layout: default
+title: "टूल सेवाएं: गतिशील रूप से प्लगेबल एजेंट टूल"
+parent: "Hindi (Beta)"
+---
+
 # टूल सेवाएं: गतिशील रूप से प्लगेबल एजेंट टूल
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## स्थिति
 

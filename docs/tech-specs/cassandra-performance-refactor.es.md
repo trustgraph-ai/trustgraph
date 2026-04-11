@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación Técnica: Refactorización del Rendimiento de la Base de Conocimiento Cassandra"
+parent: "Spanish (Beta)"
+---
+
 # Especificación Técnica: Refactorización del Rendimiento de la Base de Conocimiento Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Estado:** Borrador
 **Autor:** Asistente

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "निष्कर्षण प्रवाह (निकालने की प्रक्रियाएं)"
+parent: "Hindi (Beta)"
+---
+
 # निष्कर्षण प्रवाह (निकालने की प्रक्रियाएं)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 यह दस्तावेज़ बताता है कि डेटा ट्रस्टग्राफ निष्कर्षण पाइपलाइन के माध्यम से कैसे प्रवाहित होता है, दस्तावेज़ जमा करने से लेकर ज्ञान भंडारों में भंडारण तक।
 

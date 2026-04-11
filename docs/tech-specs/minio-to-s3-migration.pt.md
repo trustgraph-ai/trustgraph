@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica: Suporte a Backend de Armazenamento Compatível com S3"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica: Suporte a Backend de Armazenamento Compatível com S3
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vipimo vya Teknisia vya Data Iliyoainishwa"
+parent: "Swahili (Beta)"
+---
+
 # Vipimo vya Teknisia vya Data Iliyoainishwa
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 
@@ -250,4 +258,3 @@ Je, hii inaweza kufanywa ili kufanya kazi na aina zingine za hifadhi? Tunalenga 
 ## Marejeleo
 
 n/a.
-

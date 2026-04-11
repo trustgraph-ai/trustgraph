@@ -1,3 +1,9 @@
+---
+layout: default
+title: "RAG Streaming Support Technical Specification"
+parent: "Tech Specs"
+---
+
 # RAG Streaming Support Technical Specification
 
 ## Overview

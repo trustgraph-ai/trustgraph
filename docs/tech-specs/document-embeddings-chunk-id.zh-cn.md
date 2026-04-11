@@ -1,4 +1,12 @@
+---
+layout: default
+title: "文档嵌入块 ID"
+parent: "Chinese (Beta)"
+---
+
 # 文档嵌入块 ID
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

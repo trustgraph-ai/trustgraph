@@ -1,4 +1,12 @@
+---
+layout: default
+title: "通用文档解码器"
+parent: "Chinese (Beta)"
+---
+
 # 通用文档解码器
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

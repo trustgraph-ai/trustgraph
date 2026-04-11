@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Graph Contexts Technical Specification"
+parent: "Turkish (Beta)"
+---
+
 <<<<<<< HEAD
 # Graph Contexts Technical Specification
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Overview
 

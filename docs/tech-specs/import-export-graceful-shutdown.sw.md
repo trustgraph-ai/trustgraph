@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vipimo vya Kiufundi vya Uanzishaji na Kukomesha Kazi kwa Ufasaha (Import/Export)"
+parent: "Swahili (Beta)"
+---
+
 # Vipimo vya Kiufundi vya Uanzishaji na Kukomesha Kazi kwa Ufasaha (Import/Export)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Tatizo
 

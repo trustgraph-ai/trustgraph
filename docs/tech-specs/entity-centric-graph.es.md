@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Almacenamiento de Grafos de Conocimiento Centrados en Entidades en Cassandra"
+parent: "Spanish (Beta)"
+---
+
 # Almacenamiento de Grafos de Conocimiento Centrados en Entidades en Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

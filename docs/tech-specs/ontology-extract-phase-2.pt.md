@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Extração de Conhecimento de Ontologias - Fase 2 de Refatoração"
+parent: "Portuguese (Beta)"
+---
+
 # Extração de Conhecimento de Ontologias - Fase 2 de Refatoração
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Status**: Rascunho
 **Autor**: Sessão de Análise 2025-12-03

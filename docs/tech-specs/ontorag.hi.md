@@ -1,4 +1,12 @@
+---
+layout: default
+title: "OntoRAG: ज्ञान निष्कर्षण और क्वेरी के लिए ऑन्टोलॉजी-आधारित तकनीकी विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # OntoRAG: ज्ञान निष्कर्षण और क्वेरी के लिए ऑन्टोलॉजी-आधारित तकनीकी विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

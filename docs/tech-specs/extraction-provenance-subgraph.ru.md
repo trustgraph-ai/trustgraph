@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Происхождение извлечения: Модель подграфа"
+parent: "Russian (Beta)"
+---
+
 # Происхождение извлечения: Модель подграфа
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Проблема
 

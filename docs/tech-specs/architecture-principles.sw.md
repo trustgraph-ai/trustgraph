@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Msingi wa Usanifu wa Grafu ya Maarifa"
+parent: "Swahili (Beta)"
+---
+
 # Msingi wa Usanifu wa Grafu ya Maarifa
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Msingi wa 1: Mfumo wa Grafu wa Mada-Kitendawili-Jambo (SPO)
 **Uamuzi**: Kubali SPO/RDF kama mfumo mkuu wa uwakilishi wa maarifa
@@ -103,4 +111,3 @@ Endelea utendaji wa kuuliza katika pande zote
 7. **Uunganishaji wa Duka la Data**: Usaidizi wa maswali ya uchambuzi
 
 Misingi hizi huunda usanifu wa mfumo wa kujua ambao unachanganua umakini wa kinadharia na mahitaji ya utendakazi, ukiwa umeboreshwa kwa ajili ya ujumuishaji wa LLM na usindikaji ulioenelea.
-

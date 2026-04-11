@@ -1,4 +1,12 @@
+---
+layout: default
+title: "CLI 修改：v1.8 到 v2.1"
+parent: "Chinese (Beta)"
+---
+
 # CLI 修改：v1.8 到 v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 摘要
 

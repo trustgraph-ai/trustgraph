@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Identificador de fragmento de incrustaciones de documentos"
+parent: "Spanish (Beta)"
+---
+
 # Identificador de fragmento de incrustaciones de documentos
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Mabadiliko ya API Gateway: v1.8 hadi v2.1"
+parent: "Swahili (Beta)"
+---
+
 **MAELEZO MAZOE:**
 - Weka ВИWAMU za muundo, vichungi, viungo na alama za HTML.
 - Usitafsiri nakala ndani ya alama za ``` au katika blok za nakala.
@@ -5,6 +11,8 @@
 
 Nakala inayohitajika:
 # Mabadiliko ya API Gateway: v1.8 hadi v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

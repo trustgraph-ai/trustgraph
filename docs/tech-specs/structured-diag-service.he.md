@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני לשירות אבחון נתונים מובנים"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני לשירות אבחון נתונים מובנים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

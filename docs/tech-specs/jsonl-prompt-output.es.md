@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación técnica de la salida de JSONL para prompts"
+parent: "Spanish (Beta)"
+---
+
 # Especificación técnica de la salida de JSONL para prompts
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

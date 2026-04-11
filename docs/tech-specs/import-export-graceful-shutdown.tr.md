@@ -1,4 +1,12 @@
+---
+layout: default
+title: "İçe/Dışa Aktarma, Zarif Kapanış Teknik Özellikleri"
+parent: "Turkish (Beta)"
+---
+
 # İçe/Dışa Aktarma, Zarif Kapanış Teknik Özellikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Problem Tanımı
 

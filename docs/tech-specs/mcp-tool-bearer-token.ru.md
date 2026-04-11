@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Спецификация аутентификации токенов Bearer для инструментов MCP"
+parent: "Russian (Beta)"
+---
+
 # Спецификация аутентификации токенов Bearer для инструментов MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ ВАЖНО: ТОЛЬКО ДЛЯ ОДНОГО АРЕНДАТОРА**
 >

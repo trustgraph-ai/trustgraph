@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט אימות טוקן עבור כלי MCP"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט אימות טוקן עבור כלי MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ חשוב: רק עבור סביבות עם משתמש יחיד**
 >

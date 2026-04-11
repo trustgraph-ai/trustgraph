@@ -1,4 +1,12 @@
+---
+layout: default
+title: "技术规范：多租户支持"
+parent: "Chinese (Beta)"
+---
+
 # 技术规范：多租户支持
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica: Refatoração de Desempenho da Base de Conhecimento Cassandra"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica: Refatoração de Desempenho da Base de Conhecimento Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Status:** Rascunho
 **Autor:** Assistente

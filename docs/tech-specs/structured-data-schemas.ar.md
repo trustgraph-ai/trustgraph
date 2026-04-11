@@ -1,4 +1,12 @@
+---
+layout: default
+title: "مخطط بيانات البنية: تغييرات مخطط Pulsar"
+parent: "Arabic (Beta)"
+---
+
 # مخطط بيانات البنية: تغييرات مخطط Pulsar
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

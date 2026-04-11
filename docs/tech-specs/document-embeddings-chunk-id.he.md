@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מזהה מקטע של הטמעות מסמכים"
+parent: "Hebrew (Beta)"
+---
+
 # מזהה מקטע של הטמעות מסמכים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

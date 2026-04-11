@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vipangilio vya Kisaikolojia la API ya Python"
+parent: "Swahili (Beta)"
+---
+
 # Vipangilio vya Kisaikolojia la API ya Python
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Maelezo ya Ufafanuzi wa Mfumo wa Mtiririko"
+parent: "Swahili (Beta)"
+---
+
 # Maelezo ya Ufafanuzi wa Mfumo wa Mtiririko
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

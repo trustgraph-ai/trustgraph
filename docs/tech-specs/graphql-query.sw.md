@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Vipimo vya Kiufundi vya Umasilisho wa GraphQL"
+parent: "Swahili (Beta)"
+---
+
 <<<<<<< HEAD
 # Vipimo vya Kiufundi vya Umasilisho wa GraphQL
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

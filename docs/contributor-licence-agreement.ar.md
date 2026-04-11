@@ -1,4 +1,12 @@
+---
+layout: default
+title: "اتفاقية الترخيص للمساهمين"
+parent: "Arabic (Beta)"
+---
+
 # اتفاقية الترخيص للمساهمين
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 نطلب من كل المساهمين التوقيع على اتفاقية الترخيص للمساهمين قبل أن نتمكن من دمج طلب السحب. لا تنقل اتفاقية الترخيص حقوق الطبع والنشر - أنت تحتفظ بالملكية الكاملة لعملك. إنها ببساطة تمنح مشروع TrustGraph ترخيصًا دائمًا، وخاليًا من الرسوم، لتوزيع مساهمتك بموجب ترخيص [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) الخاص بالمشروع، وتؤكد أن لديك الحق في تقديم المساهمة. وهذا يحمي المشروع ومستخدميه من خلال ضمان أن لكل مساهمة الأساس القانوني الواضح.
 

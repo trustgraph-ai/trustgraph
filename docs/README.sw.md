@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Miongozo ya TrustGraph"
+parent: "Swahili (Beta)"
+---
+
 # Miongozo ya TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Karibu kwenye TrustGraph! Kwa miongozo kamili, tafadhali tembelea:
 
@@ -18,4 +26,3 @@ Tovuti kuu ya miongozo inajumuisha:
 **Uko tayari kufunga?** Angalia [Mwongozo wa Ufungaji](https://docs.trustgraph.ai/deployment).
 
 **Je, unataka kuunganisha na programu?** Angalia [Marejeleo ya API](https://docs.trustgraph.ai/reference) kwa miongozo ya REST, WebSocket, na SDK.
-

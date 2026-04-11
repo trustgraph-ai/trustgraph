@@ -1,4 +1,12 @@
+---
+layout: default
+title: "本体知识抽取 - 第二阶段重构"
+parent: "Chinese (Beta)"
+---
+
 # 本体知识抽取 - 第二阶段重构
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **状态**: 草稿
 **作者**: 分析会议 2025-12-03

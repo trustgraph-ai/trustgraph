@@ -1,4 +1,12 @@
+---
+layout: default
+title: "GraphRAG Performans Optimizasyonu Teknik Özellikleri"
+parent: "Turkish (Beta)"
+---
+
 # GraphRAG Performans Optimizasyonu Teknik Özellikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

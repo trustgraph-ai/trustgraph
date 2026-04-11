@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Explicabilidade em Tempo de Consulta"
+parent: "Portuguese (Beta)"
+---
+
 # Explicabilidade em Tempo de Consulta
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Status
 

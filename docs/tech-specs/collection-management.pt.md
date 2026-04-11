@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica de Gerenciamento de Coleções"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica de Gerenciamento de Coleções
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 
@@ -400,4 +408,3 @@ Infraestrutura baseada em fila herdada removida:
 ✅ Definições de tópicos de fila de gerenciamento de armazenamento removidas
 ✅ Consumidor/produtor de gerenciamento de armazenamento removido de todos os backends
 ✅ Manipuladores `on_storage_management` removidos de todos os backends
-

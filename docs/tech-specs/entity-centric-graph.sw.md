@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Uhifadhi wa Mfumo wa Maarifa unaozingatia Vitu kwenye Cassandra"
+parent: "Swahili (Beta)"
+---
+
 # Uhifadhi wa Mfumo wa Maarifa unaozingatia Vitu kwenye Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 
@@ -258,4 +266,3 @@ Mfumo unaozingatia vitu unaweza kuwepo na mfumo wa zamani unaojumuisha meza nyin
 | Uendeshaji | Meza 6 za kurekebisha/kufufua | Jedwali 1 la data |
 | Usaidizi wa ufafanuzi | Ufumbuzi wa ziada | Inafaa asili |
 | Uchunguzi wa aina ya kitu | Haipatikani | Asili (kupitia uainishaji wa otype) |
-

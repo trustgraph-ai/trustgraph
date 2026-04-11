@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Схема: Предложение по реорганизации каталога"
+parent: "Russian (Beta)"
+---
+
 # Схема: Предложение по реорганизации каталога
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Текущие проблемы
 

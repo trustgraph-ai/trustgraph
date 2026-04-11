@@ -1,4 +1,12 @@
+---
+layout: default
+title: "المواصفات الفنية لمعالجة الدفعات لخدمة التضمينات (Embeddings)"
+parent: "Arabic (Beta)"
+---
+
 # المواصفات الفنية لمعالجة الدفعات لخدمة التضمينات (Embeddings)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

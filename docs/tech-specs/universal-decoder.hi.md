@@ -1,4 +1,12 @@
+---
+layout: default
+title: "यूनिवर्सल डॉक्यूमेंट डिकोडर"
+parent: "Hindi (Beta)"
+---
+
 # यूनिवर्सल डॉक्यूमेंट डिकोडर
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## शीर्षक
 

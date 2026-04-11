@@ -1,4 +1,12 @@
+---
+layout: default
+title: "提取时的数据来源：源层"
+parent: "Chinese (Beta)"
+---
+
 # 提取时的数据来源：源层
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

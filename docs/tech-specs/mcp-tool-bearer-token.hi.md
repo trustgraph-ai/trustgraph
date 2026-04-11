@@ -1,4 +1,12 @@
+---
+layout: default
+title: "एमसीपी टूल बेयरर टोकन प्रमाणीकरण विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # एमसीपी टूल बेयरर टोकन प्रमाणीकरण विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ महत्वपूर्ण: केवल सिंगल-टेनेन्ट**
 >

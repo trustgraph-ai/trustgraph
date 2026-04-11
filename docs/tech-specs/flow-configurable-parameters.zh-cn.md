@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Flow Blueprint Configurable Parameters Technical Specification"
+parent: "Chinese (Beta)"
+---
+
 # Flow Blueprint Configurable Parameters Technical Specification
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Overview
 

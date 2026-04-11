@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Infraestrutura Pub/Sub"
+parent: "Portuguese (Beta)"
+---
+
 # Infraestrutura Pub/Sub
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 
@@ -955,4 +963,3 @@ Modelo de publicação/assinatura simples
 Poderia adicionar uma camada de persistência opcional (por exemplo, mensagens retidas, armazenamento externo)
 Permitiria suportar `initial_position='earliest'`
 Não é necessário para a implementação inicial
-

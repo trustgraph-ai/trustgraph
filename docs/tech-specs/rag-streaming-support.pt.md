@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica de Suporte a Streaming RAG"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica de Suporte a Streaming RAG
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "ניהול מחזור החיים של מאגר וקטורים"
+parent: "Hebrew (Beta)"
+---
+
 # ניהול מחזור החיים של מאגר וקטורים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

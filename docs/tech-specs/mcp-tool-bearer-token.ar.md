@@ -1,4 +1,12 @@
+---
+layout: default
+title: "مواصفات مصادقة رمز الحامل لأدوات MCP"
+parent: "Arabic (Beta)"
+---
+
 # مواصفات مصادقة رمز الحامل لأدوات MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ هام: مخصص للعملاء ذوي المستأجر الواحد فقط**
 >

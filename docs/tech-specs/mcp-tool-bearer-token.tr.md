@@ -1,4 +1,12 @@
+---
+layout: default
+title: "MCP Aracı Taşıyıcı (Bearer) Token Doğrulama Özelliği Belirtimi"
+parent: "Turkish (Beta)"
+---
+
 # MCP Aracı Taşıyıcı (Bearer) Token Doğrulama Özelliği Belirtimi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ ÖNEMLİ: YALNIZCA TEK-KİRACI (SINGLE-TENANT) ORTAMLAR İÇİN**
 >

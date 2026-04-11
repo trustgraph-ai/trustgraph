@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Потоки извлечения данных"
+parent: "Russian (Beta)"
+---
+
 # Потоки извлечения данных
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Этот документ описывает, как данные передаются через конвейер извлечения данных TrustGraph, начиная с отправки документов и заканчивая хранением в хранилищах знаний.
 

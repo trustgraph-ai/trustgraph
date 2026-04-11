@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph Tool Group System"
+parent: "Russian (Beta)"
+---
+
 # TrustGraph Tool Group System
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ## Техническая спецификация v1.0
 
 ### Краткое описание

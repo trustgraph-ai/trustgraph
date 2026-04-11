@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Извлечение знаний из онтологий - Фаза 2, рефакторинг"
+parent: "Russian (Beta)"
+---
+
 # Извлечение знаний из онтологий - Фаза 2, рефакторинг
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Статус**: Черновик
 **Автор**: Аналитическая сессия 2025-12-03

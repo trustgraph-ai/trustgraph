@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Yapılandırılmış Veri Tanı Hizmeti Teknik Özellikleri"
+parent: "Turkish (Beta)"
+---
+
 # Yapılandırılmış Veri Tanı Hizmeti Teknik Özellikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

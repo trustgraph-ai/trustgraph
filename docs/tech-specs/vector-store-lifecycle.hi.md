@@ -1,4 +1,12 @@
+---
+layout: default
+title: "वेक्टर स्टोर लाइफसाइकिल प्रबंधन"
+parent: "Hindi (Beta)"
+---
+
 # वेक्टर स्टोर लाइफसाइकिल प्रबंधन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

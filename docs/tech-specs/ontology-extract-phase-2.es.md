@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Extracción de Conocimiento Ontológico - Fase 2, Refactorización"
+parent: "Spanish (Beta)"
+---
+
 # Extracción de Conocimiento Ontológico - Fase 2, Refactorización
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Estado**: Borrador
 **Autor**: Sesión de Análisis 2025-12-03

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "तकनीकी विनिर्देश: कैसेंड्रा नॉलेज बेस प्रदर्शन पुनर्निर्माण"
+parent: "Hindi (Beta)"
+---
+
 # तकनीकी विनिर्देश: कैसेंड्रा नॉलेज बेस प्रदर्शन पुनर्निर्माण
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **स्थिति:** मसौदा
 **लेखक:** सहायक

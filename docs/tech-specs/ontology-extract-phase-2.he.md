@@ -1,4 +1,12 @@
+---
+layout: default
+title: "חילוץ ידע מתוך אונטולוגיות - שלב 2, שיפור מחדש"
+parent: "Hebrew (Beta)"
+---
+
 # חילוץ ידע מתוך אונטולוגיות - שלב 2, שיפור מחדש
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **סטטוס**: טיוטה
 **מחבר**: מפגש ניתוח 2025-12-03

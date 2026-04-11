@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Tech Spec: Cassandra Configuration Consolidation"
+parent: "Tech Specs"
+---
+
 # Tech Spec: Cassandra Configuration Consolidation
 
 **Status:** Draft  

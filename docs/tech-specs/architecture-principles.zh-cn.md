@@ -1,4 +1,12 @@
+---
+layout: default
+title: "知识图谱架构基础"
+parent: "Chinese (Beta)"
+---
+
 # 知识图谱架构基础
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 基础 1：主谓宾 (SPO) 图模型
 **决策**: 采用 SPO/RDF 作为核心知识表示模型
@@ -125,4 +133,3 @@ pub-sub 系统必须安全地处理可重入调用
 7. **分析兼容性**: 桥接图和列式范例，以实现全面的查询
 
 这些基础构建了一个知识图谱架构，该架构在理论严谨性和实际可扩展性之间取得了平衡，并针对 LLM 集成和分布式处理进行了优化。
-

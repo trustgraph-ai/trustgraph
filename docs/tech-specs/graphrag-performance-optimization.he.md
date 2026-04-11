@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני לשיפור ביצועי GraphRAG"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני לשיפור ביצועי GraphRAG
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

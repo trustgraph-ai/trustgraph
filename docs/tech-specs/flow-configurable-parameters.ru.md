@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Техническая спецификация конфигурируемых параметров для шаблонов потоков"
+parent: "Russian (Beta)"
+---
+
 # Техническая спецификация конфигурируемых параметров для шаблонов потоков
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

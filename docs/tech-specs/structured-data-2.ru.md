@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Техническая спецификация структурированных данных (часть 2)"
+parent: "Russian (Beta)"
+---
+
 # Техническая спецификация структурированных данных (часть 2)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

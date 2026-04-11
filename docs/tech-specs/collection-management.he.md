@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני לניהול אוספים"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני לניהול אוספים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 
@@ -400,4 +408,3 @@ CREATE TABLE collections (
 ✅ הוסרו הגדרות נושאים של תורי ניהול אחסון
 ✅ הוסר צרכן/מפיק תורים מכל ה-backend
 ✅ הוסרו מטפלים `on_storage_management` מכל ה-backend
-

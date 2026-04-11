@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Mfumo wa Kikundi cha Zana za TrustGraph"
+parent: "Swahili (Beta)"
+---
+
 # Mfumo wa Kikundi cha Zana za TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ## Maelezo ya Kiufundi v1.0
 
 ### Muhtasari

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "पहले"
+parent: "Hindi (Beta)"
+---
+
 ## स्कीमा निर्देशिका का पुनर्गठन प्रस्ताव
 
 ## वर्तमान मुद्दे
@@ -71,6 +77,8 @@ trustgraph-base/trustgraph/schema/
 
 ```python
 # पहले
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 from trustgraph.schema import Error, Triple, GraphEmbeddings, TextCompletionRequest
 
 # बाद में

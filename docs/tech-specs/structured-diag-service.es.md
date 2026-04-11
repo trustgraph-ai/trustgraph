@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación Técnica del Servicio de Diagnóstico de Datos Estructurados"
+parent: "Spanish (Beta)"
+---
+
 # Especificación Técnica del Servicio de Diagnóstico de Datos Estructurados
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Descripción General
 

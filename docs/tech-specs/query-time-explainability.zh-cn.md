@@ -1,4 +1,12 @@
+---
+layout: default
+title: "查询时可解释性"
+parent: "Chinese (Beta)"
+---
+
 # 查询时可解释性
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 状态
 

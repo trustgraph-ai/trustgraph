@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Vipimo vya Utekelezaji wa Teknolojia ya Kupakia Hati Kubwa"
+parent: "Swahili (Beta)"
+---
+
 <<<<<<< HEAD
 # Vipimo vya Utekelezaji wa Teknolojia ya Kupakia Hati Kubwa
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

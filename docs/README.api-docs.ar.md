@@ -1,3 +1,9 @@
+---
+layout: default
+title: "إنشاء الوثائق تلقائيًا"
+parent: "Arabic (Beta)"
+---
+
 **تعليمات مهمة:**
 
 - الحفاظ على جميع تنسيقات Markdown، والعناوين، والروابط، وعلامات HTML.
@@ -7,6 +13,8 @@
 النص المراد ترجمته:
 
 # إنشاء الوثائق تلقائيًا
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## وثائق واجهة برمجة تطبيقات REST و WebSocket
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני של הקשרים בגרף"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני של הקשרים בגרף
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

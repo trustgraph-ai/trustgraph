@@ -1,4 +1,12 @@
+---
+layout: default
+title: "एंटिटी-सेंट्रिक नॉलेज ग्राफ स्टोरेज ऑन कैसेंड्रा"
+parent: "Hindi (Beta)"
+---
+
 # एंटिटी-सेंट्रिक नॉलेज ग्राफ स्टोरेज ऑन कैसेंड्रा
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 
@@ -258,4 +266,3 @@ AND role = 'O';
 | परिचालन ओवरहेड | ट्यून/मरम्मत के लिए 6 टेबल | 1 डेटा टेबल |
 | रीफिकेशन सपोर्ट | अतिरिक्त जटिलता | प्राकृतिक फिट |
 | ऑब्जेक्ट टाइप फ़िल्टरिंग | उपलब्ध नहीं | देशी (otype क्लस्टरिंग के माध्यम से) |
-

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "自动生成文档"
+parent: "Chinese (Beta)"
+---
+
 # 自动生成文档
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## REST 和 WebSocket API 文档
 

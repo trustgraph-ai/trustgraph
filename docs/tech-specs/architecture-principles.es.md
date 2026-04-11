@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Fundamentos de la Arquitectura del Gráfico de Conocimiento"
+parent: "Spanish (Beta)"
+---
+
 # Fundamentos de la Arquitectura del Gráfico de Conocimiento
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Fundamento 1: Modelo de Gráfico Sujeto-Predicado-Objeto (SPO)
 **Decisión**: Adoptar SPO/RDF como el modelo de representación de conocimiento central.
@@ -103,4 +111,3 @@ Mantener el rendimiento de las consultas en ambos paradigmas.
 7. **Compatibilidad Analítica**: Une los paradigmas de gráficos y columnas para consultas integrales.
 
 Estos fundamentos establecen una arquitectura de gráfico de conocimiento que equilibra la rigurosidad teórica con los requisitos prácticos de escalabilidad, optimizada para la integración con LLM y el procesamiento distribuido.
-

@@ -1,5 +1,13 @@
+---
+layout: default
+title: "הגדרת מפרט תוכנית זרימה"
+parent: "Hebrew (Beta)"
+---
+
 <<<<<<< HEAD
 # הגדרת מפרט תוכנית זרימה
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 =======
 # מפרט הגדרת תוכנית זרימה
 >>>>>>> 82edf2d (New md files from RunPod)

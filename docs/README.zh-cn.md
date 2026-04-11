@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph 文档"
+parent: "Chinese (Beta)"
+---
+
 # TrustGraph 文档
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 欢迎使用 TrustGraph！为了获得全面的文档，请访问：
 

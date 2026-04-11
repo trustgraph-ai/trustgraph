@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט ארגומנטים של כלי MCP"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט ארגומנטים של כלי MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 **שם פיצ'ר**: תמיכה בארגומנטים של כלי MCP

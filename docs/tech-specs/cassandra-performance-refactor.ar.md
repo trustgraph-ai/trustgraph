@@ -1,4 +1,12 @@
+---
+layout: default
+title: "المواصفات الفنية: إعادة هيكلة أداء قاعدة المعرفة Cassandra"
+parent: "Arabic (Beta)"
+---
+
 # المواصفات الفنية: إعادة هيكلة أداء قاعدة المعرفة Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **الحالة:** مسودة
 **المؤلف:** مساعد

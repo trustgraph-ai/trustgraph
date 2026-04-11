@@ -1,4 +1,12 @@
+---
+layout: default
+title: "OpenAPI विनिर्देश - तकनीकी विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # OpenAPI विनिर्देश - तकनीकी विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## लक्ष्य
 

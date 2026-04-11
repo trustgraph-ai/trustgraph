@@ -1,4 +1,12 @@
+---
+layout: default
+title: "شرح عمل الوكيل: تسجيل المصدر"
+parent: "Arabic (Beta)"
+---
+
 # شرح عمل الوكيل: تسجيل المصدر
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

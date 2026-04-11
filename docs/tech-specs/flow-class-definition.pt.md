@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação da Definição do Modelo de Fluxo"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação da Definição do Modelo de Fluxo
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

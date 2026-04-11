@@ -1,4 +1,12 @@
+---
+layout: default
+title: "MCP 工具参数规范"
+parent: "Chinese (Beta)"
+---
+
 # MCP 工具参数规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 **功能名称**: MCP 工具参数支持

@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Especificación de la Definición del Esquema de Flujo"
+parent: "Spanish (Beta)"
+---
+
 <<<<<<< HEAD
 # Especificación de la Definición del Esquema de Flujo
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

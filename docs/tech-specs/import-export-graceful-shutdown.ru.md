@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Техническая спецификация корректного завершения работы импорта/экспорта"
+parent: "Russian (Beta)"
+---
+
 # Техническая спецификация корректного завершения работы импорта/экспорта
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Описание проблемы
 

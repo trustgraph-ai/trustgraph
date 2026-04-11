@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Generación automática de documentación"
+parent: "Spanish (Beta)"
+---
+
 # Generación automática de documentación
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Documentación de la API REST y WebSocket
 

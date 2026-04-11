@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación Técnica de Gestión de Colecciones"
+parent: "Spanish (Beta)"
+---
+
 # Especificación Técnica de Gestión de Colecciones
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Descripción General
 
@@ -400,4 +408,3 @@ Infraestructura basada en cola heredada eliminada:
 ✅ Definiciones de temas de cola de administración de almacenamiento eliminadas
 ✅ Consumidor/productor de administración de almacenamiento eliminado de todos los backends
 ✅ Manejadores `on_storage_management` eliminados de todos los backends
-

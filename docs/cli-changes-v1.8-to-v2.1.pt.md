@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Alterações na CLI: da v1.8 para v2.1"
+parent: "Portuguese (Beta)"
+---
+
 # Alterações na CLI: da v1.8 para v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumo
 

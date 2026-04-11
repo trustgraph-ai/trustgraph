@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Neo4j 用户/集合隔离支持"
+parent: "Chinese (Beta)"
+---
+
 # Neo4j 用户/集合隔离支持
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 问题陈述
 

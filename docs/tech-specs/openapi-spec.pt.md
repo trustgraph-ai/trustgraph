@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação OpenAPI - Especificação Técnica"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação OpenAPI - Especificação Técnica
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Objetivo
 

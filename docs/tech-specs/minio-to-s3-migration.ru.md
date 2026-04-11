@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Технические характеристики: Поддержка хранилища, совместимого с S3"
+parent: "Russian (Beta)"
+---
+
 # Технические характеристики: Поддержка хранилища, совместимого с S3
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

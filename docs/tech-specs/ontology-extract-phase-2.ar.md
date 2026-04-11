@@ -1,4 +1,12 @@
+---
+layout: default
+title: "استخراج المعرفة من علم الوجود - المرحلة الثانية، إعادة هيكلة"
+parent: "Arabic (Beta)"
+---
+
 # استخراج المعرفة من علم الوجود - المرحلة الثانية، إعادة هيكلة
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **الحالة**: مسودة
 **المؤلف**: جلسة التحليل بتاريخ 2025-12-03

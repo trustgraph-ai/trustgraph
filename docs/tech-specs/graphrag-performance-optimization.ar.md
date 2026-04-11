@@ -1,4 +1,12 @@
+---
+layout: default
+title: "GraphRAG Performance Optimisation Technical Specification"
+parent: "Arabic (Beta)"
+---
+
 # GraphRAG Performance Optimisation Technical Specification
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Overview
 

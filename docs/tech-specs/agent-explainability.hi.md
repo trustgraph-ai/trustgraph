@@ -1,4 +1,12 @@
+---
+layout: default
+title: "एजेंट स्पष्टता: उत्पत्ति रिकॉर्डिंग"
+parent: "Hindi (Beta)"
+---
+
 # एजेंट स्पष्टता: उत्पत्ति रिकॉर्डिंग
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

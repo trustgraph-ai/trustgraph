@@ -1,5 +1,13 @@
+---
+layout: default
+title: "أصل الاستخراج: نموذج الرسم البياني الفرعي"
+parent: "Arabic (Beta)"
+---
+
 <<<<<<< HEAD
 # أصل الاستخراج: نموذج الرسم البياني الفرعي
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## المشكلة
 

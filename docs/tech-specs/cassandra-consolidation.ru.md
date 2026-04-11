@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Техническое описание: Консолидация конфигурации Cassandra"
+parent: "Russian (Beta)"
+---
+
 # Техническое описание: Консолидация конфигурации Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Статус:** Черновик
 **Автор:** Assistant

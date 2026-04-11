@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Estratégia de Registro (Logging) do TrustGraph"
+parent: "Portuguese (Beta)"
+---
+
 # Estratégia de Registro (Logging) do TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

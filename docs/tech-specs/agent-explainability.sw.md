@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Ufafanuzi wa Mwakala: Urekodaji wa Asili"
+parent: "Swahili (Beta)"
+---
+
 # Ufafanuzi wa Mwakala: Urekodaji wa Asili
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "MCP 工具承载令牌身份验证规范"
+parent: "Chinese (Beta)"
+---
+
 # MCP 工具承载令牌身份验证规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ 重要提示：仅限单租户环境**
 >

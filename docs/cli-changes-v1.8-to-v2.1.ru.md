@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Изменения в CLI: v1.8 to v2.1"
+parent: "Russian (Beta)"
+---
+
 # Изменения в CLI: v1.8 to v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

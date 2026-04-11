@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Vipimo vya Ufanisi wa GraphRAG kwa Uboreshaji wa Kawaida"
+parent: "Swahili (Beta)"
+---
+
 <<<<<<< HEAD
 # Vipimo vya Ufanisi wa GraphRAG kwa Uboreshaji wa Kawaida
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 =======
 # Vipimo vya Ufanisi wa GraphRAG kwa Uboreshaji wa Kiufundi
 >>>>>>> 82edf2d (New md files from RunPod)

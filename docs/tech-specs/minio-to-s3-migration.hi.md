@@ -1,4 +1,12 @@
+---
+layout: default
+title: "तकनीकी विनिर्देश: S3-संगत स्टोरेज बैकएंड समर्थन"
+parent: "Hindi (Beta)"
+---
+
 # तकनीकी विनिर्देश: S3-संगत स्टोरेज बैकएंड समर्थन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

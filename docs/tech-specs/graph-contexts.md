@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Graph Contexts Technical Specification"
+parent: "Tech Specs"
+---
+
 # Graph Contexts Technical Specification
 
 ## Overview

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "工具服务：动态可插拔的代理工具"
+parent: "Chinese (Beta)"
+---
+
 # 工具服务：动态可插拔的代理工具
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 状态
 

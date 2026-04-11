@@ -1,4 +1,12 @@
+---
+layout: default
+title: "ट्रस्टग्राफ पायथन एपीआई संदर्भ"
+parent: "Hindi (Beta)"
+---
+
 # ट्रस्टग्राफ पायथन एपीआई संदर्भ
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## स्थापना
 
@@ -4068,4 +4076,3 @@ from trustgraph.api import ApplicationException
 
 
 --
-

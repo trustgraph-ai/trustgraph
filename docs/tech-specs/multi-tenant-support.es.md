@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación técnica: Soporte para entornos multi-inquilino"
+parent: "Spanish (Beta)"
+---
+
 # Especificación técnica: Soporte para entornos multi-inquilino
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

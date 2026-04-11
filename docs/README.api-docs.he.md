@@ -1,4 +1,12 @@
+---
+layout: default
+title: "יצירת תיעוד אוטומטית"
+parent: "Hebrew (Beta)"
+---
+
 # יצירת תיעוד אוטומטית
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## תיעוד REST ו-WebSocket API
 

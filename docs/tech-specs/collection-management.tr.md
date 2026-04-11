@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Koleksiyon Yönetimi Teknik Özellikleri"
+parent: "Turkish (Beta)"
+---
+
 # Koleksiyon Yönetimi Teknik Özellikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 
@@ -400,4 +408,3 @@ Eski kuyruk tabanlı altyapı kaldırıldı:
 ✅ Depolama yönetimi kuyruğu konu tanımları kaldırıldı
 ✅ Tüm arka uçlardan depolama yönetimi tüketici/üretici kaldırıldı
 ✅ Tüm arka uçlardan `on_storage_management` işleyicileri kaldırıldı
-

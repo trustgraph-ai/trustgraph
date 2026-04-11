@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Mabadiliko ya CLI: v1.8 hadi v2.1"
+parent: "Swahili (Beta)"
+---
+
 **MAELEMAZO MAKUUUUU:**
 - Hifadhi FORMATI YOTE ya Markdown, vichungi, viungo na alama za HTML.
 - Usitafsiri code ndani ya apostrophe au makundi ya code.
@@ -5,6 +11,8 @@
 
 MAELEZO YA KUTAFSIRI:
 # Mabadiliko ya CLI: v1.8 hadi v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

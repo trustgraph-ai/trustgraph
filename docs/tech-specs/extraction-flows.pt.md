@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Fluxos de Extração"
+parent: "Portuguese (Beta)"
+---
+
 # Fluxos de Extração
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Este documento descreve como os dados fluem através do pipeline de extração do TrustGraph, desde o envio do documento até ao armazenamento nos repositórios de conhecimento.
 

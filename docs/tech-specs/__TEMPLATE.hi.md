@@ -1,4 +1,12 @@
+---
+layout: default
+title: "कमांड-लाइन लोडिंग नॉलेज टेक्निकल स्पेसिफिकेशन"
+parent: "Hindi (Beta)"
+---
+
 # कमांड-लाइन लोडिंग नॉलेज टेक्निकल स्पेसिफिकेशन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

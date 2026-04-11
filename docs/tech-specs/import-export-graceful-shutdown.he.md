@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני לסגירה חלקה של ייבוא/יצוא"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני לסגירה חלקה של ייבוא/יצוא
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## הצהרת בעיה
 

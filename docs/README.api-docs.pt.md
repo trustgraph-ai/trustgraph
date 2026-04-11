@@ -1,5 +1,12 @@
+---
+layout: default
+title: "Geração automática de documentação"
+parent: "Portuguese (Beta)"
+---
 
 # Geração automática de documentação
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Documentação da API REST e WebSocket
 
@@ -45,4 +52,3 @@ Seção "Raises" (quando aplicável)
 Blocos de código de exemplo com realce de sintaxe adequado
 
 A documentação gerada mostra a API pública exatamente como os usuários a importam de `trustgraph.api`, sem expor a estrutura interna do módulo.
-

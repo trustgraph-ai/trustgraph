@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Maelekezo ya Kisaikolojia: Uunganishaji wa Vipengele vya Usanidi wa Cassandra"
+parent: "Swahili (Beta)"
+---
+
 # Maelekezo ya Kisaikolojia: Uunganishaji wa Vipengele vya Usanidi wa Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Hali:** Rasimu
 **Mwandishi:** Msaidizi

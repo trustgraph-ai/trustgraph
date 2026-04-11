@@ -1,4 +1,12 @@
+---
+layout: default
+title: "संग्रह प्रबंधन तकनीकी विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # संग्रह प्रबंधन तकनीकी विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 
@@ -400,4 +408,3 @@ CREATE TABLE collections (
 ✅ स्टोरेज प्रबंधन कतार विषय परिभाषाएँ हटाई गईं
 ✅ सभी बैकएंड से स्टोरेज प्रबंधन उपभोक्ता/उत्पादक हटाए गए
 ✅ सभी बैकएंड से `on_storage_management` हैंडलर हटाए गए
-

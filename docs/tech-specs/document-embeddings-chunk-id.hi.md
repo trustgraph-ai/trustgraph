@@ -1,4 +1,12 @@
+---
+layout: default
+title: "दस्तावेज़ एम्बेडिंग चंक आईडी"
+parent: "Hindi (Beta)"
+---
+
 # दस्तावेज़ एम्बेडिंग चंक आईडी
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

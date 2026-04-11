@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Alterações no API Gateway: da versão 1.8 para a versão 2.1"
+parent: "Portuguese (Beta)"
+---
+
 # Alterações no API Gateway: da versão 1.8 para a versão 2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumo
 

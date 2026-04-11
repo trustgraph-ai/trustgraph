@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Schema Directory Refactoring Proposal"
+parent: "Tech Specs"
+---
+
 # Schema Directory Refactoring Proposal
 
 ## Current Issues

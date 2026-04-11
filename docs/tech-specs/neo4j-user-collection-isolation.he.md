@@ -1,4 +1,12 @@
+---
+layout: default
+title: "תמיכה ביסודות משתמשים/מערכות ב-Neo4j"
+parent: "Hebrew (Beta)"
+---
+
 # תמיכה ביסודות משתמשים/מערכות ב-Neo4j
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## הצגת הבעיה
 

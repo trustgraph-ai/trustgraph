@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Хранение графов знаний, ориентированных на сущности, в Cassandra"
+parent: "Russian (Beta)"
+---
+
 # Хранение графов знаний, ориентированных на сущности, в Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 
@@ -258,4 +266,3 @@ AND role = 'O';
 | Операционные накладные расходы | 6 таблиц для настройки/восстановления | 1 таблица данных |
 | Поддержка реификации | Дополнительная сложность | Естественная совместимость |
 | Фильтрация по типу объекта | Недоступно | Нативно (через кластеризацию по типу объекта) |
-

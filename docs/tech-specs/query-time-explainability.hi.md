@@ -1,4 +1,12 @@
+---
+layout: default
+title: "क्वेरी-टाइम एक्सप्लेनेबिलिटी (Query-Time Explainability)"
+parent: "Hindi (Beta)"
+---
+
 # क्वेरी-टाइम एक्सप्लेनेबिलिटी (Query-Time Explainability)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## स्थिति (Status)
 

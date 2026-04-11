@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Şema Dizini Yeniden Düzenleme Önerisi"
+parent: "Turkish (Beta)"
+---
+
 # Şema Dizini Yeniden Düzenleme Önerisi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Mevcut Sorunlar
 

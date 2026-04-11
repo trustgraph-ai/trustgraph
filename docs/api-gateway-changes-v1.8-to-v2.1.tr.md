@@ -1,4 +1,12 @@
+---
+layout: default
+title: "API Ağ Geçidi Değişiklikleri: v1.8'den v2.1'e"
+parent: "Turkish (Beta)"
+---
+
 # API Ağ Geçidi Değişiklikleri: v1.8'den v2.1'e
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Özet
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Ontoloji Bilgi Çıkarma - 2. Aşama Yeniden Düzenleme"
+parent: "Turkish (Beta)"
+---
+
 # Ontoloji Bilgi Çıkarma - 2. Aşama Yeniden Düzenleme
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Durum**: Taslak
 **Yazar**: Analiz Oturumu 2025-12-03

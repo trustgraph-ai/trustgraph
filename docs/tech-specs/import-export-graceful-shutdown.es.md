@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Especificación Técnica para el Cierre de Sesión Gratuito de Importación/Exportación"
+parent: "Spanish (Beta)"
+---
+
 <<<<<<< HEAD
 # Especificación Técnica para el Cierre de Sesión Gratuito de Importación/Exportación
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Declaración del Problema
 

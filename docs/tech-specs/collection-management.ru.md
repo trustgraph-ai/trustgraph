@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Техническая спецификация управления коллекциями"
+parent: "Russian (Beta)"
+---
+
 # Техническая спецификация управления коллекциями
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 
@@ -400,4 +408,3 @@ Keyspace на пользователя, одна таблица "triples" для
 ✅ Удалены определения тем управления хранилищем
 ✅ Удален потребитель/производитель очереди управления хранилищем из всех хранилищ
 ✅ Удалены обработчики `on_storage_management` из всех хранилищ
-

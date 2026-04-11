@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Python API 重构技术规范"
+parent: "Chinese (Beta)"
+---
+
 # Python API 重构技术规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

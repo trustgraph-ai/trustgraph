@@ -1,5 +1,12 @@
+---
+layout: default
+title: "Otomatik olarak dokümantasyon oluşturma"
+parent: "Turkish (Beta)"
+---
 
 # Otomatik olarak dokümantasyon oluşturma
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## REST ve WebSocket API Dokümantasyonu
 
@@ -45,4 +52,3 @@ Parametre açıklamalarıyla birlikte "Args" bölümü
 Doğru sözdizimi vurgulamasıyla birlikte örnek kod blokları
 
 Oluşturulan dokümantasyon, kullanıcıların `trustgraph.api`'dan içe aktardığı şekilde, tam olarak kamu API'sini gösterir ve dahili modül yapısını ortaya çıkarmaz.
-

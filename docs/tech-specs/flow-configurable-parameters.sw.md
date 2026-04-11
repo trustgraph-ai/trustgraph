@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Mfumo wa Uwekaji Njia (Flow Blueprint) - Vigezo Vinavyoweza Kubadilishwa - Maelezo ya Kiufundi"
+parent: "Swahili (Beta)"
+---
+
 # Mfumo wa Uwekaji Njia (Flow Blueprint) - Vigezo Vinavyoweza Kubadilishwa - Maelezo ya Kiufundi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Maelezo
 

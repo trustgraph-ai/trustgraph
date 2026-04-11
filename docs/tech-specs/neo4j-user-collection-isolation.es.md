@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Soporte de aislamiento de usuarios/colecciones en Neo4j"
+parent: "Spanish (Beta)"
+---
+
 # Soporte de aislamiento de usuarios/colecciones en Neo4j
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Declaración del problema
 

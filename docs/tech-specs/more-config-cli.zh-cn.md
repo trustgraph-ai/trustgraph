@@ -1,4 +1,12 @@
+---
+layout: default
+title: "更高级的 CLI 技术规格"
+parent: "Chinese (Beta)"
+---
+
 # 更高级的 CLI 技术规格
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

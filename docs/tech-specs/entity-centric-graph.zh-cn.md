@@ -1,4 +1,12 @@
+---
+layout: default
+title: "基于实体的知识图谱在 Cassandra 上的存储"
+parent: "Chinese (Beta)"
+---
+
 # 基于实体的知识图谱在 Cassandra 上的存储
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

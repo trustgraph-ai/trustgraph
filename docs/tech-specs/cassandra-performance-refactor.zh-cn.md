@@ -1,4 +1,12 @@
+---
+layout: default
+title: "技术规范：Cassandra 知识库性能重构"
+parent: "Chinese (Beta)"
+---
+
 # 技术规范：Cassandra 知识库性能重构
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **状态：** 草稿
 **作者：** 助理

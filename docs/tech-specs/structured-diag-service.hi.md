@@ -1,4 +1,12 @@
+---
+layout: default
+title: "स्ट्रक्चर्ड डेटा डायग्नोस्टिक सर्विस टेक्निकल स्पेसिफिकेशन"
+parent: "Hindi (Beta)"
+---
+
 # स्ट्रक्चर्ड डेटा डायग्नोस्टिक सर्विस टेक्निकल स्पेसिफिकेशन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

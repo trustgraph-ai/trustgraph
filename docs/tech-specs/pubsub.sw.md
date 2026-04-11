@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Mifumo ya Uwasilishaji na Ufuatiliaji (Pub/Sub)"
+parent: "Swahili (Beta)"
+---
+
 # Mifumo ya Uwasilishaji na Ufuatiliaji (Pub/Sub)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 
@@ -955,4 +963,3 @@ Mfumo rahisi wa kuchapisha/kusajili
 Inaweza kuongeza safu ya hiari ya kudumu (k.m., ujumbe uliokaguliwa, duka la nje)
 Itaruhusu kuunga mkono `initial_position='earliest'`
 Haihitajiki kwa utekelezaji wa awali
-

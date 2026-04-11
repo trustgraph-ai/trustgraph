@@ -1,4 +1,12 @@
+---
+layout: default
+title: "مواصفات فنية لإدارة المجموعات"
+parent: "Arabic (Beta)"
+---
+
 # مواصفات فنية لإدارة المجموعات
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 
@@ -400,4 +408,3 @@ The queue-based architecture described below has been replaced with a config-bas
 ✅ تمت إزالة تعريفات موضوع قائمة انتظار إدارة التخزين
 ✅ تمت إزالة المستهلك/المنتج لإدارة التخزين من جميع الواجهات الخلفية
 ✅ تمت إزالة معالجات `on_storage_management` من جميع الواجهات الخلفية
-

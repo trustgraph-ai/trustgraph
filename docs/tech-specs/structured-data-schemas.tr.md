@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Yapılandırılmış Veri Pulsar Şema Değişiklikleri"
+parent: "Turkish (Beta)"
+---
+
 # Yapılandırılmış Veri Pulsar Şema Değişiklikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

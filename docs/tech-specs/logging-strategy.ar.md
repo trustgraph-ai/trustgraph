@@ -1,4 +1,12 @@
+---
+layout: default
+title: "استراتيجية تسجيل الأحداث في TrustGraph"
+parent: "Arabic (Beta)"
+---
+
 # استراتيجية تسجيل الأحداث في TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

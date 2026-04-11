@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación del Descriptor de Datos Estructurados"
+parent: "Spanish (Beta)"
+---
+
 # Especificación del Descriptor de Datos Estructurados
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

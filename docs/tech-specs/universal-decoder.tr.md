@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Evrensel Belge Kodlayıcı"
+parent: "Turkish (Beta)"
+---
+
 # Evrensel Belge Kodlayıcı
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Başlık
 

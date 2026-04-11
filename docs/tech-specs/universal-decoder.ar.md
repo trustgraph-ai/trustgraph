@@ -1,4 +1,12 @@
+---
+layout: default
+title: "جهاز فك ترميز المستندات الشامل"
+parent: "Arabic (Beta)"
+---
+
 # جهاز فك ترميز المستندات الشامل
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## العنوان
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vigezo vya Kisaikolojia kwa Huduma ya Utambuzi wa Data Imebuniwa"
+parent: "Swahili (Beta)"
+---
+
 # Vigezo vya Kisaikolojia kwa Huduma ya Utambuzi wa Data Imebuniwa
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

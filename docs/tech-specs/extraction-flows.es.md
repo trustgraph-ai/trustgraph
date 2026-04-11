@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Flujos de extracción"
+parent: "Spanish (Beta)"
+---
+
 # Flujos de extracción
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Este documento describe cómo los datos fluyen a través de la canalización de extracción de TrustGraph, desde la presentación del documento hasta el almacenamiento en almacenes de conocimiento.
 

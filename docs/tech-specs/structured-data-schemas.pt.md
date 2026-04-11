@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Alterações no Esquema Pulsar para Dados Estruturados"
+parent: "Portuguese (Beta)"
+---
+
 # Alterações no Esquema Pulsar para Dados Estruturados
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

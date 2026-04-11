@@ -1,4 +1,12 @@
+---
+layout: default
+title: "المواصفات الفنية لنظام OntoRAG: استخراج المعرفة القائم على علم الأنطولوجيا والاستعلام."
+parent: "Arabic (Beta)"
+---
+
 # المواصفات الفنية لنظام OntoRAG: استخراج المعرفة القائم على علم الأنطولوجيا والاستعلام.
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

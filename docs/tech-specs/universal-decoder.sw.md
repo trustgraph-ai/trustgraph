@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Derekezi Universal ya Hati"
+parent: "Swahili (Beta)"
+---
+
 # Derekezi Universal ya Hati
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Mada
 

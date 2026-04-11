@@ -1,4 +1,12 @@
+---
+layout: default
+title: "निष्कर्षण-समय का प्रमाण: स्रोत परत"
+parent: "Hindi (Beta)"
+---
+
 # निष्कर्षण-समय का प्रमाण: स्रोत परत
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

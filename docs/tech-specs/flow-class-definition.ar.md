@@ -1,5 +1,13 @@
+---
+layout: default
+title: "مواصفات تعريف مخطط التدفق"
+parent: "Arabic (Beta)"
+---
+
 <<<<<<< HEAD
 # مواصفات تعريف مخطط التدفق
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 =======
 # تعريف مواصفات مخطط التدفق
 >>>>>>> 82edf2d (New md files from RunPod)

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Dondoo la Maarifa la Ontolojia - Awamu ya 2 ya Urekebishaji"
+parent: "Swahili (Beta)"
+---
+
 # Dondoo la Maarifa la Ontolojia - Awamu ya 2 ya Urekebishaji
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Hali**: Rasimu
 **Mwandishi**: Mkutano wa Uchambuzi wa 2025-12-03

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "OntoRAG: Especificação Técnica de Extração e Consulta de Conhecimento Baseada em Ontologia"
+parent: "Portuguese (Beta)"
+---
+
 # OntoRAG: Especificação Técnica de Extração e Consulta de Conhecimento Baseada em Ontologia
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

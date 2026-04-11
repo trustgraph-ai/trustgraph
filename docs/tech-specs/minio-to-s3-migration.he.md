@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Tech Spec: S3-Compatible Storage Backend Support"
+parent: "Hebrew (Beta)"
+---
+
 # Tech Spec: S3-Compatible Storage Backend Support
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Overview
 

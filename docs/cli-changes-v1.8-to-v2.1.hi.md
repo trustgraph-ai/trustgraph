@@ -1,4 +1,12 @@
+---
+layout: default
+title: "CLI में परिवर्तन: v1.8 से v2.1"
+parent: "Hindi (Beta)"
+---
+
 # CLI में परिवर्तन: v1.8 से v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## सारांश
 

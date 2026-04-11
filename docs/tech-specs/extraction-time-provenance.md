@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Extraction-Time Provenance: Source Layer"
+parent: "Tech Specs"
+---
+
 # Extraction-Time Provenance: Source Layer
 
 ## Overview

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "שינויים בסכימת נתונים מובנית עבור פולסר"
+parent: "Hebrew (Beta)"
+---
+
 # שינויים בסכימת נתונים מובנית עבור פולסר
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

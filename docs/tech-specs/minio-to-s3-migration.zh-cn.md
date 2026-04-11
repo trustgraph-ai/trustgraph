@@ -1,4 +1,12 @@
+---
+layout: default
+title: "技术规范：S3 兼容的存储后端支持"
+parent: "Chinese (Beta)"
+---
+
 # 技术规范：S3 兼容的存储后端支持
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

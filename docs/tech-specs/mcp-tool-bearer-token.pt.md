@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação de Autenticação de Token Bearer para Ferramentas MCP"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação de Autenticação de Token Bearer para Ferramentas MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 > **⚠️ IMPORTANTE: APENAS PARA AMBIENTES DE ÚNICO LOCATÁRIO**
 >

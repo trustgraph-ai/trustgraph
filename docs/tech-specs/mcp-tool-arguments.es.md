@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación de Argumentos para la Herramienta MCP"
+parent: "Spanish (Beta)"
+---
+
 # Especificación de Argumentos para la Herramienta MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visión General
 **Nombre de la característica**: Soporte para Argumentos de la Herramienta MCP

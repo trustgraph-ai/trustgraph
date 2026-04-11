@@ -1,4 +1,12 @@
+---
+layout: default
+title: "तकनीकी विनिर्देश: कैसेंड्रा कॉन्फ़िगरेशन समेकन"
+parent: "Hindi (Beta)"
+---
+
 # तकनीकी विनिर्देश: कैसेंड्रा कॉन्फ़िगरेशन समेकन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **स्थिति:** मसौदा
 **लेखक:** सहायक

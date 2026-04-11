@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificación Técnica de Contextos de Grafos"
+parent: "Spanish (Beta)"
+---
+
 # Especificación Técnica de Contextos de Grafos
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Resumen
 

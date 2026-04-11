@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Proposta de Refatoração do Diretório de Esquemas"
+parent: "Portuguese (Beta)"
+---
+
 # Proposta de Refatoração do Diretório de Esquemas
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Problemas Atuais
 

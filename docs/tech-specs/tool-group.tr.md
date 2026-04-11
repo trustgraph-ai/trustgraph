@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph Araç Grubu Sistemi"
+parent: "Turkish (Beta)"
+---
+
 # TrustGraph Araç Grubu Sistemi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ## Teknik Özellikler v1.0
 
 ### Yönetici Özeti

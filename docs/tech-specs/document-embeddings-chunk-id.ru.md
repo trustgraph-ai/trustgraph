@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Идентификатор фрагмента встраиваний документов"
+parent: "Russian (Beta)"
+---
+
 # Идентификатор фрагмента встраиваний документов
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

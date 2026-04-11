@@ -1,4 +1,12 @@
+---
+layout: default
+title: "स्ट्रीमिंग एलएलएम प्रतिक्रियाओं के लिए तकनीकी विनिर्देश"
+parent: "Hindi (Beta)"
+---
+
 # स्ट्रीमिंग एलएलएम प्रतिक्रियाओं के लिए तकनीकी विनिर्देश
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 

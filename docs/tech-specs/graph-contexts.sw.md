@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Tahadhari za Kiufundi za Mazingira ya Picha (Graph Contexts)"
+parent: "Swahili (Beta)"
+---
+
 # Tahadhari za Kiufundi za Mazingira ya Picha (Graph Contexts)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

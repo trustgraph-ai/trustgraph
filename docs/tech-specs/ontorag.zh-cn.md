@@ -1,4 +1,12 @@
+---
+layout: default
+title: "OntoRAG: 基于本体的知识提取和查询技术规范"
+parent: "Chinese (Beta)"
+---
+
 # OntoRAG: 基于本体的知识提取和查询技术规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

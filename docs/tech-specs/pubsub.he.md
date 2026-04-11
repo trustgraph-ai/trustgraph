@@ -1,4 +1,12 @@
+---
+layout: default
+title: "תשתית Pub/Sub"
+parent: "Hebrew (Beta)"
+---
+
 # תשתית Pub/Sub
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 
@@ -955,4 +963,3 @@ class Consumer:
 ניתן להוסיף שכבת שמירה אופציונלית (לדוגמה, הודעות שמורות, אחסון חיצוני)
 יאפשר תמיכה ב-`initial_position='earliest'`
 לא נדרש ליישום ראשוני
-

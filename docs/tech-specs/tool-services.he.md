@@ -1,4 +1,12 @@
+---
+layout: default
+title: "שירותי כלים: כלים דינמיים הניתנים לחיבור"
+parent: "Hebrew (Beta)"
+---
+
 # שירותי כלים: כלים דינמיים הניתנים לחיבור
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סטטוס
 

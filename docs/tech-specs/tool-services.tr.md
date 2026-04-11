@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Araç Hizmetleri: Dinamik Olarak Eklenebilen Ajan Araçları"
+parent: "Turkish (Beta)"
+---
+
 # Araç Hizmetleri: Dinamik Olarak Eklenebilen Ajan Araçları
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Durum
 

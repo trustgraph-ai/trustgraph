@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica de Desligamento Gratuito de Importação/Exportação"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica de Desligamento Gratuito de Importação/Exportação
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Declaração do Problema
 

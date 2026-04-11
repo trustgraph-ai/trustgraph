@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph Python API 参考"
+parent: "Chinese (Beta)"
+---
+
 # TrustGraph Python API 参考
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 安装
 
@@ -4068,4 +4076,3 @@ TrustGraph 服务所有错误的基类。
 
 
 --
-

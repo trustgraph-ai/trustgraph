@@ -1,4 +1,12 @@
+---
+layout: default
+title: "नियो4जे उपयोगकर्ता/संग्रह अलगाव समर्थन"
+parent: "Hindi (Beta)"
+---
+
 # नियो4जे उपयोगकर्ता/संग्रह अलगाव समर्थन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## समस्या विवरण
 

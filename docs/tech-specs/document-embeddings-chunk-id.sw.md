@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Kitambulisho cha Sehemu ya Matini (Document Embeddings Chunk ID)"
+parent: "Swahili (Beta)"
+---
+
 # Kitambulisho cha Sehemu ya Matini (Document Embeddings Chunk ID)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

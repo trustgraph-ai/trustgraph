@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט עבור תיאור נתונים מובנים"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט עבור תיאור נתונים מובנים
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

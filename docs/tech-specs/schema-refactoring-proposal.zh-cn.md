@@ -1,4 +1,12 @@
+---
+layout: default
+title: "方案：Schema 目录重构"
+parent: "Chinese (Beta)"
+---
+
 # 方案：Schema 目录重构
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 当前问题
 

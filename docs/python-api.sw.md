@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Marejeleo ya API ya Python ya TrustGraph"
+parent: "Swahili (Beta)"
+---
+
 # Marejeleo ya API ya Python ya TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Ufungaji
 
@@ -4068,4 +4076,3 @@ Darasa la msingi kwa makosa yote ya huduma ya TrustGraph.
 
 
 --
-

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Pub/Sub Altyapısı"
+parent: "Turkish (Beta)"
+---
+
 # Pub/Sub Altyapısı
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 
@@ -955,4 +963,3 @@ Basit yayın/abone modeli.
 İsteğe bağlı bir kalıcılık katmanı eklenebilir (örneğin, saklanan mesajlar, harici depolama).
 `initial_position='earliest'`'ı desteklemeyi mümkün kılacaktır.
 Başlangıç uygulamasında gerekli değildir.
-

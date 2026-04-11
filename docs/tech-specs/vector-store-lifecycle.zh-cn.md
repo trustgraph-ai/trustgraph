@@ -1,4 +1,12 @@
+---
+layout: default
+title: "向量存储生命周期管理"
+parent: "Chinese (Beta)"
+---
+
 # 向量存储生命周期管理
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

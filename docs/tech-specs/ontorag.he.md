@@ -1,4 +1,12 @@
+---
+layout: default
+title: "OntoRAG: מפרט טכני לחילוץ ידע מבוסס אונטולוגיה ושליפת שאילתות"
+parent: "Hebrew (Beta)"
+---
+
 # OntoRAG: מפרט טכני לחילוץ ידע מבוסס אונטולוגיה ושליפת שאילתות
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סקירה כללית
 

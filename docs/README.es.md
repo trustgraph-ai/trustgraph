@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Documentación de TrustGraph"
+parent: "Spanish (Beta)"
+---
+
 # Documentación de TrustGraph
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ¡Bienvenido a TrustGraph! Para una documentación completa, por favor visite:
 

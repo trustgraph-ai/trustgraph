@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Teknik Özellikler: S3 Uyumlu Depolama Arka Ucu Desteği"
+parent: "Turkish (Beta)"
+---
+
 # Teknik Özellikler: S3 Uyumlu Depolama Arka Ucu Desteği
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

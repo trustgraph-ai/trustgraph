@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Mais Configurações - Especificação Técnica da Interface de Linha de Comando (CLI)"
+parent: "Portuguese (Beta)"
+---
+
 # Mais Configurações - Especificação Técnica da Interface de Linha de Comando (CLI)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visão Geral
 

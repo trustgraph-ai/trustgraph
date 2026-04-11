@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Cambios en el Esquema de Datos Estructurados en Pulsar"
+parent: "Spanish (Beta)"
+---
+
 # Cambios en el Esquema de Datos Estructurados en Pulsar
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Visión general
 

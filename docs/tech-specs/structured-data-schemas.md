@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Structured Data Pulsar Schema Changes"
+parent: "Tech Specs"
+---
+
 # Structured Data Pulsar Schema Changes
 
 ## Overview

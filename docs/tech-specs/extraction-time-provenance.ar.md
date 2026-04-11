@@ -1,4 +1,12 @@
+---
+layout: default
+title: "أصل البيانات في وقت الاستخراج: الطبقة المصدر"
+parent: "Arabic (Beta)"
+---
+
 # أصل البيانات في وقت الاستخراج: الطبقة المصدر
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## نظرة عامة
 

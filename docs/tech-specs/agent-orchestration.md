@@ -1,3 +1,9 @@
+---
+layout: default
+title: "TrustGraph Agent Orchestration — Technical Specification"
+parent: "Tech Specs"
+---
+
 # TrustGraph Agent Orchestration — Technical Specification
 
 ## Overview

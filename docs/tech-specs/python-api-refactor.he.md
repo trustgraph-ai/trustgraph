@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Python API Refactor Technical Specification"
+parent: "Hebrew (Beta)"
+---
+
 # Python API Refactor Technical Specification
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Overview
 

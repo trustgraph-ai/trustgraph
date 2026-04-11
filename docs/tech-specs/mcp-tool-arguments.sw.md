@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vipimo vya Majadiliano ya Zana ya MCP"
+parent: "Swahili (Beta)"
+---
+
 # Vipimo vya Majadiliano ya Zana ya MCP
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 **Jina la Kipengele:** Usaidizi wa Majadiliano ya Zana ya MCP

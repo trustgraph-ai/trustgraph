@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Vektör Depolama Yaşam Döngüsü Yönetimi"
+parent: "Turkish (Beta)"
+---
+
 # Vektör Depolama Yaşam Döngüsü Yönetimi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

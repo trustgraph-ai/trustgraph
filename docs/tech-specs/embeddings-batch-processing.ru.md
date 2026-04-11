@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Техническая спецификация пакетной обработки эмбеддингов"
+parent: "Russian (Beta)"
+---
+
 # Техническая спецификация пакетной обработки эмбеддингов
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

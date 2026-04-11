@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Yapılandırılmış Veri Teknik Özellikleri"
+parent: "Turkish (Beta)"
+---
+
 # Yapılandırılmış Veri Teknik Özellikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 
@@ -250,4 +258,3 @@ Bu, diğer depolama türleriyle de çalışacak şekilde yapılabilir mi? Tek bi
 
 
 n/a.
-

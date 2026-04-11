@@ -1,4 +1,12 @@
+---
+layout: default
+title: "ट्रस्टग्राफ टूल ग्रुप सिस्टम"
+parent: "Hindi (Beta)"
+---
+
 # ट्रस्टग्राफ टूल ग्रुप सिस्टम
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ## तकनीकी विनिर्देश v1.0
 
 ### कार्यकारी सारांश

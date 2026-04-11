@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Bilgi Grafiği Mimarisi Temelleri"
+parent: "Turkish (Beta)"
+---
+
 # Bilgi Grafiği Mimarisi Temelleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Temel 1: Özne-Yüklem-Nesne (ÖYY) Grafik Modeli
 **Karar**: Çekirdek bilgi gösterim modeli olarak SPO/RDF'yi benimse
@@ -103,4 +111,3 @@
 7. **Analitik Uyumluluk**: Kapsamlı sorgulama için grafik ve sütunlu paradigmaları birleştirir.
 
 Bu temeller, teorik titizliği pratik ölçeklenebilirlik gereksinimleriyle dengeleyen, LLM entegrasyonu ve dağıtılmış işleme için optimize edilmiş bir bilgi grafiği mimarisi oluşturur.
-

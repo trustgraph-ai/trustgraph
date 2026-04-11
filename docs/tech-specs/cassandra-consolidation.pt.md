@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Especificação Técnica: Consolidação da Configuração do Cassandra"
+parent: "Portuguese (Beta)"
+---
+
 # Especificação Técnica: Consolidação da Configuração do Cassandra
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Status:** Rascunho
 **Autor:** Assistente

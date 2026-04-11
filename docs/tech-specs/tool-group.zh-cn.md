@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph 工具组系统"
+parent: "Chinese (Beta)"
+---
+
 # TrustGraph 工具组系统
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ## 技术规范 v1.0
 
 ### 摘要

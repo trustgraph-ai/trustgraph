@@ -1,5 +1,13 @@
+---
+layout: default
+title: "流程蓝图定义规范"
+parent: "Chinese (Beta)"
+---
+
 <<<<<<< HEAD
 # 流程蓝图定义规范
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## 概述
 

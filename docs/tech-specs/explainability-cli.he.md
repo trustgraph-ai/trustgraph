@@ -1,4 +1,12 @@
+---
+layout: default
+title: "מפרט טכני של כלי שורת הפקודה (CLI) להסברתיות"
+parent: "Hebrew (Beta)"
+---
+
 # מפרט טכני של כלי שורת הפקודה (CLI) להסברתיות
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סטטוס
 

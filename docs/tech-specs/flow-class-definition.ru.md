@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Спецификация определения шаблона потока"
+parent: "Russian (Beta)"
+---
+
 # Спецификация определения шаблона потока
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Обзор
 

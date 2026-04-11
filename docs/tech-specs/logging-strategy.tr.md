@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph Kayıt (Log) Stratejisi"
+parent: "Turkish (Beta)"
+---
+
 # TrustGraph Kayıt (Log) Stratejisi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

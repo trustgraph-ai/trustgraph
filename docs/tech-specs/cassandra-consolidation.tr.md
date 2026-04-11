@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Cassandra Yapılandırma Birleştirme: Teknik Özellikler"
+parent: "Turkish (Beta)"
+---
+
 # Cassandra Yapılandırma Birleştirme: Teknik Özellikler
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Durum:** Taslak
 **Yazar:** Yardımcı

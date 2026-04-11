@@ -1,4 +1,12 @@
+---
+layout: default
+title: "TrustGraph Python API Referansı"
+parent: "Turkish (Beta)"
+---
+
 # TrustGraph Python API Referansı
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Kurulum
 
@@ -4068,4 +4076,3 @@ Tüm TrustGraph hizmeti hataları için temel sınıf.
 
 
 --
-

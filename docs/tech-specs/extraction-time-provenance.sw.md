@@ -1,5 +1,13 @@
+---
+layout: default
+title: "Asili ya Data Wakati wa Utoaji: Safu ya Chanzo"
+parent: "Swahili (Beta)"
+---
+
 <<<<<<< HEAD
 # Asili ya Data Wakati wa Utoaji: Safu ya Chanzo
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

@@ -1,4 +1,12 @@
+---
+layout: default
+title: "تدفقات الاستخراج"
+parent: "Arabic (Beta)"
+---
+
 # تدفقات الاستخراج
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 يصف هذا المستند كيفية تدفق البيانات عبر مسار الاستخراج الخاص بـ TrustGraph، بدءًا من تقديم المستندات وصولًا إلى تخزينها في مستودعات المعرفة.
 

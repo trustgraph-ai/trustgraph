@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Mkataba wa Lisensi wa Mhudumu (CLA)"
+parent: "Swahili (Beta)"
+---
+
 **MAELEZI MUHIMU:**
 - Hifadhi KILA muundo wa Markdown, vichwa, viungo, na lebo za HTML.
 - EISIUSHA kutafsiri kodio iliyo ndani ya leseni (`code`) au katika blok za kodio.
@@ -5,6 +11,8 @@
 
 Matini ya kutafsiri:
 # Mkataba wa Lisensi wa Mhudumu (CLA)
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 Tunatoa ombi kwa kila mhudumu kusaini Mkataba wa Lisensi wa Mhudumu kabla
 tunaweza kuingiza ombi la "pull". Mkataba huu **sisi** huhamisha haki za udani —

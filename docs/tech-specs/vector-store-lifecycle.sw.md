@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Usimamizi wa Mzunguko wa Hifadhi ya Vektor"
+parent: "Swahili (Beta)"
+---
+
 # Usimamizi wa Mzunguko wa Hifadhi ya Vektor
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 

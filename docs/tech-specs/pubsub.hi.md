@@ -1,4 +1,12 @@
+---
+layout: default
+title: "पब/सब इंफ्रास्ट्रक्चर"
+parent: "Hindi (Beta)"
+---
+
 # पब/सब इंफ्रास्ट्रक्चर
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## अवलोकन
 
@@ -955,4 +963,3 @@ class Consumer:
 वैकल्पिक दृढ़ता परत (जैसे, रिटेन्ड संदेश, बाहरी स्टोर) जोड़ा जा सकता है।
 यह `initial_position='earliest'` का समर्थन करने की अनुमति देगा।
 प्रारंभिक कार्यान्वयन के लिए आवश्यक नहीं है।
-

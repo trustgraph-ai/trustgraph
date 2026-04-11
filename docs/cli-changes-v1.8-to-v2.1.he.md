@@ -1,4 +1,12 @@
+---
+layout: default
+title: "שינויים ב-CLI: מ-v1.8 ל-v2.1"
+parent: "Hebrew (Beta)"
+---
+
 # שינויים ב-CLI: מ-v1.8 ל-v2.1
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## סיכום
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "默认 - INFO 级别，启用 Loki"
+parent: "Chinese (Beta)"
+---
+
 ## TrustGraph 日志策略
 
 ## 概述
@@ -89,6 +95,8 @@ def main():
 **示例:**
 ```bash
 # 默认 - INFO 级别，启用 Loki
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 ./my-service
 
 # 调试模式，仅控制台

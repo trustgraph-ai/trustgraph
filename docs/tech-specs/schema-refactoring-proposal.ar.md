@@ -1,4 +1,12 @@
+---
+layout: default
+title: "اقتراح إعادة هيكلة دليل المخطط"
+parent: "Arabic (Beta)"
+---
+
 # اقتراح إعادة هيكلة دليل المخطط
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## المشاكل الحالية
 

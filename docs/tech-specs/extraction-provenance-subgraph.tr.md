@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Çıkarma Kaynağı: Alt Grafik Modeli"
+parent: "Turkish (Beta)"
+---
+
 # Çıkarma Kaynağı: Alt Grafik Modeli
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Sorun
 

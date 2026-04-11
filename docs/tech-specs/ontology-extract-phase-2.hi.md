@@ -1,4 +1,12 @@
+---
+layout: default
+title: "ऑन्टोलॉजी ज्ञान निष्कर्षण - चरण 2 का पुनर्गठन"
+parent: "Hindi (Beta)"
+---
+
 # ऑन्टोलॉजी ज्ञान निष्कर्षण - चरण 2 का पुनर्गठन
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **स्थिति**: मसौदा
 **लेखक**: विश्लेषण सत्र 2025-12-03

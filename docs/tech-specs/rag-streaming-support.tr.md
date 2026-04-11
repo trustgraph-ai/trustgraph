@@ -1,4 +1,12 @@
+---
+layout: default
+title: "RAG Akış Desteği Teknik Özellikleri"
+parent: "Turkish (Beta)"
+---
+
 # RAG Akış Desteği Teknik Özellikleri
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Genel Bakış
 

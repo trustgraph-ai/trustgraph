@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Decodificador Universal de Documentos"
+parent: "Portuguese (Beta)"
+---
+
 # Decodificador Universal de Documentos
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Título
 

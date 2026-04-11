@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Автоматическое создание документации"
+parent: "Russian (Beta)"
+---
+
 # Автоматическое создание документации
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Документация REST и WebSocket API
 

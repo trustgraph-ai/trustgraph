@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Maelekezo ya Ufundi ya Usimamizi wa Mkusanyiko"
+parent: "Swahili (Beta)"
+---
+
 # Maelekezo ya Ufundi ya Usimamizi wa Mkusanyiko
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## Muhtasari
 
@@ -400,4 +408,3 @@ Infrastrakturu ya zamani inayotegemea folyo imeondolewa:
 ✅ Ufafanuzi wa mada za usimamizi wa uhifadhi umeondolewa
 ✅ Mtumiaji/mtayarishaji wa folyo kutoka kwa maduka yote umeondolewa
 ✅ Wasimamizi wa `on_storage_management` kutoka kwa maduka yote umeondolewa
-

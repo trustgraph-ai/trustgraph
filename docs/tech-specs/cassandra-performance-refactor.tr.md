@@ -1,4 +1,12 @@
+---
+layout: default
+title: "Teknik Özellikler: Cassandra Bilgi Tabanı Performans Yenilemesi"
+parent: "Turkish (Beta)"
+---
+
 # Teknik Özellikler: Cassandra Bilgi Tabanı Performans Yenilemesi
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 **Durum:** Taslak
 **Yazar:** Yardımcı

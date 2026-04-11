@@ -1,4 +1,12 @@
+---
+layout: default
+title: "יסודות ארכיטקטורת גרף ידע"
+parent: "Hebrew (Beta)"
+---
+
 # יסודות ארכיטקטורת גרף ידע
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
 
 ## יסוד 1: מודל גרף נושא-תכונה-אובייקט (SPO)
 **החלטה**: לאמץ את מודל SPO/RDF כמודל הייצוג הבסיסי של ידע.
@@ -103,4 +111,3 @@
 7. **תאימות שאילתות**: הבטחת תאימות שאילתות למערכות אחסון טבלאיות.
 
 יסודות אלה מציבים ארכיטקטורת גרף ידע המאזנת בין דיוק תיאורטי לדרישות מדרגיות מעשיות, ומותאמת לאינטגרציה עם מודלי שפה גדולים (LLM) ולעיבוד מבוזר.
-
