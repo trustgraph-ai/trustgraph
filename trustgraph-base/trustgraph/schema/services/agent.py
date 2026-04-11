@@ -66,5 +66,10 @@ class AgentResponse:
 
     error: Error | None = None
 
+    # Token usage (populated on end_of_dialog message)
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None
+
 ############################################################################
 

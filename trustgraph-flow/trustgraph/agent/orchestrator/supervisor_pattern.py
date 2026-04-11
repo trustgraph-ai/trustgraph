@@ -22,7 +22,7 @@ from trustgraph.provenance import (
     agent_synthesis_uri,
 )
 
-from . pattern_base import PatternBase
+from . pattern_base import PatternBase, UsageTracker
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,10 @@ class SupervisorPattern(PatternBase):
       - "synthesise": triggered by aggregator with results in subagent_results
     """
 
-    async def iterate(self, request, respond, next, flow):
+    async def iterate(self, request, respond, next, flow, usage=None):
+
+        if usage is None:
+            usage = UsageTracker()
 
         streaming = getattr(request, 'streaming', False)
         session_id = getattr(request, 'session_id', '') or str(uuid.uuid4())
@@ -72,17 +75,19 @@ class SupervisorPattern(PatternBase):
                 request, respond, next, flow,
                 session_id, collection, streaming,
                 session_uri, iteration_num,
+                usage=usage,
             )
         else:
             await self._decompose_and_fanout(
                 request, respond, next, flow,
                 session_id, collection, streaming,
                 session_uri, iteration_num,
+                usage=usage,
             )
 
     async def _decompose_and_fanout(self, request, respond, next, flow,
                                     session_id, collection, streaming,
-                                    session_uri, iteration_num):
+                                    session_uri, iteration_num, usage=None):
         """Decompose the question into sub-goals and fan out subagents."""
 
         decompose_msg_id = agent_decomposition_uri(session_id)
@@ -100,7 +105,7 @@ class SupervisorPattern(PatternBase):
         client = context("prompt-request")
 
         # Use the supervisor-decompose prompt template
-        goals = await client.prompt(
+        result = await client.prompt(
             id="supervisor-decompose",
             variables={
                 "question": request.question,
@@ -112,7 +117,10 @@ class SupervisorPattern(PatternBase):
                 ],
             },
         )
+        if usage:
+            usage.track(result)
 
+        goals = result.objects
         # Validate result
         if not isinstance(goals, list):
             goals = []
@@ -175,7 +183,7 @@ class SupervisorPattern(PatternBase):
 
     async def _synthesise(self, request, respond, next, flow,
                           session_id, collection, streaming,
-                          session_uri, iteration_num):
+                          session_uri, iteration_num, usage=None):
         """Synthesise final answer from subagent results."""
 
         synthesis_msg_id = agent_synthesis_uri(session_id)
@@ -216,6 +224,7 @@ class SupervisorPattern(PatternBase):
             respond=respond,
             streaming=streaming,
             message_id=synthesis_msg_id,
+            usage=usage,
         )
 
         # Emit synthesis provenance (links back to all findings)
@@ -231,4 +240,5 @@ class SupervisorPattern(PatternBase):
         await self.send_final_response(
             respond, streaming, response_text, already_streamed=streaming,
             message_id=synthesis_msg_id,
+            usage=usage,
         )

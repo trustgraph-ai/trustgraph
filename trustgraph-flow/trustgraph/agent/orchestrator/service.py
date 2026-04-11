@@ -23,6 +23,7 @@ from ... base import Consumer, Producer
 from ... base import ConsumerMetrics, ProducerMetrics
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
+from ..orchestrator.pattern_base import UsageTracker
 from ... schema import Triples, Metadata
 from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
@@ -493,6 +494,8 @@ class Processor(AgentService):
 
     async def agent_request(self, request, respond, next, flow):
 
+        usage = UsageTracker()
+
         try:
 
             # Intercept subagent completion messages
@@ -516,7 +519,7 @@ class Processor(AgentService):
 
                 if self.meta_router:
                     pattern, task_type, framing = await self.meta_router.route(
-                        request.question, context,
+                        request.question, context, usage=usage,
                     )
                 else:
                     pattern = "react"
@@ -536,16 +539,16 @@ class Processor(AgentService):
             # Dispatch to the selected pattern
             if pattern == "plan-then-execute":
                 await self.plan_pattern.iterate(
-                    request, respond, next, flow,
+                    request, respond, next, flow, usage=usage,
                 )
             elif pattern == "supervisor":
                 await self.supervisor_pattern.iterate(
-                    request, respond, next, flow,
+                    request, respond, next, flow, usage=usage,
                 )
             else:
                 # Default to react
                 await self.react_pattern.iterate(
-                    request, respond, next, flow,
+                    request, respond, next, flow, usage=usage,
                 )
 
         except Exception as e:

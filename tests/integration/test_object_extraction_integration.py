@@ -16,6 +16,7 @@ from trustgraph.schema import (
     Chunk, ExtractedObject, Metadata, RowSchema, Field,
     PromptRequest, PromptResponse
 )
+from trustgraph.base import PromptResult
 
 
 @pytest.mark.integration
@@ -114,49 +115,61 @@ class TestObjectExtractionServiceIntegration:
             schema_name = schema.get("name") if isinstance(schema, dict) else schema.name
             if schema_name == "customer_records":
                 if "john" in text.lower():
-                    return [
-                        {
-                            "customer_id": "CUST001",
-                            "name": "John Smith", 
-                            "email": "john.smith@email.com",
-                            "phone": "555-0123"
-                        }
-                    ]
+                    return PromptResult(
+                        response_type="jsonl",
+                        objects=[
+                            {
+                                "customer_id": "CUST001",
+                                "name": "John Smith",
+                                "email": "john.smith@email.com",
+                                "phone": "555-0123"
+                            }
+                        ]
+                    )
                 elif "jane" in text.lower():
-                    return [
-                        {
-                            "customer_id": "CUST002",
-                            "name": "Jane Doe",
-                            "email": "jane.doe@email.com",
-                            "phone": ""
-                        }
-                    ]
+                    return PromptResult(
+                        response_type="jsonl",
+                        objects=[
+                            {
+                                "customer_id": "CUST002",
+                                "name": "Jane Doe",
+                                "email": "jane.doe@email.com",
+                                "phone": ""
+                            }
+                        ]
+                    )
                 else:
-                    return []
-            
+                    return PromptResult(response_type="jsonl", objects=[])
+
             elif schema_name == "product_catalog":
                 if "laptop" in text.lower():
-                    return [
-                        {
-                            "product_id": "PROD001",
-                            "name": "Gaming Laptop",
-                            "price": "1299.99",
-                            "category": "electronics"
-                        }
-                    ]
+                    return PromptResult(
+                        response_type="jsonl",
+                        objects=[
+                            {
+                                "product_id": "PROD001",
+                                "name": "Gaming Laptop",
+                                "price": "1299.99",
+                                "category": "electronics"
+                            }
+                        ]
+                    )
                 elif "book" in text.lower():
-                    return [
-                        {
-                            "product_id": "PROD002", 
-                            "name": "Python Programming Guide",
-                            "price": "49.99",
-                            "category": "books"
-                        }
-                    ]
+                    return PromptResult(
+                        response_type="jsonl",
+                        objects=[
+                            {
+                                "product_id": "PROD002",
+                                "name": "Python Programming Guide",
+                                "price": "49.99",
+                                "category": "books"
+                            }
+                        ]
+                    )
                 else:
-                    return []
-            
-            return []
+                    return PromptResult(response_type="jsonl", objects=[])
+
+            return PromptResult(response_type="jsonl", objects=[])
         
         prompt_client.extract_objects.side_effect = mock_extract_objects
         

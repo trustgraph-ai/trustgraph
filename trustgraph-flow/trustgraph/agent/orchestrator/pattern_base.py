@@ -65,6 +65,37 @@ class UserAwareContext:
         return client
 
 
+class UsageTracker:
+    """Accumulates token usage across multiple prompt calls."""
+
+    def __init__(self):
+        self.total_in = 0
+        self.total_out = 0
+        self.last_model = None
+
+    def track(self, result):
+        """Track usage from a PromptResult."""
+        if result is not None:
+            if getattr(result, "in_token", None) is not None:
+                self.total_in += result.in_token
+            if getattr(result, "out_token", None) is not None:
+                self.total_out += result.out_token
+            if getattr(result, "model", None) is not None:
+                self.last_model = result.model
+
+    @property
+    def in_token(self):
+        return self.total_in if self.total_in > 0 else None
+
+    @property
+    def out_token(self):
+        return self.total_out if self.total_out > 0 else None
+
+    @property
+    def model(self):
+        return self.last_model
+
+
 class PatternBase:
     """
     Shared infrastructure for all agent patterns.
@@ -571,7 +602,8 @@ class PatternBase:
     # ---- Response helpers ---------------------------------------------------
 
     async def prompt_as_answer(self, client, prompt_id, variables,
-                               respond, streaming, message_id=""):
+                               respond, streaming, message_id="",
+                               usage=None):
         """Call a prompt template, forwarding chunks as answer
         AgentResponse messages when streaming is enabled.
 
@@ -591,22 +623,28 @@ class PatternBase:
                         message_id=message_id,
                     ))
 
-            await client.prompt(
+            result = await client.prompt(
                 id=prompt_id,
                 variables=variables,
                 streaming=True,
                 chunk_callback=on_chunk,
             )
+            if usage:
+                usage.track(result)
 
             return "".join(accumulated)
         else:
-            return await client.prompt(
+            result = await client.prompt(
                 id=prompt_id,
                 variables=variables,
             )
+            if usage:
+                usage.track(result)
+            return result.text
 
     async def send_final_response(self, respond, streaming, answer_text,
-                                  already_streamed=False, message_id=""):
+                                  already_streamed=False, message_id="",
+                                  usage=None):
         """Send the answer content and end-of-dialog marker.
 
         Args:
@@ -614,7 +652,16 @@ class PatternBase:
                 via streaming callbacks (e.g. ReactPattern). Only the
                 end-of-dialog marker is emitted.
             message_id: Provenance URI for the answer entity.
+            usage: UsageTracker with accumulated token counts.
         """
+        usage_kwargs = {}
+        if usage:
+            usage_kwargs = {
+                "in_token": usage.in_token,
+                "out_token": usage.out_token,
+                "model": usage.model,
+            }
+
         if streaming and not already_streamed:
             # Answer wasn't streamed yet — send it as a chunk first
             if answer_text:
@@ -626,13 +673,14 @@ class PatternBase:
                     message_id=message_id,
                 ))
         if streaming:
-            # End-of-dialog marker
+            # End-of-dialog marker with usage
             await respond(AgentResponse(
                 chunk_type="answer",
                 content="",
                 end_of_message=True,
                 end_of_dialog=True,
                 message_id=message_id,
+                **usage_kwargs,
             ))
         else:
             await respond(AgentResponse(
@@ -641,6 +689,7 @@ class PatternBase:
                 end_of_message=True,
                 end_of_dialog=True,
                 message_id=message_id,
+                **usage_kwargs,
             ))
 
     def build_next_request(self, request, history, session_id, collection,

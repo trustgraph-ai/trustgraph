@@ -1,9 +1,21 @@
 
 import json
 import asyncio
+from dataclasses import dataclass
+from typing import Optional, Any
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import PromptRequest, PromptResponse
+
+@dataclass
+class PromptResult:
+    response_type: str              # "text", "json", or "jsonl"
+    text: Optional[str] = None      # populated for "text"
+    object: Any = None              # populated for "json"
+    objects: Optional[list] = None  # populated for "jsonl"
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 class PromptClient(RequestResponse):
 
@@ -26,17 +38,40 @@ class PromptClient(RequestResponse):
             if resp.error:
                 raise RuntimeError(resp.error.message)
 
-            if resp.text: return resp.text
+            if resp.text:
+                return PromptResult(
+                    response_type="text",
+                    text=resp.text,
+                    in_token=resp.in_token,
+                    out_token=resp.out_token,
+                    model=resp.model,
+                )
 
-            return json.loads(resp.object)
+            parsed = json.loads(resp.object)
+
+            if isinstance(parsed, list):
+                return PromptResult(
+                    response_type="jsonl",
+                    objects=parsed,
+                    in_token=resp.in_token,
+                    out_token=resp.out_token,
+                    model=resp.model,
+                )
+
+            return PromptResult(
+                response_type="json",
+                object=parsed,
+                in_token=resp.in_token,
+                out_token=resp.out_token,
+                model=resp.model,
+            )
 
         else:
 
-            last_text = ""
-            last_object = None
+            last_resp = None
 
             async def forward_chunks(resp):
-                nonlocal last_text, last_object
+                nonlocal last_resp
 
                 if resp.error:
                     raise RuntimeError(resp.error.message)
@@ -44,14 +79,13 @@ class PromptClient(RequestResponse):
                 end_stream = getattr(resp, 'end_of_stream', False)
 
                 if resp.text is not None:
-                    last_text = resp.text
                     if chunk_callback:
                         if asyncio.iscoroutinefunction(chunk_callback):
                             await chunk_callback(resp.text, end_stream)
                         else:
                             chunk_callback(resp.text, end_stream)
-                elif resp.object:
-                    last_object = resp.object
+
+                last_resp = resp
 
                 return end_stream
 
@@ -70,10 +104,36 @@ class PromptClient(RequestResponse):
                 timeout=timeout
             )
 
-            if last_text:
-                return last_text
+            if last_resp is None:
+                return PromptResult(response_type="text")
 
-            return json.loads(last_object) if last_object else None
+            if last_resp.object:
+                parsed = json.loads(last_resp.object)
+
+                if isinstance(parsed, list):
+                    return PromptResult(
+                        response_type="jsonl",
+                        objects=parsed,
+                        in_token=last_resp.in_token,
+                        out_token=last_resp.out_token,
+                        model=last_resp.model,
+                    )
+
+                return PromptResult(
+                    response_type="json",
+                    object=parsed,
+                    in_token=last_resp.in_token,
+                    out_token=last_resp.out_token,
+                    model=last_resp.model,
+                )
+
+            return PromptResult(
+                response_type="text",
+                text=last_resp.text,
+                in_token=last_resp.in_token,
+                out_token=last_resp.out_token,
+                model=last_resp.model,
+            )
 
     async def extract_definitions(self, text, timeout=600):
         return await self.prompt(
@@ -152,4 +212,3 @@ class PromptClientSpec(RequestResponseSpec):
             response_schema = PromptResponse,
             impl = PromptClient,
         )
-

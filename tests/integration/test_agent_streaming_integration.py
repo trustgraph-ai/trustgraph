@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.agent.react.agent_manager import AgentManager
 from trustgraph.agent.react.tools import KnowledgeQueryImpl
 from trustgraph.agent.react.types import Tool, Argument
+from trustgraph.base import PromptResult
 from tests.utils.streaming_assertions import (
     assert_agent_streaming_chunks,
     assert_streaming_chunks_valid,
@@ -51,10 +52,10 @@ Args: {
                     is_final = (i == len(chunks) - 1)
                     await chunk_callback(chunk, is_final)
 
-                return full_text
+                return PromptResult(response_type="text", text=full_text)
             else:
                 # Non-streaming response - same text
-                return full_text
+                return PromptResult(response_type="text", text=full_text)
 
         client.agent_react.side_effect = agent_react_streaming
         return client
@@ -317,8 +318,8 @@ Final Answer: AI is the simulation of human intelligence in machines."""
                 for i, chunk in enumerate(chunks):
                     is_final = (i == len(chunks) - 1)
                     await chunk_callback(chunk + " ", is_final)
-                return response
-            return response
+                return PromptResult(response_type="text", text=response)
+            return PromptResult(response_type="text", text=response)
 
         mock_prompt_client_streaming.agent_react.side_effect = multi_step_agent_react
 

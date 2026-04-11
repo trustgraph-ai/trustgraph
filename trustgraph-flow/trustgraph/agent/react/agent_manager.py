@@ -170,7 +170,7 @@ class AgentManager:
 
         raise ValueError(f"Could not parse response: {text}")
 
-    async def reason(self, question, history, context, streaming=False, think=None, observe=None, answer=None):
+    async def reason(self, question, history, context, streaming=False, think=None, observe=None, answer=None, usage=None):
 
         logger.debug(f"calling reason: {question}")
 
@@ -255,11 +255,13 @@ class AgentManager:
             client = context("prompt-request")
 
             # Get streaming response
-            response_text = await client.agent_react(
+            prompt_result = await client.agent_react(
                 variables=variables,
                 streaming=True,
                 chunk_callback=on_chunk
             )
+            if usage:
+                usage.track(prompt_result)
 
             # Finalize parser
             parser.finalize()
@@ -275,10 +277,13 @@ class AgentManager:
             # Non-streaming path - get complete text and parse
             client = context("prompt-request")
 
-            response_text = await client.agent_react(
+            prompt_result = await client.agent_react(
                 variables=variables,
                 streaming=False
             )
+            if usage:
+                usage.track(prompt_result)
+            response_text = prompt_result.text
 
             logger.debug(f"Response text:\n{response_text}")
 
@@ -292,7 +297,8 @@ class AgentManager:
                 raise RuntimeError(f"Failed to parse agent response: {e}")
 
     async def react(self, question, history, think, observe, context,
-                    streaming=False, answer=None, on_action=None):
+                    streaming=False, answer=None, on_action=None,
+                    usage=None):
 
         act = await self.reason(
             question = question,
@@ -302,6 +308,7 @@ class AgentManager:
             think = think,
             observe = observe,
             answer = answer,
+            usage = usage,
         )
 
         if isinstance(act, Final):

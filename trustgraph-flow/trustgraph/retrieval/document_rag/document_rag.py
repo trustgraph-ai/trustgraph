@@ -27,24 +27,27 @@ class Query:
 
     def __init__(
             self, rag, user, collection, verbose,
-            doc_limit=20
+            doc_limit=20, track_usage=None,
     ):
         self.rag = rag
         self.user = user
         self.collection = collection
         self.verbose = verbose
         self.doc_limit = doc_limit
+        self.track_usage = track_usage
 
     async def extract_concepts(self, query):
         """Extract key concepts from query for independent embedding."""
-        response = await self.rag.prompt_client.prompt(
+        result = await self.rag.prompt_client.prompt(
             "extract-concepts",
             variables={"query": query}
         )
+        if self.track_usage:
+            self.track_usage(result)
 
         concepts = []
-        if isinstance(response, str):
-            for line in response.strip().split('\n'):
+        if result.text:
+            for line in result.text.strip().split('\n'):
                 line = line.strip()
                 if line:
                     concepts.append(line)
@@ -167,8 +170,23 @@ class DocumentRag:
             save_answer_callback: async def callback(doc_id, answer_text) to save answer to librarian
 
         Returns:
-            str: The synthesized answer text
+            tuple: (answer_text, usage) where usage is a dict with
+                   in_token, out_token, model
         """
+        total_in = 0
+        total_out = 0
+        last_model = None
+
+        def track_usage(result):
+            nonlocal total_in, total_out, last_model
+            if result is not None:
+                if result.in_token is not None:
+                    total_in += result.in_token
+                if result.out_token is not None:
+                    total_out += result.out_token
+                if result.model is not None:
+                    last_model = result.model
+
         if self.verbose:
             logger.debug("Constructing prompt...")
 
@@ -191,7 +209,7 @@ class DocumentRag:
 
         q = Query(
             rag=self, user=user, collection=collection, verbose=self.verbose,
-            doc_limit=doc_limit
+            doc_limit=doc_limit, track_usage=track_usage,
         )
 
         # Extract concepts from query (grounding step)
@@ -228,19 +246,22 @@ class DocumentRag:
                 accumulated_chunks.append(chunk)
                 await chunk_callback(chunk, end_of_stream)
 
-            resp = await self.prompt_client.document_prompt(
+            synthesis_result = await self.prompt_client.document_prompt(
                 query=query,
                 documents=docs,
                 streaming=True,
                 chunk_callback=accumulating_callback
             )
+            track_usage(synthesis_result)
             # Combine all chunks into full response
             resp = "".join(accumulated_chunks)
         else:
-            resp = await self.prompt_client.document_prompt(
+            synthesis_result = await self.prompt_client.document_prompt(
                 query=query,
                 documents=docs
             )
+            track_usage(synthesis_result)
+            resp = synthesis_result.text
 
         if self.verbose:
             logger.debug("Query processing complete")
@@ -273,5 +294,11 @@ class DocumentRag:
         if self.verbose:
             logger.debug(f"Emitted explain for session {session_id}")
 
-        return resp
+        usage = {
+            "in_token": total_in if total_in > 0 else None,
+            "out_token": total_out if total_out > 0 else None,
+            "model": last_model,
+        }
+
+        return resp, usage
 

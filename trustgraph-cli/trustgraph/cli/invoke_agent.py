@@ -272,7 +272,8 @@ def question(
         url, question, flow_id, user, collection,
         plan=None, state=None, group=None, pattern=None,
         verbose=False, streaming=True,
-        token=None, explainable=False, debug=False
+        token=None, explainable=False, debug=False,
+        show_usage=False
 ):
     # Explainable mode uses the API to capture and process provenance events
     if explainable:
@@ -323,6 +324,7 @@ def question(
             # Track last chunk type and current outputter for streaming
             last_chunk_type = None
             current_outputter = None
+            last_answer_chunk = None
 
             for chunk in response:
                 chunk_type = chunk.chunk_type
@@ -357,6 +359,7 @@ def question(
                         current_outputter.word_buffer = ""
                 elif chunk_type == "final-answer":
                     print(content, end="", flush=True)
+                    last_answer_chunk = chunk
 
             # Close any remaining outputter
             if current_outputter:
@@ -365,6 +368,14 @@ def question(
             # Add final newline if we were outputting answer
             elif last_chunk_type == "final-answer":
                 print()
+
+            if show_usage and last_answer_chunk:
+                print(
+                    f"Input tokens: {last_answer_chunk.in_token}  "
+                    f"Output tokens: {last_answer_chunk.out_token}  "
+                    f"Model: {last_answer_chunk.model}",
+                    file=sys.stderr,
+                )
 
         else:
             # Non-streaming response - but agents use multipart messaging
@@ -477,6 +488,12 @@ def main():
         help='Show debug output for troubleshooting'
     )
 
+    parser.add_argument(
+        '--show-usage',
+        action='store_true',
+        help='Show token usage and model on stderr'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -496,6 +513,7 @@ def main():
             token = args.token,
             explainable = args.explainable,
             debug = args.debug,
+            show_usage = args.show_usage,
         )
 
     except Exception as e:

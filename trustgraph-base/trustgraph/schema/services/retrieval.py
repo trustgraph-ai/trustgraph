@@ -29,6 +29,9 @@ class GraphRagResponse:
     explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
     message_type: str = ""            # "chunk" or "explain"
     end_of_session: bool = False      # Entire session complete
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None
 
 ############################################################################
 
@@ -52,3 +55,6 @@ class DocumentRagResponse:
     explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
     message_type: str = ""            # "chunk" or "explain"
     end_of_session: bool = False      # Entire session complete
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None

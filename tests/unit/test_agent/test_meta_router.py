@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.agent.orchestrator.meta_router import (
     MetaRouter, DEFAULT_PATTERN, DEFAULT_TASK_TYPE,
 )
+from trustgraph.base import PromptResult
 
 
 def _make_config(patterns=None, task_types=None):
@@ -28,7 +29,9 @@ def _make_config(patterns=None, task_types=None):
 def _make_context(prompt_response):
     """Build a mock context that returns a mock prompt client."""
     client = AsyncMock()
-    client.prompt = AsyncMock(return_value=prompt_response)
+    client.prompt = AsyncMock(
+        return_value=PromptResult(response_type="text", text=prompt_response)
+    )
 
     def context(service_name):
         return client
@@ -274,8 +277,8 @@ class TestRoute:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return "research"  # task type
-            return "plan-then-execute"  # pattern
+                return PromptResult(response_type="text", text="research")
+            return PromptResult(response_type="text", text="plan-then-execute")
 
         client.prompt = mock_prompt
         context = lambda name: client
