@@ -1,11 +1,21 @@
+<<<<<<< HEAD
 # Especificação Técnica de Saída de Prompt JSONL
+=======
+# Especificação Técnica da Saída de Prompt JSONL
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Visão Geral
 
 Esta especificação descreve a implementação do formato de saída JSONL (JSON Lines)
+<<<<<<< HEAD
 para respostas de prompt no TrustGraph. JSONL permite a extração de dados estruturados
 de forma resiliente à truncagem das respostas de LLM, abordando problemas críticos
 relacionados à corrupção de saídas de matriz JSON quando as respostas de LLM atingem
+=======
+para respostas de prompt no TrustGraph. O JSONL permite a extração de dados estruturados
+de forma resistente a truncamentos das respostas de LLM, abordando problemas críticos
+relacionados à corrupção de saídas de matrizes JSON quando as respostas de LLM atingem
+>>>>>>> 82edf2d (New md files from RunPod)
 os limites de tokens de saída.
 
 Esta implementação suporta os seguintes casos de uso:
@@ -62,7 +72,11 @@ Quando os prompts de extração solicitam a saída como arrays JSON (`[{...}, {.
 **Sem resultados parciais**: Uma resposta truncada produz zero dados utilizáveis.
 **Não confiável para grandes extrações**: Quanto mais itens extraídos, maior o risco de falha.
 
+<<<<<<< HEAD
 Esta especificação aborda essas limitações introduzindo o formato JSONL para
+=======
+Esta especificação aborda essas limitações, introduzindo o formato JSONL para
+>>>>>>> 82edf2d (New md files from RunPod)
 prompts de extração, onde cada item extraído é um objeto JSON completo em sua
 própria linha.
 
@@ -118,7 +132,11 @@ tópicos, linhas), a saída é um objeto JSON por linha, sem wrapper:
 {"entity": "mitochondria", "definition": "Powerhouse of the cell"}
 ```
 
+<<<<<<< HEAD
 **Contraste com o formato anterior de array JSON:**
+=======
+**Contraste com o formato de array JSON anterior:**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```json
 [
   {"entity": "photosynthesis", "definition": "Process by which plants convert sunlight"},
@@ -128,7 +146,11 @@ tópicos, linhas), a saída é um objeto JSON por linha, sem wrapper:
 ```
 
 Se o LLM truncar após a linha 2, o formato de array JSON resulta em JSON inválido,
+<<<<<<< HEAD
 enquanto o JSONL produz dois objetos válidos.
+=======
+enquanto o JSONL gera dois objetos válidos.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Extração de Tipos Mistos (Uniões Discriminadas)
 
@@ -205,8 +227,13 @@ class Prompt:
 
 #### PromptManager.load_config
 
+<<<<<<< HEAD
 Nenhuma alteração necessária - o carregamento da configuração existente já lida com a
 `schema` chave.
+=======
+Nenhuma alteração necessária - o carregamento da configuração existente já trata da
+chave `schema`.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Análise de JSONL
 
@@ -385,7 +412,11 @@ Exemplo completo de configuração de prompt:
 **Validação de Entrada**: A análise JSON utiliza o padrão `json.loads()`, que é seguro
   contra ataques de injeção.
 **Validação de Esquema**: Utiliza `jsonschema.validate()` para a aplicação do esquema.
+<<<<<<< HEAD
 **Sem Nova Superfície de Ataque**: A análise de JSONL é estritamente mais segura do que a análise de arrays JSON
+=======
+**Sem Nova Superfície de Ataque**: A análise JSONL é estritamente mais segura do que a análise de arrays JSON
+>>>>>>> 82edf2d (New md files from RunPod)
   devido ao processamento linha por linha.
 
 ## Considerações de Desempenho
@@ -395,9 +426,15 @@ Exemplo completo de configuração de prompt:
 **Validação**: A validação de esquema é executada por objeto, o que adiciona sobrecarga, mas
 permite resultados parciais em caso de falha na validação.
   
+<<<<<<< HEAD
 
 ## Estratégia de Testes
 
+=======
+## Estratégia de Testes
+
+
+>>>>>>> 82edf2d (New md files from RunPod)
 ### Testes Unitários
 
 Análise de JSONL com entrada válida
@@ -441,7 +478,11 @@ Verifique a resiliência à truncagem: o JSONL produz resultados parciais onde o
 
 1. Atualize qualquer código que consuma os resultados da extração para lidar com o tipo de retorno de lista.
 2. Atualize o código que categoriza extrações de tipos mistos pelo campo `type`.
+<<<<<<< HEAD
 3. Atualize os testes que afirmam o formato da saída da extração.
+=======
+3. Atualize os testes que afirmam o formato de saída da extração.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Perguntas Abertas
 

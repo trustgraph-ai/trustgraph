@@ -2,14 +2,22 @@
 
 ## Muhtasari
 
+<<<<<<< HEAD
 Mfumo wa mtiririko unafafanua kiolezo kamili cha mtiririko wa data katika mfumo wa TrustGraph. Unapoongezwa, huunda mtandao unaounganishwa wa vichakata ambavyo hushughulikia uingizaji wa data, uchakataji, uhifadhi, na kuulizia kama mfumo mmoja.
+=======
+Mfumo wa mtiririko unafafanua mfumo kamili wa mtiririko wa data katika mfumo wa TrustGraph. Unapoongezwa, huunda mtandao unaounganishwa wa vichakata ambavyo hushughulikia uingizaji wa data, uchakataji, uhifadhi, na kuulizia kama mfumo mmoja.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Muundo
 
 Ufafanuzi wa mfumo wa mtiririko una sehemu tano kuu:
 
 ### 1. Sehemu ya Darasa
+<<<<<<< HEAD
 Inafafanua vichakata vya huduma ambavyo huanzishwa mara moja kwa kila mfumo wa mtiririko. Vichakata hivi hushughulikia ombi kutoka kwa visasisho vyote vya mfumo wa mtiririko vya darasa hili.
+=======
+Inafafanua vichakata vya huduma ambavyo huanzishwa mara moja kwa kila mfumo wa mtiririko. Vichakata hivi hushughulikia ombi kutoka kwa visasisho vyote vya mfumo wa mtiririko wa darasa hili.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 "class": {
@@ -27,7 +35,11 @@ Inafafanua vichakata vya huduma ambavyo huanzishwa mara moja kwa kila mfumo wa m
 **Sifa:**
 Zinashirikiwa katika visasisho vyote vya aina moja.
 Hutoa huduma za kawaida au zisizo na hali (LLMs, modeli za uingizaji).
+<<<<<<< HEAD
 Tumia jina la kigezo cha `{class}` kwa ajili ya kujina kwa folyo.
+=======
+Tumia jina la kigezo `{class}` kwa ajili ya kujina kwa folyo.
+>>>>>>> 82edf2d (New md files from RunPod)
 Mipangilio inaweza kuwa maadili thabiti au kupangwa kwa kutumia sintaksia ya `{parameter-name}`.
 Mifano: `embeddings:{class}`, `text-completion:{class}`, `graph-rag:{class}`
 
@@ -54,10 +66,17 @@ Tumia kigezo cha `{id}` kwa ajili ya kujina kwa folyo.
 Mipangilio inaweza kuwa maadili thabiti au kupangishwa kwa kutumia sintaksia ya `{parameter-name}`.
 Mifano: `chunker:{id}`, `pdf-decoder:{id}`, `kg-extract-relationships:{id}`.
 
+<<<<<<< HEAD
 ### 3. Sehemu ya Vifaa
 Inaelezea pointi za kuingilia na mikataba ya mwingiliano kwa mtiririko. Haya huunda safu ya API kwa mifumo ya nje na mawasiliano ya vipengele vya ndani.
 
 Vifaa vinaweza kuwa na aina mbili:
+=======
+### Sura ya 3. Sehemu ya Vifaa vya Kuunganisha
+Inaelezea pointi za kuingilia na mikataba ya kuingiliana kwa mtiririko. Hizi huunda safu ya API kwa mifumo ya nje na mawasiliano ya vipengele vya ndani.
+
+Vifaa vya kuunganisha vinaweza kuwa na aina mbili:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Mfumo wa "Tuma na Usahau"** (folyo moja):
 ```json
@@ -67,7 +86,11 @@ Vifaa vinaweza kuwa na aina mbili:
 }
 ```
 
+<<<<<<< HEAD
 **Muundo wa Ombi/Jibu** (kitu chenye sehemu za ombi/jibu):
+=======
+**Muundo wa Ombi/Jibu** (objekti yenye sehemu za ombi/jibu):
+>>>>>>> 82edf2d (New md files from RunPod)
 ```json
 "interfaces": {
   "embeddings": {
@@ -77,6 +100,7 @@ Vifaa vinaweza kuwa na aina mbili:
 }
 ```
 
+<<<<<<< HEAD
 **Aina za Mfumo:**
 **Vituo vya Kuingia**: Maeneo ambapo mifumo ya nje huingiza data (`document-load`, `agent`)
 **Mifumo ya Huduma**: Mfumo wa ombi/jibu kwa huduma (`embeddings`, `text-completion`)
@@ -84,6 +108,15 @@ Vifaa vinaweza kuwa na aina mbili:
 
 ### 4. Sehemu ya Vigezo
 Huunganisha majina ya vigezo maalum ya mtiririko na ufafanuzi wa vigezo unaohifadhiwa katika eneo moja:
+=======
+**Aina za Vifaa vya Kuunganisha:**
+**Vifaa vya Kuanzia:** Maeneo ambapo mifumo ya nje huingiza data (`document-load`, `agent`)
+**Vifaa vya Huduma:** Mfumo wa ombi/jibu kwa huduma (`embeddings`, `text-completion`)
+**Vifaa vya Data:** Vifaa vya kuunganisha mtiririko wa data (`triples-store`, `entity-contexts-load`)
+
+### 4. Sehemu ya Vigezo
+Huunganisha majina ya vigezo maalum ya mtiririko na ufafanuzi wa vigezo unaohifadhiwa katika eneo la kati:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 "parameters": {
@@ -94,13 +127,21 @@ Huunganisha majina ya vigezo maalum ya mtiririko na ufafanuzi wa vigezo unaohifa
 ```
 
 **Sifa:**
+<<<<<<< HEAD
 Nenosiri ni majina ya vigezo yanayotumika katika mipangilio ya kichakata (k.m., `{model}`)
+=======
+Funguo ni majina ya vigezo yanayotumika katika mipangilio ya kichakata (k.m., `{model}`)
+>>>>>>> 82edf2d (New md files from RunPod)
 Maelezo yanaashiria ufafanuzi wa vigezo uliohifadhiwa katika schema/config
 Inaruhusu matumizi ya mara kwa mara ya ufafanuzi wa kawaida wa vigezo katika michakato.
 Hupunguza marudio ya schemas za vigezo.
 
 ### 5. Meta Data
+<<<<<<< HEAD
 Taarifa za ziada kuhusu mpango wa mtiririko:
+=======
+Habari ya ziada kuhusu mpango wa mtiririko:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 "description": "Human-readable description",
@@ -112,6 +153,7 @@ Taarifa za ziada kuhusu mpango wa mtiririko:
 ### Vigezo vya Mfumo
 
 #### {id}
+<<<<<<< HEAD
 Huibwa na kitambulisho kipekee cha kila mfumo.
 Huunda rasilimali zilizotengwa kwa kila mfumo.
 Mifano: `flow-123`, `customer-A-flow`
@@ -120,10 +162,21 @@ Mifano: `flow-123`, `customer-A-flow`
 Huibwa na jina la mpango wa mfumo.
 Huunda rasilimali zilizoshirikiwa katika mifumo ya aina moja.
 Mifano: `standard-rag`, `enterprise-rag`
+=======
+Huibadilishwa na kitambulisho kipekee cha kila mtiririko.
+Huunda rasilimali zilizojitenga kwa kila mtiririko.
+Mfano: `flow-123`, `customer-A-flow`
+
+#### {class}
+Huibadilishwa na jina la mpango wa mtiririko.
+Huunda rasilimali zilizoshirikiwa katika mitiririko ya aina moja.
+Mfano: `standard-rag`, `enterprise-rag`
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Vigezo vya Parameta
 
 #### {parameter-name}
+<<<<<<< HEAD
 Parameta maalum zilizobainishwa wakati wa kuanzisha mfumo.
 Majina ya parameta yanalingana na funguo katika sehemu ya `parameters` ya mfumo.
 Hutumiwa katika mipangilio ya kichakuzi ili kuboresha tabia.
@@ -136,6 +189,20 @@ Yanathibitishwa kulingana na ufafanuzi wa parameta uliohifadhiwa katika mfumo.
 Mpangilio hutoa maadili ya usanidi kwa vichakuzi wakati wa uundaji. Inaweza kuwa:
 
 ### Mpangilio Thabiti
+=======
+Parameta maalum zilizobainishwa wakati wa kuanzisha mtiririko.
+Majina ya parametri yanalingana na funguo katika sehemu ya `parameters` ya mtiririko.
+Hutumiwa katika mipangilio ya kichakataji ili kuboresha tabia.
+Mifano: `{model}`, `{temp}`, `{chunk}`
+Huibadilishwa na maadili yaliyotolewa wakati wa kuanzisha mtiririko.
+Yanathibitishwa kulingana na ufafanuzi wa parametri uliohifadhiwa katika mfumo.
+
+## Mipangilio ya Kichakataji
+
+Mipangilio hutoa maadili ya usanidi kwa vichakataji wakati wa uundaji. Inaweza kuwa:
+
+### Mipangilio Thabiti
+>>>>>>> 82edf2d (New md files from RunPod)
 Maadili ya moja kwa moja ambayo hayubadiliki:
 ```json
 "settings": {
@@ -145,7 +212,11 @@ Maadili ya moja kwa moja ambayo hayubadiliki:
 }
 ```
 
+<<<<<<< HEAD
 ### Mipangilio Iliyobadilishwa
+=======
+### Parameta za Mpangilio
+>>>>>>> 82edf2d (New md files from RunPod)
 Maelezo ambayo hutumia vigezo vilivyotolewa wakati wa kuanzisha mtiririko:
 ```json
 "settings": {
@@ -182,7 +253,11 @@ Majina ya vigezo katika mipangilio yanalingana na funguo katika sehemu ya `param
 }
 ```
 
+<<<<<<< HEAD
 **Kifurushi cha Mpangilio wa Kurekebisha na Unaoweza Kubadilishwa:**
+=======
+**Sehemu za Kujumuisha Zenye Mipangilio Thabiti na Inayoweza Kubadilishwa:**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```json
 // In parameters section:
 "parameters": {
@@ -203,21 +278,32 @@ Majina ya vigezo katika mipangilio yanalingana na funguo katika sehemu ya `param
 
 ## Mifumo ya Kinyororo (Pulsar)
 
+<<<<<<< HEAD
 Mfumo wa mtiririko hutumia Apache Pulsar kwa ujumbe. Majina ya nyororo yanafuata muundo wa Pulsar:
+=======
+Mfumo wa mtiririko hutumia Apache Pulsar kwa ajili ya ujumbe. Majina ya nyororo yanafuata muundo wa Pulsar:
+>>>>>>> 82edf2d (New md files from RunPod)
 ```
 <persistence>://<tenant>/<namespace>/<topic>
 ```
 
 ### Vipengele:
+<<<<<<< HEAD
 **uthibitisho**: `persistent` au `non-persistent` (Njia ya uthibitisho ya Pulsar)
 **mwendeshaji**: `tg` kwa maelezo ya muundo wa mtiririko yanayotolewa na TrustGraph
 **nafasi**: Inaonyesha muundo wa ujumbe
+=======
+**uhifadhi**: `persistent` au `non-persistent` (Njia ya uhifadhi ya Pulsar)
+**mwendeshaji**: `tg` kwa maelekezo ya muundo wa mtiririko yanayotolewa na TrustGraph
+**nafasi**: Inaonyesha mtindo wa ujumbe
+>>>>>>> 82edf2d (New md files from RunPod)
   `flow`: Huduma za "tumia na usahau"
   `request`: Sehemu ya ombi ya huduma za ombi/jibu
   `response`: Sehemu ya jibu ya huduma za ombi/jibu
 **mada**: Jina maalum la folyo/mada na vigezo vya kiolezo
 
 ### Folyozilizohifadhiwa
+<<<<<<< HEAD
 Muundo: `persistent://tg/flow/<topic>:{id}`
 Inatumika kwa huduma za "tumia na usahau" na mtiririko wa data endelevu
 Data inabaki katika hifadhi ya Pulsar wakati wa kuanzishwa upya
@@ -228,18 +314,40 @@ Muundo: `non-persistent://tg/request/<topic>:{class}` au `non-persistent://tg/re
 Inatumika kwa muundo wa ujumbe wa ombi/jibu
 Inapotea, haihifadhiwa kwenye diski na Pulsar
 Latensi ndogo, inafaa kwa mawasiliano ya aina ya RPC
+=======
+Mtindo: `persistent://tg/flow/<topic>:{id}`
+Inatumika kwa huduma za "tumia na usahau" na mtiririko wa data endelevu
+Data inahifadhiwa katika hifadhi ya Pulsar katika kuanzishwa upya
+Mfano: `persistent://tg/flow/chunk-load:{id}`
+
+### Folyozilizohifadhiwa
+Mtindo: `non-persistent://tg/request/<topic>:{class}` au `non-persistent://tg/response/<topic>:{class}`
+Inatumika kwa mitindo ya ujumbe ya ombi/jibu
+Inapotea, haihifadhiwi kwenye diski na Pulsar
+Latensi ya chini, inayofaa kwa mawasiliano ya aina ya RPC
+>>>>>>> 82edf2d (New md files from RunPod)
 Mfano: `non-persistent://tg/request/embeddings:{class}`
 
 ## Usanifu wa Mtiririko wa Data
 
+<<<<<<< HEAD
 Muundo wa mtiririko huunda mtiririko wa data unaounganishwa ambapo:
 
 1. **Mchakato wa Kusindika Nyaraka**: Mtiririko kutoka kwa kupokea hadi kubadilisha hadi kuhifadhi
+=======
+Muundo wa mtiririko huunda mtiririko wa data uliounganishwa ambapo:
+
+1. **Mchakato wa Kusindika Nyaraka**: Mtiririko kutoka kwa kupokea kupitia mabadiliko hadi kuhifadhi
+>>>>>>> 82edf2d (New md files from RunPod)
 2. **Huduma za Uchunguzi**: Wasindikaji waliojumuishwa ambao huchunguza hifadhi na huduma sawa za data
 3. **Huduma Zilizoshirikiwa**: Wasindikaji wa kati ambao mtiririko wote unaweza kutumia
 4. **Waandikaji wa Hifadhi**: Kuhifadhi data iliyosindikwa kwenye hifadhi husika
 
+<<<<<<< HEAD
 Wasindikaji wote (wote `{id}` na `{class}`) hufanya kazi pamoja kama grafu moja ya mtiririko wa data, sio mifumo tofauti.
+=======
+Wasindikaji wote (wote `{id}` na `{class}`) hufanya kazi pamoja kama grafu ya mtiririko wa data iliyounganishwa, sio mifumo tofauti.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Uanzishaji wa Mfano wa Mtiririko
 
@@ -264,9 +372,15 @@ Upanuzi wa kiolezo:
 
 Hii huunda:
 Mchakato wa kusindika nyaraka uliotengwa kwa `customer-A-flow`
+<<<<<<< HEAD
 Huduma ya pamoja ya uingizaji kwa mtiririko wote wa `standard-rag`
 Mtiririko kamili kutoka kwa kupokea nyaraka hadi uchunguzi
 Wasindikaji walioelekezwa na maadili ya vigezo vilivyotolewa
+=======
+Huduma ya pamoja ya uingishaji kwa mtiririko wote wa `standard-rag`
+Mtiririko kamili kutoka kwa kupokea nyaraka hadi uchunguzi
+Wasindikaji uliopangwa na maadili ya vigezo vilivyotolewa
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Faida
 

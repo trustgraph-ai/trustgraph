@@ -23,7 +23,11 @@ Esta implementación admite los siguientes casos de uso:
 
 **Compatibilidad con versiones anteriores**: Las indicaciones existentes que utilizan `response-type: "text"` y
   `response-type: "json"` siguen funcionando sin modificaciones.
+<<<<<<< HEAD
 **Resiliencia a la truncación**: Las salidas parciales del LLM producen resultados válidos parciales
+=======
+**Resiliencia ante la truncación**: Las salidas parciales del LLM producen resultados válidos parciales
+>>>>>>> 82edf2d (New md files from RunPod)
   en lugar de un fallo completo.
 **Validación de esquema**: Soporte para la validación de esquemas JSON para objetos individuales.
 **Uniones discriminadas**: Soporte para salidas de tipos mixtos utilizando un campo `type`
@@ -31,7 +35,11 @@ Esta implementación admite los siguientes casos de uso:
 **Cambios mínimos en la API**: Extiende la configuración de indicaciones existente con un nuevo
   tipo de respuesta y clave de esquema.
 
+<<<<<<< HEAD
 ## Contexto
+=======
+## Antecedentes
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Arquitectura actual
 
@@ -62,7 +70,11 @@ Cuando las indicaciones de extracción solicitan una salida en formato de matric
 **Sin resultados parciales**: Una respuesta truncada produce cero datos utilizables.
 **No es fiable para extracciones grandes**: Cuantos más elementos se extraen, mayor es el riesgo de fallo.
 
+<<<<<<< HEAD
 Esta especificación aborda estas limitaciones introduciendo el formato JSONL para
+=======
+Esta especificación aborda estas limitaciones mediante la introducción del formato JSONL para
+>>>>>>> 82edf2d (New md files from RunPod)
 las indicaciones de extracción, donde cada elemento extraído es un objeto JSON completo en su
 propia línea.
 
@@ -108,10 +120,17 @@ Esto evita cambios en las herramientas de configuración y los editores.
 
 #### Extracción simple
 
+<<<<<<< HEAD
 Para los prompts que extraen un solo tipo de objeto (definiciones, relaciones,
 temas, filas), la salida es un objeto JSON por línea sin envoltorio:
 
 **Formato de salida del prompt:**
+=======
+Para las indicaciones que extraen un solo tipo de objeto (definiciones, relaciones,
+temas, filas), la salida es un objeto JSON por línea sin envoltorio:
+
+**Formato de salida de la indicación:**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```
 {"entity": "photosynthesis", "definition": "Process by which plants convert sunlight"}
 {"entity": "chlorophyll", "definition": "Green pigment in plants"}
@@ -132,7 +151,11 @@ mientras que JSONL produce dos objetos válidos.
 
 #### Extracción de Tipos Mixtos (Uniones Discriminadas)
 
+<<<<<<< HEAD
 Para las indicaciones que extraen múltiples tipos de objetos (por ejemplo, tanto definiciones como
+=======
+Para indicaciones que extraen múltiples tipos de objetos (por ejemplo, tanto definiciones como
+>>>>>>> 82edf2d (New md files from RunPod)
 relaciones, o entidades, relaciones y atributos), utilice un campo `"type"`
 como discriminador:
 
@@ -330,6 +353,7 @@ Cuando los clientes llaman al servicio de prompts (a través de `PromptClient.pr
 **`response-type: "jsonl"`** → el cliente recibe Python `list`
 
 Desde la perspectiva del cliente, ambos devuelven estructuras de datos idénticas. La
+<<<<<<< HEAD
 diferencia es completamente en cómo se analiza la salida del LLM en el servidor:
 
 Formato de matriz JSON: Una sola llamada a `json.loads()`; falla completamente si se trunca
@@ -337,6 +361,15 @@ Formato JSONL: Análisis línea por línea; produce resultados parciales si se t
 
 Esto significa que el código de cliente existente que espera una lista de los prompts de extracción
 no requiere cambios al migrar los prompts de JSON a JSONL.
+=======
+diferencia radica completamente en cómo se analiza la salida del LLM en el servidor:
+
+Formato de matriz JSON: Una sola llamada a `json.loads()`; falla por completo si se trunca
+Formato JSONL: Análisis línea por línea; produce resultados parciales si se trunca
+
+Esto significa que el código de cliente existente que espera una lista de los prompts de extracción
+no requiere cambios al migrar los prompts del formato JSON al formato JSONL.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Valor de Retorno del Servidor
 
@@ -351,7 +384,11 @@ Fallo parcial de análisis: Devuelve una lista de objetos analizados correctamen
   registros de advertencia para los fallos
 Fallo completo de análisis: Devuelve una lista vacía `[]` con registros de advertencia
 
+<<<<<<< HEAD
 Esto difiere de `response-type: "json"` que lanza `RuntimeError` en
+=======
+Esto difiere de `response-type: "json"`, que lanza `RuntimeError` en
+>>>>>>> 82edf2d (New md files from RunPod)
 caso de fallo de análisis. El comportamiento permisivo para JSONL es intencional para proporcionar
 resistencia a la truncación.
 
@@ -391,6 +428,7 @@ Ejemplo completo de configuración de prompt:
 ## Consideraciones de rendimiento
 
 **Memoria**: El análisis línea por línea utiliza menos memoria máxima que la carga de matrices JSON completas.
+<<<<<<< HEAD
   
 **Latencia**: El rendimiento del análisis es comparable al análisis de matrices JSON.
 **Validación**: La validación de esquema se ejecuta por objeto, lo que añade sobrecarga, pero
@@ -398,15 +436,31 @@ Ejemplo completo de configuración de prompt:
 
 ## Estrategia de pruebas
 
+=======
+  **Latencia**: El rendimiento del análisis es comparable al análisis de matrices JSON.
+**Validación**: La validación de esquemas se ejecuta por objeto, lo que añade sobrecarga, pero
+permite resultados parciales en caso de fallo de la validación.
+  
+## Estrategia de pruebas
+
+
+>>>>>>> 82edf2d (New md files from RunPod)
 ### Pruebas Unitarias
 
 Análisis de JSONL con entrada válida
 Análisis de JSONL con líneas vacías
 Análisis de JSONL con bloques de código Markdown
+<<<<<<< HEAD
 Análisis de JSONL con línea final truncada
 Análisis de JSONL con líneas JSON inválidas intercaladas
 Validación de esquema con uniones discriminadas `oneOf`
 Compatibilidad hacia atrás: las indicaciones existentes `"text"` y `"json"` no se modifican
+=======
+Análisis de JSONL con líneas finales truncadas
+Análisis de JSONL con líneas JSON inválidas intercaladas
+Validación de esquema con uniones discriminadas `oneOf`
+Compatibilidad con versiones anteriores: las indicaciones `"text"` y `"json"` existentes no se modifican
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Pruebas de Integración
 
@@ -449,7 +503,14 @@ Ninguna por el momento.
 
 ## Referencias
 
+<<<<<<< HEAD
 Implementación actual: `trustgraph-flow/trustgraph/template/prompt_manager.py`.
 Especificación de JSON Lines: https://jsonlines.org/.
 Esquema JSON `oneOf`: https://json-schema.org/understanding-json-schema/reference/combining.html#oneof.
 Especificación relacionada: Streaming LLM Responses (`docs/tech-specs/streaming-llm-responses.md`).
+=======
+Implementación actual: `trustgraph-flow/trustgraph/template/prompt_manager.py`
+Especificación de JSON Lines: https://jsonlines.org/
+Esquema JSON `oneOf`: https://json-schema.org/understanding-json-schema/reference/combining.html#oneof
+Especificación relacionada: Streaming LLM Responses (`docs/tech-specs/streaming-llm-responses.md`)
+>>>>>>> 82edf2d (New md files from RunPod)

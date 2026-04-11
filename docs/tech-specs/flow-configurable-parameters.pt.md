@@ -79,10 +79,17 @@ O sistema de parâmetros configuráveis requer os seguintes componentes técnico
 
    Módulo: trustgraph-flow/trustgraph/flow/launcher.py
 
+<<<<<<< HEAD
 5. **Formulários de Parâmetro da Interface do Usuário**
    Geração dinâmica de formulários a partir de metadados de parâmetros do fluxo.
    Exibição ordenada de parâmetros usando o campo `order`.
    Rótulos de parâmetros descritivos usando o campo `description`.
+=======
+5. **Formulários de Parâmetros da Interface do Usuário**
+   Geração dinâmica de formulários a partir de metadados de parâmetros do fluxo.
+   Exibição ordenada de parâmetros usando o campo `order`.
+   Rótulos descritivos de parâmetros usando o campo `description`.
+>>>>>>> 82edf2d (New md files from RunPod)
    Validação de entrada contra as definições de tipo de parâmetro.
    Predefinições e modelos de parâmetros.
 
@@ -253,11 +260,19 @@ A API de inicialização do fluxo aceita parâmetros usando os nomes de parâmet
 Nota: Neste exemplo, `llm-rag-model` não é fornecido explicitamente, mas herdará o valor "claude-3" de `llm-model` devido à sua relação `controlled-by`. Da mesma forma, `chunk-overlap` pode herdar um valor calculado com base em `chunk-size`.
 
 O sistema irá:
+<<<<<<< HEAD
 1. Extrair metadados de parâmetros da definição do blueprint do fluxo
 2. Mapear os nomes dos parâmetros do fluxo para suas definições de tipo (por exemplo, `llm-model` → `llm-model` tipo)
 3. Resolver as relações "controlado por" (por exemplo, `llm-rag-model` herda de `llm-model`)
 4. Validar os valores fornecidos pelo usuário e os valores herdados em relação às definições de tipo dos parâmetros
 5. Substituir os valores resolvidos nos parâmetros do processador durante a instanciação do fluxo
+=======
+1. Extrair metadados de parâmetros da definição do fluxo.
+2. Mapear os nomes dos parâmetros do fluxo para suas definições de tipo (por exemplo, `llm-model` → `llm-model` tipo).
+3. Resolver relações de dependência (por exemplo, `llm-rag-model` herda de `llm-model`).
+4. Validar os valores fornecidos pelo usuário e os valores herdados em relação às definições de tipo dos parâmetros.
+5. Substituir os valores resolvidos nos parâmetros do processador durante a instanciação do fluxo.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Detalhes da Implementação
 
@@ -265,6 +280,7 @@ O sistema irá:
 
 Quando um fluxo é iniciado, o sistema executa as seguintes etapas de resolução de parâmetros:
 
+<<<<<<< HEAD
 1. **Carregamento do Blueprint do Fluxo**: Carregar a definição do blueprint do fluxo e extrair os metadados dos parâmetros
 2. **Extração de Metadados**: Extrair `type`, `description`, `order`, `advanced` e `controlled-by` para cada parâmetro definido na seção `parameters` do blueprint do fluxo
 3. **Consulta da Definição de Tipo**: Para cada parâmetro no blueprint do fluxo:
@@ -312,12 +328,66 @@ No modo avançado, os usuários podem substituir `llm-rag-model` com um valor di
 No modo básico/simples: Parâmetros com `controlled-by` podem ser ocultos ou exibidos como somente leitura com valor herdado
 No modo avançado: Todos os parâmetros são exibidos e podem ser configurados individualmente
 Quando um parâmetro de controle é alterado, os parâmetros dependentes são atualizados automaticamente, a menos que sejam explicitamente substituídos
+=======
+1. **Carregamento da Definição do Fluxo**: Carregar a definição do fluxo e extrair os metadados dos parâmetros.
+2. **Extração de Metadados**: Extrair `type`, `description`, `order`, `advanced` e `controlled-by` para cada parâmetro definido na seção `parameters` da definição do fluxo.
+3. **Consulta da Definição de Tipo**: Para cada parâmetro na definição do fluxo:
+   Recuperar a definição de tipo do parâmetro do armazenamento de esquema/configuração usando o campo `type`.
+   As definições de tipo são armazenadas com o tipo "parameter-type" no sistema de configuração.
+   Cada definição de tipo contém o esquema do parâmetro, o valor padrão e as regras de validação.
+4. **Resolução do Valor Padrão**:
+   Para cada parâmetro definido na definição do fluxo:
+     Verificar se o usuário forneceu um valor para este parâmetro.
+     Se nenhum valor do usuário for fornecido, usar o valor `default` da definição de tipo do parâmetro.
+     Criar um mapa de parâmetros completo contendo tanto os valores fornecidos pelo usuário quanto os valores padrão.
+5. **Resolução de Herança de Parâmetros** (relações de dependência):
+   Para parâmetros com o campo `controlled-by`, verificar se um valor foi fornecido explicitamente.
+   Se nenhum valor explícito for fornecido, herdar o valor do parâmetro de controle.
+   Se o parâmetro de controle também não tiver valor, usar o padrão da definição de tipo.
+   Validar que não existam dependências circulares nas relações `controlled-by`.
+6. **Validação**: Validar o conjunto completo de parâmetros (fornecidos pelo usuário, padrões e herdados) em relação às definições de tipo.
+7. **Armazenamento**: Armazenar o conjunto completo de parâmetros resolvidos com a instância do fluxo para auditoria.
+8. **Substituição de Marcadores**: Substituir os marcadores de parâmetros nos parâmetros do processador pelos valores resolvidos.
+9. **Instanciação do Processador**: Criar processadores com os parâmetros substituídos.
+
+**Notas Importantes de Implementação:**
+O serviço de fluxo DEVE mesclar os parâmetros fornecidos pelo usuário com os padrões das definições de tipo de parâmetro.
+O conjunto completo de parâmetros (incluindo os padrões aplicados) DEVE ser armazenado com o fluxo para rastreabilidade.
+A resolução de parâmetros ocorre no início do fluxo, não no momento da instanciação do processador.
+Parâmetros obrigatórios sem padrões DEVE causar a falha no início do fluxo com uma mensagem de erro clara.
+
+#### Herança de Parâmetros com dependência
+
+O campo `controlled-by` permite a herança de valores de parâmetros, o que é particularmente útil para simplificar interfaces de usuário, mantendo a flexibilidade:
+
+**Cenário de Exemplo**:
+O parâmetro `llm-model` controla o modelo LLM primário.
+O parâmetro `llm-rag-model` tem o valor `"controlled-by": "llm-model"`.
+No modo simples, definir `llm-model` para "gpt-4" define automaticamente `llm-rag-model` para "gpt-4" também.
+No modo avançado, os usuários podem substituir `llm-rag-model` com um valor diferente.
+
+**Regras de Resolução**:
+1. Se um parâmetro tiver um valor fornecido explicitamente, use esse valor.
+2. Se não houver valor explícito e `controlled-by` estiver definido, use o valor do parâmetro de controle.
+3. Se o parâmetro de controle não tiver valor, use o padrão da definição de tipo.
+4. Dependências circulares nas relações `controlled-by` resultam em um erro de validação.
+
+**Comportamento da Interface do Usuário**:
+No modo básico/simples: Parâmetros com `controlled-by` podem ser ocultos ou exibidos como somente leitura com valor herdado.
+No modo avançado: Todos os parâmetros são exibidos e podem ser configurados individualmente.
+Quando um parâmetro de controle é alterado, os parâmetros dependentes são atualizados automaticamente, a menos que sejam explicitamente substituídos.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Integração com Pulsar
 
 1. **Operação Start-Flow**
+<<<<<<< HEAD
    A operação start-flow do Pulsar precisa aceitar um campo `parameters` contendo um mapa de valores de parâmetros
    O esquema do Pulsar para a solicitação start-flow deve ser atualizado para incluir o campo opcional `parameters`
+=======
+   A operação start-flow do Pulsar precisa aceitar um campo `parameters` contendo um mapa de valores de parâmetros.
+   O esquema do Pulsar para a solicitação start-flow deve ser atualizado para incluir o campo opcional `parameters`.
+>>>>>>> 82edf2d (New md files from RunPod)
    Exemplo de solicitação:
    ```json
    {
@@ -378,7 +448,11 @@ O serviço de configuração de fluxo (`trustgraph-flow/trustgraph/config/servic
 
 2. **Método `handle_start_flow` Modificado**
    Chamar `resolve_parameters` após carregar o blueprint do fluxo
+<<<<<<< HEAD
    Usar o conjunto completo de parâmetros resolvidos para substituição de modelo
+=======
+   Usar o conjunto completo de parâmetros resolvidos para a substituição de modelo
+>>>>>>> 82edf2d (New md files from RunPod)
    Armazenar o conjunto completo de parâmetros (não apenas os fornecidos pelo usuário) com o fluxo
    Validar que todos os parâmetros obrigatórios tenham valores
 
@@ -393,14 +467,22 @@ O serviço de configuração de fluxo (`trustgraph-flow/trustgraph/config/servic
    Quando um fluxo é adicionado ao sistema de configuração pelo componente de fluxo no gerenciador de configuração, o objeto de fluxo deve incluir os valores de parâmetros resolvidos
    O gerenciador de configuração precisa armazenar tanto os parâmetros originais fornecidos pelo usuário quanto os valores resolvidos (com os padrões aplicados)
    Os objetos de fluxo no sistema de configuração devem incluir:
+<<<<<<< HEAD
      `parameters`: Os valores finais de parâmetros resolvidos usados para o fluxo
+=======
+     `parameters`: Os valores de parâmetros resolvidos finais usados para o fluxo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Integração com a CLI
 
 4. **Comandos da CLI da Biblioteca**
    Os comandos da CLI que iniciam fluxos precisam de suporte a parâmetros:
      Aceitar valores de parâmetros por meio de flags de linha de comando ou arquivos de configuração
+<<<<<<< HEAD
      Validar parâmetros em relação às definições do blueprint do fluxo antes da submissão
+=======
+     Validar os parâmetros em relação às definições do blueprint do fluxo antes da submissão
+>>>>>>> 82edf2d (New md files from RunPod)
      Suportar a entrada de arquivos de parâmetros (JSON/YAML) para conjuntos de parâmetros complexos
 
    Os comandos da CLI que mostram fluxos precisam exibir informações de parâmetros:
@@ -411,7 +493,11 @@ O serviço de configuração de fluxo (`trustgraph-flow/trustgraph/config/servic
 #### Integração com a Classe Base do Processador
 
 5. **Suporte a ParameterSpec**
+<<<<<<< HEAD
    As classes base do processador precisam suportar a substituição de parâmetros por meio do mecanismo existente ParametersSpec
+=======
+   As classes base do processador precisam suportar a substituição de parâmetros por meio do mecanismo ParametersSpec existente
+>>>>>>> 82edf2d (New md files from RunPod)
    A classe ParametersSpec (localizada no mesmo módulo que ConsumerSpec e ProducerSpec) deve ser aprimorada, se necessário, para suportar a substituição de modelos de parâmetros
    Os processadores devem ser capazes de invocar ParametersSpec para configurar seus parâmetros com valores de parâmetros resolvidos no momento da inicialização do fluxo
    A implementação de ParametersSpec precisa:
@@ -447,12 +533,21 @@ Substituted in processor: "0.7" (string)
 
 ## Estratégia de Testes
 
+<<<<<<< HEAD
 Testes unitários para validação do esquema de parâmetros
 Testes de integração para substituição de parâmetros nos parâmetros do processador
 Testes de ponta a ponta para iniciar fluxos com diferentes valores de parâmetros
 Testes de interface do usuário para geração e validação de formulários de parâmetros
 Testes de desempenho para fluxos com muitos parâmetros
 Casos extremos: parâmetros ausentes, tipos inválidos, referências de parâmetros indefinidos
+=======
+Testes unitários para validação do esquema de parâmetros.
+Testes de integração para substituição de parâmetros nos parâmetros do processador.
+Testes de ponta a ponta para iniciar fluxos com diferentes valores de parâmetros.
+Testes de interface do usuário para geração e validação de formulários de parâmetros.
+Testes de desempenho para fluxos com muitos parâmetros.
+Casos de borda: parâmetros ausentes, tipos inválidos, referências de parâmetros indefinidos.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Plano de Migração
 
@@ -470,14 +565,22 @@ R: Os valores dos parâmetros serão codificados como strings, provavelmente que
 
 P: Os espaços reservados de parâmetros devem ser permitidos em nomes de filas ou apenas em
    parâmetros?
+<<<<<<< HEAD
 R: Apenas em parâmetros para evitar injeções estranhas e casos extremos.
+=======
+R: Apenas em parâmetros para remover injeções estranhas e casos de borda.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 P: Como lidar com conflitos entre nomes de parâmetros e variáveis do sistema, como
    `id` e `class`?
 R: Não é válido especificar "id" e "class" ao iniciar um fluxo.
 
 P: Devemos suportar parâmetros calculados (derivados de outros parâmetros)?
+<<<<<<< HEAD
 R: Apenas substituição de strings para evitar injeções estranhas e casos extremos.
+=======
+R: Apenas substituição de strings para remover injeções estranhas e casos de borda.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Referências
 

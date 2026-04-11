@@ -21,6 +21,7 @@ Bu uygulama, aşağıdaki kullanım senaryolarını destekler:
 
 ## Hedefler
 
+<<<<<<< HEAD
 **Geriye Dönük Uyumluluk**: `response-type: "text"` kullanan mevcut istemler ve
   `response-type: "json"`, herhangi bir değişiklik yapılmadan çalışmaya devam eder.
 **Kesinti Dayanıklılığı**: Kısmi LLM çıktıları, tam bir başarısızlık yerine kısmi, geçerli sonuçlar üretir.
@@ -30,6 +31,17 @@ Bu uygulama, aşağıdaki kullanım senaryolarını destekler:
   
 **Minimum API Değişiklikleri**: Mevcut istem yapılandırmasını, yeni
   yanıt türü ve şema anahtarıyla genişletir.
+=======
+**Geriye Dönük Uyumluluk**: `response-type: "text"` ve
+  `response-type: "json"` kullanan mevcut istemler, herhangi bir değişiklik yapılmadan çalışmaya devam eder.
+**Kesme Direnci**: Kısmi LLM çıktıları, tam bir başarısızlık yerine, kısmi geçerli sonuçlar üretir.
+  
+**Şema Doğrulama**: Bireysel nesneler için JSON Şema doğrulamasını destekleyin.
+**Ayırıcı Birleşimler**: `type` alanı kullanılarak farklı türlerde çıktıları destekleyin.
+  ayırıcı.
+**Minimum API Değişiklikleri**: Mevcut istem yapılandırmasını yeni
+  yanıt türü ve şema anahtarıyla genişletin.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Arka Plan
 
@@ -41,7 +53,11 @@ Bu uygulama, aşağıdaki kullanım senaryolarını destekler:
 2. `response-type: "json"` - Yanıttan ayrıştırılan JSON, isteğe bağlı `response-type: "json"`'a göre doğrulanır.
    isteğe bağlı `schema`
 
+<<<<<<< HEAD
 `trustgraph-flow/trustgraph/template/prompt_manager.py`'daki mevcut uygulama:
+=======
+Mevcut uygulama `trustgraph-flow/trustgraph/template/prompt_manager.py` içinde:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 class Prompt:
@@ -56,11 +72,19 @@ class Prompt:
 
 Çıkarma komutları, çıktıyı JSON dizileri (`[{...}, {...}, ...]`) olarak istediğinde:
 
+<<<<<<< HEAD
 **Kesme nedeniyle oluşan bozulma**: Eğer LLM, dizi ortasında çıktı belirteç sınırlarına ulaştığında,
   tüm yanıt geçersiz bir JSON haline gelir ve işlenemez.
 **Tümünü veya hiçbirini işleme**: İşlemeye başlamadan önce tam çıktıyı almanız gerekir.
 **Kısmi sonuçlar yok**: Kesilmiş bir yanıt, kullanılabilir veri olarak sıfır veri verir.
 **Büyük çıkarmalar için güvenilir değil**: Çıkarılan öğe sayısı arttıkça, başarısızlık riski daha yüksektir.
+=======
+**Kesme bozulması**: Eğer LLM, dizi ortasında çıktı belirteç sınırlarına ulaştığında,
+  tüm yanıt geçersiz bir JSON haline gelir ve işlenemez.
+**Tüm veya hiçbir işleme**: İşlemeye başlamadan önce tam çıktının alınması gerekir.
+**Kısmi sonuçlar yok**: Kesilmiş bir yanıt, kullanılabilir veri olarak sıfır veri verir.
+**Büyük çıkarmalar için güvenilir değil**: Çıkarılan öğe sayısı arttıkça, başarısızlık riski artar.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Bu özellik, her çıkarılan öğenin kendi satırında bulunan tam bir JSON nesnesi olduğu JSONL formatını kullanarak, bu sınırlamaları ele alır.
 
@@ -72,9 +96,15 @@ Bu özellik, her çıkarılan öğenin kendi satırında bulunan tam bir JSON ne
 
 Mevcut `"text"` ve `"json"` türlerinin yanı sıra yeni bir yanıt türü `"jsonl"` ekleyin.
 
+<<<<<<< HEAD
 
 #### Yapılandırma Değişiklikleri
 
+=======
+#### Yapılandırma Değişiklikleri
+
+**Yeni yanıt türü değeri:**
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 "response-type": "jsonl"
@@ -127,6 +157,7 @@ konular, satırlar) çıkaran istemler için, çıktı her satırda bir JSON nes
 ]
 ```
 
+<<<<<<< HEAD
 Eğer LLM, 2. satırdan sonra kesilirse, JSON dizisi formatı geçersiz bir JSON oluşturur,
 ancak JSONL iki geçerli nesne üretir.
 
@@ -134,6 +165,15 @@ ancak JSONL iki geçerli nesne üretir.
 
 Birden fazla nesne türünü çıkaran (örneğin, hem tanımları hem de
 ilişkileri, veya varlıklar, ilişkiler ve özellikler) istemler için, bir `"type"`
+=======
+Eğer LLM, 2. satırdan sonra kesilirse, JSON dizisi formatı geçersiz bir JSON oluştururken,
+JSONL ise iki geçerli nesne üretir.
+
+#### Karışık Tip Çıkarımı (Ayırıcı Birleşimler)
+
+Birden fazla nesne türünü çıkaran (örneğin, hem tanımları ve
+ilişkiler veya varlıklar, ilişkiler ve özellikler) istemler için, bir `"type"`
+>>>>>>> 82edf2d (New md files from RunPod)
 alanını ayırıcı olarak kullanın:
 
 **İstem çıktısı formatı:**
@@ -320,6 +360,7 @@ Aşağıdaki istekler JSONL formatına aktarılmalıdır:
 
 #### Müşteri Perspektifi
 
+<<<<<<< HEAD
 JSONL ayrıştırması, istem hizmeti API'sini kullananlar için şeffaftır. Ayrıştırma, istem hizmetinde sunucu tarafında gerçekleşir ve yanıt standart
 bir şekilde döndürülür.
 `PromptResponse.object` alanını seri hale edilmiş bir JSON dizisi olarak.
@@ -353,11 +394,50 @@ Tam ayrıştırma hatası: Uyarı günlükleriyle boş bir liste `[]` döndürü
 
 Bu, `response-type: "json"`'den farklıdır, çünkü `RuntimeError` ayrıştırma hatası durumunda `RuntimeError` hatası oluşturur.
 JSONL için daha hoşgörülü davranış, kesintilere karşı dayanıklılık sağlamak amacıyla kasıtlıdır.
+=======
+JSONL ayrıştırması, istek hizmeti API kullanıcıları için şeffaftır. Ayrıştırma, isteğin
+sunucu tarafında gerçekleşir ve yanıt, standart
+`PromptResponse.object` alanı aracılığıyla seri hale getirilmiş bir JSON dizisi olarak döndürülür.
+
+Müşteriler, istek hizmetini (`PromptClient.prompt()` veya benzeri aracılığıyla) çağırdığında:
+
+**`response-type: "json"`** dizi şeması ile → müşteri, Python `list` alır
+**`response-type: "jsonl"`** → müşteri, Python `list` alır
+
+Müşteri açısından, her iki yöntem de aynı veri yapılarını döndürür. Fark, yalnızca LLM çıktısının
+sunucu tarafında nasıl ayrıştırıldığıdır:
+
+JSON dizisi formatı: Tek `json.loads()` çağrısı; kesintiye uğratılırsa tamamen başarısız olur
+JSONL formatı: Satır satır ayrıştırma; kesintiye uğratılırsa kısmi sonuçlar verir
+
+Bu, çıkarma isteklerinden gelen listeleri bekleyen mevcut müşteri kodunun,
+istekleri JSON'dan JSONL formatına geçirirken herhangi bir değişikliğe ihtiyaç duymamasını sağlar.
+
+#### Sunucu Dönüş Değeri
+
+`response-type: "jsonl"` için, `PromptManager.invoke()` yöntemi bir
+`list[dict]` döndürür ve bu, başarıyla ayrıştırılmış ve doğrulanmış tüm nesneleri içerir.
+Bu liste daha sonra `PromptResponse.object` alanı için JSON'a seri hale getirilir.
+
+#### Hata Yönetimi
+
+Boş sonuçlar: Uyarı günlüğü ile boş bir liste `[]` döndürülür
+Kısmi ayrıştırma hatası: Başarıyla ayrıştırılmış nesnelerin listesi, hatalar için
+  uyarı günlükleriyle birlikte döndürülür
+Tam ayrıştırma hatası: Uyarı günlükleriyle boş bir liste `[]` döndürülür
+
+Bu, ayrıştırma hatası durumunda `RuntimeError`'i yükselten `response-type: "json"`'dan farklıdır.
+JSONL için esnek davranış, kesintiye karşı dayanıklılık sağlamak için kasıtlıdır.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 
 ### Yapılandırma Örneği
 
+<<<<<<< HEAD
 Tam istem yapılandırma örneği:
+=======
+Tam istek yapılandırma örneği:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 {
@@ -391,12 +471,21 @@ Tam istem yapılandırma örneği:
 ## Performans Hususları
 
 **Bellek**: Satır satır ayrıştırma, tam JSON dizilerini yüklemekten daha az bellek kullanır.
+<<<<<<< HEAD
   **Gecikme**: Ayrıştırma performansı, JSON dizisi ayrıştırmasıyla karşılaştırılabilir.
 **Doğrulama**: Şema doğrulaması, her bir nesne için yapılır, bu da ek yük getirir ancak
 doğrulama başarısız olduğunda kısmi sonuçlar elde etmeyi sağlar.
   
 ## Test Stratejisi
 
+=======
+  
+**Gecikme**: Ayrıştırma performansı, JSON dizisi ayrıştırmasıyla karşılaştırılabilir.
+**Doğrulama**: Şema doğrulaması, her bir nesne için yapılır, bu da ek yük getirir ancak
+  doğrulama başarısız olduğunda kısmi sonuçlar elde etmeyi sağlar.
+
+## Test Stratejisi
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Birim Testleri
 
@@ -440,7 +529,11 @@ Kesme dayanıklılığını doğrulayın: JSONL, JSON'un başarısız olduğu du
 ### 3. Aşama: Aşağı Akış Güncellemeleri
 
 1. Çıkarma sonuçlarını kullanan tüm kodu, liste dönüş türünü işleyebilecek şekilde güncelleyin
+<<<<<<< HEAD
 2. `type` alanına göre karma türdeki çıkarma sonuçlarını kategorize eden kodu güncelleyin
+=======
+2. `type` alanıyla karma türdeki çıkarma türlerini sınıflandıran kodu güncelleyin
+>>>>>>> 82edf2d (New md files from RunPod)
 3. Çıkarma çıktısı formatı hakkında doğrulama yapan testleri güncelleyin
 
 ## Açık Sorular

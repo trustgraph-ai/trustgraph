@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Especificación Técnica para el Cierre de Sesión Gratuito de Importación/Exportación
 
 ## Declaración del Problema
@@ -10,6 +11,20 @@ Actualmente, la puerta de enlace TrustGraph experimenta pérdida de mensajes dur
 3. No hay un mecanismo de confirmación para la entrega exitosa de mensajes.
 
 ### Problemas del Lado de Exportación
+=======
+# Especificación Técnica para el Cierre Gratuito de Importación/Exportación
+
+## Declaración del Problema
+
+Actualmente, la puerta de enlace TrustGraph experimenta pérdida de mensajes durante el cierre de WebSocket tanto en las operaciones de importación como de exportación. Esto ocurre debido a condiciones de carrera donde los mensajes en tránsito se descartan antes de llegar a su destino (colas de Pulsar para importaciones, clientes de WebSocket para exportaciones).
+
+### Problemas del Lado de la Importación
+1. El búfer de la cola asyncio del publicador no se vacía durante el apagado.
+2. El WebSocket se cierra antes de asegurarse de que los mensajes en cola lleguen a Pulsar.
+3. No hay un mecanismo de confirmación para la entrega exitosa de mensajes.
+
+### Problemas del Lado de la Exportación
+>>>>>>> 82edf2d (New md files from RunPod)
 1. Los mensajes se confirman en Pulsar antes de la entrega exitosa a los clientes.
 2. Los tiempos de espera codificados de forma rígida causan la pérdida de mensajes cuando las colas están llenas.
 3. No hay un mecanismo de retroalimentación para manejar consumidores lentos.
@@ -362,11 +377,19 @@ class Subscriber:
 ```
 
 **Beneficios clave del diseño (que coinciden con el patrón del editor):**
+<<<<<<< HEAD
 **Ubicación de procesamiento única**: Todo el procesamiento de mensajes se realiza en el método `run()`.
 **Máquina de estados limpia**: Tres estados claros: en ejecución, vaciado, detenido.
 **Pausa durante el vaciado**: Deja de aceptar nuevos mensajes de Pulsar mientras vacía las colas existentes.
 **Protección por tiempo de espera**: No se quedará bloqueado indefinidamente durante el vaciado.
 **Limpieza adecuada**: Reconoce negativamente cualquier mensaje no entregado al apagar.
+=======
+**Ubicación de procesamiento única**: Todo el procesamiento de mensajes se realiza en el método `run()`
+**Máquina de estados limpia**: Tres estados claros: en ejecución, vaciado, detenido
+**Pausa durante el vaciado**: Deja de aceptar nuevos mensajes de Pulsar mientras vacía las colas existentes
+**Protección por tiempo de espera**: No se quedará bloqueado indefinidamente durante el vaciado
+**Limpieza adecuada**: Reconoce negativamente cualquier mensaje no entregado al apagar
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### B. Mejoras del controlador de exportación
 
@@ -634,7 +657,11 @@ async def test_export_no_message_loss():
 ### Fase 1: Correcciones Críticas (Semana 1)
 Corregir el tiempo de confirmación del suscriptor (prevenir la pérdida de mensajes)
 Agregar el vaciado de la cola del publicador
+<<<<<<< HEAD
 Implementar en el entorno de pruebas
+=======
+Desplegar en el entorno de pruebas
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Fase 2: Cierre Gratuito (Semana 2)
 Implementar la coordinación del cierre
@@ -652,7 +679,11 @@ Ajustar los valores de tiempo de espera según los datos de producción
 `publisher.queue.depth` - Tamaño actual de la cola del publicador
 `publisher.messages.dropped` - Mensajes perdidos durante el cierre
 `subscriber.messages.negatively_acknowledged` - Entregas fallidas
+<<<<<<< HEAD
 `websocket.graceful_shutdowns` - Cierres gratuitos exitosos
+=======
+`websocket.graceful_shutdowns` - Cierres suaves exitosos
+>>>>>>> 82edf2d (New md files from RunPod)
 `websocket.forced_shutdowns` - Cierres forzados/por tiempo de espera
 
 ### Alertas
@@ -665,7 +696,11 @@ Tiempo de espera del cierre excedido
 
 Todos los cambios mantienen la compatibilidad con versiones anteriores:
 El comportamiento predeterminado no cambia sin configuración
+<<<<<<< HEAD
 Las implementaciones existentes continúan funcionando
+=======
+Los despliegues existentes continúan funcionando
+>>>>>>> 82edf2d (New md files from RunPod)
 Degradación gradual si las nuevas funciones no están disponibles
 
 ## Consideraciones de Seguridad

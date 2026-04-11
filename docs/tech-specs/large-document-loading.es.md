@@ -13,19 +13,32 @@ Esta implementación tiene como objetivo los siguientes casos de uso:
    sin agotar la memoria.
 2. **Cargas Reanudables**: Permitir que las cargas interrumpidas continúen desde donde
    se detuvieron en lugar de reiniciarse.
+<<<<<<< HEAD
 3. **Indicación de Progreso**: Proporcionar a los usuarios visibilidad en tiempo real del
+=======
+3. **Retroalimentación de Progreso**: Proporcionar a los usuarios visibilidad en tiempo real del
+>>>>>>> 82edf2d (New md files from RunPod)
    progreso de la carga y el procesamiento.
 4. **Procesamiento Eficiente en Memoria**: Procesar documentos de forma continua
    sin mantener archivos completos en la memoria.
 
 ## Objetivos
 
+<<<<<<< HEAD
 **Carga Incremental**: Soporte para la carga de documentos en fragmentos a través de REST y WebSocket.
 **Transferencias Reanudables**: Permitir la recuperación de cargas interrumpidas.
 **Visibilidad del Progreso**: Proporcionar retroalimentación de carga/procesamiento a los clientes.
 **Eficiencia de Memoria**: Eliminar el almacenamiento en búfer de documentos completos en todo el proceso.
 **Compatibilidad con Versiones Anteriores**: Los flujos de trabajo existentes para documentos pequeños continúan sin cambios.
 **Procesamiento por Flujo Continuo**: La decodificación de PDF y el fragmentado de texto operan en flujos.
+=======
+**Carga Incremental**: Soporte para la carga de documentos por partes a través de REST y WebSocket.
+**Transferencias Reanudables**: Permitir la recuperación de cargas interrumpidas.
+**Visibilidad del Progreso**: Proporcionar retroalimentación de progreso de carga/procesamiento a los clientes.
+**Eficiencia de Memoria**: Eliminar el almacenamiento en búfer de documentos completos en todo el proceso.
+**Compatibilidad con Versiones Anteriores**: Los flujos de trabajo existentes para documentos pequeños continúan sin cambios.
+**Procesamiento por Transmisión**: La decodificación de PDF y el fragmentado de texto operan en flujos.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Antecedentes
 
@@ -39,7 +52,11 @@ El flujo de envío de documentos sigue la siguiente ruta:
 4. El **Librarian Service** recibe el mensaje, decodifica el documento en la memoria.
 5. **BlobStore** carga el documento en Garage/S3.
 6. **Cassandra** almacena los metadatos con la referencia del objeto.
+<<<<<<< HEAD
 7. Para el procesamiento: el documento se recupera de S3, se decodifica y se divide en fragmentos, todo en la memoria.
+=======
+7. Para el procesamiento: el documento se recupera de S3, se decodifica y se divide en partes, todo en la memoria.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Archivos clave:
 Punto de entrada REST/WebSocket: `trustgraph-flow/trustgraph/gateway/service.py`
@@ -50,7 +67,11 @@ Esquema de la API: `trustgraph-base/trustgraph/schema/services/library.py`
 
 ### Limitaciones Actuales
 
+<<<<<<< HEAD
 El diseño actual tiene varios problemas de memoria y experiencia de usuario que se agravan:
+=======
+El diseño actual tiene varios problemas de memoria y experiencia de usuario:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 1. **Operación de Carga Atómica**: Se debe transmitir todo el documento en una
    solicitud única. Los documentos grandes requieren solicitudes de larga duración sin
@@ -61,12 +82,21 @@ El diseño actual tiene varios problemas de memoria y experiencia de usuario que
    que contiene todo el documento codificado en base64.
 
 3. **Memoria del Librarian**: El servicio librarian decodifica todo el documento
+<<<<<<< HEAD
    en la memoria antes de cargarlo en S3. Para un PDF de 500 MB, esto significa mantener
    500 MB+ en la memoria del proceso.
 
 4. **Memoria del Decodificador de PDF**: Cuando comienza el procesamiento, el decodificador de PDF carga
    todo el PDF en la memoria para extraer el texto. Las bibliotecas como PyPDF y similares
    típicamente requieren acceso a todo el documento.
+=======
+   en la memoria antes de cargarlo en S3. Para un archivo PDF de 500 MB, esto significa mantener
+   500 MB+ en la memoria del proceso.
+
+4. **Memoria del Decodificador de PDF**: Cuando comienza el procesamiento, el decodificador de PDF carga
+   todo el PDF en la memoria para extraer el texto. Las bibliotecas como PyPDF normalmente
+   requieren acceso a todo el documento.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 5. **Memoria del Fragmentador**: El fragmentador de texto recibe todo el texto extraído
    y lo mantiene en la memoria mientras produce fragmentos.
@@ -91,13 +121,21 @@ El pico total de memoria puede exceder los 2 GB para un solo documento grande.
    Ceph, DigitalOcean Spaces, Backblaze B2, etc.), lo que garantiza la portabilidad.
 
 3. **Completación Atómica**: Las cargas multipart de S3 son inherentemente atómicas: las partes cargadas
+<<<<<<< HEAD
    son invisibles hasta que se llama a `CompleteMultipartUpload`. No se necesitan archivos temporales ni
+=======
+   no son visibles hasta que se llama a `CompleteMultipartUpload`. No se necesitan archivos temporales ni
+>>>>>>> 82edf2d (New md files from RunPod)
    operaciones de renombrado.
 
 4. **Estado Rastreable**: Las sesiones de carga se rastrean en Cassandra, lo que proporciona
    visibilidad de las cargas incompletas y permite la capacidad de reanudación.
 
+<<<<<<< HEAD
 ### Flujo de Carga Fragmentada
+=======
+### Flujo de Carga por Partes
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 Client                    Librarian API                   S3/Garage
@@ -157,14 +195,22 @@ Respuesta:
 ```
 
 El bibliotecario:
+<<<<<<< HEAD
 1. Genera un `upload_id` y un `object_id` únicos (UUID para almacenamiento de blobs).
+=======
+1. Genera un `upload_id` y un `object_id` únicos (UUID para el almacenamiento de blobs).
+>>>>>>> 82edf2d (New md files from RunPod)
 2. Llama a S3 `CreateMultipartUpload`, recibe `s3_upload_id`.
 3. Crea un registro de sesión en Cassandra.
 4. Devuelve `upload_id` al cliente.
 
 #### `upload-chunk`
 
+<<<<<<< HEAD
 Cargar un único fragmento.
+=======
+Carga un único fragmento.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Solicitud:
 ```json
@@ -195,7 +241,11 @@ El bibliotecario:
 4. Actualiza el registro de la sesión con el índice del fragmento y la etiqueta (etag)
 5. Devuelve el progreso al cliente
 
+<<<<<<< HEAD
 Los fragmentos fallidos se pueden reintentar; simplemente envía el mismo `chunk-index` nuevamente.
+=======
+Los fragmentos fallidos se pueden reintentar: simplemente envía el mismo `chunk-index` nuevamente.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### `complete-upload`
 
@@ -220,7 +270,11 @@ Respuesta:
 El bibliotecario:
 1. Busca la sesión, verifica que se hayan recibido todos los fragmentos.
 2. Llama a S3 `CompleteMultipartUpload` con los ETags de las partes (S3 combina las partes
+<<<<<<< HEAD
    internamente, sin costo de memoria para el bibliotecario).
+=======
+   internamente, lo que no tiene costo de memoria para el bibliotecario).
+>>>>>>> 82edf2d (New md files from RunPod)
 3. Crea un registro de documento en Cassandra con metadatos y referencia al objeto.
 4. Elimina el registro de la sesión de carga.
 5. Devuelve el ID del documento al cliente.
@@ -322,7 +376,11 @@ Las partes de S3 huérfanas se eliminan mediante la política de ciclo de vida d
 ### Manejo de errores y atomicidad
 
 **Fallo en la carga de fragmentos:**
+<<<<<<< HEAD
 El cliente reintenta el fragmento fallido (mismo `upload_id` y `chunk-index`).
+=======
+El cliente reintenta el fragmento fallido (con el mismo `upload_id` y `chunk-index`).
+>>>>>>> 82edf2d (New md files from RunPod)
 `UploadPart` de S3 es idempotente para el mismo número de parte.
 La sesión realiza un seguimiento de qué fragmentos tuvieron éxito.
 
@@ -338,6 +396,7 @@ Nunca se muestra un documento parcial.
 
 **Vencimiento de la sesión:**
 El TTL de Cassandra elimina el registro de la sesión después de 24 horas.
+<<<<<<< HEAD
 La política de ciclo de vida del bucket de S3 limpia las cargas multipartes incompletas.
 No se requiere limpieza manual.
 
@@ -347,12 +406,28 @@ Las cargas multipartes de S3 proporcionan atomicidad integrada:
 
 1. **Las partes son invisibles:** Las partes cargadas no se pueden acceder como objetos.
    Solo existen como partes de una carga multipartes incompleta.
+=======
+La política de ciclo de vida del bucket de S3 limpia las cargas multipart incompletas.
+No se requiere limpieza manual.
+
+### Atomicidad de las cargas multipart de S3
+
+Las cargas multipart de S3 proporcionan atomicidad integrada:
+
+1. **Las partes son invisibles:** Las partes cargadas no se pueden acceder como objetos.
+   Solo existen como partes de una carga multipart incompleta.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 2. **Finalización atómica:** `CompleteMultipartUpload` tiene éxito (el objeto
    aparece de forma atómica) o falla (no se crea ningún objeto). No hay estado parcial.
 
+<<<<<<< HEAD
 3. **No se necesita renombrar:** La clave de objeto final se especifica en
    el momento de `CreateMultipartUpload`. Las partes se combinan directamente en esa clave.
+=======
+3. **No se necesita renombrar:** La clave del objeto final se especifica en
+   el momento de `CreateMultipartUpload`. Las partes se combinan directamente con esa clave.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 4. **Combinación del lado del servidor:** S3 combina las partes internamente. El bibliotecario
    nunca lee las partes de nuevo: cero sobrecarga de memoria independientemente del tamaño del documento.
@@ -361,7 +436,11 @@ Las cargas multipartes de S3 proporcionan atomicidad integrada:
 
 **Archivo:** `trustgraph-flow/trustgraph/librarian/blob_store.py`
 
+<<<<<<< HEAD
 Agregar métodos de carga multipartes:
+=======
+Agregar métodos de carga multipart:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 class BlobStore:
@@ -574,7 +653,11 @@ class StreamingChunker:
             yield buffer
 ```
 
+<<<<<<< HEAD
 #### Canalización de procesamiento de extremo a extremo
+=======
+#### Canalización de Procesamiento de Extremo a Extremo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 async def process_document(doc_id: str, librarian_client, embedder):
@@ -601,7 +684,11 @@ async def process_document(doc_id: str, librarian_client, embedder):
         await store_chunk(doc_id, chunk, embedding)
 ```
 
+<<<<<<< HEAD
 En ningún momento, se mantiene en memoria el documento completo o el texto extraído completo.
+=======
+En ningún momento, el documento completo o el texto extraído se mantienen en la memoria.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Consideraciones sobre archivos temporales
 
@@ -695,9 +782,15 @@ CREATE INDEX document_parent ON document (parent_id);
 | `title` | proporcionado por el usuario | generado (por ejemplo, "Página 3 del Informe.pdf") |
 | `user` | usuario autenticado | igual que el padre |
 
+<<<<<<< HEAD
 #### API de Librarian para documentos hijos
 
 **Creación de documentos hijos** (interno, utilizado por pdf-extractor):
+=======
+#### API de Librarian para documentos hijo
+
+**Creación de documentos hijo** (interno, utilizado por pdf-extractor):
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 {
@@ -747,7 +840,11 @@ SELECT * FROM document WHERE user = ? AND parent_id IS NULL;
 Solo los documentos de nivel superior (fuente) aparecen en la lista de documentos del usuario.
 Los documentos secundarios se filtran de forma predeterminada.
 
+<<<<<<< HEAD
 **Opción de incluir subdocumentos** (para administradores/depuración):
+=======
+**Opción de incluir documentos secundarios** (para administradores/depuración):
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 {
@@ -803,7 +900,11 @@ El extractor de PDF, después de procesar un documento:
 2. Extrae el texto página por página.
 3. Para cada página, almacena el texto extraído como un documento secundario a través del bibliotecario.
 4. Envía los ID de los documentos secundarios a la cola del fragmentador.
+<<<<<<< HEAD
 Después de la última línea traducida, incluir una línea final que contenga exactamente: [[__END_OF_TRANSLATION__]]
+=======
+
+>>>>>>> 82edf2d (New md files from RunPod)
 ```python
 async def extract_pdf(doc_id: str, librarian_client, output_queue):
     """Extract PDF pages and store as child documents."""
@@ -979,6 +1080,10 @@ Lista de cargas pendientes al reconectar
 **Manejo de archivos grandes:**
 Detección del tamaño del archivo en el lado del cliente
 Carga automática por partes para archivos grandes
+<<<<<<< HEAD
 Retroalimentación clara durante cargas largas
+=======
+Retroalimentación clara durante las cargas largas
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Estas mejoras en la experiencia de usuario requieren trabajo en la interfaz de usuario, guiado por la especificación de la API actualizada.

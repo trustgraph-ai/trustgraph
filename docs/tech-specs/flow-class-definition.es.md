@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Especificación de la Definición del Esquema de Flujo
 
 ## Resumen
@@ -10,6 +11,20 @@ Una definición de esquema de flujo consta de cinco secciones principales:
 
 ### 1. Sección de Clase
 Define procesadores de servicios compartidos que se instancian una vez por esquema de flujo. Estos procesadores manejan las solicitudes de todas las instancias de flujo de esta clase.
+=======
+# Especificación de la Definición de la Hoja de Flujo
+
+## Resumen
+
+Una hoja de flujo define una plantilla de patrón de flujo de datos completo en el sistema TrustGraph. Cuando se instancia, crea una red interconectada de procesadores que manejan la ingesta de datos, el procesamiento, el almacenamiento y la consulta como un sistema unificado.
+
+## Estructura
+
+Una definición de hoja de flujo consta de cinco secciones principales:
+
+### 1. Sección de Clase
+Define procesadores de servicios compartidos que se instancian una vez por hoja de flujo. Estos procesadores manejan las solicitudes de todas las instancias de flujo de esta clase.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 "class": {
@@ -235,7 +250,11 @@ Ejemplo: `non-persistent://tg/request/embeddings:{class}`
 El plano de flujo crea un flujo de datos unificado donde:
 
 1. **Pipeline de Procesamiento de Documentos**: Fluye desde la ingesta hasta la transformación y el almacenamiento
+<<<<<<< HEAD
 2. **Servicios de Consulta**: Procesadores integrados que consultan las mismas bases de datos y servicios
+=======
+2. **Servicios de Consulta**: Procesadores integrados que consultan las mismas fuentes de datos y servicios
+>>>>>>> 82edf2d (New md files from RunPod)
 3. **Servicios Compartidos**: Procesadores centralizados que todos los flujos pueden utilizar
 4. **Escritores de Almacenamiento**: Persisten los datos procesados en los almacenes apropiados
 

@@ -7,12 +7,21 @@ Hivi sasa, mlango wa TrustGraph unapoteza ujumbe wakati wa kufunga muunganisho w
 ### Masuala ya Upande wa Uanzishaji
 1. Picha ya folyo ya `asyncio.Queue` ya mchapishaji haijafunguliwa wakati wa kukomesha kazi.
 2. Websocket hufungwa kabla ya kuhakikisha kwamba ujumbe uliopangwa kufika kwenye Pulsar.
+<<<<<<< HEAD
 3. Hakuna mfumo wa uthibitisho wa uwasilishaji wa ujumbe kwa mafanikio.
 
 ### Masuala ya Upande wa Kukomesha Kazi
 1. Ujumbe unaidhinishwa katika Pulsar kabla ya uwasilishaji wa mafanikio kwa wateja.
 2. Muda uliopangwa (timeouts) husababisha kupotea kwa ujumbe wakati mifereji imejaa.
 3. Hakuna mfumo wa kudhibiti kasi (backpressure) wa kushughulikia watumiaji (consumers) ambao ni polepole.
+=======
+3. Hakuna mfumo wa utambuzi kwa uwasilishaji wa ujumbe unaofanikiwa.
+
+### Masuala ya Upande wa Kukomesha Kazi
+1. Ujumbe hutambuliwa katika Pulsar kabla ya uwasilishaji wa mafanikio kwa wateja.
+2. Muda uliopangwa (timeouts) husababisha kupotea kwa ujumbe wakati mifereji imejaa.
+3. Hakuna mfumo wa kudhibiti kasi (backpressure) kwa kushughulikia watumiaji (consumers) ambao ni polepole.
+>>>>>>> 82edf2d (New md files from RunPod)
 4. Vituo vingi vya kuhifadhi ambapo data inaweza kupotea.
 
 ## Muhtasari wa Muundo
@@ -142,10 +151,17 @@ class Publisher:
 
 **Manufaa Muhimu ya Ubunifu:**
 **Eneo Moja la Kutuma:** Wito wote wa `producer.send()` hutokea katika sehemu moja ndani ya mbinu ya `run()`.
+<<<<<<< HEAD
 **Mashine ya Hali Safi:** Hali tatu wazi - inafanya kazi, inatakatishwa, imesimama.
 **Ulinzi wa Muda:** Haingii katika hali ya kukwama kwa muda usio na kikomo wakati wa utaratibu wa utakatishaji.
 **Ufuatiliaji Bora:** Uandikaji wazi wa maendeleo ya utaratibu wa utakatishaji na mabadiliko ya hali.
 **Kukataa kwa Ujumbe (Hiari):** Inaweza kukataa ujumbe mpya wakati wa awamu ya kuzima.
+=======
+**Mashine ya Hali Safi:** Hali tatu wazi - inafanya kazi, inachosha, imesimama.
+**Ulinzi wa Muda:** Haitemei kwa muda usio na kikomo wakati wa kuchosha.
+**Ufuatiliaji Bora:** Uandikaji wazi wa maendeleo ya kuchosha na mabadiliko ya hali.
+**Kukataa Ujumbe wa Hiari:** Inaweza kukataa ujumbe mpya wakati wa awamu ya kuzima.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### B. Mpangilio Ulioboreshwa wa Kuzima
 
@@ -363,9 +379,15 @@ class Subscriber:
 
 **Manufaa Muhimu ya Ubunifu (kulingana na mtindo wa Mchapishaji):**
 **Eneo Moja la Ufuatiliaji**: Ufuatiliaji wote wa ujumbe hutokea katika njia ya `run()`
+<<<<<<< HEAD
 **Mashine Safi ya Hali**: Hali tatu wazi - inafanya kazi, inachosha, imesimama
 **Kusitisha Wakati wa Kuchosha**: Inasimamisha kupokea ujumbe mpya kutoka Pulsar wakati inachosha folyo zilizopo
 **Ulinzi wa Muda**: Haingii katika hali ya kukwama kwa muda usio na kikomo wakati wa kuchosha
+=======
+**Mashine ya Hali Safi**: Hali tatu wazi - inafanya kazi, inatakatishwa, imesimama
+**Kusitisha Wakati wa Kufyatua**: Inasimamisha kupokea ujumbe mpya kutoka Pulsar wakati wa kufyatua folyo zilizopo
+**Ulinzi wa Muda**: Haingii katika hali ya kukamatwa kwa muda usio na kikomo wakati wa kufyatua
+>>>>>>> 82edf2d (New md files from RunPod)
 **Usafi Sawa**: Inatambua vibaya ujumbe wowote usiofikishwa wakati wa kuzima
 
 #### B. Maboresho ya Kidhibiti cha Uhamisho
@@ -629,16 +651,28 @@ async def test_export_no_message_loss():
     assert len(received) >= 50
 ```
 
+<<<<<<< HEAD
 ## Mpango wa Utendaji
+=======
+## Mpango wa Utumizaji
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Awamu ya 1: Marekebisho Muhimu (Wiki ya 1)
 Marekebisho ya muda wa utambuzi wa mshabiki (kuzuia upotevu wa ujumbe)
 Ongeza utaratibu wa kusafisha folyo ya mchapishaji
+<<<<<<< HEAD
 Tuma kwenye mazingira ya majaribio
 
 ### Awamu ya 2: Kusitisha kwa Ufasaha (Wiki ya 2)
 Lenga kusitisha kwa ufasaha
 Ongeza mikakati ya shinikizo nyuma
+=======
+Toa toleo kwenye mazingira ya majaribio
+
+### Awamu ya 2: Kusitisha kwa Ufasaha (Wiki ya 2)
+Lenga utaratibu wa usitishaji
+Ongeza mikakati ya kupunguza mzigo
+>>>>>>> 82edf2d (New md files from RunPod)
 Vipimo vya utendaji
 
 ### Awamu ya 3: Ufuatiliaji na Urekebishaji (Wiki ya 3)
@@ -652,14 +686,23 @@ Rekebisha maadili ya muda wa kusubiri kulingana na data ya uzalishaji
 `publisher.queue.depth` - Ukubwa wa sasa wa folyo ya mchapishaji
 `publisher.messages.dropped` - Ujumbe uliopotea wakati wa kusitisha
 `subscriber.messages.negatively_acknowledged` - Utoaji ambao haujafanikiwa
+<<<<<<< HEAD
 `websocket.graceful_shutdowns` - Kusitisha kwa ufasaha ambavyo vimefanikiwa
 `websocket.forced_shutdowns` - Kusitisha kwa nguvu/kwa muda mrefu
+=======
+`websocket.graceful_shutdowns` - Usitishaji wa ufasaha ambao umefanikiwa
+`websocket.forced_shutdowns` - Usitishaji wa lazima/wa muda
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Arifa
 Kina cha folyo ya mchapishaji > 80% ya uwezo
 Upotevu wowote wa ujumbe wakati wa kusitisha
 Kiwango cha kukataa cha mshabiki > 1%
+<<<<<<< HEAD
 Muda wa kusitisha umepita
+=======
+Muda wa kusitisha ambao umevuka
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Ulinganifu na Mifumo ya Zamani
 
@@ -671,8 +714,13 @@ Kupungua kwa utendaji ikiwa vipengele vipya havipatikani
 ## Masuala ya Usalama
 
 Vipengele vipya vya mashambulizi haviongezwi
+<<<<<<< HEAD
 Shinikizo nyuma huzuia mashambulizi ya kutumia kumbukumbu nyingi
 Mipaka inayoweza kusanidiwa huzuia matumizi mabaya ya rasilimali
+=======
+Kupunguza mzigo huzuia mashambulizi ya kutokwa na kumbukumbu
+Mipaka inayoweza kusanidiwa inazuia unyonyaji wa rasilimali
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Athari za Utendaji
 

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Graph Contexts Technical Specification
 
 ## Overview
@@ -7,6 +8,17 @@ RDF 1.2 ile uyumlu olacak ve tam RDF Dataset semantiğini destekleyecek şekilde
 
 
 ### Versioning
+=======
+# Graph Contexts Teknik Özellikler
+
+## Genel Bakış
+
+Bu özellik, TrustGraph'ın temel grafik öğelerindeki değişiklikleri,
+RDF 1.2 ile uyumlu olacak ve tam RDF Dataset semantiğini destekleyecek şekilde tanımlar. Bu, 2.x sürüm serisi için önemli bir değişikliktir.
+
+
+### Sürümleme
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **2.0**: Erken benimseyen sürüm. Temel özellikler mevcut, ancak henüz tamamen
   üretim ortamına hazır olmayabilir.
@@ -15,11 +27,16 @@ RDF 1.2 ile uyumlu olacak ve tam RDF Dataset semantiğini destekleyecek şekilde
 Olgunluk konusundaki esneklik kasıtlıdır; erken benimseyenler, tüm özellikler
 üretim ortamına hazır hale gelmeden önce yeni yeteneklere erişebilir.
 
+<<<<<<< HEAD
 ## Goals
+=======
+## Hedefler
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Bu çalışmanın temel hedefleri, gerçekler/ifadeler hakkında meta veri sağlamaktır:
 
 **Zaman bilgisi**: Gerçekleri zamanla ilgili bilgilerle ilişkilendirme
+<<<<<<< HEAD
   Bir gerçeğin doğru olduğu düşünüldüğü zaman
   Bir gerçeğin doğru hale geldiği zaman
   Bir gerçeğin yanlış olduğu tespit edildiği zaman
@@ -45,10 +62,38 @@ bir kenara bir şey olarak başvurmanız ve bu kenar hakkında ifadeler yapabilm
 ### Current Limitations
 
 Mevcut `Value` sınıfı `trustgraph-base/trustgraph/schema/core/primitives.py` içinde
+=======
+  Bir gerçeğin doğru olduğuna inanıldığı zaman
+  Bir gerçeğin doğru hale geldiği zaman
+  Bir gerçeğin yanlış olduğu keşfedildiğinde
+
+**Kaynak/Köken**: Bir gerçeği destekleyen kaynakları izleme
+  "Bu gerçek, kaynak X tarafından destekleniyordu"
+  Gerçekleri, köken belgelerine bağlama
+
+**Doğruluk/Güvenilirlik**: Doğrulukla ilgili ifadeleri kaydetme
+  "Kişi P, bunun doğru olduğunu iddia etti"
+  "Kişi Q, bunun yanlış olduğunu iddia ediyor"
+  Güvenilirlik puanlaması ve çakışma tespitini etkinleştirme
+
+**Hipotez**: Yeniden tanımlama (RDF-star / tırnaklı üçlüler), bu sonuçları elde etmenin temel mekanizmasıdır, çünkü bunların hepsi ifadeler hakkında ifadeler yapmayı gerektirir.
+
+
+## Arka Plan
+
+"Alice'nin Bob'u bildiği gerçeği 2024-01-15'te keşfedildi" veya "kaynak X, (Y'nin Z'ye neden olduğu) iddiasını destekliyor" gibi ifadeleri belirtmek için,
+bir kenarı, hakkında ifadeler yapılabilecek bir şey olarak referans göstermeniz gerekir. Standart üçlüler bunu desteklemez.
+
+### Mevcut Sınırlamalar
+
+
+Mevcut `Value` sınıfı `trustgraph-base/trustgraph/schema/core/primitives.py` içinde:
+>>>>>>> 82edf2d (New md files from RunPod)
 şunları temsil edebilir:
 URI düğümleri (`is_uri=True`)
 Literal değerler (`is_uri=False`)
 
+<<<<<<< HEAD
 `type` alanı mevcuttur, ancak XSD veri türlerini temsil etmek için kullanılmaz.
 
 ## Technical Design
@@ -72,19 +117,53 @@ Bir veri kümesi içindeki birden fazla adlandırılmış grafik için destek
    Bir varsayılan grafik ve sıfır veya daha fazla adlandırılmış grafik içerir
    Grafik IRI'si, ifadelerin konusu olabilir, örneğin:
    Grafik IRI'si, ifadelerde bir özne olabilir, örneğin:
+=======
+`type` alanı mevcut, ancak XSD veri tiplerini temsil etmek için kullanılmıyor.
+
+## Teknik Tasarım
+
+### Desteklenecek RDF Özellikleri
+
+#### Temel Özellikler (Somutlaştırma Hedefleriyle İlgili)
+
+Bu özellikler, zamansallık, köken ve doğruluk
+hedefleriyle doğrudan ilişkilidir:
+
+1. **RDF 1.2 Tırnak İşaretli Üçlüler (RDF-star)**
+   Diğer kenarlara işaret eden kenarlar
+   Bir Üçlü, başka bir Üçlünün öznesi veya nesnesi olabilir
+   Üçlüler hakkında ifadeler oluşturmayı sağlar (somutlaştırma)
+   Bireysel gerçekleri açıklamak için temel mekanizma
+
+2. **RDF Veri Kümesi / Adlandırılmış Grafikler**
+   Bir veri kümesi içinde birden fazla adlandırılmış grafik desteği
+   Her grafik bir IRI ile tanımlanır
+   Üçlülerden (s, p, o) dörtlülere (s, p, o, g) geçiş
+   Bir varsayılan grafik ve sıfır veya daha fazla adlandırılmış grafik içerir
+   Grafik IRI'si, ifadelerin bir öznesi olabilir, örneğin:
+>>>>>>> 82edf2d (New md files from RunPod)
      ```
      <graph-source-A> <discoveredOn> "2024-01-15"
      <graph-source-A> <hasVeracity> "high"
      ```
    Not: Adlandırılmış grafikler, somutlaştırmadan ayrı bir özelliktir. Bunlar,
      yalnızca ifade açıklamasının ötesinde kullanımlara sahiptir (bölümleme, erişim kontrolü, veri kümesi
+<<<<<<< HEAD
      organizasyonu) ve ayrı bir yetenek olarak ele alınmalıdır.
+=======
+     düzeni) ve ayrı bir yetenek olarak ele alınmalıdır.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 3. **Anonim Düğümler** (Sınırlı Destek)
    Küresel bir URI'ye sahip olmayan anonim düğümler
    Dış RDF verilerini yüklerken uyumluluk için desteklenir
+<<<<<<< HEAD
    **Sınırlı durum:** Yükleme işleminden sonra kararlı bir kimlik konusunda hiçbir garanti yoktur
    Bunları jokerli sorgular aracılığıyla bulun (bağlantılara göre, kimliğe göre değil)
+=======
+   **Sınırlı durum**: Yükleme işleminden sonra kararlı bir kimlik konusunda garanti yoktur
+   Bunları jokerli sorgularla bulun (bağlantılara göre, kimliğe göre değil)
+>>>>>>> 82edf2d (New md files from RunPod)
    Birincil bir özellik değildir - kesin anonim düğüm işleme özelliğine güvenmeyin
 
 #### Fırsatçı Düzeltmeler (2.0'ın Kırıcı Değişikliği)
@@ -95,24 +174,40 @@ kırıcı değişiklikler yaparken dahil edilmesi değerli olan iyileştirmelerd
 4. **Literal Veri Tipleri**
    XSD veri tipleri için `type` alanını doğru şekilde kullanın
    Örnekler: xsd:string, xsd:integer, xsd:dateTime, vb.
+<<<<<<< HEAD
    Mevcut sınırlamayı düzeltir: tarihleri veya tamsayıları düzgün bir şekilde temsil edilemez
+=======
+   Mevcut sınırlamayı düzeltir: tarihleri veya tamsayıları doğru şekilde temsil edilemez
+>>>>>>> 82edf2d (New md files from RunPod)
 
 5. **Dil Etiketleri**
    Dize literal değerleri üzerinde dil öznitelikleri desteği (@en, @fr, vb.)
    Not: Bir literal değerin ya bir dil etiketi YA da bir veri tipi vardır, ikisi birden değil
      (rdf:langString hariç)
+<<<<<<< HEAD
    Yapay zeka/çok dilli kullanım senaryoları için önemlidir
+=======
+   Yapay zeka/çok dilli kullanım durumları için önemlidir
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Veri Modelleri
 
 #### Terim (Value adından değiştirildi)
 
 `Value` sınıfı, RDF terminolojisini daha iyi yansıtmak için `Term` olarak yeniden adlandırılacaktır.
+<<<<<<< HEAD
 Bu yeniden adlandırma iki amaca hizmet etmektedir:
 1. İsimlendirmeyi RDF kavramlarıyla uyumlu hale getirmek (bir "Terim", bir IRI, literal, boş
    düğüm veya tırnak içindeki üçlü olabilir - sadece bir "değer" değildir).
 2. Değişikliklere neden olan arayüzde kod incelemesini zorlamak - hala
    `Value`'a referans veren herhangi bir kod, açıkça hatalıdır ve güncellenmesi gerekir.
+=======
+Bu yeniden adlandırmanın iki amacı vardır:
+1. İsimlendirmeyi RDF kavramlarıyla uyumlu hale getirmek (bir "Terim", bir IRI, literal, boş
+   düğüm veya tırnak içindeki üçlü olabilir - sadece bir "değer" değildir).
+2. Kod incelemesini, önemli değişikliklerin yapıldığı arayüzde zorunlu kılmak - hala
+   `Value`'a referans veren herhangi bir kod, açıkça hatalı olacaktır ve güncellenmesi gerekecektir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Bir Terim şunları temsil edebilir:
 
@@ -125,8 +220,13 @@ Bir Terim şunları temsil edebilir:
 
 ##### Seçilen Yaklaşım: Tip Ayırıcısı Olan Tek Sınıf
 
+<<<<<<< HEAD
 Serileştirme gereksinimleri yapıyı belirler - bir tür ayrımcısına ihtiyaç vardır.
 Python gösteriminden bağımsız olarak, kablo formatında bir tür ayrımcısına ihtiyaç vardır.
+=======
+Serileştirme gereksinimleri yapıyı belirler - bir tür belirleyiciye ihtiyaç vardır.
+Python gösteriminden bağımsız olarak, kablo formatında bir tür belirleyiciye ihtiyaç vardır.
+>>>>>>> 82edf2d (New md files from RunPod)
 Tek bir sınıf ve bir tür alanı, doğal bir çözümdür ve mevcut `Value` kalıbıyla uyumludur.
 
 Tek karakterli tür kodları, kompakt serileştirme sağlar:
@@ -222,7 +322,11 @@ Mevcut sorgu motoru, S, P, O terimlerinin kombinasyonlarını kabul eder. Tırna
 üçlüler, bir üçlünün kendisi bu konumlarda geçerli bir terim haline gelir. Aşağıda,
 orijinal hedefleri destekleyen olası sorgu desenleri bulunmaktadır.
 
+<<<<<<< HEAD
 #### Grafik Parametre Anlamları
+=======
+#### Grafik Parametre Anlamı
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Geriye dönük uyumluluk için SPARQL kurallarına uygun olarak:
 
@@ -233,8 +337,13 @@ Geriye dönük uyumluluk için SPARQL kurallarına uygun olarak:
 
 Bu, basit sorguları basit tutar ve adlandırılmış grafik sorgularını isteğe bağlı hale getirir.
 
+<<<<<<< HEAD
 Grafik arası sorgular (g=joker karakter), tamamen desteklenir. Cassandra şeması,
 g'nin bir kümeleme sütunu olduğu (bölüm anahtarı olmadığı) özel tabloları içerir (SPOG, POSG, OSPG),
+=======
+Grafikler arası sorgular (g=joker karakter) tamamen desteklenir. Cassandra şeması,
+g'nin bir kümeleme sütunu olduğu (bölüm anahtarı değil) özel tabloları içerir (SPOG, POSG, OSPG),
+>>>>>>> 82edf2d (New md files from RunPod)
 bu da tüm grafikler arasında verimli sorgular yapmayı sağlar.
 
 #### Zamansal Sorgular
@@ -309,13 +418,21 @@ O: < 0.5                                # numeric comparison
 
 ### Mimari
 
+<<<<<<< HEAD
 Birden çok bileşende önemli değişiklikler gereklidir:
+=======
+Birden fazla bileşende önemli değişiklikler gereklidir:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Bu Depo (trustgraph)
 
 **Şema ilkel öğeleri** (`trustgraph-base/trustgraph/schema/core/primitives.py`)
   Değer → Terim yeniden adlandırması
+<<<<<<< HEAD
   Tip ayrımcısına sahip yeni Terim yapısı
+=======
+  Tip ayrımcısı ile yeni Terim yapısı
+>>>>>>> 82edf2d (New md files from RunPod)
   Üçlü, grafik bağlamı için `g` alanı kazanır
 
 **Mesaj çeviricileri** (`trustgraph-base/trustgraph/messaging/translators/`)
@@ -373,12 +490,17 @@ Ayrı sürüm koordinasyonu
 #### Çalışma alanı (ayrı depo)
 
 Önemli durum yönetimi değişiklikleri
+<<<<<<< HEAD
 Grafik bağlamı özellikleriyle ilgili kullanıcı arayüzü güncellemeleri
+=======
+Grafik bağlamı özelliklerini destekleyen UI güncellemeleri
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Uygulama Ayrıntıları
 
 #### Aşamalı Depolama Uygulaması
 
+<<<<<<< HEAD
 Birden çok grafik depolama arka ucu (Cassandra, Neo4j, vb.) vardır. Uygulama
 aşağıdaki aşamalarda gerçekleştirilecektir:
 
@@ -386,6 +508,15 @@ aşağıdaki aşamalarda gerçekleştirilecektir:
    Yerel Cassandra deposuyla başlayın
    Depolama katmanı üzerinde tam kontrol, hızlı yinelemeyi sağlar
    Şema, dörtlüler + yeniden tanımlama için sıfırdan yeniden tasarlanacaktır
+=======
+Birden fazla grafik depolama arka ucu (Cassandra, Neo4j, vb.) bulunmaktadır. Uygulama,
+aşağıdaki aşamalarda gerçekleştirilecektir:
+
+1. **1. Aşama: Cassandra**
+   Kendi geliştirdiğimiz Cassandra deposuyla başlayın
+   Depolama katmanı üzerinde tam kontrole sahip olmak, hızlı yinelemeyi sağlar
+   Şema, dörtlüler ve yeniden tanımlama için sıfırdan yeniden tasarlanacaktır
+>>>>>>> 82edf2d (New md files from RunPod)
    Veri modelini ve sorgu kalıplarını gerçek kullanım durumlarına göre doğrulayın
 
 #### Cassandra Şema Tasarımı
@@ -406,6 +537,7 @@ Cassandra, farklı sorgu erişim modellerini desteklemek için birden fazla tabl
 | 4 | ? | ? | p | o | Özne + nesneye göre |
 | 5 | ? | s | ? | ? | Konuya göre |
 | 6 | ? | s | ? | o | Konu + nesneye göre |
+<<<<<<< HEAD
 | 7 | ? | s | p | ? | Konu + öneye göre |
 | 8 | ? | s | p | o | Tam üçlü (hangi grafikler?) |
 | 9 | g | ? | ? | ? | Grafiğe göre |
@@ -415,11 +547,26 @@ Cassandra, farklı sorgu erişim modellerini desteklemek için birden fazla tabl
 | 13 | g | s | ? | ? | Grafik + konuya göre |
 | 14 | g | s | ? | o | Grafik + konu + nesneye göre |
 | 15 | g | s | p | ? | Grafik + konu + öneye göre |
+=======
+| 7 | ? | s | p | ? | Konu + özneliğe göre |
+| 8 | ? | s | p | o | Tam üçlü (hangi grafikler?) |
+| 9 | g | ? | ? | ? | Grafiğe göre |
+| 10 | g | ? | ? | o | Grafik + nesneye göre |
+| 11 | g | ? | p | ? | Grafik + özneliğe göre |
+| 12 | g | ? | p | o | Grafik + özneliği + nesneye göre |
+| 13 | g | s | ? | ? | Grafik + konuya göre |
+| 14 | g | s | ? | o | Grafik + konu + nesneye göre |
+| 15 | g | s | p | ? | Grafik + konu + özneliğe göre |
+>>>>>>> 82edf2d (New md files from RunPod)
 | 16 | g | s | p | o | Tam "quad" |
 
 ##### Tablo Tasarımı
 
+<<<<<<< HEAD
 Cassandra kısıtlaması: Yalnızca bölüm anahtarına göre verimli bir şekilde sorgulayabilirsiniz, ardından
+=======
+Cassandra kısıtlaması: Yalnızca bölüm anahtarına göre verimli bir şekilde sorgu yapabilirsiniz, ardından
+>>>>>>> 82edf2d (New md files from RunPod)
 kümeleme sütunları üzerinde soldan sağa filtreleme yapabilirsiniz. "g" joker karakterli sorgular için, "g" bir
 kümeleme sütunu olmalıdır. "g" belirtilmiş sorgular için, bölüm anahtarında bulunan "g" daha
 verimlidir.
@@ -476,9 +623,15 @@ O: "2024-01-15"
 G: null
 ```
 Tırnak içinde belirtilen üçlüleri, seri hale getirilmiş bir dize olarak S veya O sütunlarında saklayın.
+<<<<<<< HEAD
 Seri hale getirilmiş forma göre tam eşleşme ile sorgulayın.
 Artı: Basit, mevcut indeks kalıplarına uyuyor.
 Eksileri: "Tırnak içinde belirtilen öznenin yüklemesinin X olduğu üçlüleri bul" gibi sorguları yapmak mümkün değil.
+=======
+Seri hale getirilmiş forma göre tam eşleşme sorgusu yapın.
+Artı: Basit, mevcut indeks kalıplarına uyuyor.
+Eksileri: "Tırnak içinde belirtilen öznenin yüklemesinin X olduğu üçlüleri bul" gibi sorgular yapılamaz.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **B Seçeneği: Üçlü Kimlikleri / Hash'leri**
 ```
@@ -492,6 +645,7 @@ Metadata table:
   o: "2024-01-15"
 ```
 Her üçlüye bir kimlik (bileşenlerin karma değeri) atayın.
+<<<<<<< HEAD
 Örnek meta veri referansları, kimlik numarasıyla üçlüleri belirtir.
 Artı: Temiz bir ayrım, üçlü kimlik numaralarının indekslenmesini sağlar.
 Eksileri: Üçlü kimliğinin hesaplanmasını/yönetilmesini gerektirir, iki aşamalı aramalar.
@@ -505,6 +659,21 @@ B seçeneği, tırnak içinde belirtilen üçlü bileşenleri üzerinde gelişmi
    Cassandra'dan edinilen deneyimler, bu uygulamaları etkilemiştir.
 
 Bu yaklaşım, tamamen kontrol altında olan bir altyapıda doğrulama yaparak tasarım riskini azaltır.
+=======
+Somutlaştırma meta veri referansları, kimlik numarasıyla üçlülere başvurur.
+Artı: Temiz bir ayrım, üçlü kimlik numaralarını indekslemek mümkündür.
+Eksileri: Üçlü kimliğini hesaplamayı/yönetmeyi gerektirir, iki aşamalı aramalar.
+
+**Öneri**: Basitlik için A seçeneğiyle (serileştirilmiş dizeler) başlayın.
+B seçeneği, tırnak içinde belirtilen üçlü
+bileşenleri üzerinde gelişmiş sorgu desenleri gerekiyorsa gerekebilir.
+
+2. **Faz 2+: Diğer Altyapılar**
+   Neo4j ve diğer depolama sistemleri, sonraki aşamalarda uygulanmıştır.
+   Cassandra'dan edinilen deneyimler, bu uygulamaları etkilemiştir.
+
+Bu yaklaşım, tamamen kontrol altında olan bir altyapıda doğrulama yaparak tasarım risklerini azaltır.
+>>>>>>> 82edf2d (New md files from RunPod)
 Tüm depolama sistemlerine yönelik uygulamalara başlamadan önce bu doğrulama yapılır.
 
 #### Değer → Terim Yeniden Adlandırma
@@ -517,13 +686,21 @@ Yeniden adlandırma, bir zorlama işlevi olarak görev görmektedir: hala ⟦COD
 ## Güvenlik Hususları
 
 Adlandırılmış grafikler bir güvenlik özelliği değildir. Kullanıcılar ve koleksiyonlar,
+<<<<<<< HEAD
 güvenlik sınırlarıdır. Adlandırılmış grafikler tamamen veri organizasyonu ve
+=======
+güvenlik sınırlarıdır. Adlandırılmış grafikler tamamen veri düzenlemesi ve
+>>>>>>> 82edf2d (New md files from RunPod)
 somutlaştırma desteği içindir.
 
 ## Performans Hususları
 
 Tırnak işaretli üçlüler, iç içe derinliğini artırır - sorgu performansını etkileyebilir.
+<<<<<<< HEAD
 Verimli grafik kapsamlı sorgular için adlandırılmış grafik indeksleme stratejilerine ihtiyaç vardır.
+=======
+Verimli grafik kapsamlı sorgular için adlandırılmış grafik indeksleme stratejileri gereklidir.
+>>>>>>> 82edf2d (New md files from RunPod)
 Cassandra şema tasarımı, dörtlü depolamayı verimli bir şekilde karşılayacak şekilde tasarlanmalıdır.
 
 ### Vektör Depolama Sınırı
@@ -551,6 +728,7 @@ Mevcut üçlüleri dönüştürmek için geçiş araçlarını göz önünde bul
 
 ## Açık Sorular
 
+<<<<<<< HEAD
 **Boş düğümler**: Sınırlı destek doğrulandı. Boş düğümler için bir skolemleştirme stratejisi belirlemek gerekebilir (yükleme sırasında IRI'lar oluşturmak veya boş düğüm kimliklerini korumak).
   **Sorgu sözdizimi**: Alıntılanmış üçlüleri sorgularda belirtmek için somut sözdizimi nedir? Sorgu API'sini tanımlamak gerekiyor.
 ~~**Önerme sözlüğü**~~: Çözüldü. Herhangi bir geçerli RDF önermesi izin verilir, kullanıcı tanımlı olanlar dahil. RDF geçerliliği hakkında minimum varsayımlar.
@@ -565,6 +743,22 @@ Mevcut üçlüleri dönüştürmek için geçiş araçlarını göz önünde bul
 ~~**Adlandırılmış grafik semantiği**~~: Çözüldü. Sorgular varsayılan olarak
   grafiğe yöneliktir (SPARQL davranışıyla eşleşir, geriye dönük uyumlu). Adlandırılmış grafiklere veya tüm
   grafiklere sorgu yapmak için açık bir grafik parametresi gereklidir.
+=======
+**Boş düğümler**: Sınırlı destek doğrulandı. Boş düğümler için bir skolemleştirme stratejisi belirlemek gerekebilir (yükleme sırasında IRİ'ler oluşturmak veya boş düğüm kimliklerini korumak).
+  **Sorgu sözdizimi**: Alıntılanmış üçlüleri sorgularda belirtmek için somut sözdizimi nedir? Sorgu API'sini tanımlamak gerekiyor.
+~~**Önerme sözlüğü**~~: Çözüldü. Herhangi bir geçerli RDF önermesi izin verilir, kullanıcı tanımlı olanlar da dahil. RDF geçerliliği hakkında minimum varsayımlar.
+  Çok az sabit değer (örneğin, bazı yerlerde kullanılan ⟦CODE_0⟧).
+~~**Önerme sözlüğü**:~~ Çözüldü. Herhangi bir geçerli RDF özneli kabul edilir,
+  kullanıcı tarafından tanımlanmış özel özneler de dahil. RDF geçerliliği hakkında çok az varsayım yapılır.
+  Çok az sabit değer (örneğin, bazı yerlerde kullanılan `rdfs:label`).
+  Strateji: Mümkün olduğunca hiçbir şeyi kilitlememeye özen gösterin.
+~~**Vektör depolama etkisi**~~: Çözüldü. Vektör depoları her zaman IRI'lara işaret eder.
+  sadece - asla kenarlara, literal değerlere veya boş düğümlere işaret etmez. Tırnak işaretli üçlüler ve
+  yeniden tanımlama, vektör deposunu etkilemez.
+~~**Adlandırılmış grafik semantiği**~~: Çözüldü. Sorgular, varsayılan
+  grafiğe varsayılan olarak yöneliktir (SPARQL davranışıyla eşleşir, geriye dönük uyumlu). Açık bir grafik
+  parametresi, adlandırılmış grafiklere veya tüm grafiklere sorgu yapmak için gereklidir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Referanslar
 

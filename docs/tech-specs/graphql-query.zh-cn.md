@@ -2,7 +2,11 @@
 
 ## 概述
 
+<<<<<<< HEAD
 本规范描述了用于 TrustGraph 结构化数据存储在 Apache Cassandra 中的 GraphQL 查询接口的实现。 在结构化数据功能方面，本规范基于结构化数据规范 (structured-data.md)，详细说明了如何对包含提取和摄取的结构化对象的 Cassandra 表执行 GraphQL 查询。
+=======
+本规范描述了用于 TrustGraph 结构化数据存储在 Apache Cassandra 中的 GraphQL 查询接口的实现。 在结构化数据功能方面，本规范基于结构化数据规范 (structured-data.md)，详细说明了如何针对包含提取和导入的结构化对象的 Cassandra 表执行 GraphQL 查询。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 GraphQL 查询服务将提供一个灵活、类型安全的接口，用于查询存储在 Cassandra 中的结构化数据。 它将动态适应模式更改，支持包括对象之间的关系在内的复杂查询，并与 TrustGraph 现有的基于消息的架构无缝集成。
 
@@ -19,16 +23,27 @@ GraphQL 查询服务将提供一个灵活、类型安全的接口，用于查询
 
 ## 背景
 
+<<<<<<< HEAD
 结构化数据存储实现 (trustgraph-flow/trustgraph/storage/objects/cassandra/) 根据存储在 TrustGraph 配置系统中的模式定义，将对象写入 Cassandra 表。 这些表使用复合分区键结构，具有集合和基于模式定义的键，从而可以在集合中实现高效的查询。
+=======
+结构化数据存储实现 (trustgraph-flow/trustgraph/storage/objects/cassandra/) 根据存储在 TrustGraph 配置系统中的模式定义，将对象写入 Cassandra 表。 这些表使用复合分区键结构，以及基于集合和模式定义的键，从而实现集合内部的高效查询。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 当前的局限性，本规范旨在解决：
 缺少用于存储在 Cassandra 中的结构化数据的查询接口
 无法利用 GraphQL 的强大查询功能来处理结构化数据
 缺少对相关对象之间关系遍历的支持
+<<<<<<< HEAD
 缺少用于结构化数据访问的标准化查询语言
 
 GraphQL 查询服务将通过以下方式弥补这些差距：
 提供用于查询 Cassandra 表的标准 GraphQL 接口
+=======
+缺少一种用于结构化数据访问的标准查询语言
+
+GraphQL 查询服务将通过以下方式弥补这些差距：
+为查询 Cassandra 表提供标准的 GraphQL 接口
+>>>>>>> 82edf2d (New md files from RunPod)
 从 TrustGraph 配置动态生成 GraphQL 模式
 高效地将 GraphQL 查询转换为 Cassandra CQL
 通过字段解析器支持关系解析
@@ -68,7 +83,11 @@ GraphQL 查询服务将作为新的 TrustGraph 流处理器实现，遵循既定
    管理连接池和会话生命周期
 
 5. **关系解析器**
+<<<<<<< HEAD
    实现用于对象之间关系的字段解析器
+=======
+   实现对象之间关系的字段解析器
+>>>>>>> 82edf2d (New md files from RunPod)
    执行批量加载以避免 N+1 查询
    在请求上下文中缓存解析的关系
    支持正向和反向关系遍历
@@ -97,7 +116,11 @@ self.register_config_handler(self.on_schema_config)
    从模式中添加字段描述
 
 2. **根查询字段**:
+<<<<<<< HEAD
    集合查询（例如，`customers`，`transactions`）
+=======
+   集合查询（例如，`customers`, `transactions`）
+>>>>>>> 82edf2d (New md files from RunPod)
    基于索引字段的过滤参数
    分页支持（limit, offset）
    可排序字段的排序选项
@@ -116,7 +139,11 @@ self.register_config_handler(self.on_schema_config)
 
 2. **查询验证**:
    使用 Strawberry 解析 GraphQL 查询
+<<<<<<< HEAD
    验证与当前模式
+=======
+   验证与当前模式的匹配
+>>>>>>> 82edf2d (New md files from RunPod)
    检查字段选择和参数类型
 
 3. **CQL 生成**:
@@ -138,7 +165,11 @@ self.register_config_handler(self.on_schema_config)
 
 ### 数据模型
 
+<<<<<<< HEAD
 > **注意**: `trustgraph-base/trustgraph/schema/services/structured_query.py` 中存在现有的 StructuredQueryRequest/Response 模式。但是，它缺少关键字段（用户、集合），并且使用了次优类型。以下模式代表推荐的演进，应该替换现有的模式，或者创建新的 ObjectsQueryRequest/Response 类型。
+=======
+> **注意**: `trustgraph-base/trustgraph/schema/services/structured_query.py` 中已存在一个 StructuredQueryRequest/Response 模式。但是，它缺少关键字段（用户、集合），并且使用了次优类型。以下模式代表推荐的演进，应替换现有模式或创建为新的 ObjectsQueryRequest/Response 类型。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### 请求模式 (ObjectsQueryRequest)
 
@@ -155,7 +186,11 @@ class ObjectsQueryRequest(Record):
 
 **对现有 StructuredQueryRequest 的更改原因：**
 添加了 `user` 和 `collection` 字段，以匹配其他查询服务的模式。
+<<<<<<< HEAD
 这些字段对于识别 Cassandra 键空间和集合至关重要。
+=======
+这些字段对于标识 Cassandra 键空间和集合至关重要。
+>>>>>>> 82edf2d (New md files from RunPod)
 变量目前仍然是 Map(String())，但理想情况下应该支持所有 JSON 类型。
 
 #### 响应模式 (ObjectsQueryResponse)
@@ -179,7 +214,11 @@ class ObjectsQueryResponse(Record):
 **对现有 StructuredQueryResponse 更改的理由：**
 区分系统错误 (`error`) 和 GraphQL 错误 (`errors`)
 使用结构化的 GraphQLError 对象，而不是字符串数组
+<<<<<<< HEAD
 添加 `extensions` 字段，以符合 GraphQL 规范
+=======
+添加 `extensions` 字段以符合 GraphQL 规范
+>>>>>>> 82edf2d (New md files from RunPod)
 为了兼容性，将数据保留为 JSON 字符串，尽管使用原生类型会更好
 
 ### Cassandra 查询优化
@@ -208,7 +247,11 @@ class ObjectsQueryResponse(Record):
 
 ### 示例 GraphQL 查询
 
+<<<<<<< HEAD
 #### 简单的集合查询
+=======
+#### 简单集合查询
+>>>>>>> 82edf2d (New md files from RunPod)
 ```graphql
 {
   customers(status: "active") {
@@ -342,7 +385,11 @@ GraphQL 模式有效性
 
 ## 迁移计划
 
+<<<<<<< HEAD
 由于这是一个新功能，因此不需要迁移。该服务将：
+=======
+由于这是一个新功能，因此不需要迁移。 该服务将：
+>>>>>>> 82edf2d (New md files from RunPod)
 1. 从配置中读取现有模式
 2. 连接到存储模块创建的现有 Cassandra 表
 3. 立即在部署后开始接受查询

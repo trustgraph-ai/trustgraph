@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Vipimo vya Utekelezaji wa Teknolojia ya Kupakia Hati Kubwa
 
 ## Muhtasari
@@ -16,21 +17,51 @@ Utaratibu huu unalenga matumizi yafuatayo:
 3. **Maelezo ya Maendeleo**: Kutoa kwa watumiaji maelezo ya muda halisi kuhusu maendeleo ya
    kupakia na uchakataji.
 4. **Uchakataji Wenye Ufanisi wa Kumbukumbu**: Kuchakata hati kwa njia ya mtiririko
+=======
+# Vipimo vya Utekelezaji wa Uteuzi wa Hati Kubwa
+
+## Muhtasari
+
+Maelekezo haya yanaeleza masuala ya uwezo wa kutosha na uzoefu wa mtumiaji wakati wa kupakia
+hati kubwa katika TrustGraph. Muundo wa sasa hutibu kupakia hati kama operesheni moja na kamili,
+na kusababisha shinikizo la kumbukumbu katika sehemu nyingi za
+mchakato na kutoa hakikisho au chaguo za urejesho kwa watumiaji.
+
+Utendaji huu unalenga matumizi yafuatayo:
+
+1. **Uchakataji wa PDF Kubwa**: Pakia na uchakata faili za PDF zenye mamia ya megabytes
+   bila kutumia kumbukumbu.
+2. **Uipakaji Unaoweza Kuendelea**: Ruhusu uipakaji ambao umevunjika kuendelea kutoka
+   ambapo ulikuwa umeacha badala ya kuanza tena.
+3. **Hakikisho la Maendeleo**: Toa watumiaji maoni ya wakati halisi kuhusu
+   maendeleo ya uipakaji na uchakataji.
+4. **Uchakataji Wenye Ufanisi wa Kumbukumbu**: Chakata hati kwa njia ya mtiririko
+>>>>>>> 82edf2d (New md files from RunPod)
    bila kuhifadhi faili zilizokamilika katika kumbukumbu.
 
 ## Lengo
 
+<<<<<<< HEAD
 **Kupakia kwa Awamu**: Kusaidia kupakia hati kwa sehemu kupitia REST na WebSocket
 **Uhamisho Unaoweza Kuendelea**: Kuruhusu kurejesha kutoka kupakia ambacho kimetokea kukatika
 **Uonekana wa Maendeleo**: Kutoa maelezo ya maendeleo ya kupakia/uchakataji kwa wateja
 **Ufanisi wa Kumbukumbu**: Kuondoa uhifadhi wa hati zilizokamilika katika mchakato wote
 **Ulinganifu na Mifumo ya Zamani**: Mchakato wa sasa wa hati ndogo unaendelea bila mabadiliko
 **Uchakataji wa Mtiririko**: Ufichuzi na uainishaji wa maandishi hufanywa kwa kutumia mitiririko
+=======
+**Uipakaji wa Hatua-Hatua**: Unga uipakaji wa hati kwa sehemu kupitia REST na WebSocket
+**Uhamisho Unaoweza Kuendelea**: Ruhusu urejesho kutoka uipakaji ambao umevunjika
+**Uonekana wa Maendeleo**: Toa watumiaji maoni ya maendeleo ya uipakaji/uchakataji
+**Ufanisi wa Kumbukumbu**: Ondoa kuhifadhi hati zilizokamilika katika mchakato
+**Ulinganifu na Mifumo ya Zamani**: Mchakato wa sasa wa hati ndogo unaendelea bila mabadiliko
+**Uchakataji wa Mtiririko**: Uvunjaji wa PDF na maandishi hufanya kazi kwenye mitiririko
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Asili
 
 ### Muundo wa Sasa
 
+<<<<<<< HEAD
 Hati zinatumiwa kupitia njia ifuatayo:
 
 1. **Mteja** hutuma hati kupitia REST (`POST /api/v1/librarian`) au WebSocket
@@ -40,6 +71,17 @@ Hati zinatumiwa kupitia njia ifuatayo:
 5. **BlobStore** huhamisha hati kwenye Garage/S3
 6. **Cassandra** huhifadhi metadata pamoja na rejea ya kitu
 7. Kwa uchakataji: hati inavyolewa kutoka S3, huondoa maudhui, huainishwa—yote katika kumbukumbu
+=======
+Mchakato wa kuwasilisha hati hufuatilia njia ifuatayo:
+
+1. **Mteja** huwasilisha hati kupitia REST (`POST /api/v1/librarian`) au WebSocket
+2. **Lango la API** hupokea ombi kamili na maudhui ya hati iliyosimbwa kwa base64
+3. **LibrarianRequestor** huongeza ombi kwenye ujumbe wa Pulsar
+4. **Huduma ya Librarian** hupokea ujumbe, huondoa usimbaji wa hati katika kumbukumbu
+5. **BlobStore** huipakia hati kwenye Garage/S3
+6. **Cassandra** huhifadhi metadata na rejea la kitu
+7. Kwa uchakataji: hati hupelekwa kutoka S3, huondoa usimbaji, huainishwa—yote katika kumbukumbu
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Faili muhimu:
 Ingizo la REST/WebSocket: `trustgraph-flow/trustgraph/gateway/service.py`
@@ -50,6 +92,7 @@ Mpango wa API: `trustgraph-base/trustgraph/schema/services/library.py`
 
 ### Mapungufu ya Sasa
 
+<<<<<<< HEAD
 Muundo wa sasa una masuala kadhaa ambayo huathiri kumbukumbu na uzoefu wa mtumiaji:
 
 1. **Operesheni ya Kupakia ya Atomiki**: Hati nzima lazima ihamishwe katika
@@ -76,6 +119,34 @@ Lango: ~700MB (maudhui yaliyokuzwa)
 Librarian: ~500MB (bytes zilizofichuliwa)
 Kifaa cha Kufichua PDF: ~500MB + buffers za uchimbaji
 Kifaa cha Kuchakata: maandishi yaliyochimbuliwa (hubadilika, inaweza kuwa 100MB+)
+=======
+Muundo wa sasa una masuala kadhaa yanayoathiri kumbukumbu na uzoefu wa mtumiaji:
+
+1. **Operesheni ya Uipakaji Kamili**: Hati nzima lazima iwasilishwe katika
+   ombi moja. Hati kubwa zinahitaji ombi linalodumu kwa muda mrefu bila
+   hakikisho ya maendeleo na hakuna njia ya kujaribu tena ikiwa muunganisho utavunjika.
+
+2. **Muundo wa API**: API za REST na WebSocket zinatarajia hati
+   nzima katika ujumbe mmoja. Mpango (`LibrarianRequest`) una `content`
+   sehemu inayohifadhi maudhui ya hati iliyosimbwa kwa base64.
+
+3. **Kumbukumbu ya Librarian**: Huduma ya librarian huondoa usimbaji wa hati
+   nzima katika kumbukumbu kabla ya kuipeleka kwenye S3. Kwa PDF ya 500MB,
+   hii inamaanisha kuhifadhi 500MB+ katika kumbukumbu ya programu.
+
+4. **Kumbukumbu ya Dekoda ya PDF**: Wakati uchakataji unaanza, dekoda ya PDF
+   hupakia hati nzima katika kumbukumbu ili kuchimbua maandishi. Maktabu kama
+   PyPDF na zile kama hizo kawaida zinahitaji upataji wa hati nzima.
+
+5. **Kumbukumbu ya Chunker**: Chunker hupokea maandishi yaliyochimbuliwa
+   na kuhifadhi katika kumbukumbu huku inazalisha sehemu.
+
+**Mfano wa Athari ya Kumbukumbu** (PDF ya 500MB):
+Lango: ~700MB (ghairi ya usimbaji)
+Librarian: ~500MB (bytes zilizopunguzwa)
+Dekoda ya PDF: ~500MB + buffers za uchimbaji
+Chunker: maandishi yaliyopatikana (hubadilika, inaweza kuwa 100MB+)
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Kumbukumbu ya juu inaweza kuzidi 2GB kwa hati kubwa moja.
 
@@ -83,6 +154,7 @@ Kumbukumbu ya juu inaweza kuzidi 2GB kwa hati kubwa moja.
 
 ### Kanuni za Muundo
 
+<<<<<<< HEAD
 1. **Uhusiano wa API**: Mwingiliano wote wa mteja hupitia API ya librarian. Wateja
    hawana upataji wa moja kwa moja au kujua kuhusu uhifadhi wa S3/Garage.
 
@@ -98,6 +170,23 @@ Kumbukumbu ya juu inaweza kuzidi 2GB kwa hati kubwa moja.
    uonevu kuhusu kupakia ambacho hakikamilika na kuruhusu uwezo wa kuanza tena.
 
 ### Mchakato wa Kupakia kwa Sehemu
+=======
+1. **Kifurushi cha API**: Mwingiliano wote wa mteja hupitia API ya librarian. Wateja
+   hawana upataji wa moja kwa moja au kujua kuhusu uhifadhi wa S3/Garage.
+
+2. **Uipakaji wa Sehemu wa S3**: Tumia uipakaji wa sehemu wa S3.
+   Hii inasaidiwa sana katika mifumo inayolingana na S3 (AWS S3, MinIO, Garage,
+   Ceph, DigitalOcean Spaces, Backblaze B2, n.k.) kuhakikisha uwezekano wa kuhamishwa.
+
+3. **Uhakikisho Kamili**: Uipakaji wa sehemu wa S3 ni wa uhakikisho kamili - sehemu
+   zilizopakiwa hazionekani hadi `CompleteMultipartUpload` itakapopigwa.
+   Hakuna faili za muda au operesheni za kubadilisha.
+
+4. **Hali Inayoweza Kufuatiliwa**: Vipindi vya uipakaji hufuatiliwa katika Cassandra,
+   kutoa uonevu kuhusu uipakaji usio kamili na kuwezesha uwezo wa kuanza tena.
+
+### Mchakato wa Uipakaji wa Sehemu
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 Client                    Librarian API                   S3/Garage
@@ -164,7 +253,11 @@ Msimamizi wa maktaba:
 
 #### `upload-chunk`
 
+<<<<<<< HEAD
 Pakia kipande kimoja.
+=======
+Pakia sehemu moja.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Ombi:
 ```json
@@ -189,6 +282,7 @@ Jibu:
 ```
 
 Msimamizi wa maktaba:
+<<<<<<< HEAD
 1. Tafuta kikao kwa kutumia `upload_id`
 2. Thibitisha umiliki (mtumiaji lazima awe yule aliyeunda kikao)
 3. Piga simu kwa S3 `UploadPart` pamoja na data ya sehemu, na upokee `etag`
@@ -196,6 +290,15 @@ Msimamizi wa maktaba:
 5. Rejesha maelezo ya maendeleo kwa mteja
 
 Sehemu ambazo hazijafaulu zinaweza kujaribiwa tena - tuma tu `chunk-index` tena.
+=======
+1. Tafuta kipindi kwa `upload_id`
+2. Thibitisha umiliki (mtumiaji lazima awe yule aliyeunda kipindi)
+3. Piga S3 `UploadPart` na data ya sehemu, pokea `etag`
+4. Sasisha rekodi ya kipindi na fahirisi ya sehemu na etag
+5. Rejesha maendeleo kwa mteja
+
+Sehemu ambazo hazijafaulu zinaweza kujaribiwa tena - tuma tu `chunk-index` ile ile tena.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### `complete-upload`
 
@@ -218,12 +321,21 @@ Jibu:
 ```
 
 Msimamizi wa maktaba:
+<<<<<<< HEAD
 1. Tafuta kikao, thibitisha kwamba vipande vyote vimepokelewa
 2. Anapiga S3 `CompleteMultipartUpload` na etags za sehemu (S3 huunganisha sehemu
    ndani - hakuna gharama ya kumbukumbu kwa msimamizi)
 3. Huunda rekodi ya hati katika Cassandra na metadata na rejeleo la kitu
 4. Huondoa rekodi ya kikao cha kupakia
 5. Hurudisha kitambulisho cha hati kwa mteja
+=======
+1. Angalia kikao, thibitisha kwamba vipande vyote vimepokelewa.
+2. Anapiga S3 `CompleteMultipartUpload` na etags za sehemu (S3 huunganisha sehemu
+   ndani - hakuna gharama ya kumbukumbu kwa msimamizi).
+3. Huunda rekodi ya hati katika Cassandra na metadata na rejea la kitu.
+4. Huondoa rekodi ya kikao cha kupakia.
+5. Anarudisha kitambulisho cha hati kwa mteja.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### `abort-upload`
 
@@ -314,6 +426,7 @@ CREATE TABLE upload_session (
 CREATE INDEX upload_session_user ON upload_session (user);
 ```
 
+<<<<<<< HEAD
 **Tabia ya TTL:**
 Vikao hupotea baada ya saa 24 ikiwa havijakamilika.
 Wakati TTL ya Cassandra inapita, rekodi ya kikao inafutwa.
@@ -323,6 +436,17 @@ Sehemu zisizo na uhusiano za S3 huondolewa na sera ya maisha ya S3 (sanidi kweny
 
 **Hitilafu ya kupakia sehemu:**
 Mteja hurudia kupakia sehemu iliyoshindwa (na `upload_id` na `chunk-index` sawa).
+=======
+**Tabia ya Muda (TTL):**
+Vikao hupotea baada ya saa 24 ikiwa havijakamilika.
+Wakati muda (TTL) wa Cassandra unapita, rekodi ya kikao inafutwa.
+Sehemu zisizo na uhusiano za S3 huondolewa na sera ya maisha ya S3 (sanidi kwenye ndoo).
+
+### Usimamizi wa Hitilafu na Umoja
+
+**Hitilafu ya kupakia sehemu:**
+Mteja hujaribu tena sehemu iliyoshindwa (na `upload_id` na `chunk-index` sawa).
+>>>>>>> 82edf2d (New md files from RunPod)
 `UploadPart` ya S3 ni sawa kwa nambari sawa ya sehemu.
 Kikao kinafuatilia sehemu zipi zilizofanikiwa.
 
@@ -332,6 +456,7 @@ Mteja anaweza kupiga `get-upload-status` ili kuona nini kinakosekana.
 Anza tena kwa kupakia sehemu ambazo hazijapakiwa, kisha `complete-upload`.
 
 **Hitilafu ya kupakia kikamilifu:**
+<<<<<<< HEAD
 `CompleteMultipartUpload` ya S3 ni ya uadilifu - inaweza kufanikiwa kikamilifu au kushindwa.
 Katika hali ya kushindwa, sehemu zinaendelea na mteja anaweza kujaribu tena `complete-upload`.
 Hati yoyote ya nusu haionekani.
@@ -355,6 +480,31 @@ Kupakia kwa sehemu nyingi za S3 hutoa uadilifu uliopo:
    `CreateMultipartUpload`. Sehemu huunganishwa moja kwa moja kwenye ufunguo huo.
 
 4. **Uunganishaji wa upande wa seva:** S3 inaunganisha sehemu ndani. Msimamizi
+=======
+`CompleteMultipartUpload` ya S3 ni ya umoja - inaweza kufanikiwa kikamilifu au kushindwa.
+Katika hali ya kushindwa, sehemu zinaendelea na mteja anaweza kujaribu tena `complete-upload`.
+Hati yoyote isiyo kamili haionekani.
+
+**Muda wa kikao:**
+Muda (TTL) wa Cassandra hufuta rekodi ya kikao baada ya saa 24.
+Sera ya maisha ya ndoo ya S3 husafisha kupakia kwa sehemu nyingi ambazo hazijakamilika.
+Hakuna usafishaji wa mwongozo unaohitajika.
+
+### Umoja wa Kupakia Sehemu ya S3
+
+Kupakia sehemu nyingi za S3 hutoa umoja uliopo:
+
+1. **Sehemu hazionekani:** Sehemu zilizopakuliwa haziwezi kupatikana kama vitu.
+   Zipo tu kama sehemu za kupakia sehemu nyingi ambazo hazijakamilika.
+
+2. **Uhakikisho wa umoja:** `CompleteMultipartUpload` inaweza kufanikiwa (kitu
+   kinaonekana kikamilifu) au kushindwa (kitu hakitengenezwi). Hakuna hali ya nusu.
+
+3. **Hakuna haja ya kubadilisha jina:** Ufunguo wa mwisho wa kitu unaonyeshwa wakati
+   `CreateMultipartUpload`. Sehemu huunganishwa moja kwa moja kwenye ufunguo huo.
+
+4. **Uunganishaji wa upande wa seva:** S3 huunganisha sehemu ndani. Msimamizi
+>>>>>>> 82edf2d (New md files from RunPod)
    haisomi sehemu - hakuna gharama ya kumbukumbu bila kujali ukubwa wa hati.
 
 ### Upanuzi wa BlobStore
@@ -393,6 +543,7 @@ class BlobStore:
         # minio client: abort_multipart_upload()
 ```
 
+<<<<<<< HEAD
 ### Mambo Yanayohusiana na Ukubwa wa Sehemu
 
 **Kiwango cha chini cha S3**: 5MB kwa kila sehemu (isipokuwa sehemu ya mwisho)
@@ -425,6 +576,40 @@ mipaka ya kumbukumbu
 Hii inahakikisha kwamba mfumo wa hati hautegemei muundo wa hati. Ufuatiliaji
 wa PDF, ufuatiliaji wa maandishi, na mantiki nyingine maalum ya muundo
 inabaki katika vichujio husika.
+=======
+### Mambo Yanayohusiana na Ukubwa wa Kifurushi
+
+**Kiwango cha chini cha S3**: 5MB kwa kila sehemu (isipokuwa sehemu ya mwisho)
+**Kiwango cha juu cha S3**: Sehemu 10,000 kwa kila upakiaji
+**Kiwango cha kawaida kinachopendekezwa**: Kifurushi cha 5MB
+  Hati ya 500MB = Kifurushi 100
+  Hati ya 5GB = Kifurushi 1,000
+**Ufuatiliaji wa maendeleo**: Kifurushi kidogo = Taarifa za maendeleo bora
+**Ufanisi wa mtandao**: Kifurushi kikubwa = Safari ndogo
+
+Ukubwa wa kifurushi unaweza kusanidiwa na mtumiaji ndani ya mipaka (5MB - 100MB).
+
+### Ufuatiliaji wa Hati: Upakiaji wa Kwenye Mtiririko
+
+Mchakato wa upakiaji unahusu kuweka hati kwenye hifadhi kwa ufanisi. Mchakato wa ufuatiliaji unahusu kuchuja na kugawanya hati bila kuiziba yote kwenye kumbukumbu.
+
+
+
+#### Kanuni ya Ubunifu: Kitambulisho, Sio Yaliyomo
+
+Kwa sasa, wakati mchakato unaanza, yaliyomo kwenye hati huhamishwa kupitia ujumbe wa Pulsar. Hii huweka hati zilizokamilika kwenye kumbukumbu. Badala yake:
+
+
+Ujumbe wa Pulsar unaonyesha tu **kitambulisho cha hati**
+Vifaa hupata yaliyomo kwenye hati moja kwa moja kutoka kwa mfumo wa kumbukumbu
+Kupata hufanyika kama **mtiririko kwenye faili ya muda**
+Ufuatiliaji maalum wa hati (PDF, maandishi, n.k.) hutumia faili, sio mipaka ya kumbukumbu
+
+Hii huweka mfumo wa kumbukumbu usio na kujua muundo wa hati. Ufuatiliaji wa PDF, ufuatiliaji wa maandishi, na mantiki nyingine maalum ya muundo huendelea katika vichujio husika.
+
+
+#### Mchakato wa Ufuatiliaji
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 Pulsar              PDF Decoder                Librarian              S3
@@ -455,9 +640,15 @@ Pulsar              PDF Decoder                Librarian              S3
   │                      │   delete temp file                          │
 ```
 
+<<<<<<< HEAD
 #### API ya Mfumo wa Maktaba
 
 Ongeza operesheni ya upataji wa hati kwa njia ya mtiririko:
+=======
+#### API ya Mto wa Huduma za Maktaba
+
+Ongeza operesheni ya kupata hati kwa mtiririko:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **`stream-document`**
 
@@ -473,10 +664,17 @@ Jibu: Vipande vya binary vilivyotumwa (si jibu moja).
 
 Kwa API ya REST, hii hurudisha jibu linaloendelea kwa kutumia `Transfer-Encoding: chunked`.
 
+<<<<<<< HEAD
 Kwa simu za ndani kati ya huduma (kwa mfumo wa uprosesa hadi mfumo wa kumbukumbu), hii inaweza kuwa:
 Uhamisho wa moja kwa moja wa S3 kupitia URL iliyosainiwa (ikiwa mtandao wa ndani unaruhusu).
 Majibu yaliyogawanywa kupitia itifaki ya huduma.
 Kituo maalum cha utumaji wa data.
+=======
+Kwa simu za ndani kati ya huduma (kwa mfumo wa usindikaji hadi kwa mfumo wa kumbukumbu), hii inaweza kuwa:
+Uhamisho wa moja kwa moja wa S3 kupitia URL iliyosainiwa (ikiwa mtandao wa ndani unaruhusu).
+Majibu yaliyogawanywa kupitia itifaki ya huduma.
+Kifaa maalum cha utumaji wa data.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Mahitaji muhimu: data inatiririka kwa vipande, haijahifadhiwa kikamilifu katika mfumo wa kumbukumbu.
 
@@ -545,9 +743,15 @@ def decode_text_streaming(doc_id: str, librarian_client) -> Iterator[str]:
 Hati za maandishi zinaweza kutiririka moja kwa moja bila faili ya muda kwa sababu zina
 muundo wa mstari.
 
+<<<<<<< HEAD
 #### Jumuisho la Kifaa cha Kugawa (Chunker)
 
 Kifaa cha kugawa hupokea mfuatiliaji wa maandishi (kurasa au aya) na hutoa
+=======
+#### Jumuisho la Kichungia (Chunker)
+
+Kichungia hupokea mfuatiliaji wa maandishi (kurasa au aya) na hutoa
+>>>>>>> 82edf2d (New md files from RunPod)
 vipande kwa hatua kwa hatua:
 
 ```python
@@ -601,7 +805,11 @@ async def process_document(doc_id: str, librarian_client, embedder):
         await store_chunk(doc_id, chunk, embedding)
 ```
 
+<<<<<<< HEAD
 Katika hakuna hatua, hati kamili au maandishi yaliyotolewa kamili hayahifadhiwi kwenye kumbukumbu.
+=======
+Katika hakuna hatua, hati kamili au maandishi yaliyochukuliwa kamili hayahifadhiwi kwenye kumbukumbu.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Mambo Yanayohusiana na Faili za Muda
 
@@ -616,6 +824,7 @@ hata wakati wa hitilafu.
 Hakuna migogoro kati ya uchakataji wa hati sambamba.
 
 **Nafasi ya diski:** Faili za muda zina muda mfupi (muda wa uchakataji). Kwa
+<<<<<<< HEAD
 hati ya PDF ya 500MB, inahitaji nafasi ya muda ya 500MB wakati wa uchakataji. Kikomo cha ukubwa
 kinaweza kutekelezwa wakati wa kupakia ikiwa nafasi ya diski ni mdogo.
 
@@ -627,6 +836,19 @@ mstari mmoja wa baadaye (kugawanya → embeddings → uhifadhi). Ili kufanikisha
 kwenye mfumo kama hati za mtoto.
 
 #### Mchakato wa Uchakataji na Hati za Mtoto
+=======
+hati ya PDF ya 500MB, inahitaji nafasi ya muda ya 500MB wakati wa uchakataji. Kizuia cha ukubwa
+kunaweza kutekelezwa wakati wa kupakia ikiwa nafasi ya diski ni mdogo.
+
+### Kiolesura Kimoja cha Uchakataji: Hati za Watoto
+
+Uchimbaji wa hati za PDF na uchakataji wa maandishi unahitaji kuingia kwenye
+mstari mmoja wa baadaye (kugawanya → maandishi → uhifadhi). Ili kufanikisha hili kwa
+"kupata kwa ID" kiolesura, vipande vya maandishi vilivyochimbwa huhifadhiwa tena
+kwenye mfumo kama hati za watoto.
+
+#### Mchakato wa Uchakataji na Hati za Watoto
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 PDF Document                                         Text Document
@@ -664,7 +886,11 @@ Hati ya maandishi iliyopakiwa na mtumiaji
 Sehemu ya maandishi iliyochimbwa kutoka kwa ukurasa wa PDF
 Aina yoyote ya hati ya siku zijazo
 
+<<<<<<< HEAD
 #### Meta-data ya Hati Ndogo
+=======
+#### Meta Data ya Hati Ndogo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Panua muundo wa hati ili kufuatilia uhusiano wa mzazi/mtoto:
 
@@ -682,6 +908,7 @@ CREATE INDEX document_parent ON document (parent_id);
 | `document_type` | Maelezo |
 |-----------------|-------------|
 | `source` | Nyaraka zilizopakiwa na mtumiaji (PDF, maandishi, n.k.) |
+<<<<<<< HEAD
 | `extracted` | Zilizotokana na nyaraka asili (k.m., maandishi ya ukurasa wa PDF) |
 
 **Nafasi za metadata:**
@@ -698,6 +925,24 @@ CREATE INDEX document_parent ON document (parent_id);
 #### API ya Maktaba kwa Nyaraka Zilizotokana
 
 **Kuunda nyaraka zilizotokana** (ya ndani, hutumiwa na pdf-extractor):
+=======
+| `extracted` | Imetokana na nyaraka ya asili (k.m., maandishi ya ukurasa wa PDF) |
+
+**Nafasi za metadata:**
+
+| Nafasi | Nyaraka ya Asili | Mtoto Uliochukuliwa |
+|-------|-----------------|-----------------|
+| `id` | Iliyotolewa na mtumiaji au iliyoundwa | Iliyoundwa (k.m., `{parent-id}-page-{n}`) |
+| `parent_id` | `NULL` | Kitambulisho cha nyaraka mama |
+| `document_type` | `source` | `extracted` |
+| `kind` | `application/pdf`, n.k. | `text/plain` |
+| `title` | Iliyotolewa na mtumiaji | Iliyoundwa (k.m., "Ukurasa wa 3 wa Ripoti.pdf") |
+| `user` | Mtumiaji aliyeidhinishwa | Sawa na nyaraka mama |
+
+#### API ya Maktaba kwa Nyaraka za Watoto
+
+**Kutengeneza nyaraka za watoto** (ya ndani, inayotumika na pdf-extractor):
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```json
 {
@@ -712,12 +957,20 @@ CREATE INDEX document_parent ON document (parent_id);
 }
 ```
 
+<<<<<<< HEAD
 Kwa maandishi madogo ambayo yamechukuliwa (maandishi ya kawaida ya ukurasa ni chini ya 100KB), kupakia kwa operesheni moja ni sawa. Kwa matamshi makubwa sana ya maandishi, kupakia kwa sehemu kunaweza kutumika.
+=======
+Kwa maandishi madogo ambayo yamechukuliwa (maandishi ya kawaida ya ukurasa ni chini ya 100KB), kupakia kwa hatua moja ni la kukubalika. Kwa matamshi makubwa sana ya maandishi, kupakia kwa sehemu kunaweza kutumika.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Orodha ya hati za watoto** (kwa ajili ya utatuzi/utawala):
 
 
+<<<<<<< HEAD
 
+=======
+Hati ya Matokeo
+>>>>>>> 82edf2d (New md files from RunPod)
 ```json
 {
   "operation": "list-children",
@@ -756,9 +1009,15 @@ Vyanzo vidogo huondolewa kwa chaguo-msingi.
 }
 ```
 
+<<<<<<< HEAD
 #### Ufutilishaji wa Kuondoa Data kwa Kadirio
 
 Wakati hati mama inapoondolewa, watoto wote lazima waondolewe:
+=======
+#### Ufutilishaji Pamoja na Uharibifu wa Data
+
+Wakati hati mama inafutwa, watoto wote lazima waondolewe:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 def delete_document(doc_id: str):
@@ -778,6 +1037,7 @@ def delete_document(doc_id: str):
     execute("DELETE FROM document WHERE id = ? AND user = ?", doc_id, user)
 ```
 
+<<<<<<< HEAD
 #### Mawazo Kuhusu Uhifadhi
 
 Matini yaliyotolewa yana nakala sawa:
@@ -789,18 +1049,40 @@ Hii inaruhusu:
 **Uendelezaji/jaribio tena**: Inaweza kuanza tena katika hatua ya "chunker" bila kuhariri tena PDF
 **Urekebishaji**: Nakala iliyotolewa inaweza kuchunguzwa
 **Tofauti ya majukumu**: Huduma ya kuchimbua PDF na "chunker" ni huduma tofauti
+=======
+#### Mawasilisho ya Uhifadhi
+
+Matini yaliyotolewa yana nakala za maudhui:
+Nakala ya asili ya PDF inahifadhiwa katika "Garage"
+Nakala ya matini iliyotolewa kwa kila ukurasa pia inahifadhiwa katika "Garage"
+
+Hii inaruhusu:
+**Kiolesura cha kawaida cha "chunker"**: "Chunker" daima hupata kwa kitambulisho
+**Uanzishaji upya/jaribio**: Inaweza kuanzisha tena katika hatua ya "chunker" bila kuharibu tena PDF
+**Urekebishaji**: Matini iliyotolewa inaweza kuchunguzwa
+**Tofauti ya majukumu**: Huduma ya kutolea matini kutoka PDF na "chunker" ni huduma tofauti
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Kwa PDF ya 500MB yenye kurasa 200, kwa wastani ya matini ya 5KB kwa kila ukurasa:
 Uhifadhi wa PDF: 500MB
 Uhifadhi wa matini iliyotolewa: ~1MB jumla
 Gharama ya ziada: ndogo sana
 
+<<<<<<< HEAD
 #### Matokeo ya Kuchimbua PDF
 
 Kichunguzi cha kuchimbua PDF, baada ya kuchakata hati:
 
 1. Hupata PDF kutoka kwa "librarian" hadi kwenye faili ya muda
 2. Huchimbua matini ukurasa kwa ukurasa
+=======
+#### Matokeo ya Kutoa Matini kutoka PDF
+
+Kifaa cha kutoa matini kutoka PDF, baada ya kuchakata hati:
+
+1. Hupokea PDF kutoka kwa "librarian" hadi faili ya muda
+2. Hutoa matini ukurasa kwa ukurasa
+>>>>>>> 82edf2d (New md files from RunPod)
 3. Kwa kila ukurasa, huhifadhi matini iliyotolewa kama hati ndogo kupitia "librarian"
 4. Hutuma kitambulisho cha hati ndogo kwa folyo ya "chunker"
 
@@ -833,15 +1115,26 @@ async def extract_pdf(doc_id: str, librarian_client, output_queue):
             await output_queue.send(child_id)
 ```
 
+<<<<<<< HEAD
 Kifaa cha kuainisha vitapokea kitambulisho hivi vya watoto na vitawatumia kwa njia ile ile
 ambayo kingetumia hati ya maandishi iliyopakiwa na mtumiaji.
 
 ### Sasizi za Mteja
+=======
+Kifaa cha "chunker" hupokea kitambulisho hivi vya watoto na huviweka sawa na
+jinsi lingeweza kuchakata hati ya maandishi iliyopakiwa na mtumiaji.
+
+### Masasisho ya Mteja
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### SDK ya Python
 
 SDK ya Python (`trustgraph-base/trustgraph/api/library.py`) inapaswa kushughulikia
+<<<<<<< HEAD
 vipakio vilivyogawanywa kwa njia ya moja kwa moja. Muundo wa umma haubadiliki:
+=======
+vipakio vilivyogawanywa kwa njia ambayo haionyeshi. Muundo wa umma haubadiliki:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 # Existing interface - no change for users
@@ -914,8 +1207,13 @@ tg-add-library-document --file large-report.pdf --title "Large Report" --progres
 
 **Vifaa vya zamani vimetoolewa:**
 
+<<<<<<< HEAD
 `tg-load-pdf` - imepitwa na wakati, tumia `tg-add-library-document`
 `tg-load-text` - imepitwa na wakati, tumia `tg-add-library-document`
+=======
+`tg-load-pdf` - yamefutwa, tumia `tg-add-library-document`
+`tg-load-text` - yamefutwa, tumia `tg-add-library-document`
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Amri za utawala/uchunguzi** (hiari, kipaumbele cha chini):
 
@@ -935,7 +1233,11 @@ Vipimo vya OpenAPI (`specs/api/paths/librarian.yaml`) vinahitaji mabadiliko kwa:
 
 **Utendaji mpya:**
 
+<<<<<<< HEAD
 `begin-upload` - Anzisha kipindi cha kupakia kwa sehemu
+=======
+`begin-upload` - Anzisha kipindi cha kupakia sehemu
+>>>>>>> 82edf2d (New md files from RunPod)
 `upload-chunk` - Pakia sehemu moja
 `complete-upload` - Kamilisha kupakia
 `abort-upload` - Ghairi kupakia
@@ -949,7 +1251,11 @@ Vipimo vya OpenAPI (`specs/api/paths/librarian.yaml`) vinahitaji mabadiliko kwa:
 
 `list-documents` - Ongeza parameter `include-children`
 
+<<<<<<< HEAD
 **Muundo mpya:**
+=======
+**Vipimo vipya:**
+>>>>>>> 82edf2d (New md files from RunPod)
 
 `ChunkedUploadBeginRequest`
 `ChunkedUploadBeginResponse`
@@ -961,7 +1267,11 @@ Vipimo vya OpenAPI (`specs/api/paths/librarian.yaml`) vinahitaji mabadiliko kwa:
 **Mabadiliko ya vipimo vya WebSocket** (`specs/websocket/`):
 
 Nakala utendaji wa REST kwa wateja wa WebSocket, na kuwezesha
+<<<<<<< HEAD
 maendeleo ya muda halisi wakati wa kupakia.
+=======
+maendeleo ya wakati halisi wakati wa kupakia.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Mambo ya Kuzingatia ya Uzoefu wa Mtumiaji
 
@@ -973,12 +1283,21 @@ Muda uliokadiri wa kupakia
 Uwezo wa kusitisha/kuendeleza
 
 **Kupona kwa makosa:**
+<<<<<<< HEAD
 Chaguo la "Endeleza kupakia" kwa kupakia ambacho kimekatika
 Orodha ya kupakia ambayo hayaja kamili wakati wa kuunganisha tena
 
 **Ushughulikiaji wa faili kubwa:**
 Uchunguzi wa ukubwa wa faili kwenye upande wa mteja
 Kupakia kwa sehemu kiotomatiki kwa faili kubwa
+=======
+Chaguo la "endelea kupakia" kwa kupakia ambacho kimekatika
+Orodha ya kupakia ambayo hayaja kamili wakati wa kuunganisha tena
+
+**Usimamizi wa faili kubwa:**
+Uchunguzi wa ukubwa wa faili kwenye upande wa mteja
+Kupakia kiotomatiki kwa sehemu kwa faili kubwa
+>>>>>>> 82edf2d (New md files from RunPod)
 Maelezo wazi wakati wa kupakia kwa muda mrefu
 
 Maboresho haya ya uzoefu wa mtumiaji yanahitaji kazi ya upande wa mbele inayong'wa na vipimo vya API vilivyoboreshwa.

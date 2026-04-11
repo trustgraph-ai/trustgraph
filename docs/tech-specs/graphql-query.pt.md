@@ -14,12 +14,20 @@ O serviço de consulta GraphQL fornecerá uma interface flexível e segura para 
 **Resolução de Relacionamentos**: Suportar resolvedores de campos GraphQL para relacionamentos entre diferentes tipos de objetos.
 **Segurança de Tipo**: Garantir a execução de consultas e a geração de respostas com segurança de tipo, com base nas definições do esquema.
 **Desempenho Escalável**: Lidar com consultas concorrentes de forma eficiente, com um pool de conexões adequado e otimização de consultas.
+<<<<<<< HEAD
 **Integração de Solicitação/Resposta**: Manter a compatibilidade com o padrão de solicitação/resposta baseado no Pulsar do TrustGraph.
+=======
+**Integração de Solicitação/Resposta**: Manter a compatibilidade com o padrão de solicitação/resposta baseado em Pulsar do TrustGraph.
+>>>>>>> 82edf2d (New md files from RunPod)
 **Tratamento de Erros**: Fornecer relatórios de erros abrangentes para incompatibilidades de esquema, erros de consulta e problemas de validação de dados.
 
 ## Contexto
 
+<<<<<<< HEAD
 A implementação do armazenamento de dados estruturados (trustgraph-flow/trustgraph/storage/objects/cassandra/) grava objetos em tabelas do Cassandra com base em definições de esquema armazenadas no sistema de configuração do TrustGraph. Essas tabelas usam uma estrutura de chave de partição composta com chaves primárias definidas por coleção e esquema, permitindo consultas eficientes dentro das coleções.
+=======
+A implementação de armazenamento de dados estruturados (trustgraph-flow/trustgraph/storage/objects/cassandra/) grava objetos em tabelas do Cassandra com base em definições de esquema armazenadas no sistema de configuração do TrustGraph. Essas tabelas usam uma estrutura de chave de partição composta com chaves primárias definidas por coleção, permitindo consultas eficientes dentro de coleções.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Limitações atuais que esta especificação aborda:
 Não há interface de consulta para os dados estruturados armazenados no Cassandra.
@@ -43,15 +51,25 @@ O serviço de consulta GraphQL será implementado como um novo processador de fl
 
 **Componentes Principais**:
 
+<<<<<<< HEAD
 1. **Processador do Serviço de Consulta GraphQL**
    Estende a classe base FlowProcessor.
    Implementa um padrão de solicitação/resposta semelhante aos serviços de consulta existentes.
+=======
+1. **Processador de Serviço de Consulta GraphQL**
+   Estende a classe base FlowProcessor.
+   Implementa um padrão de solicitação/resposta semelhante a outros serviços de consulta existentes.
+>>>>>>> 82edf2d (New md files from RunPod)
    Monitora a configuração para atualizações de esquema.
    Mantém o esquema GraphQL sincronizado com a configuração.
 
 2. **Gerador de Esquema Dinâmico**
    Converte definições de RowSchema do TrustGraph em tipos GraphQL.
+<<<<<<< HEAD
    Cria tipos de objetos GraphQL com definições de campo adequadas.
+=======
+   Cria tipos de objetos GraphQL com definições de campo apropriadas.
+>>>>>>> 82edf2d (New md files from RunPod)
    Gera o tipo de consulta raiz com resolvedores baseados em coleções.
    Atualiza o esquema GraphQL quando a configuração é alterada.
 
@@ -138,7 +156,11 @@ Para cada RowSchema na configuração, gerar:
 
 ### Modelos de Dados
 
+<<<<<<< HEAD
 > **Nota**: Um esquema StructuredQueryRequest/Response existente existe em `trustgraph-base/trustgraph/schema/services/structured_query.py`. No entanto, ele carece de campos críticos (usuário, coleção) e usa tipos subótimos. Os esquemas abaixo representam a evolução recomendada, que deve substituir os esquemas existentes ou ser criada como novos tipos ObjectsQueryRequest/Response.
+=======
+> **Observação**: Um esquema StructuredQueryRequest/Response existente existe em `trustgraph-base/trustgraph/schema/services/structured_query.py`. No entanto, ele carece de campos críticos (usuário, coleção) e usa tipos subótimos. Os esquemas abaixo representam a evolução recomendada, que deve substituir os esquemas existentes ou ser criada como novos tipos ObjectsQueryRequest/Response.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Esquema de Requisição (ObjectsQueryRequest)
 
@@ -256,11 +278,19 @@ O serviço otimizará as consultas do Cassandra, através de:
 **Strawberry GraphQL**: Para definição de esquema GraphQL e execução de consultas.
 **Cassandra Driver**: Para conectividade com o banco de dados (já utilizado no módulo de armazenamento).
 **TrustGraph Base**: Para FlowProcessor e definições de esquema.
+<<<<<<< HEAD
 **Configuration System**: Para monitoramento e atualizações de esquema.
 
 ### Interface de Linha de Comando
 
 O serviço fornecerá um comando de CLI: `kg-query-objects-graphql-cassandra`
+=======
+**Sistema de Configuração**: Para monitoramento e atualizações de esquema.
+
+### Interface de Linha de Comando
+
+O serviço fornecerá um comando de interface de linha de comando: `kg-query-objects-graphql-cassandra`
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Argumentos:
 `--cassandra-host`: Ponto de contato do cluster Cassandra.
@@ -283,7 +313,11 @@ Retorna resultados de consulta e erros.
 
 ### Integração de Gateway
 
+<<<<<<< HEAD
 O gateway e o gateway reverso precisarão de endpoints para:
+=======
+O gateway e o reverse-gateway precisarão de endpoints para:
+>>>>>>> 82edf2d (New md files from RunPod)
 1. Aceitar consultas GraphQL de clientes.
 2. Encaminhar para o serviço de consulta via Pulsar.
 3. Retornar respostas aos clientes.
@@ -299,23 +333,38 @@ Integração com fluxos de decisão do agente.
 
 ## Considerações de Segurança
 
+<<<<<<< HEAD
 **Limitação de Profundidade da Consulta**: Prevenir consultas profundamente aninhadas que possam causar problemas de desempenho.
 **Análise de Complexidade da Consulta**: Limitar a complexidade da consulta para evitar o esgotamento de recursos.
 **Permissões de Nível de Campo**: Suporte futuro para controle de acesso baseado em funções de usuário.
 **Sanitização de Entrada**: Validar e sanitizar todas as entradas de consulta para prevenir ataques de injeção.
 **Limitação de Taxa**: Implementar a limitação de taxa de consulta por usuário/coleção.
+=======
+**Limitação da Profundidade da Consulta**: Prevenir consultas profundamente aninhadas que possam causar problemas de desempenho.
+**Análise de Complexidade da Consulta**: Limitar a complexidade da consulta para evitar o esgotamento de recursos.
+**Permissões em Nível de Campo**: Suporte futuro para controle de acesso baseado em funções de usuário.
+**Sanitização de Entrada**: Validar e sanitizar todas as entradas de consulta para prevenir ataques de injeção.
+**Limitação de Taxa**: Implementar a limitação de taxa de consultas por usuário/coleção.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Considerações de Desempenho
 
 **Planejamento de Consulta**: Analisar consultas antes da execução para otimizar a geração de CQL.
 **Cache de Resultados**: Considerar o cache de dados acessados com frequência no nível do resolvedor de campo.
+<<<<<<< HEAD
 **Pool de Conexões**: Manter pools de conexão eficientes para o Cassandra.
 **Operações em Lote**: Combinar várias consultas sempre que possível para reduzir a latência.
 **Monitoramento**: Rastrear métricas de desempenho da consulta para otimização.
+=======
+**Pool de Conexões**: Manter pools de conexões eficientes para o Cassandra.
+**Operações em Lote**: Combinar várias consultas sempre que possível para reduzir a latência.
+**Monitoramento**: Acompanhar métricas de desempenho de consultas para otimização.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Estratégia de Teste
 
 ### Testes Unitários
+<<<<<<< HEAD
 Geração de esquema a partir de definições de RowSchema.
 Análise e validação de consultas GraphQL.
 Lógica de geração de consultas CQL.
@@ -339,17 +388,57 @@ Taxa de transferência de consultas sob carga.
 Tempo de resposta para várias complexidades de consulta.
 Uso de memória com grandes conjuntos de resultados.
 Eficiência do pool de conexões.
+=======
+Geração de esquema a partir de definições RowSchema
+Análise e validação de consultas GraphQL
+Lógica de geração de consultas CQL
+Implementações de resolvedores de campos
+
+### Testes de Contrato
+Conformidade com o contrato de mensagens Pulsar
+Validade do esquema GraphQL
+Verificação do formato da resposta
+Validação da estrutura de erros
+
+### Testes de Integração
+Execução de consulta ponta a ponta contra uma instância de teste do Cassandra
+Tratamento de atualizações de esquema
+Resolução de relacionamentos
+Paginação e filtragem
+Cenários de erro
+
+### Testes de Desempenho
+Taxa de transferência de consultas sob carga
+Tempo de resposta para diferentes complexidades de consulta
+Uso de memória com grandes conjuntos de resultados
+Eficiência do pool de conexões
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Plano de Migração
 
 Não é necessária migração, pois esta é uma nova funcionalidade. O serviço irá:
+<<<<<<< HEAD
 1. Ler esquemas existentes da configuração.
 2. Conectar-se às tabelas Cassandra existentes criadas pelo módulo de armazenamento.
 3. Começar a aceitar consultas imediatamente após a implantação.
+=======
+1. Ler esquemas existentes da configuração
+2. Conectar-se às tabelas Cassandra existentes criadas pelo módulo de armazenamento
+3. Começar a aceitar consultas imediatamente após a implantação
+
+## Cronograma
+
+Semana 1-2: Implementação do serviço principal e geração de esquema
+Semana 3: Execução de consultas e tradução CQL
+Semana 4: Resolução de relacionamentos e otimização
+Semana 5: Testes e ajuste de desempenho
+Semana 6: Integração com o gateway e documentação
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Perguntas Abertas
 
 1. **Evolução do Esquema**: Como o serviço deve lidar com consultas durante as transições de esquema?
+<<<<<<< HEAD
 Opção: Enfileirar consultas durante as atualizações de esquema.
 Opção: Suportar várias versões de esquema simultaneamente.
 
@@ -373,11 +462,32 @@ Especificação de Dados Estruturados: ⟦CODE_0⟧
 Especificação GraphQL: ⟦URL_0⟧
 Referência CQL do Apache Cassandra: ⟦URL_0⟧
    Documentação do Flow Processor TrustGraph: Documentação interna.
+=======
+   Opção: Enfileirar consultas durante as atualizações de esquema
+   Opção: Suportar múltiplas versões de esquema simultaneamente
+
+2. **Estratégia de Cache**: Os resultados das consultas devem ser armazenados em cache?
+   Considerar: Expiração baseada em tempo
+   Considerar: Invalidação baseada em eventos
+
+3. **Suporte à Federação**: O serviço deve suportar a federação GraphQL para combinar com outras fontes de dados?
+   Permitiria consultas unificadas em dados estruturados e de grafo
+
+4. **Suporte a Assinaturas**: O serviço deve suportar assinaturas GraphQL para atualizações em tempo real?
+   Requereria suporte WebSocket no gateway
+
+5. **Escalares Personalizados**: O serviço deve suportar tipos escalares personalizados para tipos de dados específicos do domínio?
+   Exemplos: DateTime, UUID, campos JSON
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Referências
 
 Especificação Técnica de Dados Estruturados: `docs/tech-specs/structured-data.md`
+<<<<<<< HEAD
 Documentação do Strawberry GraphQL: https://strawberry.rocks/
+=======
+Documentação do GraphQL Strawberry: https://strawberry.rocks/
+>>>>>>> 82edf2d (New md files from RunPod)
 Especificação do GraphQL: https://spec.graphql.org/
 Referência CQL do Apache Cassandra: https://cassandra.apache.org/doc/stable/cassandra/cql/
 Documentação do Processador de Fluxo TrustGraph: Documentação interna

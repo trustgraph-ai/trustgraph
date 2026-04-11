@@ -7,7 +7,11 @@ Esta especificação descreve otimizações abrangentes de desempenho para o alg
 1. **Otimização de Traversal de Grafos**: Eliminar consultas ineficientes ao banco de dados e implementar exploração de grafos em lote.
 2. **Otimização de Resolução de Rótulos**: Substituir a busca sequencial de rótulos por operações paralelas/em lote.
 3. **Aprimoramento da Estratégia de Cache**: Implementar um cache inteligente com remoção LRU (Least Recently Used) e pré-busca.
+<<<<<<< HEAD
 4. **Otimização de Consultas**: Adicionar memorização de resultados e cache de incorporações para melhorar os tempos de resposta.
+=======
+4. **Otimização de Consulta**: Adicionar memorização de resultados e cache de embeddings para melhorar os tempos de resposta.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Objetivos
 
@@ -18,7 +22,11 @@ Esta especificação descreve otimizações abrangentes de desempenho para o alg
 **Habilitar a Concorrência**: Melhorar as capacidades de processamento paralelo para vários запросов simultâneos.
 **Reduzir a Pegada de Memória**: Implementar estruturas de dados e gerenciamento de memória eficientes.
 **Adicionar Observabilidade**: Incluir métricas de desempenho e capacidades de monitoramento.
+<<<<<<< HEAD
 **Garantir a Confiabilidade**: Adicionar tratamento de erros adequado e mecanismos de tempo limite.
+=======
+**Garantir a Confiabilidade**: Adicionar tratamento de erros adequado e mecanismos de timeout.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Contexto
 
@@ -47,7 +55,11 @@ Falhas de cache acionam consultas individuais ao banco de dados.
 Sem pré-busca ou aquecimento inteligente do cache.
 
 **4. Padrões de Consulta Subótimos**
+<<<<<<< HEAD
 Consultas de similaridade de vetores de entidade não são armazenadas em cache entre запросов semelhantes.
+=======
+Consultas de similaridade de vetores de entidades não são armazenadas em cache entre запросов semelhantes.
+>>>>>>> 82edf2d (New md files from RunPod)
 Sem memorização de resultados para padrões de consulta repetidos.
 Otimização de consulta ausente para padrões de acesso comuns.
 
@@ -66,11 +78,19 @@ Cenário de pior caso atual para uma consulta típica:
 **Resolução de Rótulos**: subgraph_size × 3 consultas individuais de rótulos.
 
 Para parâmetros padrão (50 entidades, comprimento do caminho 2, limite de 30 triplas, tamanho do subgrafo de 150):
+<<<<<<< HEAD
 **Consultas mínimas**: 1 + (50 × 2 × 3 × 30) + (150 × 3) = **9.451 consultas ao banco de dados**
 **Tempo de resposta**: 15-30 segundos para grafos de tamanho moderado
 **Uso de memória**: Crescimento ilimitado do cache ao longo do tempo
 **Eficiência do cache**: 0% - os caches são reiniciados em cada solicitação
 **Sobrecarga de criação de objetos**: Objetos GraphRag + Query criados/destruídos por solicitação
+=======
+**Número de consultas:** 1 + (50 × 2 × 3 × 30) + (150 × 3) = **9.451 consultas ao banco de dados**
+**Tempo de resposta:** 15-30 segundos para grafos de tamanho moderado
+**Uso de memória:** Crescimento ilimitado do cache ao longo do tempo
+**Eficiência do cache:** 0% - os caches são reiniciados em cada solicitação
+**Sobrecarga de criação de objetos:** Objetos GraphRag + Query criados/destruídos por solicitação
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Esta especificação aborda essas lacunas implementando consultas em lote, cache inteligente e processamento paralelo. Ao otimizar padrões de consulta e acesso a dados, o TrustGraph pode:
 Suportar grafos de conhecimento em escala empresarial com milhões de entidades
@@ -85,10 +105,17 @@ Escalar de forma eficiente com o tamanho e a complexidade do grafo
 A otimização de desempenho do GraphRAG requer os seguintes componentes técnicos:
 
 #### 1. **Refatoração Arquitetural do Ciclo de Vida dos Objetos**
+<<<<<<< HEAD
    **Tornar o GraphRag de longa duração**: Mover a instância GraphRag para o nível do Processador para persistência entre solicitações
    **Preservar caches**: Manter o cache de rótulos, o cache de incorporações e o cache de resultados de consulta entre solicitações
    **Otimizar o objeto Query**: Refatorar o Query como um contexto de execução leve, não como um contêiner de dados
    **Persistência de conexão**: Manter as conexões do cliente do banco de dados entre solicitações
+=======
+   **Tornar o GraphRag de longa duração:** Mover a instância GraphRag para o nível do Processador para persistência entre solicitações
+   **Preservar caches:** Manter o cache de rótulos, o cache de incorporações e o cache de resultados de consulta entre solicitações
+   **Otimizar o objeto Query:** Refatorar o Query como um contexto de execução leve, não como um contêiner de dados
+   **Persistência de conexão:** Manter as conexões do cliente do banco de dados entre solicitações
+>>>>>>> 82edf2d (New md files from RunPod)
 
    Módulo: `trustgraph-flow/trustgraph/retrieval/graph_rag/rag.py` (modificado)
 
@@ -111,12 +138,21 @@ A otimização de desempenho do GraphRAG requer os seguintes componentes técnic
 #### 4. **Camada de Cache Conservadora de Rótulos**
    Cache LRU com TTL curto apenas para rótulos (5 minutos) para equilibrar desempenho e consistência
    Monitoramento de métricas e taxa de acerto do cache
+<<<<<<< HEAD
    **Sem cache de incorporações**: Já armazenado em cache por consulta, sem benefício entre consultas
    **Sem cache de resultados de consulta**: Devido a preocupações com a consistência da mutação do grafo
 
    Módulo: `trustgraph-flow/trustgraph/retrieval/graph_rag/cache_manager.py`
 
 #### 5. **Framework de Otimização de Consulta**
+=======
+   **Sem cache de incorporações:** Já armazenado em cache por consulta, sem benefício entre consultas
+   **Sem cache de resultados de consulta:** Devido a preocupações com a consistência da mutação do grafo
+
+   Módulo: `trustgraph-flow/trustgraph/retrieval/graph_rag/cache_manager.py`
+
+#### 5. **Framework de Otimização de Consultas**
+>>>>>>> 82edf2d (New md files from RunPod)
    Análise e sugestões de otimização de padrões de consulta
    Coordenador de consultas em lote para acesso ao banco de dados
    Pool de conexões e gerenciamento de tempo limite de consulta
@@ -213,9 +249,15 @@ class CacheManager:
 #### APIs Modificados:
 
 **GraphRag.query()** - Aprimorado com otimizações de desempenho:
+<<<<<<< HEAD
 Adicionado parâmetro `cache_manager` para controle de cache.
 Incluído valor de retorno `performance_metrics`.
 Adicionado parâmetro `query_timeout` para confiabilidade.
+=======
+Adicionado o parâmetro `cache_manager` para controle de cache.
+Incluído o valor de retorno `performance_metrics`.
+Adicionado o parâmetro `query_timeout` para confiabilidade.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Classe Query** - Refatorada para processamento em lote:
 Substituição do processamento individual de entidades por operações em lote.
@@ -326,8 +368,13 @@ Esta mudança arquitetural oferece:
 **Pool de conexões persistentes** e reutilização do cliente
 **Otimização entre requisições** dentro das janelas de tempo de vida (TTL) do cache
 
+<<<<<<< HEAD
 **Limitação Importante de Consistência do Cache:**
 O cache de longo prazo introduz o risco de dados desatualizados quando entidades/rótulos são excluídos ou modificados no grafo subjacente. O cache LRU com TTL oferece um equilíbrio entre ganhos de desempenho e frescor dos dados, mas não pode detectar alterações em tempo real no grafo.
+=======
+**Importante Limitação de Consistência do Cache:**
+O cache de longo prazo introduz o risco de dados desatualizados quando entidades/rótulos são excluídos ou modificados no grafo subjacente. O cache LRU com TTL oferece um equilíbrio entre ganhos de desempenho e frescor dos dados, mas não detecta alterações em tempo real no grafo.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Fase 1: Otimização de Traversal de Grafos
 
@@ -480,6 +527,7 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 ## Considerações sobre a Consistência do Cache
 
 **Compensações entre a Atualidade dos Dados:**
+<<<<<<< HEAD
 **Cache de rótulos (TTL de 5 minutos)**: Risco de exibir rótulos de entidades excluídas/renomeadas.
 **Sem cache de embeddings**: Não é necessário - os embeddings já são armazenados em cache por consulta.
 **Sem cache de resultados**: Impede que resultados de subgrafos desatualizados sejam exibidos devido à exclusão de entidades/relacionamentos.
@@ -494,10 +542,27 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 **Alta mutação (>100 alterações/hora)**: TTL=60s, tamanhos de cache menores.
 **Média mutação (10-100 alterações/hora)**: TTL=300s (padrão).
 **Baixa mutação (<10 alterações/hora)**: TTL=600s, tamanhos de cache maiores.
+=======
+**Cache de rótulos (TTL de 5 minutos)**: Risco de servir rótulos de entidades excluídas/renomeadas
+**Sem cache de embeddings**: Não necessário - os embeddings já são armazenados em cache por consulta
+**Sem cache de resultados**: Impede que resultados de subgrafos desatualizados sejam retornados devido à exclusão de entidades/relacionamentos
+
+**Estratégias de Mitigação:**
+**Valores de TTL conservadores**: Equilibre os ganhos de desempenho (10-20%) com a atualização dos dados
+**Hooks de invalidação de cache**: Integração opcional com eventos de mutação do grafo
+**Painéis de monitoramento**: Acompanhe as taxas de acerto do cache versus incidentes de desatualização
+**Políticas de cache configuráveis**: Permite ajustes específicos para cada implantação, com base na frequência de mutação
+
+**Configuração de Cache Recomendada pela Taxa de Mutação do Grafo:**
+**Alta mutação (>100 alterações/hora)**: TTL=60s, tamanhos de cache menores
+**Média mutação (10-100 alterações/hora)**: TTL=300s (padrão)
+**Baixa mutação (<10 alterações/hora)**: TTL=600s, tamanhos de cache maiores
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Considerações de Segurança
 
 **Prevenção de Injeção de Consulta:**
+<<<<<<< HEAD
 Valide todos os identificadores de entidade e parâmetros de consulta.
 Use consultas parametrizadas para todas as interações com o banco de dados.
 Implemente limites de complexidade de consulta para evitar ataques de negação de serviço (DoS).
@@ -511,12 +576,28 @@ Adicione monitoramento e limites de uso de memória.
 Mantenha o isolamento existente de usuários e coleções.
 Adicione registro de auditoria para operações que afetam o desempenho.
 Implemente limitação de taxa para operações dispendiosas.
+=======
+Valide todos os identificadores de entidade e parâmetros de consulta
+Use consultas parametrizadas para todas as interações com o banco de dados
+Implemente limites de complexidade de consulta para evitar ataques de negação de serviço (DoS)
+
+**Proteção de Recursos:**
+Aplique limites máximos de tamanho de subgrafo
+Implemente tempos limite de consulta para evitar o esgotamento de recursos
+Adicione monitoramento e limites de uso de memória
+
+**Controle de Acesso:**
+Mantenha o isolamento existente de usuários e coleções
+Adicione registro de auditoria para operações que afetam o desempenho
+Implemente limitação de taxa para operações dispendiosas
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Considerações de Desempenho
 
 ### Melhorias de Desempenho Esperadas
 
 **Redução de Consultas:**
+<<<<<<< HEAD
 Atual: ~9.000+ consultas para um pedido típico.
 Otimizado: ~50-100 consultas agrupadas (redução de 98%).
 
@@ -540,14 +621,46 @@ Melhor coleta de lixo através da limpeza adequada de recursos.
 Suporte para grafos de conhecimento 3-5 vezes maiores (limitado pelas necessidades de consistência do cache).
 Capacidade de solicitação concorrente 3-5 vezes maior.
 Melhor utilização de recursos através da reutilização de conexões.
+=======
+Atual: ~9.000+ consultas para um pedido típico
+Otimizado: ~50-100 consultas em lote (redução de 98%)
+
+**Melhorias no Tempo de Resposta:**
+Traversal do grafo: 15-20s → 3-5s (4-5x mais rápido)
+Resolução de rótulos: 8-12s → 2-4s (3x mais rápido)
+Consulta geral: 25-35s → 6-10s (melhora de 3-4x)
+
+**Eficiência de Memória:**
+Tamanhos de cache limitados evitam vazamentos de memória
+Estruturas de dados eficientes reduzem a pegada de memória em ~40%
+Melhor coleta de lixo através da limpeza adequada de recursos
+
+**Expectativas Realistas de Desempenho:**
+**Cache de rótulos**: Redução de 10-20% nas consultas para grafos com relacionamentos comuns
+**Otimização de lote**: Redução de 50-80% nas consultas (otimização primária)
+**Otimização do ciclo de vida do objeto**: Elimina a sobrecarga de criação por pedido
+**Melhora geral**: Melhoria de 3-4x no tempo de resposta, principalmente devido ao lote
+
+**Melhorias na Escalabilidade:**
+Suporte para grafos de conhecimento 3-5x maiores (limitado pelas necessidades de consistência do cache)
+Capacidade de solicitação concorrente 3-5x maior
+Melhor utilização de recursos através da reutilização de conexões
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Monitoramento de Desempenho
 
 **Métricas em Tempo Real:**
+<<<<<<< HEAD
 Tempos de execução de consultas por tipo de operação.
 Taxas de acerto e eficácia do cache.
 Utilização do pool de conexões do banco de dados.
 Uso de memória e impacto da coleta de lixo.
+=======
+Tempos de execução de consultas por tipo de operação
+Taxas de acerto e eficácia do cache
+Utilização do pool de conexões do banco de dados
+Uso de memória e impacto na coleta de lixo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Benchmarking de Desempenho:**
 Testes de regressão de desempenho automatizados
@@ -557,7 +670,11 @@ Benchmarks de comparação com a implementação atual
 ## Estratégia de Testes
 
 ### Testes Unitários
+<<<<<<< HEAD
 Teste de componentes individuais para travessia, cache e resolução de rótulos
+=======
+Testes de componentes individuais para travessia, cache e resolução de rótulos
+>>>>>>> 82edf2d (New md files from RunPod)
 Simulações de interações com o banco de dados para testes de desempenho
 Testes de expiração de cache e TTL
 Tratamento de erros e cenários de timeout
@@ -570,7 +687,11 @@ Detecção de vazamentos de memória e verificação da limpeza de recursos
 
 ### Testes de Desempenho
 Testes de benchmark contra a implementação atual
+<<<<<<< HEAD
 Testes de carga com tamanhos e complexidades de grafos variáveis
+=======
+Testes de carga com diferentes tamanhos e complexidades de grafos
+>>>>>>> 82edf2d (New md files from RunPod)
 Testes de estresse para limites de memória e conexões
 Testes de regressão para melhorias de desempenho
 

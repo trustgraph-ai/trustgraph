@@ -3,6 +3,7 @@
 ## Problema
 
 A proveniência em tempo de extração atualmente gera uma reificação completa para cada
+<<<<<<< HEAD
 tripla extraída: um `stmt_uri`, `activity_uri` e metadados PROV-O associados para cada
 fato de conhecimento. O processamento de um bloco que gera 20 relacionamentos produz aproximadamente 220 triplas de proveniência, além de
 aproximadamente 20 triplas de conhecimento — uma sobrecarga de aproximadamente 10:1.
@@ -11,10 +12,21 @@ aproximadamente 20 triplas de conhecimento — uma sobrecarga de aproximadamente
 Isso é caro (armazenamento, indexação, transmissão) e semanticamente
 impreciso. Cada bloco é processado por uma única chamada de LLM que produz
 todas as suas triplas em uma única transação. O modelo atual, baseado em tripla,
+=======
+tripla extraída: um `stmt_uri`, `activity_uri` e metadados PROV-O associados para
+cada fato de conhecimento. O processamento de um bloco que gera 20 relacionamentos produz
+aproximadamente 220 triplas de proveniência, além das aproximadamente 20 triplas de
+conhecimento — uma sobrecarga de aproximadamente 10:1.
+
+Isso é caro (armazenamento, indexação, transmissão) e semanticamente
+impreciso. Cada bloco é processado por uma única chamada de LLM que produz
+todas as suas triplas em uma única transação. O modelo atual, por tripla,
+>>>>>>> 82edf2d (New md files from RunPod)
 obscure isso, criando a ilusão de 20 eventos de extração independentes.
 
 
 Além disso, dois dos quatro processadores de extração (kg-extract-ontology,
+<<<<<<< HEAD
 kg-extract-agent) não possuem proveniência, deixando lacunas no registro de auditoria.
 
 
@@ -23,6 +35,16 @@ kg-extract-agent) não possuem proveniência, deixando lacunas no registro de au
 Substituir a reificação por tripla por um **modelo de subgrafo**: um registro de proveniência
 por extração de bloco, compartilhado entre todas as triplas produzidas a partir desse
 bloco.
+=======
+kg-extract-agent) não possuem proveniência, deixando lacunas no registro de
+auditoria.
+
+## Solução
+
+Substituir a reificação por tripla por um **modelo de subgrafo**: um registro de
+proveniência por extração de bloco, compartilhado entre todas as triplas produzidas
+a partir desse bloco.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Mudança de Terminologia
 
@@ -126,7 +148,11 @@ Substituir `statement_uri()` por `subgraph_uri()`
 
 Substituir `TG_REIFIES` por `TG_CONTAINS`
 
+<<<<<<< HEAD
 ### Não no Escopo
+=======
+### Não está no Escopo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **kg-extract-topics**: processador de estilo antigo, não usado atualmente em
   fluxos padrão
@@ -175,7 +201,11 @@ prov_triples = subgraph_provenance_triples(
 triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
 ```
 
+<<<<<<< HEAD
 ### Nova Assinatura de Auxílio
+=======
+### Nova Assinatura de Ajuda
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 def subgraph_provenance_triples(
@@ -200,6 +230,10 @@ def subgraph_provenance_triples(
 
 ### Mudança Significativa
 
+<<<<<<< HEAD
 Esta é uma mudança significativa no modelo de rastreabilidade. A rastreabilidade não
+=======
+Esta é uma mudança significativa no modelo de rastreabilidade. A rastreabilidade ainda não
+>>>>>>> 82edf2d (New md files from RunPod)
 foi lançada, portanto, nenhuma migração é necessária. O código antigo `tg:reifies` /
 `statement_uri` pode ser removido completamente.

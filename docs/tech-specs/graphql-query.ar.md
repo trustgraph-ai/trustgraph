@@ -2,6 +2,7 @@
 
 ## Overview
 
+<<<<<<< HEAD
 تصف هذه المواصفات تنفيذ واجهة استعلام GraphQL للبيانات المنظمة المخزنة في Apache Cassandra. بناءً على إمكانات البيانات المنظمة الموضحة في المواصفات الموجودة في structured-data.md، يوضح هذا المستند كيفية تنفيذ استعلامات GraphQL على جداول Cassandra التي تحتوي على كائنات منظمة مستخرجة ومُدخلة.
 
 سيوفر خدمة استعلام GraphQL واجهة مرنة وآمنة من حيث النوع للاستعلام عن البيانات المنظمة المخزنة في Cassandra. ستتكيف ديناميكيًا مع تغييرات المخطط، وتدعم الاستعلامات المعقدة بما في ذلك العلاقات بين الكائنات، وتتكامل بسلاسة مع بنية TrustGraph الحالية القائمة على الرسائل.
@@ -76,6 +77,82 @@
 ### مراقبة مخطط التكوين
 
 ستقوم الخدمة بتسجيل معالج تكوين لتلقي تحديثات المخطط:
+=======
+This specification describes the implementation of a GraphQL query interface for TrustGraph's structured data storage in Apache Cassandra. Building upon the structured data capabilities outlined in the structured-data.md specification, this document details how GraphQL queries will be executed against Cassandra tables containing extracted and ingested structured objects.
+
+The GraphQL query service will provide a flexible, type-safe interface for querying structured data stored in Cassandra. It will dynamically adapt to schema changes, support complex queries including relationships between objects, and integrate seamlessly with TrustGraph's existing message-based architecture.
+
+## Goals
+
+**Dynamic Schema Support**: Automatically adapt to schema changes in configuration without service restarts
+**GraphQL Standards Compliance**: Provide a standard GraphQL interface compatible with existing GraphQL tooling and clients
+**Efficient Cassandra Queries**: Translate GraphQL queries into efficient Cassandra CQL queries respecting partition keys and indexes
+**Relationship Resolution**: Support GraphQL field resolvers for relationships between different object types
+**Type Safety**: Ensure type-safe query execution and response generation based on schema definitions
+**Scalable Performance**: Handle concurrent queries efficiently with proper connection pooling and query optimization
+**Request/Response Integration**: Maintain compatibility with TrustGraph's Pulsar-based request/response pattern
+**Error Handling**: Provide comprehensive error reporting for schema mismatches, query errors, and data validation issues
+
+## Background
+
+The structured data storage implementation (trustgraph-flow/trustgraph/storage/objects/cassandra/) writes objects to Cassandra tables based on schema definitions stored in TrustGraph's configuration system. These tables use a composite partition key structure with collection and schema-defined primary keys, enabling efficient queries within collections.
+
+Current limitations that this specification addresses:
+No query interface for the structured data stored in Cassandra
+Inability to leverage GraphQL's powerful query capabilities for structured data
+Missing support for relationship traversal between related objects
+Lack of a standardized query language for structured data access
+
+The GraphQL query service will bridge these gaps by:
+Providing a standard GraphQL interface for querying Cassandra tables
+Dynamically generating GraphQL schemas from TrustGraph configuration
+Efficiently translating GraphQL queries to Cassandra CQL
+Supporting relationship resolution through field resolvers
+
+## Technical Design
+
+### Architecture
+
+The GraphQL query service will be implemented as a new TrustGraph flow processor following established patterns:
+
+**Module Location**: `trustgraph-flow/trustgraph/query/objects/cassandra/`
+
+**Key Components**:
+
+1. **GraphQL Query Service Processor**
+   Extends base FlowProcessor class
+   Implements request/response pattern similar to existing query services
+   Monitors configuration for schema updates
+   Maintains GraphQL schema synchronized with configuration
+
+2. **Dynamic Schema Generator**
+   Converts TrustGraph RowSchema definitions to GraphQL types
+   Creates GraphQL object types with proper field definitions
+   Generates root Query type with collection-based resolvers
+   Updates GraphQL schema when configuration changes
+
+3. **Query Executor**
+   Parses incoming GraphQL queries using Strawberry library
+   Validates queries against current schema
+   Executes queries and returns structured responses
+   Handles errors gracefully with detailed error messages
+
+4. **Cassandra Query Translator**
+   Converts GraphQL selections to CQL queries
+   Optimizes queries based on available indexes and partition keys
+   Handles filtering, pagination, and sorting
+   Manages connection pooling and session lifecycle
+
+5. **Relationship Resolver**
+   Implements field resolvers for object relationships
+   Performs efficient batch loading to avoid N+1 queries
+   Caches resolved relationships within request context
+   Supports both forward and reverse relationship traversal
+
+### Configuration Schema Monitoring
+
+The service will register a configuration handler to receive schema updates:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 self.register_config_handler(self.on_schema_config)
@@ -84,7 +161,11 @@ self.register_config_handler(self.on_schema_config)
 عندما تتغير المخططات:
 1. تحليل تعريفات المخططات الجديدة من التكوين.
 2. إعادة إنشاء أنواع GraphQL والمحللات.
+<<<<<<< HEAD
 3. تحديث المخطط القابل للتنفيذ.
+=======
+3. تحديث المخطط التنفيذي.
+>>>>>>> 82edf2d (New md files from RunPod)
 4. مسح أي ذاكرة تخزين مؤقت تعتمد على المخطط.
 
 ### توليد مخطط GraphQL
@@ -92,7 +173,11 @@ self.register_config_handler(self.on_schema_config)
 لكل RowSchema في التكوين، قم بإنشاء:
 
 1. **نوع كائن GraphQL**:
+<<<<<<< HEAD
    مطابقة أنواع الحقول (string → String, integer → Int, float → Float, boolean → Boolean).
+=======
+   تعيين أنواع الحقول (string → String, integer → Int, float → Float, boolean → Boolean).
+>>>>>>> 82edf2d (New md files from RunPod)
    وضع علامة على الحقول المطلوبة على أنها غير قابلة للقيم الفارغة في GraphQL.
    إضافة أوصاف الحقول من المخطط.
 
@@ -127,7 +212,11 @@ self.register_config_handler(self.on_schema_config)
 
 4. **تنفيذ الاستعلام**:
    تنفيذ استعلام CQL مقابل Cassandra.
+<<<<<<< HEAD
    مطابقة النتائج مع هيكل استجابة GraphQL.
+=======
+   تعيين النتائج إلى هيكل استجابة GraphQL.
+>>>>>>> 82edf2d (New md files from RunPod)
    حل أي حقول علاقات.
    تنسيق الاستجابة وفقًا لمواصفات GraphQL.
 
@@ -138,7 +227,11 @@ self.register_config_handler(self.on_schema_config)
 
 ### نماذج البيانات
 
+<<<<<<< HEAD
 > **ملاحظة**: يوجد مخطط StructuredQueryRequest/Response موجود في `trustgraph-base/trustgraph/schema/services/structured_query.py`. ومع ذلك، فإنه يفتقر إلى حقول مهمة (المستخدم، المجموعة) ويستخدم أنواعًا دون المستوى الأمثل. تمثل المخططات أدناه التطور الموصى به، والتي يجب إما أن تحل محل المخططات الحالية أو يتم إنشاؤها كأنواع ObjectsQueryRequest/Response جديدة.
+=======
+> **ملاحظة**: يوجد مخطط StructuredQueryRequest/Response موجود في `trustgraph-base/trustgraph/schema/services/structured_query.py`. ومع ذلك، فإنه يفتقر إلى حقول مهمة (المستخدم، المجموعة) ويستخدم أنواعًا دون المستوى الأمثل. تمثل المخططات أدناه التطور الموصى به، والتي يجب إما استبدال المخططات الموجودة بها أو إنشاؤها كأنواع ObjectsQueryRequest/Response جديدة.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### مخطط الطلب (ObjectsQueryRequest)
 
@@ -194,17 +287,28 @@ class ObjectsQueryResponse(Record):
 2. **الاستفادة من الفهارس:**
    استخدام الفهارس الثانوية للتصفية.
    دمج عوامل التصفية المتعددة كلما أمكن ذلك.
+<<<<<<< HEAD
    التحذير عندما قد تكون الاستعلامات غير فعالة.
 
 3. **التحميل الدفعي:**
    جمع استعلامات العلاقات.
+=======
+   إصدار تحذير عندما قد تكون الاستعلامات غير فعالة.
+
+3. **التحميل الدفعي:**
+   تجميع استعلامات العلاقات.
+>>>>>>> 82edf2d (New md files from RunPod)
    تنفيذها على دفعات لتقليل عدد الرحلات ذهابًا وإيابًا.
    تخزين النتائج مؤقتًا داخل سياق الطلب.
 
 4. **إدارة الاتصالات:**
    الحفاظ على جلسات Cassandra مستمرة.
    استخدام تجميع الاتصالات.
+<<<<<<< HEAD
    التعامل مع إعادة الاتصال في حالة حدوث أخطاء.
+=======
+   التعامل مع إعادة الاتصال في حالة حدوث أعطال.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### أمثلة لاستعلامات GraphQL
 
@@ -287,29 +391,49 @@ class ObjectsQueryResponse(Record):
 1. قبول استعلامات GraphQL من العملاء.
 2. توجيهها إلى خدمة الاستعلام عبر Pulsar.
 3. إرجاع الاستجابات إلى العملاء.
+<<<<<<< HEAD
 4. دعم استعلامات GraphQL الخاصة بالتحقق من المخطط.
+=======
+4. دعم استعلامات GraphQL الخاصة بالتحقق (introspection).
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### تكامل أداة الوكيل
 
 ستتيح فئة أداة وكيل جديدة:
 توليد استعلامات GraphQL من اللغة الطبيعية.
 تنفيذ استعلامات GraphQL مباشرة.
+<<<<<<< HEAD
 تفسير وتنسيق النتائج.
 التكامل مع مسارات قرار الوكيل.
+=======
+تفسير النتائج وتنسيقها.
+التكامل مع تدفقات قرار الوكيل.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## اعتبارات الأمان
 
 **تحديد عمق الاستعلام**: منع الاستعلامات المتداخلة بعمق والتي يمكن أن تسبب مشاكل في الأداء.
+<<<<<<< HEAD
 **تحليل تعقيد الاستعلام**: الحد من تعقيد الاستعلام لمنع استنفاد الموارد.
 **أذونات على مستوى الحقل**: دعم مستقبلي للتحكم في الوصول على مستوى الحقل بناءً على أدوار المستخدم.
 **تنظيف الإدخال**: التحقق من صحة وتنظيف جميع مدخلات الاستعلام لمنع هجمات الحقن.
 **تحديد المعدل**: تنفيذ تحديد معدل الاستعلام لكل مستخدم/مجموعة.
+=======
+**تحليل تعقيد الاستعلام**: تحديد تعقيد الاستعلام لمنع استنفاد الموارد.
+**أذونات على مستوى الحقل**: دعم مستقبلي للتحكم في الوصول على مستوى الحقل بناءً على أدوار المستخدم.
+**تنظيف الإدخال**: التحقق من صحة وتنظيف جميع مدخلات الاستعلام لمنع هجمات الحقن.
+**تحديد المعدل**: تطبيق تحديد معدل الاستعلام لكل مستخدم/مجموعة.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## اعتبارات الأداء
 
 **تخطيط الاستعلام**: تحليل الاستعلامات قبل التنفيذ لتحسين توليد CQL.
 **تخزين النتائج مؤقتًا**: ضع في اعتبارك تخزين البيانات التي يتم الوصول إليها بشكل متكرر مؤقتًا على مستوى محلل الحقل.
+<<<<<<< HEAD
 **تجميع الاتصالات**: حافظ على مجموعات اتصالات فعالة إلى Cassandra.
+=======
+**تجميع الاتصالات**: حافظ على تجمعات اتصالات فعالة إلى Cassandra.
+>>>>>>> 82edf2d (New md files from RunPod)
 **العمليات الدفعية**: اجمع بين استعلامات متعددة كلما أمكن ذلك لتقليل زمن الوصول.
 **المراقبة**: تتبع مقاييس أداء الاستعلام لتحسين الأداء.
 
@@ -328,7 +452,11 @@ class ObjectsQueryResponse(Record):
 التحقق من صحة هيكل الأخطاء
 
 ### اختبارات التكامل
+<<<<<<< HEAD
 تنفيذ استعلامات شاملة مقابل نسخة اختبار Cassandra
+=======
+تنفيذ الاستعلامات من طرف إلى طرف مقابل مثيل Cassandra للاختبار
+>>>>>>> 82edf2d (New md files from RunPod)
 معالجة تحديثات المخططات
 حل العلاقات
 الترقيم والتصفية
@@ -366,18 +494,30 @@ class ObjectsQueryResponse(Record):
    ضع في اعتبارك: الإبطال بناءً على الأحداث
 
 3. **دعم التجميع**: هل يجب أن تدعم الخدمة تجميع GraphQL لدمجها مع مصادر بيانات أخرى؟
+<<<<<<< HEAD
    سيمكن ذلك من إجراء استعلامات موحدة عبر البيانات المهيكلة والبيانات الرسومية
+=======
+   سيمكن ذلك من الاستعلامات الموحدة عبر البيانات المهيكلة والبيانات الرسومية
+>>>>>>> 82edf2d (New md files from RunPod)
 
 4. **دعم الاشتراكات**: هل يجب أن تدعم الخدمة اشتراكات GraphQL للتحديثات في الوقت الفعلي؟
    سيتطلب ذلك دعم WebSocket في البوابة
 
+<<<<<<< HEAD
 5. **أنواع قياسية مخصصة**: هل يجب دعم الأنواع القياسية المخصصة لأنواع البيانات الخاصة بالمجال؟
+=======
+5. **الأنواع العددية المخصصة**: هل يجب دعم الأنواع العددية المخصصة لأنواع البيانات الخاصة بالمجال؟
+>>>>>>> 82edf2d (New md files from RunPod)
    أمثلة: DateTime، UUID، حقول JSON
 
 ## المراجع
 
 المواصفات الفنية للبيانات المهيكلة: `docs/tech-specs/structured-data.md`
+<<<<<<< HEAD
 وثائق GraphQL Strawberry: https://strawberry.rocks/
+=======
+وثائق Strawberry GraphQL: https://strawberry.rocks/
+>>>>>>> 82edf2d (New md files from RunPod)
 مواصفات GraphQL: https://spec.graphql.org/
 مرجع Apache Cassandra CQL: https://cassandra.apache.org/doc/stable/cassandra/cql/
 وثائق معالج التدفق TrustGraph: وثائق داخلية

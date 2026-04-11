@@ -42,7 +42,11 @@ O fluxo de envio de documentos passa pelo seguinte caminho:
 7. Para processamento: o documento é recuperado do S3, decodificado, particionado - tudo na memória
 
 Arquivos chave:
+<<<<<<< HEAD
 Ponto de entrada REST/WebSocket: `trustgraph-flow/trustgraph/gateway/service.py`
+=======
+Entrada REST/WebSocket: `trustgraph-flow/trustgraph/gateway/service.py`
+>>>>>>> 82edf2d (New md files from RunPod)
 Núcleo do Librarian: `trustgraph-flow/trustgraph/librarian/librarian.py`
 Armazenamento de blobs: `trustgraph-flow/trustgraph/librarian/blob_store.py`
 Tabelas do Cassandra: `trustgraph-flow/trustgraph/tables/library.py`
@@ -57,7 +61,11 @@ O design atual apresenta vários problemas de memória e UX que se agravam:
    indicação de progresso e sem mecanismo de repetição se a conexão falhar.
 
 2. **Design da API**: As APIs REST e WebSocket esperam o documento completo
+<<<<<<< HEAD
    em uma única mensagem. O esquema (`LibrarianRequest`) tem um campo `content`
+=======
+   em uma única mensagem. O esquema (`LibrarianRequest`) tem um único campo `content`
+>>>>>>> 82edf2d (New md files from RunPod)
    contendo o documento inteiro codificado em base64.
 
 3. **Memória do Librarian**: O serviço librarian decodifica o documento inteiro
@@ -72,7 +80,11 @@ O design atual apresenta vários problemas de memória e UX que se agravam:
    e o mantém na memória enquanto produz os chunks.
 
 **Exemplo de Impacto na Memória** (PDF de 500 MB):
+<<<<<<< HEAD
 Gateway: ~700 MB (overhead de codificação base64)
+=======
+Gateway: ~700 MB (sobrecarga de codificação base64)
+>>>>>>> 82edf2d (New md files from RunPod)
 Librarian: ~500 MB (bytes decodificados)
 Decodificador de PDF: ~500 MB + buffers de extração
 Particionador: texto extraído (variável, potencialmente 100 MB+)
@@ -93,11 +105,19 @@ A memória máxima pode exceder 2 GB para um único documento grande.
 3. **Conclusão Atômica**: Os uploads multipart do S3 são inerentemente atômicos - as partes carregadas
    são invisíveis até que `CompleteMultipartUpload` seja chamado. Nenhum arquivo temporário ou operação de renomeação necessária.
    
+<<<<<<< HEAD
 4. **Estado Rastreável**: As sessões de upload são rastreadas no Cassandra, fornecendo
 visibilidade para uploads incompletos e permitindo a capacidade de retomada.
    
 ### Fluxo de Upload em Partes
 
+=======
+
+4. **Estado Rastreável**: As sessões de upload são rastreadas no Cassandra, fornecendo
+   visibilidade para uploads incompletos e permitindo a capacidade de retomada.
+
+### Fluxo de Upload em Partes
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 Client                    Librarian API                   S3/Garage
@@ -122,10 +142,17 @@ Client                    Librarian API                   S3/Garage
   │◄── document_id ────────────│   (delete session)           │
 ```
 
+<<<<<<< HEAD
 O cliente nunca interage diretamente com o S3. O "librarian" traduz entre
 nossa API de upload em partes e as operações multipart do S3 internamente.
 
 ### Operações da API do "Librarian"
+=======
+O cliente nunca interage diretamente com o S3. O "bibliotecário" traduz entre
+nossa API de upload em partes e as operações multipart do S3 internamente.
+
+### Operações da API do "Bibliotecário"
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### `begin-upload`
 
@@ -191,11 +218,19 @@ Resposta:
 O bibliotecário:
 1. Busca a sessão por `upload_id`
 2. Valida a propriedade (o usuário deve corresponder ao criador da sessão)
+<<<<<<< HEAD
 3. Chama o S3 `UploadPart` com os dados do chunk, recebe `etag`
 4. Atualiza o registro da sessão com o índice do chunk e o etag
 5. Retorna o progresso para o cliente
 
 Os chunks com falha podem ser retentados - basta enviar o mesmo `chunk-index` novamente.
+=======
+3. Chama o S3 `UploadPart` com os dados do fragmento, recebe `etag`
+4. Atualiza o registro da sessão com o índice do fragmento e o etag
+5. Retorna o progresso para o cliente
+
+Fragmentos com falha podem ser retransmitidos - basta enviar o mesmo `chunk-index` novamente.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### `complete-upload`
 
@@ -315,12 +350,17 @@ CREATE INDEX upload_session_user ON upload_session (user);
 ```
 
 **Comportamento do TTL:**
+<<<<<<< HEAD
 As sessões expiram após 24 horas se não forem concluídas.
+=======
+As sessões expiram após 24 horas, se não forem concluídas.
+>>>>>>> 82edf2d (New md files from RunPod)
 Quando o TTL do Cassandra expira, o registro da sessão é excluído.
 Partes S3 órfãs são limpas pela política de ciclo de vida do S3 (configure no bucket).
 
 ### Tratamento de Falhas e Atomicidade
 
+<<<<<<< HEAD
 **Falha no upload de chunks:**
 O cliente tenta novamente o chunk com falha (mesmo `upload_id` e `chunk-index`).
 O `UploadPart` do S3 é idempotente para o mesmo número de parte.
@@ -330,6 +370,17 @@ A sessão rastreia quais chunks foram bem-sucedidos.
 A sessão permanece no Cassandra com os chunks recebidos registrados.
 O cliente pode chamar `get-upload-status` para ver o que está faltando.
 Retomar enviando apenas os chunks ausentes e, em seguida, `complete-upload`.
+=======
+**Falha no upload de partes:**
+O cliente tenta novamente a parte com falha (mesmo `upload_id` e `chunk-index`).
+O `UploadPart` do S3 é idempotente para o mesmo número de parte.
+A sessão rastreia quais partes foram bem-sucedidas.
+
+**Desconexão do cliente durante o upload:**
+A sessão permanece no Cassandra, com as partes recebidas registradas.
+O cliente pode chamar `get-upload-status` para ver o que está faltando.
+A retomada é feita carregando apenas as partes ausentes e, em seguida, `complete-upload`.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Falha no upload completo:**
 O `CompleteMultipartUpload` do S3 é atômico - ou tem sucesso total ou falha.
@@ -351,17 +402,28 @@ Os uploads multipart do S3 fornecem atomicidade integrada:
 2. **Conclusão atômica:** `CompleteMultipartUpload` ou tem sucesso (o objeto
    aparece atomicamente) ou falha (nenhum objeto é criado). Nenhum estado parcial.
 
+<<<<<<< HEAD
 3. **Não é necessário renomear:** A chave do objeto final é especificada em
    `CreateMultipartUpload`. As partes são combinadas diretamente para essa chave.
 
 4. **Coalescência no lado do servidor:** O S3 combina as partes internamente. O bibliotecário
+=======
+3. **Não é necessário renomear:** A chave do objeto final é especificada no
+   momento de `CreateMultipartUpload`. As partes são combinadas diretamente para essa chave.
+
+4. **Combinação no lado do servidor:** O S3 combina as partes internamente. O bibliotecário
+>>>>>>> 82edf2d (New md files from RunPod)
    nunca lê as partes de volta - nenhuma sobrecarga de memória, independentemente do tamanho do documento.
 
 ### Extensões BlobStore
 
 **Arquivo:** `trustgraph-flow/trustgraph/librarian/blob_store.py`
 
+<<<<<<< HEAD
 Adicionar métodos de upload multipart:
+=======
+Adicione métodos de upload multipart:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 class BlobStore:
@@ -606,8 +668,13 @@ Em nenhum momento, o documento completo ou o texto extraído completo são manti
 #### Considerações sobre Arquivos Temporários
 
 **Localização**: Utilize o diretório temporário do sistema (`/tmp` ou equivalente). Para
+<<<<<<< HEAD
 implantações em contêineres, certifique-se de que o diretório temporário tenha espaço suficiente
 e esteja em armazenamento rápido (não montado em rede, se possível).
+=======
+implantações em contêineres, certifique-se de que o diretório temporário tenha espaço
+suficiente e esteja em armazenamento rápido (não montado em rede, se possível).
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Limpeza**: Utilize gerenciadores de contexto (`with tempfile...`) para garantir a limpeza
 mesmo em caso de exceções.
@@ -617,17 +684,30 @@ Não há conflitos entre o processamento paralelo de documentos.
 
 **Espaço em disco**: Os arquivos temporários são de curta duração (duração do processamento). Para
 um arquivo PDF de 500 MB, são necessários 500 MB de espaço temporário durante o processamento. O limite de tamanho pode
+<<<<<<< HEAD
 ser imposto no momento do upload, caso o espaço em disco seja limitado.
+=======
+ser imposto no momento do upload, se o espaço em disco for limitado.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Interface de Processamento Unificada: Documentos Filhos
 
 A extração de PDF e o processamento de documentos de texto precisam ser integrados ao mesmo
+<<<<<<< HEAD
 pipeline downstream (divisão em partes → incorporações → armazenamento). Para alcançar isso com uma interface consistente de "busca por ID", os blocos de texto extraídos são armazenados de volta
 no sistema de gerenciamento de documentos como documentos filhos.
 
 #### Fluxo de Processamento com Documentos Filhos
 
 Saída do contrato (deve seguir exatamente o formato abaixo).
+=======
+pipeline downstream (divisão em partes → incorporações → armazenamento). Para alcançar isso com uma interface
+"busca por ID" consistente, os blocos de texto extraídos são armazenados de volta no sistema de gerenciamento
+como documentos filhos.
+
+#### Fluxo de Processamento com Documentos Filhos
+
+>>>>>>> 82edf2d (New md files from RunPod)
 ```
 PDF Document                                         Text Document
      │                                                     │
@@ -656,12 +736,21 @@ pdf-extractor                                              │
 
 O componente de divisão em partes (chunker) possui uma interface uniforme:
 Recebe um ID de documento (via Pulsar)
+<<<<<<< HEAD
 Transmite o conteúdo do "bibliotecário"
 Divide em partes
 
 Ele não sabe nem se importa se o ID se refere a:
 Um documento de texto carregado por um usuário
 Um trecho de texto extraído de uma página PDF
+=======
+Obtém o conteúdo do "bibliotecário" (librarian)
+Divide o conteúdo em partes (chunks)
+
+Ele não sabe nem se importa se o ID se refere a:
+Um documento de texto carregado por um usuário
+Um bloco de texto extraído de uma página PDF
+>>>>>>> 82edf2d (New md files from RunPod)
 Qualquer tipo de documento futuro
 
 #### Metadados do Documento Filho
@@ -712,7 +801,11 @@ CREATE INDEX document_parent ON document (parent_id);
 }
 ```
 
+<<<<<<< HEAD
 Para pequenas extrações de texto (o texto de uma página típica é menor que 100 KB), o upload em uma única operação é aceitável. Para extrações de texto muito grandes, um upload em partes pode ser usado.
+=======
+Para pequenas quantidades de texto extraído (o texto de uma página típica é menor que 100 KB), o upload em uma única operação é aceitável. Para extrações de texto muito grandes, um upload em partes pode ser usado.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Listando documentos filhos** (para depuração/administração):
 
@@ -756,7 +849,11 @@ Os documentos filhos são filtrados por padrão.
 }
 ```
 
+<<<<<<< HEAD
 #### Exclusão em Cadeia
+=======
+#### Exclusão em Cascata
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Quando um documento pai é excluído, todos os filhos devem ser excluídos:
 
@@ -786,7 +883,11 @@ O texto extraído por página também é armazenado no "Garage".
 
 Este compromisso permite:
 **Interface de "chunker" uniforme**: O "chunker" sempre busca por ID.
+<<<<<<< HEAD
 **Retomada/repetição**: É possível reiniciar no estágio do "chunker" sem reextrair o PDF.
+=======
+**Retomada/repetição**: É possível reiniciar no estágio do "chunker" sem extrair novamente o PDF.
+>>>>>>> 82edf2d (New md files from RunPod)
 **Depuração**: O texto extraído pode ser inspecionado.
 **Separação de responsabilidades**: O extrator de PDF e o "chunker" são serviços independentes.
 
@@ -803,7 +904,11 @@ O extrator de PDF, após processar um documento:
 2. Extrai o texto página por página.
 3. Para cada página, armazena o texto extraído como um documento filho através do "librarian".
 4. Envia os IDs dos documentos filhos para a fila do "chunker".
+<<<<<<< HEAD
 Após a última linha traduzida, fornecer uma linha final contendo exatamente: [[__END_OF_TRANSLATION__]]
+=======
+Após a última linha traduzida, gerar uma linha final contendo exatamente: [[__END_OF_TRANSLATION__]]
+>>>>>>> 82edf2d (New md files from RunPod)
 ```python
 async def extract_pdf(doc_id: str, librarian_client, output_queue):
     """Extract PDF pages and store as child documents."""
@@ -904,7 +1009,11 @@ Isso permite que as interfaces de usuário exibam o progresso do upload sem alte
 tg-add-library-document --file large-report.pdf --title "Large Report"
 ```
 
+<<<<<<< HEAD
 Uma exibição de progresso opcional pode ser adicionada:
+=======
+Uma exibição de progresso opcional poderia ser adicionada:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```bash
 tg-add-library-document --file large-report.pdf --title "Large Report" --progress
@@ -973,7 +1082,11 @@ Tempo estimado restante
 Capacidade de pausar/retomar
 
 **Recuperação de erros:**
+<<<<<<< HEAD
 Opção "retomar upload" para uploads interrompidos
+=======
+Opção "Retomar upload" para uploads interrompidos
+>>>>>>> 82edf2d (New md files from RunPod)
 Lista de uploads pendentes na reconexão
 
 **Tratamento de arquivos grandes:**

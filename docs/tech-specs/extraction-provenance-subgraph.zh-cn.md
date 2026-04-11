@@ -2,6 +2,7 @@
 
 ## 问题
 
+<<<<<<< HEAD
 提取时 provenance 目前为每个提取的三元组生成完整的重构：一个唯一的 ⟦CODE_0⟧、⟦CODE_1⟧，以及与每个知识事实相关的 PROV-O 元数据。处理一个块
 提取时 provenance 目前为每个提取的三元组生成完整的重构：一个唯一的 `stmt_uri`、`activity_uri`，以及与每个知识事实相关的 PROV-O 元数据。处理一个块
 提取时 provenance 目前为每个提取的三元组生成完整的重构：一个唯一的 ⟦CODE_0⟧、⟦CODE_1⟧，以及与每个知识事实相关的 PROV-O 元数据。处理一个块
@@ -13,6 +14,19 @@
 所有其三元组。当前的每个三元组模型
 通过制造 20 个独立提取
 事件的假象来掩盖这一点。
+=======
+提取时段的溯源信息目前会生成完整的实体化表示。
+提取的三元组：一个唯一的 `stmt_uri`，`activity_uri`，以及与之相关的
+PROV-O 元数据，用于每个知识事实。处理一个块
+这会产生 20 个关系，并在其基础上产生约 220 个溯源三元组，而知识三元组约为 20 个，这导致了大约 10:1 的开销。
+
+
+这既昂贵（存储、索引、传输），又在语义上
+不准确。每个片段都由单个 LLM 调用处理，该调用在一个事务中生成
+所有三元组。当前的每个三元组模型
+通过产生 20 个独立提取
+事件的幻觉来掩盖这一点。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 此外，四个提取处理器中的两个（kg-extract-ontology、
 kg-extract-agent）完全没有来源信息，这在审计
@@ -20,7 +34,11 @@ kg-extract-agent）完全没有来源信息，这在审计
 
 ## 解决方案
 
+<<<<<<< HEAD
 将每个三元组的显式化替换为**子图模型**：每个数据块提取一个溯源记录，该记录在从该数据块生成的所有三元组中共享。
+=======
+用 **子图模型** 替换三元组级别的显式化：每个数据块提取一个溯源记录，该记录与从该数据块生成的所有三元组共享。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 
 
@@ -30,11 +48,19 @@ kg-extract-agent）完全没有来源信息，这在审计
 |-----|-----|
 | `stmt_uri` (`https://trustgraph.ai/stmt/{uuid}`) | `subgraph_uri` (`https://trustgraph.ai/subgraph/{uuid}`) |
 | `statement_uri()` | `subgraph_uri()` |
+<<<<<<< HEAD
 | `tg:reifies` (1:1, 相同) | `tg:contains` (1:多, 包含) |
 
 ### 目标结构
 
 所有溯源三元组都放入名为 `urn:graph:source` 的命名图中。
+=======
+| `tg:reifies` (1:1, 身份) | `tg:contains` (1:多, 包含) |
+
+### 目标结构
+
+所有溯源三元组都存储在名为 `urn:graph:source` 的图中。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 # Subgraph contains each extracted triple (RDF-star quoted triples)
@@ -81,7 +107,11 @@ kg-extract-agent）完全没有来源信息，这在审计
 **kg-extract-definitions**
 (`trustgraph-flow/trustgraph/extract/kg/definitions/extract.py`)
 
+<<<<<<< HEAD
 目前，它在每个定义的循环内部调用 `statement_uri()` + `triple_provenance_triples()`。
+=======
+当前，它在每个定义的循环内部调用 `statement_uri()` + `triple_provenance_triples()`。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 
 更改：
@@ -94,19 +124,31 @@ kg-extract-agent）完全没有来源信息，这在审计
 
 模式与定义相同。 更改也相同。
 
+<<<<<<< HEAD
 ### 需要添加的处理器，用于添加来源信息（目前缺失）
+=======
+### 需要添加的处理器，用于添加来源信息（当前缺失）
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **kg-extract-ontology**
 (`trustgraph-flow/trustgraph/extract/kg/ontology/extract.py`)
 
+<<<<<<< HEAD
 目前会生成不带来源信息的三元组。添加子图来源信息。
+=======
+目前会输出不带来源信息的三元组。添加子图来源信息。
+>>>>>>> 82edf2d (New md files from RunPod)
 使用相同的模式：每个块一个子图，对于每个提取的三元组使用 `tg:contains`。
 
 
 **kg-extract-agent**
 (`trustgraph-flow/trustgraph/extract/kg/agent/extract.py`)
 
+<<<<<<< HEAD
 目前会生成不带来源信息的三元组。添加子图来源信息。
+=======
+目前会输出不带来源信息的三元组。添加子图来源信息。
+>>>>>>> 82edf2d (New md files from RunPod)
 使用相同的模式。
 
 ### 共享来源库的更改
@@ -114,7 +156,11 @@ kg-extract-agent）完全没有来源信息，这在审计
 **`trustgraph-base/trustgraph/provenance/triples.py`**
 
 将 `triple_provenance_triples()` 替换为 `subgraph_provenance_triples()`
+<<<<<<< HEAD
 新函数接受一个提取的三元组列表，而不是单个三元组。
+=======
+新函数接受提取的三元组列表，而不是单个三元组。
+>>>>>>> 82edf2d (New md files from RunPod)
 为每个三元组生成一个 `tg:contains`，共享活动/代理块。
 移除旧的 `triple_provenance_triples()`
 
@@ -132,11 +178,19 @@ kg-extract-agent）完全没有来源信息，这在审计
   **kg-extract-rows**: 生成的是行，而不是三元组，具有不同的数据来源模型。
 **查询时的数据来源** (⟦CODE_0⟧): 独立的关注点。
   模型
+<<<<<<< HEAD
 **查询时的数据来源信息** (`urn:graph:retrieval`)：独立的关注点，
   已经使用了不同的模式（提问/探索/聚焦/综合）。
 **文档/页面/块的来源**（PDF解码器，分块器）：已经使用了。
   `derived_entity_triples()`，这对于每个实体而言，而不是每个三元组而言，因此没有
   重复的问题。
+=======
+**查询时的数据来源信息** (`urn:graph:retrieval`): 独立的关注点，
+  已经使用了不同的模式（问题/探索/重点/综合）。
+**文档/页面/块的来源**（PDF解码器，分块器）：已经使用了。
+  `derived_entity_triples()`，这对于每个实体而言，而不是每个三元组而言——没有。
+  重复问题。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## 实现说明
 

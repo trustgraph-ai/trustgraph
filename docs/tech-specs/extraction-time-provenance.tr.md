@@ -2,9 +2,15 @@
 
 ## Genel Bakış
 
+<<<<<<< HEAD
 Bu belge, gelecekteki özelliklendirme çalışmaları için çıkarma zamanı köken bilgisi üzerine notları içermektedir. Çıkarma zamanı köken bilgisi kayıtları, verilerin başlangıçta nereden geldiğini, nasıl çıkarıldığını ve dönüştürüldüğünü gösteren "kaynak katmanını" kaydeder.
 
 Bu, ajan muhakemesini kaydeden sorgu zamanı köken bilgisinden (bkz. `query-time-provenance.md`) farklıdır.
+=======
+Bu belge, gelecekteki özellik tanımlama çalışmaları için çıkarma zamanı köken bilgisi üzerine notları içermektedir. Çıkarma zamanı köken bilgisi kayıtları, verilerin başlangıçta nereden geldiğini, nasıl çıkarıldığını ve dönüştürüldüğünü gösteren "kaynak katmanını" kaydeder.
+
+Bu, ajan muhakemesini kaydeden sorgu zamanı köken bilgisinden (`query-time-provenance.md`'a bakın) farklıdır.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Problem Tanımı
 
@@ -17,15 +23,25 @@ Belgelerden kenarlar (ilişkiler/gerçekler) çıkarıldığında, çıkarılan 
 
 ### Mevcut Yaklaşımla İlgili Sorunlar
 
+<<<<<<< HEAD
 1. **Tekrarlayan meta veri yüklemesi:** Belge meta verileri, o belgeden çıkarılan her üçlü grubuyla birlikte tekrar tekrar paketlenir ve yüklenir. Bu, israf ve gereksizdir - aynı meta veriler her çıkarma çıktısıyla birlikte yük taşımacılığı yapar.
 
 2. **Yüzeysel köken bilgisi:** Mevcut `subjectOf` ilişkisi yalnızca gerçekleri doğrudan en üst düzey belgeyle ilişkilendirir. Dönüşüm zinciri hakkında hiçbir görünürlük yoktur - gerçek hangi sayfadan geldi, hangi parçadan, hangi çıkarma yöntemi kullanıldı.
+=======
+1. **Tekrarlayan meta veri yüklemesi:** Belge meta verileri, o belgeden çıkarılan her üçlü grubuyla birlikte tekrar tekrar paketlenir ve yüklenir. Bu, israf ve gereksizdir - aynı meta veriler, her çıkarma çıktısıyla birlikte yük olarak taşınır.
+
+2. **Yüzeysel köken bilgisi:** Mevcut `subjectOf` ilişkisi yalnızca gerçekleri doğrudan en üst düzey belgeyle ilişkilendirir. Dönüşüm zinciri hakkında hiçbir görünürlük yoktur - gerçek hangi sayfadan, hangi bölümden geldi, hangi çıkarma yöntemi kullanıldı.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### İstediğimiz Durum
 
 1. **Meta verileri yalnızca bir kez yükleyin:** Belge meta verileri, her üçlü grubuyla tekrarlanmak yerine, yalnızca bir kez yüklenmeli ve en üst düzey belge düğümüne eklenmelidir.
 
+<<<<<<< HEAD
 2. **Zengin köken bilgisi DAG'ı:** Kaynak belgeden başlayarak tüm ara öğeler aracılığıyla çıkarılan gerçeklere kadar olan tüm dönüşüm zincirini yakalayın. Örneğin, bir PDF belgesi dönüşümü:
+=======
+2. **Zengin köken bilgisi DAG'ı:** Kaynak belgeden başlayarak, tüm ara öğeler aracılığıyla çıkarılan gerçeklere kadar olan tüm dönüşüm zincirini yakalayın. Örneğin, bir PDF belgesi dönüşümü:
+>>>>>>> 82edf2d (New md files from RunPod)
 
    ```
    PDF file (source document with metadata)
@@ -55,9 +71,15 @@ Belgelerden kenarlar (ilişkiler/gerçekler) çıkarıldığında, çıkarılan 
 **Senaryo:** Bir kullanıcı bir GraphRAG sorgusu çalıştırır ve ajandan bir yanıt alır.
 
 **Süreç:**
+<<<<<<< HEAD
 1. Kullanıcı, GraphRAG ajanıyla bir sorgu gönderir.
 2. Ajan, bir yanıt oluşturmak için ilgili gerçekleri bilgi grafiğinden alır.
 3. Sorgu zamanı kaynak bilgisi spesifikasyonuna göre, ajan yanıtı oluşturan gerçekleri bildirir.
+=======
+1. Kullanıcı, GraphRAG ajanına bir sorgu gönderir.
+2. Ajan, bir yanıt oluşturmak için bilgi grafiğinden ilgili gerçekleri alır.
+3. Sorgu zamanı kaynak bilgisi spesifikasyonuna göre, ajan, yanıta hangi gerçeklerin katkıda bulunduğunu bildirir.
+>>>>>>> 82edf2d (New md files from RunPod)
 4. Her gerçek, kaynak bilgisi DAG'ı aracılığıyla kaynak parçasına bağlanır.
 5. Parçalar, sayfalara bağlanır, sayfalar kaynak belgelere bağlanır.
 
@@ -65,9 +87,15 @@ Belgelerden kenarlar (ilişkiler/gerçekler) çıkarıldığında, çıkarılan 
 Yanıtı destekleyen gerçekleri görebilir.
 Gerçeklerden → parçalara → sayfalara → belgelere kadar ayrıntılara inebilir.
 İddiaları doğrulamak için orijinal kaynak belgelerine göz atabilir.
+<<<<<<< HEAD
 Bir gerçekin tam olarak bir belgenin (hangi sayfa, hangi bölüm) neresinden geldiğini anlayabilir.
 
 **Değer:** Kullanıcılar, yapay zeka tarafından oluşturulan yanıtlara birincil kaynaklara göre doğrulama yaparak güven oluşturabilir ve doğrulama yapabilir.
+=======
+Bir gerçekin bir belgenin neresinden (hangi sayfa, hangi bölüm) geldiğini tam olarak anlayabilir.
+
+**Değer:** Kullanıcılar, yapay zeka tarafından oluşturulan yanıtlara birincil kaynaklara karşı doğrulama yaparak güven oluşturabilir ve doğruluk kontrolünü sağlayabilir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### KS2: Çıkarma Kalitesinin Hata Ayıklaması
 
@@ -75,11 +103,19 @@ Bir gerçek yanlış görünüyor. Orijinal metni görmek için parça → sayfa
 
 ### KS3: Artımlı Yeniden Çıkarma
 
+<<<<<<< HEAD
 Kaynak belge güncellendi. Bu belgeden hangi parçalar/gerçekler türetildi? Sadece bunları geçersiz kılın ve yeniden oluşturun, her şeyi yeniden işlemek yerine.
 
 ### KS4: Veri Silme / Bilinme Hakkı
 
 Bir kaynak belge kaldırılmalıdır (GDPR, yasal, vb.). Türetilmiş tüm gerçekleri bulmak ve kaldırmak için DAG'ı izleyin.
+=======
+Kaynak belge güncellenir. Bu belgeden hangi parçalar/gerçekler türetildi? Sadece bunları geçersiz kılın ve yeniden oluşturun, her şeyi yeniden işlemek yerine.
+
+### KS4: Veri Silme / Bilinme Hakkı
+
+Bir kaynak belge kaldırılmalıdır (GDPR, yasal, vb.). Tüm türetilmiş gerçekleri bulmak ve kaldırmak için DAG'ı geçin.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### KS5: Çatışma Çözümü
 
@@ -91,13 +127,21 @@ Bazı kaynaklar diğerlerinden daha yetkilidir. Gerçekler, kaynak belgelerinin 
 
 ### KS7: Çıkarma Boru Hattı Karşılaştırması
 
+<<<<<<< HEAD
 Farklı çıkarma yöntemlerinin/sürümlerinin çıktılarını karşılaştırın. Aynı kaynaktan daha iyi gerçekler üreten hangi çıkarıcıydı?
+=======
+Farklı çıkarma yöntemlerinin/sürümlerinin çıktılarını karşılaştırın. Aynı kaynaktan hangi çıkarıcı daha iyi gerçekler üretti?
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Entegrasyon Noktaları
 
 ### Kütüphaneci
 
+<<<<<<< HEAD
 Kütüphaneci bileşeni, zaten benzersiz belge kimlikleriyle belge depolama imkanı sunmaktadır. Kaynak sistemi, bu mevcut altyapıyla entegre olmaktadır.
+=======
+Kütüphaneci bileşeni, zaten benzersiz belge kimlikleriyle belge depolama imkanı sunmaktadır. Kaynak sistemi, bu mevcut altyapıyla entegre edilmektedir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Mevcut Yetenekler (zaten uygulanan)
 
@@ -119,8 +163,13 @@ Nesne kimlikleri (UUID'ler), blob depolama için dahili olarak oluşturulur
 `time` - zaman damgası, `kind` - MIME türü
 
 **Depolama Mimarisi:**
+<<<<<<< HEAD
 Meta veriler, Cassandra'da saklanır (`librarian` anahtar alanı, `document` tablo)
 İçerik, MinIO/S3 blob depolamasında saklanır (`library` bucket)
+=======
+Meta veriler, Cassandra'da depolanır (`librarian` anahtar alanı, `document` tablo)
+İçerik, MinIO/S3 blob depolamada depolanır (`library` bucket)
+>>>>>>> 82edf2d (New md files from RunPod)
 Akıllı içerik dağıtımı: 2 MB'den küçük belgeler yerleştirilir, daha büyük belgeler akışla iletilir
 
 #### Önemli Dosyalar
@@ -136,15 +185,26 @@ Kütüphaneci, temel yapı taşlarına sahip olmasına rağmen şu anda:
 1. Ebeveyn-çocuk bağlantısı tek düzeylidir - çok düzeyli DAG (Yönlendirilmiş Döngüsel Grafik) gezinme yardımcıları yoktur
 2. Standart bir ilişki türü sözlüğü yoktur (örneğin, `derivedFrom`, `extractedFrom`)
 3. Kaynak meta verileri (çıkarma yöntemi, güven, parça konumu) standartlaştırılmamıştır
+<<<<<<< HEAD
 4. Bir gerçeğe geri dönen kaynaklara kadar tüm kaynak zincirini izlemek için bir sorgu API'si yoktur
+=======
+4. Bir gerçeğe geri dönen tam kaynak zincirini izlemek için bir sorgu API'si yoktur
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Uçtan Uca Akış Tasarımı
 
 Boru hattındaki her işlemci, tutarlı bir kalıbı izler:
+<<<<<<< HEAD
 Yukarı akıştan belge kimliğini alır
 Kütüphaneciden içeriği alır
 Çocuk öğeler oluşturur
 Her çocuk için: kütüphaneciye kaydeder, grafiğe bir kenar yollar, kimliği aşağı akışa iletir
+=======
+Yukarıdan bir belge kimliği alınır
+İçerik, kütüphaneciden alınır
+Çocuk öğeler oluşturulur
+Her çocuk için: kütüphaneciye kaydedilir, grafiğe bir kenar yollanır, kimlik aşağı akışa iletilir
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### İşlem Akışları
 
@@ -239,11 +299,19 @@ PDF:  Document → Pages → Chunks → Triples/Embeddings
 Text: Document → Chunks → Triples/Embeddings
 ```
 
+<<<<<<< HEAD
 Tasarım, her iki durumu da destekler çünkü parçalayıcı (chunker), girdisini genel olarak işler; aldığı belge kimliği, kaynak belge mi yoksa bir sayfa mı olduğunu dikkate almadan, bunu üst belge olarak kullanır.
 
 ### Metaveri Şeması (PROV-O)
 
 Kaynak metaverileri, W3C PROV-O ontolojisini kullanır. Bu, standart bir sözlük sağlar ve çıkarılan verilerin gelecekteki imzalanmasını/doğrulanmasını mümkün kılar.
+=======
+Tasarım, her iki durumu da destekler çünkü parçalayıcı (chunker), girdisini genel olarak işler; aldığı belge kimliğini, bunun kaynak belge olup olmadığını veya bir sayfa olup olmadığını dikkate almadan, üst belge olarak kullanır.
+
+### Metaveri Şeması (PROV-O)
+
+Kaynak metaverileri, W3C PROV-O ontolojisini kullanır. Bu, standart bir kelime dağarcığı sağlar ve çıkarılan verilerin gelecekteki imzalama/kimlik doğrulamasını mümkün kılar.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### PROV-O Temel Kavramları
 
@@ -275,7 +343,11 @@ doc:123 tg:pageCount 42 .
 doc:123 tg:mimeType "application/pdf" .
 ```
 
+<<<<<<< HEAD
 **Sayfa (PDF Çıkarıcı tarafından oluşturulmuştur):**
+=======
+**Sayfa (PDF Çıkarma Aracı tarafından oluşturulmuştur):**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```
 page:123-1 a prov:Entity .
 page:123-1 prov:wasDerivedFrom doc:123 .
@@ -306,7 +378,11 @@ activity:chunk-789 tg:chunkSize 2048 .
 activity:chunk-789 tg:chunkOverlap 200 .
 ```
 
+<<<<<<< HEAD
 **Üçlü (Knowledge Extractor tarafından üretildi):**
+=======
+**Üçlü (Bilgi Çıkarıcı tarafından üretildi):**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```
 # The extracted triple (edge)
 entity:JohnSmith rel:worksAt entity:AcmeCorp .
@@ -324,9 +400,15 @@ activity:extract-999 tg:llmModel "claude-3" .
 activity:extract-999 tg:ontology <http://example.org/ontologies/business-v1> .
 ```
 
+<<<<<<< HEAD
 **Gömme (vektör deposunda saklanır, üçlü depolamada değil):**
 
 Gömme verileri, RDF üçlüleri olarak değil, meta verilerle birlikte vektör deposunda saklanır. Her gömme kaydı şunları içerir:
+=======
+**Gömme (vektör depolama alanında saklanır, üçlü depolama alanında değil):**
+
+Gömme verileri, RDF üçlüleri olarak değil, meta verilerle birlikte vektör depolama alanında saklanır. Her gömme kaydı şunları içerir:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 | Alan | Açıklama | Örnek |
 |-------|-------------|---------|
@@ -336,6 +418,7 @@ Gömme verileri, RDF üçlüleri olarak değil, meta verilerle birlikte vektör 
 | model | Kullanılan gömme modeli | `text-embedding-ada-002` |
 | component_version | TG gömme sürümü | `1.0.0` |
 
+<<<<<<< HEAD
 `entity` alanı, gömmeyi bilgi grafiğine (düğüm URI'si) bağlar. `chunk_id` alanı, orijinal belgeye kadar DAG üzerinde izlemeyi sağlayarak, kaynak parçaya ilişkin bilgileri sağlar.
 
 #### TrustGraph İsim Alanı Genişletmeleri
@@ -345,6 +428,17 @@ Gömme verileri, RDF üçlüleri olarak değil, meta verilerle birlikte vektör 
 | Önek | Alan | Açıklama |
 |-----------|--------|-------------|
 | `tg:contains` | Alt Grafik | Bu çıkarma alt grafiğindeki bir üçlüye işaret eder |
+=======
+`entity` alanı, gömmeyi bilgi grafiğine (düğüm URI'si) bağlar. `chunk_id` alanı, orijinal belgeye kadar DAG üzerinde gezinmeyi sağlayan, kaynak parçaya ilişkin bilgileri sağlar.
+
+#### TrustGraph Ad Alanı Genişletmeleri
+
+Çıkarma ile ilgili meta veriler için `tg:` ad alanının altındaki özel önekler:
+
+| Önek | Alan | Açıklama |
+|-----------|--------|-------------|
+| `tg:contains` | Alt Grafik | Bu çıkarma alt grafiğinde bulunan bir üçlüye işaret eder |
+>>>>>>> 82edf2d (New md files from RunPod)
 | `tg:pageCount` | Belge | Kaynak belgedeki toplam sayfa sayısı |
 | `tg:mimeType` | Belge | Kaynak belgenin MIME türü |
 | `tg:pageNumber` | Sayfa | Kaynak belgedeki sayfa numarası |
@@ -363,7 +457,11 @@ Gömme verileri, RDF üçlüleri olarak değil, meta verilerle birlikte vektör 
 
 #### Sözlük Başlatma (Her Koleksiyon İçin)
 
+<<<<<<< HEAD
 Bilgi grafiği, ontolojiye bağımlı olmayan ve başlangıçta boş olan bir yapıdır. Bir koleksiyona PROV-O kaynak verilerini ilk kez yazarken, tüm sınıflar ve önekler için RDF etiketleriyle sözlük başlatılmalıdır. Bu, sorgularda ve kullanıcı arayüzünde okunabilir bir görüntüleme sağlar.
+=======
+Bilgi grafiği, ontolojiye bağımlı olmayan ve başlangıçta boş durumdadır. Bir koleksiyona PROV-O kaynak verilerini ilk kez yazarken, tüm sınıflar ve önekler için RDF etiketleriyle sözlük başlatılmalıdır. Bu, sorgularda ve kullanıcı arayüzünde okunabilir bir görüntüleme sağlar.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **PROV-O Sınıfları:**
 ```
@@ -401,7 +499,11 @@ tg:sourceCharOffset rdfs:label "source character offset" .
 tg:sourceCharLength rdfs:label "source character length" .
 ```
 
+<<<<<<< HEAD
 **Uygulama notu:** Bu sözlük başlatma işleminin idempotent olması gerekir - yani, çoğaltmalar oluşturmadan birden çok kez çalıştırılabilir. Bu işlem, bir koleksiyondaki ilk belge işleme sırasında veya ayrı bir koleksiyon başlatma adımı olarak tetiklenebilir.
+=======
+**Uygulama notu:** Bu sözlük başlatma işleminin idempotent olması gerekir - yani, çoğaltmalar oluşturmadan birden çok kez çalıştırılabilir. Koleksiyon içindeki ilk belge işleme sırasında veya ayrı bir koleksiyon başlatma adımı olarak tetiklenebilir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Alt Parça Kaynağı (İdeal)
 
@@ -438,7 +540,11 @@ LLM tabanlı çıkarma, doğal olarak karakter konumlarını sağlamayabilir.
 LLM'den çıkarılan üçlülerin yanı sıra kaynak cümleyi/ifadeyi de döndürmesi istenebilir.
 Alternatif olarak, çıkarılan varlıkları kaynak metne geri eşleştirmek için bir işlem sonrası adımı uygulanabilir.
 Çıkarma karmaşıklığı ile kaynak doğruluğu arasındaki denge.
+<<<<<<< HEAD
 Yapılandırılmış çıkarma yöntemleriyle serbest biçimli LLM çıkarma yöntemlerinden daha kolay uygulanabilir olabilir.
+=======
+Serbest biçimli LLM çıkarma yöntemlerine kıyasla yapılandırılmış çıkarma yöntemleriyle elde edilmesi daha kolay olabilir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Bu, iddialı bir hedef olarak işaretlenmiştir - temel parça düzeyindeki kaynak bilgisi öncelikle uygulanmalı, alt parça takibi ise uygulanabilirse gelecekteki bir iyileştirme olarak düşünülmelidir.
 
@@ -446,6 +552,7 @@ Bu, iddialı bir hedef olarak işaretlenmiştir - temel parça düzeyindeki kayn
 
 Kaynak bilgisi DAG'ı, belgeler boru hattından geçerken kademeli olarak oluşturulur:
 
+<<<<<<< HEAD
 | Depo | Neler Saklanır | Amaç |
 |-------|---------------|---------|
 | Kütüphaneci | Belge içeriği + ebeveyn-çocuk bağlantıları | İçerik alma, kaskad silme |
@@ -454,6 +561,16 @@ Kaynak bilgisi DAG'ı, belgeler boru hattından geçerken kademeli olarak oluşt
 Her iki depo da aynı DAG yapısını korur. Kütüphaneci içeriği saklar; grafik ilişkileri saklar ve gezinme sorgularını sağlar.
 
 ### Temel Tasarım Prensipleri
+=======
+| Depolama | Neler Depolanır | Amaç |
+|-------|---------------|---------|
+| Kütüphaneci | Belge içeriği + ebeveyn-çocuk bağlantıları | İçerik alma, zincirleme silme |
+| Bilgi Grafiği | Ebeveyn-çocuk kenarları + meta veri | Kaynak bilgisi sorguları, gerçek ataması |
+
+Her iki depolama birimi de aynı DAG yapısını korur. Kütüphaneci içeriği tutarken, grafik ilişkileri tutar ve gezinme sorgularını sağlar.
+
+### Temel Tasarım İlkeleri
+>>>>>>> 82edf2d (New md files from RunPod)
 
 1. **Belge Kimliği akış birimi olarak** - İşleyiciler içeriği değil, kimlikleri iletir. İçerik gerektiğinde kütüphaneciden alınır.
 
@@ -461,9 +578,15 @@ Her iki depo da aynı DAG yapısını korur. Kütüphaneci içeriği saklar; gra
 
 3. **Tutarlı işlemci kalıbı** - Her işlemci aynı alım/alma/üretme/kaydetme/yayınlama/ileri gönderme kalıbını izler.
 
+<<<<<<< HEAD
 4. **Kademeli DAG oluşturma** - Her işlemci DAG'a kendi seviyesini ekler. Tam kaynak bilgisi zinciri kademeli olarak oluşturulur.
 
 5. **Parça sonrasındaki optimizasyon** - Parçalama işleminden sonra, mesajlar hem kimliği hem de içeriği taşır. Parçalar küçüktür (2-4KB), bu nedenle içeriği dahil etmek, kütüphaneciye yapılan gereksiz geri dönüşleri önlerken kimlik yoluyla kaynak bilgisini korur.
+=======
+4. **Kademeli DAG oluşturma** - Her işlemci, DAG'a kendi seviyesini ekler. Tam kaynak bilgisi zinciri kademeli olarak oluşturulur.
+
+5. **Parça sonrasındaki optimizasyon** - Parçalama işleminden sonra, mesajlar hem kimliği hem de içeriği taşır. Parçalar küçüktür (2-4KB), bu nedenle içeriği dahil etmek, kütüphaneci ile gereksiz geri dönüşleri önlerken, kimlik aracılığıyla kaynak bilgisini korur.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Uygulama Görevleri
 
@@ -472,21 +595,37 @@ Her iki depo da aynı DAG yapısını korur. Kütüphaneci içeriği saklar; gra
 #### Mevcut Durum
 
 Belge işleme işlemini başlatarak belge kimliğini ilk işlemciye gönderir.
+<<<<<<< HEAD
 Üçlü depoyla bağlantı yok - meta veri, çıkarma çıktılarıyla birlikte paketlenir.
 `add-child-document` tek seviyeli ebeveyn-çocuk bağlantıları oluşturur.
+=======
+Üçlü depolamaya bağlantı yok - meta veri, çıkarma çıktılarıyla birlikte paketlenir.
+`add-child-document` tek düzeyli ebeveyn-çocuk bağlantıları oluşturur.
+>>>>>>> 82edf2d (New md files from RunPod)
 `list-children` yalnızca hemen alt öğeleri döndürür.
 
 #### Gerekli Değişiklikler
 
+<<<<<<< HEAD
 **1. Yeni arayüz: Üçlü depo bağlantısı**
 
 Kütüphaneci, işleme başlatıldığında belge meta veri kenarlarını doğrudan bilgi grafiğine yayınlamalıdır.
 Kütüphaneci hizmetine üçlü depo istemci/yayınlayıcısı ekleyin.
+=======
+**1. Yeni arayüz: Üçlü depolama bağlantısı**
+
+Kütüphaneci, işleme başlatıldığında belge meta veri kenarlarını doğrudan bilgi grafiğine yayınlamalıdır.
+Kütüphaneci hizmetine üçlü depolama istemci/yayınlayıcısı ekleyin.
+>>>>>>> 82edf2d (New md files from RunPod)
 İşleme başlatıldığında: kök belge meta verilerini grafik kenarları olarak (tek seferlik) yayınlayın.
 
 **2. Belge türü sözlüğü**
 
+<<<<<<< HEAD
 Alt belgeler için `document_type` değerlerini standartlaştırın:
+=======
+Çocuk belgeler için `document_type` değerlerini standartlaştırın:
+>>>>>>> 82edf2d (New md files from RunPod)
 `source` - orijinal olarak yüklenen belge
 `page` - kaynaktan (PDF, vb.) çıkarılan sayfa
 `chunk` - sayfadan veya kaynaktan türetilen metin parçası
@@ -495,22 +634,35 @@ Alt belgeler için `document_type` değerlerini standartlaştırın:
 
 | Arayüz | Değişiklik |
 |-----------|--------|
+<<<<<<< HEAD
 | Üçlü depo | Yeni dışa dönük bağlantı - belge meta veri kenarlarını yayınlayın |
 | İşleme başlatma | Meta veriyi grafiğe yayınlayın, belge kimliğini iletmeden önce |
+=======
+| Üçlü depolama | Yeni dışa dönük bağlantı - belge meta veri kenarlarını yayınlayın |
+| İşleme başlatma | Meta veriyi grafiğe yayınlayın, belge kimliğini iletmeye devam etmeden önce |
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### PDF Çıkarma Değişiklikleri
 
 #### Mevcut Durum
 
+<<<<<<< HEAD
 Belge içeriğini alır (veya büyük belgeleri akış halinde alır)
 PDF sayfalarından metin çıkarır
 Sayfa içeriğini parçalayıcıya iletir
 Kütüphaneci veya üçlü depo ile etkileşimde bulunmaz
+=======
+Belge içeriğini alır (veya büyük belgeleri akış halinde alır).
+PDF sayfalarından metin çıkarır.
+Sayfa içeriğini parçalayıcıya iletir.
+Kütüphaneci veya üçlü depolamayla etkileşimde bulunmaz.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Gerekli Değişiklikler
 
 **1. Yeni arayüz: Kütüphaneci istemcisi**
 
+<<<<<<< HEAD
 PDF çıkarıcı, her sayfayı kütüphanecide bir alt belge olarak kaydetmelidir.
 PDF çıkarıcı hizmetine kütüphaneci istemcisi ekleyin
 Her sayfa için: ebeveyn = kök belge kimliği ile `add-child-document`'yi çağırın
@@ -520,6 +672,17 @@ Her sayfa için: ebeveyn = kök belge kimliği ile `add-child-document`'yi çağ
 PDF çıkarıcı, ebeveyn-çocuk kenarlarını bilgi grafiğine yayınlamalıdır.
 Üçlü depo istemci/yayınlayıcısı ekleyin
 Her sayfa için: sayfa belgesini ebeveyn belgeyle ilişkilendiren bir kenar yayınlayın
+=======
+PDF çıkarıcı, her sayfayı kütüphanecide bir çocuk belge olarak kaydetmelidir.
+PDF çıkarıcı hizmetine kütüphaneci istemcisi ekleyin.
+Her sayfa için: `add-child-document`'ı ebeveyn = kök belge kimliği ile çağırın.
+
+**2. Yeni arayüz: Üçlü depolama bağlantısı**
+
+PDF çıkarıcı, ebeveyn-çocuk kenarlarını bilgi grafiğine yayınlamalıdır.
+Üçlü depolama istemci/yayınlayıcısı ekleyin.
+Her sayfa için: sayfa belgesini ebeveyn belgeye bağlayan bir kenar yayınlayın.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **3. Çıktı biçimini değiştirin**
 
@@ -589,10 +752,17 @@ Parça içeriğini alır
 
 **1. Giriş işleme şeklini değiştirin**
 
+<<<<<<< HEAD
 Parça belge kimliğini içeriğin yanında alın.
 Köken bağlama için parça kimliğini kullanın (içerik zaten optimizasyon kapsamında dahil edilmiştir)
 
 **2. Üçlü kökeni güncelleyin**
+=======
+Parça belge kimliğini içeriğin yanı sıra alın.
+Köken bağlantısı için parça kimliğini kullanın (içerik zaten optimizasyon kapsamında dahil edilmiştir)
+
+**2. Üçlü kökenini güncelleyin**
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Çıkarılan üçlüleri parçaya (en üst düzey belgeye değil) bağlayın.
 Kenara işaret eden bir kenar oluşturmak için yeniden tanımlama kullanın

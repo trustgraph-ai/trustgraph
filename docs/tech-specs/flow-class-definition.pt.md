@@ -26,7 +26,11 @@ Define processadores de serviço compartilhados que são instanciados uma vez po
 
 **Características:**
 Compartilhadas entre todas as instâncias de fluxo da mesma classe.
+<<<<<<< HEAD
 Normalmente, serviços caros ou sem estado (LLMs, modelos de embedding).
+=======
+Normalmente, serviços com alto custo ou sem estado (LLMs, modelos de embedding).
+>>>>>>> 82edf2d (New md files from RunPod)
 Use a variável de modelo `{class}` para o nome da fila.
 As configurações podem ser valores fixos ou parametrizadas com a sintaxe `{parameter-name}`.
 Exemplos: `embeddings:{class}`, `text-completion:{class}`, `graph-rag:{class}`.
@@ -50,12 +54,21 @@ Define processadores específicos do fluxo que são instanciados para cada inst�
 **Características:**
 Instância única por fluxo
 Gerenciar dados e estado específicos do fluxo
+<<<<<<< HEAD
 Usar variável de modelo `{id}` para nomeação de filas
 As configurações podem ser valores fixos ou parametrizados com a sintaxe `{parameter-name}`
 Exemplos: `chunker:{id}`, `pdf-decoder:{id}`, `kg-extract-relationships:{id}`
 
 ### 3. Seção de Interfaces
 Define os pontos de entrada e os contratos de interação para o fluxo. Estes formam a superfície da API para sistemas externos e comunicação entre componentes internos.
+=======
+Usar variável de modelo `{id}` para nomeação de fila
+As configurações podem ser valores fixos ou parametrizadas com a sintaxe `{parameter-name}`
+Exemplos: `chunker:{id}`, `pdf-decoder:{id}`, `kg-extract-relationships:{id}`
+
+### 3. Seção de Interfaces
+Define os pontos de entrada e os contratos de interação para o fluxo. Estes formam a superfície da API para sistemas externos e comunicação de componentes internos.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 As interfaces podem assumir duas formas:
 
@@ -112,7 +125,11 @@ Informações adicionais sobre o blueprint do fluxo:
 ### Variáveis do Sistema
 
 #### {id}
+<<<<<<< HEAD
 Substituído pelo identificador de instância de fluxo único.
+=======
+Substituído pelo identificador único da instância do fluxo.
+>>>>>>> 82edf2d (New md files from RunPod)
 Cria recursos isolados para cada fluxo.
 Exemplo: `flow-123`, `customer-A-flow`
 
@@ -210,7 +227,11 @@ Os modelos de fluxo utilizam o Apache Pulsar para mensagens. Os nomes das filas 
 
 ### Componentes:
 **persistência**: `persistent` ou `non-persistent` (modo de persistência do Pulsar)
+<<<<<<< HEAD
 **inquilino**: `tg` para definições de blueprint de fluxo fornecidas pelo TrustGraph
+=======
+**inquilino**: `tg` para definições de blueprint de fluxo fornecidas pela TrustGraph
+>>>>>>> 82edf2d (New md files from RunPod)
 **namespace**: Indica o padrão de mensagens
   `flow`: Serviços de envio e esquecimento
   `request`: Parte de solicitação de serviços de solicitação/resposta
@@ -234,10 +255,17 @@ Exemplo: `non-persistent://tg/request/embeddings:{class}`
 
 O blueprint do fluxo cria um fluxo de dados unificado onde:
 
+<<<<<<< HEAD
 1. **Pipeline de Processamento de Documentos**: Fluxo da ingestão ao processamento e armazenamento
 2. **Serviços de Consulta**: Processadores integrados que consultam os mesmos armazenamentos de dados e serviços
 3. **Serviços Compartilhados**: Processadores centralizados que todos os fluxos podem utilizar
 4. **Escritores de Armazenamento**: Persistem os dados processados em armazenamentos apropriados
+=======
+1. **Pipeline de Processamento de Documentos**: Fluxo da ingestão ao armazenamento, passando pela transformação
+2. **Serviços de Consulta**: Processadores integrados que consultam os mesmos armazenamentos de dados e serviços
+3. **Serviços Compartilhados**: Processadores centralizados que todos os fluxos podem utilizar
+4. **Escritores de Armazenamento**: Persistem os dados processados nos armazenamentos apropriados
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Todos os processadores (tanto `{id}` quanto `{class}`) trabalham juntos como um grafo de fluxo de dados coeso, e não como sistemas separados.
 
@@ -265,7 +293,11 @@ Expansões de modelo:
 Isso cria:
 Pipeline de processamento de documentos isolado para `customer-A-flow`
 Serviço de incorporação compartilhado para todos os fluxos `standard-rag`
+<<<<<<< HEAD
 Fluxo de dados completo da ingestão de documentos à consulta
+=======
+Fluxo de dados completo da ingestão do documento à consulta
+>>>>>>> 82edf2d (New md files from RunPod)
 Processadores configurados com os valores de parâmetro fornecidos
 
 ## Benefícios

@@ -2,12 +2,20 @@
 
 ## 概述
 
+<<<<<<< HEAD
 本规范描述了在 TrustGraph 中，用于提示响应的 JSONL（JSON Lines）输出格式的实现。JSONL 允许在大型语言模型（LLM）的响应中，以一种能够抵抗截断的方式提取结构化数据，从而解决了当 LLM 响应达到输出令牌限制时，JSON 数组输出可能被损坏的关键问题。
+=======
+本规范描述了在 TrustGraph 中，用于提示响应的 JSONL（JSON Lines）输出格式的实现。JSONL 允许在大型语言模型 (LLM) 响应中提取结构化数据，即使在响应达到输出令牌限制时，也能保持数据的完整性。
+JSONL 能够实现对结构化数据的截断鲁棒性提取，解决了当 LLM 响应达到输出令牌限制时，JSON 数组输出可能被破坏的关键问题。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 82edf2d (New md files from RunPod)
 本实现支持以下用例：
 
 1. **抗截断提取**: 即使当
@@ -23,11 +31,19 @@
 
 **向后兼容性**: 仍然可以使用 `response-type: "text"` 和
   `response-type: "json"` 的现有提示，无需修改即可继续工作。
+<<<<<<< HEAD
 **截断恢复能力**: 即使是部分 LLM 输出，也能产生部分有效的结果，
   而不是完全失败。
 **模式验证**: 支持对单个对象进行 JSON 模式验证。
 **区分联合类型**: 支持使用 `type` 字段作为区分器的混合类型输出。
   **最小的 API 变更**: 通过新的
+=======
+**截断鲁棒性**: 即使是部分 LLM 输出，也能产生部分有效的结果，
+  而不是完全失败。
+**模式验证**: 支持对单个对象进行 JSON 模式验证。
+**区分联合**: 支持使用 `type` 字段作为区分器的混合类型输出。
+  **最小的 API 更改**: 通过新的
+>>>>>>> 82edf2d (New md files from RunPod)
 响应类型和模式键来扩展现有的提示配置。
   
 
@@ -102,7 +118,11 @@ class Prompt:
 }
 ```
 
+<<<<<<< HEAD
 这避免了对提示配置工具和编辑器的修改。
+=======
+这避免了对提示配置工具和编辑器的更改。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### JSONL 格式规范
 
@@ -127,8 +147,13 @@ class Prompt:
 ]
 ```
 
+<<<<<<< HEAD
 如果大型语言模型在第2行之后截断，JSON数组格式会产生无效的JSON，
 而JSONL会产生两个有效的对象。
+=======
+如果大型语言模型在第2行之后截断，JSON数组格式将产生无效的JSON，
+而JSONL格式将产生两个有效的对象。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### 混合类型提取（区分联合）
 
@@ -144,7 +169,11 @@ class Prompt:
 {"type": "relationship", "subject": "RNA", "predicate": "transcribed_from", "object": "DNA", "object-entity": true}
 ```
 
+<<<<<<< HEAD
 **区分联合的模式使用 `oneOf`:**
+=======
+**区分联合的模式使用 `oneOf`：**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```json
 {
   "response-type": "jsonl",
@@ -175,9 +204,15 @@ class Prompt:
 }
 ```
 
+<<<<<<< HEAD
 #### 本体抽取
 
 对于基于本体的抽取，涉及实体、关系和属性：
+=======
+#### 本体提取
+
+对于基于本体的实体、关系和属性提取：
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **提示输出格式：**
 ```
@@ -326,10 +361,17 @@ JSONL 解析对提示服务 API 的调用者是透明的。解析过程
 
 当客户端调用提示服务（通过 `PromptClient.prompt()` 或类似方式时）：
 
+<<<<<<< HEAD
 **`response-type: "json"`**（带有数组模式）→ 客户端接收 Python `list`
 **`response-type: "jsonl"`** → 客户端接收 Python `list`
 
 从客户端的角度来看，两者都返回相同的的数据结构。
+=======
+**`response-type: "json"`** (带有数组模式) → 客户端接收 Python `list`
+**`response-type: "jsonl"`** → 客户端接收 Python `list`
+
+从客户端的角度来看，两者都返回相同的数据结构。
+>>>>>>> 82edf2d (New md files from RunPod)
 区别完全在于服务器端如何解析 LLM 的输出：
 
 JSON 数组格式：单个 `json.loads()` 调用；如果被截断，则完全失败。
@@ -385,7 +427,11 @@ JSONL 格式：逐行解析；如果被截断，则产生部分结果。
 **输入验证**: JSON 解析使用标准的 `json.loads()`，这可以防止注入攻击。
   **模式验证**: 使用 ⟦CODE_0⟧ 来强制执行模式。
 **模式验证**: 使用 `jsonschema.validate()` 进行模式强制。
+<<<<<<< HEAD
 **没有新的攻击面：** JSONL 解析比 JSON 数组解析更安全，因为它采用逐行处理的方式。
+=======
+**无新的攻击面**: JSONL 解析比 JSON 数组解析更安全，因为采用逐行处理的方式。
+>>>>>>> 82edf2d (New md files from RunPod)
   parsing due to line-by-line processing
 
 ## 性能考量
@@ -406,11 +452,19 @@ JSONL 格式：逐行解析；如果被截断，则产生部分结果。
 使用截断的最终行的 JSONL 解析
 包含穿插无效 JSON 行的 JSONL 解析
 使用 `oneOf` 区分联合的模式验证
+<<<<<<< HEAD
 向后兼容性：现有的 `"text"` 和 `"json"` 提示词保持不变
 
 ### 集成测试
 
 使用 JSONL 提示词的端到端提取
+=======
+向后兼容性：现有的 `"text"` 和 `"json"` 提示保持不变
+
+### 集成测试
+
+使用 JSONL 提示的端到端提取
+>>>>>>> 82edf2d (New md files from RunPod)
 使用模拟截断的提取（人为限制响应）
 使用类型区分器的混合类型提取
 使用所有三种类型的本体提取
@@ -428,6 +482,7 @@ JSONL 格式：逐行解析；如果被截断，则产生部分结果。
 2. 扩展 `invoke()` 以处理 `response-type: "jsonl"`
 3. 添加单元测试
 
+<<<<<<< HEAD
 ### 第二阶段：提示词迁移
 
 1. 更新 `extract-definitions` 提示词和配置
@@ -436,12 +491,26 @@ JSONL 格式：逐行解析；如果被截断，则产生部分结果。
 4. 更新 `extract-rows` 提示词和配置
 5. 更新 `agent-kg-extract` 提示词和配置
 6. 更新 `extract-with-ontologies` 提示词和配置
+=======
+### 第二阶段：提示迁移
+
+1. 更新 `extract-definitions` 提示和配置
+2. 更新 `extract-relationships` 提示和配置
+3. 更新 `extract-topics` 提示和配置
+4. 更新 `extract-rows` 提示和配置
+5. 更新 `agent-kg-extract` 提示和配置
+6. 更新 `extract-with-ontologies` 提示和配置
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### 第三阶段：下游更新
 
 1. 更新任何使用提取结果的代码，使其能够处理列表返回类型。
 2. 更新根据 `type` 字段对混合类型提取进行分类的代码。
+<<<<<<< HEAD
 3. 更新用于断言提取输出格式的测试。
+=======
+3. 更新断言提取输出格式的测试。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## 待解决问题
 

@@ -19,13 +19,21 @@ Cuando se extraen aristas (relaciones/hechos) de los documentos, una relación `
 
 1. **Carga repetitiva de metadatos:** Los metadatos del documento se empaquetan y cargan repetidamente con cada lote de triples extraídos de ese documento. Esto es un desperdicio y redundante: los mismos metadatos viajan como carga con cada salida de extracción.
 
+<<<<<<< HEAD
 2. **Proveniencia superficial:** La relación `subjectOf` actual solo vincula los hechos directamente con el documento de nivel superior. No hay visibilidad de la cadena de transformación: qué página proporcionó el hecho, qué fragmento, qué método de extracción se utilizó.
+=======
+2. **Proveniencia superficial:** La relación `subjectOf` actual solo vincula los hechos directamente al documento de nivel superior. No hay visibilidad de la cadena de transformación: qué página proporcionó el hecho, qué fragmento, qué método de extracción se utilizó.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Estado Deseado
 
 1. **Cargar metadatos una vez:** Los metadatos del documento deben cargarse una vez y adjuntarse al nodo del documento de nivel superior, no repetirse con cada lote de triples.
 
+<<<<<<< HEAD
 2. **DAG de proveniencia rica:** Capturar toda la cadena de transformación desde el documento de origen a través de todos los artefactos intermedios hasta los hechos extraídos. Por ejemplo, una transformación de un documento PDF:
+=======
+2. **DAG de proveniencia enriquecido:** Capturar la cadena de transformación completa desde el documento de origen a través de todos los artefactos intermedios hasta los hechos extraídos. Por ejemplo, una transformación de un documento PDF:
+>>>>>>> 82edf2d (New md files from RunPod)
 
    ```
    PDF file (source document with metadata)
@@ -42,7 +50,11 @@ Cuando se extraen aristas (relaciones/hechos) de los documentos, una relación `
 
 3. **Almacenamiento unificado:** El grafo de procedencia se almacena en el mismo grafo de conocimiento que el conocimiento extraído. Esto permite consultar la procedencia de la misma manera que se consulta el conocimiento: siguiendo los enlaces hacia atrás a lo largo de la cadena desde cualquier hecho hasta su ubicación de origen exacta.
 
+<<<<<<< HEAD
 4. **Identificadores estables:** Cada artefacto intermedio (página, fragmento) tiene un identificador estable como un nodo en el grafo.
+=======
+4. **Identificadores estables:** Cada artefacto intermedio (página, fragmento) tiene un identificador estable como nodo en el grafo.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 5. **Enlace padre-hijo:** Los documentos derivados se vinculan a sus padres hasta el documento fuente de nivel superior, utilizando tipos de relación consistentes.
 
@@ -61,7 +73,11 @@ Cuando se extraen aristas (relaciones/hechos) de los documentos, una relación `
 4. Cada hecho se vincula a su fragmento de origen a través del grafo de procedencia.
 5. Los fragmentos se vinculan a páginas, las páginas se vinculan a documentos fuente.
 
+<<<<<<< HEAD
 **Resultado de la experiencia de usuario:** La interfaz muestra la respuesta del LLM junto con la atribución de la fuente. El usuario puede:
+=======
+**Resultado de la experiencia del usuario:** La interfaz muestra la respuesta del LLM junto con la atribución de la fuente. El usuario puede:
+>>>>>>> 82edf2d (New md files from RunPod)
 Ver qué hechos respaldaron la respuesta.
 Profundizar desde hechos → fragmentos → páginas → documentos.
 Examinar los documentos fuente originales para verificar las afirmaciones.
@@ -95,6 +111,7 @@ Comparar los resultados de diferentes métodos/versiones de extracción. ¿Qué 
 
 ## Puntos de integración
 
+<<<<<<< HEAD
 ### Bibliotecario
 
 El componente de bibliotecario ya proporciona almacenamiento de documentos con identificadores de documentos únicos. El sistema de procedencia se integra con esta infraestructura existente.
@@ -109,15 +126,36 @@ API `list-children`: recupera todos los hijos de un documento padre.
 Eliminación en cascada: eliminar un padre elimina automáticamente todos los documentos hijo.
 
 **Identificación de documentos:**
+=======
+### Librarian
+
+El componente de "Librarian" ya proporciona almacenamiento de documentos con identificadores de documentos únicos. El sistema de procedencia se integra con esta infraestructura existente.
+
+#### Capacidades Existentes (ya implementadas)
+
+**Vinculación de Documentos Padre-Hijo:**
+Campo `parent_id` en `DocumentMetadata`: vincula el documento hijo al documento padre.
+Campo `document_type`: valores: `"source"` (original) o `"extracted"` (derivado).
+API `add-child-document`: crea un documento hijo con `document_type = "extracted"` automáticamente.
+API `list-children`: recupera todos los hijos de un documento padre.
+Eliminación en cascada: eliminar un padre elimina automáticamente todos los documentos hijos.
+
+**Identificación de Documentos:**
+>>>>>>> 82edf2d (New md files from RunPod)
 Los identificadores de documentos son especificados por el cliente (no generados automáticamente).
 Documentos indexados por una clave compuesta `(user, document_id)` en Cassandra.
 Identificadores de objetos (UUID) generados internamente para el almacenamiento de blobs.
 
+<<<<<<< HEAD
 **Soporte de metadatos:**
+=======
+**Soporte de Metadatos:**
+>>>>>>> 82edf2d (New md files from RunPod)
 Campo `metadata: list[Triple]`: triples RDF para metadatos estructurados.
 `title`, `comments`, `tags`: metadatos básicos del documento.
 `time`: marca de tiempo, `kind`: tipo MIME.
 
+<<<<<<< HEAD
 **Arquitectura de almacenamiento:**
 Los metadatos se almacenan en Cassandra (espacio de claves `librarian`, tabla `document`).
 El contenido se almacena en MinIO/S3 blob storage (cubeta `library`).
@@ -134,10 +172,29 @@ Entrega inteligente de contenido: documentos < 2 MB incrustados, documentos más
 
 El bibliotecario tiene los componentes básicos, pero actualmente:
 1. La vinculación padre-hijo es de un solo nivel: no hay ayudantes de recorrido de DAG multinivel.
+=======
+**Arquitectura de Almacenamiento:**
+Los metadatos se almacenan en Cassandra (espacio de claves `librarian`, tabla `document`).
+El contenido se almacena en MinIO/S3 (cubeta `library`).
+Entrega inteligente de contenido: documentos < 2MB incrustados, documentos más grandes transmitidos por flujo.
+
+#### Archivos Clave
+
+`trustgraph-flow/trustgraph/librarian/librarian.py`: Operaciones principales de "Librarian".
+`trustgraph-flow/trustgraph/librarian/service.py`: Procesador de servicios, carga de documentos.
+`trustgraph-flow/trustgraph/tables/library.py`: Almacén de tablas de Cassandra.
+`trustgraph-base/trustgraph/schema/services/library.py`: Definiciones de esquema.
+
+#### Aspectos a Abordar
+
+"Librarian" tiene los componentes básicos, pero actualmente:
+1. La vinculación padre-hijo es de un solo nivel: no hay ayudantes para la travesía de DAG de varios niveles.
+>>>>>>> 82edf2d (New md files from RunPod)
 2. No hay un vocabulario estándar de tipos de relación (por ejemplo, `derivedFrom`, `extractedFrom`).
 3. Los metadatos de procedencia (método de extracción, confianza, posición de fragmento) no están estandarizados.
 4. No hay una API de consulta para recorrer toda la cadena de procedencia desde un hecho hasta la fuente.
 
+<<<<<<< HEAD
 ## Diseño de flujo de extremo a extremo
 
 Cada procesador en la canalización sigue un patrón consistente:
@@ -151,6 +208,21 @@ Para cada hijo: guarda en el bibliotecario, emite un borde al gráfico, reenvía
 Existen dos flujos dependiendo del tipo de documento:
 
 #### Flujo de documento PDF
+=======
+## Diseño de Flujo de Extremo a Extremo
+
+Cada procesador en la canalización sigue un patrón consistente:
+Recibe el ID del documento desde el componente anterior.
+Recupera el contenido de "Librarian".
+Produce artefactos hijos.
+Para cada hijo: guarda en "Librarian", emite un borde al grafo, reenvía el ID al componente posterior.
+
+### Flujos de Procesamiento
+
+Existen dos flujos dependiendo del tipo de documento:
+
+#### Flujo de Documentos PDF
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -205,7 +277,11 @@ Existen dos flujos dependiendo del tipo de documento:
 
 #### Flujo de documentos de texto
 
+<<<<<<< HEAD
 Los documentos de texto omiten el extractor de PDF y van directamente al fragmentador:
+=======
+Los documentos de texto omiten el extractor de PDF y van directamente al procesador de fragmentos:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -239,12 +315,17 @@ PDF:  Document → Pages → Chunks → Triples/Embeddings
 Text: Document → Chunks → Triples/Embeddings
 ```
 
+<<<<<<< HEAD
 El diseño se adapta a ambos porque el componente de segmentación trata su entrada de forma genérica; utiliza cualquier ID de documento que reciba como elemento padre, independientemente de si se trata de un documento fuente o de una página.
+=======
+El diseño se adapta a ambos casos porque el componente de división de texto (chunker) trata su entrada de forma genérica; utiliza cualquier ID de documento que reciba como elemento padre, independientemente de si se trata de un documento fuente o de una página.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Esquema de metadatos (PROV-O)
 
 Los metadatos de procedencia utilizan la ontología W3C PROV-O. Esto proporciona un vocabulario estándar y permite la futura firma/autenticación de los resultados de la extracción.
 
+<<<<<<< HEAD
 #### Conceptos principales de PROV-O
 
 | Tipo PROV-O | Uso en TrustGraph |
@@ -252,6 +333,15 @@ Los metadatos de procedencia utilizan la ontología W3C PROV-O. Esto proporciona
 | `prov:Entity` | Documento, Página, Segmento, Triple, Incrustación |
 | `prov:Activity` | Instancias de operaciones de extracción |
 | `prov:Agent` | Componentes de TG (extractor de PDF, segmentador, etc.) con versiones |
+=======
+#### Conceptos básicos de PROV-O
+
+| Tipo PROV-O | Uso en TrustGraph |
+|-------------|------------------|
+| `prov:Entity` | Documento, Página, Fragmento, Triple, Incrustación |
+| `prov:Activity` | Instancias de operaciones de extracción |
+| `prov:Agent` | Componentes de TG (extractor de PDF, componente de división de texto, etc.) con versiones |
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Relaciones PROV-O
 
@@ -344,7 +434,11 @@ Predicados personalizados dentro del espacio de nombres `tg:` para metadatos esp
 
 | Predicado | Dominio | Descripción |
 |-----------|--------|-------------|
+<<<<<<< HEAD
 | `tg:contains` | Subgrafo | Indica un triple contenido en este subgrafo de extracción |
+=======
+| `tg:contains` | Subgrafo | Apunta a un triple contenido en este subgrafo de extracción |
+>>>>>>> 82edf2d (New md files from RunPod)
 | `tg:pageCount` | Documento | Número total de páginas en el documento de origen |
 | `tg:mimeType` | Documento | Tipo MIME del documento de origen |
 | `tg:pageNumber` | Página | Número de página en el documento de origen |
@@ -361,7 +455,11 @@ Predicados personalizados dentro del espacio de nombres `tg:` para metadatos esp
 | `tg:sourceCharOffset` | Declaración | Desplazamiento de caracteres dentro del fragmento donde comienza el texto de origen |
 | `tg:sourceCharLength` | Declaración | Longitud del texto de origen en caracteres |
 
+<<<<<<< HEAD
 #### Inicialización del Vocabulario (Por Colección)
+=======
+#### Arranque del Vocabulario (Por Colección)
+>>>>>>> 82edf2d (New md files from RunPod)
 
 El grafo de conocimiento es neutral con respecto a la ontología y se inicializa vacío. Cuando se escriben datos de procedencia PROV-O en una colección por primera vez, el vocabulario debe inicializarse con etiquetas RDF para todas las clases y predicados. Esto garantiza una visualización legible por humanos en las consultas y la interfaz de usuario.
 
@@ -401,7 +499,11 @@ tg:sourceCharOffset rdfs:label "source character offset" .
 tg:sourceCharLength rdfs:label "source character length" .
 ```
 
+<<<<<<< HEAD
 **Nota de implementación:** Este vocabulario de inicio debe ser idempotente, es decir, seguro de ejecutar varias veces sin crear duplicados. Podría activarse durante el procesamiento inicial de un documento en una colección, o como un paso separado de inicialización de la colección.
+=======
+**Nota de implementación:** Este proceso de inicialización del vocabulario debe ser idempotente, es decir, seguro de ejecutar varias veces sin crear duplicados. Podría activarse durante el procesamiento inicial de un documento en una colección, o como un paso separado de inicialización de la colección.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Origen de los Sub-Fragmentos (Aspiracional)
 
@@ -435,7 +537,11 @@ subgraph:001 tg:sourceText "John Smith has worked at Acme Corp since 2019" .
 **Consideraciones de implementación:**
 
 La extracción basada en LLM puede no proporcionar naturalmente las posiciones de los caracteres.
+<<<<<<< HEAD
 Se podría solicitar al LLM que devuelva la oración/frase original junto con las triples extraídas.
+=======
+Se podría solicitar al LLM que devuelva la oración/frase fuente junto con las triples extraídas.
+>>>>>>> 82edf2d (New md files from RunPod)
 Alternativamente, se puede realizar un procesamiento posterior para hacer coincidir de forma difusa las entidades extraídas con el texto fuente.
 Compromiso entre la complejidad de la extracción y la granularidad de la procedencia.
 Puede ser más fácil de lograr con métodos de extracción estructurados que con la extracción de LLM de formato libre.
@@ -455,15 +561,25 @@ Ambos almacenes mantienen la misma estructura DAG. El bibliotecario almacena el 
 
 ### Principios de diseño clave
 
+<<<<<<< HEAD
 1. **El ID del documento como unidad de flujo**: Los procesadores pasan ID, no contenido. El contenido se recupera del bibliotecario cuando es necesario.
 
 2. **Emitir una vez en la fuente**: Los metadatos se escriben en el gráfico una vez al inicio del procesamiento, no se repiten en procesos posteriores.
+=======
+1. **ID del documento como unidad de flujo**: Los procesadores pasan ID, no contenido. El contenido se recupera del bibliotecario cuando es necesario.
+
+2. **Emitir una vez en la fuente**: Los metadatos se escriben en el gráfico una vez al inicio del procesamiento, no se repiten aguas abajo.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 3. **Patrón de procesador consistente**: Cada procesador sigue el mismo patrón de recepción/recuperación/producción/guardado/emisión/reenvío.
 
 4. **Construcción progresiva del DAG**: Cada procesador agrega su nivel al DAG. La cadena completa de procedencia se construye de forma incremental.
 
+<<<<<<< HEAD
 5. **Optimización posterior al fragmentador**: Después de la fragmentación, los mensajes contienen tanto el ID como el contenido. Los fragmentos son pequeños (2-4 KB), por lo que incluir el contenido evita viajes de ida y vuelta innecesarios al bibliotecario, al tiempo que preserva la procedencia a través del ID.
+=======
+5. **Optimización posterior al fragmentador**: Después de la fragmentación, los mensajes contienen tanto el ID como el contenido. Los fragmentos son pequeños (2-4 KB), por lo que incluir el contenido evita viajes de ida y vuelta innecesarios al bibliotecario al tiempo que preserva la procedencia a través del ID.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Tareas de implementación
 
@@ -472,7 +588,11 @@ Ambos almacenes mantienen la misma estructura DAG. El bibliotecario almacena el 
 #### Estado actual
 
 Inicia el procesamiento de documentos enviando el ID del documento al primer procesador.
+<<<<<<< HEAD
 No tiene conexión con el almacén de triples; los metadatos se incluyen en los resultados de la extracción.
+=======
+No hay conexión con el almacén de triples; los metadatos se incluyen en los resultados de la extracción.
+>>>>>>> 82edf2d (New md files from RunPod)
 `add-child-document` crea enlaces padre-hijo de un solo nivel.
 `list-children` devuelve solo los hijos inmediatos.
 
@@ -487,9 +607,15 @@ Al iniciar el procesamiento: emitir los metadatos del documento raíz como borde
 **2. Vocabulario de tipos de documentos**
 
 Estandarizar los valores de `document_type` para los documentos hijo:
+<<<<<<< HEAD
 `source` - documento original cargado.
 `page` - página extraída de la fuente (PDF, etc.).
 `chunk` - fragmento de texto derivado de la página o la fuente.
+=======
+`source`: documento original cargado.
+`page`: página extraída de la fuente (PDF, etc.).
+`chunk`: fragmento de texto derivado de la página o la fuente.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Resumen de cambios de interfaz
 
@@ -524,7 +650,11 @@ Para cada página: emitir un borde que vincule el documento de la página con el
 **3. Cambiar el formato de salida**
 
 En lugar de reenviar el contenido de la página directamente, reenvíe el ID del documento de la página.
+<<<<<<< HEAD
 El componente "Chunker" recuperará el contenido del "librarian" utilizando el ID.
+=======
+El componente "Chunker" obtendrá el contenido del "librarian" utilizando el ID.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Resumen de Cambios en la Interfaz
 
@@ -547,42 +677,71 @@ No interactúa con el "librarian" ni con el "triple store"
 
 **1. Cambiar el manejo de la entrada**
 
+<<<<<<< HEAD
 Recibir el ID del documento en lugar del contenido, y recuperarlo del "librarian".
 Agregar un cliente de "librarian" al servicio "chunker"
 Recuperar el contenido de la página utilizando el ID del documento
+=======
+Recibir el ID del documento en lugar del contenido, obtenerlo del "librarian".
+Agregar un cliente de "librarian" al servicio "chunker"
+Obtener el contenido de la página utilizando el ID del documento
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **2. Nueva interfaz: Cliente de "Librarian" (escritura)**
 
 Guardar cada fragmento como un documento hijo en el "librarian".
 Para cada fragmento: llamar a `add-child-document` con parent = ID del documento de la página
 
+<<<<<<< HEAD
 **3. Nueva interfaz: Conexión con el "Triple store"**
 
 Emitir aristas padre-hijo al grafo de conocimiento.
 Agregar un cliente/publicador de "triple store"
+=======
+**3. Nueva interfaz: Conexión al "Triple Store"**
+
+Emitir aristas padre-hijo al grafo de conocimiento.
+Agregar un cliente/publicador del "triple store"
+>>>>>>> 82edf2d (New md files from RunPod)
 Para cada fragmento: emitir una arista que vincule el documento del fragmento con el documento de la página
 
 **4. Cambiar el formato de salida**
 
 Reenviar tanto el ID del documento del fragmento como el contenido del fragmento (optimización posterior al componente "chunker").
+<<<<<<< HEAD
 Los procesadores posteriores reciben el ID para la trazabilidad y el contenido para trabajar con él
+=======
+Los procesadores posteriores reciben el ID para la trazabilidad + el contenido para trabajar con él
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Resumen de Cambios en la Interfaz
 
 | Interfaz | Cambio |
 |-----------|--------|
 | Mensaje de entrada | Cambio de contenido a ID de documento |
+<<<<<<< HEAD
 | Librarian | Nueva salida (lectura + escritura) - recuperar contenido, guardar documentos hijos |
 | Triple store | Nueva salida - emitir aristas padre-hijo |
 | Mensaje de salida | Cambio de contenido-único a ID + contenido |
 
 ### Cambios en el Extractor de Conocimiento
+=======
+| Librarian | Nueva salida (lectura + escritura) - obtener contenido, guardar documentos hijos |
+| Triple store | Nueva salida - emitir aristas padre-hijo |
+| Mensaje de salida | Cambio de contenido-único a ID + contenido |
+
+### Cambios en el "Knowledge Extractor"
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Estado Actual
 
 Recibe contenido del fragmento
 Extrae triples y embeddings
+<<<<<<< HEAD
 Los emite al "triple store" y al almacén de "embeddings"
+=======
+Los emite al "triple store" y al "embedding store"
+>>>>>>> 82edf2d (New md files from RunPod)
 La relación `subjectOf` apunta al documento de nivel superior (no al fragmento)
 
 #### Cambios Requeridos
@@ -592,25 +751,42 @@ La relación `subjectOf` apunta al documento de nivel superior (no al fragmento)
 Recibir el ID del fragmento junto con el contenido.
 Utilizar el ID del fragmento para la vinculación de trazabilidad (el contenido ya está incluido según la optimización)
 
+<<<<<<< HEAD
 **2. Actualizar la trazabilidad de los triples**
+=======
+**2. Actualizar la trazabilidad de triples**
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Vincular los triples extraídos al fragmento (no al documento de nivel superior).
 Utilizar la reificación para crear una arista que apunte a la arista
 Relación `subjectOf`: triple → ID del documento del fragmento
 Primer uso del soporte de reificación existente
 
+<<<<<<< HEAD
 **3. Actualizar la trazabilidad de los "embeddings"**
 
 Vincular los ID de las entidades de "embedding" al fragmento.
 Emitir una arista: ID de la entidad de "embedding" → ID del documento del fragmento
+=======
+**3. Actualizar la trazabilidad de embeddings**
+
+Vincular los ID de las entidades de embedding al fragmento.
+Emitir una arista: ID de la entidad de embedding → ID del documento del fragmento
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Resumen de Cambios en la Interfaz
 
 | Interfaz | Cambio |
 |-----------|--------|
+<<<<<<< HEAD
 | Mensaje de entrada | Se espera el ID del fragmento + contenido (no solo contenido) |
 | Triple store | Utilizar la reificación para la trazabilidad de triple → fragmento |
 | Trazabilidad de "embeddings" | Vincular ID de entidad → ID de fragmento |
+=======
+| Mensaje de entrada | Esperar ID del fragmento + contenido (no solo contenido) |
+| Triple store | Utilizar la reificación para la trazabilidad de triple → fragmento |
+| Trazabilidad de embeddings | Vincular ID de entidad → ID de fragmento |
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Referencias
 

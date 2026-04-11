@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Vipimo vya Kiufundi vya Umasilisho wa GraphQL
 
 ## Muhtasari
@@ -38,11 +39,54 @@ Kusaidia suluhisho la uhusiano kupitia suluhu za uwanja
 ### Usanifu
 
 Huduma ya uwasilisho wa GraphQL itatekelezwa kama mchakato mpya wa TrustGraph kufuatia mbinu zilizopo:
+=======
+# Vipimo vya Kiufundi vya Ulinganisho wa GraphQL
+
+## Muhtasari
+
+Maelezo haya yanaeleza utekelezaji wa kiolesura cha ulinganisho wa GraphQL kwa kuhifadhi data iliyopangwa ya TrustGraph katika Apache Cassandra. Kujenga juu ya uwezo wa data iliyopangwa uliotajwa katika maelezo ya structured-data.md, hati hii inaeleza jinsi ulinganisho wa GraphQL utakavyotekelezwa dhidi ya meza za Cassandra zinazozingatia vitu vilivyochukuliwa na kuingizwa.
+
+Huduma ya ulinganisho wa GraphQL itatoa kiolesura kinachobadilika na kinacholingana na aina kwa ulinganisho wa data iliyopangwa iliyohifadhiwa katika Cassandra. Itabadilika moja kwa moja kulingana na mabadiliko ya muundo, itaidhinisha ulinganisho tata ikiwa ni pamoja na uhusiano kati ya vitu, na itounganisha kikamilifu na usanifu uliopo wa TrustGraph unaotegemea ujumbe.
+
+## Lengo
+
+**Usaidizi wa Muundo Unaobadilika**: Kujifunga kiotomatiki na mabadiliko ya muundo katika usanidi bila kuacha huduma
+**Uzingatiaji wa Viwango vya GraphQL**: Kutoa kiolesura cha kawaida cha GraphQL kinacholingana na zana na wateja wa GraphQL iliyopo
+**Ulinganisho wa Ufanisi wa Cassandra**: Kubadilisha ulinganisho wa GraphQL kuwa ulinganisho wa CQL wa Cassandra unaofaa kwa kuheshimu funguo za sehemu na fahirisi
+**Suluhisho la Uhusiano**: Kusaidia suluhu za GraphQL kwa uhusiano kati ya aina tofauti za vitu
+**Usalama wa Aina**: Kuhakikisha utekelezaji wa ulinganisho salama wa aina na uzalishaji wa majibu kulingana na ufafanuzi wa muundo
+**Utendaji Unaoweza Kukidhi Mahitaji**: Kushughulikia ulinganisho wa wakati mmoja kwa ufanisi kwa kutumia udhibiti wa muunganisho na uboreshaji wa ulinganisho
+**Ujumuishaji wa Ombi/Jibu**: Kuhifadhi utangamano na mtindo wa ombi/jibu wa TrustGraph unaotegemea Pulsar
+**Usimamizi wa Makosa**: Kutoa ripoti kamili ya makosa kwa kutofautiana kwa muundo, makosa ya ulinganisho, na masuala ya uthibitisho wa data
+
+## Asili
+
+Utekelezaji wa uhifadhi wa data iliyopangwa (trustgraph-flow/trustgraph/storage/objects/cassandra/) huandika vitu kwenye meza za Cassandra kulingana na ufafanuzi wa muundo uliohifadhiwa katika mfumo wa usanidi wa TrustGraph. Meza hizi hutumia muundo wa funguo ya sehemu iliyounganishwa na funguo za msingi zilizobainishwa na muundo, na kuwezesha ulinganisho wa ufanisi ndani ya mikusanyiko.
+
+Marekebisho ya sasa ambayo maelezo haya yanaashiria:
+Hakuna kiolesura cha ulinganisho kwa data iliyopangwa iliyohifadhiwa katika Cassandra
+Uwezekano wa kutumia uwezo wa ulinganisho wa GraphQL kwa data iliyopangwa
+Usaidizi usio na uhusiano wa ueleuzi kati ya vitu vinavyohusiana
+Ukosefu wa lugha ya kawaida ya ulinganisho kwa ufikiaji wa data iliyopangwa
+
+Huduma ya ulinganisho wa GraphQL itafunga pengo hizi kwa:
+Kutoa kiolesura cha kawaida cha GraphQL kwa ulinganisho wa meza za Cassandra
+Kujenga schemas za GraphQL moja kwa moja kutoka kwa usanidi wa TrustGraph
+Kubadilisha ulinganisho wa GraphQL kwa CQL ya Cassandra kwa ufanisi
+Kusaidia suluhisho la uhusiano kupitia suluhu za uwanja
+
+## Muundo wa Kiufundi
+
+### Usanifu
+
+Huduma ya ulinganisho wa GraphQL itatekelezwa kama mchakato mpya wa TrustGraph kufuatia mbinu zilizopo:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Eneo la Moduli**: `trustgraph-flow/trustgraph/query/objects/cassandra/`
 
 **Vipengele Muhimu**:
 
+<<<<<<< HEAD
 1. **Mchakato wa Huduma ya Uwasilisho wa GraphQL**
    Huendelea na darasa la msingi la FlowProcessor
    Inatekeleza mtindo wa ombi/jibu sawa na huduma zingine za kuuliza
@@ -76,6 +120,41 @@ Huduma ya uwasilisho wa GraphQL itatekelezwa kama mchakato mpya wa TrustGraph ku
 ### Ufuatiliaji wa Mpango wa Usanidi
 
 Huduma itasajili mshukiwa wa usanidi ili kupokea sasisho za mpango:
+=======
+1. **Mchakato wa Huduma ya Ulinganisho wa GraphQL**
+   Huendelea na darasa la msingi la FlowProcessor
+   Huendesha mtindo wa ombi/jibu sawa na huduma zingine za ulinganisho
+   Huangalia usanidi kwa sasisho za muundo
+   Huendeleza schema ya GraphQL ili kuendana na usanidi
+
+2. **Mzalishaji wa Muundo wa Njia Moja Moja**
+   Hubadilisha ufafanuzi wa TrustGraph RowSchema kuwa aina za GraphQL
+   Huunda aina za vitu vya GraphQL na ufafanuzi sahihi wa uwanja
+   Huunda aina ya Query ya mizizi na suluhu za msingi za mkusanyiko
+   Huendeleza schema ya GraphQL wakati usanidi unabadilika
+
+3. **Mtekelezaji wa Ulinganisho**
+   Huainisha ulinganisho wa GraphQL unaoingia kwa kutumia maktaba ya Strawberry
+   Huainisha ulinganisho dhidi ya schema ya sasa
+   Huendesha ulinganisho na hurudisha majibu yaliyopangwa
+   Hushughulikia makosa kwa njia nzuri na ujumbe wa makosa wa kina
+
+4. **Mhubiri wa Ulinganisho wa Cassandra**
+   Hubadilisha uteuzi wa GraphQL kuwa ulinganisho wa CQL
+   Huongeza ulinganisho kulingana na fahirisi na funguo za sehemu zinazopatikana
+   Hushughulikia uchujaji, upangishaji, na utaratibu
+   Hushughulikia udhibiti wa muunganisho na mzunguko wa kikao
+
+5. **Suluhu ya Uhusiano**
+   Huendesha suluhu za uwanja kwa uhusiano wa vitu
+   Hufanya upakiaji wa kundi ili kuepuka masuala ya N+1
+   Huweka suluhu za uhusiano ndani ya muktadha wa ombi
+   Inasaidia ueleuzi wa uhusiano wa mbele na nyuma
+
+### Ufuatiliaji wa Muundo wa Usanidi
+
+Huduma itajisajili kwa mshughuliki wa usanidi ili kupokea sasisho za muundo:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```python
 self.register_config_handler(self.on_schema_config)
@@ -83,7 +162,11 @@ self.register_config_handler(self.on_schema_config)
 
 Wakati schemas hubadilika:
 1. Changanua maelezo mapya ya schema kutoka kwa usanidi
+<<<<<<< HEAD
 2. Tengeneza upya aina za GraphQL na suluhu
+=======
+2. Tengeneza upya aina na suluhu za GraphQL
+>>>>>>> 82edf2d (New md files from RunPod)
 3. Sasisha schema inayotumika
 4. Ondoa kumbukumbu zozote zinazotegemea schema
 
@@ -98,14 +181,23 @@ Kwa kila RowSchema katika usanidi, tengeneza:
 
 2. **Sehemu za Uchunguzi Mkuu**:
    Uchunguzi wa mkusanyiko (e.g., `customers`, `transactions`)
+<<<<<<< HEAD
    Vigezo vya kuchujwa kulingana na sehemu zilizo na fahirisi
    Usaidizi wa ukurasa (limit, offset)
+=======
+   Majadiliano ya kuchujwa kulingana na sehemu zilizo na index
+   Usaidizi wa upangaji (limit, offset)
+>>>>>>> 82edf2d (New md files from RunPod)
    Chaguo za kupanga kwa sehemu ambazo zinaweza kupangwa
 
 3. **Sehemu za Uhusiano**:
    Tambua uhusiano wa ufunguo wa kigeni kutoka kwa schema
    Unda suluhu za sehemu kwa vitu vinavyohusiana
+<<<<<<< HEAD
    Usaidizi wa uhusiano wa kitu kimoja na orodha
+=======
+   Saidia uhusiano wa kitu kimoja na orodha
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Mtiririko wa Utendaji wa Uchunguzi
 
@@ -120,8 +212,13 @@ Kwa kila RowSchema katika usanidi, tengeneza:
    Angalia uteuzi wa sehemu na aina za hoja (argument).
 
 3. **Uundaji wa Ombi la CQL**:
+<<<<<<< HEAD
    Jadili uteuzi wa GraphQL.
    Unda ombi la CQL na vipengele sahihi vya `WHERE`.
+=======
+   Changanua uteuzi wa GraphQL.
+   Unda ombi la CQL na vigezo sahihi vya `WHERE`.
+>>>>>>> 82edf2d (New md files from RunPod)
    Jumuisha mkusanyiko katika ufunguo wa sehemu (partition key).
    Tumia vichujio kulingana na hoja za GraphQL.
 
@@ -138,7 +235,11 @@ Kwa kila RowSchema katika usanidi, tengeneza:
 
 ### Mifano ya Data
 
+<<<<<<< HEAD
 > **Kumbuka**: Mpango (schema) uliopo wa `StructuredQueryRequest/Response` unafanya kazi katika `trustgraph-base/trustgraph/schema/services/structured_query.py`. Hata hivyo, hauna vipengele muhimu (mtumiaji, mkusanyiko) na hutumia aina ambazo sio bora. Mifano iliyo hapa chini inaonyesha maendeleo yanayopendekezwa, ambayo inaweza kuchukua nafasi ya mifano iliyopo au kuundwa kama aina mpya za `ObjectsQueryRequest/Response`.
+=======
+> **Kumbuka**: Mpango (schema) uliopo wa `StructuredQueryRequest/Response` unafanya kazi katika `trustgraph-base/trustgraph/schema/services/structured_query.py`. Hata hivyo, hauna sehemu muhimu (mtumiaji, mkusanyiko) na hutumia aina ambazo sio bora. Mifano iliyo hapa chini inaonyesha maendeleo yanayopendekezwa, ambayo inaweza kuchukua nafasi ya mifano iliyopo au kuundwa kama aina mpya za `ObjectsQueryRequest/Response`.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Mpango wa Ombi (ObjectsQueryRequest)
 
@@ -153,9 +254,15 @@ class ObjectsQueryRequest(Record):
     operation_name = String()    # Operation to execute for multi-operation documents
 ```
 
+<<<<<<< HEAD
 **Mazingatio ya mabadiliko kutoka kwa Ombi la Ulinganisho Lililopo:**
 Imeongezwa sehemu `user` na `collection` ili kuendana na mtindo wa huduma zingine za utafutaji.
 Sehemu hizi ni muhimu kwa kutambua eneo la kuhifadhi data (keyspace) na mkusanyiko (collection) katika Cassandra.
+=======
+**Mazingatio ya mabadiliko kutoka kwa Ombi la Ulipimaji Uliohifadhiwa (StructuredQueryRequest):**
+Imeongezwa sehemu `user` na `collection` ili kuendana na mtindo wa huduma zingine za ulipimaji.
+Sehemu hizi ni muhimu kwa kutambua eneo la kuhifadhi (keyspace) na mkusanyiko (collection) wa Cassandra.
+>>>>>>> 82edf2d (New md files from RunPod)
 Vigezo vinaendelea kuwa Map(String()) kwa sasa, lakini inapaswa kusaidia aina zote za JSON.
 
 #### Muundo wa Majibu (ObjectsQueryResponse)
@@ -180,12 +287,17 @@ class ObjectsQueryResponse(Record):
 Hutofautisha kati ya makosa ya mfumo (`error`) na makosa ya GraphQL (`errors`)
 Hutumia vitu vilivyopangwa vya GraphQLError badala ya safu ya maandishi
 Huongeza sehemu `extensions` ili kufuata vipimo vya GraphQL
+<<<<<<< HEAD
 Huhifadhi data kama mnyororo wa JSON ili kuendana, ingawa aina asilia zingekuwa bora
+=======
+Huendeleza data kama mnyororo wa JSON kwa utangamano, ingawa aina asilia zingekuwa bora
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ### Uboreshaji wa Umasilisho wa Cassandra
 
 Huduma itaboresha masilisho ya Cassandra kwa:
 
+<<<<<<< HEAD
 1. **Kufuata Vipengele vya Partition:**
    Daima jumuisha mkusanyiko katika masilisho
    Tumia funguo kuu zilizotolewa na mpango kwa ufanisi
@@ -197,11 +309,28 @@ Huduma itaboresha masilisho ya Cassandra kwa:
    Toa onyo wakati masilisho yanaweza kuwa yasiyo na ufanisi
 
 3. **Upakiaji wa Kundi:**
+=======
+1. **Kutii Mifungo ya Sehemu**:
+   Daima jumuisha mkusanyiko katika masilisho
+   Tumia funguo kuu zilizotolewa na muundo kwa ufanisi
+   Epuka uchanganuzi kamili wa jedwali
+
+2. **Kutumia Faharasa**:
+   Tumia faharasa za sekondari kwa kuchujua
+   Unganisha vichujio vingi wakati inafaa
+   Toa onyo wakati masilisho yanaweza kuwa yasiyo na ufanisi
+
+3. **Upakiaji wa Kundi**:
+>>>>>>> 82edf2d (New md files from RunPod)
    Kusanya masilisho ya uhusiano
    Tekeleza kwa makundi ili kupunguza safari za kurudi na kuja
    Hifadhi matokeo ndani ya muktadha wa ombi
 
+<<<<<<< HEAD
 4. **Usimamizi wa Muunganisho:**
+=======
+4. **Usimamizi wa Muunganisho**:
+>>>>>>> 82edf2d (New md files from RunPod)
    Dumishe vipindi vya Cassandra vinavyoendelea
    Tumia mabwalo ya muunganisho
    Shughulikia muunganisho upya katika hali ya kushindwa
@@ -251,11 +380,19 @@ Huduma itaboresha masilisho ya Cassandra kwa:
 }
 ```
 
+<<<<<<< HEAD
 ### Utendaji (Implementation)
 
 **Strawberry GraphQL**: Kwa uainishaji wa schema ya GraphQL na utekelezaji wa swali.
 **Cassandra Driver**: Kwa muunganisho wa hifadhidata (tayari inatumika katika moduli ya uhifadhi).
 **TrustGraph Base**: Kwa FlowProcessor na uainishaji wa schema.
+=======
+### Utendaji (Dependencies)
+
+**Strawberry GraphQL**: Kwa ufafanuzi wa schema ya GraphQL na utekelezaji wa swali.
+**Cassandra Driver**: Kwa muunganisho wa hifadhidata (tayari inatumika katika moduli ya uhifadhi).
+**TrustGraph Base**: Kwa FlowProcessor na ufafanuzi wa schema.
+>>>>>>> 82edf2d (New md files from RunPod)
 **Mfumo wa Usanidi**: Kwa ufuatiliaji na sasisho za schema.
 
 ### Kiolesura cha Amri (Command-Line Interface)
@@ -266,7 +403,11 @@ Majadilisho:
 `--cassandra-host`: Alama ya kuwasiliana na kundi la Cassandra.
 `--cassandra-username`: Jina la mtumiaji la uthibitishaji.
 `--cassandra-password`: Nenosiri la uthibitishaji.
+<<<<<<< HEAD
 `--config-type`: Aina ya usanidi kwa schema (ya kawaida: "schema").
+=======
+`--config-type`: Aina ya usanidi kwa schema (kiwango: "schema").
+>>>>>>> 82edf2d (New md files from RunPod)
 Majadilisho ya kawaida ya FlowProcessor (usanidi wa Pulsar, n.k.).
 
 ## Uunganisho wa API
@@ -291,7 +432,11 @@ Lango na lango la kinyume (reverse-gateway) itahitaji sehemu za:
 
 ### Uunganisho wa Zana ya Wakala
 
+<<<<<<< HEAD
 Darasa mpya la zana ya wakala itaruhusu:
+=======
+Darasa jipya la zana ya wakala itaruhusu:
+>>>>>>> 82edf2d (New md files from RunPod)
 Uundaji wa swali la GraphQL kutoka kwa lugha ya asili.
 Utendaji wa moja kwa moja wa swali la GraphQL.
 Tafsiri na umbizo wa matokeo.
@@ -307,14 +452,21 @@ Uunganisho na mtiririko wa maamuzi wa wakala.
 
 ## Masuala ya Utendaji
 
+<<<<<<< HEAD
 **Upangaji wa Swali**: Kuchambua maswali kabla ya utekelezaji ili kuongeza ufanisi wa uundaji wa CQL.
 **Kuhifadhi Matokeo**: Kuzingatia kuhifadhi data inayopatikana mara kwa mara katika kiwango cha kielekezi cha matokeo.
 **Usimamizi wa Muunganisho**: Kudumisha mizingi bora ya muunganisho kwa Cassandra.
+=======
+**Upangaji wa Swali**: Kuchambua maswali kabla ya utekelezaji ili kuongeza ufanisi wa utengenezaji wa CQL.
+**Kuhifadhi Matokeo**: Kuzingatia kuhifadhi data inayopatikana mara kwa mara katika kiwango cha suluhu.
+**Usimamizi wa Muunganisho**: Kudumisha mikoa bora ya muunganisho kwa Cassandra.
+>>>>>>> 82edf2d (New md files from RunPod)
 **Operesheni za Kikundi**: Kuchanganya maswali mengi wakati inafaa ili kupunguza latensi.
 **Ufuatiliaji**: Kufuatilia vipimo vya utendaji wa swali kwa ajili ya uboreshaji.
 
 ## Mkakati wa Majaribio
 
+<<<<<<< HEAD
 ### Majaribio ya Vitengo
 Uzalishaji wa schema kutoka kwenye maelezo ya RowSchema
 Uchunguzi na uthibitisho wa swali la GraphQL
@@ -335,6 +487,28 @@ Urekebishaji na utafutaji
 Hali za hitilafu
 
 ### Majaribio ya Utendaji
+=======
+### Majaribsu ya Vitengo
+Uzalishaji wa schema kutoka kwa maelezo ya RowSchema
+Uchunguzi na uthibitishaji wa swali la GraphQL
+Mantiki ya uzalishaji wa swali la CQL
+Utendaji wa suluhu za sehemu
+
+### Majaribsu ya Mkataba
+Uzingatiaji wa mkataba wa ujumbe wa Pulsar
+Uthibitisho wa utiifu wa schema ya GraphQL
+Uthibitisho wa muundo wa jibu
+Uthibitisho wa muundo wa hitilafu
+
+### Majaribsu ya Uunganishaji
+Utendaji wa swali kamili dhidi ya mfano wa Cassandra wa majaribio
+Usimamizi wa sasisho za schema
+Suluhisho la uhusiano
+Urekebishaji na utaratibu
+Hali za hitilafu
+
+### Majaribsu ya Utendaji
+>>>>>>> 82edf2d (New md files from RunPod)
 Ufanisi wa swali chini ya mzigo
 Muda wa jibu kwa utata wa swali mbalimbali
 Matumizi ya kumbukumbu na matokeo makubwa
@@ -342,12 +516,21 @@ Ufanisi wa kikundi cha muunganisho
 
 ## Mpango wa Uhamishaji
 
+<<<<<<< HEAD
 Uhamishaji hauhitajiki kwani hii ni uwezo mpya. Huduma itafanya:
 1. Kusoma schema zilizopo kutoka kwenye usanidi
 2. Kuunganisha na meza zilizopo za Cassandra zilizoundwa na moduli ya uhifadhi
 3. Kuanza kukubali maswali mara tu inaposanikishwa
 
 ## Muda
+=======
+Hakuna uhamishaji unaohitajika kwani hii ni uwezo mpya. Huduma itafanya:
+1. Kusoma schema zilizopo kutoka kwa usanidi
+2. Kuunganisha na meza zilizopo za Cassandra zilizoundwa na moduli ya uhifadhi
+3. Kuanza kukubali maswali mara tu baada ya kuwekwa
+
+## Ratiba
+>>>>>>> 82edf2d (New md files from RunPod)
 
 Wiki 1-2: Utendaji wa msingi wa huduma na uzalishaji wa schema
 Wiki 3: Utendaji wa swali na tafsiri ya CQL
@@ -357,7 +540,11 @@ Wiki 6: Uunganisho wa lango na maandishi
 
 ## Maswali ya Wazi
 
+<<<<<<< HEAD
 1. **Maendeleo ya Schema**: Huduma inapaswa kushughulikia maswali vipi wakati wa mabadiliko ya schema?
+=======
+1. **Maendeleo ya Schema**: Huduma inapaswa kushughulikia maswali wakati wa mabadiliko ya schema?
+>>>>>>> 82edf2d (New md files from RunPod)
    Chaguo: Kuweka maswali kwenye folyo wakati wa sasisho za schema
    Chaguo: Kusaidia matoleo mengi ya schema kwa wakati mmoja
 
@@ -377,7 +564,14 @@ Wiki 6: Uunganisho wa lango na maandishi
 ## Marejeleo
 
 Maelezo ya Kimataifa ya Data Iliyopangwa: `docs/tech-specs/structured-data.md`
+<<<<<<< HEAD
 Nyaraka za Strawberry GraphQL: https://strawberry.rocks/
 Maelezo ya GraphQL: https://spec.graphql.org/
 Marejeleo ya Apache Cassandra CQL: https://cassandra.apache.org/doc/stable/cassandra/cql/
 Nyaraka za Msimamizi wa Mtiririko wa TrustGraph: Nyaraka za ndani
+=======
+Nyaraka za GraphQL Strawberry: https://strawberry.rocks/
+Maelezo ya GraphQL: https://spec.graphql.org/
+Marejeleo ya Apache Cassandra CQL: https://cassandra.apache.org/doc/stable/cassandra/cql/
+Nyaraka za Mfumo wa Mchakato wa TrustGraph: Nyaraka za ndani
+>>>>>>> 82edf2d (New md files from RunPod)

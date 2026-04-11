@@ -2,6 +2,7 @@
 
 ## Tatizo
 
+<<<<<<< HEAD
 Hivi sasa, utoaji wa wakati wa uondoaji huunda uelekezaji kamili kwa kila
 triple iliyoundwa: `stmt_uri`, `activity_uri`, na metadata inayohusiana
 ya PROV-O kwa kila ukweli wa maarifa.  Kushughulikia sehemu moja
@@ -16,12 +17,32 @@ huru.
 
 Zaidi ya hayo, vichakavu viwili vya nne vya uondoaji (kg-extract-ontology,
 kg-extract-agent) havina utoaji wowote, na hivyo kuacha pengo katika
+=======
+Hivi sasa, utoaji wa taarifa wakati wa utoaji huunda uelekezaji kamili kwa kila
+triple iliyotoa: `stmt_uri`, `activity_uri`, na metadata inayohusiana
+ya PROV-O kwa kila ukweli wa maarifa.  Kushughulikia sehemu moja
+ambayo hutoa uhusiano wa 20 hutoa triples ~220 za taarifa juu ya
+triples ~20 za maarifa - mzigo wa takriban 10:1.
+
+Hii ni ghali (uhifadhi, urekebishaji, usambazaji) na pia si sahihi kimaana.
+Kila sehemu hushughulikiwa na simu moja ya LLM ambayo hutoa triples zake zote
+katika mshughuliko mmoja.  Mfumo wa sasa wa kila triple huficha hili kwa
+kuunda udanganyifu wa matukio 20 ya kujitenga ya utoaji.
+
+
+Zaidi ya hayo, vichakavu viwili vya utoaji vifo (kg-extract-ontology,
+kg-extract-agent) havina taarifa zozote, na hivyo kuacha pengo katika
+>>>>>>> 82edf2d (New md files from RunPod)
 njia ya ukaguzi.
 
 ## Suluhisho
 
 Badilisha uelekezaji wa kila triple na **mfumo wa subgraph**: rekodi moja
+<<<<<<< HEAD
 ya utoaji kwa kila uondoaji wa sehemu, inayoshirikiwa na triples zote
+=======
+ya taarifa kwa kila utoaji wa sehemu, inayoshirikiwa na triples zote
+>>>>>>> 82edf2d (New md files from RunPod)
 zilizozalishwa kutoka sehemu hiyo.
 
 ### Mabadiliko ya Dhana
@@ -30,11 +51,19 @@ zilizozalishwa kutoka sehemu hiyo.
 |-----|-----|
 | `stmt_uri` (`https://trustgraph.ai/stmt/{uuid}`) | `subgraph_uri` (`https://trustgraph.ai/subgraph/{uuid}`) |
 | `statement_uri()` | `subgraph_uri()` |
+<<<<<<< HEAD
 | `tg:reifies` (1:1, utambulisho) | `tg:contains` (1:wengi, uwezeshaji) |
 
 ### Muundo Unaolengwa
 
 Triples zote za utoaji huwekwa katika grafu iliyoitwa `urn:graph:source`.
+=======
+| `tg:reifies` (1:1, utambulisho) | `tg:contains` (1:wengi, kuingia) |
+
+### Muundo Unaolengwa
+
+Triples zote za taarifa huwekwa katika grafu iliyoitwa `urn:graph:source`.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ```
 # Subgraph contains each extracted triple (RDF-star quoted triples)
@@ -94,7 +123,11 @@ Toa kundi la shughuli/wakala/uzalishaji mara moja baada ya loop
 
 Mfano sawa na ufafanuzi. Mabadiliko sawa.
 
+<<<<<<< HEAD
 ### Wasindikaji ambao Watasasishwa ili Kuongeza Asili (sasa hayapo)
+=======
+### Wasindikaji ambao Wataongezwa Asili (sasa hayapo)
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **kg-extract-ontology**
 (`trustgraph-flow/trustgraph/extract/kg/ontology/extract.py`)
@@ -109,7 +142,11 @@ triple iliyochukuliwa.
 Hivi sasa hutoa triples bila asili. Ongeza asili ya subgraph
 kwa kutumia mfano sawa.
 
+<<<<<<< HEAD
 ### Mabadiliko ya Maktaba ya Asili iliyoshirikiwa
+=======
+### Mabadiliko ya Maktaba ya Asili Iliyoshirikiwa
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **`trustgraph-base/trustgraph/provenance/triples.py`**
 
@@ -126,7 +163,11 @@ Badilisha `statement_uri()` na `subgraph_uri()`
 
 Badilisha `TG_REIFIES` na `TG_CONTAINS`
 
+<<<<<<< HEAD
 ### Hayajajumuishwa katika Upeo
+=======
+### Hayako Katika Upeo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **kg-extract-topics**: wasindikaji wa mtindo wa zamani, hawatumiki kwa sasa katika
   mtiririko wa kawaida
@@ -200,6 +241,10 @@ def subgraph_provenance_triples(
 
 ### Mabadiliko Makubwa
 
+<<<<<<< HEAD
 Hii ni mabadiliko makubwa kwa mfumo wa asili ya data. Asili ya data haijatolewa, kwa hivyo hakuna uhamishaji unaohitajika. Msimbo wa zamani wa ⟦CODE_0⟧ /
+=======
+Hii ni mabadiliko makubwa kwa mfumo wa uhakikisho. Uhakikisho haujatolewa, kwa hivyo hakuna uhamishaji unaohitajika. Msimbo wa zamani wa ⟦CODE_0⟧ /
+>>>>>>> 82edf2d (New md files from RunPod)
 `tg:reifies` unaweza kuondolewa kabisa.
 Msimbo `statement_uri` unaweza kufutwa kabisa.

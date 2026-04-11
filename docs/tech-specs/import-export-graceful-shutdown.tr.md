@@ -2,10 +2,17 @@
 
 ## Problem Tanımı
 
+<<<<<<< HEAD
 TrustGraph ağ geçidi, hem içe aktarma hem de dışa aktarma işlemlerinde websocket kapanışı sırasında mesaj kaybı yaşamaktadır. Bu, aktarım halindeki mesajların, hedeflerine (içe aktarmalar için Pulsar kuyrukları, dışa aktarmalar için websocket istemcileri) ulaşmadan önce atıldığı yarış koşulları nedeniyle oluşmaktadır.
 
 ### İçe Aktarma Tarafındaki Sorunlar
 1. Yayınlayıcının asyncio.Queue tamponu, kapanışta boşaltılmamaktadır.
+=======
+TrustGraph geçidi, hem içe hem de dışa aktarma işlemlerinde websocket kapanması sırasında mesaj kaybı yaşamaktadır. Bu, aktarım halindeki mesajların, hedeflerine (içe aktarmalar için Pulsar kuyrukları, dışa aktarmalar için websocket istemcileri) ulaşmadan önce atıldığı yarış koşulları nedeniyle oluşmaktadır.
+
+### İçe Aktarma Tarafındaki Sorunlar
+1. Yayınlayıcının asyncio.Queue tamponu, kapanmada boşaltılmamaktadır.
+>>>>>>> 82edf2d (New md files from RunPod)
 2. Websocket, kuyruğa alınmış mesajların Pulsar'a ulaşmasını sağladıktan sonra kapanmaktadır.
 3. Başarılı mesaj teslimatı için bir onay mekanizması bulunmamaktadır.
 
@@ -13,7 +20,11 @@ TrustGraph ağ geçidi, hem içe aktarma hem de dışa aktarma işlemlerinde web
 1. Mesajlar, istemcilere başarılı bir şekilde teslim edilmeden önce Pulsar'da onaylanmaktadır.
 2. Sabit kodlu zaman aşımı değerleri, kuyruklar dolduğunda mesaj kayıplarına neden olmaktadır.
 3. Yavaş tüketicileri işlemek için bir geri basınç mekanizması bulunmamaktadır.
+<<<<<<< HEAD
 4. Verilerin kaybolabileceği birden fazla tampon noktası bulunmaktadır.
+=======
+4. Verilerin kaybolabileceği birden fazla tamponlama noktası bulunmaktadır.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Mimari Genel Bakış
 
@@ -145,7 +156,11 @@ class Publisher:
 **Temiz Durum Makinesi**: Üç açık durum - çalışıyor, boşaltılıyor, durdurulmuş.
 **Zaman Aşımı Koruması**: Boşaltma sırasında sonsuza kadar takılmayacaktır.
 **Daha İyi Gözlemlenebilirlik**: Boşaltma ilerlemesi ve durum geçişlerinin açık bir şekilde günlüğe kaydedilmesi.
+<<<<<<< HEAD
 **İsteğe Bağlı Mesaj Reddi**: Kapatma aşamasında yeni mesajları reddedebilir.
+=======
+**İsteğe Bağlı Mesaj Reddi**: Kapatma aşamasında yeni mesajları reddetme imkanı.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### B. İyileştirilmiş Kapatma Sırası
 
@@ -363,10 +378,17 @@ class Subscriber:
 
 **Temel Tasarım Avantajları (Yayıncı modeline uygun):**
 **Tek İşlem Konumu**: Tüm mesaj işleme, `run()` metodu içinde gerçekleşir.
+<<<<<<< HEAD
 **Temiz Durum Makinesi**: Üç açık durum - çalışıyor, boşaltma, durdurulmuş.
 **Boşaltma Sırasında Duraklama**: Mevcut kuyrukları boşaltırken, Pulsar'dan yeni mesaj kabul etmeyi durdurur.
 **Zaman Aşımı Koruması**: Boşaltma sırasında sonsuza kadar takılmayacaktır.
 **Doğru Temizleme**: Kapatma sırasında teslim edilmemiş mesajlar varsa, bunlara ilişkin olumsuz onaylar gönderilir.
+=======
+**Temiz Durum Makinesi**: Üç açık durum - çalışıyor, boşaltılıyor, durdurulmuş.
+**Boşaltma Sırasında Duraklama**: Mevcut kuyrukları boşaltırken, Pulsar'dan yeni mesaj kabul etmeyi durdurur.
+**Zaman Aşımı Koruması**: Boşaltma sırasında sonsuza kadar takılmayacaktır.
+**Doğru Temizleme**: Kapatma sırasında teslim edilmemiş herhangi bir mesaj için olumsuz onay gönderir.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### B. Dışa Aktarma İşleyici İyileştirmeleri
 
@@ -656,14 +678,22 @@ Mesaj kayıpları için uyarılar eklendi
 `websocket.forced_shutdowns` - Zorlanmış/zaman aşımı kapanışları
 
 ### Uyarılar
+<<<<<<< HEAD
 Yayıncı kuyruğu derinliği %80 kapasitenin üzerinde
 Kapanma sırasında herhangi bir mesaj kaybı
 Abonelik olumsuz onay oranı > %1
 Kapanış zaman aşımı aşıldı
+=======
+Yayıncı kuyruğu derinliği %80 kapasiteyi aştığında
+Kapanma sırasında herhangi bir mesaj kaybı olduğunda
+Abonelik olumsuz onay oranı > %1 olduğunda
+Kapanış zaman aşımı aşıldığında
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Geriye Dönük Uyumluluk
 
 Tüm değişiklikler geriye dönük uyumluluğu korur:
+<<<<<<< HEAD
 Yapılandırma olmadan varsayılan davranış değişmedi
 Mevcut dağıtımlar çalışmaya devam ediyor
 Yeni özellikler kullanılamıyorsa, kademeli bozulma
@@ -671,6 +701,15 @@ Yeni özellikler kullanılamıyorsa, kademeli bozulma
 ## Güvenlik Hususları
 
 Herhangi bir yeni saldırı vektörü tanıtılmadı
+=======
+Yapılandırma olmadan varsayılan davranış değişmez
+Mevcut dağıtımlar çalışmaya devam eder
+Yeni özellikler kullanılamadığında, düzgün bir şekilde performans düşüşü olur
+
+## Güvenlik Hususları
+
+Herhangi bir yeni saldırı vektörü tanıtılmamıştır
+>>>>>>> 82edf2d (New md files from RunPod)
 Geri basınç, bellek tükenmesi saldırılarını önler
 Yapılandırılabilir sınırlar, kaynak kötüye kullanımını önler
 

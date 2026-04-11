@@ -2,7 +2,11 @@
 
 ## Genel Bakış
 
+<<<<<<< HEAD
 Bir akış şeması, TrustGraph sisteminde eksiksiz bir veri akışı kalıbı şablonunu tanımlar. Örneklenildiğinde, verilerin alınması, işlenmesi, depolanması ve sorgulanması işlemlerini tek bir sistem olarak ele alan, birbirine bağlı bir işlemci ağı oluşturur.
+=======
+Bir akış şeması, TrustGraph sisteminde eksiksiz bir veri akışı kalıbı şablonunu tanımlar. Örneklenildiğinde, veri alımı, işleme, depolama ve sorgulamayı birleşik bir sistem olarak ele alan birbirine bağlı işlemci ağları oluşturur.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Yapı
 
@@ -50,7 +54,11 @@ Her bir bireysel akış örneği için örneklenen, akışa özgü işlemcileri 
 **Özellikler:**
 Her akış için benzersiz bir örnek
 Akışa özgü verileri ve durumu yönetir
+<<<<<<< HEAD
 Kuyruğu adlandırmak için `{id}` şablon değişkenini kullanın
+=======
+Kuyruğa adlandırma için `{id}` şablon değişkenini kullanın
+>>>>>>> 82edf2d (New md files from RunPod)
 Ayarlar, sabit değerler olabilir veya `{parameter-name}` sözdizimi ile parametrelendirilebilir
 Örnekler: `chunker:{id}`, `pdf-decoder:{id}`, `kg-extract-relationships:{id}`
 
@@ -79,7 +87,11 @@ Arayüzler iki formda olabilir:
 
 **Arayüz Türleri:**
 **Giriş Noktaları:** Dış sistemlerin veri enjekte ettiği yerler (`document-load`, `agent`)
+<<<<<<< HEAD
 **Servis Arayüzleri:** Servisler için istek/yanıt kalıpları (`embeddings`, `text-completion`)
+=======
+**Hizmet Arayüzleri:** Hizmetler için istek/yanıt kalıpları (`embeddings`, `text-completion`)
+>>>>>>> 82edf2d (New md files from RunPod)
 **Veri Arayüzleri:** Ateşle-ve-unut veri akışı bağlantı noktaları (`triples-store`, `entity-contexts-load`)
 
 ### 4. Parametreler Bölümü
@@ -211,28 +223,45 @@ Akış şemaları, mesajlaşma için Apache Pulsar'ı kullanır. Kuyruk adları,
 ### Bileşenler:
 **kalıcılık**: `persistent` veya `non-persistent` (Pulsar kalıcılık modu)
 **kiracı**: TrustGraph tarafından sağlanan akış tanım şablonları için `tg`
+<<<<<<< HEAD
 **isim alanı**: Mesajlaşma desenini belirtir
+=======
+**isim alanı**: Mesajlaşma kalıbını gösterir
+>>>>>>> 82edf2d (New md files from RunPod)
   `flow`: Ateşle ve unut hizmetleri
   `request`: İstek/yanıt hizmetlerinin istek kısmı
   `response`: İstek/yanıt hizmetlerinin yanıt kısmı
 **konu**: Şablon değişkenleriyle belirli kuyruk/konu adı
 
 ### Kalıcı Kuyruklar
+<<<<<<< HEAD
 Desen: `persistent://tg/flow/<topic>:{id}`
+=======
+Kalıp: `persistent://tg/flow/<topic>:{id}`
+>>>>>>> 82edf2d (New md files from RunPod)
 Ateşle ve unut hizmetleri ve dayanıklı veri akışı için kullanılır
 Veri, yeniden başlatmalarda Pulsar depolama alanında kalıcıdır
 Örnek: `persistent://tg/flow/chunk-load:{id}`
 
 ### Kalıcı Olmayan Kuyruklar
+<<<<<<< HEAD
 Desen: `non-persistent://tg/request/<topic>:{class}` veya `non-persistent://tg/response/<topic>:{class}`
 İstek/yanıt mesajlaşma desenleri için kullanılır
+=======
+Kalıp: `non-persistent://tg/request/<topic>:{class}` veya `non-persistent://tg/response/<topic>:{class}`
+İstek/yanıt mesajlaşma kalıpları için kullanılır
+>>>>>>> 82edf2d (New md files from RunPod)
 Pulsar tarafından diske kalıcı hale getirilmez, geçicidir
 Daha düşük gecikme süresi, RPC tarzı iletişim için uygundur
 Örnek: `non-persistent://tg/request/embeddings:{class}`
 
 ## Veri Akışı Mimarisi
 
+<<<<<<< HEAD
 Akış tanımı, aşağıdaki gibi birleşik bir veri akışı oluşturur:
+=======
+Akış tanımı, aşağıdaki unsurları içeren birleşik bir veri akışı oluşturur:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 1. **Belge İşleme Hattı**: Alımdan dönüşüme ve depolamaya kadar olan akış
 2. **Sorgu Hizmetleri**: Aynı veri depolarını ve hizmetlerini sorgulayan entegre işlemciler
@@ -264,14 +293,26 @@ Kullanıcı tarafından sağlanan parametreler:
 
 Bu, aşağıdaki öğeleri oluşturur:
 `customer-A-flow` için izole edilmiş belge işleme hattı
+<<<<<<< HEAD
 Tüm `standard-rag` akışları için paylaşımlı gömme hizmeti
 Belge alımından sorgulamaya kadar olan eksiksiz veri akışı
 İşlemciler, sağlanan parametre değerleriyle yapılandırılmıştır
+=======
+tüm `standard-rag` akışları için paylaşımlı gömme hizmeti
+Belge alımından sorgulamaya kadar olan eksiksiz veri akışı
+İşlemcilerin sağlanan parametre değerleriyle yapılandırılması
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Avantajlar
 
 1. **Kaynak Verimliliği**: Pahalı hizmetler, akışlar arasında paylaşılır
 2. **Akış İzolasyonu**: Her akışın kendi veri işleme hattı vardır
+<<<<<<< HEAD
 3. **Ölçeklenebilirlik**: Aynı şablondan birden fazla akış oluşturulabilir
 4. **Modülerlik**: Paylaşılan ve akışa özgü bileşenler arasında net bir ayrım
 5. **Bütünleşik Mimari**: Sorgu ve işleme, aynı veri akışının bir parçasıdır
+=======
+3. **Ölçeklenebilirlik**: Aynı şablondan çok sayıda akış oluşturulabilir
+4. **Modülerlik**: Paylaşılan ve akışa özgü bileşenler arasında net bir ayrım
+5. **Birleşik Mimari**: Sorgu ve işleme, aynı veri akışının bir parçasıdır
+>>>>>>> 82edf2d (New md files from RunPod)

@@ -26,7 +26,11 @@ Os principais objetivos deste trabalho são permitir metadados sobre fatos/decla
 
 **Proveniência/Fontes**: Rastrear quais fontes suportam um fato
   "Este fato foi suportado pela fonte X"
+<<<<<<< HEAD
   Vincular fatos aos documentos de origem
+=======
+  Vincular fatos aos seus documentos de origem
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Veracidade/Confiança**: Registrar afirmações sobre a verdade
   "A pessoa P afirmou que isso era verdade"
@@ -44,7 +48,11 @@ como algo sobre o qual você pode fazer declarações. Triplas padrão não supo
 
 ### Limitações Atuais
 
+<<<<<<< HEAD
 A classe `Value` atual em `trustgraph-base/trustgraph/schema/core/primitives.py`
+=======
+A classe `Value` em `trustgraph-base/trustgraph/schema/core/primitives.py`
+>>>>>>> 82edf2d (New md files from RunPod)
 pode representar:
 Nós URI (`is_uri=True`)
 Valores literais (`is_uri=False`)
@@ -61,7 +69,11 @@ Esses recursos estão diretamente relacionados aos objetivos de tempo, proveniê
 
 1. **Triplas Citadas RDF 1.2 (RDF-star)**
 Arestas que apontam para outras arestas
+<<<<<<< HEAD
    Uma Tripla pode aparecer como o sujeito ou objeto de outra Tripla
+=======
+   Uma Tripla pode aparecer como o sujeito ou o objeto de outra Tripla
+>>>>>>> 82edf2d (New md files from RunPod)
    Permite declarações sobre declarações (reificação)
    Mecanismo principal para anotar fatos individuais
    
@@ -126,7 +138,11 @@ Um Termo pode representar:
 ##### Abordagem Escolhida: Classe Única com Discriminador de Tipo
 
 Os requisitos de serialização determinam a estrutura - um discriminador de tipo é necessário
+<<<<<<< HEAD
 no formato de transmissão, independentemente da representação em Python. Uma classe única com
+=======
+no formato de transmissão, independentemente da representação em Python. Uma única classe com
+>>>>>>> 82edf2d (New md files from RunPod)
 um campo de tipo é a opção mais adequada e está alinhada com o padrão atual `Value`.
 
 Códigos de tipo de caractere único fornecem serialização compacta:
@@ -218,9 +234,15 @@ O contexto do grafo é metadado sobre onde a tripla reside.
 
 ### Padrões de Consulta Candidatos
 
+<<<<<<< HEAD
 O mecanismo de consulta atual aceita combinações de termos S, P, O. Com triplas
 entre aspas, uma tripla em si se torna um termo válido nessas posições. Abaixo estão
 padrões de consulta candidatos que suportam os objetivos originais.
+=======
+O mecanismo de consulta atual aceita combinações de termos S, P, O. Com triplas entre aspas,
+uma tripla se torna um termo válido nessas posições. Abaixo estão os padrões de consulta
+candidatos que suportam os objetivos originais.
+>>>>>>> 82edf2d (New md files from RunPod)
 
 #### Semântica do Parâmetro do Grafo
 
@@ -384,7 +406,11 @@ seguirá em fases:
 
 1. **Fase 1: Cassandra**
    Começar com o armazenamento Cassandra próprio
+<<<<<<< HEAD
    O controle total sobre a camada de armazenamento permite iteração rápida
+=======
+   Controle total sobre a camada de armazenamento permite iteração rápida
+>>>>>>> 82edf2d (New md files from RunPod)
    O esquema será redesenhado do zero para quads + reificação
    Validar o modelo de dados e os padrões de consulta em relação a casos de uso reais
 
@@ -395,12 +421,20 @@ O Cassandra requer múltiplas tabelas para suportar diferentes padrões de acess
 
 ##### Padrões de Consulta
 
+<<<<<<< HEAD
 Com quads (g, s, p, o), cada posição pode ser especificada ou curinga, dando
+=======
+Com tuplas (g, s, p, o), cada posição pode ser especificada ou curinga, dando
+>>>>>>> 82edf2d (New md files from RunPod)
 16 padrões de consulta possíveis:
 
 | # | g | s | p | o | Descrição |
 |---|---|---|---|---|-------------|
+<<<<<<< HEAD
 | 1 | ? | ? | ? | ? | Todos os quads |
+=======
+| 1 | ? | ? | ? | ? | Todas as tuplas |
+>>>>>>> 82edf2d (New md files from RunPod)
 | 2 | ? | ? | ? | o | Por objeto |
 | 3 | ? | ? | p | ? | Por predicado |
 | 4 | ? | ? | p | o | Por predicado + objeto |
@@ -415,6 +449,7 @@ Com quads (g, s, p, o), cada posição pode ser especificada ou curinga, dando
 | 13 | g | s | ? | ? | Por grafo + sujeito |
 | 14 | g | s | ? | o | Por grafo + sujeito + objeto |
 | 15 | g | s | p | ? | Por grafo + sujeito + predicado |
+<<<<<<< HEAD
 | 16 | g | s | p | o | Quad exato |
 
 ##### Design de Tabela
@@ -422,11 +457,24 @@ Com quads (g, s, p, o), cada posição pode ser especificada ou curinga, dando
 Restrição do Cassandra: Você só pode consultar de forma eficiente pela chave de partição e, em seguida,
 filtrar nas colunas de agrupamento da esquerda para a direita. Para consultas com curinga "g", "g" deve ser
 uma coluna de agrupamento. Para consultas com "g" especificado, "g" na chave de partição é mais
+=======
+| 16 | g | s | p | o | Tupla exata |
+
+##### Design da Tabela
+
+Restrição do Cassandra: Você só pode consultar de forma eficiente pela chave de partição e, em seguida,
+filtrar nas colunas de agrupamento da esquerda para a direita. Para consultas com curinga "g", "g" deve estar
+em uma coluna de agrupamento. Para consultas com "g" especificado, "g" na chave de partição é mais
+>>>>>>> 82edf2d (New md files from RunPod)
 eficiente.
 
 **Duas famílias de tabelas necessárias:**
 
+<<<<<<< HEAD
 **Família A: consultas com curinga "g"** (g em colunas de agrupamento)
+=======
+**Família A: Consultas com curinga "g"** (g em colunas de agrupamento)
+>>>>>>> 82edf2d (New md files from RunPod)
 
 | Tabela | Partição | Agrupamento | Suporta padrões |
 |-------|-----------|------------|-------------------|
@@ -434,7 +482,11 @@ eficiente.
 | POSG | (user, collection, p) | o, s, g | 3, 4 |
 | OSPG | (user, collection, o) | s, p, g | 2, 6 |
 
+<<<<<<< HEAD
 **Família B: consultas com "g" especificado** (g na chave de partição)
+=======
+**Família B: Consultas com "g" especificado** (g na chave de partição)
+>>>>>>> 82edf2d (New md files from RunPod)
 
 | Tabela | Partição | Agrupamento | Suporta padrões |
 |-------|-----------|------------|-------------------|
@@ -446,7 +498,11 @@ eficiente.
 
 | Tabela | Partição | Agrupamento | Propósito |
 |-------|-----------|------------|---------|
+<<<<<<< HEAD
 | COLL | (user, collection) | g, s, p, o | Enumerar todos os quads na coleção |
+=======
+| COLL | (user, collection) | g, s, p, o | Enumerar todas as tuplas na coleção |
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ##### Caminhos de Escrita e Exclusão
 
@@ -454,6 +510,7 @@ eficiente.
 
 **Caminho de exclusão da coleção**:
 1. Iterar na tabela COLL para `(user, collection)`
+<<<<<<< HEAD
 2. Para cada quad, excluir de todas as 6 tabelas de consulta
 3. Excluir da tabela COLL (ou exclusão por intervalo)
 
@@ -467,6 +524,21 @@ com exclusão eficiente da coleção.
 ##### Triplas Citadas no Armazenamento
 
 O sujeito ou o objeto podem ser uma tripla em si. Opções:
+=======
+2. Para cada tupla, excluir de todas as 6 tabelas de consulta
+3. Excluir da tabela COLL (ou exclusão por intervalo)
+
+**Caminho de exclusão de uma única tupla**: Excluir diretamente de todas as 7 tabelas.
+
+##### Custo de Armazenamento
+
+Cada tupla é armazenada 7 vezes. Este é o custo da consulta flexível
+combinado com a exclusão eficiente da coleção.
+
+##### Triplas Citadas no Armazenamento
+
+Sujeito ou objeto podem ser uma tripla em si. Opções:
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **Opção A: Serializar triplas citadas para string canônica**
 ```
@@ -507,7 +579,11 @@ componentes.
 Esta abordagem reduz os riscos do projeto, validando em um backend totalmente controlado
 antes de implementar em todos os armazenamentos.
 
+<<<<<<< HEAD
 #### Renomear Classe de Valor → Termo
+=======
+#### Renomeação de Valor → Termo
+>>>>>>> 82edf2d (New md files from RunPod)
 
 A classe `Value` será renomeada para `Term`. Isso afeta aproximadamente 78 arquivos em
 todo o código-fonte. A renomeação funciona como um fator de força: qualquer código que ainda use
@@ -533,7 +609,12 @@ Nunca arestas (triplas com aspas)
 Nunca valores literais
 Nunca nós vazios
 
+<<<<<<< HEAD
 Isso mantém o armazenamento vetorial simples - ele lida com a similaridade semântica de entidades nomeadas. A estrutura do grafo lida com relacionamentos, reificação e metadados.
+=======
+Isso mantém o armazenamento vetorial simples - ele lida com a similaridade semântica de entidades nomeadas.
+A estrutura do grafo lida com relacionamentos, reificação e metadados.
+>>>>>>> 82edf2d (New md files from RunPod)
 Triplas com aspas e grafos nomeados não complicam as operações vetoriais.
 
 ## Estratégia de Teste
@@ -542,7 +623,10 @@ Use a estratégia de teste existente. Como esta é uma alteração disruptiva, c
 conjunto de testes de ponta a ponta para validar que as novas estruturas funcionam corretamente em
 todos os componentes.
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 82edf2d (New md files from RunPod)
 ## Plano de Migração
 
 A versão 2.0 é uma versão disruptiva; nenhuma compatibilidade com versões anteriores é necessária
@@ -552,18 +636,31 @@ Considere ferramentas de migração para converter triplas existentes
 ## Perguntas Abertas
 
 **Nós vazios**: Suporte limitado confirmado. Pode ser necessário decidir sobre
+<<<<<<< HEAD
   estratégia de skolemização (gerar IRIs na carga, ou preservar os IDs dos nós vazios).
+=======
+  estratégia de skolemização (gerar IRIs na carga ou preservar os IDs dos nós vazios).
+>>>>>>> 82edf2d (New md files from RunPod)
 **Sintaxe de consulta**: Qual é a sintaxe concreta para especificar triplas com aspas
   em consultas? É necessário definir a API de consulta.
 ~~**Vocabulário de predicados**~~: Resolvido. Qualquer predicado RDF válido é permitido,
   incluindo vocabulários personalizados do usuário. Mínimas suposições sobre a validade do RDF.
   Pouquíssimos valores fixos (por exemplo, `rdfs:label` usado em alguns lugares).
+<<<<<<< HEAD
   Estratégia: evite fixar qualquer coisa, a menos que seja absolutamente necessário.
 ~~**Impacto no armazenamento vetorial**~~: Resolvido. Os armazenamentos vetoriais sempre apontam para IRIs
   apenas - nunca arestas, literais ou nós vazios. Triplas com aspas e
   a reificação não afetam o armazenamento vetorial.
 ~~**Semântica do grafo nomeado**~~: Resolvido. As consultas padrão
   para o grafo padrão (corresponde ao comportamento do SPARQL, compatível com versões anteriores). Parâmetro de grafo explícito
+=======
+  Estratégia: evitar fixar qualquer coisa, a menos que seja absolutamente necessário.
+~~**Impacto no armazenamento vetorial**~~: Resolvido. Os armazenamentos vetoriais sempre apontam para IRIs
+  apenas - nunca arestas, literais ou nós vazios. Triplas com aspas e
+  a reificação não afetam o armazenamento vetorial.
+~~**Semântica do grafo nomeado**~~: Resolvido. As consultas usam o grafo padrão
+  (corresponde ao comportamento do SPARQL, compatível com versões anteriores). Parâmetro de grafo explícito
+>>>>>>> 82edf2d (New md files from RunPod)
   necessário para consultar grafos nomeados ou todos os grafos.
 
 ## Referências

@@ -13,7 +13,11 @@
 
 **减少数据库查询量**: 通过批量和缓存，实现总数据库查询量减少 50-80%
 **提高响应时间**: 目标是子图构建速度提高 3-5 倍，标签解析速度提高 2-3 倍
+<<<<<<< HEAD
 **增强可扩展性**: 更好地管理内存，支持更大的知识图谱
+=======
+**增强可扩展性**: 通过更好的内存管理，支持更大的知识图谱
+>>>>>>> 82edf2d (New md files from RunPod)
 **保持准确性**: 保持现有的 GraphRAG 功能和结果质量
 **启用并发性**: 提高并行处理能力，以支持多个并发请求
 **减少内存占用**: 实现高效的数据结构和内存管理
@@ -70,11 +74,19 @@
 **响应时间**: 中等大小图的响应时间为15-30秒
 **内存使用**: 缓存会随着时间增长
 **缓存有效性**: 0% - 每次请求都会重置缓存
+<<<<<<< HEAD
 **对象创建开销**: 每个请求都会创建/销毁GraphRag + Query对象
 
 本规范通过实现批量查询、智能缓存和并行处理来解决这些问题。通过优化查询模式和数据访问，TrustGraph可以：
 支持拥有数百万个实体的企业级知识图谱
 为典型的查询提供亚秒级的响应时间
+=======
+**对象创建开销**: 每个请求会创建/销毁GraphRag + Query对象
+
+本规范通过实现批量查询、智能缓存和并行处理来解决这些问题。通过优化查询模式和数据访问，TrustGraph可以：
+支持拥有数百万个实体的企业级知识图谱
+为典型查询提供亚秒级的响应时间
+>>>>>>> 82edf2d (New md files from RunPod)
 处理数百个并发的GraphRAG请求
 随着图的大小和复杂性而高效扩展
 
@@ -142,7 +154,11 @@ class TraversalState:
 ```
 
 这种方法允许：
+<<<<<<< HEAD
 通过跟踪访问的实体实现高效的循环检测
+=======
+通过跟踪访问过的实体实现高效的循环检测
+>>>>>>> 82edf2d (New md files from RunPod)
 在每个遍历层级进行批量查询准备
 内存效率高的状态管理
 当达到大小限制时，可以提前终止
@@ -213,6 +229,7 @@ class CacheManager:
 #### 修改后的 API：
 
 **GraphRag.query()** - 增强了性能优化：
+<<<<<<< HEAD
 添加了 cache_manager 参数以进行缓存控制
 包含 performance_metrics 返回值
 添加了 query_timeout 参数以提高可靠性
@@ -220,6 +237,15 @@ class CacheManager:
 **Query 类** - 进行了重构，用于批量处理：
 将单个实体处理替换为批量操作
 添加了异步上下文管理器以进行资源清理
+=======
+添加 `cache_manager` 参数以进行缓存控制
+包含 `performance_metrics` 返回值
+添加 `query_timeout` 参数以提高可靠性
+
+**Query 类** - 重新设计，用于批量处理：
+将单个实体处理替换为批量操作
+添加异步上下文管理器以进行资源清理
+>>>>>>> 82edf2d (New md files from RunPod)
 包含进度回调函数，用于长时间运行的操作
 
 ### 实施细节
@@ -250,7 +276,11 @@ class GraphRag:
         # q automatically destroyed when function exits
 ```
 
+<<<<<<< HEAD
 **优化后的长期运行架构：**
+=======
+**优化后的长寿命架构：**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```python
 class Processor(FlowProcessor):
     def __init__(self, **params):
@@ -320,9 +350,15 @@ class QueryExecutor:
         return await self.rag.execute_optimized_query(query, self.context)
 ```
 
+<<<<<<< HEAD
 这种架构上的改变提供了：
 **对于具有常见关系的图，数据库查询减少 10-20%**（相对于目前 0% 的减少）
 **消除了每个请求中的对象创建开销**
+=======
+这一架构变更提供了：
+**对于具有常见关系的图，数据库查询减少 10-20%**（相对于目前 0% 的减少）
+**消除了每个请求的对象的创建开销**
+>>>>>>> 82edf2d (New md files from RunPod)
 **持久连接池和客户端重用**
 **缓存 TTL 窗口内的跨请求优化**
 
@@ -390,7 +426,11 @@ for edge in subgraph:
     o = await self.maybe_label(edge[2])  # Individual query
 ```
 
+<<<<<<< HEAD
 **优化后的并行实现：**
+=======
+**优化并行实现：**
+>>>>>>> 82edf2d (New md files from RunPod)
 ```python
 async def resolve_labels_parallel(self, subgraph: List[Triple]) -> List[Triple]:
     # Collect all unique entities needing labels
@@ -487,10 +527,17 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 **缓解策略：**
 **保守的 TTL 值**：在性能提升 (10-20%) 和数据新鲜度之间取得平衡。
 **缓存失效钩子**：可选地与图的修改事件集成。
+<<<<<<< HEAD
 **监控仪表板**：跟踪缓存命中率与数据时效性事件。
 **可配置的缓存策略**：允许根据修改频率进行按部署的调整。
 
 **根据图修改速率推荐的缓存配置：**
+=======
+**监控仪表板**：跟踪缓存命中率与数据陈旧事件。
+**可配置的缓存策略**：允许根据修改频率进行按部署的调整。
+
+**基于图修改速率的推荐缓存配置：**
+>>>>>>> 82edf2d (New md files from RunPod)
 **高修改速率 (>100 次/小时)**：TTL=60 秒，较小的缓存大小。
 **中等修改速率 (10-100 次/小时)**：TTL=300 秒 (默认值)。
 **低修改速率 (<10 次/小时)**：TTL=600 秒，较大的缓存大小。
@@ -517,8 +564,13 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 ### 预期的性能提升
 
 **查询减少：**
+<<<<<<< HEAD
 当前：典型请求需要 ~9,000+ 次查询。
 优化后：~50-100 个批处理查询 (减少 98%)。
+=======
+当前：典型请求约 9,000+ 个查询。
+优化后：约 50-100 个批处理查询 (减少 98%)。
+>>>>>>> 82edf2d (New md files from RunPod)
 
 **响应时间改进：**
 图遍历：15-20 秒 → 3-5 秒 (快 4-5 倍)。
@@ -527,7 +579,11 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 
 **内存效率：**
 限制的缓存大小可防止内存泄漏。
+<<<<<<< HEAD
 高效的数据结构可减少内存占用 ~40%。
+=======
+高效的数据结构可将内存占用减少约 40%。
+>>>>>>> 82edf2d (New md files from RunPod)
 通过适当的资源清理实现更好的垃圾回收。
 
 **现实的性能期望：**
@@ -549,13 +605,21 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 数据库连接池利用率。
 内存使用情况和垃圾回收影响。
 
+<<<<<<< HEAD
 **性能基准测试 (Xìngnéng Jīzhǔ Cèshì):**
 自动化性能回归测试 (Zìdònghuà xìngnéng huíguī cèshì)
 使用真实数据量的负载测试 (Shǐyòng zhēnshí shùjùliàng de fùzài cèshì)
 与当前实现相比的基准测试 (Yǔ xiàncái shíxiàn xiāngbǐ de jīzhǔ cèshì)
+=======
+**性能基准测试:**
+自动化性能回归测试
+使用真实数据量的负载测试
+与当前实现相比的基准测试
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## 测试策略 (Cèshì Cèlüè)
 
+<<<<<<< HEAD
 ### 单元测试 (Dānyuán Cèshì)
 对遍历、缓存和标签解析等各个组件进行单独测试 (Duì biànlì, cáichǔ hé biāoqiān jiěshì děng gège zǔjiàn jìnxíng dānduǒ cèshì)
 模拟数据库交互以进行性能测试 (Mónǐ shùjùkù jiāohù yǐ jìnxíng xìngnéng cèshì)
@@ -578,9 +642,34 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 验证现有 GraphRAG API 的兼容性 (Yànzhèng xiàn yǒu GraphRAG API de jiānróng xìng)
 使用各种图数据库后端进行测试 (Shǐyòng gè zhǒng tú shùjùkù hòudùàn jìnxíng cèshì)
 验证与当前实现相比的结果准确性 (Yànzhèng yǔ xiàncái shíxiàn xiāngbǐ de jiéguǒ zhǔnquè xìng)
+=======
+### 单元测试
+对遍历、缓存和标签解析的各个组件进行测试
+模拟数据库交互以进行性能测试
+缓存驱逐和 TTL 过期测试
+错误处理和超时场景
+
+### 集成测试
+使用优化后的 GraphRAG 查询进行端到端测试
+使用真实数据进行数据库交互测试
+并发请求处理和资源管理
+内存泄漏检测和资源清理验证
+
+### 性能测试
+与当前实现相比的基准测试
+使用不同大小和复杂度的图进行负载测试
+压力测试以检查内存和连接限制
+针对性能改进进行的回归测试
+
+### 兼容性测试
+验证现有 GraphRAG API 的兼容性
+使用各种图数据库后端进行测试
+验证与当前实现相比的结果准确性
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## 实施计划 (Shíshī Jìhuà)
 
+<<<<<<< HEAD
 ### 直接实施方法 (Zhíjiē Shíshī Fāngfǎ)
 由于允许 API 更改，因此在不引入迁移复杂性的情况下，直接实施优化：(Yóuyú yǔnxǔ API gēnggǎi, yīncǐ zài bù yǐnrù qiān yí fùzá xìng de qíngkuàng xià, zhíjiē shíshī yōuhuà:)
 
@@ -594,9 +683,25 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 **GraphRag 类 (GraphRag Class)**: 添加缓存层 (~40 行代码) (Tiānjiā cáichǔ céng (~40 háng dàimǎ))
 **处理器类 (Processor Class)**: 修改为使用持久的 GraphRag 实例 (~20 行代码) (Gǎixiāng wéi shǐyòng chíjiǔ de GraphRag yǐnshì (~20 háng dàimǎ))
 **总计 (Zǒngjì)**: ~140 行专注于的变更，主要在现有类中 (~140 háng zhuānzhù yú de biàngēng, zhǔyào zài xiàn yǒu lèi zhōng)
+=======
+### 直接实施方法
+由于允许 API 更改，因此无需迁移复杂性，可以直接实现优化：
+
+1. **替换 `follow_edges` 方法**: 使用迭代批量遍历重写
+2. **优化 `get_labelgraph`**: 实现并行标签解析
+3. **添加长期 GraphRag**: 修改 Processor 以维护持久实例
+4. **实现标签缓存**: 为 GraphRag 类添加 LRU 缓存和 TTL
+
+### 变更范围
+**查询类**: 替换 `follow_edges` 中的约 50 行代码，添加约 30 行批量处理代码
+**GraphRag 类**: 添加缓存层（约 40 行代码）
+**Processor 类**: 修改为使用持久的 GraphRag 实例（约 20 行代码）
+**总计**: 约 140 行代码的集中性变更，主要在现有类中
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## 时间线 (Shíjiān Xiàn)
 
+<<<<<<< HEAD
 **第一周: 核心实施 (Dì Yī Zhōu: Héxīn Shíshī)**
 使用批量迭代遍历替换 `follow_edges` (Shǐyòng pīliàng diànxìng biànlì tiānyuē `follow_edges`)
 在 `get_labelgraph` 中实施并行标签解析 (Zài `get_labelgraph` zhōng shíshī bìngxíng biāoqiān jiěshì)
@@ -613,9 +718,28 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 部署优化后的实现 (Bùshǔ yōuhuà hòu de shíshī)
 监控性能改进 (Jiānkòng xìngnéng gǎijìn)
 根据实际使用情况微调缓存 TTL 和批量大小 (Gēnjù shíjì shǐyòng qíngkuàng wēitiáo cáichǔ TTL hé pīliàng dàxiǎo)
+=======
+**第一周：核心实施**
+使用批量迭代遍历替换 `follow_edges`
+在 `get_labelgraph` 中实现并行标签解析
+在 Processor 中添加长期 GraphRag 实例
+实现标签缓存层
+
+**第二周：测试和集成**
+对新的遍历和缓存逻辑进行单元测试
+与当前实现相比的性能基准测试
+使用真实图数据的集成测试
+代码审查和优化
+
+**第三周：部署**
+部署优化的实现
+监控性能改进
+根据实际使用情况微调缓存 TTL 和批次大小
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## 开放性问题 (Kāifàng Xìng Wèntí)
 
+<<<<<<< HEAD
 **数据库连接池 (Shùjùkù Liánjiē Chí)**: 我们应该实施自定义连接池，还是依赖于现有的数据库客户端连接池？(Wǒmen yīnggāi shíshī zìdìngyì liánjiē chí, háishì yīlài yú xiàn yǒu de shùjùkù kèfāngliánjiē chí?)
 **缓存持久性 (Cáichǔ Chíjiǔ Xìng)**: 标签和嵌入式缓存是否应该在服务重启后持久存在？(Biāoqiān hé qiànrùshì cáichǔ shìfǒu yīnggāi zài fúwù chóngqí hòu chíjiǔ cúnzài?)
 **分布式缓存 (Fēn Bùshì Cáichǔ)**: 对于多实例部署，我们是否应该实施具有 Redis/Memcached 的分布式缓存？(Duìyú duō yǐnshì bùshǔ, wǒmen shìfǒu yīnggāi shíshī yǒuyú Redis/Memcached de fēn bùshì cáichǔ?)
@@ -627,3 +751,16 @@ async def execute_with_timeout(self, query_func, timeout: int = 30):
 GraphRAG API 文档 (GraphRAG API 文档)
 示例代码 (Lìmiàn dàimǎ)
 相关论文 (Xiāngguān lùnwén)
+=======
+**数据库连接池**: 我们应该实现自定义连接池，还是依赖于现有的数据库客户端池？
+**缓存持久性**: 标签和嵌入式缓存是否应该在服务重启后持久存在？
+**分布式缓存**: 对于多实例部署，我们是否应该实现使用 Redis/Memcached 的分布式缓存？
+**查询结果格式**: 我们是否应该优化内部三元组表示以获得更好的内存效率？
+**监控集成**: 哪些指标应该暴露给现有的监控系统（Prometheus 等）？
+
+## 参考文献
+
+[GraphRAG 原始实现](trustgraph-flow/trustgraph/retrieval/graph_rag/graph_rag.py)
+[TrustGraph 架构原则](architecture-principles.md)
+[集合管理规范](collection-management.md)
+>>>>>>> 82edf2d (New md files from RunPod)

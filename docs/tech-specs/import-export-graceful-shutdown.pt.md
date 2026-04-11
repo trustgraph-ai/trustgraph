@@ -141,7 +141,11 @@ class Publisher:
 ```
 
 **Principais Vantagens do Design:**
+<<<<<<< HEAD
 **Local de Envio Único**: Todas as chamadas de `producer.send()` ocorrem em um único local dentro do método `run()`.
+=======
+**Local de Envio Único**: Todas as chamadas `producer.send()` ocorrem em um único local dentro do método `run()`.
+>>>>>>> 82edf2d (New md files from RunPod)
 **Máquina de Estados Clara**: Três estados claros - em execução, esvaziando, parado.
 **Proteção por Timeout**: Não fica indefinidamente travado durante o esvaziamento.
 **Melhor Observabilidade**: Registro claro do progresso do esvaziamento e das transições de estado.
@@ -361,11 +365,19 @@ class Subscriber:
             return False
 ```
 
+<<<<<<< HEAD
 **Principais Vantagens do Design (compatível com o padrão do Editor):**
 **Local de Processamento Único**: Todo o processamento de mensagens ocorre no método `run()`
 **Máquina de Estados Clara**: Três estados claros - em execução, esvaziando, parado
 **Pausa Durante o Esvaziamento**: Interrompe a aceitação de novas mensagens do Pulsar enquanto esvazia as filas existentes
 **Proteção por Timeout**: Não fica indefinidamente travado durante o esvaziamento
+=======
+**Principais Vantagens do Design (compatível com o padrão do Publicador):**
+**Local de Processamento Único**: Todo o processamento de mensagens ocorre no método `run()`
+**Máquina de Estados Clara**: Três estados claros - em execução, esvaziando, parado
+**Pausa Durante o Esvaziamento**: Interrompe a aceitação de novas mensagens do Pulsar enquanto esvazia as filas existentes
+**Proteção por Timeout**: Não fica indefinidamente bloqueado durante o esvaziamento
+>>>>>>> 82edf2d (New md files from RunPod)
 **Limpeza Adequada**: Reconhece negativamente quaisquer mensagens não entregues durante o desligamento
 
 #### B. Melhorias no Manipulador de Exportação
@@ -637,7 +649,11 @@ Adicionar esvaziamento da fila do publicador
 Implantar no ambiente de teste
 
 ### Fase 2: Desligamento Gradual (Semana 2)
+<<<<<<< HEAD
 Implementar coordenação de desligamento
+=======
+Implementar a coordenação de desligamento
+>>>>>>> 82edf2d (New md files from RunPod)
 Adicionar estratégias de backpressure
 Testes de desempenho
 
@@ -672,7 +688,11 @@ Degradação gradual se novos recursos não estiverem disponíveis
 
 Nenhum novo vetor de ataque introduzido
 O backpressure impede ataques de esgotamento de memória
+<<<<<<< HEAD
 Limites configuráveis ​​evitam o abuso de recursos
+=======
+Limites configuráveis evitam o abuso de recursos
+>>>>>>> 82edf2d (New md files from RunPod)
 
 ## Impacto no Desempenho
 
