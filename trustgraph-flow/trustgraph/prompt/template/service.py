@@ -65,7 +65,7 @@ class Processor(FlowProcessor):
             )
         )
 
-        self.register_config_handler(self.on_prompt_config)
+        self.register_config_handler(self.on_prompt_config, types=["prompt"])
 
         # Null configuration, should reload quickly
         self.manager = PromptManager()

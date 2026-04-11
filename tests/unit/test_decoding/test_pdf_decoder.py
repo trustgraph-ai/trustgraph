@@ -24,12 +24,10 @@ class MockAsyncProcessor:
 class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
     """Test PDF decoder processor functionality"""
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_processor_initialization(self, mock_producer, mock_consumer, mock_cs_producer, mock_cs_consumer):
+    async def test_processor_initialization(self, mock_producer, mock_consumer):
         """Test PDF decoder processor initialization"""
         config = {
             'id': 'test-pdf-decoder',
@@ -44,13 +42,11 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         assert consumer_specs[0].name == "input"
         assert consumer_specs[0].schema == Document
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_success(self, mock_pdf_loader_class, mock_producer, mock_consumer, mock_cs_producer, mock_cs_consumer):
+    async def test_on_message_success(self, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test successful PDF processing"""
         # Mock PDF content
         pdf_content = b"fake pdf content"
@@ -85,7 +81,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Mock save_child_document to avoid waiting for librarian response
-        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         await processor.on_message(mock_msg, None, mock_flow)
 
@@ -94,13 +90,11 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         # Verify triples were sent for each page (provenance)
         assert mock_triples_flow.send.call_count == 2
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_empty_pdf(self, mock_pdf_loader_class, mock_producer, mock_consumer, mock_cs_producer, mock_cs_consumer):
+    async def test_on_message_empty_pdf(self, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test handling of empty PDF"""
         pdf_content = b"fake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
@@ -128,13 +122,11 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         mock_output_flow.send.assert_not_called()
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
-    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_unicode_content(self, mock_pdf_loader_class, mock_producer, mock_consumer, mock_cs_producer, mock_cs_consumer):
+    async def test_on_message_unicode_content(self, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test handling of unicode content in PDF"""
         pdf_content = b"fake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
@@ -165,7 +157,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Mock save_child_document to avoid waiting for librarian response
-        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         await processor.on_message(mock_msg, None, mock_flow)
 

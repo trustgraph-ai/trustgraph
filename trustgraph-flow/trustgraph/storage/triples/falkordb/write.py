@@ -3,7 +3,6 @@
 Graph writer.  Input is graph edge.  Writes edges to FalkorDB graph.
 """
 
-import pulsar
 import base64
 import os
 import argparse
@@ -58,7 +57,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         self.io = FalkorDB.from_url(graph_url).select_graph(database)
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     def create_node(self, uri, user, collection):
 

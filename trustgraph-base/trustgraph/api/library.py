@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 # Lower threshold provides progress feedback and resumability on slower connections
 CHUNKED_UPLOAD_THRESHOLD = 2 * 1024 * 1024
 
-# Default chunk size (5MB - S3 multipart minimum)
-DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
+# Default chunk size (3MB - stays under broker message size limits
+# after base64 encoding ~4MB)
+DEFAULT_CHUNK_SIZE = 3 * 1024 * 1024
 
 
 def to_value(x):

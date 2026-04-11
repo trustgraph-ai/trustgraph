@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from ..core.primitives import Triple, Error
-from ..core.topic import topic
+from ..core.topic import queue
 from ..core.metadata import Metadata
 # Note: Document imports will be updated after knowledge schemas are converted
 
@@ -24,10 +24,13 @@ from ..core.metadata import Metadata
 #   <- (document_metadata)
 #   <- (error)
 
-# get-document-content
+# get-document-content [DEPRECATED — use stream-document instead]
 #   -> (document_id)
 #   <- (content)
 #   <- (error)
+#   NOTE: Returns entire document in a single message. Fails for documents
+#   exceeding the broker's max message size. Use stream-document which
+#   returns content in chunks.
 
 # add-processing
 #   -> (processing_id, processing_metadata)
@@ -220,9 +223,5 @@ class LibrarianResponse:
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works
 
-librarian_request_queue = topic(
-    'librarian', qos='q1', namespace='request'
-)
-librarian_response_queue = topic(
-    'librarian', qos='q1', namespace='response',
-)
+librarian_request_queue = queue('librarian', cls='request')
+librarian_response_queue = queue('librarian', cls='response')

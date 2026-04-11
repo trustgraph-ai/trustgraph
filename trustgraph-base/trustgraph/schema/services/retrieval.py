@@ -1,6 +1,5 @@
-from dataclasses import dataclass
-from ..core.topic import topic
-from ..core.primitives import Error, Term
+from dataclasses import dataclass, field
+from ..core.primitives import Error, Term, Triple
 
 ############################################################################
 
@@ -18,14 +17,16 @@ class GraphRagQuery:
     edge_score_limit: int = 0
     edge_limit: int = 0
     streaming: bool = False
+    parent_uri: str = ""
 
 @dataclass
 class GraphRagResponse:
     error: Error | None = None
     response: str = ""
     end_of_stream: bool = False       # LLM response stream complete
-    explain_id: str | None = None     # Single explain URI (announced as created)
-    explain_graph: str | None = None  # Named graph where explain was stored (e.g., urn:graph:retrieval)
+    explain_id: str | None = None     # Root URI for this explain step
+    explain_graph: str | None = None  # Named graph (e.g., urn:graph:retrieval)
+    explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
     message_type: str = ""            # "chunk" or "explain"
     end_of_session: bool = False      # Entire session complete
 
@@ -46,7 +47,8 @@ class DocumentRagResponse:
     error: Error | None = None
     response: str | None = ""
     end_of_stream: bool = False       # LLM response stream complete
-    explain_id: str | None = None     # Single explain URI (announced as created)
-    explain_graph: str | None = None  # Named graph where explain was stored (e.g., urn:graph:retrieval)
+    explain_id: str | None = None     # Root URI for this explain step
+    explain_graph: str | None = None  # Named graph (e.g., urn:graph:retrieval)
+    explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
     message_type: str = ""            # "chunk" or "explain"
     end_of_session: bool = False      # Entire session complete

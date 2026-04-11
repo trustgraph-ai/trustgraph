@@ -7,6 +7,7 @@ import asyncio
 import time
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -38,21 +39,13 @@ class Subscriber:
         self.pending_acks = {}  # Track messages awaiting delivery
 
         self.consumer = None
+        self.executor = None
 
     def __del__(self):
 
         self.running = False
 
     async def start(self):
-
-        # Create consumer via backend
-        self.consumer = await asyncio.to_thread(
-            self.backend.create_consumer,
-            topic=self.topic,
-            subscription=self.subscription,
-            schema=self.schema,
-            consumer_type='shared',
-        )
 
         self.task = asyncio.create_task(self.run())
 
@@ -79,6 +72,20 @@ class Subscriber:
                 self.metrics.state("stopped")
 
             try:
+
+                # Create consumer and dedicated thread if needed
+                # (first run or after failure)
+                if self.consumer is None:
+                    self.executor = ThreadPoolExecutor(max_workers=1)
+                    loop = asyncio.get_event_loop()
+                    self.consumer = await loop.run_in_executor(
+                        self.executor,
+                        lambda: self.backend.create_consumer(
+                            topic=self.topic,
+                            subscription=self.subscription,
+                            schema=self.schema,
+                        ),
+                    )
 
                 if self.metrics:
                     self.metrics.state("running")
@@ -128,9 +135,12 @@ class Subscriber:
                     # Process messages only if not draining
                     if not self.draining:
                         try:
-                            msg = await asyncio.to_thread(
-                                self.consumer.receive,
-                                timeout_millis=250
+                            loop = asyncio.get_event_loop()
+                            msg = await loop.run_in_executor(
+                                self.executor,
+                                lambda: self.consumer.receive(
+                                    timeout_millis=250
+                                ),
                             )
                         except Exception as e:
                             # Handle timeout from any backend
@@ -172,15 +182,18 @@ class Subscriber:
                     except Exception:
                         pass  # Already closed or error
                     self.consumer = None
-                
-         
+
+                if self.executor:
+                    self.executor.shutdown(wait=False)
+                    self.executor = None
+
             if self.metrics:
                 self.metrics.state("stopped")
 
             if not self.running and not self.draining:
                 return
-            
-            # If handler drops out, sleep a retry
+
+            # Sleep before retry
             await asyncio.sleep(1)
 
     async def subscribe(self, id):

@@ -10,10 +10,10 @@ class TriplesQueryRequestTranslator(MessageTranslator):
     def __init__(self):
         self.value_translator = ValueTranslator()
     
-    def to_pulsar(self, data: Dict[str, Any]) -> TriplesQueryRequest:
-        s = self.value_translator.to_pulsar(data["s"]) if "s" in data else None
-        p = self.value_translator.to_pulsar(data["p"]) if "p" in data else None
-        o = self.value_translator.to_pulsar(data["o"]) if "o" in data else None
+    def decode(self, data: Dict[str, Any]) -> TriplesQueryRequest:
+        s = self.value_translator.decode(data["s"]) if "s" in data else None
+        p = self.value_translator.decode(data["p"]) if "p" in data else None
+        o = self.value_translator.decode(data["o"]) if "o" in data else None
         g = data.get("g")  # None=default graph, "*"=all graphs
 
         return TriplesQueryRequest(
@@ -28,7 +28,7 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             batch_size=int(data.get("batch-size", 20)),
         )
     
-    def from_pulsar(self, obj: TriplesQueryRequest) -> Dict[str, Any]:
+    def encode(self, obj: TriplesQueryRequest) -> Dict[str, Any]:
         result = {
             "limit": obj.limit,
             "user": obj.user,
@@ -38,11 +38,11 @@ class TriplesQueryRequestTranslator(MessageTranslator):
         }
 
         if obj.s:
-            result["s"] = self.value_translator.from_pulsar(obj.s)
+            result["s"] = self.value_translator.encode(obj.s)
         if obj.p:
-            result["p"] = self.value_translator.from_pulsar(obj.p)
+            result["p"] = self.value_translator.encode(obj.p)
         if obj.o:
-            result["o"] = self.value_translator.from_pulsar(obj.o)
+            result["o"] = self.value_translator.encode(obj.o)
         if obj.g is not None:
             result["g"] = obj.g
 
@@ -55,14 +55,14 @@ class TriplesQueryResponseTranslator(MessageTranslator):
     def __init__(self):
         self.subgraph_translator = SubgraphTranslator()
     
-    def to_pulsar(self, data: Dict[str, Any]) -> TriplesQueryResponse:
+    def decode(self, data: Dict[str, Any]) -> TriplesQueryResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: TriplesQueryResponse) -> Dict[str, Any]:
+    def encode(self, obj: TriplesQueryResponse) -> Dict[str, Any]:
         return {
-            "response": self.subgraph_translator.from_pulsar(obj.triples)
+            "response": self.subgraph_translator.encode(obj.triples)
         }
     
-    def from_response_with_completion(self, obj: TriplesQueryResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: TriplesQueryResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), obj.is_final
+        return self.encode(obj), obj.is_final

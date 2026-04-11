@@ -398,16 +398,11 @@ def main():
     print("=" * 60)
     print(tr.t("cli.verify_system_status.title"))
     print("=" * 60)
-#    print(f"Global timeout: {args.global_timeout}s")
-#    print(f"Check timeout: {args.check_timeout}s")
-#    print(f"Retry delay: {args.retry_delay}s")
-#    print("=" * 60)
     print()
 
     # Phase 1: Infrastructure
     print(tr.t("cli.verify_system_status.phase_1"))
     print("-" * 60)
-
     if not checker.run_check(
         tr.t("cli.verify_system_status.check_name.pulsar"),
         check_pulsar,

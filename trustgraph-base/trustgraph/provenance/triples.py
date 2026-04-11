@@ -353,18 +353,21 @@ def question_triples(
     question_uri: str,
     query: str,
     timestamp: Optional[str] = None,
+    parent_uri: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for a question activity.
+    Build triples for a question entity.
 
     Creates:
-    - Activity declaration for the question
+    - Entity declaration for the question
     - Query text and timestamp
+    - Optional wasDerivedFrom link to parent (for sub-traces)
 
     Args:
         question_uri: URI of the question (from question_uri)
         query: The user's query text
         timestamp: ISO timestamp (defaults to now)
+        parent_uri: Optional parent URI to link as wasDerivedFrom (for sub-traces)
 
     Returns:
         List of Triple objects
@@ -372,14 +375,21 @@ def question_triples(
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-    return [
-        _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+    triples = [
+        _triple(question_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
         _triple(question_uri, RDF_TYPE, _iri(TG_GRAPH_RAG_QUESTION)),
         _triple(question_uri, RDFS_LABEL, _literal("GraphRAG Question")),
         _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(question_uri, TG_QUERY, _literal(query)),
     ]
+
+    if parent_uri:
+        triples.append(
+            _triple(question_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri))
+        )
+
+    return triples
 
 
 def grounding_triples(
@@ -407,7 +417,7 @@ def grounding_triples(
         _triple(grounding_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(grounding_uri, RDF_TYPE, _iri(TG_GROUNDING)),
         _triple(grounding_uri, RDFS_LABEL, _literal("Grounding")),
-        _triple(grounding_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
+        _triple(grounding_uri, PROV_WAS_DERIVED_FROM, _iri(question_uri)),
     ]
 
     for concept in concepts:
@@ -455,11 +465,18 @@ def exploration_triples(
     return triples
 
 
-def _quoted_triple(s: str, p: str, o: str) -> Term:
-    """Create a quoted triple term (RDF-star) from string values."""
+def _quoted_triple(s, p, o) -> Term:
+    """Create a quoted triple term (RDF-star).
+
+    Accepts either Term objects (preserving original types) or plain
+    strings (treated as IRIs for backward compatibility).
+    """
+    s_term = s if isinstance(s, Term) else _iri(s)
+    p_term = p if isinstance(p, Term) else _iri(p)
+    o_term = o if isinstance(o, Term) else _iri(o)
     return Term(
         type=TRIPLE,
-        triple=Triple(s=_iri(s), p=_iri(p), o=_iri(o))
+        triple=Triple(s=s_term, p=p_term, o=o_term)
     )
 
 
@@ -575,18 +592,21 @@ def docrag_question_triples(
     question_uri: str,
     query: str,
     timestamp: Optional[str] = None,
+    parent_uri: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for a document RAG question activity.
+    Build triples for a document RAG question entity.
 
     Creates:
-    - Activity declaration with tg:Question type
+    - Entity declaration with tg:Question type
     - Query text and timestamp
+    - Optional wasDerivedFrom link to parent (for sub-traces)
 
     Args:
         question_uri: URI of the question (from docrag_question_uri)
         query: The user's query text
         timestamp: ISO timestamp (defaults to now)
+        parent_uri: Optional parent URI to link as wasDerivedFrom (for sub-traces)
 
     Returns:
         List of Triple objects
@@ -594,14 +614,21 @@ def docrag_question_triples(
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-    return [
-        _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+    triples = [
+        _triple(question_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
         _triple(question_uri, RDF_TYPE, _iri(TG_DOC_RAG_QUESTION)),
         _triple(question_uri, RDFS_LABEL, _literal("DocumentRAG Question")),
         _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(question_uri, TG_QUERY, _literal(query)),
     ]
+
+    if parent_uri:
+        triples.append(
+            _triple(question_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri))
+        )
+
+    return triples
 
 
 def docrag_exploration_triples(
