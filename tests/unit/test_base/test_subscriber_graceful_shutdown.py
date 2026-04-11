@@ -236,6 +236,10 @@ async def test_subscriber_graceful_shutdown():
     with patch.object(subscriber, 'run') as mock_run:
         # Mock run that simulates graceful shutdown
         async def mock_run_graceful():
+            # Honor the readiness contract: real run() signals _ready
+            # after binding the consumer, so start() can unblock. Mocks
+            # of run() must do the same or start() hangs forever.
+            subscriber._ready.set_result(None)
             # Process messages while running, then drain
             while subscriber.running or subscriber.draining:
                 if subscriber.draining:
@@ -337,6 +341,8 @@ async def test_subscriber_pending_acks_cleanup():
     with patch.object(subscriber, 'run') as mock_run:
         # Mock run that simulates cleanup of pending acks
         async def mock_run_cleanup():
+            # Honor the readiness contract — see test_subscriber_graceful_shutdown.
+            subscriber._ready.set_result(None)
             while subscriber.running or subscriber.draining:
                 await asyncio.sleep(0.05)
                 if subscriber.draining:
