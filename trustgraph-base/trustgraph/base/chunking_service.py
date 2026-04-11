@@ -88,14 +88,14 @@ class ChunkingService(FlowProcessor):
         chunk_overlap = default_chunk_overlap
 
         try:
-            cs = flow.parameters.get("chunk-size")
+            cs = flow("chunk-size")
             if cs is not None:
                 chunk_size = int(cs)
         except Exception as e:
             logger.warning(f"Could not parse chunk-size parameter: {e}")
 
         try:
-            co = flow.parameters.get("chunk-overlap")
+            co = flow("chunk-overlap")
             if co is not None:
                 chunk_overlap = int(co)
         except Exception as e:

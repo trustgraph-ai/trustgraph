@@ -70,11 +70,12 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         # Mock message and flow
         mock_message = MagicMock()
         mock_consumer = MagicMock()
+        # Flow exposes parameter lookup via __call__: flow("chunk-size")
         mock_flow = MagicMock()
-        mock_flow.parameters.get.side_effect = lambda param: {
+        mock_flow.side_effect = lambda key: {
             "chunk-size": 400,  # Override chunk size
             "chunk-overlap": None  # Use default chunk overlap
-        }.get(param)
+        }.get(key)
 
         # Act
         chunk_size, chunk_overlap = await processor.chunk_document(
@@ -105,10 +106,10 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.parameters.get.side_effect = lambda param: {
+        mock_flow.side_effect = lambda key: {
             "chunk-size": None,  # Use default chunk size
             "chunk-overlap": 25  # Override chunk overlap
-        }.get(param)
+        }.get(key)
 
         # Act
         chunk_size, chunk_overlap = await processor.chunk_document(
@@ -139,10 +140,10 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.parameters.get.side_effect = lambda param: {
+        mock_flow.side_effect = lambda key: {
             "chunk-size": 350,    # Override chunk size
             "chunk-overlap": 30   # Override chunk overlap
-        }.get(param)
+        }.get(key)
 
         # Act
         chunk_size, chunk_overlap = await processor.chunk_document(
@@ -195,15 +196,15 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_consumer = MagicMock()
         mock_producer = AsyncMock()
         mock_triples_producer = AsyncMock()
+        # Flow.__call__ resolves parameters and producers/consumers from the
+        # same dict — merge both kinds here.
         mock_flow = MagicMock()
-        mock_flow.parameters.get.side_effect = lambda param: {
+        mock_flow.side_effect = lambda key: {
             "chunk-size": 400,
             "chunk-overlap": 40,
-        }.get(param)
-        mock_flow.side_effect = lambda name: {
             "output": mock_producer,
             "triples": mock_triples_producer,
-        }.get(name)
+        }.get(key)
 
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)
@@ -245,7 +246,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.parameters.get.return_value = None  # No overrides
+        mock_flow.side_effect = lambda key: None  # No overrides
 
         # Act
         chunk_size, chunk_overlap = await processor.chunk_document(
