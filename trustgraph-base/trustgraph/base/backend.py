@@ -58,6 +58,18 @@ class BackendProducer(Protocol):
 class BackendConsumer(Protocol):
     """Protocol for backend-specific consumer."""
 
+    def ensure_connected(self) -> None:
+        """
+        Eagerly establish the underlying connection and bind the queue.
+
+        Backends that lazily connect on first receive() must implement this
+        so that callers can guarantee the consumer is fully bound — and
+        therefore able to receive responses — before any related request is
+        published. Backends that connect at construction time may make this
+        a no-op.
+        """
+        ...
+
     def receive(self, timeout_millis: int = 2000) -> Message:
         """
         Receive a message from the topic.

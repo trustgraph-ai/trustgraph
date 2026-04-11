@@ -214,6 +214,18 @@ class RabbitMQBackendConsumer:
             and self._channel.is_open
         )
 
+    def ensure_connected(self) -> None:
+        """Eagerly declare and bind the queue.
+
+        Without this, the queue is only declared lazily on the first
+        receive() call. For request/response with ephemeral per-subscriber
+        response queues that is a race: a request published before the
+        response queue is bound will have its reply silently dropped by
+        the broker. Subscriber.start() calls this so callers get a hard
+        readiness barrier."""
+        if not self._is_alive():
+            self._connect()
+
     def receive(self, timeout_millis: int = 2000) -> Message:
         """Receive a message. Raises TimeoutError if none available."""
         if not self._is_alive():
