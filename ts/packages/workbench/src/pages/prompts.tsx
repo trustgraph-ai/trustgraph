@@ -111,7 +111,7 @@ export default function PromptsPage() {
 
       {/* Templates tab */}
       {activeTab === "templates" && (
-        <div id="panel-templates" role="tabpanel" aria-labelledby="tab-templates" className="flex flex-1 flex-col gap-4 overflow-hidden">
+        <div id="panel-templates" role="tabpanel" aria-labelledby="tab-templates" tabIndex={0} className="flex flex-1 flex-col gap-4 overflow-hidden">
           {loading && prompts.length === 0 && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="mr-2 h-5 w-5 animate-spin text-fg-subtle" />
@@ -201,7 +201,7 @@ export default function PromptsPage() {
 
       {/* System Prompt tab */}
       {activeTab === "system" && (
-        <div id="panel-system" role="tabpanel" aria-labelledby="tab-system" className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
+        <div id="panel-system" role="tabpanel" aria-labelledby="tab-system" tabIndex={0} className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
           <div className="border-b border-border bg-surface-100 px-4 py-3">
             <h2 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
               System Prompt

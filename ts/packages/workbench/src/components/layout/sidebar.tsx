@@ -7,6 +7,7 @@ import {
   Coins,
   BrainCircuit,
   Workflow,
+  Plug,
   Settings,
   TestTube2,
   Wifi,
@@ -147,6 +148,8 @@ function FlowSelectorDropdown() {
 // ---------------------------------------------------------------------------
 
 export function Sidebar() {
+  const { featureSwitches } = useSettings((s) => s.settings);
+
   return (
     <aside aria-label="Sidebar" className="flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface-50">
       {/* Logo area */}
@@ -175,6 +178,9 @@ export function Sidebar() {
         <NavItem to="/token-cost" icon={Coins} label="Token Cost" />
         <NavItem to="/knowledge-cores" icon={BrainCircuit} label="Knowledge Cores" />
         <NavItem to="/flows" icon={Workflow} label="Flows" />
+        {featureSwitches.mcpTools && (
+          <NavItem to="/mcp-tools" icon={Plug} label="MCP Tools" />
+        )}
         <NavItem to="/settings" icon={Settings} label="Settings" />
       </nav>
 

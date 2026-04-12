@@ -342,7 +342,7 @@ export default function SettingsPage() {
               onClick={toggleTheme}
               className={cn(
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                isDark ? "bg-brand-600" : "bg-surface-400",
+                isDark ? "bg-brand-600" : "bg-fg-subtle",
               )}
             >
               <span
@@ -372,7 +372,7 @@ export default function SettingsPage() {
                 onClick={() => updateFeatureSwitches({ [key]: !enabled })}
                 className={cn(
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                  enabled ? "bg-brand-600" : "bg-surface-400",
+                  enabled ? "bg-brand-600" : "bg-fg-subtle",
                 )}
               >
                 <span className={cn(

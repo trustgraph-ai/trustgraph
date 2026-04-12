@@ -8,6 +8,7 @@ import PromptsPage from "@/pages/prompts";
 import TokenCostPage from "@/pages/token-cost";
 import KnowledgeCoresPage from "@/pages/knowledge-cores";
 import FlowsPage from "@/pages/flows";
+import McpToolsPage from "@/pages/mcp-tools";
 import SettingsPage from "@/pages/settings";
 import { NotificationToasts } from "@/components/notification-toasts";
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/token-cost" element={<ErrorBoundary><TokenCostPage /></ErrorBoundary>} />
           <Route path="/knowledge-cores" element={<ErrorBoundary><KnowledgeCoresPage /></ErrorBoundary>} />
           <Route path="/flows" element={<ErrorBoundary><FlowsPage /></ErrorBoundary>} />
+          <Route path="/mcp-tools" element={<ErrorBoundary><McpToolsPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Route>
