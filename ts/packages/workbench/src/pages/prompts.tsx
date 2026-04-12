@@ -71,9 +71,9 @@ export default function PromptsPage() {
       {/* Tabs */}
       <div role="tablist" aria-label="Prompt sections" className="mb-4 flex gap-1 rounded-lg bg-surface-100 p-1">
         <button
+          id="tab-templates"
           role="tab"
           aria-selected={activeTab === "templates"}
-          aria-controls="panel-templates"
           onClick={() => setActiveTab("templates")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
@@ -86,9 +86,9 @@ export default function PromptsPage() {
           Templates
         </button>
         <button
+          id="tab-system"
           role="tab"
           aria-selected={activeTab === "system"}
-          aria-controls="panel-system"
           onClick={() => setActiveTab("system")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
@@ -111,7 +111,7 @@ export default function PromptsPage() {
 
       {/* Templates tab */}
       {activeTab === "templates" && (
-        <div id="panel-templates" role="tabpanel" className="flex flex-1 flex-col gap-4 overflow-hidden">
+        <div id="panel-templates" role="tabpanel" aria-labelledby="tab-templates" className="flex flex-1 flex-col gap-4 overflow-hidden">
           {loading && prompts.length === 0 && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="mr-2 h-5 w-5 animate-spin text-fg-subtle" />
@@ -201,7 +201,7 @@ export default function PromptsPage() {
 
       {/* System Prompt tab */}
       {activeTab === "system" && (
-        <div id="panel-system" role="tabpanel" className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
+        <div id="panel-system" role="tabpanel" aria-labelledby="tab-system" className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
           <div className="border-b border-border bg-surface-100 px-4 py-3">
             <h2 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
               System Prompt

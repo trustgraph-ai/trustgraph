@@ -1,0 +1,88 @@
+{
+  "documents": {
+    "d2871466-6dbd-46f3-b548-8cffc77c466f": {
+      "kind": "text/plain",
+      "title": "Test Knowledge",
+      "comments": "Test doc",
+      "user": "test",
+      "tags": [
+        "test"
+      ],
+      "documentType": "source",
+      "id": "d2871466-6dbd-46f3-b548-8cffc77c466f",
+      "time": 1775544601926
+    },
+    "2b954221-169b-4297-9d0b-5733676bdd19": {
+      "id": "2b954221-169b-4297-9d0b-5733676bdd19",
+      "time": 1775545730516,
+      "kind": "application/pdf",
+      "title": "Acme Corporation Test Document",
+      "comments": "End-to-end pipeline test",
+      "user": "test",
+      "tags": [
+        "test",
+        "pipeline"
+      ],
+      "documentType": "source"
+    },
+    "09b14acd-6274-48f3-a468-1ef78ec71147": {
+      "id": "09b14acd-6274-48f3-a468-1ef78ec71147",
+      "user": "test",
+      "kind": "text/plain",
+      "title": "Page 1",
+      "parentId": "2b954221-169b-4297-9d0b-5733676bdd19",
+      "documentType": "page",
+      "time": 1775545736563,
+      "comments": "",
+      "tags": []
+    },
+    "b7bc3c30-65fc-424b-bb8b-6dfeca739250": {
+      "id": "b7bc3c30-65fc-424b-bb8b-6dfeca739250",
+      "user": "test",
+      "kind": "text/plain",
+      "title": "Page 2",
+      "parentId": "2b954221-169b-4297-9d0b-5733676bdd19",
+      "documentType": "page",
+      "time": 1775545738656,
+      "comments": "",
+      "tags": []
+    },
+    "5c884d9d-7b96-48c2-826c-7ca21314edf8": {
+      "id": "5c884d9d-7b96-48c2-826c-7ca21314edf8",
+      "time": 1775545966287,
+      "kind": "application/pdf",
+      "title": "Acme Corporation Test Document",
+      "comments": "End-to-end pipeline test",
+      "user": "test",
+      "tags": [
+        "test",
+        "pipeline"
+      ],
+      "documentType": "source"
+    },
+    "897f90a7-58f4-4466-933c-adf6f8d904ca": {
+      "id": "897f90a7-58f4-4466-933c-adf6f8d904ca",
+      "user": "test",
+      "kind": "text/plain",
+      "title": "Page 1",
+      "parentId": "5c884d9d-7b96-48c2-826c-7ca21314edf8",
+      "documentType": "page",
+      "time": 1775545972298,
+      "comments": "",
+      "tags": []
+    },
+    "35befdd5-50f2-4432-a7da-b7d95fcc6ab3": {
+      "id": "35befdd5-50f2-4432-a7da-b7d95fcc6ab3",
+      "user": "test",
+      "kind": "text/plain",
+      "title": "Page 2",
+      "parentId": "5c884d9d-7b96-48c2-826c-7ca21314edf8",
+      "documentType": "page",
+      "time": 1775545974301,
+      "comments": "",
+      "tags": []
+    }
+  },
+  "processing": {},
+  "collections": []
+}

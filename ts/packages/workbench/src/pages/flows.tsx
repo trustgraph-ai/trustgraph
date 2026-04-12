@@ -324,6 +324,7 @@ function FlowRow({
             }}
             className="rounded p-1.5 text-fg-subtle hover:bg-error/10 hover:text-error"
             title="Stop flow"
+            aria-label={`Stop flow ${flow.id}`}
           >
             <Square className="h-3.5 w-3.5" />
           </button>
@@ -451,7 +452,7 @@ export default function FlowsPage() {
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
+        <p role="alert" className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
       )}

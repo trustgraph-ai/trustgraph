@@ -500,6 +500,7 @@ export default function GraphPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search nodes..."
+              aria-label="Search nodes"
               className="w-48 rounded-lg border border-border bg-surface-100 py-1.5 pl-8 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
             {searchTerm && (

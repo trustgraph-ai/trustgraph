@@ -52,7 +52,7 @@ export function RootLayout() {
 
         {/* Connection lost banner */}
         {isDisconnected && (
-          <div className="flex items-center gap-2 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
+          <div role="alert" className="flex items-center gap-2 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
             <WifiOff className="h-3.5 w-3.5" />
             <span>Connection lost. Attempting to reconnect...</span>
           </div>

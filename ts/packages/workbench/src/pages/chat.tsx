@@ -251,11 +251,12 @@ export default function ChatPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Mode selector */}
-          <div className="flex rounded-lg border border-border bg-surface-100 p-0.5">
+          <div role="group" aria-label="Chat mode" className="flex rounded-lg border border-border bg-surface-100 p-0.5">
             {MODES.map((mode) => (
               <button
                 key={mode.value}
                 onClick={() => setChatMode(mode.value)}
+                aria-pressed={chatMode === mode.value}
                 className={cn(
                   "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                   chatMode === mode.value

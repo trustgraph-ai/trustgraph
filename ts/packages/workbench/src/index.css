@@ -130,6 +130,6 @@ html.light {
 
   /* Semantic colors stay vivid but slightly darker for contrast */
   --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  --color-error: #dc2626;
+  --color-warning: #854d0e;
+  --color-error: #b91c1c;
 }

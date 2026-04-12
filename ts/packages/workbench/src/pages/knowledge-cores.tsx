@@ -214,6 +214,7 @@ export default function KnowledgeCoresPage() {
                         disabled={actionInProgress === id}
                         className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium text-brand-400 hover:bg-brand-600/10 disabled:opacity-40"
                         title="Load core"
+                        aria-label={`Load core ${id}`}
                       >
                         {actionInProgress === id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -227,6 +228,7 @@ export default function KnowledgeCoresPage() {
                         disabled={actionInProgress === id}
                         className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium text-error hover:bg-error/10 disabled:opacity-40"
                         title="Delete core"
+                        aria-label={`Delete core ${id}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         Delete

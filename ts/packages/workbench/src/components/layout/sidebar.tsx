@@ -32,7 +32,7 @@ interface NavItemProps {
 
 function NavItem({ to, icon: Icon, label }: NavItemProps) {
   return (
-    <NavLink to={to} className="w-full">
+    <NavLink to={to} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-50">
       {({ isActive }) => (
         <div
           className={cn(
@@ -72,7 +72,7 @@ function ConnectionBadge() {
           ? "text-warning"
           : isConnected
             ? "text-success"
-            : "text-fg-subtle",
+            : "text-fg-muted",
       )}
     >
       <span
@@ -148,7 +148,7 @@ function FlowSelectorDropdown() {
 
 export function Sidebar() {
   return (
-    <aside className="flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface-50">
+    <aside aria-label="Sidebar" className="flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface-50">
       {/* Logo area */}
       <div className="flex h-14 items-center gap-2 px-4">
         <TestTube2 className="h-5 w-5 text-brand-500" />
@@ -167,7 +167,7 @@ export function Sidebar() {
       <div className="mx-3 border-t border-border" />
 
       {/* Navigation links */}
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3">
+      <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3">
         <NavItem to="/chat" icon={MessageSquareText} label="Chat" />
         <NavItem to="/library" icon={LibraryBig} label="Library" />
         <NavItem to="/graph" icon={Rotate3d} label="Graph" />

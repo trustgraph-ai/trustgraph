@@ -35,6 +35,17 @@ export function Dialog({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // Save the element that triggered the dialog so we can restore focus on close
+  const triggerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement as HTMLElement | null;
+    } else if (triggerRef.current) {
+      triggerRef.current.focus();
+      triggerRef.current = null;
+    }
+  }, [open]);
+
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
@@ -132,7 +143,7 @@ export function Dialog({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-md p-1 text-fg-subtle hover:bg-surface-200 hover:text-fg"
+            className="rounded-md p-1 text-fg-subtle hover:bg-surface-200 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <X className="h-4 w-4" />
           </button>
