@@ -1,0 +1,18 @@
+[     188ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=714749ff:20102
+[     232ms] [LOG] SOCKET: opening socket... without auth user: user @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:40
+[     232ms] [LOG] SOCKET: connecting to /api/socket @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:135
+[     232ms] [LOG] SOCKET: socket opened @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:42
+[     234ms] [WARNING] WebSocket connection to 'ws://localhost:5173/api/socket' failed: WebSocket is closed before the connection is established. @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:270
+[     234ms] [LOG] SOCKET: opening socket... without auth user: user @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:40
+[     235ms] [LOG] SOCKET: connecting to /api/socket @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:135
+[     235ms] [LOG] SOCKET: socket opened @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:42
+[     370ms] [ERROR] WebSocket connection to 'ws://localhost:5173/api/socket' failed: Connection closed before receiving a handshake response @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:137
+[     379ms] [ERROR] [socket error] Event @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:202
+[     392ms] [LOG] [socket close] 1006  @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:176
+[     392ms] [LOG] [socket] Reconnecting in 2304.210165117683ms (attempt 1/10) @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:235
+[    2696ms] [LOG] [socket reopen] @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:245
+[    2697ms] [LOG] SOCKET: connecting to /api/socket @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:135
+[    2698ms] [ERROR] WebSocket connection to 'ws://localhost:5173/api/socket' failed: Connection closed before receiving a handshake response @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:137
+[    2698ms] [ERROR] [socket error] Event @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:202
+[    2711ms] [LOG] [socket close] 1006  @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:176
+[    2711ms] [LOG] [socket] Reconnection already in progress, skipping @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:212

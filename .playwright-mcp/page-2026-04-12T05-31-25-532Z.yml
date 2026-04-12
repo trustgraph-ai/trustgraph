@@ -1,0 +1,106 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - complementary "Sidebar" [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]
+      - generic [ref=e10]: TrustGraph
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - img [ref=e16]
+          - text: Flow
+        - generic [ref=e20]:
+          - combobox "Flow" [ref=e21]:
+            - option "default" [selected]
+          - img
+      - generic [ref=e22]:
+        - img [ref=e23]
+        - generic [ref=e27]: default
+    - navigation "Main navigation" [ref=e29]:
+      - link "Chat" [ref=e30] [cursor=pointer]:
+        - /url: /chat
+        - generic [ref=e31]:
+          - img [ref=e32]
+          - generic [ref=e34]: Chat
+      - link "Library" [ref=e35] [cursor=pointer]:
+        - /url: /library
+        - generic [ref=e36]:
+          - img [ref=e37]
+          - generic [ref=e40]: Library
+      - link "Graph" [ref=e41] [cursor=pointer]:
+        - /url: /graph
+        - generic [ref=e42]:
+          - img [ref=e43]
+          - generic [ref=e47]: Graph
+      - link "Prompts" [ref=e48] [cursor=pointer]:
+        - /url: /prompts
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - generic [ref=e54]: Prompts
+      - link "Token Cost" [ref=e55] [cursor=pointer]:
+        - /url: /token-cost
+        - generic [ref=e56]:
+          - img [ref=e57]
+          - generic [ref=e62]: Token Cost
+      - link "Knowledge Cores" [ref=e63] [cursor=pointer]:
+        - /url: /knowledge-cores
+        - generic [ref=e64]:
+          - img [ref=e65]
+          - generic [ref=e77]: Knowledge Cores
+      - link "Flows" [ref=e78] [cursor=pointer]:
+        - /url: /flows
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - generic [ref=e84]: Flows
+      - link "MCP Tools" [ref=e266] [cursor=pointer]:
+        - /url: /mcp-tools
+        - generic [ref=e267]:
+          - img [ref=e268]
+          - generic [ref=e270]: MCP Tools
+      - link "Settings" [ref=e85] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=e86]:
+          - img [ref=e87]
+          - generic [ref=e90]: Settings
+    - generic [ref=e92]:
+      - img [ref=e94]
+      - generic [ref=e101]: reconnecting
+  - generic [ref=e102]:
+    - banner [ref=e103]:
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - img [ref=e106]
+          - text: default
+        - generic [ref=e110]:
+          - img [ref=e111]
+          - text: default
+    - alert [ref=e257]:
+      - img [ref=e258]
+      - generic [ref=e265]: Connection lost. Attempting to reconnect...
+    - main [ref=e115]:
+      - generic [ref=e271]:
+        - generic [ref=e272]:
+          - generic [ref=e273]:
+            - img [ref=e274]
+            - heading "MCP Tools" [level=1] [ref=e276]
+            - generic [ref=e277]: 0 servers, 0 tools
+          - generic [ref=e278]:
+            - button "Refresh" [ref=e279]:
+              - img [ref=e280]
+              - text: Refresh
+            - button "Add Server" [active] [ref=e399]:
+              - img [ref=e286]
+              - text: Add Server
+        - tablist "MCP sections" [ref=e287]:
+          - tab "Servers" [selected] [ref=e288]:
+            - img [ref=e289]
+            - text: Servers
+          - tab "Tools" [ref=e292]:
+            - img [ref=e293]
+            - text: Tools
+        - tabpanel "Servers" [ref=e400]:
+          - generic [ref=e401]:
+            - img [ref=e402]
+            - paragraph [ref=e405]: No MCP servers configured.
+            - paragraph [ref=e406]: Click "Add Server" to connect an external MCP server.

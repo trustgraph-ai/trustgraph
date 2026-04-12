@@ -1,0 +1,32 @@
+[      80ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=714749ff:20102
+[     128ms] [LOG] SOCKET: opening socket... without auth user: user @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:40
+[     128ms] [LOG] SOCKET: connecting to /api/socket @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:135
+[     128ms] [LOG] SOCKET: socket opened @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:42
+[     129ms] [WARNING] WebSocket connection to 'ws://localhost:5173/api/socket' failed: WebSocket is closed before the connection is established. @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:270
+[     129ms] [LOG] SOCKET: opening socket... without auth user: user @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:40
+[     129ms] [LOG] SOCKET: connecting to /api/socket @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:135
+[     129ms] [LOG] SOCKET: socket opened @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:42
+[     184ms] [LOG] Request 3vyu2yhjsasom22g-1 waiting for socket reconnection... @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:174
+[     185ms] [LOG] Request 3vyu2yhjsasom22g-2 waiting for socket reconnection... @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:174
+[     223ms] [ERROR] WebSocket connection to 'ws://localhost:5173/api/socket' failed: Connection closed before receiving a handshake response @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:137
+[     223ms] [ERROR] [socket error] Event @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:202
+[     245ms] [LOG] [socket close] 1006  @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:176
+[     245ms] [LOG] [socket] Reconnecting in 2122.8106630994694ms (attempt 1/10) @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:235
+[     266ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/settings:0
+[    2368ms] [LOG] [socket reopen] @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:245
+[    2368ms] [LOG] SOCKET: connecting to /api/socket @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:135
+[    2373ms] [ERROR] WebSocket connection to 'ws://localhost:5173/api/socket' failed: Connection closed before receiving a handshake response @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:137
+[    2373ms] [ERROR] [socket error] Event @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:202
+[    2391ms] [LOG] [socket close] 1006  @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:176
+[    2391ms] [LOG] [socket] Reconnection already in progress, skipping @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/trustgraph-socket.js:212
+[    4734ms] [LOG] Request 3vyu2yhjsasom22g-2 waiting for socket reconnection... @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:174
+[    5123ms] [LOG] Request 3vyu2yhjsasom22g-1 waiting for socket reconnection... @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:174
+[   12903ms] [LOG] Request 3vyu2yhjsasom22g-2 waiting for socket reconnection... @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:174
+[   13362ms] [LOG] Request 3vyu2yhjsasom22g-1 waiting for socket reconnection... @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:174
+[   29608ms] [LOG] Request 3vyu2yhjsasom22g-1 ran out of retries @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:147
+[   29803ms] [LOG] Request 3vyu2yhjsasom22g-2 ran out of retries @ http://localhost:5173/@fs/home/elpresidank/YeeBois/dev/trustgraph/ts/packages/client/dist/socket/service-call.js:147
+[   69887ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/mcp-tools:0
+[  142680ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/mcp-tools:0
+[  219289ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/mcp-tools:0
+[  238347ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/mcp-tools:0
+[  255087ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/mcp-tools:0

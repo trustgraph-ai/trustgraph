@@ -1,0 +1,184 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - complementary "Sidebar" [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]
+      - generic [ref=e10]: TrustGraph
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - img [ref=e16]
+          - text: Flow
+        - generic [ref=e20]:
+          - combobox "Flow" [ref=e21]:
+            - option "default" [selected]
+          - img
+      - generic [ref=e22]:
+        - img [ref=e23]
+        - generic [ref=e27]: default
+    - navigation "Main navigation" [ref=e29]:
+      - link "Chat" [ref=e30] [cursor=pointer]:
+        - /url: /chat
+        - generic [ref=e31]:
+          - img [ref=e32]
+          - generic [ref=e34]: Chat
+      - link "Library" [ref=e35] [cursor=pointer]:
+        - /url: /library
+        - generic [ref=e36]:
+          - img [ref=e37]
+          - generic [ref=e40]: Library
+      - link "Graph" [ref=e41] [cursor=pointer]:
+        - /url: /graph
+        - generic [ref=e42]:
+          - img [ref=e43]
+          - generic [ref=e47]: Graph
+      - link "Prompts" [ref=e48] [cursor=pointer]:
+        - /url: /prompts
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - generic [ref=e54]: Prompts
+      - link "Token Cost" [ref=e55] [cursor=pointer]:
+        - /url: /token-cost
+        - generic [ref=e56]:
+          - img [ref=e57]
+          - generic [ref=e62]: Token Cost
+      - link "Knowledge Cores" [ref=e63] [cursor=pointer]:
+        - /url: /knowledge-cores
+        - generic [ref=e64]:
+          - img [ref=e65]
+          - generic [ref=e77]: Knowledge Cores
+      - link "Flows" [ref=e78] [cursor=pointer]:
+        - /url: /flows
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - generic [ref=e84]: Flows
+      - link "MCP Tools" [ref=e266] [cursor=pointer]:
+        - /url: /mcp-tools
+        - generic [ref=e267]:
+          - img [ref=e268]
+          - generic [ref=e270]: MCP Tools
+      - link "Settings" [ref=e85] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=e86]:
+          - img [ref=e87]
+          - generic [ref=e90]: Settings
+    - generic [ref=e92]:
+      - img [ref=e94]
+      - generic [ref=e101]: reconnecting
+  - generic [ref=e102]:
+    - banner [ref=e103]:
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - img [ref=e106]
+          - text: default
+        - generic [ref=e110]:
+          - img [ref=e111]
+          - text: default
+    - alert [ref=e257]:
+      - img [ref=e258]
+      - generic [ref=e265]: Connection lost. Attempting to reconnect...
+    - main [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - img [ref=e118]
+          - heading "Settings" [level=1] [ref=e121]
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - heading "Connection" [level=2] [ref=e124]:
+              - img [ref=e125]
+              - text: Connection
+            - generic [ref=e129]:
+              - generic [ref=e130]:
+                - generic [ref=e131]: "Status:"
+                - generic [ref=e132]:
+                  - img [ref=e133]
+                  - text: reconnecting
+              - generic [ref=e140]:
+                - generic [ref=e141]: Gateway URL
+                - textbox "Gateway URL" [ref=e142]:
+                  - /placeholder: Leave blank to use the default proxy
+                - paragraph [ref=e143]: The WebSocket URL for the TrustGraph gateway.
+              - generic [ref=e144]:
+                - generic [ref=e145]: User ID
+                - textbox "User ID" [ref=e146]: user
+          - generic [ref=e147]:
+            - heading "Authentication" [level=2] [ref=e148]:
+              - img [ref=e149]
+              - text: Authentication
+            - generic [ref=e154]:
+              - generic [ref=e155]: API Key
+              - generic [ref=e156]:
+                - textbox "API Key" [ref=e157]:
+                  - /placeholder: Leave blank for unauthenticated access
+                - button "Show API key" [ref=e158]:
+                  - img [ref=e159]
+              - paragraph [ref=e162]: Changing the API key will reconnect the WebSocket.
+          - generic [ref=e163]:
+            - heading "Collection" [level=2] [ref=e164]:
+              - img [ref=e165]
+              - text: Collection
+            - generic [ref=e170]:
+              - generic [ref=e171]: Active Collection
+              - generic [ref=e172]:
+                - img [ref=e173]
+                - text: Loading collections...
+          - generic [ref=e175]:
+            - heading "Active Flow" [level=2] [ref=e176]:
+              - img [ref=e177]
+              - text: Active Flow
+            - generic [ref=e182]:
+              - generic [ref=e183]: Flow
+              - textbox "Flow" [ref=e184]:
+                - /placeholder: default
+                - text: default
+              - paragraph [ref=e185]: The flow ID used for chat, graph queries, and document processing.
+          - generic [ref=e186]:
+            - heading "Appearance" [level=2] [ref=e187]:
+              - img [ref=e188]
+              - text: Appearance
+            - generic [ref=e191]:
+              - generic [ref=e192]:
+                - paragraph [ref=e193]: Theme
+                - paragraph [ref=e194]: Toggle between dark and light mode.
+                - paragraph [ref=e195]: Currently using dark mode.
+              - switch "Dark mode" [checked] [ref=e196]
+          - generic [ref=e198]:
+            - heading "Feature Switches" [level=2] [ref=e199]:
+              - img [ref=e200]
+              - text: Feature Switches
+            - generic [ref=e203]:
+              - generic [ref=e204]:
+                - paragraph [ref=e206]: Flow Classes
+                - switch "Flow Classes" [ref=e207]
+              - generic [ref=e209]:
+                - paragraph [ref=e211]: Submissions
+                - switch "Submissions" [ref=e212]
+              - generic [ref=e214]:
+                - paragraph [ref=e216]: Token Cost
+                - switch "Token Cost" [ref=e217]
+              - generic [ref=e219]:
+                - paragraph [ref=e221]: Schemas
+                - switch "Schemas" [ref=e222]
+              - generic [ref=e224]:
+                - paragraph [ref=e226]: Structured Query
+                - switch "Structured Query" [ref=e227]
+              - generic [ref=e229]:
+                - paragraph [ref=e231]: Ontology Editor
+                - switch "Ontology Editor" [ref=e232]
+              - generic [ref=e234]:
+                - paragraph [ref=e236]: Agent Tools
+                - switch "Agent Tools" [ref=e237]
+              - generic [ref=e239]:
+                - paragraph [ref=e241]: MCP Tools
+                - switch "MCP Tools" [checked] [active] [ref=e242]
+              - generic [ref=e244]:
+                - paragraph [ref=e246]: LLM Models
+                - switch "LLM Models" [ref=e247]
+          - generic [ref=e249]:
+            - heading "About" [level=2] [ref=e250]:
+              - img [ref=e251]
+              - text: About
+            - generic [ref=e254]:
+              - paragraph [ref=e255]: TrustGraph Workbench v0.1.0
+              - paragraph [ref=e256]: A web-based interface for interacting with the TrustGraph knowledge-graph system.
