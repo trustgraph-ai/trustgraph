@@ -25,6 +25,8 @@ import { useChat } from "@/hooks/use-chat";
 import { useSettings } from "@/providers/settings-provider";
 import { useProgressStore } from "@/hooks/use-progress-store";
 import { AutoTextarea } from "@/components/ui/textarea";
+import { MessageActions } from "@/components/chat/message-actions";
+import { ExplainGraph } from "@/components/chat/explain-graph";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -112,7 +114,7 @@ function AgentPhaseBlock({
 // Single message bubble
 // ---------------------------------------------------------------------------
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({ msg, collection }: { msg: ChatMessage; collection: string }) {
   const isUser = msg.role === "user";
   const hasAgentPhases = msg.agentPhases != null;
   const isError = !isUser && msg.content.startsWith("Error:");
@@ -185,6 +187,11 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           )}
         </div>
       )}
+
+      {/* Explainability graph */}
+      {!isUser && !isError && !msg.isStreaming && msg.explainEvents && msg.explainEvents.length > 0 && (
+        <ExplainGraph explainEvents={msg.explainEvents} collection={collection} />
+      )}
     </div>
   );
 }
@@ -200,7 +207,8 @@ export default function ChatPage() {
   const setInput = useConversation((s) => s.setInput);
   const setChatMode = useConversation((s) => s.setChatMode);
   const clearMessages = useConversation((s) => s.clearMessages);
-  const { submitMessage, cancelRequest } = useChat();
+  const { submitMessage, cancelRequest, regenerateLastMessage } = useChat();
+  const deleteMessage = useConversation((s) => s.deleteMessage);
   const collection = useSettings((s) => s.settings.collection);
   const isLoading = useProgressStore((s) => s.isLoading);
 
@@ -255,6 +263,7 @@ export default function ChatPage() {
           <div role="group" aria-label="Chat mode" className="flex rounded-lg border border-border bg-surface-100 p-0.5">
             {MODES.map((mode) => (
               <button
+                type="button"
                 key={mode.value}
                 onClick={() => setChatMode(mode.value)}
                 aria-pressed={chatMode === mode.value}
@@ -282,20 +291,36 @@ export default function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto pb-4">
+      <div className="flex-1 space-y-4 overflow-y-auto pb-4 pt-10">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-fg-subtle">
             <MessageSquareText className="mb-3 h-10 w-10 opacity-30" />
             <p>Send a message to start a conversation.</p>
             <p className="mt-1 text-xs">
-              Mode: <span className="text-fg-muted">{chatMode}</span>
+              Mode: <span className="text-fg-muted">{MODES.find((m) => m.value === chatMode)?.label ?? chatMode}</span>
             </p>
           </div>
         )}
 
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} />
-        ))}
+        {messages.map((msg, idx) => {
+          const isLastAssistant =
+            msg.role === "assistant" &&
+            idx === messages.length - 1;
+
+          return (
+            <div key={msg.id} className="group relative">
+              {!msg.isStreaming && (
+                <MessageActions
+                  content={msg.content}
+                  isLastAssistant={isLastAssistant}
+                  onDelete={() => deleteMessage(msg.id)}
+                  onRegenerate={isLastAssistant ? regenerateLastMessage : undefined}
+                />
+              )}
+              <MessageBubble msg={msg} collection={collection} />
+            </div>
+          );
+        })}
         <div ref={scrollRef} />
       </div>
 

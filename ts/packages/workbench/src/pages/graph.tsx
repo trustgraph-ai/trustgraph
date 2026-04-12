@@ -17,6 +17,9 @@ import {
   X,
   ArrowRight,
   ArrowLeft,
+  Filter,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSocket } from "@/providers/socket-provider";
@@ -25,6 +28,16 @@ import { useSettings } from "@/providers/settings-provider";
 import { useProgressStore } from "@/hooks/use-progress-store";
 import { Badge } from "@/components/ui/badge";
 import type { Triple, Term } from "@trustgraph/client";
+import {
+  termValue,
+  localName,
+  hashColor,
+  triplesToGraph,
+  RDFS_LABEL,
+  RDF_TYPE,
+  type GraphNode,
+  type GraphLink,
+} from "@/lib/graph-utils";
 
 // ---------------------------------------------------------------------------
 // Lazy-load ForceGraph2D to keep bundle size down
@@ -32,153 +45,13 @@ import type { Triple, Term } from "@trustgraph/client";
 
 import type {
   ForceGraphMethods,
-  NodeObject,
-  LinkObject,
   ForceGraphProps,
 } from "react-force-graph-2d";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ForceGraph2D = lazy(() => import("react-force-graph-2d")) as unknown as React.ComponentType<ForceGraphProps<any, any> & { ref?: React.Ref<any> }>;
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface GraphNode extends NodeObject {
-  id: string;
-  label: string;
-  color?: string;
-  /** Number of connections (used for sizing) */
-  degree: number;
-}
-
-interface GraphLink extends LinkObject {
-  source: string;
-  target: string;
-  label: string;
-}
-
-interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-}
-
-// ---------------------------------------------------------------------------
-// Helpers -- Term value extraction
-// ---------------------------------------------------------------------------
-
-const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-
-function termValue(t: Term): string {
-  switch (t.t) {
-    case "i":
-      return t.i;
-    case "l":
-      return t.v;
-    case "b":
-      return t.d;
-    case "t":
-      return "[triple]";
-  }
-}
-
-function isIri(t: Term): boolean {
-  return t.t === "i";
-}
-
-/** Extract the local name from a URI for display */
-function localName(uri: string): string {
-  const hash = uri.lastIndexOf("#");
-  const slash = uri.lastIndexOf("/");
-  const idx = Math.max(hash, slash);
-  if (idx >= 0 && idx < uri.length - 1) return uri.substring(idx + 1);
-  return uri;
-}
-
-/** Deterministic color from a string (for node types) */
-function hashColor(s: string): string {
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    hash = s.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = ((hash % 360) + 360) % 360;
-  return `hsl(${hue}, 60%, 55%)`;
-}
-
-// ---------------------------------------------------------------------------
-// Build graph data from triples
-// ---------------------------------------------------------------------------
-
-function triplesToGraph(triples: Triple[]): {
-  data: GraphData;
-  labelMap: Map<string, string>;
-  typeMap: Map<string, string>;
-} {
-  const labelMap = new Map<string, string>();
-  const typeMap = new Map<string, string>();
-
-  // First pass: collect labels and types
-  for (const t of triples) {
-    const pred = termValue(t.p);
-    if (pred === RDFS_LABEL && t.o.t === "l") {
-      labelMap.set(termValue(t.s), t.o.v);
-    }
-    if (pred === RDF_TYPE && isIri(t.o)) {
-      typeMap.set(termValue(t.s), termValue(t.o));
-    }
-  }
-
-  // Second pass: build nodes and links (skip structural triples)
-  const nodeMap = new Map<string, GraphNode>();
-  const links: GraphLink[] = [];
-
-  const ensureNode = (uri: string): void => {
-    if (!nodeMap.has(uri)) {
-      const type = typeMap.get(uri);
-      nodeMap.set(uri, {
-        id: uri,
-        label: labelMap.get(uri) ?? localName(uri),
-        color: type ? hashColor(localName(type)) : "#5b80ff",
-        degree: 0,
-      });
-    }
-  };
-
-  for (const t of triples) {
-    const sVal = termValue(t.s);
-    const pVal = termValue(t.p);
-    const oVal = termValue(t.o);
-
-    // Skip label and type predicates -- they are metadata, not graph edges
-    if (pVal === RDFS_LABEL) continue;
-    if (pVal === RDF_TYPE) continue;
-
-    // Build edges for entity-to-entity relationships.
-    // Include both IRIs and literals as valid entity nodes — plain-name
-    // knowledge graphs (e.g. seeded demo data) use literals for entities.
-    const sIsEntity = isIri(t.s) || t.s.t === "l";
-    const oIsEntity = isIri(t.o) || t.o.t === "l";
-    if (!sIsEntity || !oIsEntity) continue;
-
-    ensureNode(sVal);
-    ensureNode(oVal);
-    nodeMap.get(sVal)!.degree++;
-    nodeMap.get(oVal)!.degree++;
-
-    links.push({
-      source: sVal,
-      target: oVal,
-      label: labelMap.get(pVal) ?? localName(pVal),
-    });
-  }
-
-  return {
-    data: { nodes: Array.from(nodeMap.values()), links },
-    labelMap,
-    typeMap,
-  };
-}
+// Graph helpers imported from @/lib/graph-utils
 
 // ---------------------------------------------------------------------------
 // Node detail panel
@@ -313,6 +186,15 @@ export default function GraphPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
+  // Query filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [predicateFilter, setPredicateFilter] = useState("");
+  const [objectFilter, setObjectFilter] = useState("");
+  const [tripleLimit, setTripleLimit] = useState(2000);
+  const [showLegend, setShowLegend] = useState(false);
+  const hasActiveFilters = subjectFilter || predicateFilter || objectFilter;
+
   const fgRef = useRef<ForceGraphMethods<GraphNode, GraphLink> | undefined>(
     undefined,
   );
@@ -321,6 +203,9 @@ export default function GraphPage() {
     height: number;
   } | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
+
+  // Auto-fit tracking — declared early so fetchTriples can reset it
+  const hasAutoFit = useRef(false);
 
   // Ref callback — attaches ResizeObserver when the container mounts
   const containerRef = useCallback((el: HTMLDivElement | null) => {
@@ -341,20 +226,25 @@ export default function GraphPage() {
     roRef.current = ro;
   }, []);
 
-  // Fetch triples
+  // Fetch triples with optional filters
   const fetchTriples = useCallback(async () => {
     const act = "Load graph";
     try {
       setLoading(true);
       setError(null);
       addActivity(act);
+      hasAutoFit.current = false;
 
       const flow = socket.flow(flowId);
+      const s: Term | undefined = subjectFilter ? { t: "i", i: subjectFilter } : undefined;
+      const p: Term | undefined = predicateFilter ? { t: "i", i: predicateFilter } : undefined;
+      const o: Term | undefined = objectFilter ? { t: "i", i: objectFilter } : undefined;
+
       const result = await flow.triplesQuery(
-        undefined,
-        undefined,
-        undefined,
-        2000,
+        s,
+        p,
+        o,
+        tripleLimit,
         collection,
       );
       setTriples(result);
@@ -364,17 +254,29 @@ export default function GraphPage() {
       setLoading(false);
       removeActivity(act);
     }
-  }, [socket, flowId, collection, addActivity, removeActivity]);
+  }, [socket, flowId, collection, subjectFilter, predicateFilter, objectFilter, tripleLimit, addActivity, removeActivity]);
 
   useEffect(() => {
     fetchTriples();
   }, [fetchTriples]);
 
   // Build graph
-  const { data: graphData, labelMap } = useMemo(
+  const { data: graphData, labelMap, typeMap } = useMemo(
     () => triplesToGraph(Array.isArray(triples) ? triples : []),
     [triples],
   );
+
+  // Unique types for legend
+  const uniqueTypes = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const [, typeUri] of typeMap) {
+      const name = localName(typeUri);
+      if (!seen.has(name)) {
+        seen.set(name, typeUri);
+      }
+    }
+    return Array.from(seen.entries());
+  }, [typeMap]);
 
   // Search filter -- highlight matching nodes
   const searchLower = searchTerm.toLowerCase();
@@ -396,7 +298,6 @@ export default function GraphPage() {
     : "";
 
   // Auto-fit graph to view once data loads
-  const hasAutoFit = useRef(false);
   useEffect(() => {
     if (graphData.nodes.length > 0 && fgRef.current && !hasAutoFit.current) {
       hasAutoFit.current = true;
@@ -496,6 +397,7 @@ export default function GraphPage() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
             <input
+              id="graph-search"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -542,6 +444,44 @@ export default function GraphPage() {
             </button>
           </div>
 
+          {/* Filter toggle */}
+          <button
+            onClick={() => setShowFilters((p) => !p)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors",
+              showFilters || hasActiveFilters
+                ? "border-brand-500/50 bg-brand-600/10 text-brand-400"
+                : "border-border text-fg-muted hover:bg-surface-200",
+            )}
+            title="Query filters"
+            aria-label="Toggle query filters"
+            aria-expanded={showFilters}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filters
+            {hasActiveFilters && !showFilters && (
+              <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-brand-400" />
+            )}
+          </button>
+
+          {/* Legend toggle */}
+          {uniqueTypes.length > 0 && (
+            <button
+              onClick={() => setShowLegend((p) => !p)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors",
+                showLegend
+                  ? "border-brand-500/50 bg-brand-600/10 text-brand-400"
+                  : "border-border text-fg-muted hover:bg-surface-200",
+              )}
+              title="Type legend"
+              aria-label="Toggle type legend"
+              aria-expanded={showLegend}
+            >
+              Legend
+            </button>
+          )}
+
           <button
             onClick={fetchTriples}
             disabled={loading}
@@ -556,6 +496,96 @@ export default function GraphPage() {
           </button>
         </div>
       </div>
+
+      {/* Filter panel */}
+      {showFilters && (
+        <div className="mb-4 rounded-lg border border-border bg-surface-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-xs font-medium text-fg-muted">
+              <Filter className="h-3 w-3" />
+              Query Filters
+            </h3>
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setSubjectFilter("");
+                  setPredicateFilter("");
+                  setObjectFilter("");
+                }}
+                className="text-xs text-brand-400 hover:text-brand-300"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label htmlFor="filter-subject" className="block text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+                Subject
+              </label>
+              <input
+                id="filter-subject"
+                type="text"
+                value={subjectFilter}
+                onChange={(e) => setSubjectFilter(e.target.value)}
+                placeholder="URI filter..."
+                className="w-full rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-xs text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="filter-predicate" className="block text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+                Predicate
+              </label>
+              <input
+                id="filter-predicate"
+                type="text"
+                value={predicateFilter}
+                onChange={(e) => setPredicateFilter(e.target.value)}
+                placeholder="URI filter..."
+                className="w-full rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-xs text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="filter-object" className="block text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+                Object
+              </label>
+              <input
+                id="filter-object"
+                type="text"
+                value={objectFilter}
+                onChange={(e) => setObjectFilter(e.target.value)}
+                placeholder="URI filter..."
+                className="w-full rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-xs text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="filter-limit" className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+                Limit
+              </label>
+              <input
+                id="filter-limit"
+                type="range"
+                min={100}
+                max={5000}
+                step={100}
+                value={tripleLimit}
+                onChange={(e) => setTripleLimit(Number(e.target.value))}
+                className="w-24 accent-brand-500"
+              />
+              <span className="text-xs text-fg-muted">{tripleLimit}</span>
+            </div>
+            <button
+              onClick={fetchTriples}
+              disabled={loading}
+              className="ml-auto flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-500 disabled:opacity-40"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {error && (
@@ -625,6 +655,26 @@ export default function GraphPage() {
               </div>
             )}
           </div>
+
+          {/* Type legend overlay */}
+          {showLegend && uniqueTypes.length > 0 && (
+            <div className="absolute bottom-3 left-3 z-10 max-h-48 overflow-y-auto rounded-lg border border-border bg-surface-50/95 px-3 py-2 shadow-lg backdrop-blur-sm">
+              <h4 className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+                Node Types
+              </h4>
+              <div className="space-y-1">
+                {uniqueTypes.map(([name]) => (
+                  <div key={name} className="flex items-center gap-2 text-xs text-fg-muted">
+                    <span
+                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: hashColor(name) }}
+                    />
+                    <span className="truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Detail panel -- positioned absolutely so it overlays the graph */}
           {selectedNode && (

@@ -8,7 +8,7 @@ import {
 import { useSessionStore } from "./use-session-store";
 import { useProgressStore } from "./use-progress-store";
 import { useSettings } from "@/providers/settings-provider";
-import type { StreamingMetadata } from "@trustgraph/client";
+import type { StreamingMetadata, ExplainEvent } from "@trustgraph/client";
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -17,6 +17,7 @@ import type { StreamingMetadata } from "@trustgraph/client";
 export interface UseChatReturn {
   submitMessage: (opts: { input: string }) => void;
   cancelRequest: () => void;
+  regenerateLastMessage: () => void;
 }
 
 /**
@@ -93,6 +94,22 @@ export function useChat(): UseChatReturn {
 
       const flow = socket.flow(flowId);
 
+      // Collect explainability events during streaming
+      const explainEvents: ExplainEvent[] = [];
+      const onExplain = (event: ExplainEvent) => {
+        explainEvents.push(event);
+      };
+
+      // Attach collected explain events to the message on completion
+      const attachExplainEvents = () => {
+        if (explainEvents.length > 0) {
+          updateLastMessage((prev) => ({
+            ...prev,
+            explainEvents: [...explainEvents],
+          }));
+        }
+      };
+
       // Shared handler for streaming responses (graph-rag / document-rag)
       const onChunk = (
         chunk: string,
@@ -115,6 +132,7 @@ export function useChat(): UseChatReturn {
         }));
 
         if (complete) {
+          attachExplainEvents();
           removeActivity(activityLabel);
         }
       };
@@ -132,11 +150,11 @@ export function useChat(): UseChatReturn {
       // 3. Dispatch based on chat mode
       switch (chatMode) {
         case "graph-rag":
-          flow.graphRagStreaming(input, onChunk, onError, undefined, collection);
+          flow.graphRagStreaming(input, onChunk, onError, undefined, collection, onExplain);
           break;
 
         case "document-rag":
-          flow.documentRagStreaming(input, onChunk, onError, undefined, collection);
+          flow.documentRagStreaming(input, onChunk, onError, undefined, collection, onExplain);
           break;
 
         case "agent": {
@@ -212,11 +230,14 @@ export function useChat(): UseChatReturn {
                 };
               });
               if (complete) {
+                attachExplainEvents();
                 removeActivity(activityLabel);
               }
             },
             // error
             onError,
+            // explainability
+            onExplain,
           );
           break;
         }
@@ -235,5 +256,15 @@ export function useChat(): UseChatReturn {
     ],
   );
 
-  return { submitMessage, cancelRequest };
+  const regenerateLastMessage = useCallback(() => {
+    const msgs = useConversation.getState().messages;
+    const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+    const lastUser = [...msgs].reverse().find((m) => m.role === "user");
+    if (lastAssistant && lastUser) {
+      useConversation.getState().deleteMessage(lastAssistant.id);
+      submitMessage({ input: lastUser.content });
+    }
+  }, [submitMessage]);
+
+  return { submitMessage, cancelRequest, regenerateLastMessage };
 }

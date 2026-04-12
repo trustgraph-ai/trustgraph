@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ExplainEvent } from "@trustgraph/client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,6 +35,8 @@ export interface ChatMessage {
   };
   /** Indicates the current active phase during streaming */
   activePhase?: AgentPhase;
+  /** Explainability events received during streaming (graph URIs for source subgraphs) */
+  explainEvents?: ExplainEvent[];
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +61,8 @@ interface ConversationState {
   updateLastMessage: (
     updater: (prev: ChatMessage) => ChatMessage,
   ) => void;
+
+  deleteMessage: (id: string) => void;
 
   clearMessages: () => void;
 }
@@ -89,6 +94,11 @@ export const useConversation = create<ConversationState>()(
             messages: [...state.messages.slice(0, -1), updated],
           };
         }),
+
+      deleteMessage: (id) =>
+        set((state) => ({
+          messages: state.messages.filter((m) => m.id !== id),
+        })),
 
       clearMessages: () => set({ messages: [] }),
     }),
