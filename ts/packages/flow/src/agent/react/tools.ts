@@ -16,6 +16,7 @@ import type {
   ToolRequest,
   ToolResponse,
   Term,
+  Triple,
 } from "@trustgraph/base";
 
 import type { AgentTool, ToolArg } from "./types.js";
@@ -56,11 +57,20 @@ function parseQuestion(input: string): string {
 }
 
 /**
+ * Explain data extracted from a graph-rag response.
+ */
+export interface ExplainData {
+  explainId: string;
+  triples: Triple[];
+}
+
+/**
  * Query the knowledge graph for information about entities and their relationships.
  */
 export function createKnowledgeQueryTool(
   client: RequestResponse<GraphRagRequest, GraphRagResponse>,
   collection?: string,
+  onExplain?: (data: ExplainData) => void,
 ): AgentTool {
   return {
     name: "KnowledgeQuery",
@@ -75,7 +85,19 @@ export function createKnowledgeQueryTool(
     ],
     async execute(input: string): Promise<string> {
       const question = parseQuestion(input);
+      console.log(`[KnowledgeQuery] Executing: "${question.slice(0, 60)}..." collection=${collection}`);
       const res = await client.request({ query: question, collection });
+      console.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
+
+      // Extract explain data if embedded in the response
+      const rawRes = res as Record<string, unknown>;
+      if (rawRes.message_type === "explain" && rawRes.explain_triples && onExplain) {
+        onExplain({
+          explainId: (rawRes.explain_id as string) ?? "",
+          triples: rawRes.explain_triples as Triple[],
+        });
+      }
+
       if (res.error) return `Error: ${res.error.message}`;
       return res.response;
     },

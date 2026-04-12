@@ -50,6 +50,11 @@ export interface GraphRagResponse {
   response: string;
   error?: TgError;
   endOfStream?: boolean;
+  // Explainability: include retrieved subgraph triples
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_triples?: Triple[];
+  [key: string]: unknown;
 }
 
 // Document RAG
@@ -76,7 +81,7 @@ export interface AgentRequest {
 
 export interface AgentResponse {
   /** Streaming chunk type */
-  chunk_type?: "thought" | "observation" | "answer" | "error";
+  chunk_type?: "thought" | "observation" | "answer" | "error" | "explain";
   content?: string;
   end_of_message?: boolean;
   end_of_dialog?: boolean;
@@ -85,6 +90,11 @@ export interface AgentResponse {
   error?: TgError;
   endOfStream?: boolean;
   endOfSession?: boolean;
+  /** Explainability fields */
+  explain_id?: string;
+  explain_graph?: string;
+  explain_triples?: unknown[];
+  message_type?: string;
 }
 
 // Triples query
@@ -104,6 +114,7 @@ export interface TriplesQueryResponse {
 // Graph embeddings query
 export interface GraphEmbeddingsRequest {
   vectors: number[][];
+  user?: string;
   limit?: number;
   collection?: string;
 }
@@ -117,11 +128,12 @@ export interface GraphEmbeddingsResponse {
 export interface DocumentEmbeddingsRequest {
   vectors: number[][];
   limit?: number;
+  user?: string;
   collection?: string;
 }
 
 export interface DocumentEmbeddingsResponse {
-  chunks: Array<{ chunkId: string; score: number }>;
+  chunks: Array<{ chunkId: string; score: number; content?: string }>;
   error?: TgError;
 }
 

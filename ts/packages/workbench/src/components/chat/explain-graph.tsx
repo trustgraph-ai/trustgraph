@@ -70,18 +70,28 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
     return () => ro.disconnect();
   }, [expanded]);
 
-  // Fetch triples when first expanded
+  // Load triples when first expanded — use inline triples if available, otherwise fetch
   useEffect(() => {
     if (!expanded || fetched) return;
     setFetched(true);
+
+    // Check if any explain events have inline triples
+    const inlineTriples = explainEvents.flatMap((ev) => ev.explainTriples ?? []);
+    if (inlineTriples.length > 0) {
+      setTriples(inlineTriples);
+      return;
+    }
+
+    // Fall back to fetching from named graph
+    const graphUris = explainEvents.filter((ev) => ev.explainGraph);
+    if (graphUris.length === 0) return;
+
     setLoading(true);
     setError(null);
-
     const flow = socket.flow(flowId);
 
-    // Fetch triples for each explain event's named graph and merge
     Promise.all(
-      explainEvents.map((ev) =>
+      graphUris.map((ev) =>
         flow
           .triplesQuery(undefined, undefined, undefined, 500, collection, ev.explainGraph)
           .catch(() => [] as Triple[]),

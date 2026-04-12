@@ -55,9 +55,12 @@ function AgentPhaseBlock({
   content: string;
   isActive: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [manualToggle, setManualToggle] = useState<boolean | null>(null);
 
   if (!content && !isActive) return null;
+
+  // Auto-expand while actively streaming; user can override
+  const expanded = manualToggle ?? isActive;
 
   const phaseColors: Record<string, string> = {
     think: "border-amber-500/30 bg-amber-500/5",
@@ -79,7 +82,7 @@ function AgentPhaseBlock({
       )}
     >
       <button
-        onClick={() => setExpanded((p) => !p)}
+        onClick={() => setManualToggle((prev) => !(prev ?? isActive))}
         aria-expanded={expanded}
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-fg-muted"
       >
@@ -101,9 +104,14 @@ function AgentPhaseBlock({
           <Loader2 className="ml-auto h-3 w-3 animate-spin text-fg-subtle" />
         )}
       </button>
-      {expanded && content && (
+      {expanded && (content || isActive) && (
         <div className="border-t border-border/50 px-3 py-2 text-xs leading-relaxed text-fg-muted">
-          <p className="whitespace-pre-wrap">{content}</p>
+          <p className="whitespace-pre-wrap">
+            {content || (isActive ? "..." : "")}
+          </p>
+          {isActive && content && (
+            <span className="mt-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+          )}
         </div>
       )}
     </div>

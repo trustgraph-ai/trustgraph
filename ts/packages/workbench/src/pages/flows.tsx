@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Loader2,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlows, type FlowSummary } from "@/hooks/use-flows";
@@ -44,6 +45,9 @@ function StartFlowDialog({
   const [submitting, setSubmitting] = useState(false);
   const [paramsError, setParamsError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [blueprintDef, setBlueprintDef] = useState<Record<string, unknown> | null>(null);
+  const [loadingDef, setLoadingDef] = useState(false);
+  const [defExpanded, setDefExpanded] = useState(false);
 
   // Fetch blueprints when dialog opens
   useEffect(() => {
@@ -64,6 +68,48 @@ function StartFlowDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, socket]);
 
+  // Fetch blueprint definition when selection changes
+  useEffect(() => {
+    if (!blueprint) {
+      setBlueprintDef(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDef(true);
+    setBlueprintDef(null);
+    socket
+      .flows()
+      .getFlowBlueprint(blueprint)
+      .then((def) => {
+        if (cancelled) return;
+        setBlueprintDef(def);
+        // Pre-populate parameters with defaults from the definition
+        const paramsDef =
+          def?.parameters ?? def?.params ?? def?.["parameters"] ?? def?.["params"];
+        if (paramsDef && typeof paramsDef === "object") {
+          const defaults: Record<string, unknown> = {};
+          const params = paramsDef as Record<string, unknown>;
+          for (const [key, val] of Object.entries(params)) {
+            if (val && typeof val === "object" && "default" in (val as Record<string, unknown>)) {
+              defaults[key] = (val as Record<string, unknown>).default;
+            }
+          }
+          if (Object.keys(defaults).length > 0) {
+            setParamsJson(JSON.stringify(defaults, null, 2));
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBlueprintDef(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDef(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [blueprint, socket]);
+
   const reset = () => {
     setId("");
     setBlueprint("");
@@ -72,6 +118,9 @@ function StartFlowDialog({
     setParamsError(null);
     setSubmitting(false);
     setSubmitted(false);
+    setBlueprintDef(null);
+    setLoadingDef(false);
+    setDefExpanded(false);
   };
 
   const handleSubmit = async () => {
@@ -123,7 +172,7 @@ function StartFlowDialog({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!isValid || submitting}
+            disabled={submitting}
             className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
           >
             {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -179,6 +228,92 @@ function StartFlowDialog({
         )}
         {submitted && !blueprint && (
           <p className="mt-1 text-xs text-red-400">Blueprint is required</p>
+        )}
+
+        {/* Blueprint details info section */}
+        {loadingDef && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-fg-subtle">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading blueprint details...
+          </div>
+        )}
+
+        {blueprintDef && !loadingDef && (
+          <div className="mt-2 rounded-lg border border-border bg-surface-50 p-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+              <Info className="h-3.5 w-3.5 text-brand-400" />
+              Blueprint Details
+            </div>
+
+            {/* Description from definition */}
+            {!!(blueprintDef.description || blueprintDef.desc) && (
+              <p className="mt-1.5 text-xs text-fg-muted">
+                {String(blueprintDef.description ?? blueprintDef.desc)}
+              </p>
+            )}
+
+            {/* Parameters schema */}
+            {(() => {
+              const paramsDef =
+                blueprintDef.parameters ??
+                blueprintDef.params ??
+                blueprintDef["parameters"] ??
+                blueprintDef["params"];
+              if (!paramsDef || typeof paramsDef !== "object") return null;
+              const entries = Object.entries(paramsDef as Record<string, unknown>);
+              if (entries.length === 0) return null;
+              return (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-fg-muted">Parameters</p>
+                  <div className="mt-1 space-y-1">
+                    {entries.map(([name, schema]) => {
+                      const s = schema as Record<string, unknown> | null;
+                      const type = s?.type ? String(s.type) : undefined;
+                      const defaultVal = s && "default" in s ? s.default : undefined;
+                      const desc = s?.description ? String(s.description) : undefined;
+                      return (
+                        <div
+                          key={name}
+                          className="flex flex-wrap items-baseline gap-x-2 text-xs"
+                        >
+                          <span className="font-mono font-medium text-fg">{name}</span>
+                          {type && (
+                            <span className="rounded bg-surface-200 px-1 py-0.5 text-[10px] text-fg-subtle">
+                              {type}
+                            </span>
+                          )}
+                          {defaultVal !== undefined && (
+                            <span className="text-fg-subtle">
+                              default: <span className="font-mono">{JSON.stringify(defaultVal)}</span>
+                            </span>
+                          )}
+                          {desc && <span className="text-fg-subtle">- {desc}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Raw JSON toggle */}
+            <button
+              type="button"
+              onClick={() => setDefExpanded((p) => !p)}
+              className="mt-2 flex items-center gap-1 text-[11px] text-fg-subtle hover:text-fg-muted"
+            >
+              {defExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              Raw definition
+            </button>
+            {defExpanded && (
+              <pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-surface-100 p-2 font-mono text-[11px] text-fg-subtle">
+                {JSON.stringify(blueprintDef, null, 2)}
+              </pre>
+            )}
+          </div>
         )}
       </div>
 
@@ -241,25 +376,41 @@ function StopFlowDialog({
   open: boolean;
   flowId: string;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
 }) {
+  const [stopping, setStopping] = useState(false);
+
+  const handleStop = async () => {
+    setStopping(true);
+    try {
+      await onConfirm();
+    } finally {
+      setStopping(false);
+    }
+  };
+
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (!stopping) onClose();
+      }}
       title="Stop Flow"
       footer={
         <>
           <button
             onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-fg-muted hover:bg-surface-200"
+            disabled={stopping}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-fg-muted hover:bg-surface-200 disabled:opacity-40"
           >
             Cancel
           </button>
           <button
-            onClick={onConfirm}
-            className="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            onClick={handleStop}
+            disabled={stopping}
+            className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
           >
+            {stopping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Stop
           </button>
         </>

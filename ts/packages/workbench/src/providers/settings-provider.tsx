@@ -47,7 +47,7 @@ const DEFAULT_FEATURE_SWITCHES: FeatureSwitches = {
 };
 
 const DEFAULT_SETTINGS: Settings = {
-  user: "user",
+  user: "default",
   apiKey: "",
   collection: "default",
   gatewayUrl: "",

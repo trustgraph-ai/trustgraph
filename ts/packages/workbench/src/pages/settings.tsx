@@ -12,6 +12,8 @@ import {
   Loader2,
   Moon,
   Sun,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/providers/settings-provider";
@@ -21,6 +23,7 @@ import { useFlows } from "@/hooks/use-flows";
 import { useSessionStore } from "@/hooks/use-session-store";
 import { useNotification } from "@/providers/notification-provider";
 import { Badge } from "@/components/ui/badge";
+import { Dialog } from "@/components/ui/dialog";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -82,6 +85,18 @@ export default function SettingsPage() {
   >([]);
   const [loadingCollections, setLoadingCollections] = useState(false);
 
+  // Create-collection dialog state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newId, setNewId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newTags, setNewTags] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  // Delete-collection confirmation dialog state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   // Dark mode toggle -- uses a class on <html>/<body> and persists to localStorage
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -106,32 +121,118 @@ export default function SettingsPage() {
     }
   }, [isDark]);
 
-  // Fetch collections
-  useEffect(() => {
-    let cancelled = false;
+  // Reusable function to fetch collections from the backend
+  const refreshCollections = useCallback(() => {
     setLoadingCollections(true);
-    socket
+    return socket
       .collectionManagement()
       .listCollections()
       .then((cols) => {
-        if (!cancelled) {
-          setCollections(
-            Array.isArray(cols)
-              ? (cols as Array<{ id?: string; name?: string; [key: string]: unknown }>)
-              : [],
-          );
+        const list = Array.isArray(cols)
+          ? (cols as Array<{ id?: string; collection?: string; name?: string; [key: string]: unknown }>)
+          : [];
+        // Ensure "default" collection is always present
+        const hasDefault = list.some(
+          (c) => (c.collection ?? c.id ?? c.name) === "default",
+        );
+        if (!hasDefault) {
+          list.unshift({ id: "default", collection: "default", name: "default" });
         }
+        setCollections(list);
+        return list;
       })
       .catch(() => {
-        /* silent -- collections endpoint may not be available */
+        // Fallback: at minimum show "default"
+        setCollections([{ id: "default", collection: "default", name: "default" }]);
       })
       .finally(() => {
-        if (!cancelled) setLoadingCollections(false);
+        setLoadingCollections(false);
       });
+  }, [socket]);
+
+  // Fetch collections on mount
+  useEffect(() => {
+    let cancelled = false;
+    refreshCollections().then(() => {
+      if (cancelled) return;
+    });
     return () => {
       cancelled = true;
     };
-  }, [socket]);
+  }, [refreshCollections]);
+
+  // Create a new collection
+  const handleCreateCollection = useCallback(async () => {
+    const trimmedId = newId.trim();
+    if (!trimmedId) return;
+
+    setCreating(true);
+    try {
+      const tags = newTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      await socket
+        .collectionManagement()
+        .updateCollection(
+          trimmedId,
+          newName.trim() || undefined,
+          newDescription.trim() || undefined,
+          tags.length > 0 ? tags : undefined,
+        );
+
+      await refreshCollections();
+      updateSetting("collection", trimmedId);
+      notify.success("Collection created", `"${newName.trim() || trimmedId}" is now active.`);
+
+      // Reset form and close
+      setNewId("");
+      setNewName("");
+      setNewDescription("");
+      setNewTags("");
+      setCreateOpen(false);
+    } catch (err) {
+      notify.error(
+        "Failed to create collection",
+        err instanceof Error ? err.message : String(err),
+      );
+    } finally {
+      setCreating(false);
+    }
+  }, [newId, newName, newDescription, newTags, socket, refreshCollections, updateSetting, notify]);
+
+  // Delete the current collection
+  const handleDeleteCollection = useCallback(async () => {
+    const currentId = settings.collection;
+    if (!currentId) return;
+
+    setDeleting(true);
+    try {
+      await socket.collectionManagement().deleteCollection(currentId);
+      await refreshCollections();
+
+      // Switch to the first remaining collection
+      const remaining = collections.filter((c) => {
+        const id = c.id ?? String(c.name ?? c);
+        return id !== currentId;
+      });
+      if (remaining.length > 0) {
+        const firstId = remaining[0].id ?? String(remaining[0].name ?? remaining[0]);
+        updateSetting("collection", firstId);
+      }
+
+      notify.success("Collection deleted", `"${currentId}" has been removed.`);
+      setDeleteOpen(false);
+    } catch (err) {
+      notify.error(
+        "Failed to delete collection",
+        err instanceof Error ? err.message : String(err),
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }, [settings.collection, socket, refreshCollections, collections, updateSetting, notify]);
 
   // Connection status helpers
   const isConnected =
@@ -183,7 +284,7 @@ export default function SettingsPage() {
               className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
             <p className="text-xs text-fg-subtle">
-              The WebSocket URL for the TrustGraph gateway.
+              The WebSocket URL for the Beep Graph gateway.
             </p>
           </div>
 
@@ -253,32 +354,192 @@ export default function SettingsPage() {
                 collections...
               </div>
             ) : collections.length > 0 ? (
-              <select
-                id="settings-collection"
-                value={settings.collection}
-                onChange={(e) => updateSetting("collection", e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              >
-                {collections.map((c) => {
-                  const id = c.id ?? String(c.name ?? c);
-                  return (
-                    <option key={id} value={id}>
-                      {c.name ?? id}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  id="settings-collection"
+                  value={settings.collection}
+                  onChange={(e) => updateSetting("collection", e.target.value)}
+                  className="flex-1 rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  {collections.map((c) => {
+                    const cObj = c as { collection?: string; id?: string; name?: string };
+                    const collId = cObj.collection ?? cObj.id ?? String(cObj.name ?? c);
+                    const label = cObj.name ?? collId;
+                    return (
+                      <option key={collId} value={collId}>
+                        {label !== collId ? `${label} (${collId})` : collId}
+                      </option>
+                    );
+                  })}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(true)}
+                  aria-label="New collection"
+                  title="New collection"
+                  className="rounded-lg border border-border bg-surface-100 p-2 text-fg-subtle hover:bg-surface-200 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                {collections.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteOpen(true)}
+                    aria-label="Delete collection"
+                    title="Delete collection"
+                    className="rounded-lg border border-red-500/30 bg-surface-100 p-2 text-red-400 hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             ) : (
-              <input
-                id="settings-collection"
-                type="text"
-                value={settings.collection}
-                onChange={(e) => updateSetting("collection", e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  id="settings-collection"
+                  type="text"
+                  value={settings.collection}
+                  onChange={(e) => updateSetting("collection", e.target.value)}
+                  className="flex-1 rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(true)}
+                  aria-label="New collection"
+                  title="New collection"
+                  className="rounded-lg border border-border bg-surface-100 p-2 text-fg-subtle hover:bg-surface-200 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
             )}
           </div>
         </Section>
+
+        {/* Create Collection Dialog */}
+        <Dialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          title="New Collection"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm text-fg-muted hover:bg-surface-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!newId.trim() || creating}
+                onClick={handleCreateCollection}
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creating && <Loader2 className="h-3 w-3 animate-spin" />}
+                Create
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="new-collection-id" className="block text-sm font-medium text-fg-muted">
+                Collection ID <span className="text-red-400">*</span>
+              </label>
+              <input
+                id="new-collection-id"
+                type="text"
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                placeholder="my-collection"
+                className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              <p className="text-xs text-fg-subtle">
+                A unique identifier for this collection.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="new-collection-name" className="block text-sm font-medium text-fg-muted">
+                Display Name
+              </label>
+              <input
+                id="new-collection-name"
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="My Collection"
+                className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="new-collection-description" className="block text-sm font-medium text-fg-muted">
+                Description
+              </label>
+              <textarea
+                id="new-collection-description"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="What this collection is for..."
+                rows={3}
+                className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="new-collection-tags" className="block text-sm font-medium text-fg-muted">
+                Tags
+              </label>
+              <input
+                id="new-collection-tags"
+                type="text"
+                value={newTags}
+                onChange={(e) => setNewTags(e.target.value)}
+                placeholder="research, finance, internal"
+                className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              <p className="text-xs text-fg-subtle">
+                Comma-separated list of tags for categorization.
+              </p>
+            </div>
+          </div>
+        </Dialog>
+
+        {/* Delete Collection Confirmation Dialog */}
+        <Dialog
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          title="Delete Collection"
+          className="max-w-md"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm text-fg-muted hover:bg-surface-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteCollection}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting && <Loader2 className="h-3 w-3 animate-spin" />}
+                Delete
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-fg-muted">
+            Are you sure you want to delete the collection{" "}
+            <span className="font-semibold text-fg">"{settings.collection}"</span>?
+            This will remove the collection and all its data. This action cannot be undone.
+          </p>
+        </Dialog>
 
         {/* Flow */}
         <Section
@@ -391,11 +652,11 @@ export default function SettingsPage() {
         >
           <div className="space-y-2 text-sm text-fg-muted">
             <p>
-              <span className="font-medium text-fg">TrustGraph Workbench</span>{" "}
+              <span className="font-medium text-fg">Beep Graph</span>{" "}
               v0.1.0
             </p>
             <p>
-              A web-based interface for interacting with the TrustGraph
+              A web-based interface for interacting with the Beep Graph
               knowledge-graph system.
             </p>
           </div>

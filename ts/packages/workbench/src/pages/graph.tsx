@@ -313,7 +313,7 @@ export default function GraphPage() {
   const zoomFit = () =>
     fgRef.current?.zoomToFit(400, 40);
 
-  // Node paint callback
+  // Node paint callback — with glow effect
   const paintNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const isSelected = node.id === selectedNode;
@@ -324,17 +324,39 @@ export default function GraphPage() {
       const x = node.x ?? 0;
       const y = node.y ?? 0;
 
-      // Node circle
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = dim
+      const baseColor = dim
         ? "rgba(100,100,100,0.3)"
         : isSelected
           ? "#fbbf24"
           : isMatch
             ? "#22c55e"
             : node.color ?? "#5b80ff";
+
+      // Outer glow (only when not dimmed)
+      if (!dim) {
+        ctx.save();
+        ctx.shadowColor = baseColor;
+        ctx.shadowBlur = isSelected ? 16 : 8;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = baseColor;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Node circle (crisp, on top of glow)
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = baseColor;
       ctx.fill();
+
+      // Inner highlight (subtle white dot for depth)
+      if (!dim && radius > 3) {
+        ctx.beginPath();
+        ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.3, 0, 2 * Math.PI);
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.fill();
+      }
 
       if (isSelected || isMatch) {
         ctx.strokeStyle = isSelected ? "#fbbf24" : "#22c55e";
@@ -344,7 +366,7 @@ export default function GraphPage() {
 
       // Label
       const fontSize = Math.max(10 / globalScale, 2);
-      ctx.font = `${fontSize}px Inter, sans-serif`;
+      ctx.font = `600 ${fontSize}px Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const isLight = document.documentElement.classList.contains("light");
@@ -353,7 +375,7 @@ export default function GraphPage() {
         : isLight
           ? "rgba(24,24,27,0.9)"
           : "rgba(250,250,250,0.9)";
-      ctx.fillText(node.label, x, y + radius + 1);
+      ctx.fillText(node.label, x, y + radius + 2);
     },
     [selectedNode, matchingIds],
   );
@@ -631,9 +653,16 @@ export default function GraphPage() {
               }}
               linkCanvasObjectMode={() => "after"}
               linkCanvasObject={paintLink}
-              linkColor={() => "rgba(91,128,255,0.25)"}
-              linkDirectionalArrowLength={4}
+              linkColor={() => "rgba(91,128,255,0.18)"}
+              linkWidth={1.5}
+              linkDirectionalArrowLength={5}
               linkDirectionalArrowRelPos={0.85}
+              linkDirectionalArrowColor={() => "rgba(91,128,255,0.5)"}
+              linkDirectionalParticles={2}
+              linkDirectionalParticleWidth={2}
+              linkDirectionalParticleSpeed={0.004}
+              linkDirectionalParticleColor={() => "rgba(91,128,255,0.6)"}
+              linkCurvature={0.1}
               onNodeClick={(node: GraphNode) => {
                 setSelectedNode((prev) =>
                   prev === node.id ? null : node.id,
@@ -641,6 +670,8 @@ export default function GraphPage() {
               }}
               onBackgroundClick={() => setSelectedNode(null)}
               backgroundColor="transparent"
+              cooldownTicks={100}
+              warmupTicks={30}
               width={containerSize?.width}
               height={containerSize?.height}
             />

@@ -334,9 +334,87 @@ function buildTriples(): RawTriple[] {
 
   entity("AI Safety", "is a focus area of", "Anthropic");
   entity("AI Safety", "is researched by", "Google DeepMind");
+  entity("AI Safety", "is researched by", "OpenAI");
   literal("AI Safety", "concerns include", "alignment, misuse, and existential risk");
-  literal("AI Safety", "approaches include", "RLHF, Constitutional AI, and interpretability research");
+  literal("AI Safety", "approaches include", "RLHF, Constitutional AI, interpretability, and red-teaming");
   entity("AI Safety", "advocate includes", "Geoffrey Hinton");
+  entity("AI Safety", "advocate includes", "Dario Amodei");
+  entity("AI Safety", "advocate includes", "Ilya Sutskever");
+
+  // Anthropic's AI Safety approach (detailed)
+  entity("Anthropic", "practices", "AI Safety");
+  entity("Anthropic", "developed technique", "Constitutional AI");
+  entity("Anthropic", "developed technique", "Interpretability Research");
+  entity("Anthropic", "developed technique", "Red Teaming");
+  entity("Anthropic", "published", "Responsible Scaling Policy");
+  literal("Anthropic", "AI safety approach is", "training AI to be helpful, harmless, and honest through Constitutional AI and RLHF");
+  literal("Anthropic", "conducts", "mechanistic interpretability research to understand neural network internals");
+  entity("Dario Amodei", "advocates for", "AI Safety");
+  literal("Dario Amodei", "approach to AI safety is", "responsible scaling with clear capability thresholds and safety evaluations");
+  entity("Daniela Amodei", "advocates for", "AI Safety");
+  literal("Daniela Amodei", "focuses on", "building safety-focused organizational culture at Anthropic");
+
+  // OpenAI's AI Safety approach (detailed)
+  entity("OpenAI", "practices", "AI Safety");
+  entity("OpenAI", "developed technique", "RLHF");
+  entity("OpenAI", "developed technique", "Red Teaming");
+  entity("OpenAI", "developed technique", "Iterative Deployment");
+  entity("OpenAI", "established", "Preparedness Framework");
+  literal("OpenAI", "AI safety approach is", "iterative deployment with extensive red-teaming and RLHF alignment");
+  literal("OpenAI", "conducts", "external red-team evaluations before major model releases");
+  entity("Sam Altman", "advocates for", "AI Safety");
+  literal("Sam Altman", "approach to AI safety is", "gradual deployment to learn from real-world feedback while maintaining safety guardrails");
+  entity("Ilya Sutskever", "advocated for", "AI Safety");
+  literal("Ilya Sutskever", "left OpenAI to found", "Safe Superintelligence Inc focused entirely on safe superintelligence");
+
+  // DeepMind's AI Safety approach
+  entity("Google DeepMind", "practices", "AI Safety");
+  entity("Google DeepMind", "developed technique", "Scalable Oversight");
+  entity("Google DeepMind", "developed technique", "Reward Modeling");
+  literal("Google DeepMind", "AI safety approach is", "formal verification, reward modeling, and scalable oversight techniques");
+  entity("Demis Hassabis", "advocates for", "AI Safety");
+  literal("Demis Hassabis", "approach to AI safety is", "ensuring AI systems are robustly beneficial through scientific rigor");
+
+  // Safety techniques (detailed)
+  literal("Constitutional AI", "works by", "having AI critique and revise its own outputs according to a set of constitutional principles");
+  literal("Constitutional AI", "advantage is", "reducing reliance on human feedback while maintaining alignment");
+  literal("Constitutional AI", "was introduced in", "2022 by Anthropic researchers");
+
+  literal("RLHF", "works by", "collecting human preference data, training a reward model, and optimizing the language model via reinforcement learning");
+  literal("RLHF", "limitation is", "scalability of human feedback collection and reward hacking");
+  literal("RLHF", "was pioneered by", "OpenAI and used in ChatGPT, InstructGPT");
+
+  literal("Interpretability Research", "is a", "field studying how neural networks represent and process information internally");
+  entity("Interpretability Research", "is led by", "Anthropic");
+  literal("Interpretability Research", "uses techniques like", "sparse autoencoders, activation patching, and circuit analysis");
+  literal("Interpretability Research", "goal is", "understanding AI decision-making to detect and prevent harmful behaviors");
+
+  literal("Red Teaming", "is a", "security practice of adversarially testing AI systems to find vulnerabilities and harmful outputs");
+  entity("Red Teaming", "is used by", "OpenAI");
+  entity("Red Teaming", "is used by", "Anthropic");
+  entity("Red Teaming", "is used by", "Google DeepMind");
+  literal("Red Teaming", "involves", "external experts attempting to elicit harmful, biased, or dangerous responses");
+
+  literal("Iterative Deployment", "is a", "strategy of gradually releasing AI systems to learn from real-world use");
+  entity("Iterative Deployment", "is practiced by", "OpenAI");
+  literal("Iterative Deployment", "advantage is", "building societal understanding and adaptation alongside AI capabilities");
+
+  literal("Scalable Oversight", "is a", "research area focused on maintaining human oversight as AI systems become more capable");
+  entity("Scalable Oversight", "is researched by", "Google DeepMind");
+  literal("Scalable Oversight", "includes techniques like", "debate, recursive reward modeling, and amplification");
+
+  literal("Responsible Scaling Policy", "is a", "framework published by Anthropic for scaling AI capabilities safely");
+  literal("Responsible Scaling Policy", "defines", "AI Safety Levels (ASLs) with capability thresholds and required safeguards");
+  entity("Responsible Scaling Policy", "was published by", "Anthropic");
+
+  literal("Preparedness Framework", "is a", "framework published by OpenAI for tracking and mitigating catastrophic risks");
+  literal("Preparedness Framework", "evaluates risks in", "cybersecurity, biological threats, persuasion, and model autonomy");
+  entity("Preparedness Framework", "was published by", "OpenAI");
+
+  entity("Safe Superintelligence Inc", "was founded by", "Ilya Sutskever");
+  literal("Safe Superintelligence Inc", "is a", "company focused solely on building safe superintelligent AI");
+  literal("Safe Superintelligence Inc", "was founded in", "2024");
+  literal("Safe Superintelligence Inc", "approach is", "pursuing safety and capabilities in tandem, insulated from commercial pressures");
 
   literal("Artificial General Intelligence", "is defined as", "AI that matches or exceeds human-level intelligence across domains");
   entity("Artificial General Intelligence", "is pursued by", "OpenAI");
@@ -515,6 +593,174 @@ async function embed(texts: string[]): Promise<number[][]> {
   }
   const data = (await res.json()) as { embeddings: number[][] };
   return data.embeddings;
+}
+
+// ---------------------------------------------------------------------------
+// Document chunks for Doc RAG
+// ---------------------------------------------------------------------------
+
+const DOCUMENT_CHUNKS: Array<{ id: string; content: string }> = [
+  {
+    id: "chunk-constitutional-ai-1",
+    content:
+      "Constitutional AI (CAI) is an AI alignment technique developed by Anthropic in 2022. " +
+      "It works by having AI systems critique and revise their own outputs according to a set of " +
+      "constitutional principles, reducing the need for human feedback labeling. The technique " +
+      "uses a two-phase approach: first, the AI generates and self-critiques responses using " +
+      "constitutional principles; second, it trains on the revised outputs using reinforcement " +
+      "learning from AI feedback (RLAIF) rather than human feedback.",
+  },
+  {
+    id: "chunk-constitutional-ai-2",
+    content:
+      "The key advantage of Constitutional AI is that it reduces reliance on human feedback while " +
+      "maintaining alignment with human values. The constitutional principles can include rules " +
+      "about helpfulness, harmlessness, and honesty. Anthropic published the Constitutional AI " +
+      "paper to demonstrate that AI systems can be made safer through self-supervision guided " +
+      "by explicit principles, rather than requiring massive amounts of human feedback data.",
+  },
+  {
+    id: "chunk-rlhf-1",
+    content:
+      "Reinforcement Learning from Human Feedback (RLHF) is a technique for training AI models " +
+      "to follow human preferences. It was pioneered by OpenAI and used to train models like " +
+      "ChatGPT and InstructGPT. The process involves three steps: first, a language model is " +
+      "pre-trained on a large corpus; second, human evaluators rank model outputs to create a " +
+      "reward model; third, the language model is fine-tuned using reinforcement learning with " +
+      "the reward model providing the training signal.",
+  },
+  {
+    id: "chunk-transformer-1",
+    content:
+      "The Transformer architecture was introduced in the 2017 paper 'Attention Is All You Need' " +
+      "by researchers at Google Brain. It revolutionized natural language processing by replacing " +
+      "recurrent neural networks with self-attention mechanisms, enabling much more efficient " +
+      "parallel processing. Key innovations include multi-head attention, positional encoding, " +
+      "and the encoder-decoder structure. The Transformer forms the foundation of modern LLMs " +
+      "including GPT, Claude, Gemini, and LLaMA.",
+  },
+  {
+    id: "chunk-openai-1",
+    content:
+      "OpenAI was founded in December 2015 as a non-profit AI research lab by Sam Altman, " +
+      "Elon Musk, Greg Brockman, Ilya Sutskever, Wojciech Zaremba, and John Schulman. " +
+      "The organization was created with the mission of ensuring that artificial general " +
+      "intelligence benefits all of humanity. In 2019, OpenAI transitioned to a 'capped-profit' " +
+      "model to attract the capital needed for large-scale AI research. OpenAI is headquartered " +
+      "in San Francisco and is best known for developing the GPT series of language models.",
+  },
+  {
+    id: "chunk-anthropic-1",
+    content:
+      "Anthropic was founded in 2021 by Dario Amodei and Daniela Amodei, along with several " +
+      "former OpenAI researchers. The company focuses on AI safety research and develops the " +
+      "Claude family of large language models. Anthropic is headquartered in San Francisco " +
+      "and has raised significant funding from investors including Google and Spark Capital. " +
+      "The company's research focuses on interpretability, Constitutional AI, and developing " +
+      "methods to make AI systems more reliable and aligned with human values.",
+  },
+  {
+    id: "chunk-ai-safety-1",
+    content:
+      "AI safety encompasses research and practices aimed at ensuring artificial intelligence " +
+      "systems operate as intended without causing unintended harm. Key areas include alignment " +
+      "(ensuring AI goals match human values), interpretability (understanding how AI makes " +
+      "decisions), robustness (maintaining performance under distribution shift), and red " +
+      "teaming (adversarial testing to find vulnerabilities). Organizations like Anthropic, " +
+      "OpenAI, Google DeepMind, and the Center for AI Safety are major contributors to " +
+      "AI safety research.",
+  },
+  {
+    id: "chunk-gpu-ai-1",
+    content:
+      "NVIDIA's A100 and H100 GPUs are the dominant hardware for AI training and inference. " +
+      "The A100, based on the Ampere architecture, delivers up to 312 TFLOPS of FP16 " +
+      "performance. The H100, based on the Hopper architecture released in 2022, offers " +
+      "roughly 3x the AI training performance of the A100. These GPUs are used by major " +
+      "AI labs including OpenAI, Anthropic, Google DeepMind, and Meta AI for training " +
+      "large language models and other AI systems.",
+  },
+  {
+    id: "chunk-deepmind-1",
+    content:
+      "Google DeepMind was formed in April 2023 by merging Google Brain and DeepMind. " +
+      "The original DeepMind was founded in 2010 by Demis Hassabis, Shane Legg, and " +
+      "Mustafa Suleyman, and was acquired by Google in 2014. Notable achievements include " +
+      "AlphaGo (defeating the world Go champion), AlphaFold (predicting protein structures), " +
+      "and the Gemini family of multimodal AI models. Demis Hassabis was awarded the 2024 " +
+      "Nobel Prize in Chemistry for the AlphaFold work.",
+  },
+  {
+    id: "chunk-llama-1",
+    content:
+      "LLaMA (Large Language Model Meta AI) is Meta's family of open-source large language " +
+      "models. LLaMA 2 was released in July 2023 and made available for both research and " +
+      "commercial use. The open-source approach allows researchers and developers to fine-tune " +
+      "and deploy the models for their own applications. LLaMA models have been widely adopted " +
+      "by the AI community and have spawned numerous derivative models and applications.",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Qdrant seeding (document embeddings)
+// ---------------------------------------------------------------------------
+
+async function seedDocumentChunks(): Promise<void> {
+  // Embed all chunk content
+  const BATCH_SIZE = 32;
+  const allVectors: number[][] = [];
+  const texts = DOCUMENT_CHUNKS.map((c) => c.content);
+
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    const vecs = await embed(batch);
+    allVectors.push(...vecs);
+    process.stdout.write(
+      `\r  Embedding doc chunks: ${Math.min(i + BATCH_SIZE, texts.length)}/${texts.length}`,
+    );
+  }
+  console.log();
+
+  const dim = allVectors[0].length;
+  const collectionName = `d_${USER}_${COLLECTION}_${dim}`;
+
+  // Create collection if needed
+  const existsRes = await fetch(`${QDRANT_URL}/collections/${collectionName}`);
+  if (!existsRes.ok) {
+    await fetch(`${QDRANT_URL}/collections/${collectionName}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vectors: { size: dim, distance: "Cosine" },
+      }),
+    });
+    console.log(`  Created Qdrant collection: ${collectionName} (dim=${dim})`);
+  } else {
+    console.log(`  Qdrant collection exists: ${collectionName}`);
+  }
+
+  // Upsert all chunks with content in payload
+  const points = DOCUMENT_CHUNKS.map((chunk, i) => ({
+    id: crypto.randomUUID(),
+    vector: allVectors[i],
+    payload: {
+      chunk_id: chunk.id,
+      content: chunk.content,
+    },
+  }));
+
+  const res = await fetch(`${QDRANT_URL}/collections/${collectionName}/points`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ points }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Qdrant doc upsert failed: ${body}`);
+  }
+
+  console.log(`  Qdrant: ${points.length} document chunk embeddings stored in ${collectionName}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -755,6 +1001,10 @@ async function main(): Promise<void> {
   if (hasQdrant && hasOllama) {
     console.log("── Seeding Qdrant (entity embeddings) ──");
     await seedQdrant(entities);
+    console.log();
+
+    console.log("── Seeding Qdrant (document chunk embeddings) ──");
+    await seedDocumentChunks();
     console.log();
   } else if (hasQdrant) {
     console.log("⚠ Skipping Qdrant embeddings (Ollama not available for embedding generation)\n");

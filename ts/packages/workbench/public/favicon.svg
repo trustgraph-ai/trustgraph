@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="6" fill="#122812"/>
+  <!-- Lambda body -->
+  <path d="M8 26l8.7 -12" stroke="#5c9a5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25 26c-8 0 -8 -21.3 -16 -21.3" stroke="#5c9a5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- ThugLife glasses — tilted -->
+  <g transform="translate(7.2, 12.7) scale(0.69) rotate(8 12.5 2.5)">
+    <path fill="#fafafa" d="m0,0v2h1v1h1v1h1v1h7v-1h1v-1h1v-2h2v2h1v1h1v1h6v-1h1v-1h1v-1h1v-2z"/>
+    <path fill="#122812" d="m2,1v1h4v2h1v-1h-2v-2h-1v3h1v-1h-2v-2z"/>
+    <path fill="#122812" d="m15,1v1h4v2h1v-1h-2v-2h-1v3h1v-1h-2v-2z"/>
+  </g>
+</svg>

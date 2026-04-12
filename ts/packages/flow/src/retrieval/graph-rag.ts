@@ -46,6 +46,11 @@ export interface GraphRagClients {
 
 export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
 
+export interface GraphRagResult {
+  answer: string;
+  subgraph: Triple[];
+}
+
 export class GraphRag {
   private config: Required<GraphRagConfig>;
 
@@ -58,7 +63,7 @@ export class GraphRag {
       tripleLimit: config.tripleLimit ?? 30,
       maxSubgraphSize: config.maxSubgraphSize ?? 1000,
       maxPathLength: config.maxPathLength ?? 2,
-      edgeScoreLimit: config.edgeScoreLimit ?? 30,
+      edgeScoreLimit: config.edgeScoreLimit ?? 50,
       edgeLimit: config.edgeLimit ?? 25,
     };
   }
@@ -70,28 +75,39 @@ export class GraphRag {
       streaming?: boolean;
       chunkCallback?: ChunkCallback;
     },
-  ): Promise<string> {
+  ): Promise<GraphRagResult> {
+    console.log(`[GraphRag] Query: "${queryText.slice(0, 80)}..."`);
+
     // Step 1: Extract concepts from the query via prompt + LLM
     const concepts = await this.extractConcepts(queryText);
+    console.log(`[GraphRag] Step 1: extracted ${concepts.length} concepts: ${concepts.slice(0, 5).join(", ")}`);
 
     // Step 2: Embed concepts concurrently
     const vectors = await this.getVectors(concepts);
+    console.log(`[GraphRag] Step 2: got ${vectors.length} vectors (dim=${vectors[0]?.length ?? 0})`);
 
     // Step 3: Find matching entities via graph embeddings
-    const entities = await this.getEntities(vectors);
+    const entities = await this.getEntities(vectors, options?.collection);
+    console.log(`[GraphRag] Step 3: found ${entities.length} matching entities`);
 
     // Step 4: Traverse the knowledge graph from entities
-    const subgraph = await this.followEdges(entities);
+    const subgraph = await this.followEdges(entities, options?.collection);
+    console.log(`[GraphRag] Step 4: traversed graph, ${subgraph.length} triples in subgraph`);
 
     // Step 5: Score and filter edges via LLM
     const scoredEdges = await this.scoreEdges(queryText, subgraph);
+    console.log(`[GraphRag] Step 5: scored down to ${scoredEdges.length} edges`);
 
     // Step 6: Synthesize answer
-    return await this.synthesize(
+    console.log(`[GraphRag] Step 6: synthesizing answer from ${scoredEdges.length} edges...`);
+    const answer = await this.synthesize(
       queryText,
       scoredEdges,
-      options?.chunkCallback
+      options?.chunkCallback,
     );
+    console.log(`[GraphRag] Step 6: done (${answer.length} chars)`);
+
+    return { answer, subgraph: scoredEdges };
   }
 
   private async extractConcepts(query: string): Promise<string[]> {
@@ -117,15 +133,17 @@ export class GraphRag {
     return (resp as EmbeddingsResponse).vectors;
   }
 
-  private async getEntities(vectors: number[][]): Promise<Term[]> {
+  private async getEntities(vectors: number[][], collection?: string): Promise<Term[]> {
     const resp = await this.clients.graphEmbeddings.request({
       vectors,
+      user: "default",
+      collection: collection ?? "default",
       limit: this.config.entityLimit,
     });
     return (resp as GraphEmbeddingsResponse).entities;
   }
 
-  private async followEdges(entities: Term[]): Promise<Triple[]> {
+  private async followEdges(entities: Term[], collection?: string): Promise<Triple[]> {
     // BFS multi-hop traversal up to maxPathLength
     const visited = new Set<string>();
     const subgraph: Triple[] = [];
@@ -150,6 +168,7 @@ export class GraphRag {
         const term = stringToTerm(entityStr);
         return this.clients.triples.request({
           s: term,
+          collection,
           limit: this.config.tripleLimit,
         });
       });
@@ -192,7 +211,9 @@ export class GraphRag {
     if (triples.length === 0) return [];
 
     // If the subgraph is small enough, skip LLM scoring entirely
-    if (triples.length <= this.config.edgeLimit) {
+    // 500 triples is well within LLM context limits and avoids lossy scoring
+    if (triples.length <= 500) {
+      console.log(`[GraphRag] Skipping edge scoring — ${triples.length} triples fits in context directly`);
       return triples;
     }
 
@@ -224,6 +245,7 @@ export class GraphRag {
     });
 
     const responseText = (llmResp as TextCompletionResponse).response;
+    console.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${responseText.slice(0, 500)}`);
 
     // Parse scores from LLM response
     // Expected format: JSON array of { id: string, score: number }
@@ -269,6 +291,8 @@ export class GraphRag {
         result.push(triples[idx]);
       }
     }
+
+    console.log(`[GraphRag] Edge scoring: LLM returned ${scored.length} scores, keeping top ${topN.length}, mapped ${result.length} triples`);
 
     // If scoring failed entirely, fall back to returning the first edgeLimit triples
     if (result.length === 0) {

@@ -9,12 +9,12 @@ import {
   Workflow,
   Plug,
   Settings,
-  TestTube2,
   Wifi,
   WifiOff,
   Database,
   ChevronDown,
 } from "lucide-react";
+import { BeepGraphLogo } from "./beep-graph-logo";
 import { cn } from "@/lib/utils";
 import { useConnectionState } from "@/providers/socket-provider";
 import { useSessionStore } from "@/hooks/use-session-store";
@@ -153,9 +153,9 @@ export function Sidebar() {
   return (
     <aside aria-label="Sidebar" className="flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface-50">
       {/* Logo area */}
-      <div className="flex h-14 items-center gap-2 px-4">
-        <TestTube2 className="h-5 w-5 text-brand-500" />
-        <span className="text-lg font-bold text-fg">TrustGraph</span>
+      <div className="flex h-14 items-center gap-2.5 px-4">
+        <BeepGraphLogo className="h-7 w-7 shrink-0 text-brand-400" />
+        <span className="text-lg font-bold text-fg">Beep Graph</span>
       </div>
 
       {/* Divider */}

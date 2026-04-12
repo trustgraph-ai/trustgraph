@@ -32,6 +32,7 @@ export class OllamaEmbeddingsProcessor extends EmbeddingsService {
     this.defaultModel = config.model ?? "mxbai-embed-large";
     this.ollamaHost =
       config.ollamaHost ??
+      process.env.OLLAMA_URL ??
       process.env.OLLAMA_HOST ??
       "http://localhost:11434";
 

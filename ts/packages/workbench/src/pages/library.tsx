@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LibraryBig,
   Upload,
@@ -9,14 +9,22 @@ import {
   Loader2,
   X,
   AlertTriangle,
+  Search,
+  Eye,
+  Clock,
+  Tag,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLibrary } from "@/hooks/use-library";
+import { useLibrary, type UploadProgress } from "@/hooks/use-library";
 import { useSettings } from "@/providers/settings-provider";
 import { useNotification } from "@/providers/notification-provider";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { DocumentMetadata } from "@trustgraph/client";
+
+// Threshold for chunked upload (1 MB base64 ~ 750 KB raw)
+const CHUNKED_UPLOAD_THRESHOLD = 1_000_000;
 
 // ---------------------------------------------------------------------------
 // Upload dialog
@@ -26,6 +34,7 @@ function UploadDialog({
   open,
   onClose,
   onUpload,
+  onUploadChunked,
   onError,
 }: {
   open: boolean;
@@ -37,6 +46,14 @@ function UploadDialog({
     comments: string,
     tags: string[],
   ) => Promise<void>;
+  onUploadChunked: (
+    data: string,
+    mimeType: string,
+    title: string,
+    comments: string,
+    tags: string[],
+    onProgress: (progress: UploadProgress) => void,
+  ) => Promise<void>;
   onError?: (msg: string) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -45,6 +62,7 @@ function UploadDialog({
   const [comments, setComments] = useState("");
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -53,6 +71,7 @@ function UploadDialog({
     setTags("");
     setComments("");
     setUploading(false);
+    setProgress(null);
   };
 
   const titleRef = useRef(title);
@@ -79,14 +98,25 @@ function UploadDialog({
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
-      await onUpload(base64, file.type || "application/octet-stream", title, comments, tagList);
+      const mimeType = file.type || "application/octet-stream";
+
+      if (base64.length > CHUNKED_UPLOAD_THRESHOLD) {
+        await onUploadChunked(base64, mimeType, title, comments, tagList, setProgress);
+      } else {
+        await onUpload(base64, mimeType, title, comments, tagList);
+      }
       reset();
       onClose();
     } catch (err) {
       onError?.(err instanceof Error ? err.message : "Upload failed");
       setUploading(false);
+      setProgress(null);
     }
   };
+
+  const progressPercent = progress
+    ? Math.round((progress.chunksUploaded / Math.max(progress.chunksTotal, 1)) * 100)
+    : 0;
 
   return (
     <Dialog
@@ -151,10 +181,12 @@ function UploadDialog({
           <div className="flex items-center gap-2 text-sm text-fg">
             <FileText className="h-4 w-4" />
             <span>{file.name}</span>
+            <span className="text-xs text-fg-subtle">({formatBytes(file.size)})</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setFile(null);
+                setTitle("");
               }}
               aria-label="Remove selected file"
               className="ml-1 text-fg-subtle hover:text-fg"
@@ -181,6 +213,28 @@ function UploadDialog({
           }}
         />
       </div>
+
+      {/* Upload progress bar */}
+      {uploading && progress && (
+        <div className="mb-4 space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-fg-muted">
+            <span>
+              {progress.phase === "preparing"
+                ? "Preparing upload..."
+                : progress.phase === "finalizing"
+                  ? "Finalizing..."
+                  : `Uploading chunk ${progress.chunksUploaded}/${progress.chunksTotal}`}
+            </span>
+            <span>{progressPercent}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-surface-200">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Title */}
       <div className="mb-3 space-y-1.5">
@@ -220,6 +274,110 @@ function UploadDialog({
           placeholder="Comma-separated tags"
           className="w-full rounded-lg border border-border bg-surface-100 px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
+      </div>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Document detail dialog
+// ---------------------------------------------------------------------------
+
+function DocumentDetailDialog({
+  open,
+  doc,
+  loading: loadingMeta,
+  onClose,
+}: {
+  open: boolean;
+  doc: DocumentMetadata | null;
+  loading?: boolean;
+  onClose: () => void;
+}) {
+  if (!doc) return null;
+
+  return (
+    <Dialog open={open} onClose={onClose} title="Document Details" className="max-w-xl">
+      {loadingMeta && (
+        <div className="mb-3 flex items-center gap-2 text-xs text-fg-subtle">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading full metadata...
+        </div>
+      )}
+      <div className="space-y-4">
+        {/* Title */}
+        <div>
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Title</h3>
+          <p className="text-sm text-fg">{doc.title || "Untitled"}</p>
+        </div>
+
+        {/* ID */}
+        <div>
+          <h3 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fg-subtle">
+            <Hash className="h-3 w-3" /> Document ID
+          </h3>
+          <p className="break-all font-mono text-xs text-fg-muted">{doc.id}</p>
+        </div>
+
+        {/* Type */}
+        <div>
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Type</h3>
+          <Badge variant="default">{doc.kind ?? doc["document-type"] ?? "--"}</Badge>
+        </div>
+
+        {/* Comments */}
+        {doc.comments && (
+          <div>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Comments</h3>
+            <p className="text-sm text-fg-muted">{doc.comments}</p>
+          </div>
+        )}
+
+        {/* Tags */}
+        {doc.tags && doc.tags.length > 0 && (
+          <div>
+            <h3 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fg-subtle">
+              <Tag className="h-3 w-3" /> Tags
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {doc.tags.map((tag) => (
+                <Badge key={tag} variant="info">{tag}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Timestamp */}
+        {doc.time != null && (
+          <div>
+            <h3 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fg-subtle">
+              <Clock className="h-3 w-3" /> Created
+            </h3>
+            <p className="text-sm text-fg-muted">
+              {new Date(doc.time * 1000).toLocaleString()}
+            </p>
+          </div>
+        )}
+
+        {/* User */}
+        {doc.user && (
+          <div>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Uploaded by</h3>
+            <p className="text-sm text-fg-muted">{doc.user}</p>
+          </div>
+        )}
+
+        {/* Raw metadata (if any RDF triples) */}
+        {doc.metadata && doc.metadata.length > 0 && (
+          <div>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">
+              Metadata ({doc.metadata.length} triples)
+            </h3>
+            <pre className="max-h-40 overflow-y-auto rounded-lg bg-surface-100 p-3 font-mono text-[10px] text-fg-muted">
+              {JSON.stringify(doc.metadata, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
     </Dialog>
   );
@@ -286,14 +444,20 @@ export default function LibraryPage() {
     error,
     getDocuments,
     uploadDocument,
+    uploadDocumentChunked,
     removeDocument,
     getProcessing,
+    getDocumentMetadata,
   } = useLibrary();
   const collection = useSettings((s) => s.settings.collection);
   const notify = useNotification();
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DocumentMetadata | null>(null);
+  const [detailDoc, setDetailDoc] = useState<DocumentMetadata | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Load documents and processing on mount
   useEffect(() => {
@@ -318,8 +482,28 @@ export default function LibraryPage() {
     }
   };
 
+  const handleUploadChunked = async (
+    data: string,
+    mimeType: string,
+    title: string,
+    comments: string,
+    tags: string[],
+    onProgress: (progress: UploadProgress) => void,
+  ) => {
+    try {
+      await uploadDocumentChunked(data, mimeType, title, comments, tags, onProgress);
+      notify.success("Document uploaded", `"${title}" is being processed.`);
+      getProcessing();
+    } catch {
+      notify.error("Upload failed", "Could not upload the document.");
+    }
+  };
+
   const handleDelete = async () => {
-    if (!deleteTarget?.id) return;
+    if (!deleteTarget?.id) {
+      setDeleteTarget(null);
+      return;
+    }
     try {
       await removeDocument(deleteTarget.id, collection);
       notify.success("Document deleted");
@@ -328,6 +512,20 @@ export default function LibraryPage() {
     }
     setDeleteTarget(null);
   };
+
+  const handleViewDetail = useCallback(
+    async (doc: DocumentMetadata) => {
+      setDetailDoc(doc);
+      setDetailOpen(true);
+      if (doc.id) {
+        setLoadingDetail(true);
+        const fullMeta = await getDocumentMetadata(doc.id);
+        if (fullMeta) setDetailDoc(fullMeta);
+        setLoadingDetail(false);
+      }
+    },
+    [getDocumentMetadata],
+  );
 
   const handleRefresh = () => {
     getDocuments();
@@ -342,6 +540,24 @@ export default function LibraryPage() {
     if (kind.includes("json")) return "JSON";
     return kind || "--";
   };
+
+  // Search/filter
+  const searchLower = searchTerm.toLowerCase();
+  const filteredDocuments = useMemo(() => {
+    if (!searchLower) return documents;
+    return documents.filter((doc) => {
+      const title = (doc.title ?? "").toLowerCase();
+      const id = (doc.id ?? "").toLowerCase();
+      const tags = (doc.tags ?? []).join(" ").toLowerCase();
+      const kind = (doc.kind ?? doc["document-type"] ?? "").toLowerCase();
+      return (
+        title.includes(searchLower) ||
+        id.includes(searchLower) ||
+        tags.includes(searchLower) ||
+        kind.includes(searchLower)
+      );
+    });
+  }, [documents, searchLower]);
 
   return (
     <div className="flex h-full flex-col">
@@ -373,6 +589,31 @@ export default function LibraryPage() {
           </button>
         </div>
       </div>
+
+      {/* Search bar */}
+      {documents.length > 0 && (
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
+          <input
+            id="library-search"
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by title, tags, type, or ID..."
+            aria-label="Search documents"
+            className="w-full rounded-lg border border-border bg-surface-100 py-2 pl-9 pr-9 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Processing status */}
       {processing.length > 0 && (
@@ -416,7 +657,14 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {documents.length > 0 && (
+      {/* Search results info */}
+      {searchTerm && documents.length > 0 && (
+        <p className="mb-2 text-xs text-fg-subtle">
+          {filteredDocuments.length} of {documents.length} documents match
+        </p>
+      )}
+
+      {filteredDocuments.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-surface-100 text-fg-muted">
@@ -429,7 +677,7 @@ export default function LibraryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {documents.map((doc) => (
+              {filteredDocuments.map((doc) => (
                 <tr key={doc.id} className="hover:bg-surface-100/50">
                   <td className="px-4 py-3 text-fg">
                     <div className="flex items-center gap-2">
@@ -454,13 +702,24 @@ export default function LibraryPage() {
                     {doc.id}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setDeleteTarget(doc)}
-                      className="rounded p-1.5 text-fg-subtle hover:bg-error/10 hover:text-error"
-                      title="Delete document"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleViewDetail(doc)}
+                        className="rounded p-1.5 text-fg-subtle hover:bg-surface-200 hover:text-fg"
+                        title="View details"
+                        aria-label="View document details"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(doc)}
+                        className="rounded p-1.5 text-fg-subtle hover:bg-error/10 hover:text-error"
+                        title="Delete document"
+                        aria-label="Delete document"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -469,11 +728,20 @@ export default function LibraryPage() {
         </div>
       )}
 
+      {/* Empty search results */}
+      {searchTerm && filteredDocuments.length === 0 && documents.length > 0 && (
+        <div className="flex flex-1 flex-col items-center justify-center py-12">
+          <Search className="mb-3 h-8 w-8 text-fg-subtle opacity-30" />
+          <p className="text-fg-subtle">No documents match "{searchTerm}"</p>
+        </div>
+      )}
+
       {/* Dialogs */}
       <UploadDialog
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         onUpload={handleUpload}
+        onUploadChunked={handleUploadChunked}
         onError={(msg) => notify.error("Upload failed", msg)}
       />
 
@@ -482,6 +750,16 @@ export default function LibraryPage() {
         docTitle={deleteTarget?.title ?? deleteTarget?.id ?? ""}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
+      />
+
+      <DocumentDetailDialog
+        open={detailOpen}
+        doc={detailDoc}
+        loading={loadingDetail}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailDoc(null);
+        }}
       />
     </div>
   );
@@ -503,4 +781,10 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

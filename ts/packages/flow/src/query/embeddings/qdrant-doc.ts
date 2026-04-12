@@ -17,6 +17,7 @@ export interface QdrantDocQueryConfig {
 export interface ChunkMatch {
   chunkId: string;
   score: number;
+  content?: string;
 }
 
 export interface DocEmbeddingsQueryRequest {
@@ -71,6 +72,7 @@ export class QdrantDocEmbeddingsQuery {
         chunks.push({
           chunkId,
           score: point.score,
+          content: (payload?.content as string) ?? undefined,
         });
       }
     }

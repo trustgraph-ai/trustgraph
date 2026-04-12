@@ -96,7 +96,7 @@ export class DocumentRagService extends FlowProcessor {
         collection: msg.collection,
       });
 
-      await producer.send(requestId, { response });
+      await producer.send(requestId, { response, endOfStream: true });
     } catch (err) {
       console.error("[DocumentRag] Query failed:", err);
       await producer.send(requestId, {

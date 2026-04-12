@@ -2,13 +2,85 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TrustGraph Workbench</title>
+    <title>Beep Graph</title>
+    <meta name="description" content="Knowledge graph exploration and AI-powered retrieval" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+
+    <!-- Apple -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Beep Graph" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#122812" />
+
+    <!-- Splash screen styles (inline so they render before JS loads) -->
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #09090b;
+        transition: opacity 0.4s ease-out;
+      }
+      #splash.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash svg {
+        width: 72px;
+        height: 72px;
+        margin-bottom: 1rem;
+        animation: splash-pulse 2s ease-in-out infinite;
+      }
+      #splash .splash-name {
+        font-family: "Inter", system-ui, sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fafafa;
+        letter-spacing: -0.02em;
+      }
+      #splash .splash-sub {
+        font-family: "Inter", system-ui, sans-serif;
+        font-size: 0.8rem;
+        color: #71717a;
+        margin-top: 0.35rem;
+      }
+      @keyframes splash-pulse {
+        0%, 100% { opacity: 0.8; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.05); }
+      }
+    </style>
   </head>
   <body class="dark">
+    <!-- Splash screen — visible until React mounts -->
+    <div id="splash">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+        <path d="M6 20l6.5 -9" stroke="#5c9a5c" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 20c-6 0 -6 -16 -12 -16" stroke="#5c9a5c" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+        <g transform="translate(5.4, 9.5) scale(0.52) rotate(8 12.5 2.5)">
+          <path fill="#fafafa" d="m0,0v2h1v1h1v1h1v1h7v-1h1v-1h1v-2h2v2h1v1h1v1h6v-1h1v-1h1v-1h1v-2z"/>
+          <path fill="#09090b" d="m2,1v1h4v2h1v-1h-2v-2h-1v3h1v-1h-2v-2z"/>
+          <path fill="#09090b" d="m15,1v1h4v2h1v-1h-2v-2h-1v3h1v-1h-2v-2z"/>
+        </g>
+      </svg>
+      <div class="splash-name">Beep Graph</div>
+      <div class="splash-sub">Knowledge graph engine</div>
+    </div>
+
     <script>
-      // Restore theme preference before first paint to avoid flash
+      // Restore theme preference before first paint
       (function() {
         var theme = localStorage.getItem('tg-theme');
         if (theme === 'light') {
@@ -18,7 +90,17 @@
         }
       })();
     </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service worker registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function() {});
+        });
+      }
+    </script>
   </body>
 </html>

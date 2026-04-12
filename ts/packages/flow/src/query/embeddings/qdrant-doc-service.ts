@@ -55,13 +55,17 @@ export class DocEmbeddingsQueryService extends FlowProcessor {
       for (const vector of msg.vectors ?? []) {
         const matches = await this.query.query({
           vector,
-          user: "default",
+          user: msg.user ?? "default",
           collection,
           limit: msg.limit ?? 10,
         });
 
         for (const match of matches) {
-          allChunks.push({ chunkId: match.chunkId, score: match.score });
+          allChunks.push({
+            chunkId: match.chunkId,
+            score: match.score,
+            content: match.content,
+          });
         }
       }
 

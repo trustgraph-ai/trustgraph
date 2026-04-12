@@ -74,6 +74,7 @@ export interface GraphRagResponse {
   // Streaming fields
   chunk?: string;
   end_of_stream?: boolean;
+  endOfStream?: boolean;
   error?: {
     message: string;
     type?: string;
@@ -85,7 +86,8 @@ export interface GraphRagResponse {
   // Explainability fields
   message_type?: "chunk" | "explain";
   explain_id?: string;
-  explain_graph?: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+  explain_graph?: string;
+  explain_triples?: unknown[];
   end_of_session?: boolean;
 }
 
@@ -102,6 +104,7 @@ export interface DocumentRagResponse {
   // Streaming fields
   chunk?: string;
   end_of_stream?: boolean;
+  endOfStream?: boolean;
   error?: {
     message: string;
     type?: string;
@@ -120,6 +123,7 @@ export interface DocumentRagResponse {
 export interface AgentRequest {
   question: string;
   user?: string;
+  collection?: string;
   streaming?: boolean;
 }
 
@@ -145,6 +149,7 @@ export interface AgentResponse {
   message_type?: "chunk" | "explain";
   explain_id?: string;
   explain_graph?: string;
+  explain_triples?: unknown[];
 }
 
 export interface EmbeddingsRequest {
@@ -293,6 +298,7 @@ export interface LibraryRequest {
   "document-id"?: string;
   "processing-id"?: string;
   "document-metadata"?: DocumentMetadata;
+  documentMetadata?: DocumentMetadata;
   "processing-metadata"?: ProcessingMetadata;
   content?: string;
   user?: string;
@@ -305,6 +311,7 @@ export interface LibraryRequest {
 export interface LibraryResponse {
   error: Error;
   "document-metadata"?: DocumentMetadata;
+  documentMetadata?: DocumentMetadata;
   content?: string;
   "document-metadatas"?: DocumentMetadata[];
   "processing-metadata"?: ProcessingMetadata;
@@ -391,7 +398,8 @@ export interface ChunkedUploadDocumentMetadata {
 
 export interface BeginUploadRequest {
   operation: "begin-upload";
-  "document-metadata": ChunkedUploadDocumentMetadata;
+  "document-metadata"?: ChunkedUploadDocumentMetadata;
+  documentMetadata?: ChunkedUploadDocumentMetadata;
   "total-size": number;
   "chunk-size"?: number;
 }

@@ -19,6 +19,7 @@ export interface QdrantDocEmbeddingsConfig {
 export interface DocEmbeddingChunk {
   chunkId: string;
   vector: number[];
+  content?: string;
 }
 
 export interface DocEmbeddingsMessage {
@@ -73,7 +74,10 @@ export class QdrantDocEmbeddingsStore {
           {
             id: randomUUID(),
             vector: chunk.vector,
-            payload: { chunk_id: chunk.chunkId },
+            payload: {
+              chunk_id: chunk.chunkId,
+              ...(chunk.content ? { content: chunk.content } : {}),
+            },
           },
         ],
       });

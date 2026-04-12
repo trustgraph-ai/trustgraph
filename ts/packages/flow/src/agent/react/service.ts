@@ -42,6 +42,7 @@ import {
   createDocumentQueryTool,
   createTriplesQueryTool,
   createMcpTool,
+  type ExplainData,
 } from "./tools.js";
 import { buildReActPrompt } from "./prompt.js";
 import { filterToolsByGroupAndState, getNextState } from "../tool-filter.js";
@@ -222,7 +223,12 @@ export class AgentService extends FlowProcessor {
    * Wire up tool execute functions with live requestors from the flow context.
    * Config-driven tools store placeholders; this replaces them with real impls.
    */
-  private wireTools(tools: AgentTool[], flowCtx: FlowContext, collection?: string): AgentTool[] {
+  private wireTools(
+    tools: AgentTool[],
+    flowCtx: FlowContext,
+    collection?: string,
+    onExplain?: (data: ExplainData) => void,
+  ): AgentTool[] {
     return tools.map((tool) => {
       const implType = tool.config?.["type"] as string | undefined;
 
@@ -231,6 +237,7 @@ export class AgentService extends FlowProcessor {
           const live = createKnowledgeQueryTool(
             flowCtx.flow.requestor<GraphRagRequest, GraphRagResponse>("graph-rag"),
             collection,
+            onExplain,
           );
           return { ...tool, execute: live.execute };
         }
@@ -274,17 +281,24 @@ export class AgentService extends FlowProcessor {
     const responseProducer = flowCtx.flow.producer<AgentResponse>("agent-response");
 
     try {
+      // Accumulate explain data from tool calls for emission after completion
+      const explainEvents: ExplainData[] = [];
+      const onExplain = (data: ExplainData) => {
+        explainEvents.push(data);
+      };
+
       // Build tools — config-driven or hardcoded fallback
       let tools: AgentTool[];
 
       if (this.configuredTools) {
-        tools = this.wireTools(this.configuredTools, flowCtx, msg.collection);
+        tools = this.wireTools(this.configuredTools, flowCtx, msg.collection, onExplain);
       } else {
         // Hardcoded fallback (backward compat)
         tools = [
           createKnowledgeQueryTool(
             flowCtx.flow.requestor<GraphRagRequest, GraphRagResponse>("graph-rag"),
             msg.collection,
+            onExplain,
           ),
           createDocumentQueryTool(
             flowCtx.flow.requestor<DocumentRagRequest, DocumentRagResponse>("doc-rag"),
@@ -348,8 +362,18 @@ export class AgentService extends FlowProcessor {
           });
         }
 
-        // If we got a final answer, send it and return
+        // If we got a final answer, emit explain events then send the answer
         if (parsed.finalAnswer) {
+          // Emit explain events collected from tool calls
+          for (const explain of explainEvents) {
+            await responseProducer.send(requestId, {
+              chunk_type: "explain",
+              content: "",
+              explain_id: explain.explainId,
+              explain_triples: explain.triples,
+            } as AgentResponse);
+          }
+
           await responseProducer.send(requestId, {
             chunk_type: "answer",
             content: parsed.finalAnswer,

@@ -47,8 +47,9 @@ export class GraphEmbeddingsQueryService extends FlowProcessor {
     if (!requestId) return;
 
     const producer = flowCtx.flow.producer<GraphEmbeddingsResponse>("graph-embeddings-response");
-    const user = msg.collection ?? "default";
+    const user = msg.user ?? "default";
     const collection = msg.collection ?? "default";
+    console.log(`[GraphEmbeddingsQuery] Request: user=${user}, collection=${collection}, vectors=${msg.vectors?.length ?? 0}, limit=${msg.limit}`);
 
     try {
       // Query for each vector and aggregate results

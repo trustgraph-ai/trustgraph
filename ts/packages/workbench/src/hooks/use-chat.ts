@@ -238,6 +238,8 @@ export function useChat(): UseChatReturn {
             onError,
             // explainability
             onExplain,
+            // collection
+            collection,
           );
           break;
         }

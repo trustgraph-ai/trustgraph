@@ -1,10 +1,18 @@
 ---
-active: true
-iteration: 1
-session_id: 
-max_iterations: 10
+active: false
+iteration: 3
+session_id: qa-fix-loop-20260412
+max_iterations: 20
 completion_promise: "ALL_CLEAR"
-started_at: "2026-04-10T22:12:33Z"
+started_at: "2026-04-12T08:00:00Z"
+completed_at: "2026-04-12T08:20:00Z"
 ---
 
-Run a full QA pass on the TrustGraph Workbench at localhost:5173. Launch 6 parallel QA agents using the Agent tool with mcp__claude-in-chrome__* browser tools. Agent assignments: Agent 1: /chat + /library. Agent 2: /graph + /prompts. Agent 3: /token-cost + /knowledge-cores. Agent 4: /flows + /settings. Agent 5: sidebar, root-layout, skip-link, loading bar, disconnection banner (viewport 1440x900, test both dark+light mode). Agent 6: responsive at 768x600 across all 8 pages + keyboard navigation (Tab/Shift+Tab/Enter/Escape) on dialogs (/library upload, /flows start/stop). Each agent checks: (a) visual - page loads fully, icons visible, no overflow/clipping; (b) a11y - aria-labels, htmlFor/id label pairs, heading hierarchy, color contrast (no raw amber/yellow on dark bg), focus indicators; (c) functional - buttons respond, toggles work, dialogs open/close/trap focus, loading states display; (d) responsive - content wraps, no horizontal scrollbar, tables scroll. Each agent outputs: AGENT N REPORT - PAGE: /path - ISSUES FOUND: count - then per issue: [SEVERITY:critical|major|minor] [CATEGORY:visual|a11y|functional|responsive] file_path:line description. After all agents complete, aggregate. If total issues == 0, output <promise>ALL_CLEAR</promise>. If issues > 0, fix them by editing source files in ts/packages/workbench/src/, run 'cd /home/elpresidank/YeeBois/dev/trustgraph/ts && pnpm build' to verify, then exit so the loop re-runs.
+ALL_CLEAR — All three chat modes (Graph RAG, Doc RAG, Agent) return substantive answers with grounded data. Agent mode now forwards explainability graph from graph-rag pipeline. No stuck spinners. No console errors.
+
+Fixes applied:
+1. Graph-rag service: send answer + explain data in single message (agent was getting empty explain event as first response)
+2. Doc RAG pipeline: fixed types, added content to Qdrant payload, seeded 10 document chunks
+3. Agent service: forward explain events from KnowledgeQuery tool calls
+4. Client: handle explain events embedded in answer message (Graph RAG) and as separate chunks (Agent)
+5. Gateway: added "agent" to TERM_BEARING_RESPONSE_SERVICES for triple format translation

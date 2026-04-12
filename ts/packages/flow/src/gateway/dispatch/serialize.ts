@@ -240,6 +240,8 @@ const TERM_BEARING_RESPONSE_SERVICES = new Set([
   "graph-embeddings",
   "knowledge",
   "librarian",
+  "graph-rag",
+  "agent",
 ]);
 
 // ---------- Top-level request / response translators ----------

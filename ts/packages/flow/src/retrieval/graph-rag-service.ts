@@ -94,6 +94,7 @@ export class GraphRagService extends FlowProcessor {
     if (!requestId) return;
 
     const producer = flowCtx.flow.producer<GraphRagResponse>("graph-rag-response");
+    console.log(`[GraphRagService] Received request ${requestId}: "${msg.query?.slice(0, 60)}..." collection=${msg.collection}`);
 
     try {
       // Create a per-request GraphRag instance with flow clients
@@ -113,11 +114,27 @@ export class GraphRagService extends FlowProcessor {
         },
       );
 
-      const response = await graphRag.query(msg.query, {
+      const result = await graphRag.query(msg.query, {
         collection: msg.collection,
       });
 
-      await producer.send(requestId, { response });
+      // Send answer with explain data embedded in a SINGLE message.
+      // Non-streaming callers (agent's RequestResponse) return the first
+      // response — so the answer must be in that first (and only) message.
+      // Streaming callers (gateway) extract explain data + answer from
+      // the same message.
+      const response: GraphRagResponse = {
+        response: result.answer,
+        endOfStream: true,
+      };
+
+      if (result.subgraph.length > 0) {
+        (response as Record<string, unknown>).message_type = "explain";
+        (response as Record<string, unknown>).explain_id = `explain-${requestId}`;
+        (response as Record<string, unknown>).explain_triples = result.subgraph;
+      }
+
+      await producer.send(requestId, response);
     } catch (err) {
       console.error("[GraphRag] Query failed:", err);
       await producer.send(requestId, {

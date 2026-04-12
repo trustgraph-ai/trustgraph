@@ -102,6 +102,7 @@ export interface StreamingMetadata {
 export interface ExplainEvent {
   explainId: string;
   explainGraph: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+  explainTriples?: Triple[];  // Inline subgraph triples (when available)
 }
 
 // Configuration constants
@@ -132,6 +133,7 @@ export interface Socket {
     answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (e: string) => void,
     onExplain?: (event: ExplainEvent) => void,
+    collection?: string,
   ) => void;
 
   // Streaming variants for RAG and completion services
@@ -760,7 +762,7 @@ export class LibrarianApi {
         },
         30000,
       )
-      .then((r) => r["document-metadata"] || null);
+      .then((r) => r["document-metadata"] || r.documentMetadata || null);
   }
 
   /**
@@ -786,7 +788,7 @@ export class LibrarianApi {
       "librarian",
       {
         operation: "add-document",
-        "document-metadata": {
+        documentMetadata: {
           id: id,
           time: Math.floor(Date.now() / 1000), // Unix timestamp
           kind: mimeType,
@@ -870,7 +872,7 @@ export class LibrarianApi {
         "librarian",
         {
           operation: "begin-upload",
-          "document-metadata": metadata,
+          documentMetadata: metadata,
           "total-size": totalSize,
           "chunk-size": chunkSize,
         },
@@ -1398,6 +1400,7 @@ export class FlowApi {
     answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (s: string) => void,
     onExplain?: (event: ExplainEvent) => void,
+    collection?: string,
   ) {
     const receiver = (message: unknown) => {
       const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
@@ -1417,10 +1420,11 @@ export class FlowApi {
       }
 
       // Handle explainability events (agent uses chunk_type="explain")
-      if ((resp.chunk_type === "explain" || resp.message_type === "explain") && resp.explain_id && resp.explain_graph) {
+      if ((resp.chunk_type === "explain" || resp.message_type === "explain") && (resp.explain_id || resp.explain_triples)) {
         onExplain?.({
-          explainId: resp.explain_id,
-          explainGraph: resp.explain_graph,
+          explainId: resp.explain_id ?? "",
+          explainGraph: resp.explain_graph ?? "",
+          explainTriples: resp.explain_triples as Triple[] | undefined,
         });
         return false;
       }
@@ -1428,7 +1432,7 @@ export class FlowApi {
       // Handle streaming chunks by chunk_type
       const content = resp.content || "";
       const messageComplete = !!resp.end_of_message;
-      const dialogComplete = !!msg.complete;
+      const dialogComplete = !!msg.complete || !!resp.end_of_dialog;
 
       // Extract metadata from final message
       const metadata: StreamingMetadata | undefined = dialogComplete && (resp.in_token || resp.out_token || resp.model)
@@ -1461,6 +1465,7 @@ export class FlowApi {
         {
           question: question,
           user: this.api.user,
+          collection: collection ?? "default",
           streaming: true, // Always use streaming mode
         },
         receiver,
@@ -1509,19 +1514,23 @@ export class FlowApi {
         return true;
       }
 
-      // Handle explainability events
-      if (resp.message_type === "explain" && resp.explain_id && resp.explain_graph) {
+      // Extract explain data if present (may be embedded in the answer message)
+      if (resp.message_type === "explain" && (resp.explain_id || resp.explain_triples)) {
         onExplain?.({
-          explainId: resp.explain_id,
-          explainGraph: resp.explain_graph,
+          explainId: resp.explain_id ?? "",
+          explainGraph: resp.explain_graph ?? "",
+          explainTriples: resp.explain_triples as Triple[] | undefined,
         });
-        // Don't return true - more messages may follow
-        return false;
+        // If this message also carries answer text, fall through to chunk handling.
+        // If it's a standalone explain event (no answer text), stop here.
+        if (!resp.response && !resp.endOfStream && !resp.end_of_session) {
+          return false;
+        }
       }
 
       // Handle chunk messages (default behavior)
       const chunk = resp.response || resp.chunk || "";
-      const complete = !!resp.end_of_session || !!msg.complete;
+      const complete = !!resp.end_of_session || !!resp.endOfStream || !!msg.complete;
 
       // Extract metadata from final message
       const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
@@ -1598,7 +1607,7 @@ export class FlowApi {
       }
 
       const chunk = resp.response || resp.chunk || "";
-      const complete = !!resp.end_of_session || !!msg.complete;
+      const complete = !!resp.end_of_session || !!resp.endOfStream || !!msg.complete;
 
       // Extract metadata from final message
       const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)

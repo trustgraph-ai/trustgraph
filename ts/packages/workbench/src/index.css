@@ -8,17 +8,17 @@
  */
 
 @theme {
-  /* Brand palette */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #dce4ff;
-  --color-brand-200: #b9c9ff;
-  --color-brand-300: #8aa5ff;
-  --color-brand-400: #5b80ff;
-  --color-brand-500: #3b63ed;
-  --color-brand-600: #2d4ec4;
-  --color-brand-700: #213a9b;
-  --color-brand-800: #162872;
-  --color-brand-900: #0e1a4d;
+  /* Brand palette — Forest green */
+  --color-brand-50: #eef5ee;
+  --color-brand-100: #d4e8d4;
+  --color-brand-200: #aed1ae;
+  --color-brand-300: #82b582;
+  --color-brand-400: #5c9a5c;
+  --color-brand-500: #3d7d3d;
+  --color-brand-600: #2d632d;
+  --color-brand-700: #214e21;
+  --color-brand-800: #1a3a1a;
+  --color-brand-900: #122812;
 
   /* Surface / background colors (dark-first) */
   --color-surface-0: #09090b;
@@ -97,6 +97,39 @@
   }
 }
 
+/* Ambient glow background animations */
+@keyframes glow-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes glow-drift-1 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+  33% { transform: translate(-45%, -55%) scale(1.08); opacity: 1; }
+  66% { transform: translate(-55%, -45%) scale(0.95); opacity: 0.8; }
+}
+
+@keyframes glow-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+  50% { transform: translate(-8%, 12%) scale(1.12); opacity: 1; }
+}
+
+@keyframes glow-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+  40% { transform: translate(10%, -8%) scale(1.1); opacity: 0.9; }
+  70% { transform: translate(-5%, 5%) scale(0.95); opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[glow-drift-1_20s_ease-in-out_infinite\],
+  .animate-\[glow-drift-2_15s_ease-in-out_infinite\],
+  .animate-\[glow-drift-3_25s_ease-in-out_infinite\],
+  .animate-\[glow-fade-in_1\.2s_ease-out_forwards\] {
+    animation: none !important;
+    opacity: 0.7 !important;
+  }
+}
+
 /* Global focus-visible for interactive elements */
 @layer base {
   button:focus-visible,
@@ -142,8 +175,8 @@ html.light {
   --color-border-hover: #a1a1aa;
 
   /* Brand adjustments for light backgrounds */
-  --color-brand-300: #3b63ed;
-  --color-brand-400: #2d4ec4;
+  --color-brand-300: #2d632d;
+  --color-brand-400: #214e21;
 
   /* Semantic colors stay vivid but slightly darker for contrast */
   --color-success: #16a34a;
