@@ -25,7 +25,7 @@ from trustgraph.schema import (
 class TestGraphRagResponseTranslator:
     """Test GraphRagResponseTranslator streaming behavior"""
 
-    def test_from_pulsar_with_empty_response(self):
+    def test_encode_with_empty_response(self):
         """Test that empty response strings are preserved"""
         # Arrange
         translator = GraphRagResponseTranslator()
@@ -36,14 +36,14 @@ class TestGraphRagResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert - Empty string should be included in result
         assert "response" in result
         assert result["response"] == ""
         assert result["end_of_stream"] is True
 
-    def test_from_pulsar_with_non_empty_response(self):
+    def test_encode_with_non_empty_response(self):
         """Test that non-empty responses work correctly"""
         # Arrange
         translator = GraphRagResponseTranslator()
@@ -54,13 +54,13 @@ class TestGraphRagResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert result["response"] == "Some text"
         assert result["end_of_stream"] is False
 
-    def test_from_pulsar_with_none_response(self):
+    def test_encode_with_none_response(self):
         """Test that None response is handled correctly"""
         # Arrange
         translator = GraphRagResponseTranslator()
@@ -71,14 +71,14 @@ class TestGraphRagResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert - None should not be included
         assert "response" not in result
         assert result["end_of_stream"] is True
 
-    def test_from_response_with_completion_returns_correct_flag(self):
-        """Test that from_response_with_completion returns correct is_final flag"""
+    def test_encode_with_completion_returns_correct_flag(self):
+        """Test that encode_with_completion returns correct is_final flag"""
         # Arrange
         translator = GraphRagResponseTranslator()
 
@@ -90,7 +90,7 @@ class TestGraphRagResponseTranslator:
         )
 
         # Act
-        result, is_final = translator.from_response_with_completion(response_chunk)
+        result, is_final = translator.encode_with_completion(response_chunk)
 
         # Assert
         assert is_final is False
@@ -105,7 +105,7 @@ class TestGraphRagResponseTranslator:
         )
 
         # Act
-        result, is_final = translator.from_response_with_completion(final_response)
+        result, is_final = translator.encode_with_completion(final_response)
 
         # Assert - is_final is based on end_of_session, not end_of_stream
         assert is_final is True
@@ -116,7 +116,7 @@ class TestGraphRagResponseTranslator:
 class TestDocumentRagResponseTranslator:
     """Test DocumentRagResponseTranslator streaming behavior"""
 
-    def test_from_pulsar_with_empty_response(self):
+    def test_encode_with_empty_response(self):
         """Test that empty response strings are preserved"""
         # Arrange
         translator = DocumentRagResponseTranslator()
@@ -127,14 +127,14 @@ class TestDocumentRagResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert "response" in result
         assert result["response"] == ""
         assert result["end_of_stream"] is True
 
-    def test_from_pulsar_with_non_empty_response(self):
+    def test_encode_with_non_empty_response(self):
         """Test that non-empty responses work correctly"""
         # Arrange
         translator = DocumentRagResponseTranslator()
@@ -145,7 +145,7 @@ class TestDocumentRagResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert result["response"] == "Document content"
@@ -155,7 +155,7 @@ class TestDocumentRagResponseTranslator:
 class TestPromptResponseTranslator:
     """Test PromptResponseTranslator streaming behavior"""
 
-    def test_from_pulsar_with_empty_text(self):
+    def test_encode_with_empty_text(self):
         """Test that empty text strings are preserved"""
         # Arrange
         translator = PromptResponseTranslator()
@@ -167,14 +167,14 @@ class TestPromptResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert "text" in result
         assert result["text"] == ""
         assert result["end_of_stream"] is True
 
-    def test_from_pulsar_with_non_empty_text(self):
+    def test_encode_with_non_empty_text(self):
         """Test that non-empty text works correctly"""
         # Arrange
         translator = PromptResponseTranslator()
@@ -186,13 +186,13 @@ class TestPromptResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert result["text"] == "Some prompt response"
         assert result["end_of_stream"] is False
 
-    def test_from_pulsar_with_none_text(self):
+    def test_encode_with_none_text(self):
         """Test that None text is handled correctly"""
         # Arrange
         translator = PromptResponseTranslator()
@@ -204,14 +204,14 @@ class TestPromptResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert "text" not in result
         assert "object" in result
         assert result["end_of_stream"] is True
 
-    def test_from_pulsar_includes_end_of_stream(self):
+    def test_encode_includes_end_of_stream(self):
         """Test that end_of_stream flag is always included"""
         # Arrange
         translator = PromptResponseTranslator()
@@ -225,7 +225,7 @@ class TestPromptResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert "end_of_stream" in result
@@ -235,7 +235,7 @@ class TestPromptResponseTranslator:
 class TestTextCompletionResponseTranslator:
     """Test TextCompletionResponseTranslator streaming behavior"""
 
-    def test_from_pulsar_always_includes_response(self):
+    def test_encode_always_includes_response(self):
         """Test that response field is always included, even if empty"""
         # Arrange
         translator = TextCompletionResponseTranslator()
@@ -249,13 +249,13 @@ class TestTextCompletionResponseTranslator:
         )
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert - Response should always be present
         assert "response" in result
         assert result["response"] == ""
 
-    def test_from_response_with_completion_with_empty_final(self):
+    def test_encode_with_completion_with_empty_final(self):
         """Test that empty final response is handled correctly"""
         # Arrange
         translator = TextCompletionResponseTranslator()
@@ -269,7 +269,7 @@ class TestTextCompletionResponseTranslator:
         )
 
         # Act
-        result, is_final = translator.from_response_with_completion(response)
+        result, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True
@@ -297,7 +297,7 @@ class TestStreamingProtocolCompliance:
         response = response_class(**kwargs)
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert field_name in result, f"{translator_class.__name__} should include '{field_name}' field even when empty"
@@ -320,7 +320,7 @@ class TestStreamingProtocolCompliance:
         response = response_class(**kwargs)
 
         # Act
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         # Assert
         assert "end_of_stream" in result, f"{translator_class.__name__} should include 'end_of_stream' flag"

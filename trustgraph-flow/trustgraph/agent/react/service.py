@@ -36,6 +36,7 @@ from trustgraph.provenance import (
     agent_final_uri,
     agent_session_triples,
     agent_iteration_triples,
+    agent_observation_triples,
     agent_final_triples,
     set_graph,
     GRAPH_RETRIEVAL,
@@ -80,7 +81,9 @@ class Processor(AgentService):
         # Track active tool service clients for cleanup
         self.tool_service_clients = {}
 
-        self.config_handlers.append(self.on_tools_config)
+        self.register_config_handler(
+            self.on_tools_config, types=["tool", "tool-service"]
+        )
 
         self.register_specification(
             TextCompletionClientSpec(
@@ -465,13 +468,13 @@ class Processor(AgentService):
                 logger.debug(f"Emitted session triples for {session_uri}")
 
                 # Send explain event for session
-                if streaming:
-                    await respond(AgentResponse(
-                        chunk_type="explain",
-                        content="",
-                        explain_id=session_uri,
-                        explain_graph=GRAPH_RETRIEVAL,
-                    ))
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=session_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                    explain_triples=triples,
+                ))
 
             logger.info(f"Question: {request.question}")
 
@@ -480,32 +483,28 @@ class Processor(AgentService):
 
             logger.debug(f"History: {history}")
 
+            thought_msg_id = agent_thought_uri(session_id, iteration_num)
+            observation_msg_id = agent_observation_uri(session_id, iteration_num)
+
             async def think(x, is_final=False):
 
                 logger.debug(f"Think: {x} (is_final={is_final})")
 
                 if streaming:
-                    # Streaming format
                     r = AgentResponse(
                         chunk_type="thought",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
-                        # Legacy fields for backward compatibility
-                        answer=None,
-                        error=None,
-                        thought=x,
-                        observation=None,
+                        message_id=thought_msg_id,
                     )
                 else:
-                    # Non-streaming format
                     r = AgentResponse(
-                        answer=None,
-                        error=None,
-                        thought=x,
-                        observation=None,
+                        chunk_type="thought",
+                        content=x,
                         end_of_message=True,
                         end_of_dialog=False,
+                        message_id=thought_msg_id,
                     )
 
                 await respond(r)
@@ -515,57 +514,45 @@ class Processor(AgentService):
                 logger.debug(f"Observe: {x} (is_final={is_final})")
 
                 if streaming:
-                    # Streaming format
                     r = AgentResponse(
                         chunk_type="observation",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
-                        # Legacy fields for backward compatibility
-                        answer=None,
-                        error=None,
-                        thought=None,
-                        observation=x,
+                        message_id=observation_msg_id,
                     )
                 else:
-                    # Non-streaming format
                     r = AgentResponse(
-                        answer=None,
-                        error=None,
-                        thought=None,
-                        observation=x,
+                        chunk_type="observation",
+                        content=x,
                         end_of_message=True,
                         end_of_dialog=False,
+                        message_id=observation_msg_id,
                     )
 
                 await respond(r)
+
+            answer_msg_id = agent_final_uri(session_id)
 
             async def answer(x):
 
                 logger.debug(f"Answer: {x}")
 
                 if streaming:
-                    # Streaming format
                     r = AgentResponse(
                         chunk_type="answer",
                         content=x,
-                        end_of_message=False,  # More chunks may follow
+                        end_of_message=False,
                         end_of_dialog=False,
-                        # Legacy fields for backward compatibility
-                        answer=None,
-                        error=None,
-                        thought=None,
-                        observation=None,
+                        message_id=answer_msg_id,
                     )
                 else:
-                    # Non-streaming format - shouldn't normally be called
                     r = AgentResponse(
-                        answer=x,
-                        error=None,
-                        thought=None,
-                        observation=None,
+                        chunk_type="answer",
+                        content=x,
                         end_of_message=True,
                         end_of_dialog=False,
+                        message_id=answer_msg_id,
                     )
 
                 await respond(r)
@@ -576,8 +563,6 @@ class Processor(AgentService):
                 requested_groups=getattr(request, 'group', None),
                 current_state=getattr(request, 'state', None)
             )
-            
-            logger.info(f"Filtered from {len(self.agent.tools)} to {len(filtered_tools)} available tools")
             
             # Create temporary agent with filtered tools
             temp_agent = AgentManager(
@@ -593,6 +578,7 @@ class Processor(AgentService):
                 def __init__(self, flow, user):
                     self._flow = flow
                     self._user = user
+                    self.last_sub_explain_uri = None
 
                 def __call__(self, service_name):
                     client = self._flow(service_name)
@@ -601,14 +587,74 @@ class Processor(AgentService):
                         client._current_user = self._user
                     return client
 
+            # Callback: emit Analysis+ToolUse triples before tool executes
+            async def on_action(act_decision):
+                iter_uri = agent_iteration_uri(session_id, iteration_num)
+                if iteration_num > 1:
+                    iter_q_uri = None
+                    iter_prev_uri = agent_observation_uri(session_id, iteration_num - 1)
+                else:
+                    iter_q_uri = session_uri
+                    iter_prev_uri = None
+
+                # Save thought to librarian
+                t_doc_id = None
+                if act_decision.thought:
+                    t_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
+                    try:
+                        await self.save_answer_content(
+                            doc_id=t_doc_id,
+                            user=request.user,
+                            content=act_decision.thought,
+                            title=f"Agent Thought: {act_decision.name}",
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to save thought to librarian: {e}")
+                        t_doc_id = None
+
+                t_entity_uri = agent_thought_uri(session_id, iteration_num)
+
+                iter_triples = set_graph(
+                    agent_iteration_triples(
+                        iter_uri,
+                        question_uri=iter_q_uri,
+                        previous_uri=iter_prev_uri,
+                        action=act_decision.name,
+                        arguments=act_decision.arguments,
+                        thought_uri=t_entity_uri if t_doc_id else None,
+                        thought_document_id=t_doc_id,
+                    ),
+                    GRAPH_RETRIEVAL
+                )
+                await flow("explainability").send(Triples(
+                    metadata=Metadata(
+                        id=iter_uri,
+                        user=request.user,
+                        collection=collection,
+                    ),
+                    triples=iter_triples,
+                ))
+                logger.debug(f"Emitted iteration triples for {iter_uri}")
+
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=iter_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                    explain_triples=iter_triples,
+                ))
+
+            user_context = UserAwareContext(flow, request.user)
+
             act = await temp_agent.react(
                 question = request.question,
                 history = history,
                 think = think,
                 observe = observe,
                 answer = answer,
-                context = UserAwareContext(flow, request.user),
+                context = user_context,
                 streaming = streaming,
+                on_action = on_action,
             )
 
             logger.debug(f"Action: {act}")
@@ -624,10 +670,10 @@ class Processor(AgentService):
 
                 # Emit final answer provenance triples
                 final_uri = agent_final_uri(session_id)
-                # No iterations: link to question; otherwise: link to last iteration
+                # No iterations: link to question; otherwise: link to last observation
                 if iteration_num > 1:
                     final_question_uri = None
-                    final_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
+                    final_previous_uri = agent_observation_uri(session_id, iteration_num - 1)
                 else:
                     final_question_uri = session_uri
                     final_previous_uri = None
@@ -668,36 +714,30 @@ class Processor(AgentService):
                 logger.debug(f"Emitted final triples for {final_uri}")
 
                 # Send explain event for conclusion
-                if streaming:
-                    await respond(AgentResponse(
-                        chunk_type="explain",
-                        content="",
-                        explain_id=final_uri,
-                        explain_graph=GRAPH_RETRIEVAL,
-                    ))
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=final_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                    explain_triples=final_triples,
+                ))
 
                 if streaming:
-                    # Streaming format - send end-of-dialog marker
-                    # Answer chunks were already sent via answer() callback during parsing
+                    # End-of-dialog marker — answer chunks already sent via callback
                     r = AgentResponse(
                         chunk_type="answer",
-                        content="",  # Empty content, just marking end of dialog
+                        content="",
                         end_of_message=True,
                         end_of_dialog=True,
-                        # Legacy fields set to None - answer already sent via streaming chunks
-                        answer=None,
-                        error=None,
-                        thought=None,
+                        message_id=answer_msg_id,
                     )
                 else:
-                    # Non-streaming format - send complete answer
                     r = AgentResponse(
-                        answer=act.final,
-                        error=None,
-                        thought=None,
-                        observation=None,
+                        chunk_type="answer",
+                        content=f,
                         end_of_message=True,
                         end_of_dialog=True,
+                        message_id=answer_msg_id,
                     )
 
                 await respond(r)
@@ -708,33 +748,15 @@ class Processor(AgentService):
 
             logger.debug("Send next...")
 
-            # Emit iteration provenance triples
+            # Emit standalone observation provenance (iteration was emitted in on_action)
             iteration_uri = agent_iteration_uri(session_id, iteration_num)
-            # First iteration links to question, subsequent to previous
-            if iteration_num > 1:
-                iter_question_uri = None
-                iter_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
-            else:
-                iter_question_uri = session_uri
-                iter_previous_uri = None
+            observation_entity_uri = agent_observation_uri(session_id, iteration_num)
 
-            # Save thought to librarian
-            thought_doc_id = None
-            if act.thought:
-                thought_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
-                try:
-                    await self.save_answer_content(
-                        doc_id=thought_doc_id,
-                        user=request.user,
-                        content=act.thought,
-                        title=f"Agent Thought: {act.name}",
-                    )
-                    logger.debug(f"Saved thought to librarian: {thought_doc_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to save thought to librarian: {e}")
-                    thought_doc_id = None
+            # Derive from last sub-trace entity if available, else iteration
+            obs_parent_uri = iteration_uri
+            if user_context.last_sub_explain_uri:
+                obs_parent_uri = user_context.last_sub_explain_uri
 
-            # Save observation to librarian
             observation_doc_id = None
             if act.observation:
                 observation_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
@@ -743,48 +765,39 @@ class Processor(AgentService):
                         doc_id=observation_doc_id,
                         user=request.user,
                         content=act.observation,
-                        title=f"Agent Observation: {act.name}",
+                        title=f"Agent Observation",
                     )
                     logger.debug(f"Saved observation to librarian: {observation_doc_id}")
                 except Exception as e:
                     logger.warning(f"Failed to save observation to librarian: {e}")
                     observation_doc_id = None
 
-            thought_entity_uri = agent_thought_uri(session_id, iteration_num)
-            observation_entity_uri = agent_observation_uri(session_id, iteration_num)
-
-            iter_triples = set_graph(
-                agent_iteration_triples(
-                    iteration_uri,
-                    question_uri=iter_question_uri,
-                    previous_uri=iter_previous_uri,
-                    action=act.name,
-                    arguments=act.arguments,
-                    thought_uri=thought_entity_uri if thought_doc_id else None,
-                    thought_document_id=thought_doc_id,
-                    observation_uri=observation_entity_uri if observation_doc_id else None,
-                    observation_document_id=observation_doc_id,
+            obs_triples = set_graph(
+                agent_observation_triples(
+                    observation_entity_uri,
+                    obs_parent_uri,
+                    document_id=observation_doc_id,
                 ),
                 GRAPH_RETRIEVAL
             )
             await flow("explainability").send(Triples(
                 metadata=Metadata(
-                    id=iteration_uri,
+                    id=observation_entity_uri,
                     user=request.user,
                     collection=collection,
                 ),
-                triples=iter_triples,
+                triples=obs_triples,
             ))
-            logger.debug(f"Emitted iteration triples for {iteration_uri}")
+            logger.debug(f"Emitted observation triples for {observation_entity_uri}")
 
-            # Send explain event for iteration
-            if streaming:
-                await respond(AgentResponse(
-                    chunk_type="explain",
-                    content="",
-                    explain_id=iteration_uri,
-                    explain_graph=GRAPH_RETRIEVAL,
-                ))
+            # Send explain event for observation
+            await respond(AgentResponse(
+                chunk_type="explain",
+                content="",
+                explain_id=observation_entity_uri,
+                explain_graph=GRAPH_RETRIEVAL,
+                explain_triples=obs_triples,
+            ))
 
             history.append(act)
 
@@ -833,21 +846,13 @@ class Processor(AgentService):
             # Check if streaming was enabled (may not be set if error occurred early)
             streaming = getattr(request, 'streaming', False) if 'request' in locals() else False
 
-            if streaming:
-                # Streaming format
-                r = AgentResponse(
-                    chunk_type="error",
-                    content=str(e),
-                    end_of_message=True,
-                    end_of_dialog=True,
-                    # Legacy fields for backward compatibility
-                    error=error_obj,
-                )
-            else:
-                # Legacy format
-                r = AgentResponse(
-                    error=error_obj,
-                )
+            r = AgentResponse(
+                chunk_type="error",
+                content=str(e),
+                end_of_message=True,
+                end_of_dialog=True,
+                error=error_obj,
+            )
 
             await respond(r)
 

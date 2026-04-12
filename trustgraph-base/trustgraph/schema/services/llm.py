@@ -1,7 +1,6 @@
 
 from dataclasses import dataclass, field
 
-from ..core.topic import topic
 from ..core.primitives import Error
 
 ############################################################################

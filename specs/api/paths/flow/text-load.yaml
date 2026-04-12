@@ -8,7 +8,7 @@ post:
     ## Text Load Overview
 
     Fire-and-forget document loading:
-    - **Input**: Text content (base64 encoded)
+    - **Input**: Text content (raw UTF-8 or base64 encoded)
     - **Process**: Chunk, embed, store
     - **Output**: None (202 Accepted)
 
@@ -26,7 +26,14 @@ post:
 
     ## Text Format
 
-    Text must be base64 encoded:
+    Text may be sent as raw UTF-8 text:
+    ```
+    {
+      "text": "Cancer survival: 2.74× higher hazard ratio"
+    }
+    ```
+
+    Older clients may still send base64 encoded text:
     ```
     text_content = "This is the document..."
     encoded = base64.b64encode(text_content.encode('utf-8'))
@@ -78,12 +85,12 @@ post:
           simpleLoad:
             summary: Load text document
             value:
-              text: VGhpcyBpcyB0aGUgZG9jdW1lbnQgdGV4dC4uLg==
+              text: This is the document text...
               id: doc-123
               user: alice
               collection: research
           withMetadata:
-            summary: Load with RDF metadata
+            summary: Load with RDF metadata using base64 text
             value:
               text: UXVhbnR1bSBjb21wdXRpbmcgdXNlcyBxdWFudHVtIG1lY2hhbmljcyBwcmluY2lwbGVzLi4u
               id: doc-456

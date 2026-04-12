@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import _pulsar
 
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL
 from .. schema import triples_request_queue
@@ -8,15 +7,11 @@ from .. schema import triples_response_queue
 from . base import BaseClient
 
 # Ugly
-ERROR=_pulsar.LoggerLevel.Error
-WARN=_pulsar.LoggerLevel.Warn
-INFO=_pulsar.LoggerLevel.Info
-DEBUG=_pulsar.LoggerLevel.Debug
 
 class TriplesQueryClient(BaseClient):
 
     def __init__(
-            self, log_level=ERROR,
+            self,
             subscriber=None,
             input_queue=None,
             output_queue=None,
@@ -31,7 +26,6 @@ class TriplesQueryClient(BaseClient):
             output_queue = triples_response_queue
 
         super(TriplesQueryClient, self).__init__(
-            log_level=log_level,
             subscriber=subscriber,
             input_queue=input_queue,
             output_queue=output_queue,

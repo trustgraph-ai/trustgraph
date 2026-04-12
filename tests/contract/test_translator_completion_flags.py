@@ -33,7 +33,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "is_final must be True when end_of_session=True"
@@ -57,7 +57,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "is_final must be False when end_of_session=False"
@@ -80,7 +80,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False
@@ -103,7 +103,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "end_of_stream=True should NOT make is_final=True"
@@ -125,7 +125,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "is_final must be True when end_of_session=True"
@@ -147,7 +147,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "end_of_stream=True should NOT make is_final=True"
@@ -168,7 +168,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "is_final must be False when end_of_stream=False"
@@ -188,20 +188,18 @@ class TestAgentTranslatorCompletionFlags:
         # Arrange
         translator = TranslatorRegistry.get_response_translator("agent")
         response = AgentResponse(
-            answer="4",
-            error=None,
-            thought=None,
-            observation=None,
+            chunk_type="answer",
+            content="4",
             end_of_message=True,
-            end_of_dialog=True
+            end_of_dialog=True,
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "is_final must be True when end_of_dialog=True"
-        assert response_dict["answer"] == "4"
+        assert response_dict["content"] == "4"
         assert response_dict["end_of_dialog"] is True
 
     def test_agent_translator_is_final_with_end_of_dialog_false(self):
@@ -212,43 +210,19 @@ class TestAgentTranslatorCompletionFlags:
         # Arrange
         translator = TranslatorRegistry.get_response_translator("agent")
         response = AgentResponse(
-            answer=None,
-            error=None,
-            thought="I need to solve this.",
-            observation=None,
+            chunk_type="thought",
+            content="I need to solve this.",
             end_of_message=True,
-            end_of_dialog=False
+            end_of_dialog=False,
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "is_final must be False when end_of_dialog=False"
-        assert response_dict["thought"] == "I need to solve this."
+        assert response_dict["content"] == "I need to solve this."
         assert response_dict["end_of_dialog"] is False
-
-    def test_agent_translator_is_final_fallback_with_answer(self):
-        """
-        Test that AgentResponseTranslator returns is_final=True
-        when answer is present (fallback for legacy responses).
-        """
-        # Arrange
-        translator = TranslatorRegistry.get_response_translator("agent")
-        # Legacy response without end_of_dialog flag
-        response = AgentResponse(
-            answer="4",
-            error=None,
-            thought=None,
-            observation=None
-        )
-
-        # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
-
-        # Assert
-        assert is_final is True, "is_final must be True when answer is present (legacy fallback)"
-        assert response_dict["answer"] == "4"
 
     def test_agent_translator_intermediate_message_is_not_final(self):
         """
@@ -259,32 +233,28 @@ class TestAgentTranslatorCompletionFlags:
 
         # Test thought message
         thought_response = AgentResponse(
-            answer=None,
-            error=None,
-            thought="Processing...",
-            observation=None,
+            chunk_type="thought",
+            content="Processing...",
             end_of_message=True,
-            end_of_dialog=False
+            end_of_dialog=False,
         )
 
         # Act
-        thought_dict, thought_is_final = translator.from_response_with_completion(thought_response)
+        thought_dict, thought_is_final = translator.encode_with_completion(thought_response)
 
         # Assert
         assert thought_is_final is False, "Thought message must not be final"
 
         # Test observation message
         observation_response = AgentResponse(
-            answer=None,
-            error=None,
-            thought=None,
-            observation="Result found",
+            chunk_type="observation",
+            content="Result found",
             end_of_message=True,
-            end_of_dialog=False
+            end_of_dialog=False,
         )
 
         # Act
-        obs_dict, obs_is_final = translator.from_response_with_completion(observation_response)
+        obs_dict, obs_is_final = translator.encode_with_completion(observation_response)
 
         # Assert
         assert obs_is_final is False, "Observation message must not be final"
@@ -302,14 +272,10 @@ class TestAgentTranslatorCompletionFlags:
             content="",
             end_of_message=True,
             end_of_dialog=True,
-            answer=None,
-            error=None,
-            thought=None,
-            observation=None
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "Streaming format must use end_of_dialog for is_final"

@@ -24,8 +24,8 @@ class MockAsyncProcessor:
 class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
     """Test Token chunker functionality"""
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_processor_initialization_basic(self, mock_producer, mock_consumer):
         """Test basic processor initialization"""
@@ -51,8 +51,8 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
                       if hasattr(spec, 'name') and spec.name in ['chunk-size', 'chunk-overlap']]
         assert len(param_specs) == 2
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_chunk_document_with_chunk_size_override(self, mock_producer, mock_consumer):
         """Test chunk_document with chunk-size parameter override"""
@@ -71,7 +71,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.side_effect = lambda param: {
+        mock_flow.parameters.get.side_effect = lambda param: {
             "chunk-size": 400,  # Override chunk size
             "chunk-overlap": None  # Use default chunk overlap
         }.get(param)
@@ -85,8 +85,8 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         assert chunk_size == 400  # Should use overridden value
         assert chunk_overlap == 15  # Should use default value
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_chunk_document_with_chunk_overlap_override(self, mock_producer, mock_consumer):
         """Test chunk_document with chunk-overlap parameter override"""
@@ -105,7 +105,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.side_effect = lambda param: {
+        mock_flow.parameters.get.side_effect = lambda param: {
             "chunk-size": None,  # Use default chunk size
             "chunk-overlap": 25  # Override chunk overlap
         }.get(param)
@@ -119,8 +119,8 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         assert chunk_size == 250  # Should use default value
         assert chunk_overlap == 25  # Should use overridden value
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_chunk_document_with_both_parameters_override(self, mock_producer, mock_consumer):
         """Test chunk_document with both chunk-size and chunk-overlap overrides"""
@@ -139,7 +139,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.side_effect = lambda param: {
+        mock_flow.parameters.get.side_effect = lambda param: {
             "chunk-size": 350,    # Override chunk size
             "chunk-overlap": 30   # Override chunk overlap
         }.get(param)
@@ -153,8 +153,8 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         assert chunk_size == 350   # Should use overridden value
         assert chunk_overlap == 30 # Should use overridden value
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.chunking.token.chunker.TokenTextSplitter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_uses_flow_parameters(self, mock_splitter_class, mock_producer, mock_consumer):
@@ -177,7 +177,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Mock save_child_document to avoid librarian producer interactions
-        processor.save_child_document = AsyncMock(return_value="chunk-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="chunk-id")
 
         # Mock message with TextDocument
         mock_message = MagicMock()
@@ -196,12 +196,14 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_producer = AsyncMock()
         mock_triples_producer = AsyncMock()
         mock_flow = MagicMock()
-        mock_flow.side_effect = lambda param: {
+        mock_flow.parameters.get.side_effect = lambda param: {
             "chunk-size": 400,
             "chunk-overlap": 40,
+        }.get(param)
+        mock_flow.side_effect = lambda name: {
             "output": mock_producer,
             "triples": mock_triples_producer,
-        }.get(param)
+        }.get(name)
 
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)
@@ -223,8 +225,8 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         sent_chunk = mock_producer.send.call_args[0][0]
         assert isinstance(sent_chunk, Chunk)
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_chunk_document_with_no_overrides(self, mock_producer, mock_consumer):
         """Test chunk_document when no parameters are overridden (flow returns None)"""
@@ -243,7 +245,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_consumer = MagicMock()
         mock_flow = MagicMock()
-        mock_flow.return_value = None  # No overrides
+        mock_flow.parameters.get.return_value = None  # No overrides
 
         # Act
         chunk_size, chunk_overlap = await processor.chunk_document(
@@ -254,8 +256,8 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         assert chunk_size == 250   # Should use default value
         assert chunk_overlap == 15 # Should use default value
 
-    @patch('trustgraph.base.chunking_service.Consumer')
-    @patch('trustgraph.base.chunking_service.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_token_chunker_uses_different_defaults(self, mock_producer, mock_consumer):
         """Test that token chunker has different defaults than recursive chunker"""

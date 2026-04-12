@@ -25,8 +25,13 @@ post:
     ## Streaming
 
     Enable `streaming: true` to receive the answer as it's generated:
-    - Multiple messages with `response` content
+    - Multiple `chunk` messages with `response` content
+    - `explain` messages with inline provenance triples (`explain_triples`)
     - Final message with `end-of-stream: true`
+    - Session ends with `end_of_session: true`
+
+    Explain events carry `explain_id`, `explain_graph`, and `explain_triples`
+    inline in the stream, so no follow-up knowledge graph query is needed.
 
     Without streaming, returns complete answer in single response.
 
@@ -116,6 +121,21 @@ post:
               value:
                 response: "Quantum physics and computer science intersect"
                 end-of-stream: false
+            explainEvent:
+              summary: Explain event with inline provenance triples
+              value:
+                message_type: explain
+                explain_id: urn:trustgraph:question:abc123
+                explain_graph: urn:graph:retrieval
+                explain_triples:
+                  - s: {t: i, i: "urn:trustgraph:question:abc123"}
+                    p: {t: i, i: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"}
+                    o: {t: i, i: "https://trustgraph.ai/ns/GraphRagQuestion"}
+                  - s: {t: i, i: "urn:trustgraph:question:abc123"}
+                    p: {t: i, i: "https://trustgraph.ai/ns/query"}
+                    o: {t: l, v: "What connections exist between quantum physics and computer science?"}
+                end_of_stream: false
+                end_of_session: false
             streamingComplete:
               summary: Streaming complete marker
               value:

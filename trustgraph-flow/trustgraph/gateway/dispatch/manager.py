@@ -22,6 +22,7 @@ from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . rows_query import RowsQueryRequestor
 from . nlp_query import NLPQueryRequestor
+from . sparql_query import SparqlQueryRequestor
 from . structured_query import StructuredQueryRequestor
 from . structured_diag import StructuredDiagRequestor
 from . embeddings import EmbeddingsRequestor
@@ -65,6 +66,7 @@ request_response_dispatchers = {
     "structured-query": StructuredQueryRequestor,
     "structured-diag": StructuredDiagRequestor,
     "row-embeddings": RowEmbeddingsQueryRequestor,
+    "sparql": SparqlQueryRequestor,
 }
 
 global_dispatchers = {

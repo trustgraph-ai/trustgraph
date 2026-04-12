@@ -148,18 +148,7 @@ class Configuration:
 
     async def handle_delete(self, v):
 
-        # for k in v.keys:
-        #     if k.type not in self or k.key not in self[k.type]:
-        #         return ConfigResponse(
-        #             version = None,
-        #             values = None,
-        #             directory = None,
-        #             config = None,
-        #             error = Error(
-        #                 type = "key-error",
-        #                 message = f"Key error"
-        #             )
-        #         )
+        types = list(set(k.type for k in v.keys))
 
         for k in v.keys:
 
@@ -167,12 +156,14 @@ class Configuration:
 
         await self.inc_version()
 
-        await self.push()
+        await self.push(types=types)
 
         return ConfigResponse(
         )
 
     async def handle_put(self, v):
+
+        types = list(set(k.type for k in v.values))
 
         for k in v.values:
 
@@ -180,7 +171,7 @@ class Configuration:
 
         await self.inc_version()
 
-        await self.push()
+        await self.push(types=types)
 
         return ConfigResponse(
         )

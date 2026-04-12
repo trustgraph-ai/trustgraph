@@ -6,8 +6,6 @@
 import json
 import logging
 
-from pulsar.schema import JsonSchema
-
 from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue
@@ -28,7 +26,9 @@ class FlowProcessor(AsyncProcessor):
         super(FlowProcessor, self).__init__(**params)
 
         # Register configuration handler
-        self.register_config_handler(self.on_configure_flows)
+        self.register_config_handler(
+            self.on_configure_flows, types=["active-flow"]
+        )
 
         # Initialise flow information state
         self.flows = {}

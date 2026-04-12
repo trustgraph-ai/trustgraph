@@ -6,14 +6,14 @@ from .base import MessageTranslator
 class TextCompletionRequestTranslator(MessageTranslator):
     """Translator for TextCompletionRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> TextCompletionRequest:
+    def decode(self, data: Dict[str, Any]) -> TextCompletionRequest:
         return TextCompletionRequest(
             system=data["system"],
             prompt=data["prompt"],
             streaming=data.get("streaming", False)
         )
     
-    def from_pulsar(self, obj: TextCompletionRequest) -> Dict[str, Any]:
+    def encode(self, obj: TextCompletionRequest) -> Dict[str, Any]:
         return {
             "system": obj.system,
             "prompt": obj.prompt
@@ -23,10 +23,10 @@ class TextCompletionRequestTranslator(MessageTranslator):
 class TextCompletionResponseTranslator(MessageTranslator):
     """Translator for TextCompletionResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> TextCompletionResponse:
+    def decode(self, data: Dict[str, Any]) -> TextCompletionResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: TextCompletionResponse) -> Dict[str, Any]:
+    def encode(self, obj: TextCompletionResponse) -> Dict[str, Any]:
         result = {"response": obj.response}
 
         if obj.in_token:
@@ -41,8 +41,8 @@ class TextCompletionResponseTranslator(MessageTranslator):
 
         return result
     
-    def from_response_with_completion(self, obj: TextCompletionResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: TextCompletionResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
         # Check end_of_stream field to determine if this is the final message
         is_final = getattr(obj, 'end_of_stream', True)
-        return self.from_pulsar(obj), is_final
+        return self.encode(obj), is_final

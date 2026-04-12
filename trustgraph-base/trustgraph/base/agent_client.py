@@ -57,8 +57,7 @@ class AgentClient(RequestResponse):
         await self.request(
             AgentRequest(
                 question = question,
-                plan = plan,
-                state = state,
+                state = state or "",
                 history = history,
             ),
             recipient=recipient,

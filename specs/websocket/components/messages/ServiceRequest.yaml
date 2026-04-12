@@ -34,6 +34,7 @@ payload:
     - $ref: './requests/RowEmbeddingsRequest.yaml'
     - $ref: './requests/TextLoadRequest.yaml'
     - $ref: './requests/DocumentLoadRequest.yaml'
+    - $ref: './requests/SparqlQueryRequest.yaml'
 
 examples:
   - name: Config service request

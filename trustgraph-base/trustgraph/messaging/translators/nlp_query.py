@@ -6,13 +6,13 @@ from .base import MessageTranslator
 class QuestionToStructuredQueryRequestTranslator(MessageTranslator):
     """Translator for QuestionToStructuredQueryRequest schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> QuestionToStructuredQueryRequest:
+    def decode(self, data: Dict[str, Any]) -> QuestionToStructuredQueryRequest:
         return QuestionToStructuredQueryRequest(
             question=data.get("question", ""),
             max_results=data.get("max_results", 100)
         )
     
-    def from_pulsar(self, obj: QuestionToStructuredQueryRequest) -> Dict[str, Any]:
+    def encode(self, obj: QuestionToStructuredQueryRequest) -> Dict[str, Any]:
         return {
             "question": obj.question,
             "max_results": obj.max_results
@@ -22,10 +22,10 @@ class QuestionToStructuredQueryRequestTranslator(MessageTranslator):
 class QuestionToStructuredQueryResponseTranslator(MessageTranslator):
     """Translator for QuestionToStructuredQueryResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> QuestionToStructuredQueryResponse:
+    def decode(self, data: Dict[str, Any]) -> QuestionToStructuredQueryResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: QuestionToStructuredQueryResponse) -> Dict[str, Any]:
+    def encode(self, obj: QuestionToStructuredQueryResponse) -> Dict[str, Any]:
         result = {
             "graphql_query": obj.graphql_query,
             "variables": dict(obj.variables) if obj.variables else {},
@@ -42,6 +42,6 @@ class QuestionToStructuredQueryResponseTranslator(MessageTranslator):
         
         return result
     
-    def from_response_with_completion(self, obj: QuestionToStructuredQueryResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: QuestionToStructuredQueryResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

@@ -167,25 +167,22 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
-        await self.push()
+        await self.push()  # Startup poke: empty types = everything
         await self.config_request_consumer.start()
         await self.flow_request_consumer.start()
-        
-    async def push(self):
 
-        config = await self.config.get_config()
+    async def push(self, types=None):
+
         version = await self.config.get_version()
 
         resp = ConfigPush(
             version = version,
-            config = config,
+            types = types or [],
         )
 
         await self.config_push_producer.send(resp)
 
-        # Race condition, should make sure version & config sync
-
-        logger.info(f"Pushed configuration version {await self.config.get_version()}")
+        logger.info(f"Pushed config poke version {version}, types={resp.types}")
         
     async def on_config_request(self, msg, consumer, flow):
 

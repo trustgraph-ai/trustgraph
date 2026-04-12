@@ -150,8 +150,10 @@ class AgentThought(StreamingChunk):
         content: Agent's thought text
         end_of_message: True if this completes the current thought
         chunk_type: Always "thought"
+        message_id: Provenance URI of the entity being built
     """
     chunk_type: str = "thought"
+    message_id: str = ""
 
 @dataclasses.dataclass
 class AgentObservation(StreamingChunk):
@@ -165,8 +167,10 @@ class AgentObservation(StreamingChunk):
         content: Observation text describing tool results
         end_of_message: True if this completes the current observation
         chunk_type: Always "observation"
+        message_id: Provenance URI of the entity being built
     """
     chunk_type: str = "observation"
+    message_id: str = ""
 
 @dataclasses.dataclass
 class AgentAnswer(StreamingChunk):
@@ -184,6 +188,7 @@ class AgentAnswer(StreamingChunk):
     """
     chunk_type: str = "final-answer"
     end_of_dialog: bool = False
+    message_id: str = ""
 
 @dataclasses.dataclass
 class RAGChunk(StreamingChunk):
@@ -208,25 +213,47 @@ class ProvenanceEvent:
     """
     Provenance event for explainability.
 
-    Emitted during GraphRAG queries when explainable mode is enabled.
+    Emitted during retrieval queries when explainable mode is enabled.
     Each event represents a provenance node created during query processing.
 
     Attributes:
         explain_id: URI of the provenance node (e.g., urn:trustgraph:question:abc123)
         explain_graph: Named graph where provenance triples are stored (e.g., urn:graph:retrieval)
-        event_type: Type of provenance event (question, exploration, focus, synthesis)
+        event_type: Type of provenance event (question, exploration, focus, synthesis, etc.)
+        entity: Parsed ExplainEntity from inline triples (if available)
+        triples: Raw triples from the response (wire format dicts)
     """
     explain_id: str
     explain_graph: str = ""
     event_type: str = ""  # Derived from explain_id
+    entity: object = None  # ExplainEntity (parsed from triples)
+    triples: list = dataclasses.field(default_factory=list)  # Raw wire-format triple dicts
 
     def __post_init__(self):
         # Extract event type from explain_id
         if "question" in self.explain_id:
             self.event_type = "question"
+        elif "grounding" in self.explain_id:
+            self.event_type = "grounding"
         elif "exploration" in self.explain_id:
             self.event_type = "exploration"
         elif "focus" in self.explain_id:
             self.event_type = "focus"
         elif "synthesis" in self.explain_id:
             self.event_type = "synthesis"
+        elif "iteration" in self.explain_id:
+            self.event_type = "iteration"
+        elif "observation" in self.explain_id:
+            self.event_type = "observation"
+        elif "conclusion" in self.explain_id:
+            self.event_type = "conclusion"
+        elif "decomposition" in self.explain_id:
+            self.event_type = "decomposition"
+        elif "finding" in self.explain_id:
+            self.event_type = "finding"
+        elif "plan" in self.explain_id:
+            self.event_type = "plan"
+        elif "step-result" in self.explain_id:
+            self.event_type = "step-result"
+        elif "session" in self.explain_id:
+            self.event_type = "session"

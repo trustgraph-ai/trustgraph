@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: TrustGraph API Gateway
-  version: "2.1"
+  version: "2.2"
   description: |
     REST API for TrustGraph - an AI-powered knowledge graph and RAG system.
 
@@ -28,7 +28,7 @@ info:
     Require running flow instance, accessed via `/api/v1/flow/{flow}/service/{kind}`:
     - AI services: agent, text-completion, prompt, RAG (document/graph)
     - Embeddings: embeddings, graph-embeddings, document-embeddings
-    - Query: triples, rows, nlp-query, structured-query, row-embeddings
+    - Query: triples, rows, nlp-query, structured-query, sparql-query, row-embeddings
     - Data loading: text-load, document-load
     - Utilities: mcp-tool, structured-diag
 
@@ -139,6 +139,8 @@ paths:
     $ref: './paths/flow/text-load.yaml'
   /api/v1/flow/{flow}/service/document-load:
     $ref: './paths/flow/document-load.yaml'
+  /api/v1/flow/{flow}/service/sparql-query:
+    $ref: './paths/flow/sparql-query.yaml'
 
   # Document streaming
   /api/v1/document-stream:

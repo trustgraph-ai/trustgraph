@@ -58,7 +58,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
         self.last_index_name = None
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     def create_index(self, index_name, dim):
 

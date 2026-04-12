@@ -500,7 +500,7 @@ class TestQuestionTriples:
 
     def test_question_types(self):
         triples = question_triples(self.Q_URI, "What is AI?", "2024-01-01T00:00:00Z")
-        assert has_type(triples, self.Q_URI, PROV_ACTIVITY)
+        assert has_type(triples, self.Q_URI, PROV_ENTITY)
         assert has_type(triples, self.Q_URI, TG_QUESTION)
         assert has_type(triples, self.Q_URI, TG_GRAPH_RAG_QUESTION)
 
@@ -543,11 +543,11 @@ class TestGroundingTriples:
         assert has_type(triples, self.GND_URI, PROV_ENTITY)
         assert has_type(triples, self.GND_URI, TG_GROUNDING)
 
-    def test_grounding_generated_by_question(self):
+    def test_grounding_derived_from_question(self):
         triples = grounding_triples(self.GND_URI, self.Q_URI, ["AI"])
-        gen = find_triple(triples, PROV_WAS_GENERATED_BY, self.GND_URI)
-        assert gen is not None
-        assert gen.o.iri == self.Q_URI
+        derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.GND_URI)
+        assert derived is not None
+        assert derived.o.iri == self.Q_URI
 
     def test_grounding_concepts(self):
         triples = grounding_triples(self.GND_URI, self.Q_URI, ["AI", "ML", "robots"])
@@ -730,7 +730,7 @@ class TestDocRagQuestionTriples:
 
     def test_docrag_question_types(self):
         triples = docrag_question_triples(self.Q_URI, "Find info", "2024-01-01T00:00:00Z")
-        assert has_type(triples, self.Q_URI, PROV_ACTIVITY)
+        assert has_type(triples, self.Q_URI, PROV_ENTITY)
         assert has_type(triples, self.Q_URI, TG_QUESTION)
         assert has_type(triples, self.Q_URI, TG_DOC_RAG_QUESTION)
 

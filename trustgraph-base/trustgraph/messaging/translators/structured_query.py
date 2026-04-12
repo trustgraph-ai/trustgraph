@@ -7,14 +7,14 @@ import json
 class StructuredQueryRequestTranslator(MessageTranslator):
     """Translator for StructuredQueryRequest schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> StructuredQueryRequest:
+    def decode(self, data: Dict[str, Any]) -> StructuredQueryRequest:
         return StructuredQueryRequest(
             question=data.get("question", ""),
             user=data.get("user", "trustgraph"),        # Default fallback
             collection=data.get("collection", "default") # Default fallback
         )
     
-    def from_pulsar(self, obj: StructuredQueryRequest) -> Dict[str, Any]:
+    def encode(self, obj: StructuredQueryRequest) -> Dict[str, Any]:
         return {
             "question": obj.question,
             "user": obj.user,
@@ -25,10 +25,10 @@ class StructuredQueryRequestTranslator(MessageTranslator):
 class StructuredQueryResponseTranslator(MessageTranslator):
     """Translator for StructuredQueryResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> StructuredQueryResponse:
+    def decode(self, data: Dict[str, Any]) -> StructuredQueryResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: StructuredQueryResponse) -> Dict[str, Any]:
+    def encode(self, obj: StructuredQueryResponse) -> Dict[str, Any]:
         result = {}
         
         # Handle structured query response data
@@ -55,6 +55,6 @@ class StructuredQueryResponseTranslator(MessageTranslator):
         
         return result
     
-    def from_response_with_completion(self, obj: StructuredQueryResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: StructuredQueryResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

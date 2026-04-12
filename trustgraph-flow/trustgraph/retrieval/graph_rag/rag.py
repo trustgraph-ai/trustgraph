@@ -253,12 +253,13 @@ class Processor(FlowProcessor):
                     triples=triples,
                 ))
 
-                # Send explain ID and graph to response queue
+                # Send explain data to response queue
                 await flow("response").send(
                     GraphRagResponse(
                         message_type="explain",
                         explain_id=explain_id,
                         explain_graph=GRAPH_RETRIEVAL,
+                        explain_triples=triples,
                     ),
                     properties={"id": id}
                 )
@@ -342,6 +343,7 @@ class Processor(FlowProcessor):
                     chunk_callback = send_chunk,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
+                    parent_uri = v.parent_uri,
                 )
 
             else:
@@ -355,6 +357,7 @@ class Processor(FlowProcessor):
                     edge_limit = edge_limit,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
+                    parent_uri = v.parent_uri,
                 )
 
                 # Send chunk with response

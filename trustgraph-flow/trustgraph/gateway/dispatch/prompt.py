@@ -27,8 +27,8 @@ class PromptRequestor(ServiceRequestor):
         self.response_translator = TranslatorRegistry.get_response_translator("prompt")
 
     def to_request(self, body):
-        return self.request_translator.to_pulsar(body)
+        return self.request_translator.decode(body)
 
     def from_response(self, message):
-        return self.response_translator.from_response_with_completion(message)
+        return self.response_translator.encode_with_completion(message)
 

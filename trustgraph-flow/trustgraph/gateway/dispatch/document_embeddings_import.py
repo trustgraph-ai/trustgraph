@@ -44,7 +44,7 @@ class DocumentEmbeddingsImport:
     async def receive(self, msg):
 
         data = msg.json()
-        elt = self.translator.to_pulsar(data)
+        elt = self.translator.decode(data)
         await self.publisher.send(None, elt)
 
     async def run(self):

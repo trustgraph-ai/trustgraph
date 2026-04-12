@@ -3,7 +3,6 @@
 Graph writer.  Input is graph edge.  Writes edges to Neo4j graph.
 """
 
-import pulsar
 import base64
 import os
 import argparse
@@ -67,7 +66,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             self.create_indexes(session)
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     def create_indexes(self, session):
 

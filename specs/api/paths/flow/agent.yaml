@@ -29,6 +29,7 @@ post:
     - `action`: Action being taken
     - `observation`: Result from action
     - `answer`: Final response to user
+    - `explain`: Provenance event with inline triples (`explain_triples`)
     - `error`: Error occurred
 
     Each chunk may have multiple messages. Check flags:
@@ -116,6 +117,22 @@ post:
                 content: ""
                 end-of-message: true
                 end-of-dialog: true
+            explainEvent:
+              summary: Explain event with inline provenance triples
+              value:
+                chunk-type: explain
+                content: ""
+                explain_id: urn:trustgraph:agent:abc123
+                explain_graph: urn:graph:retrieval
+                explain_triples:
+                  - s: {t: i, i: "urn:trustgraph:agent:abc123"}
+                    p: {t: i, i: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"}
+                    o: {t: i, i: "https://trustgraph.ai/ns/AgentSession"}
+                  - s: {t: i, i: "urn:trustgraph:agent:abc123"}
+                    p: {t: i, i: "https://trustgraph.ai/ns/query"}
+                    o: {t: l, v: "Explain quantum computing"}
+                end-of-message: true
+                end-of-dialog: false
             legacyResponse:
               summary: Legacy non-streaming response
               value:

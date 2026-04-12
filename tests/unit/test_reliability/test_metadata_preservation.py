@@ -35,7 +35,7 @@ class TestDocumentMetadataTranslator:
             "parent-id": "doc-100",
             "document-type": "page",
         }
-        obj = self.tx.to_pulsar(data)
+        obj = self.tx.decode(data)
         assert obj.id == "doc-123"
         assert obj.time == 1710000000
         assert obj.kind == "application/pdf"
@@ -45,14 +45,14 @@ class TestDocumentMetadataTranslator:
         assert obj.parent_id == "doc-100"
         assert obj.document_type == "page"
 
-        wire = self.tx.from_pulsar(obj)
+        wire = self.tx.encode(obj)
         assert wire["id"] == "doc-123"
         assert wire["user"] == "alice"
         assert wire["parent-id"] == "doc-100"
         assert wire["document-type"] == "page"
 
     def test_defaults_for_missing_fields(self):
-        obj = self.tx.to_pulsar({})
+        obj = self.tx.decode({})
         assert obj.parent_id == ""
         assert obj.document_type == "source"
 
@@ -63,25 +63,25 @@ class TestDocumentMetadataTranslator:
             "o": {"t": "i", "i": "http://example.org/o"},
         }]
         data = {"metadata": triple_wire}
-        obj = self.tx.to_pulsar(data)
+        obj = self.tx.decode(data)
         assert len(obj.metadata) == 1
         assert obj.metadata[0].s.iri == "http://example.org/s"
 
     def test_none_metadata_handled(self):
         data = {"metadata": None}
-        obj = self.tx.to_pulsar(data)
+        obj = self.tx.decode(data)
         assert obj.metadata == []
 
     def test_empty_tags_preserved(self):
         data = {"tags": []}
-        obj = self.tx.to_pulsar(data)
-        wire = self.tx.from_pulsar(obj)
+        obj = self.tx.decode(data)
+        wire = self.tx.encode(obj)
         assert wire["tags"] == []
 
     def test_falsy_fields_omitted_from_wire(self):
         """Empty string fields should be omitted from wire format."""
         obj = DocumentMetadata(id="", time=0, user="")
-        wire = self.tx.from_pulsar(obj)
+        wire = self.tx.encode(obj)
         assert "id" not in wire
         assert "user" not in wire
 
@@ -105,7 +105,7 @@ class TestProcessingMetadataTranslator:
             "collection": "my-collection",
             "tags": ["tag1"],
         }
-        obj = self.tx.to_pulsar(data)
+        obj = self.tx.decode(data)
         assert obj.id == "proc-1"
         assert obj.document_id == "doc-123"
         assert obj.flow == "default"
@@ -113,32 +113,32 @@ class TestProcessingMetadataTranslator:
         assert obj.collection == "my-collection"
         assert obj.tags == ["tag1"]
 
-        wire = self.tx.from_pulsar(obj)
+        wire = self.tx.encode(obj)
         assert wire["id"] == "proc-1"
         assert wire["document-id"] == "doc-123"
         assert wire["user"] == "alice"
         assert wire["collection"] == "my-collection"
 
     def test_missing_fields_use_defaults(self):
-        obj = self.tx.to_pulsar({})
+        obj = self.tx.decode({})
         assert obj.id is None
         assert obj.user is None
         assert obj.collection is None
 
     def test_tags_none_omitted(self):
         obj = ProcessingMetadata(tags=None)
-        wire = self.tx.from_pulsar(obj)
+        wire = self.tx.encode(obj)
         assert "tags" not in wire
 
     def test_tags_empty_list_preserved(self):
         obj = ProcessingMetadata(tags=[])
-        wire = self.tx.from_pulsar(obj)
+        wire = self.tx.encode(obj)
         assert wire["tags"] == []
 
     def test_user_and_collection_preserved(self):
         """Core pipeline routing fields must survive round-trip."""
         data = {"user": "bob", "collection": "research"}
-        obj = self.tx.to_pulsar(data)
-        wire = self.tx.from_pulsar(obj)
+        obj = self.tx.decode(data)
+        wire = self.tx.encode(obj)
         assert wire["user"] == "bob"
         assert wire["collection"] == "research"

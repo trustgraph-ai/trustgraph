@@ -10,7 +10,7 @@ class DocumentMetadataTranslator(Translator):
     def __init__(self):
         self.subgraph_translator = SubgraphTranslator()
     
-    def to_pulsar(self, data: Dict[str, Any]) -> DocumentMetadata:
+    def decode(self, data: Dict[str, Any]) -> DocumentMetadata:
         metadata = data.get("metadata", [])
         return DocumentMetadata(
             id=data.get("id"),
@@ -18,14 +18,14 @@ class DocumentMetadataTranslator(Translator):
             kind=data.get("kind"),
             title=data.get("title"),
             comments=data.get("comments"),
-            metadata=self.subgraph_translator.to_pulsar(metadata) if metadata is not None else [],
+            metadata=self.subgraph_translator.decode(metadata) if metadata is not None else [],
             user=data.get("user"),
             tags=data.get("tags"),
             parent_id=data.get("parent-id", ""),
             document_type=data.get("document-type", "source"),
         )
     
-    def from_pulsar(self, obj: DocumentMetadata) -> Dict[str, Any]:
+    def encode(self, obj: DocumentMetadata) -> Dict[str, Any]:
         result = {}
 
         if obj.id:
@@ -39,7 +39,7 @@ class DocumentMetadataTranslator(Translator):
         if obj.comments:
             result["comments"] = obj.comments
         if obj.metadata is not None:
-            result["metadata"] = self.subgraph_translator.from_pulsar(obj.metadata)
+            result["metadata"] = self.subgraph_translator.encode(obj.metadata)
         if obj.user:
             result["user"] = obj.user
         if obj.tags is not None:
@@ -55,7 +55,7 @@ class DocumentMetadataTranslator(Translator):
 class ProcessingMetadataTranslator(Translator):
     """Translator for ProcessingMetadata schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> ProcessingMetadata:
+    def decode(self, data: Dict[str, Any]) -> ProcessingMetadata:
         return ProcessingMetadata(
             id=data.get("id"),
             document_id=data.get("document-id"),
@@ -66,7 +66,7 @@ class ProcessingMetadataTranslator(Translator):
             tags=data.get("tags")
         )
     
-    def from_pulsar(self, obj: ProcessingMetadata) -> Dict[str, Any]:
+    def encode(self, obj: ProcessingMetadata) -> Dict[str, Any]:
         result = {}
         
         if obj.id:

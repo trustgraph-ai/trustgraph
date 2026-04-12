@@ -61,7 +61,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         )
 
         # Register config handler for collection management
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
         # Cache of created Qdrant collections
         self.created_collections: Set[str] = set()

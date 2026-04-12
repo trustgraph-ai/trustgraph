@@ -7,20 +7,16 @@ Supports both inline document data and fetching from librarian via Pulsar
 for large documents.
 """
 
-import asyncio
 import os
 import tempfile
 import base64
 import logging
-import uuid
 from langchain_community.document_loaders import PyPDFLoader
 
 from ... schema import Document, TextDocument, Metadata
-from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianClient
 
 from ... provenance import (
     document_uri, page_uri as make_page_uri, derived_entity_triples,
@@ -74,187 +70,16 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client for fetching document content
-        librarian_request_q = params.get(
-            "librarian_request_queue", default_librarian_request_queue
+        # Librarian client
+        self.librarian = LibrarianClient(
+            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
         )
-        librarian_response_q = params.get(
-            "librarian_response_queue", default_librarian_response_queue
-        )
-
-        librarian_request_metrics = ProducerMetrics(
-            processor = id, flow = None, name = "librarian-request"
-        )
-
-        self.librarian_request_producer = Producer(
-            backend = self.pubsub,
-            topic = librarian_request_q,
-            schema = LibrarianRequest,
-            metrics = librarian_request_metrics,
-        )
-
-        librarian_response_metrics = ConsumerMetrics(
-            processor = id, flow = None, name = "librarian-response"
-        )
-
-        self.librarian_response_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = librarian_response_q,
-            subscriber = f"{id}-librarian",
-            schema = LibrarianResponse,
-            handler = self.on_librarian_response,
-            metrics = librarian_response_metrics,
-        )
-
-        # Pending librarian requests: request_id -> asyncio.Future
-        self.pending_requests = {}
 
         logger.info("PDF decoder initialized")
 
     async def start(self):
         await super(Processor, self).start()
-        await self.librarian_request_producer.start()
-        await self.librarian_response_consumer.start()
-
-    async def on_librarian_response(self, msg, consumer, flow):
-        """Handle responses from the librarian service."""
-        response = msg.value()
-        request_id = msg.properties().get("id")
-
-        if request_id and request_id in self.pending_requests:
-            future = self.pending_requests.pop(request_id)
-            future.set_result(response)
-
-    async def fetch_document_metadata(self, document_id, user, timeout=120):
-        """
-        Fetch document metadata from librarian via Pulsar.
-        """
-        request_id = str(uuid.uuid4())
-
-        request = LibrarianRequest(
-            operation="get-document-metadata",
-            document_id=document_id,
-            user=user,
-        )
-
-        future = asyncio.get_event_loop().create_future()
-        self.pending_requests[request_id] = future
-
-        try:
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error: {response.error.type}: {response.error.message}"
-                )
-
-            return response.document_metadata
-
-        except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout fetching metadata for {document_id}")
-
-    async def fetch_document_content(self, document_id, user, timeout=120):
-        """
-        Fetch document content from librarian via Pulsar.
-        """
-        request_id = str(uuid.uuid4())
-
-        request = LibrarianRequest(
-            operation="get-document-content",
-            document_id=document_id,
-            user=user,
-        )
-
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error: {response.error.type}: {response.error.message}"
-                )
-
-            return response.content
-
-        except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout fetching document {document_id}")
-
-    async def save_child_document(self, doc_id, parent_id, user, content,
-                                   document_type="page", title=None, timeout=120):
-        """
-        Save a child document to the librarian.
-
-        Args:
-            doc_id: ID for the new child document
-            parent_id: ID of the parent document
-            user: User ID
-            content: Document content (bytes)
-            document_type: Type of document ("page", "chunk", etc.)
-            title: Optional title
-            timeout: Request timeout in seconds
-
-        Returns:
-            The document ID on success
-        """
-        import base64
-
-        request_id = str(uuid.uuid4())
-
-        doc_metadata = DocumentMetadata(
-            id=doc_id,
-            user=user,
-            kind="text/plain",
-            title=title or doc_id,
-            parent_id=parent_id,
-            document_type=document_type,
-        )
-
-        request = LibrarianRequest(
-            operation="add-child-document",
-            document_metadata=doc_metadata,
-            content=base64.b64encode(content).decode("utf-8"),
-        )
-
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error saving child document: {response.error.type}: {response.error.message}"
-                )
-
-            return doc_id
-
-        except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout saving child document {doc_id}")
+        await self.librarian.start()
 
     async def on_message(self, msg, consumer, flow):
 
@@ -266,7 +91,7 @@ class Processor(FlowProcessor):
 
         # Check MIME type if fetching from librarian
         if v.document_id:
-            doc_meta = await self.fetch_document_metadata(
+            doc_meta = await self.librarian.fetch_document_metadata(
                 document_id=v.document_id,
                 user=v.metadata.user,
             )
@@ -287,7 +112,7 @@ class Processor(FlowProcessor):
                 logger.info(f"Fetching document {v.document_id} from librarian...")
                 fp.close()
 
-                content = await self.fetch_document_content(
+                content = await self.librarian.fetch_document_content(
                     document_id=v.document_id,
                     user=v.metadata.user,
                 )
@@ -323,7 +148,7 @@ class Processor(FlowProcessor):
                 page_content = page.page_content.encode("utf-8")
 
                 # Save page as child document in librarian
-                await self.save_child_document(
+                await self.librarian.save_child_document(
                     doc_id=page_doc_id,
                     parent_id=source_doc_id,
                     user=v.metadata.user,

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from ..core.primitives import Triple, Error
-from ..core.topic import topic
+from ..core.topic import queue
 from ..core.metadata import Metadata
 from .document import Document, TextDocument
 from .graph import Triples
@@ -52,9 +52,5 @@ class KnowledgeResponse:
     triples: Triples | None = None
     graph_embeddings: GraphEmbeddings | None = None
 
-knowledge_request_queue = topic(
-    'knowledge', qos='q0', namespace='request'
-)
-knowledge_response_queue = topic(
-    'knowledge', qos='q0', namespace='response',
-)
+knowledge_request_queue = queue('knowledge', cls='request')
+knowledge_response_queue = queue('knowledge', cls='response')

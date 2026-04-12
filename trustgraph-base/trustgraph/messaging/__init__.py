@@ -27,6 +27,7 @@ from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, Q
 from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
 from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
 from .translators.collection import CollectionManagementRequestTranslator, CollectionManagementResponseTranslator
+from .translators.sparql_query import SparqlQueryRequestTranslator, SparqlQueryResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -147,6 +148,12 @@ TranslatorRegistry.register_service(
     "collection-management",
     CollectionManagementRequestTranslator(),
     CollectionManagementResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "sparql-query",
+    SparqlQueryRequestTranslator(),
+    SparqlQueryResponseTranslator()
 )
 
 # Register single-direction translators for document loading

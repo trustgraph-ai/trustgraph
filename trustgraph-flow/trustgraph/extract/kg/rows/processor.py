@@ -82,7 +82,7 @@ class Processor(FlowProcessor):
         )
 
         # Register config handler for schema updates
-        self.register_config_handler(self.on_schema_config)
+        self.register_config_handler(self.on_schema_config, types=["schema"])
 
         # Schema storage: name -> RowSchema
         self.schemas: Dict[str, RowSchema] = {}
@@ -145,7 +145,7 @@ class Processor(FlowProcessor):
         
         try:
             # Convert Pulsar RowSchema to JSON-serializable dict
-            schema_dict = row_schema_translator.from_pulsar(schema)
+            schema_dict = row_schema_translator.encode(schema)
             
             # Use prompt client to extract rows based on schema
             objects = await flow("prompt-request").extract_objects(

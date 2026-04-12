@@ -94,11 +94,18 @@ TG_SYNTHESIS = TG + "Synthesis"
 TG_ANALYSIS = TG + "Analysis"
 TG_CONCLUSION = TG + "Conclusion"
 
+# Orchestrator entity types
+TG_DECOMPOSITION = TG + "Decomposition"  # Supervisor decomposed into sub-goals
+TG_FINDING = TG + "Finding"              # Subagent result
+TG_PLAN_TYPE = TG + "Plan"               # Plan-then-execute plan
+TG_STEP_RESULT = TG + "StepResult"       # Plan step result
+
 # Unifying types for answer and intermediate commentary
-TG_ANSWER_TYPE = TG + "Answer"          # Final answer (Synthesis, Conclusion)
+TG_ANSWER_TYPE = TG + "Answer"          # Final answer (Synthesis, Conclusion, Finding, StepResult)
 TG_REFLECTION_TYPE = TG + "Reflection"  # Intermediate commentary (Thought, Observation)
 TG_THOUGHT_TYPE = TG + "Thought"        # Agent reasoning
 TG_OBSERVATION_TYPE = TG + "Observation" # Agent tool result
+TG_TOOL_USE = TG + "ToolUse"            # Analysis+ToolUse mixin
 
 # Question subtypes (to distinguish retrieval mechanism)
 TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
@@ -110,6 +117,8 @@ TG_THOUGHT = TG + "thought"        # Links iteration to thought sub-entity
 TG_ACTION = TG + "action"
 TG_ARGUMENTS = TG + "arguments"
 TG_OBSERVATION = TG + "observation" # Links iteration to observation sub-entity
+TG_SUBAGENT_GOAL = TG + "subagentGoal"  # Goal string on Decomposition/Finding
+TG_PLAN_STEP = TG + "planStep"          # Step goal string on Plan/StepResult
 
 # Named graph URIs for RDF datasets
 # These separate different types of data while keeping them in the same collection

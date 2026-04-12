@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 
 from ..core.metadata import Metadata
-from ..core.topic import topic
 
 ############################################################################
 

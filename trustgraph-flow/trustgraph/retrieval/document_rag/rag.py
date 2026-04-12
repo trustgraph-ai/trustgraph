@@ -12,22 +12,18 @@ import uuid
 
 from ... schema import DocumentRagQuery, DocumentRagResponse, Error
 from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples, Metadata
 from ... provenance import GRAPH_RETRIEVAL
 from . document_rag import DocumentRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import DocumentEmbeddingsClientSpec
-from ... base import Consumer, Producer
-from ... base import ConsumerMetrics, ProducerMetrics
+from ... base import LibrarianClient
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "document-rag"
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 class Processor(FlowProcessor):
 
@@ -89,111 +85,26 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client for fetching chunk content from Garage
-        librarian_request_q = params.get(
-            "librarian_request_queue", default_librarian_request_queue
-        )
-        librarian_response_q = params.get(
-            "librarian_response_queue", default_librarian_response_queue
-        )
-
-        librarian_request_metrics = ProducerMetrics(
-            processor=id, flow=None, name="librarian-request"
-        )
-
-        self.librarian_request_producer = Producer(
+        # Librarian client
+        self.librarian = LibrarianClient(
+            id=id,
             backend=self.pubsub,
-            topic=librarian_request_q,
-            schema=LibrarianRequest,
-            metrics=librarian_request_metrics,
-        )
-
-        librarian_response_metrics = ConsumerMetrics(
-            processor=id, flow=None, name="librarian-response"
-        )
-
-        self.librarian_response_consumer = Consumer(
             taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
-            topic=librarian_response_q,
-            subscriber=f"{id}-librarian",
-            schema=LibrarianResponse,
-            handler=self.on_librarian_response,
-            metrics=librarian_response_metrics,
         )
-
-        # Pending librarian requests: request_id -> asyncio.Future
-        self.pending_requests = {}
 
     async def start(self):
         await super(Processor, self).start()
-        await self.librarian_request_producer.start()
-        await self.librarian_response_consumer.start()
-
-    async def on_librarian_response(self, msg, consumer, flow):
-        """Handle responses from the librarian service."""
-        response = msg.value()
-        request_id = msg.properties().get("id")
-
-        if request_id in self.pending_requests:
-            future = self.pending_requests.pop(request_id)
-            future.set_result(response)
+        await self.librarian.start()
 
     async def fetch_chunk_content(self, chunk_id, user, timeout=120):
-        """Fetch chunk content from librarian/Garage."""
-        import uuid
-        request_id = str(uuid.uuid4())
-
-        request = LibrarianRequest(
-            operation="get-document-content",
-            document_id=chunk_id,
-            user=user,
+        """Fetch chunk content from librarian. Chunks are small so
+        single request-response is fine."""
+        return await self.librarian.fetch_document_text(
+            document_id=chunk_id, user=user, timeout=timeout,
         )
 
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error: {response.error.type}: {response.error.message}"
-                )
-
-            # Content is base64 encoded
-            content = response.content
-            if isinstance(content, str):
-                content = content.encode('utf-8')
-            return base64.b64decode(content).decode("utf-8")
-
-        except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout fetching chunk {chunk_id}")
-
     async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
-        """
-        Save answer content to the librarian.
-
-        Args:
-            doc_id: ID for the answer document
-            user: User ID
-            content: Answer text content
-            title: Optional title
-            timeout: Request timeout in seconds
-
-        Returns:
-            The document ID on success
-        """
-        request_id = str(uuid.uuid4())
+        """Save answer content to the librarian."""
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
@@ -211,29 +122,8 @@ class Processor(FlowProcessor):
             user=user,
         )
 
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error saving answer: {response.error.type}: {response.error.message}"
-                )
-
-            return doc_id
-
-        except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout saving answer document {doc_id}")
+        await self.librarian.request(request, timeout=timeout)
+        return doc_id
 
     async def on_request(self, msg, consumer, flow):
 
@@ -272,12 +162,13 @@ class Processor(FlowProcessor):
                     triples=triples,
                 ))
 
-                # Send explain ID and graph to response queue
+                # Send explain data to response queue
                 await flow("response").send(
                     DocumentRagResponse(
                         response=None,
                         explain_id=explain_id,
                         explain_graph=GRAPH_RETRIEVAL,
+                        explain_triples=triples,
                         message_type="explain",
                     ),
                     properties={"id": id}
@@ -390,4 +281,3 @@ class Processor(FlowProcessor):
 def run():
 
     Processor.launch(default_ident, __doc__)
-

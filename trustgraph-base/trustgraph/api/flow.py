@@ -1122,6 +1122,45 @@ class FlowInstance:
             
         return result
 
+    def sparql_query(
+            self, query, user="trustgraph", collection="default",
+            limit=10000
+    ):
+        """
+        Execute a SPARQL query against the knowledge graph.
+
+        Args:
+            query: SPARQL 1.1 query string
+            user: User/keyspace identifier (default: "trustgraph")
+            collection: Collection identifier (default: "default")
+            limit: Safety limit on results (default: 10000)
+
+        Returns:
+            dict with query results. Structure depends on query type:
+            - SELECT: {"query-type": "select", "variables": [...], "bindings": [...]}
+            - ASK: {"query-type": "ask", "ask-result": bool}
+            - CONSTRUCT/DESCRIBE: {"query-type": "construct", "triples": [...]}
+
+        Raises:
+            ProtocolException: If an error occurs
+        """
+
+        input = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+            "limit": limit,
+        }
+
+        response = self.request("service/sparql", input)
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
     def nlp_query(self, question, max_results=100):
         """
         Convert a natural language question to a GraphQL query.

@@ -108,7 +108,7 @@ class Processor(AsyncProcessor):
             flow_config = self,
         )
 
-        self.register_config_handler(self.on_knowledge_config)
+        self.register_config_handler(self.on_knowledge_config, types=["flow"])
 
         self.flows = {}
 

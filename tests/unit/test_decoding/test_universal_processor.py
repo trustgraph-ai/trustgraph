@@ -142,8 +142,8 @@ class TestPageBasedFormats:
 class TestUniversalProcessor(IsolatedAsyncioTestCase):
     """Test universal decoder processor."""
 
-    @patch('trustgraph.decoding.universal.processor.Consumer')
-    @patch('trustgraph.decoding.universal.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_initialization(
         self, mock_producer, mock_consumer
@@ -169,8 +169,8 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert consumer_specs[0].name == "input"
         assert consumer_specs[0].schema == Document
 
-    @patch('trustgraph.decoding.universal.processor.Consumer')
-    @patch('trustgraph.decoding.universal.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_custom_strategy(
         self, mock_producer, mock_consumer
@@ -188,8 +188,8 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert processor.partition_strategy == "hi_res"
         assert processor.section_strategy_name == "heading"
 
-    @patch('trustgraph.decoding.universal.processor.Consumer')
-    @patch('trustgraph.decoding.universal.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_group_by_page(self, mock_producer, mock_consumer):
         """Test page grouping of elements."""
@@ -214,8 +214,8 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert result[1][0] == 2
         assert len(result[1][1]) == 1
 
-    @patch('trustgraph.decoding.universal.processor.Consumer')
-    @patch('trustgraph.decoding.universal.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.universal.processor.partition')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_inline_non_page(
@@ -255,7 +255,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         }.get(name))
 
         # Mock save_child_document and magic
-        processor.save_child_document = AsyncMock(return_value="mock-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="mock-id")
 
         with patch('trustgraph.decoding.universal.processor.magic') as mock_magic:
             mock_magic.from_buffer.return_value = "text/markdown"
@@ -271,8 +271,8 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert call_args.document_id.startswith("urn:section:")
         assert call_args.text == b""
 
-    @patch('trustgraph.decoding.universal.processor.Consumer')
-    @patch('trustgraph.decoding.universal.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.universal.processor.partition')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_page_based(
@@ -310,7 +310,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
             "triples": mock_triples_flow,
         }.get(name))
 
-        processor.save_child_document = AsyncMock(return_value="mock-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="mock-id")
 
         with patch('trustgraph.decoding.universal.processor.magic') as mock_magic:
             mock_magic.from_buffer.return_value = "application/pdf"
@@ -323,8 +323,8 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         call_args = mock_output_flow.send.call_args_list[0][0][0]
         assert call_args.document_id.startswith("urn:page:")
 
-    @patch('trustgraph.decoding.universal.processor.Consumer')
-    @patch('trustgraph.decoding.universal.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.universal.processor.partition')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_images_stored_not_emitted(
@@ -361,7 +361,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
             "triples": mock_triples_flow,
         }.get(name))
 
-        processor.save_child_document = AsyncMock(return_value="mock-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="mock-id")
 
         with patch('trustgraph.decoding.universal.processor.magic') as mock_magic:
             mock_magic.from_buffer.return_value = "application/pdf"
@@ -374,7 +374,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert mock_triples_flow.send.call_count == 2
 
         # save_child_document called twice (page + image)
-        assert processor.save_child_document.call_count == 2
+        assert processor.librarian.save_child_document.call_count == 2
 
     @patch('trustgraph.base.flow_processor.FlowProcessor.add_args')
     def test_add_args(self, mock_parent_add_args):

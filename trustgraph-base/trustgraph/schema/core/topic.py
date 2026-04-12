@@ -1,23 +1,26 @@
 
-def topic(queue_name, qos='q1', tenant='tg', namespace='flow'):
+def queue(topic, cls='flow', topicspace='tg'):
     """
-    Create a generic topic identifier that can be mapped by backends.
+    Create a queue identifier in CLASS:TOPICSPACE:TOPIC format.
 
     Args:
-        queue_name: The queue/topic name
-        qos: Quality of service
-             - 'q0' = best-effort (no ack)
-             - 'q1' = at-least-once (ack required)
-             - 'q2' = exactly-once (two-phase ack)
-        tenant: Tenant identifier for multi-tenancy
-        namespace: Namespace within tenant
+        topic: The logical queue name (e.g. 'config', 'librarian')
+        cls: Queue class determining operational characteristics:
+             - 'flow' = persistent shared work queue (competing consumers)
+             - 'request' = non-persistent RPC request queue (shared)
+             - 'response' = non-persistent RPC response queue (per-subscriber)
+             - 'notify' = ephemeral broadcast (per-subscriber, auto-delete)
+        topicspace: Deployment isolation prefix (default: 'tg')
 
     Returns:
-        Generic topic string: qos/tenant/namespace/queue_name
+        Queue identifier string: cls:topicspace:topic
 
     Examples:
-        topic('my-queue')  # q1/tg/flow/my-queue
-        topic('config', qos='q2', namespace='config')  # q2/tg/config/config
+        queue('text-completion-request')
+            # flow:tg:text-completion-request
+        queue('config', cls='request')
+            # request:tg:config
+        queue('config', cls='notify')
+            # notify:tg:config
     """
-    return f"{qos}/{tenant}/{namespace}/{queue_name}"
-
+    return f"{cls}:{topicspace}:{topic}"

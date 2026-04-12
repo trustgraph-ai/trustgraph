@@ -6,7 +6,7 @@ from .base import MessageTranslator
 class ConfigRequestTranslator(MessageTranslator):
     """Translator for ConfigRequest schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> ConfigRequest:
+    def decode(self, data: Dict[str, Any]) -> ConfigRequest:
         keys = None
         if "keys" in data:
             keys = [
@@ -35,7 +35,7 @@ class ConfigRequestTranslator(MessageTranslator):
             values=values
         )
     
-    def from_pulsar(self, obj: ConfigRequest) -> Dict[str, Any]:
+    def encode(self, obj: ConfigRequest) -> Dict[str, Any]:
         result = {}
         
         if obj.operation is not None:
@@ -69,10 +69,10 @@ class ConfigRequestTranslator(MessageTranslator):
 class ConfigResponseTranslator(MessageTranslator):
     """Translator for ConfigResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> ConfigResponse:
+    def decode(self, data: Dict[str, Any]) -> ConfigResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: ConfigResponse) -> Dict[str, Any]:
+    def encode(self, obj: ConfigResponse) -> Dict[str, Any]:
         result = {}
         
         if obj.version is not None:
@@ -96,6 +96,6 @@ class ConfigResponseTranslator(MessageTranslator):
         
         return result
     
-    def from_response_with_completion(self, obj: ConfigResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: ConfigResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

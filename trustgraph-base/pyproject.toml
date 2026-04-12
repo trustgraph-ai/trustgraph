@@ -14,6 +14,7 @@ dependencies = [
     "prometheus-client",
     "requests",
     "python-logging-loki",
+    "pika",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

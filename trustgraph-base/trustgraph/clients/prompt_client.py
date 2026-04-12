@@ -1,5 +1,4 @@
 
-import _pulsar
 import json
 import dataclasses
 
@@ -9,10 +8,6 @@ from .. schema import prompt_response_queue
 from . base import BaseClient
 
 # Ugly
-ERROR=_pulsar.LoggerLevel.Error
-WARN=_pulsar.LoggerLevel.Warn
-INFO=_pulsar.LoggerLevel.Info
-DEBUG=_pulsar.LoggerLevel.Debug
 
 @dataclasses.dataclass
 class Definition:
@@ -34,7 +29,7 @@ class Topic:
 class PromptClient(BaseClient):
 
     def __init__(
-            self, log_level=ERROR,
+            self,
             subscriber=None,
             input_queue=None,
             output_queue=None,
@@ -49,7 +44,6 @@ class PromptClient(BaseClient):
             output_queue = prompt_response_queue
 
         super(PromptClient, self).__init__(
-            log_level=log_level,
             subscriber=subscriber,
             input_queue=input_queue,
             output_queue=output_queue,

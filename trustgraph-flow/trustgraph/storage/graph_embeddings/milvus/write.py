@@ -45,7 +45,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         self.vecstore = EntityVectors(store_uri)
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     async def store_graph_embeddings(self, message):
 

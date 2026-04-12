@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from ..core.primitives import Error, Term, Triple
-from ..core.topic import topic
+from ..core.topic import queue
 
 ############################################################################
 
@@ -69,12 +69,8 @@ class DocumentEmbeddingsResponse:
     error: Error | None = None
     chunks: list[ChunkMatch] = field(default_factory=list)
 
-document_embeddings_request_queue = topic(
-    "document-embeddings-request", qos='q0', tenant='trustgraph', namespace='flow'
-)
-document_embeddings_response_queue = topic(
-    "document-embeddings-response", qos='q0', tenant='trustgraph', namespace='flow'
-)
+document_embeddings_request_queue = queue('document-embeddings', cls='request')
+document_embeddings_response_queue = queue('document-embeddings', cls='response')
 
 ############################################################################
 
@@ -104,9 +100,5 @@ class RowEmbeddingsResponse:
     error: Error | None = None
     matches: list[RowIndexMatch] = field(default_factory=list)
 
-row_embeddings_request_queue = topic(
-    "row-embeddings-request", qos='q0', tenant='trustgraph', namespace='flow'
-)
-row_embeddings_response_queue = topic(
-    "row-embeddings-response", qos='q0', tenant='trustgraph', namespace='flow'
-)
+row_embeddings_request_queue = queue('row-embeddings', cls='request')
+row_embeddings_response_queue = queue('row-embeddings', cls='response')

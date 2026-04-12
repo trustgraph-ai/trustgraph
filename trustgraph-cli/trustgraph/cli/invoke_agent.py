@@ -12,7 +12,13 @@ from trustgraph.api import (
     ProvenanceEvent,
     Question,
     Analysis,
+    Observation,
     Conclusion,
+    Decomposition,
+    Finding,
+    Plan,
+    StepResult,
+    Synthesis,
     AgentThought,
     AgentObservation,
     AgentAnswer,
@@ -176,16 +182,18 @@ def question_explainable(
                 print(item.content, end="", flush=True)
 
             elif isinstance(item, ProvenanceEvent):
-                # Process provenance event immediately
+                # Use inline entity if available, otherwise fetch from graph
                 prov_id = item.explain_id
                 explain_graph = item.explain_graph or "urn:graph:retrieval"
 
-                entity = explain_client.fetch_entity(
-                    prov_id,
-                    graph=explain_graph,
-                    user=user,
-                    collection=collection
-                )
+                entity = item.entity
+                if entity is None:
+                    entity = explain_client.fetch_entity(
+                        prov_id,
+                        graph=explain_graph,
+                        user=user,
+                        collection=collection
+                    )
 
                 if entity is None:
                     if debug:
@@ -201,13 +209,42 @@ def question_explainable(
                         print(f"    Time: {entity.timestamp}", file=sys.stderr)
 
                 elif isinstance(entity, Analysis):
-                    print(f"\n  [iteration] {prov_id}", file=sys.stderr)
-                    if entity.action:
-                        print(f"    Action: {entity.action}", file=sys.stderr)
-                    if entity.thought:
-                        print(f"    Thought: {entity.thought}", file=sys.stderr)
-                    if entity.observation:
-                        print(f"    Observation: {entity.observation}", file=sys.stderr)
+                    action_label = f": {entity.action}" if entity.action else ""
+                    print(f"\n  [analysis{action_label}] {prov_id}", file=sys.stderr)
+
+                elif isinstance(entity, Observation):
+                    print(f"\n  [observation] {prov_id}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
+
+                elif isinstance(entity, Decomposition):
+                    print(f"\n  [decompose] {prov_id}", file=sys.stderr)
+                    for i, goal in enumerate(entity.goals):
+                        print(f"    Thread {i}: {goal}", file=sys.stderr)
+
+                elif isinstance(entity, Finding):
+                    print(f"\n  [finding] {prov_id}", file=sys.stderr)
+                    if entity.goal:
+                        print(f"    Goal: {entity.goal}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
+
+                elif isinstance(entity, Plan):
+                    print(f"\n  [plan] {prov_id}", file=sys.stderr)
+                    for i, step in enumerate(entity.steps):
+                        print(f"    Step {i}: {step}", file=sys.stderr)
+
+                elif isinstance(entity, StepResult):
+                    print(f"\n  [step-result] {prov_id}", file=sys.stderr)
+                    if entity.step:
+                        print(f"    Step: {entity.step}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
+
+                elif isinstance(entity, Synthesis):
+                    print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
 
                 elif isinstance(entity, Conclusion):
                     print(f"\n  [conclusion] {prov_id}", file=sys.stderr)
@@ -233,7 +270,8 @@ def question_explainable(
 
 def question(
         url, question, flow_id, user, collection,
-        plan=None, state=None, group=None, verbose=False, streaming=True,
+        plan=None, state=None, group=None, pattern=None,
+        verbose=False, streaming=True,
         token=None, explainable=False, debug=False
 ):
     # Explainable mode uses the API to capture and process provenance events
@@ -273,6 +311,8 @@ def question(
         request_params["state"] = state
     if group is not None:
         request_params["group"] = group
+    if pattern is not None:
+        request_params["pattern"] = pattern
 
     try:
         # Call agent
@@ -397,6 +437,12 @@ def main():
     )
 
     parser.add_argument(
+        '-p', '--pattern',
+        choices=['react', 'plan-then-execute', 'supervisor'],
+        help='Force execution pattern (default: auto-selected by meta-router)'
+    )
+
+    parser.add_argument(
         '-s', '--state',
         help=f'Agent initial state (default: unspecified)'
     )
@@ -444,6 +490,7 @@ def main():
             plan = args.plan,
             state = args.state,
             group = args.group,
+            pattern = args.pattern,
             verbose = args.verbose,
             streaming = not args.no_streaming,
             token = args.token,

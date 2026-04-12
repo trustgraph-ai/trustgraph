@@ -1,5 +1,4 @@
 
-import _pulsar
 
 from .. schema import AgentRequest, AgentResponse
 from .. schema import agent_request_queue
@@ -7,15 +6,11 @@ from .. schema import agent_response_queue
 from . base import BaseClient
 
 # Ugly
-ERROR=_pulsar.LoggerLevel.Error
-WARN=_pulsar.LoggerLevel.Warn
-INFO=_pulsar.LoggerLevel.Info
-DEBUG=_pulsar.LoggerLevel.Debug
 
 class AgentClient(BaseClient):
 
     def __init__(
-            self, log_level=ERROR,
+            self,
             subscriber=None,
             input_queue=None,
             output_queue=None,
@@ -27,7 +22,6 @@ class AgentClient(BaseClient):
         if output_queue is None: output_queue = agent_response_queue
 
         super(AgentClient, self).__init__(
-            log_level=log_level,
             subscriber=subscriber,
             input_queue=input_queue,
             output_queue=output_queue,

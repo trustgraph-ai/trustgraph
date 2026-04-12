@@ -61,23 +61,21 @@ async def test_subscriber_deferred_acknowledgment_success():
         max_size=10,
         backpressure_strategy="block"
     )
-    
-    # Start subscriber to initialize consumer
-    await subscriber.start()
-    
+    subscriber.consumer = mock_consumer
+
     # Create queue for subscription
     queue = await subscriber.subscribe("test-queue")
-    
+
     # Create mock message with matching queue name
     msg = create_mock_message("test-queue", {"data": "test"})
-    
+
     # Process message
     await subscriber._process_message(msg)
-    
+
     # Should acknowledge successful delivery
     mock_consumer.acknowledge.assert_called_once_with(msg)
     mock_consumer.negative_acknowledge.assert_not_called()
-    
+
     # Message should be in queue
     assert not queue.empty()
     received_msg = await queue.get()
@@ -108,9 +106,7 @@ async def test_subscriber_dropped_message_still_acks():
         max_size=1,  # Very small queue
         backpressure_strategy="drop_new"
     )
-
-    # Start subscriber to initialize consumer
-    await subscriber.start()
+    subscriber.consumer = mock_consumer
 
     # Create queue and fill it
     queue = await subscriber.subscribe("test-queue")
@@ -151,9 +147,7 @@ async def test_subscriber_orphaned_message_acks():
         max_size=10,
         backpressure_strategy="block"
     )
-
-    # Start subscriber to initialize consumer
-    await subscriber.start()
+    subscriber.consumer = mock_consumer
 
     # Don't create any queues - message will be orphaned
     # This simulates a response arriving after the waiter has unsubscribed
@@ -189,9 +183,7 @@ async def test_subscriber_backpressure_strategies():
         max_size=2,
         backpressure_strategy="drop_oldest"
     )
-    
-    # Start subscriber to initialize consumer
-    await subscriber.start()
+    subscriber.consumer = mock_consumer
     
     queue = await subscriber.subscribe("test-queue")
     

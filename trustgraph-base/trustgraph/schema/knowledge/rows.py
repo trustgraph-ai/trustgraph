@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 
 from ..core.metadata import Metadata
 from ..core.primitives import RowSchema
-from ..core.topic import topic
 
 ############################################################################
 

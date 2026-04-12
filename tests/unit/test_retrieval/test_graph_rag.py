@@ -465,12 +465,15 @@ class TestQuery:
             return_value=(["entity1", "entity2"], ["concept1"])
         )
 
-        query.follow_edges_batch = AsyncMock(return_value={
-            ("entity1", "predicate1", "object1"),
-            ("entity2", "predicate2", "object2")
-        })
+        query.follow_edges_batch = AsyncMock(return_value=(
+            {
+                ("entity1", "predicate1", "object1"),
+                ("entity2", "predicate2", "object2")
+            },
+            {}
+        ))
 
-        subgraph, entities, concepts = await query.get_subgraph("test query")
+        subgraph, term_map, entities, concepts = await query.get_subgraph("test query")
 
         query.get_entities.assert_called_once_with("test query")
         query.follow_edges_batch.assert_called_once_with(["entity1", "entity2"], 1)
@@ -503,7 +506,7 @@ class TestQuery:
         test_entities = ["entity1", "entity3"]
         test_concepts = ["concept1"]
         query.get_subgraph = AsyncMock(
-            return_value=(test_subgraph, test_entities, test_concepts)
+            return_value=(test_subgraph, {}, test_entities, test_concepts)
         )
 
         async def mock_maybe_label(entity):

@@ -14,3 +14,4 @@ from .diagnosis import *
 from .collection import *
 from .storage import *
 from .tool_service import *
+from .sparql_query import *

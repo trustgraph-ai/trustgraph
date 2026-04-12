@@ -37,7 +37,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     async def store_document_embeddings(self, message):
 

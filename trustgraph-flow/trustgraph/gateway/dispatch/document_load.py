@@ -23,5 +23,5 @@ class DocumentLoad(ServiceSender):
 
     def to_request(self, body):
         logger.info("Document received")
-        return self.translator.to_pulsar(body)
+        return self.translator.decode(body)
 

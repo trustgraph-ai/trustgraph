@@ -5,6 +5,7 @@ from .. schema import GraphRagQuery, GraphRagResponse
 class GraphRagClient(RequestResponse):
     async def rag(self, query, user="trustgraph", collection="default",
                   chunk_callback=None, explain_callback=None,
+                  parent_uri="",
                   timeout=600):
         """
         Execute a graph RAG query with optional streaming callbacks.
@@ -14,7 +15,7 @@ class GraphRagClient(RequestResponse):
             user: User identifier
             collection: Collection identifier
             chunk_callback: Optional async callback(text, end_of_stream) for text chunks
-            explain_callback: Optional async callback(explain_id, explain_graph) for explain notifications
+            explain_callback: Optional async callback(explain_id, explain_graph, explain_triples) for explain notifications
             timeout: Request timeout in seconds
 
         Returns:
@@ -29,7 +30,7 @@ class GraphRagClient(RequestResponse):
             # Handle explain notifications
             if resp.message_type == 'explain':
                 if explain_callback and resp.explain_id:
-                    await explain_callback(resp.explain_id, resp.explain_graph)
+                    await explain_callback(resp.explain_id, resp.explain_graph, resp.explain_triples)
                 return False  # Continue receiving
 
             # Handle text chunks
@@ -50,6 +51,7 @@ class GraphRagClient(RequestResponse):
                 query = query,
                 user = user,
                 collection = collection,
+                parent_uri = parent_uri,
             ),
             timeout=timeout,
             recipient=recipient,

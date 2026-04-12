@@ -366,58 +366,38 @@ class SocketClient:
         # Handle GraphRAG/DocRAG message format with message_type
         if message_type == "explain":
             if include_provenance:
-                return ProvenanceEvent(
-                    explain_id=resp.get("explain_id", ""),
-                    explain_graph=resp.get("explain_graph", "")
-                )
+                return self._build_provenance_event(resp)
             return None
 
         # Handle Agent message format with chunk_type="explain"
         if chunk_type == "explain":
             if include_provenance:
-                return ProvenanceEvent(
-                    explain_id=resp.get("explain_id", ""),
-                    explain_graph=resp.get("explain_graph", "")
-                )
+                return self._build_provenance_event(resp)
             return None
 
         if chunk_type == "thought":
             return AgentThought(
                 content=resp.get("content", ""),
-                end_of_message=resp.get("end_of_message", False)
+                end_of_message=resp.get("end_of_message", False),
+                message_id=resp.get("message_id", ""),
             )
         elif chunk_type == "observation":
             return AgentObservation(
                 content=resp.get("content", ""),
-                end_of_message=resp.get("end_of_message", False)
+                end_of_message=resp.get("end_of_message", False),
+                message_id=resp.get("message_id", ""),
             )
         elif chunk_type == "answer" or chunk_type == "final-answer":
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
-                end_of_dialog=resp.get("end_of_dialog", False)
+                end_of_dialog=resp.get("end_of_dialog", False),
+                message_id=resp.get("message_id", ""),
             )
         elif chunk_type == "action":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
-            )
-        # Non-streaming agent format: chunk_type is empty but has thought/observation/answer fields
-        elif resp.get("thought"):
-            return AgentThought(
-                content=resp.get("thought", ""),
-                end_of_message=resp.get("end_of_message", False)
-            )
-        elif resp.get("observation"):
-            return AgentObservation(
-                content=resp.get("observation", ""),
-                end_of_message=resp.get("end_of_message", False)
-            )
-        elif resp.get("answer"):
-            return AgentAnswer(
-                content=resp.get("answer", ""),
-                end_of_message=resp.get("end_of_message", False),
-                end_of_dialog=resp.get("end_of_dialog", False)
             )
         else:
             content = resp.get("response", resp.get("chunk", resp.get("text", "")))
@@ -426,6 +406,42 @@ class SocketClient:
                 end_of_stream=resp.get("end_of_stream", False),
                 error=None
             )
+
+    def _build_provenance_event(self, resp: Dict[str, Any]) -> ProvenanceEvent:
+        """Build a ProvenanceEvent from a response dict, parsing inline triples
+        into an ExplainEntity if available."""
+        explain_id = resp.get("explain_id", "")
+        explain_graph = resp.get("explain_graph", "")
+        raw_triples = resp.get("explain_triples", [])
+
+        entity = None
+        if raw_triples:
+            try:
+                from .explainability import ExplainEntity
+                # Convert wire-format triple dicts to (s, p, o) tuples
+                parsed = []
+                for t in raw_triples:
+                    s = t.get("s", {}).get("i", "") if t.get("s") else ""
+                    p = t.get("p", {}).get("i", "") if t.get("p") else ""
+                    o_term = t.get("o", {})
+                    if o_term:
+                        if o_term.get("t") == "i":
+                            o = o_term.get("i", "")
+                        else:
+                            o = o_term.get("v", "")
+                    else:
+                        o = ""
+                    parsed.append((s, p, o))
+                entity = ExplainEntity.from_triples(explain_id, parsed)
+            except Exception:
+                pass
+
+        return ProvenanceEvent(
+            explain_id=explain_id,
+            explain_graph=explain_graph,
+            entity=entity,
+            triples=raw_triples,
+        )
 
     def close(self) -> None:
         """Close the persistent WebSocket connection."""
@@ -825,6 +841,31 @@ class SocketFlowInstance:
                 yield response["response"]
             else:
                 yield response
+
+    def sparql_query_stream(
+        self,
+        query: str,
+        user: str = "trustgraph",
+        collection: str = "default",
+        limit: int = 10000,
+        batch_size: int = 20,
+        **kwargs: Any
+    ) -> Iterator[Dict[str, Any]]:
+        """Execute a SPARQL query with streaming batches."""
+        request = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+            "limit": limit,
+            "streaming": True,
+            "batch-size": batch_size,
+        }
+        request.update(kwargs)
+
+        for response in self.client._send_request_sync(
+            "sparql", self.flow_id, request, streaming_raw=True
+        ):
+            yield response
 
     def rows_query(
         self,

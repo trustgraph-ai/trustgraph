@@ -11,22 +11,22 @@ _triple_translator = TripleTranslator()
 
 def to_value(x):
     """Convert dict to Term. Delegates to TermTranslator."""
-    return _term_translator.to_pulsar(x)
+    return _term_translator.decode(x)
 
 
 def to_subgraph(x):
     """Convert list of dicts to list of Triples. Delegates to TripleTranslator."""
-    return [_triple_translator.to_pulsar(t) for t in x]
+    return [_triple_translator.decode(t) for t in x]
 
 
 def serialize_value(v):
     """Convert Term to dict. Delegates to TermTranslator."""
-    return _term_translator.from_pulsar(v)
+    return _term_translator.encode(v)
 
 
 def serialize_triple(t):
     """Convert Triple to dict. Delegates to TripleTranslator."""
-    return _triple_translator.from_pulsar(t)
+    return _triple_translator.encode(t)
 
 
 def serialize_subgraph(sg):

@@ -1,12 +1,13 @@
 from typing import Dict, Any, Tuple
 from ...schema import DocumentRagQuery, DocumentRagResponse, GraphRagQuery, GraphRagResponse
 from .base import MessageTranslator
+from .primitives import TripleTranslator
 
 
 class DocumentRagRequestTranslator(MessageTranslator):
     """Translator for DocumentRagQuery schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> DocumentRagQuery:
+    def decode(self, data: Dict[str, Any]) -> DocumentRagQuery:
         return DocumentRagQuery(
             query=data["query"],
             user=data.get("user", "trustgraph"),
@@ -15,7 +16,7 @@ class DocumentRagRequestTranslator(MessageTranslator):
             streaming=data.get("streaming", False)
         )
 
-    def from_pulsar(self, obj: DocumentRagQuery) -> Dict[str, Any]:
+    def encode(self, obj: DocumentRagQuery) -> Dict[str, Any]:
         return {
             "query": obj.query,
             "user": obj.user,
@@ -28,10 +29,13 @@ class DocumentRagRequestTranslator(MessageTranslator):
 class DocumentRagResponseTranslator(MessageTranslator):
     """Translator for DocumentRagResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> DocumentRagResponse:
+    def __init__(self):
+        self.triple_translator = TripleTranslator()
+
+    def decode(self, data: Dict[str, Any]) -> DocumentRagResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: DocumentRagResponse) -> Dict[str, Any]:
+    def encode(self, obj: DocumentRagResponse) -> Dict[str, Any]:
         result = {}
 
         # Include message_type for distinguishing chunk vs explain messages
@@ -53,6 +57,13 @@ class DocumentRagResponseTranslator(MessageTranslator):
         if explain_graph is not None:
             result["explain_graph"] = explain_graph
 
+        # Include explain_triples for explain messages
+        explain_triples = getattr(obj, "explain_triples", [])
+        if explain_triples:
+            result["explain_triples"] = [
+                self.triple_translator.encode(t) for t in explain_triples
+            ]
+
         # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 
@@ -65,17 +76,17 @@ class DocumentRagResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: DocumentRagResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: DocumentRagResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
         # Session is complete when end_of_session is True
         is_final = getattr(obj, 'end_of_session', False)
-        return self.from_pulsar(obj), is_final
+        return self.encode(obj), is_final
 
 
 class GraphRagRequestTranslator(MessageTranslator):
     """Translator for GraphRagQuery schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> GraphRagQuery:
+    def decode(self, data: Dict[str, Any]) -> GraphRagQuery:
         return GraphRagQuery(
             query=data["query"],
             user=data.get("user", "trustgraph"),
@@ -89,7 +100,7 @@ class GraphRagRequestTranslator(MessageTranslator):
             streaming=data.get("streaming", False)
         )
 
-    def from_pulsar(self, obj: GraphRagQuery) -> Dict[str, Any]:
+    def encode(self, obj: GraphRagQuery) -> Dict[str, Any]:
         return {
             "query": obj.query,
             "user": obj.user,
@@ -107,10 +118,13 @@ class GraphRagRequestTranslator(MessageTranslator):
 class GraphRagResponseTranslator(MessageTranslator):
     """Translator for GraphRagResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> GraphRagResponse:
+    def __init__(self):
+        self.triple_translator = TripleTranslator()
+
+    def decode(self, data: Dict[str, Any]) -> GraphRagResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: GraphRagResponse) -> Dict[str, Any]:
+    def encode(self, obj: GraphRagResponse) -> Dict[str, Any]:
         result = {}
 
         # Include message_type
@@ -132,6 +146,13 @@ class GraphRagResponseTranslator(MessageTranslator):
         if explain_graph is not None:
             result["explain_graph"] = explain_graph
 
+        # Include explain_triples for explain messages
+        explain_triples = getattr(obj, "explain_triples", [])
+        if explain_triples:
+            result["explain_triples"] = [
+                self.triple_translator.encode(t) for t in explain_triples
+            ]
+
         # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 
@@ -144,8 +165,8 @@ class GraphRagResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: GraphRagResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: GraphRagResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
         # Session is complete when end_of_session is True
         is_final = getattr(obj, 'end_of_session', False)
-        return self.from_pulsar(obj), is_final
+        return self.encode(obj), is_final

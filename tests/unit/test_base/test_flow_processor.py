@@ -35,7 +35,9 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         mock_async_init.assert_called_once()
         
         # Verify register_config_handler was called with the correct handler
-        mock_register_config.assert_called_once_with(processor.on_configure_flows)
+        mock_register_config.assert_called_once_with(
+            processor.on_configure_flows, types=["active-flow"]
+        )
         
         # Verify FlowProcessor-specific initialization
         assert hasattr(processor, 'flows')

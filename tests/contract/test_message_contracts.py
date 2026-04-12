@@ -212,10 +212,11 @@ class TestAgentMessageContracts:
         
         # Test required fields
         response = AgentResponse(**response_data)
-        assert hasattr(response, 'answer')
+        assert hasattr(response, 'chunk_type')
+        assert hasattr(response, 'content')
+        assert hasattr(response, 'end_of_message')
+        assert hasattr(response, 'end_of_dialog')
         assert hasattr(response, 'error')
-        assert hasattr(response, 'thought')
-        assert hasattr(response, 'observation')
 
     def test_agent_step_schema_contract(self):
         """Test AgentStep schema contract"""

@@ -43,7 +43,7 @@ class Processor(FlowProcessor):
         self.template_id = template_id
         self.config_key = config_key
 
-        self.register_config_handler(self.on_prompt_config)
+        self.register_config_handler(self.on_prompt_config, types=["prompt"])
 
         self.register_specification(
             ConsumerSpec(

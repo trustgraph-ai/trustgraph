@@ -21,17 +21,15 @@ class TestSyncDocumentEmbeddingsClient:
         
         # Act
         client = DocumentEmbeddingsClient(
-            log_level=1,
             subscriber="test-subscriber",
             input_queue="test-input",
             output_queue="test-output",
             pulsar_host="pulsar://test:6650",
             pulsar_api_key="test-key"
         )
-        
+
         # Assert
         mock_base_init.assert_called_once_with(
-            log_level=1,
             subscriber="test-subscriber",
             input_queue="test-input",
             output_queue="test-output",

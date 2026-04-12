@@ -14,7 +14,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
         self.value_translator = ValueTranslator()
         self.subgraph_translator = SubgraphTranslator()
 
-    def to_pulsar(self, data: Dict[str, Any]) -> KnowledgeRequest:
+    def decode(self, data: Dict[str, Any]) -> KnowledgeRequest:
         triples = None
         if "triples" in data:
             triples = Triples(
@@ -24,7 +24,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     user=data["triples"]["metadata"]["user"],
                     collection=data["triples"]["metadata"]["collection"]
                 ),
-                triples=self.subgraph_translator.to_pulsar(data["triples"]["triples"]),
+                triples=self.subgraph_translator.decode(data["triples"]["triples"]),
             )
 
         graph_embeddings = None
@@ -38,7 +38,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 ),
                 entities=[
                     EntityEmbeddings(
-                        entity=self.value_translator.to_pulsar(ent["entity"]),
+                        entity=self.value_translator.decode(ent["entity"]),
                         vectors=ent["vectors"],
                     )
                     for ent in data["graph-embeddings"]["entities"]
@@ -55,7 +55,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
             graph_embeddings=graph_embeddings,
         )
 
-    def from_pulsar(self, obj: KnowledgeRequest) -> Dict[str, Any]:
+    def encode(self, obj: KnowledgeRequest) -> Dict[str, Any]:
         result = {}
 
         if obj.operation:
@@ -77,7 +77,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     "user": obj.triples.metadata.user,
                     "collection": obj.triples.metadata.collection,
                 },
-                "triples": self.subgraph_translator.from_pulsar(obj.triples.triples),
+                "triples": self.subgraph_translator.encode(obj.triples.triples),
             }
 
         if obj.graph_embeddings:
@@ -91,7 +91,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 "entities": [
                     {
                         "vector": entity.vector,
-                        "entity": self.value_translator.from_pulsar(entity.entity),
+                        "entity": self.value_translator.encode(entity.entity),
                     }
                     for entity in obj.graph_embeddings.entities
                 ],
@@ -107,10 +107,10 @@ class KnowledgeResponseTranslator(MessageTranslator):
         self.value_translator = ValueTranslator()
         self.subgraph_translator = SubgraphTranslator()
 
-    def to_pulsar(self, data: Dict[str, Any]) -> KnowledgeResponse:
+    def decode(self, data: Dict[str, Any]) -> KnowledgeResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: KnowledgeResponse) -> Dict[str, Any]:
+    def encode(self, obj: KnowledgeResponse) -> Dict[str, Any]:
         # Response to list operation
         if obj.ids is not None:
             return {"ids": obj.ids}
@@ -125,7 +125,7 @@ class KnowledgeResponseTranslator(MessageTranslator):
                         "user": obj.triples.metadata.user,
                         "collection": obj.triples.metadata.collection,
                     },
-                    "triples": self.subgraph_translator.from_pulsar(obj.triples.triples),
+                    "triples": self.subgraph_translator.encode(obj.triples.triples),
                 }
             }
 
@@ -142,7 +142,7 @@ class KnowledgeResponseTranslator(MessageTranslator):
                     "entities": [
                         {
                             "vector": entity.vector,
-                            "entity": self.value_translator.from_pulsar(entity.entity),
+                            "entity": self.value_translator.encode(entity.entity),
                         }
                         for entity in obj.graph_embeddings.entities
                     ],
@@ -156,9 +156,9 @@ class KnowledgeResponseTranslator(MessageTranslator):
         # Empty response (successful delete)
         return {}
     
-    def from_response_with_completion(self, obj: KnowledgeResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: KnowledgeResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        response = self.from_pulsar(obj)
+        response = self.encode(obj)
         
         # Check if this is a final response
         is_final = (
