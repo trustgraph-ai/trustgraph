@@ -97,6 +97,23 @@
   }
 }
 
+/* Global focus-visible for interactive elements */
+@layer base {
+  button:focus-visible,
+  [role="switch"]:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 0;
+  }
+}
+
 /* Prose overrides for theme-aware markdown rendering */
 @layer base {
   .prose code {
@@ -121,8 +138,8 @@ html.light {
   --color-fg-muted: #52525b;
   --color-fg-subtle: #71717a;
 
-  --color-border: #e4e4e7;
-  --color-border-hover: #d4d4d8;
+  --color-border: #d4d4d8;
+  --color-border-hover: #a1a1aa;
 
   /* Brand adjustments for light backgrounds */
   --color-brand-300: #3b63ed;
