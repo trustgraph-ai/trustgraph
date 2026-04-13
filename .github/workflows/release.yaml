@@ -27,12 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # This allows the x86 runner to emulate ARM, needed to build ARM images
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
       - name: Get version
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
@@ -71,6 +65,11 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up QEMU - for ARM emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Docker Hub token
         run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
