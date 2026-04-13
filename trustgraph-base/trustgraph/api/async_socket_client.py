@@ -4,7 +4,7 @@ import asyncio
 import websockets
 from typing import Optional, Dict, Any, AsyncIterator, Union
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, TextCompletionResult
 from . exceptions import ProtocolException, ApplicationException
 
 
@@ -199,7 +199,10 @@ class AsyncSocketClient:
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
-                end_of_dialog=resp.get("end_of_dialog", False)
+                end_of_dialog=resp.get("end_of_dialog", False),
+                in_token=resp.get("in_token"),
+                out_token=resp.get("out_token"),
+                model=resp.get("model"),
             )
         elif chunk_type == "action":
             return AgentThought(
@@ -211,7 +214,10 @@ class AsyncSocketClient:
             return RAGChunk(
                 content=content,
                 end_of_stream=resp.get("end_of_stream", False),
-                error=None
+                error=None,
+                in_token=resp.get("in_token"),
+                out_token=resp.get("out_token"),
+                model=resp.get("model"),
             )
 
     async def aclose(self):
@@ -269,7 +275,11 @@ class AsyncSocketFlowInstance:
             return await self.client._send_request("agent", self.flow_id, request)
 
     async def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs):
-        """Text completion with optional streaming"""
+        """Text completion with optional streaming.
+
+        Non-streaming: returns a TextCompletionResult with text and token counts.
+        Streaming: returns an async iterator of RAGChunk (with token counts on the final chunk).
+        """
         request = {
             "system": system,
             "prompt": prompt,
@@ -281,13 +291,18 @@ class AsyncSocketFlowInstance:
             return self._text_completion_streaming(request)
         else:
             result = await self.client._send_request("text-completion", self.flow_id, request)
-            return result.get("response", "")
+            return TextCompletionResult(
+                text=result.get("response", ""),
+                in_token=result.get("in_token"),
+                out_token=result.get("out_token"),
+                model=result.get("model"),
+            )
 
     async def _text_completion_streaming(self, request):
-        """Helper for streaming text completion"""
+        """Helper for streaming text completion. Yields RAGChunk objects."""
         async for chunk in self.client._send_request_streaming("text-completion", self.flow_id, request):
-            if hasattr(chunk, 'content'):
-                yield chunk.content
+            if isinstance(chunk, RAGChunk):
+                yield chunk
 
     async def graph_rag(self, query: str, user: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,

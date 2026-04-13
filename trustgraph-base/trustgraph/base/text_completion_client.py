@@ -1,47 +1,71 @@
 
+from dataclasses import dataclass
+from typing import Optional
+
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import TextCompletionRequest, TextCompletionResponse
 
+@dataclass
+class TextCompletionResult:
+    text: Optional[str]
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
+
 class TextCompletionClient(RequestResponse):
-    async def text_completion(self, system, prompt, streaming=False, timeout=600):
-        # If not streaming, use original behavior
-        if not streaming:
-            resp = await self.request(
-                TextCompletionRequest(
-                    system = system, prompt = prompt, streaming = False
-                ),
-                timeout=timeout
-            )
 
-            if resp.error:
-                raise RuntimeError(resp.error.message)
+    async def text_completion(self, system, prompt, timeout=600):
 
-            return resp.response
-
-        # For streaming: collect all chunks and return complete response
-        full_response = ""
-
-        async def collect_chunks(resp):
-            nonlocal full_response
-
-            if resp.error:
-                raise RuntimeError(resp.error.message)
-
-            if resp.response:
-                full_response += resp.response
-
-            # Return True when end_of_stream is reached
-            return getattr(resp, 'end_of_stream', False)
-
-        await self.request(
+        resp = await self.request(
             TextCompletionRequest(
-                system = system, prompt = prompt, streaming = True
+                system = system, prompt = prompt, streaming = False
             ),
-            recipient=collect_chunks,
             timeout=timeout
         )
 
-        return full_response
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return TextCompletionResult(
+            text = resp.response,
+            in_token = resp.in_token,
+            out_token = resp.out_token,
+            model = resp.model,
+        )
+
+    async def text_completion_stream(
+            self, system, prompt, handler, timeout=600,
+    ):
+        """
+        Streaming text completion. `handler` is an async callable invoked
+        once per chunk with the chunk's TextCompletionResponse. Returns a
+        TextCompletionResult with text=None and token counts / model taken
+        from the end_of_stream message.
+        """
+
+        async def on_chunk(resp):
+
+            if resp.error:
+                raise RuntimeError(resp.error.message)
+
+            await handler(resp)
+
+            return getattr(resp, "end_of_stream", False)
+
+        final = await self.request(
+            TextCompletionRequest(
+                system = system, prompt = prompt, streaming = True
+            ),
+            recipient=on_chunk,
+            timeout=timeout,
+        )
+
+        return TextCompletionResult(
+            text = None,
+            in_token = final.in_token,
+            out_token = final.out_token,
+            model = final.model,
+        )
 
 class TextCompletionClientSpec(RequestResponseSpec):
     def __init__(
@@ -54,4 +78,3 @@ class TextCompletionClientSpec(RequestResponseSpec):
             response_schema = TextCompletionResponse,
             impl = TextCompletionClient,
         )
-

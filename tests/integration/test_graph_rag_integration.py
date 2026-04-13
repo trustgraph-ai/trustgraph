@@ -12,6 +12,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.schema import EntityMatch, Term, IRI
+from trustgraph.base import PromptResult
 
 
 @pytest.mark.integration
@@ -93,18 +94,21 @@ class TestGraphRagIntegration:
         # 4. kg-synthesis returns the final answer
         async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
             if prompt_name == "extract-concepts":
-                return ""  # Falls back to raw query
+                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-edge-scoring":
-                return ""  # No edges scored
+                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-edge-reasoning":
-                return ""  # No reasoning
+                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-synthesis":
-                return (
-                    "Machine learning is a subset of artificial intelligence that enables computers "
-                    "to learn from data without being explicitly programmed. It uses algorithms "
-                    "and statistical models to find patterns in data."
+                return PromptResult(
+                    response_type="text",
+                    text=(
+                        "Machine learning is a subset of artificial intelligence that enables computers "
+                        "to learn from data without being explicitly programmed. It uses algorithms "
+                        "and statistical models to find patterns in data."
+                    )
                 )
-            return ""
+            return PromptResult(response_type="text", text="")
 
         client.prompt.side_effect = mock_prompt
         return client
@@ -169,6 +173,7 @@ class TestGraphRagIntegration:
         assert mock_prompt_client.prompt.call_count == 4
 
         # Verify final response
+        response, usage = response
         assert response is not None
         assert isinstance(response, str)
         assert "machine learning" in response.lower()

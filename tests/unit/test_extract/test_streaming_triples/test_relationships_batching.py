@@ -14,6 +14,7 @@ from trustgraph.extract.kg.relationships.extract import (
 from trustgraph.schema import (
     Chunk, Triples, Triple, Metadata, Term, IRI, LITERAL,
 )
+from trustgraph.base import PromptResult
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +59,10 @@ def _make_flow(prompt_result, llm_model="test-llm", ontology_uri="test-onto"):
     mock_triples_pub = AsyncMock()
     mock_prompt_client = AsyncMock()
     mock_prompt_client.extract_relationships = AsyncMock(
-        return_value=prompt_result
+        return_value=PromptResult(
+            response_type="jsonl",
+            objects=prompt_result,
+        )
     )
 
     def flow(name):

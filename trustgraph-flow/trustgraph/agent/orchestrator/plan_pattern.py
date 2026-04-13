@@ -18,7 +18,7 @@ from trustgraph.provenance import (
     agent_synthesis_uri,
 )
 
-from . pattern_base import PatternBase
+from . pattern_base import PatternBase, UsageTracker
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,10 @@ class PlanThenExecutePattern(PatternBase):
     Subsequent calls execute the next pending plan step via ReACT.
     """
 
-    async def iterate(self, request, respond, next, flow):
+    async def iterate(self, request, respond, next, flow, usage=None):
+
+        if usage is None:
+            usage = UsageTracker()
 
         streaming = getattr(request, 'streaming', False)
         session_id = getattr(request, 'session_id', '') or str(uuid.uuid4())
@@ -67,13 +70,13 @@ class PlanThenExecutePattern(PatternBase):
             await self._planning_iteration(
                 request, respond, next, flow,
                 session_id, collection, streaming, session_uri,
-                iteration_num,
+                iteration_num, usage=usage,
             )
         else:
             await self._execution_iteration(
                 request, respond, next, flow,
                 session_id, collection, streaming, session_uri,
-                iteration_num, plan,
+                iteration_num, plan, usage=usage,
             )
 
     def _extract_plan(self, history):
@@ -98,7 +101,7 @@ class PlanThenExecutePattern(PatternBase):
 
     async def _planning_iteration(self, request, respond, next, flow,
                                   session_id, collection, streaming,
-                                  session_uri, iteration_num):
+                                  session_uri, iteration_num, usage=None):
         """Ask the LLM to produce a structured plan."""
 
         think = self.make_think_callback(respond, streaming)
@@ -113,7 +116,7 @@ class PlanThenExecutePattern(PatternBase):
         client = context("prompt-request")
 
         # Use the plan-create prompt template
-        plan_steps = await client.prompt(
+        result = await client.prompt(
             id="plan-create",
             variables={
                 "question": request.question,
@@ -124,7 +127,10 @@ class PlanThenExecutePattern(PatternBase):
                 ],
             },
         )
+        if usage:
+            usage.track(result)
 
+        plan_steps = result.objects
         # Validate we got a list
         if not isinstance(plan_steps, list) or not plan_steps:
             logger.warning("plan-create returned invalid result, falling back to single step")
@@ -187,7 +193,8 @@ class PlanThenExecutePattern(PatternBase):
 
     async def _execution_iteration(self, request, respond, next, flow,
                                    session_id, collection, streaming,
-                                   session_uri, iteration_num, plan):
+                                   session_uri, iteration_num, plan,
+                                   usage=None):
         """Execute the next pending plan step via single-shot tool call."""
 
         pending_idx = self._find_next_pending_step(plan)
@@ -198,6 +205,7 @@ class PlanThenExecutePattern(PatternBase):
                 request, respond, next, flow,
                 session_id, collection, streaming,
                 session_uri, iteration_num, plan,
+                usage=usage,
             )
             return
 
@@ -240,7 +248,7 @@ class PlanThenExecutePattern(PatternBase):
         client = context("prompt-request")
 
         # Single-shot: ask LLM which tool + arguments to use for this goal
-        tool_call = await client.prompt(
+        result = await client.prompt(
             id="plan-step-execute",
             variables={
                 "goal": goal,
@@ -258,7 +266,10 @@ class PlanThenExecutePattern(PatternBase):
                 ],
             },
         )
+        if usage:
+            usage.track(result)
 
+        tool_call = result.object
         tool_name = tool_call.get("tool", "")
         tool_arguments = tool_call.get("arguments", {})
 
@@ -330,7 +341,8 @@ class PlanThenExecutePattern(PatternBase):
 
     async def _synthesise(self, request, respond, next, flow,
                           session_id, collection, streaming,
-                          session_uri, iteration_num, plan):
+                          session_uri, iteration_num, plan,
+                          usage=None):
         """Synthesise a final answer from all completed plan step results."""
 
         think = self.make_think_callback(respond, streaming)
@@ -365,6 +377,7 @@ class PlanThenExecutePattern(PatternBase):
             respond=respond,
             streaming=streaming,
             message_id=synthesis_msg_id,
+            usage=usage,
         )
 
         # Emit synthesis provenance (links back to last step result)
@@ -380,4 +393,5 @@ class PlanThenExecutePattern(PatternBase):
             await self.send_final_response(
                 respond, streaming, response_text, already_streamed=streaming,
                 message_id=synthesis_msg_id,
+                usage=usage,
             )

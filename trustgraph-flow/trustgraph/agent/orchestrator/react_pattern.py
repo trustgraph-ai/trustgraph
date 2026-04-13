@@ -23,7 +23,7 @@ from ..react.agent_manager import AgentManager
 from ..react.types import Action, Final
 from ..tool_filter import get_next_state
 
-from . pattern_base import PatternBase
+from . pattern_base import PatternBase, UsageTracker
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,10 @@ class ReactPattern(PatternBase):
     result is appended to history and a next-request is emitted.
     """
 
-    async def iterate(self, request, respond, next, flow):
+    async def iterate(self, request, respond, next, flow, usage=None):
+
+        if usage is None:
+            usage = UsageTracker()
 
         streaming = getattr(request, 'streaming', False)
         session_id = getattr(request, 'session_id', '') or str(uuid.uuid4())
@@ -121,6 +124,7 @@ class ReactPattern(PatternBase):
             context=context,
             streaming=streaming,
             on_action=on_action,
+            usage=usage,
         )
 
         logger.debug(f"Action: {act}")
@@ -144,6 +148,7 @@ class ReactPattern(PatternBase):
                 await self.send_final_response(
                     respond, streaming, f, already_streamed=streaming,
                     message_id=answer_msg_id,
+                    usage=usage,
                 )
             return
 

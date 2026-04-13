@@ -100,10 +100,11 @@ class Processor(FlowProcessor):
 
             try:
 
-                rels = await flow("prompt-request").extract_relationships(
+                result = await flow("prompt-request").extract_relationships(
                     text = chunk
                 )
 
+                rels = result.objects
                 logger.debug(f"Prompt response: {rels}")
 
                 if type(rels) != list:

@@ -90,6 +90,13 @@ class AgentResponseTranslator(MessageTranslator):
         if hasattr(obj, 'error') and obj.error and obj.error.message:
             result["error"] = {"message": obj.error.message, "code": obj.error.code}
 
+        if obj.in_token is not None:
+            result["in_token"] = obj.in_token
+        if obj.out_token is not None:
+            result["out_token"] = obj.out_token
+        if obj.model is not None:
+            result["model"] = obj.model
+
         return result
 
     def encode_with_completion(self, obj: AgentResponse) -> Tuple[Dict[str, Any], bool]:

@@ -189,6 +189,9 @@ class AgentAnswer(StreamingChunk):
     chunk_type: str = "final-answer"
     end_of_dialog: bool = False
     message_id: str = ""
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 @dataclasses.dataclass
 class RAGChunk(StreamingChunk):
@@ -202,11 +205,37 @@ class RAGChunk(StreamingChunk):
         content: Generated text content
         end_of_stream: True if this is the final chunk of the stream
         error: Optional error information if an error occurred
+        in_token: Input token count (populated on the final chunk, 0 otherwise)
+        out_token: Output token count (populated on the final chunk, 0 otherwise)
+        model: Model identifier (populated on the final chunk, empty otherwise)
         chunk_type: Always "rag"
     """
     chunk_type: str = "rag"
     end_of_stream: bool = False
     error: Optional[Dict[str, str]] = None
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
+
+@dataclasses.dataclass
+class TextCompletionResult:
+    """
+    Result from a text completion request.
+
+    Returned by text_completion() in both streaming and non-streaming modes.
+    In streaming mode, text is None (chunks are delivered via the iterator).
+    In non-streaming mode, text contains the complete response.
+
+    Attributes:
+        text: Complete response text (None in streaming mode)
+        in_token: Input token count (None if not available)
+        out_token: Output token count (None if not available)
+        model: Model identifier (None if not available)
+    """
+    text: Optional[str]
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 @dataclasses.dataclass
 class ProvenanceEvent:

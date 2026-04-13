@@ -14,7 +14,7 @@ import websockets
 from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk, ProvenanceEvent
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk, ProvenanceEvent, TextCompletionResult
 from . exceptions import ProtocolException, raise_from_error_dict
 
 
@@ -393,6 +393,9 @@ class SocketClient:
                 end_of_message=resp.get("end_of_message", False),
                 end_of_dialog=resp.get("end_of_dialog", False),
                 message_id=resp.get("message_id", ""),
+                in_token=resp.get("in_token"),
+                out_token=resp.get("out_token"),
+                model=resp.get("model"),
             )
         elif chunk_type == "action":
             return AgentThought(
@@ -404,7 +407,10 @@ class SocketClient:
             return RAGChunk(
                 content=content,
                 end_of_stream=resp.get("end_of_stream", False),
-                error=None
+                error=None,
+                in_token=resp.get("in_token"),
+                out_token=resp.get("out_token"),
+                model=resp.get("model"),
             )
 
     def _build_provenance_event(self, resp: Dict[str, Any]) -> ProvenanceEvent:
@@ -543,8 +549,12 @@ class SocketFlowInstance:
             streaming=True, include_provenance=True
         )
 
-    def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
-        """Execute text completion with optional streaming."""
+    def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
+        """Execute text completion with optional streaming.
+
+        Non-streaming: returns a TextCompletionResult with text and token counts.
+        Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+        """
         request = {
             "system": system,
             "prompt": prompt,
@@ -557,12 +567,17 @@ class SocketFlowInstance:
         if streaming:
             return self._text_completion_generator(result)
         else:
-            return result.get("response", "")
+            return TextCompletionResult(
+                text=result.get("response", ""),
+                in_token=result.get("in_token"),
+                out_token=result.get("out_token"),
+                model=result.get("model"),
+            )
 
-    def _text_completion_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
+    def _text_completion_generator(self, result: Iterator[StreamingChunk]) -> Iterator[RAGChunk]:
         for chunk in result:
-            if hasattr(chunk, 'content'):
-                yield chunk.content
+            if isinstance(chunk, RAGChunk):
+                yield chunk
 
     def graph_rag(
         self,
@@ -577,8 +592,12 @@ class SocketFlowInstance:
         edge_limit: int = 25,
         streaming: bool = False,
         **kwargs: Any
-    ) -> Union[str, Iterator[str]]:
-        """Execute graph-based RAG query with optional streaming."""
+    ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
+        """Execute graph-based RAG query with optional streaming.
+
+        Non-streaming: returns a TextCompletionResult with text and token counts.
+        Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+        """
         request = {
             "query": query,
             "user": user,
@@ -598,7 +617,12 @@ class SocketFlowInstance:
         if streaming:
             return self._rag_generator(result)
         else:
-            return result.get("response", "")
+            return TextCompletionResult(
+                text=result.get("response", ""),
+                in_token=result.get("in_token"),
+                out_token=result.get("out_token"),
+                model=result.get("model"),
+            )
 
     def graph_rag_explain(
         self,
@@ -642,8 +666,12 @@ class SocketFlowInstance:
         doc_limit: int = 10,
         streaming: bool = False,
         **kwargs: Any
-    ) -> Union[str, Iterator[str]]:
-        """Execute document-based RAG query with optional streaming."""
+    ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
+        """Execute document-based RAG query with optional streaming.
+
+        Non-streaming: returns a TextCompletionResult with text and token counts.
+        Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+        """
         request = {
             "query": query,
             "user": user,
@@ -658,7 +686,12 @@ class SocketFlowInstance:
         if streaming:
             return self._rag_generator(result)
         else:
-            return result.get("response", "")
+            return TextCompletionResult(
+                text=result.get("response", ""),
+                in_token=result.get("in_token"),
+                out_token=result.get("out_token"),
+                model=result.get("model"),
+            )
 
     def document_rag_explain(
         self,
@@ -684,10 +717,10 @@ class SocketFlowInstance:
             streaming=True, include_provenance=True
         )
 
-    def _rag_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
+    def _rag_generator(self, result: Iterator[StreamingChunk]) -> Iterator[RAGChunk]:
         for chunk in result:
-            if hasattr(chunk, 'content'):
-                yield chunk.content
+            if isinstance(chunk, RAGChunk):
+                yield chunk
 
     def prompt(
         self,
@@ -695,8 +728,12 @@ class SocketFlowInstance:
         variables: Dict[str, str],
         streaming: bool = False,
         **kwargs: Any
-    ) -> Union[str, Iterator[str]]:
-        """Execute a prompt template with optional streaming."""
+    ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
+        """Execute a prompt template with optional streaming.
+
+        Non-streaming: returns a TextCompletionResult with text and token counts.
+        Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+        """
         request = {
             "id": id,
             "variables": variables,
@@ -709,7 +746,12 @@ class SocketFlowInstance:
         if streaming:
             return self._rag_generator(result)
         else:
-            return result.get("response", "")
+            return TextCompletionResult(
+                text=result.get("text", result.get("response", "")),
+                in_token=result.get("in_token"),
+                out_token=result.get("out_token"),
+                model=result.get("model"),
+            )
 
     def graph_embeddings_query(
         self,

@@ -18,8 +18,10 @@ from . librarian_client import LibrarianClient
 from . chunking_service import ChunkingService
 from . embeddings_service import EmbeddingsService
 from . embeddings_client import EmbeddingsClientSpec
-from . text_completion_client import TextCompletionClientSpec
-from . prompt_client import PromptClientSpec
+from . text_completion_client import (
+    TextCompletionClientSpec, TextCompletionClient, TextCompletionResult,
+)
+from . prompt_client import PromptClientSpec, PromptClient, PromptResult
 from . triples_store_service import TriplesStoreService
 from . graph_embeddings_store_service import GraphEmbeddingsStoreService
 from . document_embeddings_store_service import DocumentEmbeddingsStoreService

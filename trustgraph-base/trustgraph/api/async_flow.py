@@ -14,6 +14,8 @@ import aiohttp
 import json
 from typing import Optional, Dict, Any, List
 
+from . types import TextCompletionResult
+
 from . exceptions import ProtocolException, ApplicationException
 
 
@@ -434,12 +436,11 @@ class AsyncFlowInstance:
 
         return await self.request("agent", request_data)
 
-    async def text_completion(self, system: str, prompt: str, **kwargs: Any) -> str:
+    async def text_completion(self, system: str, prompt: str, **kwargs: Any) -> TextCompletionResult:
         """
         Generate text completion (non-streaming).
 
         Generates a text response from an LLM given a system prompt and user prompt.
-        Returns the complete response text.
 
         Note: This method does not support streaming. For streaming text generation,
         use AsyncSocketFlowInstance.text_completion() instead.
@@ -450,19 +451,19 @@ class AsyncFlowInstance:
             **kwargs: Additional service-specific parameters
 
         Returns:
-            str: Complete generated text response
+            TextCompletionResult: Result with text, in_token, out_token, model
 
         Example:
             ```python
             async_flow = await api.async_flow()
             flow = async_flow.id("default")
 
-            # Generate text
-            response = await flow.text_completion(
+            result = await flow.text_completion(
                 system="You are a helpful assistant.",
                 prompt="Explain quantum computing in simple terms."
             )
-            print(response)
+            print(result.text)
+            print(f"Tokens: {result.in_token} in, {result.out_token} out")
             ```
         """
         request_data = {
@@ -473,7 +474,12 @@ class AsyncFlowInstance:
         request_data.update(kwargs)
 
         result = await self.request("text-completion", request_data)
-        return result.get("response", "")
+        return TextCompletionResult(
+            text=result.get("response", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
 
     async def graph_rag(self, query: str, user: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,

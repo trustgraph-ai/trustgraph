@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from trustgraph.schema import (
     AgentRequest, AgentResponse, AgentStep, PlanStep,
 )
+from trustgraph.base import PromptResult
 
 from trustgraph.provenance.namespaces import (
     RDF_TYPE, PROV_ENTITY, PROV_WAS_DERIVED_FROM,
@@ -183,7 +184,7 @@ class TestReactPatternProvenance:
             )
 
             async def mock_react(question, history, think, observe, answer,
-                                 context, streaming, on_action):
+                                 context, streaming, on_action, **kwargs):
                 # Simulate the on_action callback before returning Final
                 if on_action:
                     await on_action(Action(
@@ -267,7 +268,7 @@ class TestReactPatternProvenance:
             MockAM.return_value = mock_am
 
             async def mock_react(question, history, think, observe, answer,
-                                 context, streaming, on_action):
+                                 context, streaming, on_action, **kwargs):
                 if on_action:
                     await on_action(action)
                 return action
@@ -309,7 +310,7 @@ class TestReactPatternProvenance:
             MockAM.return_value = mock_am
 
             async def mock_react(question, history, think, observe, answer,
-                                 context, streaming, on_action):
+                                 context, streaming, on_action, **kwargs):
                 if on_action:
                     await on_action(Action(
                         thought="done", name="final",
@@ -355,10 +356,13 @@ class TestPlanPatternProvenance:
 
         # Mock prompt client for plan creation
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.prompt.return_value = [
-            {"goal": "Find information", "tool_hint": "knowledge-query", "depends_on": []},
-            {"goal": "Summarise findings", "tool_hint": "", "depends_on": [0]},
-        ]
+        mock_prompt_client.prompt.return_value = PromptResult(
+            response_type="jsonl",
+            objects=[
+                {"goal": "Find information", "tool_hint": "knowledge-query", "depends_on": []},
+                {"goal": "Summarise findings", "tool_hint": "", "depends_on": [0]},
+            ],
+        )
 
         def flow_factory(name):
             if name == "prompt-request":
@@ -418,10 +422,13 @@ class TestPlanPatternProvenance:
 
         # Mock prompt for step execution
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.prompt.return_value = {
-            "tool": "knowledge-query",
-            "arguments": {"question": "quantum computing"},
-        }
+        mock_prompt_client.prompt.return_value = PromptResult(
+            response_type="json",
+            object={
+                "tool": "knowledge-query",
+                "arguments": {"question": "quantum computing"},
+            },
+        )
 
         def flow_factory(name):
             if name == "prompt-request":
@@ -475,7 +482,7 @@ class TestPlanPatternProvenance:
 
         # Mock prompt for synthesis
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.prompt.return_value = "The synthesised answer."
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="The synthesised answer.")
 
         def flow_factory(name):
             if name == "prompt-request":
@@ -542,10 +549,13 @@ class TestSupervisorPatternProvenance:
 
         # Mock prompt for decomposition
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.prompt.return_value = [
-            "What is quantum computing?",
-            "What are qubits?",
-        ]
+        mock_prompt_client.prompt.return_value = PromptResult(
+            response_type="jsonl",
+            objects=[
+                "What is quantum computing?",
+                "What are qubits?",
+            ],
+        )
 
         def flow_factory(name):
             if name == "prompt-request":
@@ -590,7 +600,7 @@ class TestSupervisorPatternProvenance:
 
         # Mock prompt for synthesis
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.prompt.return_value = "The combined answer."
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="The combined answer.")
 
         def flow_factory(name):
             if name == "prompt-request":
@@ -639,7 +649,10 @@ class TestSupervisorPatternProvenance:
         flow = make_mock_flow()
 
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.prompt.return_value = ["Goal A", "Goal B", "Goal C"]
+        mock_prompt_client.prompt.return_value = PromptResult(
+            response_type="jsonl",
+            objects=["Goal A", "Goal B", "Goal C"],
+        )
 
         def flow_factory(name):
             if name == "prompt-request":

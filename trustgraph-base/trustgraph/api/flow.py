@@ -11,7 +11,7 @@ import base64
 
 from .. knowledge import hash, Uri, Literal, QuotedTriple
 from .. schema import IRI, LITERAL, TRIPLE
-from . types import Triple
+from . types import Triple, TextCompletionResult
 from . exceptions import ProtocolException
 
 
@@ -360,16 +360,17 @@ class FlowInstance:
             prompt: User prompt/question
 
         Returns:
-            str: Generated response text
+            TextCompletionResult: Result with text, in_token, out_token, model
 
         Example:
             ```python
             flow = api.flow().id("default")
-            response = flow.text_completion(
+            result = flow.text_completion(
                 system="You are a helpful assistant",
                 prompt="What is quantum computing?"
             )
-            print(response)
+            print(result.text)
+            print(f"Tokens: {result.in_token} in, {result.out_token} out")
             ```
         """
 
@@ -379,10 +380,17 @@ class FlowInstance:
             "prompt": prompt
         }
 
-        return self.request(
+        result = self.request(
             "service/text-completion",
             input
-        )["response"]
+        )
+
+        return TextCompletionResult(
+            text=result.get("response", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
 
     def agent(self, question, user="trustgraph", state=None, group=None, history=None):
         """
@@ -498,10 +506,17 @@ class FlowInstance:
             "edge-limit": edge_limit,
         }
 
-        return self.request(
+        result = self.request(
             "service/graph-rag",
             input
-        )["response"]
+        )
+
+        return TextCompletionResult(
+            text=result.get("response", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
 
     def document_rag(
             self, query, user="trustgraph", collection="default",
@@ -543,10 +558,17 @@ class FlowInstance:
             "doc-limit": doc_limit,
         }
 
-        return self.request(
+        result = self.request(
             "service/document-rag",
             input
-        )["response"]
+        )
+
+        return TextCompletionResult(
+            text=result.get("response", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
 
     def embeddings(self, texts):
         """
