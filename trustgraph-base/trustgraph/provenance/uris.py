@@ -259,6 +259,11 @@ def agent_synthesis_uri(session_id: str) -> str:
     return f"urn:trustgraph:agent:{session_id}/synthesis"
 
 
+def agent_pattern_decision_uri(session_id: str) -> str:
+    """Generate URI for a meta-router pattern decision."""
+    return f"urn:trustgraph:agent:{session_id}/pattern-decision"
+
+
 # Document RAG provenance URIs
 # These URIs use the urn:trustgraph:docrag: namespace to distinguish
 # document RAG provenance from graph RAG provenance

@@ -152,6 +152,8 @@ class Query:
         if self.verbose:
             logger.debug(f"Extracted concepts: {concepts}")
 
+        self.concepts_usage = result
+
         # Fall back to raw query if extraction returns nothing
         return concepts if concepts else [query]
 
@@ -667,8 +669,14 @@ class GraphRag:
 
         # Emit grounding explain after concept extraction
         if explain_callback:
+            cu = getattr(q, 'concepts_usage', None)
             gnd_triples = set_graph(
-                grounding_triples(gnd_uri, q_uri, concepts),
+                grounding_triples(
+                    gnd_uri, q_uri, concepts,
+                    in_token=cu.in_token if cu else None,
+                    out_token=cu.out_token if cu else None,
+                    model=cu.model if cu else None,
+                ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(gnd_triples, gnd_uri)
@@ -883,9 +891,25 @@ class GraphRag:
 
         # Emit focus explain after edge selection completes
         if explain_callback:
+            # Sum scoring + reasoning token usage for focus event
+            focus_in = 0
+            focus_out = 0
+            focus_model = None
+            for r in [scoring_result, reasoning_result]:
+                if r is not None:
+                    if r.in_token is not None:
+                        focus_in += r.in_token
+                    if r.out_token is not None:
+                        focus_out += r.out_token
+                    if r.model is not None:
+                        focus_model = r.model
+
             foc_triples = set_graph(
                 focus_triples(
-                    foc_uri, exp_uri, selected_edges_with_reasoning, session_id
+                    foc_uri, exp_uri, selected_edges_with_reasoning, session_id,
+                    in_token=focus_in or None,
+                    out_token=focus_out or None,
+                    model=focus_model,
                 ),
                 GRAPH_RETRIEVAL
             )
@@ -956,6 +980,9 @@ class GraphRag:
                 synthesis_triples(
                     syn_uri, foc_uri,
                     document_id=synthesis_doc_id,
+                    in_token=synthesis_result.in_token if synthesis_result else None,
+                    out_token=synthesis_result.out_token if synthesis_result else None,
+                    model=synthesis_result.model if synthesis_result else None,
                 ),
                 GRAPH_RETRIEVAL
             )

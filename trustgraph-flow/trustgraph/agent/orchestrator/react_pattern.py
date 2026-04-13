@@ -37,7 +37,8 @@ class ReactPattern(PatternBase):
     result is appended to history and a next-request is emitted.
     """
 
-    async def iterate(self, request, respond, next, flow, usage=None):
+    async def iterate(self, request, respond, next, flow, usage=None,
+                      pattern_decision_uri=None):
 
         if usage is None:
             usage = UsageTracker()
@@ -108,11 +109,23 @@ class ReactPattern(PatternBase):
             session_id, iteration_num,
         )
 
+        # Tool names available to the LLM for this iteration
+        tool_candidates = [t.name for t in filtered_tools.values()]
+
+        # Use pattern decision as derivation source if available
+        derive_from_uri = pattern_decision_uri or session_uri
+
         # Callback: emit Analysis+ToolUse triples before tool executes
         async def on_action(act):
             await self.emit_iteration_triples(
-                flow, session_id, iteration_num, session_uri,
+                flow, session_id, iteration_num, derive_from_uri,
                 act, request, respond, streaming,
+                tool_candidates=tool_candidates,
+                step_number=iteration_num,
+                llm_duration_ms=getattr(act, 'llm_duration_ms', None),
+                in_token=getattr(act, 'in_token', None),
+                out_token=getattr(act, 'out_token', None),
+                model=getattr(act, 'llm_model', None),
             )
 
         act = await temp_agent.react(
@@ -138,8 +151,9 @@ class ReactPattern(PatternBase):
 
             # Emit final provenance
             await self.emit_final_triples(
-                flow, session_id, iteration_num, session_uri,
+                flow, session_id, iteration_num, derive_from_uri,
                 f, request, respond, streaming,
+                termination_reason="final-answer",
             )
 
             if self.is_subagent(request):
@@ -157,6 +171,8 @@ class ReactPattern(PatternBase):
             flow, session_id, iteration_num,
             act.observation, request, respond,
             context=context,
+            tool_duration_ms=getattr(act, 'tool_duration_ms', None),
+            tool_error=getattr(act, 'tool_error', None),
         )
 
         history.append(act)

@@ -15,7 +15,7 @@ from tests.utils.streaming_assertions import (
     assert_agent_streaming_chunks,
     assert_streaming_chunks_valid,
     assert_callback_invoked,
-    assert_chunk_types_valid,
+    assert_message_types_valid,
 )
 
 

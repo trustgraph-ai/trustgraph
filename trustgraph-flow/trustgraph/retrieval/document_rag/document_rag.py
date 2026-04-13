@@ -56,6 +56,8 @@ class Query:
         if not concepts:
             concepts = [query]
 
+        self.concepts_usage = result
+
         if self.verbose:
             logger.debug(f"Extracted concepts: {concepts}")
 
@@ -217,8 +219,14 @@ class DocumentRag:
 
         # Emit grounding explainability after concept extraction
         if explain_callback:
+            cu = getattr(q, 'concepts_usage', None)
             gnd_triples = set_graph(
-                grounding_triples(gnd_uri, q_uri, concepts),
+                grounding_triples(
+                    gnd_uri, q_uri, concepts,
+                    in_token=cu.in_token if cu else None,
+                    out_token=cu.out_token if cu else None,
+                    model=cu.model if cu else None,
+                ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(gnd_triples, gnd_uri)
@@ -286,6 +294,9 @@ class DocumentRag:
                 docrag_synthesis_triples(
                     syn_uri, exp_uri,
                     document_id=synthesis_doc_id,
+                    in_token=synthesis_result.in_token if synthesis_result else None,
+                    out_token=synthesis_result.out_token if synthesis_result else None,
+                    model=synthesis_result.model if synthesis_result else None,
                 ),
                 GRAPH_RETRIEVAL
             )

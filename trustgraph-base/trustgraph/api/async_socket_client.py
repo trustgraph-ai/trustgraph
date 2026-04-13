@@ -178,24 +178,23 @@ class AsyncSocketClient:
 
     def _parse_chunk(self, resp: Dict[str, Any]):
         """Parse response chunk into appropriate type. Returns None for non-content messages."""
-        chunk_type = resp.get("chunk_type")
         message_type = resp.get("message_type")
 
         # Handle new GraphRAG message format with message_type
         if message_type == "provenance":
             return None
 
-        if chunk_type == "thought":
+        if message_type == "thought":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        elif chunk_type == "observation":
+        elif message_type == "observation":
             return AgentObservation(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        elif chunk_type == "answer" or chunk_type == "final-answer":
+        elif message_type == "answer" or message_type == "final-answer":
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
@@ -204,7 +203,7 @@ class AsyncSocketClient:
                 out_token=resp.get("out_token"),
                 model=resp.get("model"),
             )
-        elif chunk_type == "action":
+        elif message_type == "action":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)

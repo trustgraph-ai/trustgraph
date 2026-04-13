@@ -20,14 +20,14 @@ def assert_streaming_chunks_valid(chunks: List[Any], min_chunks: int = 1):
     assert all(chunk is not None for chunk in chunks), "All chunks should be non-None"
 
 
-def assert_streaming_sequence(chunks: List[Dict[str, Any]], expected_sequence: List[str], key: str = "chunk_type"):
+def assert_streaming_sequence(chunks: List[Dict[str, Any]], expected_sequence: List[str], key: str = "message_type"):
     """
     Assert that streaming chunks follow an expected sequence.
 
     Args:
         chunks: List of chunk dictionaries
         expected_sequence: Expected sequence of chunk types/values
-        key: Dictionary key to check (default: "chunk_type")
+        key: Dictionary key to check (default: "message_type")
     """
     actual_sequence = [chunk.get(key) for chunk in chunks if key in chunk]
     assert actual_sequence == expected_sequence, \
@@ -39,7 +39,7 @@ def assert_agent_streaming_chunks(chunks: List[Dict[str, Any]]):
     Assert that agent streaming chunks have valid structure.
 
     Validates:
-    - All chunks have chunk_type field
+    - All chunks have message_type field
     - All chunks have content field
     - All chunks have end_of_message field
     - All chunks have end_of_dialog field
@@ -51,15 +51,15 @@ def assert_agent_streaming_chunks(chunks: List[Dict[str, Any]]):
     assert len(chunks) > 0, "Expected at least one chunk"
 
     for i, chunk in enumerate(chunks):
-        assert "chunk_type" in chunk, f"Chunk {i} missing chunk_type"
+        assert "message_type" in chunk, f"Chunk {i} missing message_type"
         assert "content" in chunk, f"Chunk {i} missing content"
         assert "end_of_message" in chunk, f"Chunk {i} missing end_of_message"
         assert "end_of_dialog" in chunk, f"Chunk {i} missing end_of_dialog"
 
-        # Validate chunk_type values
+        # Validate message_type values
         valid_types = ["thought", "action", "observation", "final-answer"]
-        assert chunk["chunk_type"] in valid_types, \
-            f"Invalid chunk_type '{chunk['chunk_type']}' at index {i}"
+        assert chunk["message_type"] in valid_types, \
+            f"Invalid message_type '{chunk['message_type']}' at index {i}"
 
     # Last chunk should signal end of dialog
     assert chunks[-1]["end_of_dialog"] is True, \
@@ -175,7 +175,7 @@ def assert_streaming_error_handled(chunks: List[Dict[str, Any]], error_flag: str
             "Error chunk should have completion flag set to True"
 
 
-def assert_chunk_types_valid(chunks: List[Dict[str, Any]], valid_types: List[str], type_key: str = "chunk_type"):
+def assert_message_types_valid(chunks: List[Dict[str, Any]], valid_types: List[str], type_key: str = "message_type"):
     """
     Assert that all chunk types are from a valid set.
 
@@ -185,9 +185,9 @@ def assert_chunk_types_valid(chunks: List[Dict[str, Any]], valid_types: List[str
         type_key: Dictionary key for chunk type
     """
     for i, chunk in enumerate(chunks):
-        chunk_type = chunk.get(type_key)
-        assert chunk_type in valid_types, \
-            f"Chunk {i} has invalid type '{chunk_type}', expected one of {valid_types}"
+        message_type = chunk.get(type_key)
+        assert message_type in valid_types, \
+            f"Chunk {i} has invalid type '{message_type}', expected one of {valid_types}"
 
 
 def assert_streaming_latency_acceptable(chunk_timestamps: List[float], max_gap_seconds: float = 5.0):

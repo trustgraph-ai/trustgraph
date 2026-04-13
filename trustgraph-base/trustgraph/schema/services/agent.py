@@ -51,8 +51,8 @@ class AgentRequest:
 @dataclass
 class AgentResponse:
     # Streaming-first design
-    chunk_type: str = ""        # "thought", "action", "observation", "answer", "explain", "error"
-    content: str = ""           # The actual content (interpretation depends on chunk_type)
+    message_type: str = ""     # "thought", "action", "observation", "answer", "explain", "error"
+    content: str = ""           # The actual content (interpretation depends on message_type)
     end_of_message: bool = False   # Current chunk type (thought/action/etc.) is complete
     end_of_dialog: bool = False    # Entire agent dialog is complete
 

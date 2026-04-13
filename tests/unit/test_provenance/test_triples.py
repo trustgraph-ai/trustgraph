@@ -223,7 +223,7 @@ class TestDerivedEntityTriples:
         assert has_type(triples, self.ENTITY_URI, PROV_ENTITY)
         assert has_type(triples, self.ENTITY_URI, TG_PAGE_TYPE)
 
-    def test_chunk_entity_has_chunk_type(self):
+    def test_chunk_entity_has_message_type(self):
         triples = derived_entity_triples(
             self.ENTITY_URI, self.PARENT_URI,
             "chunker", "1.0",
