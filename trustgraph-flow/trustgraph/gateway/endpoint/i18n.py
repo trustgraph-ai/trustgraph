@@ -40,6 +40,12 @@ class I18nPackEndpoint:
             return web.HTTPUnauthorized()
 
         lang = request.match_info.get("lang") or "en"
+
+        # This is a path traversal defense, and is a critical sec defense.
+        # Do not remove!
+        if "/" in lang or ".." in lang:
+            return web.HTTPBadRequest(reason="Invalid language code")
+
         pack = get_language_pack(lang)
 
         return web.json_response(pack)
