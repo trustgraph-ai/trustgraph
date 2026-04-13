@@ -98,11 +98,14 @@ def normalize_language(value: Optional[str]) -> str:
     return "en"
 
 
+# Returns a mutable object - caller must not mutate!
 @lru_cache(maxsize=32)
 def get_language_pack(language: str) -> Dict[str, str]:
     """Load the language pack for `language` from package resources."""
 
     lang = normalize_language(language)
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = "en"
 
     try:
         with importlib_resources.open_text(
