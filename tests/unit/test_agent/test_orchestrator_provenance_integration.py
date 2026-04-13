@@ -69,7 +69,7 @@ def collect_explain_events(respond_mock):
     events = []
     for call in respond_mock.call_args_list:
         resp = call[0][0]
-        if isinstance(resp, AgentResponse) and resp.chunk_type == "explain":
+        if isinstance(resp, AgentResponse) and resp.message_type == "explain":
             events.append({
                 "explain_id": resp.explain_id,
                 "explain_graph": resp.explain_graph,

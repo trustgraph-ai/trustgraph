@@ -35,7 +35,8 @@ class PlanThenExecutePattern(PatternBase):
     Subsequent calls execute the next pending plan step via ReACT.
     """
 
-    async def iterate(self, request, respond, next, flow, usage=None):
+    async def iterate(self, request, respond, next, flow, usage=None,
+                      pattern_decision_uri=None):
 
         if usage is None:
             usage = UsageTracker()
@@ -66,16 +67,18 @@ class PlanThenExecutePattern(PatternBase):
         # Determine current phase by checking history for a plan step
         plan = self._extract_plan(request.history)
 
+        derive_from_uri = pattern_decision_uri or session_uri
+
         if plan is None:
             await self._planning_iteration(
                 request, respond, next, flow,
-                session_id, collection, streaming, session_uri,
+                session_id, collection, streaming, derive_from_uri,
                 iteration_num, usage=usage,
             )
         else:
             await self._execution_iteration(
                 request, respond, next, flow,
-                session_id, collection, streaming, session_uri,
+                session_id, collection, streaming, derive_from_uri,
                 iteration_num, plan, usage=usage,
             )
 
@@ -385,6 +388,7 @@ class PlanThenExecutePattern(PatternBase):
         await self.emit_synthesis_triples(
             flow, session_id, last_step_uri,
             response_text, request.user, collection, respond, streaming,
+            termination_reason="plan-complete",
         )
 
         if self.is_subagent(request):

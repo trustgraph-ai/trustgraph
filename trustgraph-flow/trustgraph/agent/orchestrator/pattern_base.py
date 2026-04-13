@@ -25,6 +25,7 @@ from trustgraph.provenance import (
     agent_plan_uri,
     agent_step_result_uri,
     agent_synthesis_uri,
+    agent_pattern_decision_uri,
     agent_session_triples,
     agent_iteration_triples,
     agent_observation_triples,
@@ -34,6 +35,7 @@ from trustgraph.provenance import (
     agent_plan_triples,
     agent_step_result_triples,
     agent_synthesis_triples,
+    agent_pattern_decision_triples,
     set_graph,
     GRAPH_RETRIEVAL,
 )
@@ -182,7 +184,7 @@ class PatternBase:
             logger.debug(f"Think: {x} (is_final={is_final})")
             if streaming:
                 r = AgentResponse(
-                    chunk_type="thought",
+                    message_type="thought",
                     content=x,
                     end_of_message=is_final,
                     end_of_dialog=False,
@@ -190,7 +192,7 @@ class PatternBase:
                 )
             else:
                 r = AgentResponse(
-                    chunk_type="thought",
+                    message_type="thought",
                     content=x,
                     end_of_message=True,
                     end_of_dialog=False,
@@ -205,7 +207,7 @@ class PatternBase:
             logger.debug(f"Observe: {x} (is_final={is_final})")
             if streaming:
                 r = AgentResponse(
-                    chunk_type="observation",
+                    message_type="observation",
                     content=x,
                     end_of_message=is_final,
                     end_of_dialog=False,
@@ -213,7 +215,7 @@ class PatternBase:
                 )
             else:
                 r = AgentResponse(
-                    chunk_type="observation",
+                    message_type="observation",
                     content=x,
                     end_of_message=True,
                     end_of_dialog=False,
@@ -228,7 +230,7 @@ class PatternBase:
             logger.debug(f"Answer: {x}")
             if streaming:
                 r = AgentResponse(
-                    chunk_type="answer",
+                    message_type="answer",
                     content=x,
                     end_of_message=False,
                     end_of_dialog=False,
@@ -236,7 +238,7 @@ class PatternBase:
                 )
             else:
                 r = AgentResponse(
-                    chunk_type="answer",
+                    message_type="answer",
                     content=x,
                     end_of_message=True,
                     end_of_dialog=False,
@@ -270,16 +272,43 @@ class PatternBase:
         logger.debug(f"Emitted session triples for {session_uri}")
 
         await respond(AgentResponse(
-            chunk_type="explain",
+            message_type="explain",
             content="",
             explain_id=session_uri,
             explain_graph=GRAPH_RETRIEVAL,
             explain_triples=triples,
         ))
 
+    async def emit_pattern_decision_triples(
+        self, flow, session_id, session_uri, pattern, task_type,
+        user, collection, respond,
+    ):
+        """Emit provenance triples for a meta-router pattern decision."""
+        uri = agent_pattern_decision_uri(session_id)
+        triples = set_graph(
+            agent_pattern_decision_triples(
+                uri, session_uri, pattern, task_type,
+            ),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(id=uri, user=user, collection=collection),
+            triples=triples,
+        ))
+        await respond(AgentResponse(
+            message_type="explain", content="",
+            explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
+        ))
+        return uri
+
     async def emit_iteration_triples(self, flow, session_id, iteration_num,
                                      session_uri, act, request, respond,
-                                     streaming):
+                                     streaming, tool_candidates=None,
+                                     step_number=None,
+                                     llm_duration_ms=None,
+                                     in_token=None, out_token=None,
+                                     model=None):
         """Emit provenance triples for an iteration (Analysis+ToolUse)."""
         iteration_uri = agent_iteration_uri(session_id, iteration_num)
 
@@ -319,6 +348,12 @@ class PatternBase:
                 arguments=act.arguments,
                 thought_uri=thought_entity_uri if thought_doc_id else None,
                 thought_document_id=thought_doc_id,
+                tool_candidates=tool_candidates,
+                step_number=step_number,
+                llm_duration_ms=llm_duration_ms,
+                in_token=in_token,
+                out_token=out_token,
+                model=model,
             ),
             GRAPH_RETRIEVAL,
         )
@@ -333,7 +368,7 @@ class PatternBase:
         logger.debug(f"Emitted iteration triples for {iteration_uri}")
 
         await respond(AgentResponse(
-            chunk_type="explain",
+            message_type="explain",
             content="",
             explain_id=iteration_uri,
             explain_graph=GRAPH_RETRIEVAL,
@@ -342,7 +377,9 @@ class PatternBase:
 
     async def emit_observation_triples(self, flow, session_id, iteration_num,
                                        observation_text, request, respond,
-                                       context=None):
+                                       context=None,
+                                       tool_duration_ms=None,
+                                       tool_error=None):
         """Emit provenance triples for a standalone Observation entity."""
         iteration_uri = agent_iteration_uri(session_id, iteration_num)
         observation_entity_uri = agent_observation_uri(session_id, iteration_num)
@@ -375,6 +412,8 @@ class PatternBase:
                 observation_entity_uri,
                 parent_uri,
                 document_id=observation_doc_id,
+                tool_duration_ms=tool_duration_ms,
+                tool_error=tool_error,
             ),
             GRAPH_RETRIEVAL,
         )
@@ -389,7 +428,7 @@ class PatternBase:
         logger.debug(f"Emitted observation triples for {observation_entity_uri}")
 
         await respond(AgentResponse(
-            chunk_type="explain",
+            message_type="explain",
             content="",
             explain_id=observation_entity_uri,
             explain_graph=GRAPH_RETRIEVAL,
@@ -398,7 +437,7 @@ class PatternBase:
 
     async def emit_final_triples(self, flow, session_id, iteration_num,
                                  session_uri, answer_text, request, respond,
-                                 streaming):
+                                 streaming, termination_reason=None):
         """Emit provenance triples for the final answer and save to librarian."""
         final_uri = agent_final_uri(session_id)
 
@@ -432,6 +471,7 @@ class PatternBase:
                 question_uri=final_question_uri,
                 previous_uri=final_previous_uri,
                 document_id=answer_doc_id,
+                termination_reason=termination_reason,
             ),
             GRAPH_RETRIEVAL,
         )
@@ -446,7 +486,7 @@ class PatternBase:
         logger.debug(f"Emitted final triples for {final_uri}")
 
         await respond(AgentResponse(
-            chunk_type="explain",
+            message_type="explain",
             content="",
             explain_id=final_uri,
             explain_graph=GRAPH_RETRIEVAL,
@@ -470,7 +510,7 @@ class PatternBase:
             triples=triples,
         ))
         await respond(AgentResponse(
-            chunk_type="explain", content="",
+            message_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
             explain_triples=triples,
         ))
@@ -509,7 +549,7 @@ class PatternBase:
             triples=triples,
         ))
         await respond(AgentResponse(
-            chunk_type="explain", content="",
+            message_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
             explain_triples=triples,
         ))
@@ -529,7 +569,7 @@ class PatternBase:
             triples=triples,
         ))
         await respond(AgentResponse(
-            chunk_type="explain", content="",
+            message_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
             explain_triples=triples,
         ))
@@ -562,14 +602,14 @@ class PatternBase:
             triples=triples,
         ))
         await respond(AgentResponse(
-            chunk_type="explain", content="",
+            message_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
             explain_triples=triples,
         ))
 
     async def emit_synthesis_triples(
         self, flow, session_id, previous_uris, answer_text, user, collection,
-        respond, streaming,
+        respond, streaming, termination_reason=None,
     ):
         """Emit provenance for a synthesis answer."""
         uri = agent_synthesis_uri(session_id)
@@ -586,7 +626,10 @@ class PatternBase:
             doc_id = None
 
         triples = set_graph(
-            agent_synthesis_triples(uri, previous_uris, doc_id),
+            agent_synthesis_triples(
+                uri, previous_uris, doc_id,
+                termination_reason=termination_reason,
+            ),
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
@@ -594,7 +637,7 @@ class PatternBase:
             triples=triples,
         ))
         await respond(AgentResponse(
-            chunk_type="explain", content="",
+            message_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
             explain_triples=triples,
         ))
@@ -616,7 +659,7 @@ class PatternBase:
                 if text:
                     accumulated.append(text)
                     await respond(AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=text,
                         end_of_message=False,
                         end_of_dialog=False,
@@ -666,7 +709,7 @@ class PatternBase:
             # Answer wasn't streamed yet — send it as a chunk first
             if answer_text:
                 await respond(AgentResponse(
-                    chunk_type="answer",
+                    message_type="answer",
                     content=answer_text,
                     end_of_message=False,
                     end_of_dialog=False,
@@ -675,7 +718,7 @@ class PatternBase:
         if streaming:
             # End-of-dialog marker with usage
             await respond(AgentResponse(
-                chunk_type="answer",
+                message_type="answer",
                 content="",
                 end_of_message=True,
                 end_of_dialog=True,
@@ -684,7 +727,7 @@ class PatternBase:
             ))
         else:
             await respond(AgentResponse(
-                chunk_type="answer",
+                message_type="answer",
                 content=answer_text,
                 end_of_message=True,
                 end_of_dialog=True,

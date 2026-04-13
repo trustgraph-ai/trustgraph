@@ -126,7 +126,7 @@ def question_explainable(
 
     try:
         # Track last chunk type for formatting
-        last_chunk_type = None
+        last_message_type = None
         current_outputter = None
 
         # Stream agent with explainability - process events as they arrive
@@ -138,7 +138,7 @@ def question_explainable(
             group=group,
         ):
             if isinstance(item, AgentThought):
-                if last_chunk_type != "thought":
+                if last_message_type != "thought":
                     if current_outputter:
                         current_outputter.__exit__(None, None, None)
                         current_outputter = None
@@ -146,7 +146,7 @@ def question_explainable(
                     if verbose:
                         current_outputter = Outputter(width=78, prefix="\U0001f914  ")
                         current_outputter.__enter__()
-                    last_chunk_type = "thought"
+                    last_message_type = "thought"
                 if current_outputter:
                     current_outputter.output(item.content)
                     if current_outputter.word_buffer:
@@ -155,7 +155,7 @@ def question_explainable(
                         current_outputter.word_buffer = ""
 
             elif isinstance(item, AgentObservation):
-                if last_chunk_type != "observation":
+                if last_message_type != "observation":
                     if current_outputter:
                         current_outputter.__exit__(None, None, None)
                         current_outputter = None
@@ -163,7 +163,7 @@ def question_explainable(
                     if verbose:
                         current_outputter = Outputter(width=78, prefix="\U0001f4a1  ")
                         current_outputter.__enter__()
-                    last_chunk_type = "observation"
+                    last_message_type = "observation"
                 if current_outputter:
                     current_outputter.output(item.content)
                     if current_outputter.word_buffer:
@@ -172,12 +172,12 @@ def question_explainable(
                         current_outputter.word_buffer = ""
 
             elif isinstance(item, AgentAnswer):
-                if last_chunk_type != "answer":
+                if last_message_type != "answer":
                     if current_outputter:
                         current_outputter.__exit__(None, None, None)
                         current_outputter = None
                         print()
-                    last_chunk_type = "answer"
+                    last_message_type = "answer"
                 # Print answer content directly
                 print(item.content, end="", flush=True)
 
@@ -261,7 +261,7 @@ def question_explainable(
             current_outputter = None
 
         # Final newline if we ended with answer
-        if last_chunk_type == "answer":
+        if last_message_type == "answer":
             print()
 
     finally:
@@ -322,16 +322,16 @@ def question(
         # Handle streaming response
         if streaming:
             # Track last chunk type and current outputter for streaming
-            last_chunk_type = None
+            last_message_type = None
             current_outputter = None
             last_answer_chunk = None
 
             for chunk in response:
-                chunk_type = chunk.chunk_type
+                message_type = chunk.message_type
                 content = chunk.content
 
                 # Check if we're switching to a new message type
-                if last_chunk_type != chunk_type:
+                if last_message_type != message_type:
                     # Close previous outputter if exists
                     if current_outputter:
                         current_outputter.__exit__(None, None, None)
@@ -339,15 +339,15 @@ def question(
                         print()  # Blank line between message types
 
                     # Create new outputter for new message type
-                    if chunk_type == "thought" and verbose:
+                    if message_type == "thought" and verbose:
                         current_outputter = Outputter(width=78, prefix="\U0001f914  ")
                         current_outputter.__enter__()
-                    elif chunk_type == "observation" and verbose:
+                    elif message_type == "observation" and verbose:
                         current_outputter = Outputter(width=78, prefix="\U0001f4a1  ")
                         current_outputter.__enter__()
                     # For answer, don't use Outputter - just print as-is
 
-                    last_chunk_type = chunk_type
+                    last_message_type = message_type
 
                 # Output the chunk
                 if current_outputter:
@@ -357,7 +357,7 @@ def question(
                         print(current_outputter.word_buffer, end="", flush=True)
                         current_outputter.column += len(current_outputter.word_buffer)
                         current_outputter.word_buffer = ""
-                elif chunk_type == "final-answer":
+                elif message_type == "final-answer":
                     print(content, end="", flush=True)
                     last_answer_chunk = chunk
 
@@ -366,7 +366,7 @@ def question(
                 current_outputter.__exit__(None, None, None)
                 current_outputter = None
             # Add final newline if we were outputting answer
-            elif last_chunk_type == "final-answer":
+            elif last_message_type == "final-answer":
                 print()
 
             if show_usage and last_answer_chunk:
@@ -382,17 +382,17 @@ def question(
             # so we iterate through the chunks (which are complete messages, not text chunks)
             for chunk in response:
                 # Display thoughts if verbose
-                if chunk.chunk_type == "thought" and verbose:
+                if chunk.message_type == "thought" and verbose:
                     output(wrap(chunk.content), "\U0001f914 ")
                     print()
 
                 # Display observations if verbose
-                elif chunk.chunk_type == "observation" and verbose:
+                elif chunk.message_type == "observation" and verbose:
                     output(wrap(chunk.content), "\U0001f4a1 ")
                     print()
 
                 # Display answer
-                elif chunk.chunk_type == "final-answer" or chunk.chunk_type == "answer":
+                elif chunk.message_type == "final-answer" or chunk.message_type == "answer":
                     print(chunk.content)
 
     finally:

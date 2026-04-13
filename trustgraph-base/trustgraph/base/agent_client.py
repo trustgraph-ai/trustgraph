@@ -30,19 +30,19 @@ class AgentClient(RequestResponse):
                 raise RuntimeError(resp.error.message)
 
             # Handle thought chunks
-            if resp.chunk_type == 'thought':
+            if resp.message_type == 'thought':
                 if think:
                     await think(resp.content, resp.end_of_message)
                 return False  # Continue receiving
 
             # Handle observation chunks
-            if resp.chunk_type == 'observation':
+            if resp.message_type == 'observation':
                 if observe:
                     await observe(resp.content, resp.end_of_message)
                 return False  # Continue receiving
 
             # Handle answer chunks
-            if resp.chunk_type == 'answer':
+            if resp.message_type == 'answer':
                 if resp.content:
                     accumulated_answer.append(resp.content)
                 if answer_callback:

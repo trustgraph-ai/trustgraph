@@ -29,7 +29,7 @@ class TestThinkCallbackMessageId:
 
         assert len(responses) == 1
         assert responses[0].message_id == msg_id
-        assert responses[0].chunk_type == "thought"
+        assert responses[0].message_type == "thought"
 
     @pytest.mark.asyncio
     async def test_non_streaming_think_has_message_id(self, pattern):
@@ -58,7 +58,7 @@ class TestObserveCallbackMessageId:
         await observe("result", is_final=True)
 
         assert responses[0].message_id == msg_id
-        assert responses[0].chunk_type == "observation"
+        assert responses[0].message_type == "observation"
 
 
 class TestAnswerCallbackMessageId:
@@ -74,7 +74,7 @@ class TestAnswerCallbackMessageId:
         await answer("the answer")
 
         assert responses[0].message_id == msg_id
-        assert responses[0].chunk_type == "answer"
+        assert responses[0].message_type == "answer"
 
     @pytest.mark.asyncio
     async def test_no_message_id_default(self, pattern):

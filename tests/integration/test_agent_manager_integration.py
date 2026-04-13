@@ -327,11 +327,13 @@ Args: {
         think_callback = AsyncMock()
         observe_callback = AsyncMock()
 
-        # Act & Assert
-        with pytest.raises(Exception) as exc_info:
-            await agent_manager.react("test question", [], think_callback, observe_callback, mock_flow_context)
-        
-        assert "Tool execution failed" in str(exc_info.value)
+        # Act - tool errors are now caught and returned as observations
+        result = await agent_manager.react("test question", [], think_callback, observe_callback, mock_flow_context)
+
+        # Assert - error captured on the action, not raised
+        assert result.tool_error is not None
+        assert "Tool execution failed" in result.tool_error
+        assert "Error:" in result.observation
 
     @pytest.mark.asyncio
     async def test_agent_manager_multiple_tools_coordination(self, agent_manager, mock_flow_context):
@@ -538,12 +540,11 @@ Args: {
             )
             
             if test_case["error_contains"]:
-                # Should raise an error
-                with pytest.raises(RuntimeError) as exc_info:
-                    await agent_manager.reason("test question", [], mock_flow_context)
-                
-                assert "Failed to parse agent response" in str(exc_info.value)
-                assert test_case["error_contains"] in str(exc_info.value)
+                # Parse errors now return an Action with tool_error
+                result = await agent_manager.reason("test question", [], mock_flow_context)
+                assert isinstance(result, Action)
+                assert result.name == "__parse_error__"
+                assert result.tool_error is not None
             else:
                 # Should succeed
                 action = await agent_manager.reason("test question", [], mock_flow_context)

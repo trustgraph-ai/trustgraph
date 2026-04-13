@@ -60,8 +60,8 @@ class AgentResponseTranslator(MessageTranslator):
     def encode(self, obj: AgentResponse) -> Dict[str, Any]:
         result = {}
 
-        if obj.chunk_type:
-            result["chunk_type"] = obj.chunk_type
+        if obj.message_type:
+            result["message_type"] = obj.message_type
         if obj.content:
             result["content"] = obj.content
         result["end_of_message"] = getattr(obj, "end_of_message", False)

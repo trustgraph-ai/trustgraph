@@ -3,6 +3,7 @@ import logging
 import json
 import re
 import asyncio
+import time
 
 from . types import Action, Final
 
@@ -260,6 +261,7 @@ class AgentManager:
                 streaming=True,
                 chunk_callback=on_chunk
             )
+            self._last_prompt_result = prompt_result
             if usage:
                 usage.track(prompt_result)
 
@@ -269,7 +271,13 @@ class AgentManager:
             # Get result
             result = parser.get_result()
             if result is None:
-                raise RuntimeError("Parser failed to produce a result")
+                return Action(
+                    thought="",
+                    name="__parse_error__",
+                    arguments={},
+                    observation="",
+                    tool_error="LLM response could not be parsed (streaming)",
+                )
 
             return result
 
@@ -281,6 +289,7 @@ class AgentManager:
                 variables=variables,
                 streaming=False
             )
+            self._last_prompt_result = prompt_result
             if usage:
                 usage.track(prompt_result)
             response_text = prompt_result.text
@@ -294,12 +303,19 @@ class AgentManager:
             except ValueError as e:
                 logger.error(f"Failed to parse response: {e}")
                 logger.error(f"Response was: {response_text}")
-                raise RuntimeError(f"Failed to parse agent response: {e}")
+                return Action(
+                    thought="",
+                    name="__parse_error__",
+                    arguments={},
+                    observation="",
+                    tool_error=f"LLM parse error: {e}",
+                )
 
     async def react(self, question, history, think, observe, context,
                     streaming=False, answer=None, on_action=None,
                     usage=None):
 
+        t0 = time.monotonic()
         act = await self.reason(
             question = question,
             history = history,
@@ -310,6 +326,12 @@ class AgentManager:
             answer = answer,
             usage = usage,
         )
+        act.llm_duration_ms = int((time.monotonic() - t0) * 1000)
+        pr = getattr(self, '_last_prompt_result', None)
+        if pr:
+            act.in_token = pr.in_token
+            act.out_token = pr.out_token
+            act.llm_model = pr.model
 
         if isinstance(act, Final):
 
@@ -328,24 +350,43 @@ class AgentManager:
 
             logger.debug(f"ACTION: {act.name}")
 
+            # Notify caller before tool execution (for provenance)
+            if on_action:
+                await on_action(act)
+
+            # Handle parse errors — skip tool execution
+            if act.name == "__parse_error__":
+                resp = f"Error: {act.tool_error}"
+                act.tool_duration_ms = 0
+                await observe(resp, is_final=True)
+                act.observation = resp
+                return act
+
             if act.name in self.tools:
                 action = self.tools[act.name]
             else:
                 raise RuntimeError(f"No action for {act.name}!")
 
-            # Notify caller before tool execution (for provenance)
-            if on_action:
-                await on_action(act)
+            t0 = time.monotonic()
+            try:
+                resp = await action.implementation(context).invoke(
+                    **act.arguments
+                )
 
-            resp = await action.implementation(context).invoke(
-                **act.arguments
-            )
+                if isinstance(resp, str):
+                    resp = resp.strip()
+                else:
+                    resp = str(resp)
+                    resp = resp.strip()
 
-            if isinstance(resp, str):
-                resp = resp.strip()
-            else:
-                resp = str(resp)
-                resp = resp.strip()
+                act.tool_error = None
+
+            except Exception as e:
+                logger.error(f"Tool execution error ({act.name}): {e}")
+                resp = f"Error: {e}"
+                act.tool_error = str(e)
+
+            act.tool_duration_ms = int((time.monotonic() - t0) * 1000)
 
             await observe(resp, is_final=True)
 

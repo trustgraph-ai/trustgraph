@@ -360,34 +360,26 @@ class SocketClient:
 
     def _parse_chunk(self, resp: Dict[str, Any], include_provenance: bool = False) -> Optional[StreamingChunk]:
         """Parse response chunk into appropriate type. Returns None for non-content messages."""
-        chunk_type = resp.get("chunk_type")
         message_type = resp.get("message_type")
 
-        # Handle GraphRAG/DocRAG message format with message_type
         if message_type == "explain":
             if include_provenance:
                 return self._build_provenance_event(resp)
             return None
 
-        # Handle Agent message format with chunk_type="explain"
-        if chunk_type == "explain":
-            if include_provenance:
-                return self._build_provenance_event(resp)
-            return None
-
-        if chunk_type == "thought":
+        if message_type == "thought":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
                 message_id=resp.get("message_id", ""),
             )
-        elif chunk_type == "observation":
+        elif message_type == "observation":
             return AgentObservation(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
                 message_id=resp.get("message_id", ""),
             )
-        elif chunk_type == "answer" or chunk_type == "final-answer":
+        elif message_type == "answer" or message_type == "final-answer":
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
@@ -397,7 +389,7 @@ class SocketClient:
                 out_token=resp.get("out_token"),
                 model=resp.get("model"),
             )
-        elif chunk_type == "action":
+        elif message_type == "action":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)

@@ -38,7 +38,8 @@ class SupervisorPattern(PatternBase):
       - "synthesise": triggered by aggregator with results in subagent_results
     """
 
-    async def iterate(self, request, respond, next, flow, usage=None):
+    async def iterate(self, request, respond, next, flow, usage=None,
+                      pattern_decision_uri=None):
 
         if usage is None:
             usage = UsageTracker()
@@ -70,18 +71,20 @@ class SupervisorPattern(PatternBase):
             )
         )
 
+        derive_from_uri = pattern_decision_uri or session_uri
+
         if has_results:
             await self._synthesise(
                 request, respond, next, flow,
                 session_id, collection, streaming,
-                session_uri, iteration_num,
+                derive_from_uri, iteration_num,
                 usage=usage,
             )
         else:
             await self._decompose_and_fanout(
                 request, respond, next, flow,
                 session_id, collection, streaming,
-                session_uri, iteration_num,
+                derive_from_uri, iteration_num,
                 usage=usage,
             )
 
@@ -235,6 +238,7 @@ class SupervisorPattern(PatternBase):
         await self.emit_synthesis_triples(
             flow, session_id, finding_uris,
             response_text, request.user, collection, respond, streaming,
+            termination_reason="subagents-complete",
         )
 
         await self.send_final_response(

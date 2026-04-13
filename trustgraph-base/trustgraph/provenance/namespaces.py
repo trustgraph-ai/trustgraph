@@ -119,6 +119,18 @@ TG_ARGUMENTS = TG + "arguments"
 TG_OBSERVATION = TG + "observation" # Links iteration to observation sub-entity
 TG_SUBAGENT_GOAL = TG + "subagentGoal"  # Goal string on Decomposition/Finding
 TG_PLAN_STEP = TG + "planStep"          # Step goal string on Plan/StepResult
+TG_TOOL_CANDIDATE = TG + "toolCandidate"  # Tool name on Analysis events
+TG_TERMINATION_REASON = TG + "terminationReason"  # Why the agent loop stopped
+TG_STEP_NUMBER = TG + "stepNumber"  # Explicit step counter on iteration events
+TG_PATTERN_DECISION = TG + "PatternDecision"  # Meta-router routing decision entity type
+TG_PATTERN = TG + "pattern"  # Selected execution pattern
+TG_TASK_TYPE = TG + "taskType"  # Identified task type
+TG_LLM_DURATION_MS = TG + "llmDurationMs"  # LLM call duration in milliseconds
+TG_TOOL_DURATION_MS = TG + "toolDurationMs"  # Tool execution duration in milliseconds
+TG_TOOL_ERROR = TG + "toolError"  # Error message from a failed tool execution
+TG_ERROR_TYPE = TG + "Error"  # Mixin type for failure events
+TG_IN_TOKEN = TG + "inToken"  # Input token count for an LLM call
+TG_OUT_TOKEN = TG + "outToken"  # Output token count for an LLM call
 
 # Named graph URIs for RDF datasets
 # These separate different types of data while keeping them in the same collection
