@@ -15,8 +15,10 @@ RUN dnf install -y python3.13 && \
   pip3 install --no-cache-dir pulsar-client==3.7.0 && \
   dnf clean all
 
-RUN pip3 install torch==2.5.1+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
+#RUN pip3 install torch==2.5.1+cpu \
+#    --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip3 install torch==2.5.1
 
 RUN pip3 install --no-cache-dir \
     langchain==0.3.25 langchain-core==0.3.60 langchain-huggingface==0.2.0 \
