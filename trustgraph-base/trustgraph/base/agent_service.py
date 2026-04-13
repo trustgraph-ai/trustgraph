@@ -1,3 +1,5 @@
+from __future__ import annotations
+from argparse import ArgumentParser
 
 """
 Agent manager service completion base class
@@ -6,10 +8,12 @@ Agent manager service completion base class
 import time
 import logging
 from prometheus_client import Histogram
+from argparse import ArgumentParser
 
 from .. schema import AgentRequest, AgentResponse, Error
 from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -97,7 +101,7 @@ class AgentService(FlowProcessor):
             )
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

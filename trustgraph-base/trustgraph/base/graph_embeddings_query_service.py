@@ -1,3 +1,5 @@
+from __future__ import annotations
+from argparse import ArgumentParser
 
 """
 Graph embeddings query service.  Input is vectors.  Output is list of
@@ -5,13 +7,16 @@ embeddings.
 """
 
 import logging
+from argparse import ArgumentParser
 
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .. schema import Error, Term
+from argparse import ArgumentParser
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . producer_spec import ProducerSpec
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -82,7 +87,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             await flow("response").send(r, properties={"id": id})
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 
@@ -93,7 +98,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
-def run():
+def run() -> None:
 
     Processor.launch(default_ident, __doc__)
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+from argparse import ArgumentParser
 
 """
 Base class for dynamically pluggable tool services.
@@ -16,6 +18,7 @@ import logging
 import asyncio
 import argparse
 from prometheus_client import Counter
+from argparse import ArgumentParser
 
 from .. schema import ToolServiceRequest, ToolServiceResponse, Error
 from .. exceptions import TooManyRequests
@@ -23,6 +26,7 @@ from . async_processor import AsyncProcessor
 from . consumer import Consumer
 from . producer import Producer
 from . metrics import ConsumerMetrics, ProducerMetrics
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -173,7 +177,7 @@ class DynamicToolService(AsyncProcessor):
         raise NotImplementedError("Subclasses must implement invoke()")
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         AsyncProcessor.add_args(parser)
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Any
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL, TRIPLE
@@ -11,7 +13,7 @@ class Triple:
         self.o = o
 
 
-def to_value(x):
+def to_value(x: Any) -> Any:
     """Convert schema Term to Uri or Literal."""
     if x.type == IRI:
         return Uri(x.iri)
@@ -21,7 +23,7 @@ def to_value(x):
     return Literal(x.value or x.iri)
 
 
-def from_value(x):
+def from_value(x: Any) -> Any:
     """Convert Uri, Literal, string, or Term to schema Term."""
     if x is None:
         return None

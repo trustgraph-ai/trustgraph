@@ -1,3 +1,6 @@
+from __future__ import annotations
+from argparse import ArgumentParser
+from typing import Any, Callable
 
 # Base class for processors.  Implements:
 # - Pub/sub client, subscribe and consume basic
@@ -178,20 +181,20 @@ class AsyncProcessor:
 
     # This is called to stop all threads.  An over-ride point for extra
     # functionality
-    def stop(self):
+    def stop(self) -> None:
         self.pubsub_backend.close()
         self.running = False
 
     # Returns the pub/sub backend (new interface)
     @property
-    def pubsub(self): return self.pubsub_backend
+    def pubsub(self) -> Any: return self.pubsub_backend
 
     # Returns the pulsar host (backward compatibility)
     @property
-    def pulsar_host(self): return self._pulsar_host
+    def pulsar_host(self) -> str: return self._pulsar_host
 
     # Register a new event handler for configuration change
-    def register_config_handler(self, handler, types=None):
+    def register_config_handler(self, handler: Callable[..., Any], types: list[type] | None = None) -> None:
         self.config_handlers.append({
             "handler": handler,
             "types": set(types) if types else None,
@@ -295,13 +298,13 @@ class AsyncProcessor:
             raise e
 
     @classmethod
-    def setup_logging(cls, args):
+    def setup_logging(cls, args: dict[str, Any]) -> None:
         """Configure logging for the entire application"""
         setup_logging(args)
 
     # Startup fabric.  launch calls launch_async in async mode.
     @classmethod
-    def launch(cls, ident, doc):
+    def launch(cls, ident: str, doc: str) -> None:
 
         # Start assembling CLI arguments
         parser = argparse.ArgumentParser(
@@ -374,7 +377,7 @@ class AsyncProcessor:
     # The command-line arguments are built using a stack of add_args
     # invocations
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         add_pubsub_args(parser)
         add_logging_args(parser)

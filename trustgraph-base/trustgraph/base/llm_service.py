@@ -1,3 +1,5 @@
+from __future__ import annotations
+from argparse import ArgumentParser
 
 """
 LLM text completion base class
@@ -6,10 +8,12 @@ LLM text completion base class
 import time
 import logging
 from prometheus_client import Histogram, Info
+from argparse import ArgumentParser
 
 from .. schema import TextCompletionRequest, TextCompletionResponse, Error
 from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec, ParameterSpec
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -199,7 +203,7 @@ class LlmService(FlowProcessor):
                 properties={"id": id}
             )
 
-    def supports_streaming(self):
+    def supports_streaming(self) -> bool:
         """
         Override in subclass to indicate streaming support.
         Returns False by default.
@@ -215,7 +219,7 @@ class LlmService(FlowProcessor):
         raise NotImplementedError("Streaming not implemented for this provider")
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         parser.add_argument(
             '-c', '--concurrency',

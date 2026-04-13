@@ -1,3 +1,5 @@
+from __future__ import annotations
+from argparse import ArgumentParser
 
 """
 Triples query service.  Input is a (s, p, o) triple, some values may be
@@ -5,13 +7,16 @@ null.  Output is a list of triples.
 """
 
 import logging
+from argparse import ArgumentParser
 
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .. schema import Term, Triple
+from argparse import ArgumentParser
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import  ConsumerSpec
 from . producer_spec import ProducerSpec
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -108,7 +113,7 @@ class TriplesQueryService(FlowProcessor):
             yield [], True
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 
@@ -119,7 +124,7 @@ class TriplesQueryService(FlowProcessor):
             help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
-def run():
+def run() -> None:
 
     Processor.launch(default_ident, __doc__)
 

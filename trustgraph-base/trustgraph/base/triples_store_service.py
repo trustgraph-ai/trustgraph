@@ -1,13 +1,17 @@
+from __future__ import annotations
+from argparse import ArgumentParser
 
 """
 Triples store base class
 """
 
 import logging
+from argparse import ArgumentParser
 
 from .. schema import Triples
 from .. base import FlowProcessor, ConsumerSpec
 from .. exceptions import TooManyRequests
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -47,7 +51,7 @@ class TriplesStoreService(FlowProcessor):
             raise e
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

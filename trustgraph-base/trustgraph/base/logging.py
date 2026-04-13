@@ -10,11 +10,13 @@ Supports dual output to console and Loki for centralized log aggregation.
 
 import logging
 import logging.handlers
+from argparse import ArgumentParser
 from queue import Queue
+from typing import Any
 import os
 
 
-def add_logging_args(parser):
+def add_logging_args(parser: ArgumentParser) -> None:
     """
     Add standard logging arguments to an argument parser.
 
@@ -61,7 +63,7 @@ def add_logging_args(parser):
     )
 
 
-def setup_logging(args):
+def setup_logging(args: dict[str, Any]) -> None:
     """
     Configure logging from parsed command-line arguments.
 

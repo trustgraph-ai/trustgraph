@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Any
+from argparse import ArgumentParser
 
 # Base class for processor with management of flows in & out which are managed
 # by configuration.  This is probably all processor types, except for the
@@ -5,6 +8,7 @@
 
 import json
 import logging
+from argparse import ArgumentParser
 
 from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
@@ -12,6 +16,7 @@ from .. schema import config_push_queue
 from .. log_level import LogLevel
 from . async_processor import AsyncProcessor
 from . flow import Flow
+from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -41,7 +46,7 @@ class FlowProcessor(AsyncProcessor):
         logger.info("Service initialised.")
 
     # Register a configuration variable
-    def register_specification(self, spec):
+    def register_specification(self, spec: Any) -> None:
         self.specifications.append(spec)
 
     # Start processing for a new flow
@@ -99,7 +104,7 @@ class FlowProcessor(AsyncProcessor):
         await super(FlowProcessor, self).start()
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         AsyncProcessor.add_args(parser)
 
