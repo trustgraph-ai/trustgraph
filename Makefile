@@ -52,51 +52,12 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
 
-FORCE:
+containers: container-base container-flow \
+container-bedrock container-vertexai \
+container-hf container-ocr \
+container-unstructured container-mcp
 
-containers: FORCE
-	${DOCKER} build -f containers/Containerfile.base \
-	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.flow \
-	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.bedrock \
-	    -t ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.vertexai \
-	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.hf \
-	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.ocr \
-	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.unstructured \
-	    -t ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.mcp \
-	    -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
-
-some-containers:
-	${DOCKER} build -f containers/Containerfile.base \
-	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.flow \
-	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
-#	${DOCKER} build -f containers/Containerfile.unstructured \
-#	    -t ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION} .
-#	${DOCKER} build -f containers/Containerfile.vertexai \
-#	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
-#	${DOCKER} build -f containers/Containerfile.mcp \
-#	    -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
-#	${DOCKER} build -f containers/Containerfile.vertexai \
-#	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
-#	${DOCKER} build -f containers/Containerfile.bedrock \
-#	    -t ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION} .
-
-basic-containers: update-package-versions
-	${DOCKER} build -f containers/Containerfile.base \
-	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
-	${DOCKER} build -f containers/Containerfile.flow \
-	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
-
-container.ocr:
-	${DOCKER} build -f containers/Containerfile.ocr \
-	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+some-containers: container-base container-flow
 
 push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
@@ -109,106 +70,35 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
 
 # Individual container build targets
-container-trustgraph-base: update-package-versions
-	${DOCKER} build -f containers/Containerfile.base -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
+container-%: update-package-versions
+	${DOCKER} build \
+	    -f containers/Containerfile.${@:container-%=%} \
+	    -t ${CONTAINER_BASE}/trustgraph-${@:container-%=%}:${VERSION} .
 
-container-trustgraph-flow: update-package-versions
-	${DOCKER} build -f containers/Containerfile.flow -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+# Individual container build targets
+manifest-%: update-package-versions
+	-@${DOCKER} manifest rm \
+	    ${CONTAINER_BASE}/trustgraph-${@:manifest-%=%}:${VERSION}
+	${DOCKER} build --platform linux/amd64,linux/arm64 \
+	    -f containers/Containerfile.${@:manifest-%=%} \
+	    --manifest \
+	    ${CONTAINER_BASE}/trustgraph-${@:manifest-%=%}:${VERSION} .
 
-container-trustgraph-bedrock: update-package-versions
-	${DOCKER} build -f containers/Containerfile.bedrock -t ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION} .
+# Push a container
+push-container-%:
+	${DOCKER} push \
+	    ${CONTAINER_BASE}/trustgraph-${@:push-container-%=%}:${VERSION}
 
-container-trustgraph-vertexai: update-package-versions
-	${DOCKER} build -f containers/Containerfile.vertexai -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
-
-container-trustgraph-hf: update-package-versions
-	${DOCKER} build -f containers/Containerfile.hf -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
-
-container-trustgraph-ocr: update-package-versions
-	${DOCKER} build -f containers/Containerfile.ocr -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
-
-container-trustgraph-unstructured: update-package-versions
-	${DOCKER} build -f containers/Containerfile.unstructured -t ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION} .
-
-container-trustgraph-mcp: update-package-versions
-	${DOCKER} build -f containers/Containerfile.mcp -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
-
-# Individual container push targets
-push-trustgraph-base:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
-
-push-trustgraph-flow:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-flow:${VERSION}
-
-push-trustgraph-bedrock:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION}
-
-push-trustgraph-vertexai:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
-
-push-trustgraph-hf:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
-
-push-trustgraph-ocr:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
-
-push-trustgraph-unstructured:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION}
-
-push-trustgraph-mcp:
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
+# Push a manifest
+push-manifest-%:
+	${DOCKER} manifest push \
+	    ${CONTAINER_BASE}/trustgraph-${@:push-manifest-%=%}:${VERSION}
 
 clean:
 	rm -rf wheels/
 
 set-version:
 	echo '"${VERSION}"' > templates/values/version.jsonnet
-
-TEMPLATES=azure bedrock claude cohere mix llamafile mistral ollama openai vertexai \
-    openai-neo4j storage
-
-DCS=$(foreach template,${TEMPLATES},${template:%=tg-launch-%.yaml})
-
-MODELS=azure bedrock claude cohere llamafile mistral ollama openai vertexai
-GRAPHS=cassandra neo4j falkordb memgraph
-
-# tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
-# 	jsonnet -Jtemplates \
-# 	    -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
-
-# VECTORDB=milvus
-VECTORDB=qdrant
-
-JSONNET_FLAGS=-J templates -J .
-
-# Temporarily going back to how templates were built in 0.9 because this
-# is going away in 0.11.
-
-update-templates: update-dcs
-
-JSON_TO_YAML=python -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
-
-update-dcs: set-version
-	for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,${VECTORDB},grafana; \
-	    input=templates/opts-to-docker-compose.jsonnet; \
-	    output=tg-storage-$${graph}.yaml; \
-	    echo $${graph} '->' $${output}; \
-	    jsonnet ${JSONNET_FLAGS} \
-	         --ext-str options=$${cm} $${input} | \
-	         ${JSON_TO_YAML} > $${output}; \
-	done
-	for model in ${MODELS}; do \
-	  for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
-	    input=templates/opts-to-docker-compose.jsonnet; \
-	    output=tg-launch-$${model}-$${graph}.yaml; \
-	    echo $${model} + $${graph} '->' $${output}; \
-	    jsonnet ${JSONNET_FLAGS} \
-	         --ext-str options=$${cm} $${input} | \
-                 ${JSON_TO_YAML} > $${output}; \
-	  done; \
-	done
 
 docker-hub-login:
 	cat docker-token.txt | \
