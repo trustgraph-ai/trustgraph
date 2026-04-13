@@ -62,6 +62,11 @@ def sparql_query(url, token, flow_id, query, user, collection, limit,
             limit=limit,
             batch_size=batch_size,
         ):
+            if "error" in response:
+                err = response["error"]
+                msg = err.get("message", err) if isinstance(err, dict) else err
+                raise RuntimeError(msg)
+
             query_type = response.get("query-type", "select")
 
             # ASK queries - just print and return
