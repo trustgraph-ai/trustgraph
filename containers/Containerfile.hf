@@ -1,24 +1,22 @@
 
-# ----------------------------------------------------------------------------
-# Build an AI container.  This does the torch install which is huge, and I
-# like to avoid re-doing this.
-# ----------------------------------------------------------------------------
+# Torch is stable and compiles for ARM64 and AMD64 on Python 3.12
 
 FROM docker.io/fedora:42 AS ai
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN dnf install -y python3.13 && \
-  alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
+RUN dnf install -y python3.12 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
   python -m ensurepip --upgrade && \
   pip3 install --no-cache-dir build wheel aiohttp && \
   pip3 install --no-cache-dir pulsar-client==3.7.0 && \
   dnf clean all
 
+# This won't work on ARM
 #RUN pip3 install torch==2.5.1+cpu \
 #    --index-url https://download.pytorch.org/whl/cpu
 
-RUN pip3 install torch==2.5.1
+RUN pip3 install torch
 
 RUN pip3 install --no-cache-dir \
     langchain==0.3.25 langchain-core==0.3.60 langchain-huggingface==0.2.0 \
