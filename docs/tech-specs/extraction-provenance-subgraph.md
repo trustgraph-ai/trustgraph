@@ -203,3 +203,7 @@ def subgraph_provenance_triples(
 This is a breaking change to the provenance model.  Provenance has not
 been released, so no migration is needed.  The old `tg:reifies` /
 `statement_uri` code can be removed outright.
+
+## Vocabulary Reference
+
+The full OWL ontology covering all extraction and query-time classes and predicates is at `specs/ontology/trustgraph.ttl`.

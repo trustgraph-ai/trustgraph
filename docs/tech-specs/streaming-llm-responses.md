@@ -393,28 +393,28 @@ The agent produces multiple types of output during its reasoning cycle:
 - Answer (final response)
 - Errors
 
-Since `chunk_type` identifies what kind of content is being sent, the separate
+Since `message_type` identifies what kind of content is being sent, the separate
 `answer`, `error`, `thought`, and `observation` fields can be collapsed into
 a single `content` field:
 
 ```python
 class AgentResponse(Record):
-    chunk_type = String()       # "thought", "action", "observation", "answer", "error"
-    content = String()          # The actual content (interpretation depends on chunk_type)
+    message_type = String()       # "thought", "action", "observation", "answer", "error"
+    content = String()          # The actual content (interpretation depends on message_type)
     end_of_message = Boolean()  # Current thought/action/observation/answer is complete
     end_of_dialog = Boolean()   # Entire agent dialog is complete
 ```
 
 **Field Semantics:**
 
-- `chunk_type`: Indicates what type of content is in the `content` field
+- `message_type`: Indicates what type of content is in the `content` field
   - `"thought"`: Agent reasoning/thinking
   - `"action"`: Tool/action being invoked
   - `"observation"`: Result from tool execution
   - `"answer"`: Final answer to the user's question
   - `"error"`: Error message
 
-- `content`: The actual streamed content, interpreted based on `chunk_type`
+- `content`: The actual streamed content, interpreted based on `message_type`
 
 - `end_of_message`: When `true`, the current chunk type is complete
   - Example: All tokens for the current thought have been sent
@@ -428,27 +428,27 @@ class AgentResponse(Record):
 When `streaming=true`:
 
 1. **Thought streaming**:
-   - Multiple chunks with `chunk_type="thought"`, `end_of_message=false`
+   - Multiple chunks with `message_type="thought"`, `end_of_message=false`
    - Final thought chunk has `end_of_message=true`
 2. **Action notification**:
-   - Single chunk with `chunk_type="action"`, `end_of_message=true`
+   - Single chunk with `message_type="action"`, `end_of_message=true`
 3. **Observation**:
-   - Chunk(s) with `chunk_type="observation"`, final has `end_of_message=true`
+   - Chunk(s) with `message_type="observation"`, final has `end_of_message=true`
 4. **Repeat** steps 1-3 as the agent reasons
 5. **Final answer**:
-   - `chunk_type="answer"` with the final response in `content`
+   - `message_type="answer"` with the final response in `content`
    - Last chunk has `end_of_message=true`, `end_of_dialog=true`
 
 **Example Stream Sequence:**
 
 ```
-{chunk_type: "thought", content: "I need to", end_of_message: false, end_of_dialog: false}
-{chunk_type: "thought", content: " search for...", end_of_message: true, end_of_dialog: false}
-{chunk_type: "action", content: "search", end_of_message: true, end_of_dialog: false}
-{chunk_type: "observation", content: "Found: ...", end_of_message: true, end_of_dialog: false}
-{chunk_type: "thought", content: "Based on this", end_of_message: false, end_of_dialog: false}
-{chunk_type: "thought", content: " I can answer...", end_of_message: true, end_of_dialog: false}
-{chunk_type: "answer", content: "The answer is...", end_of_message: true, end_of_dialog: true}
+{message_type: "thought", content: "I need to", end_of_message: false, end_of_dialog: false}
+{message_type: "thought", content: " search for...", end_of_message: true, end_of_dialog: false}
+{message_type: "action", content: "search", end_of_message: true, end_of_dialog: false}
+{message_type: "observation", content: "Found: ...", end_of_message: true, end_of_dialog: false}
+{message_type: "thought", content: "Based on this", end_of_message: false, end_of_dialog: false}
+{message_type: "thought", content: " I can answer...", end_of_message: true, end_of_dialog: false}
+{message_type: "answer", content: "The answer is...", end_of_message: true, end_of_dialog: true}
 ```
 
 When `streaming=false`:
@@ -541,7 +541,7 @@ The following questions were resolved during specification:
    populated and no other fields are needed. An error is always the final
    communication - no subsequent messages are permitted or expected after
    an error. For LLM/Prompt streams, `end_of_stream=true`. For Agent streams,
-   `chunk_type="error"` with `end_of_dialog=true`.
+   `message_type="error"` with `end_of_dialog=true`.
 
 3. **Partial Response Recovery**: The messaging protocol (Pulsar) is resilient,
    so message-level retry is not needed. If a client loses track of the stream

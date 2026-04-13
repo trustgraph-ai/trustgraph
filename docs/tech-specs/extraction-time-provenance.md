@@ -612,8 +612,13 @@ Link embedding entity IDs to chunk.
 | Triple store | Use reification for triple → chunk provenance |
 | Embedding provenance | Link entity ID → chunk ID |
 
+## Vocabulary Reference
+
+The full OWL ontology covering all extraction and query-time classes and predicates is at `specs/ontology/trustgraph.ttl`.
+
 ## References
 
-- Query-time provenance: `docs/tech-specs/query-time-provenance.md`
+- Query-time provenance: `docs/tech-specs/query-time-explainability.md`
+- Agent explainability: `docs/tech-specs/agent-explainability.md`
 - PROV-O standard for provenance modeling
 - Existing source metadata in knowledge graph (needs audit)
