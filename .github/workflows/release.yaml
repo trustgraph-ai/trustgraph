@@ -58,14 +58,14 @@ jobs:
     strategy:
       matrix:
         container:
-          - trustgraph-base
-          - trustgraph-flow
-          - trustgraph-bedrock
-          - trustgraph-vertexai
-          - trustgraph-hf
-          - trustgraph-ocr
-          - trustgraph-unstructured
-          - trustgraph-mcp
+          - base
+          - flow
+          - bedrock
+          - vertexai
+          - hf
+          - ocr
+          - unstructured
+          - mcp
 
     steps:
 
