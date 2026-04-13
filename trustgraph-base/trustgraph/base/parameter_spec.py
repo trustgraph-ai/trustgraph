@@ -4,9 +4,9 @@ from . spec import Spec
 class Parameter:
     def __init__(self, value):
         self.value = value
-    async def start():
+    async def start(self):
         pass
-    async def stop():
+    async def stop(self):
         pass
         
 class ParameterSpec(Spec):
