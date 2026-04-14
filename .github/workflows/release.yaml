@@ -43,7 +43,6 @@ jobs:
   build-platform-image:
 
     name: Build ${{ matrix.container }} (${{ matrix.platform }})
-    runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
@@ -63,17 +62,18 @@ jobs:
         platform:
           - amd64
           - arm64
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
 
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up QEMU - for ARM emulation
-        if: matrix.platform == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
 
       - name: Docker Hub token
         run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
