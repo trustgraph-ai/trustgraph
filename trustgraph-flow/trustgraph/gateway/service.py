@@ -9,7 +9,7 @@ from aiohttp import web
 import logging
 import os
 
-from trustgraph.base.logging import setup_logging
+from trustgraph.base.logging import setup_logging, add_logging_args
 from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
 
 from . auth import Authenticator
@@ -195,12 +195,7 @@ def run():
         help=f'Secret API token (default: no auth)',
     )
 
-    parser.add_argument(
-        '-l', '--log-level',
-        default='INFO',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help=f'Log level (default: INFO)'
-    )
+    add_logging_args(parser)
 
     parser.add_argument(
         '--metrics',
