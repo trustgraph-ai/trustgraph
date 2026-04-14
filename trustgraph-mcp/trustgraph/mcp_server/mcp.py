@@ -1,20 +1,14 @@
 from contextlib import asynccontextmanager
-from typing import Optional
 import os
-import time
-from typing import AsyncGenerator, Any, Dict, List
-import asyncio
+from typing import Any, Dict, List
 import logging
 import json
-import uuid
 import argparse
 from dataclasses import dataclass
 from collections.abc import AsyncIterator
 from functools import partial
 
 from mcp.server.fastmcp import FastMCP, Context
-from mcp.types import TextContent
-from websockets.asyncio.client import connect
 
 from trustgraph.base.logging import add_logging_args, setup_logging
 

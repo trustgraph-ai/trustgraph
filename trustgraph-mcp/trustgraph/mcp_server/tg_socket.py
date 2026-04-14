@@ -1,12 +1,10 @@
 
-from dataclasses import dataclass
 from websockets.asyncio.client import connect
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
 import asyncio
 import logging
 import json
 import uuid
-import time
 
 class WebSocketManager:
 
