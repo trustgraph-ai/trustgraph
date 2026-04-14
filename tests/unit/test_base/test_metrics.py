@@ -7,6 +7,14 @@ from trustgraph.base import metrics
 
 @pytest.fixture(autouse=True)
 def reset_metric_singletons():
+    """Temporarily remove metric singletons so each test can inject mocks.
+
+    Saves any existing class-level metrics and restores them after the test
+    so that later tests in the same process still find the hasattr() guard
+    intact — deleting without restoring causes every subsequent Processor()
+    construction to re-register the same Prometheus metric name, which raises
+    ValueError: Duplicated timeseries.
+    """
     classes_and_attrs = {
         metrics.ConsumerMetrics: [
             "state_metric",
@@ -23,17 +31,23 @@ def reset_metric_singletons():
         ],
     }
 
+    saved = {}
     for cls, attrs in classes_and_attrs.items():
         for attr in attrs:
             if hasattr(cls, attr):
+                saved[(cls, attr)] = getattr(cls, attr)
                 delattr(cls, attr)
 
     yield
 
+    # Remove anything the test may have set, then restore originals
     for cls, attrs in classes_and_attrs.items():
         for attr in attrs:
             if hasattr(cls, attr):
                 delattr(cls, attr)
+
+    for (cls, attr), value in saved.items():
+        setattr(cls, attr, value)
 
 
 def test_consumer_metrics_reuses_singletons_and_records_events(monkeypatch):
