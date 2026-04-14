@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Tech Spec: Cassandra Knowledge Base Performance Refactor"
+parent: "Tech Specs"
+---
+
 # Tech Spec: Cassandra Knowledge Base Performance Refactor
 
 **Status:** Draft

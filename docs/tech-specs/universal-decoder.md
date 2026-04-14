@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Universal Document Decoder"
+parent: "Tech Specs"
+---
+
 # Universal Document Decoder
 
 ## Headline

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Explainability CLI Technical Specification"
+parent: "Tech Specs"
+---
+
 # Explainability CLI Technical Specification
 
 ## Status

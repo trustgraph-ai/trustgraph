@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Technical Specification: Multi-Tenant Support"
+parent: "Tech Specs"
+---
+
 # Technical Specification: Multi-Tenant Support
 
 ## Overview

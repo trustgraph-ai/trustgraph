@@ -1,3 +1,9 @@
+---
+layout: default
+title: "SPARQL Query Service Technical Specification"
+parent: "Tech Specs"
+---
+
 # SPARQL Query Service Technical Specification
 
 ## Overview

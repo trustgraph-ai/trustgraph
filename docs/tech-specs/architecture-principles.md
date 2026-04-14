@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Knowledge Graph Architecture Foundations"
+parent: "Tech Specs"
+---
+
 # Knowledge Graph Architecture Foundations
 
 ## Foundation 1: Subject-Predicate-Object (SPO) Graph Model
@@ -103,4 +109,3 @@
 7. **Analytical Compatibility**: Bridge graph and columnar paradigms for comprehensive querying
 
 These foundations establish a knowledge graph architecture that balances theoretical rigor with practical scalability requirements, optimized for LLM integration and distributed processing.
-

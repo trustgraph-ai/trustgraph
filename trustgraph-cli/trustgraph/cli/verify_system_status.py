@@ -19,6 +19,7 @@ from typing import Tuple, Optional
 
 # Import existing CLI functions to reuse logic
 from trustgraph.api import Api
+from trustgraph.i18n import get_translator
 
 default_pulsar_url = "http://localhost:8080"
 default_api_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
@@ -34,12 +35,14 @@ class HealthChecker:
         global_timeout: int = 120,
         check_timeout: int = 10,
         retry_delay: int = 3,
-        verbose: bool = False
+        verbose: bool = False,
+        translator=None,
     ):
         self.global_timeout = global_timeout
         self.check_timeout = check_timeout
         self.retry_delay = retry_delay
         self.verbose = verbose
+        self.tr = translator
         self.start_time = time.time()
         self.checks_passed = 0
         self.checks_failed = 0
@@ -98,9 +101,15 @@ class HealthChecker:
             attempt += 1
 
             if attempt > 1:
-                self.log(f"Checking {name}... (attempt {attempt})", "progress")
+                if self.tr:
+                    self.log(self.tr.t("cli.verify_system_status.checking_attempt", name=name, attempt=attempt), "progress")
+                else:
+                    self.log(f"Checking {name}... (attempt {attempt})", "progress")
             else:
-                self.log(f"Checking {name}...", "progress")
+                if self.tr:
+                    self.log(self.tr.t("cli.verify_system_status.checking", name=name), "progress")
+                else:
+                    self.log(f"Checking {name}...", "progress")
 
             try:
                 # Run the check with timeout
@@ -124,29 +133,32 @@ class HealthChecker:
             time.sleep(self.retry_delay)
 
         # Check failed
-        self.log(f"{name}: Failed (timeout after {attempt} attempts)", "error")
+        if self.tr:
+            self.log(self.tr.t("cli.verify_system_status.failed_timeout", name=name, attempt=attempt), "error")
+        else:
+            self.log(f"{name}: Failed (timeout after {attempt} attempts)", "error")
         self.checks_failed += 1
         return False
 
 
-def check_pulsar(url: str, timeout: int) -> Tuple[bool, str]:
+def check_pulsar(url: str, timeout: int, tr) -> Tuple[bool, str]:
     """Check if Pulsar admin API is responding."""
     try:
         resp = requests.get(f"{url}/admin/v2/clusters", timeout=timeout)
         if resp.status_code == 200:
             clusters = resp.json()
-            return True, f"Pulsar healthy ({len(clusters)} cluster(s))"
+            return True, tr.t("cli.verify_system_status.pulsar.healthy", clusters=len(clusters))
         else:
-            return False, f"Pulsar returned status {resp.status_code}"
+            return False, tr.t("cli.verify_system_status.pulsar.status", status_code=resp.status_code)
     except requests.exceptions.Timeout:
-        return False, "Pulsar connection timeout"
+        return False, tr.t("cli.verify_system_status.pulsar.timeout")
     except requests.exceptions.ConnectionError:
-        return False, "Cannot connect to Pulsar"
+        return False, tr.t("cli.verify_system_status.pulsar.cannot_connect")
     except Exception as e:
-        return False, f"Pulsar error: {e}"
+        return False, tr.t("cli.verify_system_status.pulsar.error", error=str(e))
 
 
-def check_api_gateway(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_api_gateway(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if API Gateway is responding."""
     try:
         # Try to hit the base URL
@@ -159,18 +171,18 @@ def check_api_gateway(url: str, timeout: int, token: Optional[str] = None) -> Tu
 
         resp = requests.get(url, headers=headers, timeout=timeout)
         if resp.status_code in [200, 404]:  # 404 is OK, means gateway is up
-            return True, "API Gateway is responding"
+            return True, tr.t("cli.verify_system_status.api_gateway.responding")
         else:
-            return False, f"API Gateway returned status {resp.status_code}"
+            return False, tr.t("cli.verify_system_status.api_gateway.status", status_code=resp.status_code)
     except requests.exceptions.Timeout:
-        return False, "API Gateway connection timeout"
+        return False, tr.t("cli.verify_system_status.api_gateway.timeout")
     except requests.exceptions.ConnectionError:
-        return False, "Cannot connect to API Gateway"
+        return False, tr.t("cli.verify_system_status.api_gateway.cannot_connect")
     except Exception as e:
-        return False, f"API Gateway error: {e}"
+        return False, tr.t("cli.verify_system_status.api_gateway.error", error=str(e))
 
 
-def check_processors(url: str, min_processors: int, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_processors(url: str, min_processors: int, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if processors are running via metrics endpoint."""
     try:
         # Construct metrics URL from API URL
@@ -188,17 +200,17 @@ def check_processors(url: str, min_processors: int, timeout: int, token: Optiona
             processor_count = len(data.get("data", {}).get("result", []))
 
             if processor_count >= min_processors:
-                return True, f"Found {processor_count} processors (≥ {min_processors})"
+                return True, tr.t("cli.verify_system_status.processors.found", count=processor_count, min=min_processors)
             else:
-                return False, f"Only {processor_count} processors running (need {min_processors})"
+                return False, tr.t("cli.verify_system_status.processors.only", count=processor_count, min=min_processors)
         else:
-            return False, f"Metrics returned status {resp.status_code}"
+            return False, tr.t("cli.verify_system_status.processors.metrics_status", status_code=resp.status_code)
 
     except Exception as e:
-        return False, f"Processor check error: {e}"
+        return False, tr.t("cli.verify_system_status.processors.error", error=str(e))
 
 
-def check_flow_blueprints(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_flow_blueprints(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if flow blueprints are loaded."""
     try:
         api = Api(url, token=token, timeout=timeout)
@@ -207,15 +219,15 @@ def check_flow_blueprints(url: str, timeout: int, token: Optional[str] = None) -
         blueprints = flow_api.list_blueprints()
 
         if blueprints and len(blueprints) > 0:
-            return True, f"Found {len(blueprints)} flow blueprint(s)"
+            return True, tr.t("cli.verify_system_status.flow_blueprints.found", count=len(blueprints))
         else:
-            return False, "No flow blueprints found"
+            return False, tr.t("cli.verify_system_status.flow_blueprints.none")
 
     except Exception as e:
-        return False, f"Flow blueprints check error: {e}"
+        return False, tr.t("cli.verify_system_status.flow_blueprints.error", error=str(e))
 
 
-def check_flows(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_flows(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if flow manager is responding."""
     try:
         api = Api(url, token=token, timeout=timeout)
@@ -224,13 +236,13 @@ def check_flows(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bo
         flows = flow_api.list()
 
         # Success if we get a response (even if empty)
-        return True, f"Flow manager responding ({len(flows)} flow(s))"
+        return True, tr.t("cli.verify_system_status.flows.responding", count=len(flows))
 
     except Exception as e:
-        return False, f"Flow manager check error: {e}"
+        return False, tr.t("cli.verify_system_status.flows.error", error=str(e))
 
 
-def check_prompts(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_prompts(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if prompts are loaded."""
     try:
         api = Api(url, token=token, timeout=timeout)
@@ -248,15 +260,15 @@ def check_prompts(url: str, timeout: int, token: Optional[str] = None) -> Tuple[
         ix = json.loads(values[0].value)
 
         if ix and len(ix) > 0:
-            return True, f"Found {len(ix)} prompt(s)"
+            return True, tr.t("cli.verify_system_status.prompts.found", count=len(ix))
         else:
-            return False, "No prompts found"
+            return False, tr.t("cli.verify_system_status.prompts.none")
 
     except Exception as e:
-        return False, f"Prompts check error: {e}"
+        return False, tr.t("cli.verify_system_status.prompts.error", error=str(e))
 
 
-def check_library(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_library(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if library service is responding."""
     try:
         api = Api(url, token=token, timeout=timeout)
@@ -266,13 +278,13 @@ def check_library(url: str, timeout: int, token: Optional[str] = None) -> Tuple[
         docs = library_api.get_documents(user="trustgraph")
 
         # Success if we get a valid response (even if empty)
-        return True, f"Library responding ({len(docs)} document(s))"
+        return True, tr.t("cli.verify_system_status.library.responding", count=len(docs))
 
     except Exception as e:
-        return False, f"Library check error: {e}"
+        return False, tr.t("cli.verify_system_status.library.error", error=str(e))
 
 
-def check_ui(url: str, timeout: int) -> Tuple[bool, str]:
+def check_ui(url: str, timeout: int, tr) -> Tuple[bool, str]:
     """Check if Workbench UI is responding."""
     try:
         if not url.endswith('/'):
@@ -280,15 +292,15 @@ def check_ui(url: str, timeout: int) -> Tuple[bool, str]:
 
         resp = requests.get(f"{url}index.html", timeout=timeout)
         if resp.status_code == 200:
-            return True, "Workbench UI is responding"
+            return True, tr.t("cli.verify_system_status.ui.responding")
         else:
-            return False, f"UI returned status {resp.status_code}"
+            return False, tr.t("cli.verify_system_status.ui.status", status_code=resp.status_code)
     except requests.exceptions.Timeout:
-        return False, "UI connection timeout"
+        return False, tr.t("cli.verify_system_status.ui.timeout")
     except requests.exceptions.ConnectionError:
-        return False, "Cannot connect to UI"
+        return False, tr.t("cli.verify_system_status.ui.cannot_connect")
     except Exception as e:
-        return False, f"UI error: {e}"
+        return False, tr.t("cli.verify_system_status.ui.error", error=str(e))
 
 
 def main():
@@ -298,6 +310,12 @@ def main():
         prog='tg-verify-system-status',
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        '--lang',
+        default=os.getenv("TRUSTGRAPH_LANG", "en"),
+        help='Language code for CLI output (default: $TRUSTGRAPH_LANG or en)'
     )
 
     parser.add_argument(
@@ -366,119 +384,135 @@ def main():
 
     args = parser.parse_args()
 
+    tr = get_translator(args.lang)
+
     # Create health checker
     checker = HealthChecker(
         global_timeout=args.global_timeout,
         check_timeout=args.check_timeout,
         retry_delay=args.retry_delay,
-        verbose=args.verbose
+        verbose=args.verbose,
+        translator=tr,
     )
 
     print("=" * 60)
-    print("TrustGraph System Status Verification")
+    print(tr.t("cli.verify_system_status.title"))
     print("=" * 60)
     print()
 
     # Phase 1: Infrastructure
-    print("Phase 1: Infrastructure")
+    print(tr.t("cli.verify_system_status.phase_1"))
     print("-" * 60)
-
-    # Pulsar check is skipped — not all deployments use Pulsar.
-    # The API Gateway check covers broker connectivity indirectly.
+    if not checker.run_check(
+        tr.t("cli.verify_system_status.check_name.pulsar"),
+        check_pulsar,
+        args.pulsar_url,
+        args.check_timeout,
+        tr,
+    ):
+        print(f"\n⚠️  {tr.t('cli.verify_system_status.pulsar_not_responding')}")
+        print()
 
     checker.run_check(
-        "API Gateway",
+        tr.t("cli.verify_system_status.check_name.api_gateway"),
         check_api_gateway,
         args.api_url,
         args.check_timeout,
-        args.token
+        tr,
+        args.token,
     )
 
     print()
 
     # Phase 2: Core Services
-    print("Phase 2: Core Services")
+    print(tr.t("cli.verify_system_status.phase_2"))
     print("-" * 60)
 
     checker.run_check(
-        "Processors",
+        tr.t("cli.verify_system_status.check_name.processors"),
         check_processors,
         args.api_url,
         args.min_processors,
         args.check_timeout,
-        args.token
+        tr,
+        args.token,
     )
 
     checker.run_check(
-        "Flow Blueprints",
+        tr.t("cli.verify_system_status.check_name.flow_blueprints"),
         check_flow_blueprints,
         args.api_url,
         args.check_timeout,
-        args.token
+        tr,
+        args.token,
     )
 
     checker.run_check(
-        "Flows",
+        tr.t("cli.verify_system_status.check_name.flows"),
         check_flows,
         args.api_url,
         args.check_timeout,
-        args.token
+        tr,
+        args.token,
     )
 
     checker.run_check(
-        "Prompts",
+        tr.t("cli.verify_system_status.check_name.prompts"),
         check_prompts,
         args.api_url,
         args.check_timeout,
-        args.token
+        tr,
+        args.token,
     )
 
     print()
 
     # Phase 3: Data Services
-    print("Phase 3: Data Services")
+    print(tr.t("cli.verify_system_status.phase_3"))
     print("-" * 60)
 
     checker.run_check(
-        "Library",
+        tr.t("cli.verify_system_status.check_name.library"),
         check_library,
         args.api_url,
         args.check_timeout,
-        args.token
+        tr,
+        args.token,
     )
 
     print()
 
     # Phase 4: UI (optional)
     if not args.skip_ui:
-        print("Phase 4: User Interface")
+        print(tr.t("cli.verify_system_status.phase_4"))
         print("-" * 60)
 
         checker.run_check(
-            "Workbench UI",
+            tr.t("cli.verify_system_status.check_name.workbench_ui"),
             check_ui,
             args.ui_url,
-            args.check_timeout
+            args.check_timeout,
+            tr,
         )
 
         print()
 
     # Summary
     print("=" * 60)
-    print("Summary")
+    print(tr.t("cli.verify_system_status.summary"))
     print("=" * 60)
 
     total_checks = checker.checks_passed + checker.checks_failed
 
-    print(f"Checks passed: {checker.checks_passed}/{total_checks}")
-    print(f"Checks failed: {checker.checks_failed}/{total_checks}")
-    print(f"Total time: {checker.elapsed()}")
+    print(tr.t("cli.verify_system_status.checks_passed", passed=checker.checks_passed, total=total_checks))
+    print(tr.t("cli.verify_system_status.checks_failed", failed=checker.checks_failed, total=total_checks))
+    print(tr.t("cli.verify_system_status.total_time", elapsed=checker.elapsed()))
 
     if checker.checks_failed == 0:
-        print("\n✓ System is healthy!")
+        print(f"\n✓ {tr.t('cli.verify_system_status.system_healthy')}")
         sys.exit(0)
     else:
-        print(f"\n✗ System has {checker.checks_failed} failing check(s)")
+        print(f"\n✗ {tr.t('cli.verify_system_status.system_failing', failed=checker.checks_failed)}")
         sys.exit(1)
 
 

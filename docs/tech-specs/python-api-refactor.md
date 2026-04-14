@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Python API Refactor Technical Specification"
+parent: "Tech Specs"
+---
+
 # Python API Refactor Technical Specification
 
 ## Overview

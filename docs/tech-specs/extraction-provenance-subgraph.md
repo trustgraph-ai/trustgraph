@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Extraction Provenance: Subgraph Model"
+parent: "Tech Specs"
+---
+
 # Extraction Provenance: Subgraph Model
 
 ## Problem
