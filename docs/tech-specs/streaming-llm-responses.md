@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Streaming LLM Responses Technical Specification"
+parent: "Tech Specs"
+---
+
 # Streaming LLM Responses Technical Specification
 
 ## Overview

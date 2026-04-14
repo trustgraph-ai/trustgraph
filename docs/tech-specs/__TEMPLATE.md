@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Command-Line Loading Knowledge Technical Specification"
+parent: "Tech Specs"
+---
+
 # Command-Line Loading Knowledge Technical Specification
 
 ## Overview

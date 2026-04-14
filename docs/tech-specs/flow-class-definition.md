@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Flow Blueprint Definition Specification"
+parent: "Tech Specs"
+---
+
 # Flow Blueprint Definition Specification
 
 ## Overview

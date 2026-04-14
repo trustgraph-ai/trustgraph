@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Structured Data Technical Specification (Part 2)"
+parent: "Tech Specs"
+---
+
 # Structured Data Technical Specification (Part 2)
 
 ## Overview

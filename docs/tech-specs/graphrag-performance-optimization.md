@@ -1,3 +1,9 @@
+---
+layout: default
+title: "GraphRAG Performance Optimisation Technical Specification"
+parent: "Tech Specs"
+---
+
 # GraphRAG Performance Optimisation Technical Specification
 
 ## Overview

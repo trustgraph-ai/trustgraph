@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Agent Explainability: Provenance Recording"
+parent: "Tech Specs"
+---
+
 # Agent Explainability: Provenance Recording
 
 ## Status

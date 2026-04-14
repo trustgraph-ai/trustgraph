@@ -1,3 +1,9 @@
+---
+layout: default
+title: "More Configuration CLI Technical Specification"
+parent: "Tech Specs"
+---
+
 # More Configuration CLI Technical Specification
 
 ## Overview

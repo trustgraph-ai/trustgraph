@@ -1,0 +1,16 @@
+---
+layout: default
+title: "اتفاقية الترخيص للمساهمين"
+parent: "Arabic (Beta)"
+---
+
+# اتفاقية الترخيص للمساهمين
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
+
+نطلب من كل المساهمين التوقيع على اتفاقية الترخيص للمساهمين قبل أن نتمكن من دمج طلب السحب. لا تنقل اتفاقية الترخيص حقوق الطبع والنشر - أنت تحتفظ بالملكية الكاملة لعملك. إنها ببساطة تمنح مشروع TrustGraph ترخيصًا دائمًا، وخاليًا من الرسوم، لتوزيع مساهمتك بموجب ترخيص [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) الخاص بالمشروع، وتؤكد أن لديك الحق في تقديم المساهمة. وهذا يحمي المشروع ومستخدميه من خلال ضمان أن لكل مساهمة الأساس القانوني الواضح.
+
+عندما تفتح طلب سحب، سيقوم روبوت اتفاقية الترخيص بنشر تعليق يطلب منك مراجعة وتوقيع الاتفاقية المناسبة - ويستغرق ذلك لحظة فقط، وعليك القيام بذلك مرة واحدة فقط عبر جميع مستودعات TrustGraph.
+
+- المساهمة ك**فرد**؟ قم بتوقيع [اتفاقية الترخيص الفردية](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Fiduciary-Contributor-License-Agreement.md)
+- المساهمة **بالنيابة عن شركة أو منظمة**؟ قم بتوقيع [اتفاقية الترخيص التنظيمية](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Entity-Fiduciary-Contributor-License-Agreement.md)
