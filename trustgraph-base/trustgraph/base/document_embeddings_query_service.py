@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from argparse import ArgumentParser
 
 """
@@ -7,16 +8,13 @@ embeddings.
 """
 
 import logging
-from argparse import ArgumentParser
 
 from .. schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .. schema import Error, Term
-from argparse import ArgumentParser
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . producer_spec import ProducerSpec
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)

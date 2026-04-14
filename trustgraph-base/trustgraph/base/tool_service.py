@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from argparse import ArgumentParser
 
 """
@@ -8,12 +9,10 @@ Tool invocation base class
 import json
 import logging
 from prometheus_client import Counter
-from argparse import ArgumentParser
 
 from .. schema import ToolRequest, ToolResponse, Error
 from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from argparse import ArgumentParser
 
 """
@@ -6,12 +7,10 @@ Document embeddings store base class
 """
 
 import logging
-from argparse import ArgumentParser
 
 from .. schema import DocumentEmbeddings
 from .. base import FlowProcessor, ConsumerSpec
 from .. exceptions import TooManyRequests
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)

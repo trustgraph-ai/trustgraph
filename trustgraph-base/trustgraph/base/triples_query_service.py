@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from argparse import ArgumentParser
 
 """
@@ -7,16 +8,13 @@ null.  Output is a list of triples.
 """
 
 import logging
-from argparse import ArgumentParser
 
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .. schema import Term, Triple
-from argparse import ArgumentParser
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import  ConsumerSpec
 from . producer_spec import ProducerSpec
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)

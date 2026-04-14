@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from argparse import ArgumentParser
 
 """
@@ -8,12 +9,10 @@ Embeddings resolution base class
 import time
 import logging
 from prometheus_client import Histogram
-from argparse import ArgumentParser
 
 from .. schema import EmbeddingsRequest, EmbeddingsResponse, Error
 from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec, ParameterSpec
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -114,6 +113,5 @@ class EmbeddingsService(FlowProcessor):
         )
 
         FlowProcessor.add_args(parser)
-
 
 

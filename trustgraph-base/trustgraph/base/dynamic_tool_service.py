@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from argparse import ArgumentParser
 
 """
@@ -18,7 +19,6 @@ import logging
 import asyncio
 import argparse
 from prometheus_client import Counter
-from argparse import ArgumentParser
 
 from .. schema import ToolServiceRequest, ToolServiceResponse, Error
 from .. exceptions import TooManyRequests
@@ -26,7 +26,6 @@ from . async_processor import AsyncProcessor
 from . consumer import Consumer
 from . producer import Producer
 from . metrics import ConsumerMetrics, ProducerMetrics
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)

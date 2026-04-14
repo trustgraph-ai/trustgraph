@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Any
 from argparse import ArgumentParser
 
@@ -8,7 +9,6 @@ from argparse import ArgumentParser
 
 import json
 import logging
-from argparse import ArgumentParser
 
 from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
@@ -16,7 +16,6 @@ from .. schema import config_push_queue
 from .. log_level import LogLevel
 from . async_processor import AsyncProcessor
 from . flow import Flow
-from argparse import ArgumentParser
 
 # Module logger
 logger = logging.getLogger(__name__)
