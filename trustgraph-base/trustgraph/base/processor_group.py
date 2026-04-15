@@ -29,7 +29,7 @@ import time
 
 from prometheus_client import start_http_server
 
-from . logging import add_logging_args, setup_logging
+from . logging import add_logging_args, setup_logging, set_processor_id
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,13 @@ async def _supervise(entry):
 
     pid = entry["params"]["id"]
     class_path = entry["class"]
+
+    # Stamp the contextvar for this supervisor task.  Every log
+    # record emitted from this task — and from any inner TaskGroup
+    # child created by the processor — inherits this id via
+    # contextvar propagation.  Siblings in the outer group set
+    # their own id in their own task context and do not interfere.
+    set_processor_id(pid)
 
     while True:
 

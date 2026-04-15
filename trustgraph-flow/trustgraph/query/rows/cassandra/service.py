@@ -23,6 +23,7 @@ from .... schema import RowsQueryRequest, RowsQueryResponse, GraphQLError
 from .... schema import Error, RowSchema, Field as SchemaField
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .... tables.cassandra_async import async_execute
 
 from ... graphql import GraphQLSchemaBuilder, SortDirection
 
@@ -263,7 +264,7 @@ class Processor(FlowProcessor):
                 query += f" LIMIT {limit}"
 
             try:
-                rows = self.session.execute(query, params)
+                rows = await async_execute(self.session, query, params)
                 for row in rows:
                     # Convert data map to dict with proper field names
                     row_dict = dict(row.data) if row.data else {}
@@ -301,7 +302,7 @@ class Processor(FlowProcessor):
             params = [collection, schema_name, primary_index]
 
             try:
-                rows = self.session.execute(query, params)
+                rows = await async_execute(self.session, query, params)
 
                 for row in rows:
                     row_dict = dict(row.data) if row.data else {}

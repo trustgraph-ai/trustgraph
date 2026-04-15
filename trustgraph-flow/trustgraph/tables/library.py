@@ -31,6 +31,8 @@ import time
 import asyncio
 import logging
 
+from . cassandra_async import async_execute
+
 logger = logging.getLogger(__name__)
 
 class LibraryTableStore:
@@ -321,18 +323,13 @@ class LibraryTableStore:
 
     async def document_exists(self, user, id):
 
-        resp = self.cassandra.execute(
+        rows = await async_execute(
+            self.cassandra,
             self.test_document_exists_stmt,
-            ( user, id )
+            (user, id),
         )
 
-        # If a row exists, document exists.  It's a cursor, can't just
-        # count the length
-
-        for row in resp:
-            return True
-
-        return False
+        return bool(rows)
 
     async def add_document(self, document, object_id):
 
@@ -349,26 +346,20 @@ class LibraryTableStore:
         parent_id = getattr(document, 'parent_id', '') or ''
         document_type = getattr(document, 'document_type', 'source') or 'source'
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_document_stmt,
-                    (
-                        document.id, document.user, int(document.time * 1000),
-                        document.kind, document.title, document.comments,
-                        metadata, document.tags, object_id,
-                        parent_id, document_type
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_document_stmt,
+                (
+                    document.id, document.user, int(document.time * 1000),
+                    document.kind, document.title, document.comments,
+                    metadata, document.tags, object_id,
+                    parent_id, document_type
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Add complete")
 
@@ -383,25 +374,19 @@ class LibraryTableStore:
             for v in document.metadata
         ]
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.update_document_stmt,
-                    (
-                        int(document.time * 1000), document.title,
-                        document.comments, metadata, document.tags,
-                        document.user, document.id
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.update_document_stmt,
+                (
+                    int(document.time * 1000), document.title,
+                    document.comments, metadata, document.tags,
+                    document.user, document.id
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Update complete")
 
@@ -409,23 +394,15 @@ class LibraryTableStore:
 
         logger.info(f"Removing document {document_id}")
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_document_stmt,
-                    (
-                        user, document_id
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_document_stmt,
+                (user, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Delete complete")
 
@@ -433,21 +410,15 @@ class LibraryTableStore:
 
         logger.debug("List documents...")
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.list_document_stmt,
-                    (user,)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_document_stmt,
+                (user,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         lst = [
             DocumentMetadata(
@@ -469,7 +440,7 @@ class LibraryTableStore:
                 parent_id = row[8] if row[8] else "",
                 document_type = row[9] if row[9] else "source",
             )
-            for row in resp
+            for row in rows
         ]
 
         logger.debug("Done")
@@ -481,20 +452,15 @@ class LibraryTableStore:
 
         logger.debug(f"List children for parent {parent_id}")
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.list_children_stmt,
-                    (parent_id,)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_children_stmt,
+                (parent_id,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         lst = [
             DocumentMetadata(
@@ -516,7 +482,7 @@ class LibraryTableStore:
                 parent_id = row[9] if row[9] else "",
                 document_type = row[10] if row[10] else "source",
             )
-            for row in resp
+            for row in rows
         ]
 
         logger.debug("Done")
@@ -527,23 +493,17 @@ class LibraryTableStore:
 
         logger.debug("Get document")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_document_stmt,
+                (user, id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_document_stmt,
-                    (user, id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-
-        for row in resp:
+        for row in rows:
             doc = DocumentMetadata(
                 id = id,
                 user = user,
@@ -573,23 +533,17 @@ class LibraryTableStore:
 
         logger.debug("Get document obj ID")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_document_stmt,
+                (user, id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_document_stmt,
-                    (user, id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-
-        for row in resp:
+        for row in rows:
             logger.debug("Done")
             return row[6]
 
@@ -597,43 +551,32 @@ class LibraryTableStore:
 
     async def processing_exists(self, user, id):
 
-        resp = self.cassandra.execute(
+        rows = await async_execute(
+            self.cassandra,
             self.test_processing_exists_stmt,
-            ( user, id )
+            (user, id),
         )
 
-        # If a row exists, document exists.  It's a cursor, can't just
-        # count the length
-
-        for row in resp:
-            return True
-
-        return False
+        return bool(rows)
 
     async def add_processing(self, processing):
 
         logger.info(f"Adding processing {processing.id}")
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_processing_stmt,
-                    (
-                        processing.id, processing.document_id,
-                        int(processing.time * 1000), processing.flow,
-                        processing.user, processing.collection,
-                        processing.tags
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_processing_stmt,
+                (
+                    processing.id, processing.document_id,
+                    int(processing.time * 1000), processing.flow,
+                    processing.user, processing.collection,
+                    processing.tags
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Add complete")
 
@@ -641,23 +584,15 @@ class LibraryTableStore:
 
         logger.info(f"Removing processing {processing_id}")
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_processing_stmt,
-                    (
-                        user, processing_id
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_processing_stmt,
+                (user, processing_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Delete complete")
 
@@ -665,21 +600,15 @@ class LibraryTableStore:
 
         logger.debug("List processing objects")
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.list_processing_stmt,
-                    (user,)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_processing_stmt,
+                (user,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         lst = [
             ProcessingMetadata(
@@ -691,7 +620,7 @@ class LibraryTableStore:
                 collection = row[4],
                 tags = row[5] if row[5] else [],
             )
-            for row in resp
+            for row in rows
         ]
 
         logger.debug("Done")
@@ -718,20 +647,19 @@ class LibraryTableStore:
 
         now = int(time.time() * 1000)
 
-        while True:
-            try:
-                self.cassandra.execute(
-                    self.insert_upload_session_stmt,
-                    (
-                        upload_id, user, document_id, document_metadata,
-                        s3_upload_id, object_id, total_size, chunk_size,
-                        total_chunks, {}, now, now
-                    )
-                )
-                break
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_upload_session_stmt,
+                (
+                    upload_id, user, document_id, document_metadata,
+                    s3_upload_id, object_id, total_size, chunk_size,
+                    total_chunks, {}, now, now
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Upload session created")
 
@@ -740,18 +668,17 @@ class LibraryTableStore:
 
         logger.debug(f"Get upload session {upload_id}")
 
-        while True:
-            try:
-                resp = self.cassandra.execute(
-                    self.get_upload_session_stmt,
-                    (upload_id,)
-                )
-                break
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_upload_session_stmt,
+                (upload_id,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        for row in resp:
+        for row in rows:
             session = {
                 "upload_id": row[0],
                 "user": row[1],
@@ -778,20 +705,19 @@ class LibraryTableStore:
 
         now = int(time.time() * 1000)
 
-        while True:
-            try:
-                self.cassandra.execute(
-                    self.update_upload_session_chunk_stmt,
-                    (
-                        {chunk_index: etag},
-                        now,
-                        upload_id
-                    )
-                )
-                break
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.update_upload_session_chunk_stmt,
+                (
+                    {chunk_index: etag},
+                    now,
+                    upload_id
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Chunk recorded")
 
@@ -800,16 +726,15 @@ class LibraryTableStore:
 
         logger.info(f"Deleting upload session {upload_id}")
 
-        while True:
-            try:
-                self.cassandra.execute(
-                    self.delete_upload_session_stmt,
-                    (upload_id,)
-                )
-                break
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_upload_session_stmt,
+                (upload_id,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         logger.debug("Upload session deleted")
 
@@ -818,19 +743,18 @@ class LibraryTableStore:
 
         logger.debug(f"List upload sessions for {user}")
 
-        while True:
-            try:
-                resp = self.cassandra.execute(
-                    self.list_upload_sessions_stmt,
-                    (user,)
-                )
-                break
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_upload_sessions_stmt,
+                (user,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
         sessions = []
-        for row in resp:
+        for row in rows:
             chunks_received = row[6] if row[6] else {}
             sessions.append({
                 "upload_id": row[0],

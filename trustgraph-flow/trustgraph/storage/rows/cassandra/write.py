@@ -13,6 +13,7 @@ Uses a single 'rows' table with the schema:
 Each row is written multiple times - once per indexed field defined in the schema.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -26,6 +27,7 @@ from .... schema import RowSchema, Field
 from .... base import FlowProcessor, ConsumerSpec
 from .... base import CollectionConfigHandler
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .... tables.cassandra_async import async_execute
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -361,11 +363,15 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         schema_name = obj.schema_name
         source = getattr(obj.metadata, 'source', '') or ''
 
-        # Ensure tables exist
-        self.ensure_tables(keyspace)
+        # Ensure tables exist (sync DDL — push to a worker thread
+        # so the event loop stays responsive when running in a
+        # processor group sharing the loop with siblings).
+        await asyncio.to_thread(self.ensure_tables, keyspace)
 
         # Register partitions if first time seeing this (collection, schema_name)
-        self.register_partitions(keyspace, collection, schema_name)
+        await asyncio.to_thread(
+            self.register_partitions, keyspace, collection, schema_name
+        )
 
         safe_keyspace = self.sanitize_name(keyspace)
 
@@ -406,9 +412,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     continue
 
                 try:
-                    self.session.execute(
+                    await async_execute(
+                        self.session,
                         insert_cql,
-                        (collection, schema_name, index_name, index_value, data_map, source)
+                        (collection, schema_name, index_name, index_value, data_map, source),
                     )
                     rows_written += 1
                 except Exception as e:
@@ -425,18 +432,18 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
     async def create_collection(self, user: str, collection: str, metadata: dict):
         """Create/verify collection exists in Cassandra row store"""
-        # Connect if not already connected
-        self.connect_cassandra()
+        # Connect if not already connected (sync, push to thread)
+        await asyncio.to_thread(self.connect_cassandra)
 
-        # Ensure tables exist
-        self.ensure_tables(user)
+        # Ensure tables exist (sync DDL, push to thread)
+        await asyncio.to_thread(self.ensure_tables, user)
 
         logger.info(f"Collection {collection} ready for user {user}")
 
     async def delete_collection(self, user: str, collection: str):
         """Delete all data for a specific collection using partition tracking"""
         # Connect if not already connected
-        self.connect_cassandra()
+        await asyncio.to_thread(self.connect_cassandra)
 
         safe_keyspace = self.sanitize_name(user)
 
@@ -446,8 +453,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             SELECT keyspace_name FROM system_schema.keyspaces
             WHERE keyspace_name = %s
             """
-            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
-            if not result.one():
+            result = await async_execute(
+                self.session, check_keyspace_cql, (safe_keyspace,)
+            )
+            if not result:
                 logger.info(f"Keyspace {safe_keyspace} does not exist, nothing to delete")
                 return
             self.known_keyspaces.add(user)
@@ -459,8 +468,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """
 
         try:
-            partitions = self.session.execute(select_partitions_cql, (collection,))
-            partition_list = list(partitions)
+            partition_list = await async_execute(
+                self.session, select_partitions_cql, (collection,)
+            )
         except Exception as e:
             logger.error(f"Failed to query partitions for collection {collection}: {e}")
             raise
@@ -474,9 +484,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         partitions_deleted = 0
         for partition in partition_list:
             try:
-                self.session.execute(
+                await async_execute(
+                    self.session,
                     delete_rows_cql,
-                    (collection, partition.schema_name, partition.index_name)
+                    (collection, partition.schema_name, partition.index_name),
                 )
                 partitions_deleted += 1
             except Exception as e:
@@ -493,7 +504,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """
 
         try:
-            self.session.execute(delete_partitions_cql, (collection,))
+            await async_execute(
+                self.session, delete_partitions_cql, (collection,)
+            )
         except Exception as e:
             logger.error(f"Failed to clean up row_partitions for {collection}: {e}")
             raise
@@ -512,7 +525,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
     async def delete_collection_schema(self, user: str, collection: str, schema_name: str):
         """Delete all data for a specific collection + schema combination"""
         # Connect if not already connected
-        self.connect_cassandra()
+        await asyncio.to_thread(self.connect_cassandra)
 
         safe_keyspace = self.sanitize_name(user)
 
@@ -523,8 +536,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """
 
         try:
-            partitions = self.session.execute(select_partitions_cql, (collection, schema_name))
-            partition_list = list(partitions)
+            partition_list = await async_execute(
+                self.session, select_partitions_cql, (collection, schema_name)
+            )
         except Exception as e:
             logger.error(
                 f"Failed to query partitions for {collection}/{schema_name}: {e}"
@@ -540,9 +554,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         partitions_deleted = 0
         for partition in partition_list:
             try:
-                self.session.execute(
+                await async_execute(
+                    self.session,
                     delete_rows_cql,
-                    (collection, schema_name, partition.index_name)
+                    (collection, schema_name, partition.index_name),
                 )
                 partitions_deleted += 1
             except Exception as e:
@@ -559,7 +574,11 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """
 
         try:
-            self.session.execute(delete_partitions_cql, (collection, schema_name))
+            await async_execute(
+                self.session,
+                delete_partitions_cql,
+                (collection, schema_name),
+            )
         except Exception as e:
             logger.error(
                 f"Failed to clean up row_partitions for {collection}/{schema_name}: {e}"

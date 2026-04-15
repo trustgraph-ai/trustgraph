@@ -4,6 +4,8 @@ from .. schema import Metadata, Term, IRI, LITERAL, GraphEmbeddings
 
 from cassandra.cluster import Cluster
 
+from . cassandra_async import async_execute
+
 
 def term_to_tuple(term):
     """Convert Term to (value, is_uri) tuple for database storage."""
@@ -225,25 +227,19 @@ class KnowledgeTableStore:
             for v in m.triples
         ]
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_triples_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.root or m.metadata.id, when,
-                        [], triples,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_triples_stmt,
+                (
+                    uuid.uuid4(), m.metadata.user,
+                    m.metadata.root or m.metadata.id, when,
+                    [], triples,
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
     async def add_graph_embeddings(self, m):
 
@@ -257,25 +253,19 @@ class KnowledgeTableStore:
             for v in m.entities
         ]
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_graph_embeddings_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.root or m.metadata.id, when,
-                        [], entities,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_graph_embeddings_stmt,
+                (
+                    uuid.uuid4(), m.metadata.user,
+                    m.metadata.root or m.metadata.id, when,
+                    [], entities,
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
     async def add_document_embeddings(self, m):
 
@@ -289,50 +279,35 @@ class KnowledgeTableStore:
             for v in m.chunks
         ]
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_document_embeddings_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.root or m.metadata.id, when,
-                        [], chunks,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_document_embeddings_stmt,
+                (
+                    uuid.uuid4(), m.metadata.user,
+                    m.metadata.root or m.metadata.id, when,
+                    [], chunks,
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
     async def list_kg_cores(self, user):
 
         logger.debug("List kg cores...")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_cores_stmt,
+                (user,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.list_cores_stmt,
-                    (user,)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-
-        lst = [
-            row[1]
-            for row in resp
-        ]
+        lst = [row[1] for row in rows]
 
         logger.debug("Done")
 
@@ -342,56 +317,41 @@ class KnowledgeTableStore:
 
         logger.debug("Delete kg cores...")
 
-        while True:
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_triples_stmt,
+                (user, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_triples_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_graph_embeddings_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_graph_embeddings_stmt,
+                (user, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
     async def get_triples(self, user, document_id, receiver):
 
         logger.debug("Get triples...")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_triples_stmt,
+                (user, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_triples_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        for row in resp:
+        for row in rows:
 
             if row[3]:
                 triples = [
@@ -422,22 +382,17 @@ class KnowledgeTableStore:
 
         logger.debug("Get GE...")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_graph_embeddings_stmt,
+                (user, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_graph_embeddings_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        for row in resp:
+        for row in rows:
 
             if row[3]:
                 entities = [

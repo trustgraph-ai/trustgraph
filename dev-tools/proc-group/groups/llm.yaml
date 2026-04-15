@@ -1,0 +1,24 @@
+# LLM.  Outbound text-completion calls.  Isolated because the upstream
+# LLM API is often the bottleneck and the most likely thing to need
+# restart (provider changes, model changes, API flakiness).
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.model.text_completion.openai.Processor
+    params:
+      <<: *defaults
+      id: text-completion
+      max_output: 8192
+      temperature: 0.0
+
+  - class: trustgraph.model.text_completion.openai.Processor
+    params:
+      <<: *defaults
+      id: text-completion-rag
+      max_output: 8192
+      temperature: 0.0
