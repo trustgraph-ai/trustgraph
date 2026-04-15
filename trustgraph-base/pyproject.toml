@@ -15,6 +15,7 @@ dependencies = [
     "requests",
     "python-logging-loki",
     "pika",
+    "pyyaml",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
