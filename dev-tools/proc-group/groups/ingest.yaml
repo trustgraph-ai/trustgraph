@@ -1,0 +1,52 @@
+# Ingest pipeline.  Document-processing hot path.  Bursty, correlated
+# failures — if chunker dies the extractors have nothing to do anyway.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.chunking.recursive.Processor
+    params:
+      <<: *defaults
+      id: chunker
+      chunk_size: 2000
+      chunk_overlap: 50
+
+  - class: trustgraph.extract.kg.agent.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-agent
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.definitions.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-definitions
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.ontology.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-ontology
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.relationships.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-relationships
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.rows.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-rows
+      concurrency: 1
+
+  - class: trustgraph.prompt.template.Processor
+    params:
+      <<: *defaults
+      id: prompt
+      concurrency: 1
