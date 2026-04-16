@@ -2,7 +2,7 @@
 import asyncio
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Provenance imports
 from trustgraph.provenance import (
@@ -199,7 +199,7 @@ class DocumentRag:
         exp_uri = docrag_exploration_uri(session_id)
         syn_uri = docrag_synthesis_uri(session_id)
 
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # Emit question explainability immediately
         if explain_callback:

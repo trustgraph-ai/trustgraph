@@ -13,7 +13,7 @@ Agent provenance tracks the reasoning trace of agent sessions:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
 from .. schema import Triple, Term, IRI, LITERAL
@@ -87,7 +87,7 @@ def agent_session_triples(
         List of Triple objects
     """
     if timestamp is None:
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     triples = [
         _triple(session_uri, RDF_TYPE, _iri(PROV_ENTITY)),

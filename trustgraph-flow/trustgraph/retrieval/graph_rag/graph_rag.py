@@ -7,7 +7,7 @@ import math
 import time
 import uuid
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ... schema import Term, Triple as SchemaTriple, IRI, LITERAL, TRIPLE
 from ... knowledge import Uri, Literal
@@ -643,7 +643,7 @@ class GraphRag:
         foc_uri = make_focus_uri(session_id)
         syn_uri = make_synthesis_uri(session_id)
 
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # Emit question explainability immediately
         if explain_callback:

@@ -2,7 +2,7 @@
 Helper functions to build PROV-O triples for extraction-time provenance.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from .. schema import Triple, Term, IRI, LITERAL, TRIPLE
@@ -192,7 +192,7 @@ def derived_entity_triples(
         List of Triple objects
     """
     if timestamp is None:
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     act_uri = activity_uri()
     agt_uri = agent_uri(component_name)
@@ -309,7 +309,7 @@ def subgraph_provenance_triples(
         List of Triple objects for the provenance
     """
     if timestamp is None:
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     act_uri = activity_uri()
     agt_uri = agent_uri(component_name)
@@ -386,7 +386,7 @@ def question_triples(
         List of Triple objects
     """
     if timestamp is None:
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     triples = [
         _triple(question_uri, RDF_TYPE, _iri(PROV_ENTITY)),
@@ -640,7 +640,7 @@ def docrag_question_triples(
         List of Triple objects
     """
     if timestamp is None:
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     triples = [
         _triple(question_uri, RDF_TYPE, _iri(PROV_ENTITY)),

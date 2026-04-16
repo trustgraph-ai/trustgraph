@@ -9,7 +9,7 @@ librarian integration.
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 from ... schema import Triples, Metadata
@@ -253,7 +253,7 @@ class PatternBase:
                                    collection, respond, streaming,
                                    parent_uri=None):
         """Emit provenance triples for a new session."""
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         triples = set_graph(
             agent_session_triples(
                 session_uri, question, timestamp,
