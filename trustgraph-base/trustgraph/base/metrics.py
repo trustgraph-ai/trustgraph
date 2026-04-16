@@ -3,6 +3,12 @@ from prometheus_client import start_http_server, Info, Enum, Histogram
 from prometheus_client import Counter
 
 class ConsumerMetrics:
+    """
+    Metrics tracking and reporting for flow consumers.
+    
+    This class manages prometheus metrics specifically related to consumers 
+    within the flow, including state, requests, processing time, and queues.
+    """
 
     def __init__(self, processor, flow, name):
 
