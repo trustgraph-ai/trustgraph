@@ -2,6 +2,13 @@
 import asyncio
 
 class Flow:
+    """
+    Runtime representation of a deployed flow process.
+    
+    This class maintains internal processor states and orchestrates
+    lifecycles (start, stop) for inputs (consumers) and parameters 
+    that drive data flowing across linked nodes.
+    """
     def __init__(self, id, flow, processor, defn):
 
         self.id = id
