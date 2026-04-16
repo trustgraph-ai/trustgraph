@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Base class for dynamically pluggable tool services.
 
@@ -13,6 +9,10 @@ Uses direct Pulsar topics (no flow configuration required):
 - Request: non-persistent://tg/request/{topic}
 - Response: non-persistent://tg/response/{topic}
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import json
 import logging

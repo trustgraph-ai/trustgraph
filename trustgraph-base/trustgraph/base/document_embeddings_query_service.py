@@ -1,11 +1,11 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Document embeddings query service.  Input is vectors.  Output is list of
 embeddings.
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 

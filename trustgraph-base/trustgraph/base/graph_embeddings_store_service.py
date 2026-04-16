@@ -1,10 +1,10 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Graph embeddings store base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 
