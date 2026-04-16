@@ -10,7 +10,7 @@ import sys
 import functools
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -452,7 +452,7 @@ class Processor(AgentService):
 
             # On first iteration, emit session triples
             if iteration_num == 1:
-                timestamp = datetime.utcnow().isoformat() + "Z"
+                timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
                 triples = set_graph(
                     agent_session_triples(session_uri, request.question, timestamp),
                     GRAPH_RETRIEVAL

@@ -1,10 +1,10 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Document embeddings store base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 

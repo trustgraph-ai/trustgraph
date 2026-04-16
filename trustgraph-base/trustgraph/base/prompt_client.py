@@ -1,6 +1,7 @@
 
 import json
 import asyncio
+import inspect
 from dataclasses import dataclass
 from typing import Optional, Any
 
@@ -80,7 +81,7 @@ class PromptClient(RequestResponse):
 
                 if resp.text is not None:
                     if chunk_callback:
-                        if asyncio.iscoroutinefunction(chunk_callback):
+                        if inspect.iscoroutinefunction(chunk_callback):
                             await chunk_callback(resp.text, end_stream)
                         else:
                             chunk_callback(resp.text, end_stream)
