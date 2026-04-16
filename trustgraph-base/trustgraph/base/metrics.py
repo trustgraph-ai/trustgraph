@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any
 
 from prometheus_client import start_http_server, Info, Enum, Histogram
 from prometheus_client import Counter
@@ -10,7 +13,7 @@ class ConsumerMetrics:
     within the flow, including state, requests, processing time, and queues.
     """
 
-    def __init__(self, processor, flow, name):
+    def __init__(self, processor: str, flow: str, name: str) -> None:
 
         self.processor = processor
         self.flow = flow
@@ -41,30 +44,30 @@ class ConsumerMetrics:
                 ["processor", "flow", "name"],
             )
 
-    def process(self, status):
+    def process(self, status: str) -> None:
         __class__.processing_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
             status=status
         ).inc()
 
-    def rate_limit(self):
+    def rate_limit(self) -> None:
         __class__.rate_limit_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
         ).inc()
 
-    def state(self, state):
+    def state(self, state: str) -> None:
         __class__.state_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
         ).state(state)
 
-    def record_time(self):
+    def record_time(self) -> Any:
         return __class__.request_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
         ).time()
 
 class ProducerMetrics:
 
-    def __init__(self, processor, flow, name):
+    def __init__(self, processor: str, flow: str, name: str) -> None:
 
         self.processor = processor
         self.flow = flow
@@ -76,13 +79,13 @@ class ProducerMetrics:
                 ["processor", "flow", "name"],
             )
 
-    def inc(self):
+    def inc(self) -> None:
         __class__.producer_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name
         ).inc()
 
 class ProcessorMetrics:
-    def __init__(self, processor):
+    def __init__(self, processor: str) -> None:
 
         self.processor = processor
 
@@ -92,14 +95,14 @@ class ProcessorMetrics:
                 ["processor"]
             )
 
-    def info(self, info):
+    def info(self, info: dict[str, str]) -> None:
         __class__.processor_metric.labels(
             processor = self.processor
         ).info(info)
 
 class SubscriberMetrics:
 
-    def __init__(self, processor, flow, name):
+    def __init__(self, processor: str, flow: str, name: str) -> None:
 
         self.processor = processor
         self.flow = flow
@@ -124,19 +127,18 @@ class SubscriberMetrics:
                 ["processor", "flow", "name"],
             )
 
-    def received(self):
+    def received(self) -> None:
         __class__.received_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
         ).inc()
 
-    def state(self, state):
+    def state(self, state: str) -> None:
 
         __class__.state_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
         ).state(state)
 
-    def dropped(self, state):
+    def dropped(self, state: str) -> None:
         __class__.dropped_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name,
         ).inc()
-

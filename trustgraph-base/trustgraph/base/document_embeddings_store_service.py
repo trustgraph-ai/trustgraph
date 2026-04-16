@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 Document embeddings store base class
@@ -49,7 +52,7 @@ class DocumentEmbeddingsStoreService(FlowProcessor):
             raise e
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

@@ -1,6 +1,9 @@
+from __future__ import annotations
 
 import os
 import logging
+from argparse import ArgumentParser
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ DEFAULT_RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", 'guest')
 DEFAULT_RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST", '/')
 
 
-def get_pubsub(**config):
+def get_pubsub(**config: Any) -> Any:
     """
     Factory function to create a pub/sub backend based on configuration.
 
@@ -51,7 +54,7 @@ def get_pubsub(**config):
 STANDALONE_PULSAR_HOST = 'pulsar://localhost:6650'
 
 
-def add_pubsub_args(parser, standalone=False):
+def add_pubsub_args(parser: ArgumentParser, standalone: bool = False) -> None:
     """Add pub/sub CLI arguments to an argument parser.
 
     Args:

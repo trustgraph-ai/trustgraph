@@ -1,7 +1,9 @@
+from __future__ import annotations
 
 import uuid
 import asyncio
 import logging
+from typing import Any
 
 from . subscriber import Subscriber
 from . producer import Producer
@@ -115,7 +117,7 @@ class RequestResponseSpec(Spec):
         self.response_schema = response_schema
         self.impl = impl
 
-    def add(self, flow, processor, definition):
+    def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
 
         request_metrics = ProducerMetrics(
             processor = flow.id, flow = flow.name, name = self.request_name
