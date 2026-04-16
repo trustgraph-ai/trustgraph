@@ -8,12 +8,51 @@ ensuring consistent log formats, levels, and command-line arguments.
 Supports dual output to console and Loki for centralized log aggregation.
 """
 
+import contextvars
 import logging
 import logging.handlers
 from argparse import ArgumentParser
 from queue import Queue
 from typing import Any
 import os
+
+
+# The current processor id for this task context.  Read by
+# _ProcessorIdFilter to stamp every LogRecord with its owning
+# processor, and read by logging_loki's emitter via record.tags
+# to label log lines in Loki.  ContextVar so asyncio subtasks
+# inherit their parent supervisor's processor id automatically.
+current_processor_id = contextvars.ContextVar(
+    "current_processor_id", default="unknown"
+)
+
+
+def set_processor_id(pid):
+    """Set the processor id for the current task context.
+
+    All subsequent log records emitted from this task — and any
+    asyncio tasks spawned from it — will be tagged with this id
+    in the console format and in Loki labels.
+    """
+    current_processor_id.set(pid)
+
+
+class _ProcessorIdFilter(logging.Filter):
+    """Stamps every LogRecord with processor_id from the contextvar.
+
+    Attaches two fields to each record:
+        record.processor_id — used by the console format string
+        record.tags         — merged into Loki labels by logging_loki's
+                              emitter (it reads record.tags and combines
+                              with the handler's static tags)
+    """
+
+    def filter(self, record):
+        pid = current_processor_id.get()
+        record.processor_id = pid
+        existing = getattr(record, "tags", None) or {}
+        record.tags = {**existing, "processor": pid}
+        return True
 
 
 def add_logging_args(parser: ArgumentParser) -> None:
@@ -89,12 +128,15 @@ def setup_logging(args: dict[str, Any]) -> None:
         loki_url = args.get('loki_url', 'http://loki:3100/loki/api/v1/push')
         loki_username = args.get('loki_username')
         loki_password = args.get('loki_password')
-        processor_id = args.get('id')  # Processor identity (e.g., "config-svc", "text-completion")
 
         try:
             from logging_loki import LokiHandler
 
-            # Create Loki handler with optional authentication and processor label
+            # Create Loki handler with optional authentication.  The
+            # processor label is NOT baked in here — it's stamped onto
+            # each record by _ProcessorIdFilter reading the task-local
+            # contextvar, and logging_loki's emitter reads record.tags
+            # to build per-record Loki labels.
             loki_handler_kwargs = {
                 'url': loki_url,
                 'version': "1",
@@ -102,10 +144,6 @@ def setup_logging(args: dict[str, Any]) -> None:
 
             if loki_username and loki_password:
                 loki_handler_kwargs['auth'] = (loki_username, loki_password)
-
-            # Add processor label if available (for consistency with Prometheus metrics)
-            if processor_id:
-                loki_handler_kwargs['tags'] = {'processor': processor_id}
 
             loki_handler = LokiHandler(**loki_handler_kwargs)
 
@@ -135,23 +173,44 @@ def setup_logging(args: dict[str, Any]) -> None:
             print(f"WARNING: Failed to setup Loki logging: {e}")
             print("Continuing with console-only logging")
 
-    # Get processor ID for log formatting (use 'unknown' if not available)
-    processor_id = args.get('id', 'unknown')
-
-    # Configure logging with all handlers
-    # Use processor ID as the primary identifier in logs
+    # Configure logging with all handlers.  The processor id comes
+    # from _ProcessorIdFilter (via contextvar) and is injected into
+    # each record as record.processor_id.  The format string reads
+    # that attribute on every emit.
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format=f'%(asctime)s - {processor_id} - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(processor_id)s - %(levelname)s - %(message)s',
         handlers=handlers,
         force=True  # Force reconfiguration if already configured
     )
 
-    # Prevent recursive logging from Loki's HTTP client
-    if loki_enabled and queue_listener:
-        # Disable urllib3 logging to prevent infinite loop
-        logging.getLogger('urllib3').setLevel(logging.WARNING)
-        logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+    # Attach the processor-id filter to every handler so all records
+    # passing through any sink get stamped (console, queue→loki,
+    # future handlers).  Filters on handlers run regardless of which
+    # logger originated the record, so logs from pika, cassandra,
+    # processor code, etc. all pass through it.
+    processor_filter = _ProcessorIdFilter()
+    for h in handlers:
+        h.addFilter(processor_filter)
+
+    # Seed the contextvar from --id if one was supplied.  In group
+    # mode --id isn't present; the processor_group supervisor sets
+    # it per task.  In standalone mode AsyncProcessor.launch provides
+    # it via argparse default.
+    if args.get('id'):
+        set_processor_id(args['id'])
+
+    # Silence noisy third-party library loggers.  These emit INFO-level
+    # chatter (connection churn, channel open/close, driver warnings) that
+    # drowns the useful signal and can't be attributed to a specific
+    # processor anyway.  WARNING and above still propagate.
+    for noisy in (
+        'pika',
+        'cassandra',
+        'urllib3',
+        'urllib3.connectionpool',
+    ):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured with level: {log_level}")

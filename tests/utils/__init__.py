@@ -9,7 +9,7 @@ from .streaming_assertions import (
     assert_streaming_content_matches,
     assert_no_empty_chunks,
     assert_streaming_error_handled,
-    assert_chunk_types_valid,
+    assert_message_types_valid,
     assert_streaming_latency_acceptable,
     assert_callback_invoked,
 )
@@ -23,7 +23,7 @@ __all__ = [
     "assert_streaming_content_matches",
     "assert_no_empty_chunks",
     "assert_streaming_error_handled",
-    "assert_chunk_types_valid",
+    "assert_message_types_valid",
     "assert_streaming_latency_acceptable",
     "assert_callback_invoked",
 ]

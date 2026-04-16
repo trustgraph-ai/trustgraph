@@ -59,6 +59,7 @@ from . uris import (
     agent_plan_uri,
     agent_step_result_uri,
     agent_synthesis_uri,
+    agent_pattern_decision_uri,
     # Document RAG provenance URIs
     docrag_question_uri,
     docrag_grounding_uri,
@@ -102,6 +103,11 @@ from . namespaces import (
     # Agent provenance predicates
     TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
     TG_SUBAGENT_GOAL, TG_PLAN_STEP,
+    TG_TOOL_CANDIDATE, TG_TERMINATION_REASON,
+    TG_STEP_NUMBER, TG_PATTERN_DECISION, TG_PATTERN, TG_TASK_TYPE,
+    TG_LLM_DURATION_MS, TG_TOOL_DURATION_MS, TG_TOOL_ERROR,
+    TG_IN_TOKEN, TG_OUT_TOKEN,
+    TG_ERROR_TYPE,
     # Orchestrator entity types
     TG_DECOMPOSITION, TG_FINDING, TG_PLAN_TYPE, TG_STEP_RESULT,
     # Document reference predicate
@@ -141,6 +147,7 @@ from . agent import (
     agent_plan_triples,
     agent_step_result_triples,
     agent_synthesis_triples,
+    agent_pattern_decision_triples,
 )
 
 # Vocabulary bootstrap
@@ -182,6 +189,7 @@ __all__ = [
     "agent_plan_uri",
     "agent_step_result_uri",
     "agent_synthesis_uri",
+    "agent_pattern_decision_uri",
     # Document RAG provenance URIs
     "docrag_question_uri",
     "docrag_grounding_uri",
@@ -218,6 +226,11 @@ __all__ = [
     # Agent provenance predicates
     "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION",
     "TG_SUBAGENT_GOAL", "TG_PLAN_STEP",
+    "TG_TOOL_CANDIDATE", "TG_TERMINATION_REASON",
+    "TG_STEP_NUMBER", "TG_PATTERN_DECISION", "TG_PATTERN", "TG_TASK_TYPE",
+    "TG_LLM_DURATION_MS", "TG_TOOL_DURATION_MS", "TG_TOOL_ERROR",
+    "TG_IN_TOKEN", "TG_OUT_TOKEN",
+    "TG_ERROR_TYPE",
     # Orchestrator entity types
     "TG_DECOMPOSITION", "TG_FINDING", "TG_PLAN_TYPE", "TG_STEP_RESULT",
     # Document reference predicate
@@ -249,6 +262,7 @@ __all__ = [
     "agent_plan_triples",
     "agent_step_result_triples",
     "agent_synthesis_triples",
+    "agent_pattern_decision_triples",
     # Utility
     "set_graph",
     # Vocabulary

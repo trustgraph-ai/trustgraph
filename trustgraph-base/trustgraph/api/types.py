@@ -149,10 +149,10 @@ class AgentThought(StreamingChunk):
     Attributes:
         content: Agent's thought text
         end_of_message: True if this completes the current thought
-        chunk_type: Always "thought"
+        message_type: Always "thought"
         message_id: Provenance URI of the entity being built
     """
-    chunk_type: str = "thought"
+    message_type: str = "thought"
     message_id: str = ""
 
 @dataclasses.dataclass
@@ -166,10 +166,10 @@ class AgentObservation(StreamingChunk):
     Attributes:
         content: Observation text describing tool results
         end_of_message: True if this completes the current observation
-        chunk_type: Always "observation"
+        message_type: Always "observation"
         message_id: Provenance URI of the entity being built
     """
-    chunk_type: str = "observation"
+    message_type: str = "observation"
     message_id: str = ""
 
 @dataclasses.dataclass
@@ -184,11 +184,14 @@ class AgentAnswer(StreamingChunk):
         content: Answer text
         end_of_message: True if this completes the current answer segment
         end_of_dialog: True if this completes the entire agent interaction
-        chunk_type: Always "final-answer"
+        message_type: Always "final-answer"
     """
-    chunk_type: str = "final-answer"
+    message_type: str = "final-answer"
     end_of_dialog: bool = False
     message_id: str = ""
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 @dataclasses.dataclass
 class RAGChunk(StreamingChunk):
@@ -202,11 +205,37 @@ class RAGChunk(StreamingChunk):
         content: Generated text content
         end_of_stream: True if this is the final chunk of the stream
         error: Optional error information if an error occurred
-        chunk_type: Always "rag"
+        in_token: Input token count (populated on the final chunk, 0 otherwise)
+        out_token: Output token count (populated on the final chunk, 0 otherwise)
+        model: Model identifier (populated on the final chunk, empty otherwise)
+        message_type: Always "rag"
     """
-    chunk_type: str = "rag"
+    message_type: str = "rag"
     end_of_stream: bool = False
     error: Optional[Dict[str, str]] = None
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
+
+@dataclasses.dataclass
+class TextCompletionResult:
+    """
+    Result from a text completion request.
+
+    Returned by text_completion() in both streaming and non-streaming modes.
+    In streaming mode, text is None (chunks are delivered via the iterator).
+    In non-streaming mode, text contains the complete response.
+
+    Attributes:
+        text: Complete response text (None in streaming mode)
+        in_token: Input token count (None if not available)
+        out_token: Output token count (None if not available)
+        model: Model identifier (None if not available)
+    """
+    text: Optional[str]
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 @dataclasses.dataclass
 class ProvenanceEvent:

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "OpenAPI Specification - Technical Spec"
+parent: "Tech Specs"
+---
+
 # OpenAPI Specification - Technical Spec
 
 ## Goal

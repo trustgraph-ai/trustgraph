@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 default_ident = "triples-write"
 
 class TriplesStoreService(FlowProcessor):
+    """
+    Component for maintaining the triples store.
+    
+    This service acts as a processor in the flow that receives knowledge triples 
+    and writes them persistently into an overarching graph database or equivalent backend.
+    """
 
     def __init__(self, **params):
 

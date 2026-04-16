@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Config Push 'Notify' Pattern Technical Specification"
+parent: "Tech Specs"
+---
+
 # Config Push "Notify" Pattern Technical Specification
 
 ## Overview

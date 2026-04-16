@@ -16,6 +16,7 @@ from trustgraph.schema import (
     Error
 )
 from trustgraph.agent.react.service import Processor
+from trustgraph.base import PromptResult
 
 
 @pytest.mark.integration  
@@ -95,11 +96,14 @@ class TestAgentStructuredQueryIntegration:
         
         # Mock the prompt client that agent calls for reasoning
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.agent_react.return_value = """Thought: I need to find customers from New York using structured query
+        mock_prompt_client.agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to find customers from New York using structured query
 Action: structured-query
 Args: {
     "question": "Find all customers from New York"
 }"""
+        )
         
         # Set up flow context routing
         def flow_context(service_name):
@@ -173,11 +177,14 @@ Args: {
         
         # Mock the prompt client that agent calls for reasoning
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.agent_react.return_value = """Thought: I need to query for a table that might not exist
+        mock_prompt_client.agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to query for a table that might not exist
 Action: structured-query
 Args: {
     "question": "Find data from a table that doesn't exist"
 }"""
+        )
         
         # Set up flow context routing
         def flow_context(service_name):
@@ -250,11 +257,14 @@ Args: {
         
         # Mock the prompt client that agent calls for reasoning
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.agent_react.return_value = """Thought: I need to find customers from California first
+        mock_prompt_client.agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to find customers from California first
 Action: structured-query
 Args: {
     "question": "Find all customers from California"
 }"""
+        )
         
         # Set up flow context routing
         def flow_context(service_name):
@@ -339,11 +349,14 @@ Args: {
         
         # Mock the prompt client that agent calls for reasoning
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.agent_react.return_value = """Thought: I need to query the sales data
+        mock_prompt_client.agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to query the sales data
 Action: structured-query
 Args: {
     "question": "Query the sales data for recent transactions"
 }"""
+        )
         
         # Set up flow context routing
         def flow_context(service_name):
@@ -447,11 +460,14 @@ Args: {
         
         # Mock the prompt client that agent calls for reasoning
         mock_prompt_client = AsyncMock()
-        mock_prompt_client.agent_react.return_value = """Thought: I need to get customer information
+        mock_prompt_client.agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to get customer information
 Action: structured-query
 Args: {
     "question": "Get customer information and format it nicely"
 }"""
+        )
         
         # Set up flow context routing
         def flow_context(service_name):

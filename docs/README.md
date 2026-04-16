@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Home"
+nav_order: 1
+---
+
 # TrustGraph Documentation
 
 Welcome to TrustGraph! For comprehensive documentation, please visit:
@@ -18,4 +24,3 @@ The main documentation site includes:
 **Ready to deploy?** Check out the [Deployment Guide](https://docs.trustgraph.ai/deployment).
 
 **Integrating with code?** See the [API Reference](https://docs.trustgraph.ai/reference) for REST, WebSocket, and SDK documentation.
-

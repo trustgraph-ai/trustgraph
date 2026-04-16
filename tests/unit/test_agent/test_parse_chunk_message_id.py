@@ -20,7 +20,7 @@ class TestParseChunkMessageId:
 
     def test_thought_message_id(self, client):
         resp = {
-            "chunk_type": "thought",
+            "message_type": "thought",
             "content": "thinking...",
             "end_of_message": False,
             "message_id": "urn:trustgraph:agent:sess/i1/thought",
@@ -31,7 +31,7 @@ class TestParseChunkMessageId:
 
     def test_observation_message_id(self, client):
         resp = {
-            "chunk_type": "observation",
+            "message_type": "observation",
             "content": "result",
             "end_of_message": True,
             "message_id": "urn:trustgraph:agent:sess/i1/observation",
@@ -42,7 +42,7 @@ class TestParseChunkMessageId:
 
     def test_answer_message_id(self, client):
         resp = {
-            "chunk_type": "answer",
+            "message_type": "answer",
             "content": "the answer",
             "end_of_message": False,
             "end_of_dialog": False,
@@ -54,7 +54,7 @@ class TestParseChunkMessageId:
 
     def test_thought_missing_message_id(self, client):
         resp = {
-            "chunk_type": "thought",
+            "message_type": "thought",
             "content": "thinking...",
             "end_of_message": False,
         }
@@ -64,7 +64,7 @@ class TestParseChunkMessageId:
 
     def test_answer_missing_message_id(self, client):
         resp = {
-            "chunk_type": "answer",
+            "message_type": "answer",
             "content": "answer",
             "end_of_message": True,
             "end_of_dialog": True,

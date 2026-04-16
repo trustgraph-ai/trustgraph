@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Embeddings Batch Processing Technical Specification"
+parent: "Tech Specs"
+---
+
 # Embeddings Batch Processing Technical Specification
 
 ## Overview

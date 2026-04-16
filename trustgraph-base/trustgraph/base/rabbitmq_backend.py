@@ -214,16 +214,43 @@ class RabbitMQBackendConsumer:
             and self._channel.is_open
         )
 
+    def ensure_connected(self) -> None:
+        """Eagerly declare and bind the queue.
+
+        Without this, the queue is only declared lazily on the first
+        receive() call. For request/response with ephemeral per-subscriber
+        response queues that is a race: a request published before the
+        response queue is bound will have its reply silently dropped by
+        the broker. Subscriber.start() calls this so callers get a hard
+        readiness barrier."""
+        if not self._is_alive():
+            self._connect()
+
     def receive(self, timeout_millis: int = 2000) -> Message:
-        """Receive a message. Raises TimeoutError if none available."""
+        """Receive a message. Raises TimeoutError if none available.
+
+        Loop ordering matters: check _incoming at the TOP of each
+        iteration, not as the loop condition.  process_data_events
+        may dispatch a message via the _on_message callback during
+        the pump; we must re-check _incoming on the next iteration
+        before giving up on the deadline.  The previous control
+        flow (`while deadline: check; pump`) could lose a wakeup if
+        the pump consumed the remainder of the window — the
+        `while` check would fail before `_incoming` was re-read,
+        leaving a just-dispatched message stranded until the next
+        receive() call one full poll cycle later.
+        """
         if not self._is_alive():
             self._connect()
 
         timeout_seconds = timeout_millis / 1000.0
         deadline = time.monotonic() + timeout_seconds
 
-        while time.monotonic() < deadline:
-            # Check if a message was already delivered
+        while True:
+            # Check if a message has been dispatched to our queue.
+            # This catches both (a) messages dispatched before this
+            # receive() was called and (b) messages dispatched
+            # during the previous iteration's process_data_events.
             try:
                 method, properties, body = self._incoming.get_nowait()
                 return RabbitMQMessage(
@@ -232,14 +259,16 @@ class RabbitMQBackendConsumer:
             except queue.Empty:
                 pass
 
-            # Drive pika's I/O — delivers messages and processes heartbeats
             remaining = deadline - time.monotonic()
-            if remaining > 0:
-                self._connection.process_data_events(
-                    time_limit=min(0.1, remaining),
-                )
+            if remaining <= 0:
+                raise TimeoutError("No message received within timeout")
 
-        raise TimeoutError("No message received within timeout")
+            # Drive pika's I/O.  Any messages delivered during this
+            # call land in _incoming via _on_message; the next
+            # iteration of this loop catches them at the top.
+            self._connection.process_data_events(
+                time_limit=min(0.1, remaining),
+            )
 
     def acknowledge(self, message: Message) -> None:
         if isinstance(message, RabbitMQMessage) and message._method:

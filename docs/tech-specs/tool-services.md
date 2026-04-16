@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Tool Services: Dynamically Pluggable Agent Tools"
+parent: "Tech Specs"
+---
+
 # Tool Services: Dynamically Pluggable Agent Tools
 
 ## Status

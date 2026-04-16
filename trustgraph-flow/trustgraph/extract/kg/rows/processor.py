@@ -148,11 +148,12 @@ class Processor(FlowProcessor):
             schema_dict = row_schema_translator.encode(schema)
             
             # Use prompt client to extract rows based on schema
-            objects = await flow("prompt-request").extract_objects(
+            result = await flow("prompt-request").extract_objects(
                 schema=schema_dict,
                 text=text
             )
-            
+
+            objects = result.objects
             if not isinstance(objects, list):
                 return []
             

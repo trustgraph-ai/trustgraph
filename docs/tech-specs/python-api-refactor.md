@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Python API Refactor Technical Specification"
+parent: "Tech Specs"
+---
+
 # Python API Refactor Technical Specification
 
 ## Overview
@@ -704,17 +710,17 @@ class StreamingChunk:
 @dataclasses.dataclass
 class AgentThought(StreamingChunk):
     """Agent reasoning chunk"""
-    chunk_type: str = "thought"
+    message_type: str = "thought"
 
 @dataclasses.dataclass
 class AgentObservation(StreamingChunk):
     """Agent tool observation chunk"""
-    chunk_type: str = "observation"
+    message_type: str = "observation"
 
 @dataclasses.dataclass
 class AgentAnswer(StreamingChunk):
     """Agent final answer chunk"""
-    chunk_type: str = "final-answer"
+    message_type: str = "final-answer"
     end_of_dialog: bool = False
 
 @dataclasses.dataclass

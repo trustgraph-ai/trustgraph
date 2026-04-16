@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Structured Data Diagnostic Service Technical Specification"
+parent: "Tech Specs"
+---
+
 # Structured Data Diagnostic Service Technical Specification
 
 ## Overview

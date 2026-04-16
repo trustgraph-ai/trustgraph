@@ -1,3 +1,9 @@
+---
+layout: default
+title: "OntoRAG: Ontology-Based Knowledge Extraction and Query Technical Specification"
+parent: "Tech Specs"
+---
+
 # OntoRAG: Ontology-Based Knowledge Extraction and Query Technical Specification
 
 ## Overview

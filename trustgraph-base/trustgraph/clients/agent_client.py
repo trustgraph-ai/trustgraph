@@ -58,23 +58,23 @@ class AgentClient(BaseClient):
 
         def inspect(x):
             # Handle errors
-            if x.chunk_type == 'error' or x.error:
+            if x.message_type == 'error' or x.error:
                 if error_callback:
                     error_callback(x.content or (x.error.message if x.error else ""))
                 # Continue to check end_of_dialog
 
             # Handle thought chunks
-            elif x.chunk_type == 'thought':
+            elif x.message_type == 'thought':
                 if think:
                     think(x.content, x.end_of_message)
 
             # Handle observation chunks
-            elif x.chunk_type == 'observation':
+            elif x.message_type == 'observation':
                 if observe:
                     observe(x.content, x.end_of_message)
 
             # Handle answer chunks
-            elif x.chunk_type == 'answer':
+            elif x.message_type == 'answer':
                 if x.content:
                     accumulated_answer.append(x.content)
                 if answer_callback:

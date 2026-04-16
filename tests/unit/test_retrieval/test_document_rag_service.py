@@ -34,7 +34,7 @@ class TestDocumentRagService:
         # Setup mock DocumentRag instance
         mock_rag_instance = AsyncMock()
         mock_document_rag_class.return_value = mock_rag_instance
-        mock_rag_instance.query.return_value = "test response"
+        mock_rag_instance.query.return_value = ("test response", {"in_token": None, "out_token": None, "model": None})
         
         # Setup message with custom user/collection
         msg = MagicMock()
@@ -97,7 +97,7 @@ class TestDocumentRagService:
         # Setup mock DocumentRag instance
         mock_rag_instance = AsyncMock()
         mock_document_rag_class.return_value = mock_rag_instance
-        mock_rag_instance.query.return_value = "A document about cats."
+        mock_rag_instance.query.return_value = ("A document about cats.", {"in_token": None, "out_token": None, "model": None})
 
         # Setup message with non-streaming request
         msg = MagicMock()
@@ -130,4 +130,5 @@ class TestDocumentRagService:
         assert isinstance(sent_response, DocumentRagResponse)
         assert sent_response.response == "A document about cats."
         assert sent_response.end_of_stream is True, "Non-streaming response must have end_of_stream=True"
+        assert sent_response.end_of_session is True
         assert sent_response.error is None

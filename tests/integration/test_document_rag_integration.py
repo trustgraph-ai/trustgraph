@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
 from trustgraph.schema import ChunkMatch
+from trustgraph.base import PromptResult
 
 
 # Sample chunk content for testing - maps chunk_id to content
@@ -61,11 +62,16 @@ class TestDocumentRagIntegration:
     def mock_prompt_client(self):
         """Mock prompt client that generates realistic responses"""
         client = AsyncMock()
-        client.document_prompt.return_value = (
-            "Machine learning is a field of artificial intelligence that enables computers to learn "
-            "and improve from experience without being explicitly programmed. It uses algorithms "
-            "to find patterns in data and make predictions or decisions."
+        client.document_prompt.return_value = PromptResult(
+            response_type="text",
+            text=(
+                "Machine learning is a field of artificial intelligence that enables computers to learn "
+                "and improve from experience without being explicitly programmed. It uses algorithms "
+                "to find patterns in data and make predictions or decisions."
+            )
         )
+        # Mock prompt() for extract-concepts call in DocumentRag
+        client.prompt.return_value = PromptResult(response_type="text", text="")
         return client
 
     @pytest.fixture
@@ -119,6 +125,7 @@ class TestDocumentRagIntegration:
         )
 
         # Verify final response
+        result, usage = result
         assert result is not None
         assert isinstance(result, str)
         assert "machine learning" in result.lower()
@@ -131,7 +138,11 @@ class TestDocumentRagIntegration:
         """Test DocumentRAG behavior when no documents are retrieved"""
         # Arrange
         mock_doc_embeddings_client.query.return_value = []  # No chunk_ids found
-        mock_prompt_client.document_prompt.return_value = "I couldn't find any relevant documents for your query."
+        mock_prompt_client.document_prompt.return_value = PromptResult(
+            response_type="text",
+            text="I couldn't find any relevant documents for your query."
+        )
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="")
 
         document_rag = DocumentRag(
             embeddings_client=mock_embeddings_client,
@@ -152,7 +163,8 @@ class TestDocumentRagIntegration:
             documents=[]
         )
 
-        assert result == "I couldn't find any relevant documents for your query."
+        result_text, usage = result
+        assert result_text == "I couldn't find any relevant documents for your query."
 
     @pytest.mark.asyncio
     async def test_document_rag_embeddings_service_failure(self, mock_embeddings_client,

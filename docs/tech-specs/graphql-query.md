@@ -1,3 +1,9 @@
+---
+layout: default
+title: "GraphQL Query Technical Specification"
+parent: "Tech Specs"
+---
+
 # GraphQL Query Technical Specification
 
 ## Overview

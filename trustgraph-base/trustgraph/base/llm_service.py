@@ -45,6 +45,12 @@ class LlmChunk:
     __slots__ = ["text", "in_token", "out_token", "model", "is_final"]
 
 class LlmService(FlowProcessor):
+    """
+    Extensible service processing requests to Large Language Models (LLMs).
+    
+    This class handles the core logic of dispatching text completion or chat requests
+    to integrated underlying LLM providers (e.g. OpenAI, vertex ai).
+    """
 
     def __init__(self, **params):
 

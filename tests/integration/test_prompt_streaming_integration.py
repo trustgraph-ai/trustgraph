@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.prompt.template.service import Processor
 from trustgraph.schema import PromptRequest, PromptResponse, TextCompletionResponse
+from trustgraph.base.text_completion_client import TextCompletionResult
 from tests.utils.streaming_assertions import (
     assert_streaming_chunks_valid,
     assert_callback_invoked,
@@ -27,34 +28,52 @@ class TestPromptStreaming:
         # Mock text completion client with streaming
         text_completion_client = AsyncMock()
 
-        async def streaming_request(request, recipient=None, timeout=600):
-            """Simulate streaming text completion"""
-            if request.streaming and recipient:
-                # Simulate streaming chunks
-                chunks = [
-                    "Machine", " learning", " is", " a", " field",
-                    " of", " artificial", " intelligence", "."
-                ]
+        # Streaming chunks to send
+        chunks = [
+            "Machine", " learning", " is", " a", " field",
+            " of", " artificial", " intelligence", "."
+        ]
 
-                for i, chunk_text in enumerate(chunks):
-                    is_final = (i == len(chunks) - 1)
-                    response = TextCompletionResponse(
-                        response=chunk_text,
-                        error=None,
-                        end_of_stream=is_final
-                    )
-                    final = await recipient(response)
-                    if final:
-                        break
-
-                # Final empty chunk
-                await recipient(TextCompletionResponse(
-                    response="",
+        async def streaming_text_completion_stream(system, prompt, handler, timeout=600):
+            """Simulate streaming text completion via text_completion_stream"""
+            for i, chunk_text in enumerate(chunks):
+                response = TextCompletionResponse(
+                    response=chunk_text,
                     error=None,
-                    end_of_stream=True
-                ))
+                    end_of_stream=False
+                )
+                await handler(response)
 
-        text_completion_client.request = streaming_request
+            # Send final empty chunk with end_of_stream
+            await handler(TextCompletionResponse(
+                response="",
+                error=None,
+                end_of_stream=True
+            ))
+
+            return TextCompletionResult(
+                text=None,
+                in_token=10,
+                out_token=9,
+                model="test-model",
+            )
+
+        async def non_streaming_text_completion(system, prompt, timeout=600):
+            """Simulate non-streaming text completion"""
+            full_text = "Machine learning is a field of artificial intelligence."
+            return TextCompletionResult(
+                text=full_text,
+                in_token=10,
+                out_token=9,
+                model="test-model",
+            )
+
+        text_completion_client.text_completion_stream = AsyncMock(
+            side_effect=streaming_text_completion_stream
+        )
+        text_completion_client.text_completion = AsyncMock(
+            side_effect=non_streaming_text_completion
+        )
 
         # Mock response producer
         response_producer = AsyncMock()
@@ -156,14 +175,6 @@ class TestPromptStreaming:
 
         consumer = MagicMock()
 
-        # Mock non-streaming text completion
-        text_completion_client = mock_flow_context_streaming("text-completion-request")
-
-        async def non_streaming_text_completion(system, prompt, streaming=False):
-            return "AI is the simulation of human intelligence in machines."
-
-        text_completion_client.text_completion = non_streaming_text_completion
-
         # Act
         await prompt_processor_streaming.on_request(
             message, consumer, mock_flow_context_streaming
@@ -218,17 +229,12 @@ class TestPromptStreaming:
         # Mock text completion client that raises an error
         text_completion_client = AsyncMock()
 
-        async def failing_request(request, recipient=None, timeout=600):
-            if recipient:
-                # Send error response with proper Error schema
-                error_response = TextCompletionResponse(
-                    response="",
-                    error=Error(message="Text completion error", type="processing_error"),
-                    end_of_stream=True
-                )
-                await recipient(error_response)
+        async def failing_stream(system, prompt, handler, timeout=600):
+            raise RuntimeError("Text completion error")
 
-        text_completion_client.request = failing_request
+        text_completion_client.text_completion_stream = AsyncMock(
+            side_effect=failing_stream
+        )
 
         # Mock response producer to capture error response
         response_producer = AsyncMock()
@@ -255,22 +261,15 @@ class TestPromptStreaming:
 
         consumer = MagicMock()
 
-        # Act - The service catches errors and sends error responses, doesn't raise
+        # Act - The service catches errors and sends an error PromptResponse
         await prompt_processor_streaming.on_request(message, consumer, context)
 
-        # Assert - Verify error response was sent
-        assert response_producer.send.call_count > 0
-
-        # Check that at least one response contains an error
-        error_sent = False
-        for call in response_producer.send.call_args_list:
-            response = call.args[0]
-            if hasattr(response, 'error') and response.error:
-                error_sent = True
-                assert "Text completion error" in response.error.message
-                break
-
-        assert error_sent, "Expected error response to be sent"
+        # Assert - error response was sent
+        calls = response_producer.send.call_args_list
+        assert len(calls) > 0
+        error_response = calls[-1].args[0]
+        assert error_response.error is not None
+        assert "Text completion error" in error_response.error.message
 
     @pytest.mark.asyncio
     async def test_prompt_streaming_preserves_message_id(self, prompt_processor_streaming,
@@ -315,21 +314,22 @@ class TestPromptStreaming:
         # Mock text completion that sends empty chunks
         text_completion_client = AsyncMock()
 
-        async def empty_streaming_request(request, recipient=None, timeout=600):
-            if request.streaming and recipient:
-                # Send empty chunk followed by final marker
-                await recipient(TextCompletionResponse(
-                    response="",
-                    error=None,
-                    end_of_stream=False
-                ))
-                await recipient(TextCompletionResponse(
-                    response="",
-                    error=None,
-                    end_of_stream=True
-                ))
+        async def empty_streaming(system, prompt, handler, timeout=600):
+            # Send empty chunk followed by final marker
+            await handler(TextCompletionResponse(
+                response="",
+                error=None,
+                end_of_stream=False
+            ))
+            await handler(TextCompletionResponse(
+                response="",
+                error=None,
+                end_of_stream=True
+            ))
 
-        text_completion_client.request = empty_streaming_request
+        text_completion_client.text_completion_stream = AsyncMock(
+            side_effect=empty_streaming
+        )
         response_producer = AsyncMock()
 
         def context_router(service_name):
@@ -401,4 +401,4 @@ class TestPromptStreaming:
 
         # Verify chunks concatenate to expected result
         full_text = "".join(chunk_texts)
-        assert full_text == "Machine learning is a field of artificial intelligence"
+        assert full_text == "Machine learning is a field of artificial intelligence."

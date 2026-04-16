@@ -34,6 +34,8 @@ from . namespaces import (
     TG_ANSWER_TYPE,
     # Question subtypes
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION,
+    # Token usage
+    TG_IN_TOKEN, TG_OUT_TOKEN,
 )
 
 from . uris import activity_uri, agent_uri, subgraph_uri, edge_selection_uri
@@ -72,6 +74,17 @@ def _literal(value) -> Term:
 def _triple(s: str, p: str, o_term: Term) -> Triple:
     """Create a triple with IRI subject and predicate."""
     return Triple(s=_iri(s), p=_iri(p), o=o_term)
+
+
+def _append_token_triples(triples, uri, in_token=None, out_token=None,
+                          model=None):
+    """Append in_token/out_token/model triples when values are present."""
+    if in_token is not None:
+        triples.append(_triple(uri, TG_IN_TOKEN, _literal(str(in_token))))
+    if out_token is not None:
+        triples.append(_triple(uri, TG_OUT_TOKEN, _literal(str(out_token))))
+    if model is not None:
+        triples.append(_triple(uri, TG_LLM_MODEL, _literal(model)))
 
 
 def document_triples(
@@ -396,6 +409,9 @@ def grounding_triples(
     grounding_uri: str,
     question_uri: str,
     concepts: List[str],
+    in_token: Optional[int] = None,
+    out_token: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for a grounding entity (concept decomposition of query).
@@ -422,6 +438,8 @@ def grounding_triples(
 
     for concept in concepts:
         triples.append(_triple(grounding_uri, TG_CONCEPT, _literal(concept)))
+
+    _append_token_triples(triples, grounding_uri, in_token, out_token, model)
 
     return triples
 
@@ -485,6 +503,9 @@ def focus_triples(
     exploration_uri: str,
     selected_edges_with_reasoning: List[dict],
     session_id: str = "",
+    in_token: Optional[int] = None,
+    out_token: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for a focus entity (selected edges with reasoning).
@@ -543,6 +564,8 @@ def focus_triples(
                     _triple(edge_sel_uri, TG_REASONING, _literal(reasoning))
                 )
 
+    _append_token_triples(triples, focus_uri, in_token, out_token, model)
+
     return triples
 
 
@@ -550,6 +573,9 @@ def synthesis_triples(
     synthesis_uri: str,
     focus_uri: str,
     document_id: Optional[str] = None,
+    in_token: Optional[int] = None,
+    out_token: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for a synthesis entity (final answer).
@@ -577,6 +603,8 @@ def synthesis_triples(
 
     if document_id:
         triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
+
+    _append_token_triples(triples, synthesis_uri, in_token, out_token, model)
 
     return triples
 
@@ -674,6 +702,9 @@ def docrag_synthesis_triples(
     synthesis_uri: str,
     exploration_uri: str,
     document_id: Optional[str] = None,
+    in_token: Optional[int] = None,
+    out_token: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for a document RAG synthesis entity (final answer).
@@ -701,5 +732,7 @@ def docrag_synthesis_triples(
 
     if document_id:
         triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
+
+    _append_token_triples(triples, synthesis_uri, in_token, out_token, model)
 
     return triples

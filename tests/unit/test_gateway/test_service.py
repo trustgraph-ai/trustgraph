@@ -171,6 +171,14 @@ class TestApi:
              patch('aiohttp.web.run_app') as mock_run_app:
             mock_get_pubsub.return_value = Mock()
 
+            # Api.run() passes self.app_factory() — a coroutine — to
+            # web.run_app, which would normally consume it inside its own
+            # event loop. Since we mock run_app, close the coroutine here
+            # so it doesn't leak as an "unawaited coroutine" RuntimeWarning.
+            def _consume_coro(coro, **kwargs):
+                coro.close()
+            mock_run_app.side_effect = _consume_coro
+
             api = Api(port=8080)
             api.run()
 

@@ -212,7 +212,7 @@ class TestAgentMessageContracts:
         
         # Test required fields
         response = AgentResponse(**response_data)
-        assert hasattr(response, 'chunk_type')
+        assert hasattr(response, 'message_type')
         assert hasattr(response, 'content')
         assert hasattr(response, 'end_of_message')
         assert hasattr(response, 'end_of_dialog')

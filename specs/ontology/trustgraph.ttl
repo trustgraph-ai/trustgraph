@@ -1,0 +1,415 @@
+@prefix tg:    <https://trustgraph.ai/ns/> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Ontology declaration
+# =============================================================================
+
+<https://trustgraph.ai/ns/>
+    a owl:Ontology ;
+    rdfs:label "TrustGraph Ontology" ;
+    rdfs:comment "Vocabulary for TrustGraph provenance, extraction metadata, and explainability." ;
+    owl:versionInfo "2.3" .
+
+# =============================================================================
+# Classes — Extraction provenance
+# =============================================================================
+
+tg:Document a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Document" ;
+    rdfs:comment "A loaded document (PDF, text, etc.)." .
+
+tg:Page a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Page" ;
+    rdfs:comment "A page within a document." .
+
+tg:Section a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Section" ;
+    rdfs:comment "A structural section within a document." .
+
+tg:Chunk a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Chunk" ;
+    rdfs:comment "A text chunk produced by the chunker." .
+
+tg:Image a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Image" ;
+    rdfs:comment "An image extracted from a document." .
+
+tg:Subgraph a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Subgraph" ;
+    rdfs:comment "A set of triples extracted from a chunk." .
+
+# =============================================================================
+# Classes — Query-time explainability (shared)
+# =============================================================================
+
+tg:Question a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Question" ;
+    rdfs:comment "Root entity for a query session." .
+
+tg:GraphRagQuestion a owl:Class ;
+    rdfs:subClassOf tg:Question ;
+    rdfs:label "Graph RAG Question" ;
+    rdfs:comment "A question answered via graph-based RAG." .
+
+tg:DocRagQuestion a owl:Class ;
+    rdfs:subClassOf tg:Question ;
+    rdfs:label "Document RAG Question" ;
+    rdfs:comment "A question answered via document-based RAG." .
+
+tg:AgentQuestion a owl:Class ;
+    rdfs:subClassOf tg:Question ;
+    rdfs:label "Agent Question" ;
+    rdfs:comment "A question answered via the agent orchestrator." .
+
+tg:Grounding a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Grounding" ;
+    rdfs:comment "Concept extraction step (query decomposition into search terms)." .
+
+tg:Exploration a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Exploration" ;
+    rdfs:comment "Entity/chunk retrieval step." .
+
+tg:Focus a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Focus" ;
+    rdfs:comment "Edge selection and scoring step (GraphRAG)." .
+
+tg:Synthesis a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Synthesis" ;
+    rdfs:comment "Final answer synthesis from retrieved context." .
+
+# =============================================================================
+# Classes — Agent provenance
+# =============================================================================
+
+tg:Analysis a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Analysis" ;
+    rdfs:comment "One agent iteration: reasoning followed by tool selection." .
+
+tg:ToolUse a owl:Class ;
+    rdfs:label "ToolUse" ;
+    rdfs:comment "Mixin type applied to Analysis when a tool is invoked." .
+
+tg:Error a owl:Class ;
+    rdfs:label "Error" ;
+    rdfs:comment "Mixin type applied to events where a failure occurred (tool error, parse error)." .
+
+tg:Conclusion a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Conclusion" ;
+    rdfs:comment "Agent final answer (ReAct pattern)." .
+
+tg:PatternDecision a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Pattern Decision" ;
+    rdfs:comment "Meta-router decision recording which execution pattern was selected." .
+
+# --- Unifying types ---
+
+tg:Answer a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Answer" ;
+    rdfs:comment "Unifying type for any terminal answer (Synthesis, Conclusion, Finding, StepResult)." .
+
+tg:Reflection a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Reflection" ;
+    rdfs:comment "Unifying type for intermediate commentary (Thought, Observation)." .
+
+tg:Thought a owl:Class ;
+    rdfs:subClassOf tg:Reflection ;
+    rdfs:label "Thought" ;
+    rdfs:comment "Agent reasoning text within an iteration." .
+
+tg:Observation a owl:Class ;
+    rdfs:subClassOf tg:Reflection ;
+    rdfs:label "Observation" ;
+    rdfs:comment "Tool execution result." .
+
+# --- Orchestrator types ---
+
+tg:Decomposition a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Decomposition" ;
+    rdfs:comment "Supervisor pattern: question decomposed into sub-goals." .
+
+tg:Finding a owl:Class ;
+    rdfs:subClassOf tg:Answer ;
+    rdfs:label "Finding" ;
+    rdfs:comment "Result from a sub-agent execution." .
+
+tg:Plan a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Plan" ;
+    rdfs:comment "Plan-then-execute pattern: structured plan of steps." .
+
+tg:StepResult a owl:Class ;
+    rdfs:subClassOf tg:Answer ;
+    rdfs:label "Step Result" ;
+    rdfs:comment "Result from executing one plan step." .
+
+# =============================================================================
+# Properties — Extraction metadata
+# =============================================================================
+
+tg:contains a owl:ObjectProperty ;
+    rdfs:label "contains" ;
+    rdfs:comment "Links a parent entity to a child (e.g. Document contains Page, Subgraph contains triple)." .
+
+tg:pageCount a owl:DatatypeProperty ;
+    rdfs:label "page count" ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Document .
+
+tg:mimeType a owl:DatatypeProperty ;
+    rdfs:label "MIME type" ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Document .
+
+tg:pageNumber a owl:DatatypeProperty ;
+    rdfs:label "page number" ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Page .
+
+tg:chunkIndex a owl:DatatypeProperty ;
+    rdfs:label "chunk index" ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Chunk .
+
+tg:charOffset a owl:DatatypeProperty ;
+    rdfs:label "character offset" ;
+    rdfs:range xsd:integer .
+
+tg:charLength a owl:DatatypeProperty ;
+    rdfs:label "character length" ;
+    rdfs:range xsd:integer .
+
+tg:chunkSize a owl:DatatypeProperty ;
+    rdfs:label "chunk size" ;
+    rdfs:range xsd:integer .
+
+tg:chunkOverlap a owl:DatatypeProperty ;
+    rdfs:label "chunk overlap" ;
+    rdfs:range xsd:integer .
+
+tg:componentVersion a owl:DatatypeProperty ;
+    rdfs:label "component version" ;
+    rdfs:range xsd:string .
+
+tg:llmModel a owl:DatatypeProperty ;
+    rdfs:label "LLM model" ;
+    rdfs:range xsd:string .
+
+tg:ontology a owl:DatatypeProperty ;
+    rdfs:label "ontology" ;
+    rdfs:range xsd:string .
+
+tg:embeddingModel a owl:DatatypeProperty ;
+    rdfs:label "embedding model" ;
+    rdfs:range xsd:string .
+
+tg:sourceText a owl:DatatypeProperty ;
+    rdfs:label "source text" ;
+    rdfs:range xsd:string .
+
+tg:sourceCharOffset a owl:DatatypeProperty ;
+    rdfs:label "source character offset" ;
+    rdfs:range xsd:integer .
+
+tg:sourceCharLength a owl:DatatypeProperty ;
+    rdfs:label "source character length" ;
+    rdfs:range xsd:integer .
+
+tg:elementTypes a owl:DatatypeProperty ;
+    rdfs:label "element types" ;
+    rdfs:range xsd:string .
+
+tg:tableCount a owl:DatatypeProperty ;
+    rdfs:label "table count" ;
+    rdfs:range xsd:integer .
+
+tg:imageCount a owl:DatatypeProperty ;
+    rdfs:label "image count" ;
+    rdfs:range xsd:integer .
+
+# =============================================================================
+# Properties — Query-time provenance (GraphRAG / DocumentRAG)
+# =============================================================================
+
+tg:query a owl:DatatypeProperty ;
+    rdfs:label "query" ;
+    rdfs:comment "The user's query text." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Question .
+
+tg:concept a owl:DatatypeProperty ;
+    rdfs:label "concept" ;
+    rdfs:comment "An extracted concept from the query." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Grounding .
+
+tg:entity a owl:ObjectProperty ;
+    rdfs:label "entity" ;
+    rdfs:comment "A seed entity retrieved during exploration." ;
+    rdfs:domain tg:Exploration .
+
+tg:edgeCount a owl:DatatypeProperty ;
+    rdfs:label "edge count" ;
+    rdfs:comment "Number of edges explored." ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Exploration .
+
+tg:selectedEdge a owl:ObjectProperty ;
+    rdfs:label "selected edge" ;
+    rdfs:comment "Link to an edge selection entity within a Focus event." ;
+    rdfs:domain tg:Focus .
+
+tg:edge a owl:ObjectProperty ;
+    rdfs:label "edge" ;
+    rdfs:comment "A quoted triple representing a knowledge graph edge." ;
+    rdfs:domain tg:Focus .
+
+tg:reasoning a owl:DatatypeProperty ;
+    rdfs:label "reasoning" ;
+    rdfs:comment "LLM-generated reasoning for an edge selection." ;
+    rdfs:range xsd:string .
+
+tg:document a owl:ObjectProperty ;
+    rdfs:label "document" ;
+    rdfs:comment "Reference to a document stored in the librarian." .
+
+tg:chunkCount a owl:DatatypeProperty ;
+    rdfs:label "chunk count" ;
+    rdfs:comment "Number of document chunks retrieved (DocumentRAG)." ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Exploration .
+
+tg:selectedChunk a owl:DatatypeProperty ;
+    rdfs:label "selected chunk" ;
+    rdfs:comment "A selected chunk ID (DocumentRAG)." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Exploration .
+
+# =============================================================================
+# Properties — Agent provenance
+# =============================================================================
+
+tg:thought a owl:ObjectProperty ;
+    rdfs:label "thought" ;
+    rdfs:comment "Links an Analysis iteration to its Thought sub-entity." ;
+    rdfs:domain tg:Analysis ;
+    rdfs:range tg:Thought .
+
+tg:action a owl:DatatypeProperty ;
+    rdfs:label "action" ;
+    rdfs:comment "The tool/action name selected by the agent." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Analysis .
+
+tg:arguments a owl:DatatypeProperty ;
+    rdfs:label "arguments" ;
+    rdfs:comment "JSON-encoded arguments passed to the tool." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Analysis .
+
+tg:observation a owl:ObjectProperty ;
+    rdfs:label "observation" ;
+    rdfs:comment "Links an Analysis iteration to its Observation sub-entity." ;
+    rdfs:domain tg:Analysis ;
+    rdfs:range tg:Observation .
+
+tg:toolCandidate a owl:DatatypeProperty ;
+    rdfs:label "tool candidate" ;
+    rdfs:comment "Name of a tool available to the LLM for this iteration. One triple per candidate." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Analysis .
+
+tg:stepNumber a owl:DatatypeProperty ;
+    rdfs:label "step number" ;
+    rdfs:comment "Explicit 1-based step counter for iteration events." ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Analysis .
+
+tg:terminationReason a owl:DatatypeProperty ;
+    rdfs:label "termination reason" ;
+    rdfs:comment "Why the agent loop stopped: final-answer, plan-complete, subagents-complete, max-iterations, error." ;
+    rdfs:range xsd:string .
+
+tg:pattern a owl:DatatypeProperty ;
+    rdfs:label "pattern" ;
+    rdfs:comment "Selected execution pattern (react, plan-then-execute, supervisor)." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:PatternDecision .
+
+tg:taskType a owl:DatatypeProperty ;
+    rdfs:label "task type" ;
+    rdfs:comment "Identified task type from the meta-router (general, research, etc.)." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:PatternDecision .
+
+tg:llmDurationMs a owl:DatatypeProperty ;
+    rdfs:label "LLM duration (ms)" ;
+    rdfs:comment "Time spent in the LLM prompt call, in milliseconds." ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Analysis .
+
+tg:toolDurationMs a owl:DatatypeProperty ;
+    rdfs:label "tool duration (ms)" ;
+    rdfs:comment "Time spent executing the tool, in milliseconds." ;
+    rdfs:range xsd:integer ;
+    rdfs:domain tg:Observation .
+
+tg:toolError a owl:DatatypeProperty ;
+    rdfs:label "tool error" ;
+    rdfs:comment "Error message from a failed tool execution." ;
+    rdfs:range xsd:string ;
+    rdfs:domain tg:Observation .
+
+# --- Token usage predicates (on any event that involves an LLM call) ---
+
+tg:inToken a owl:DatatypeProperty ;
+    rdfs:label "input tokens" ;
+    rdfs:comment "Input token count for the LLM call associated with this event." ;
+    rdfs:range xsd:integer .
+
+tg:outToken a owl:DatatypeProperty ;
+    rdfs:label "output tokens" ;
+    rdfs:comment "Output token count for the LLM call associated with this event." ;
+    rdfs:range xsd:integer .
+
+# --- Orchestrator predicates ---
+
+tg:subagentGoal a owl:DatatypeProperty ;
+    rdfs:label "sub-agent goal" ;
+    rdfs:comment "Goal string assigned to a sub-agent (Decomposition, Finding)." ;
+    rdfs:range xsd:string .
+
+tg:planStep a owl:DatatypeProperty ;
+    rdfs:label "plan step" ;
+    rdfs:comment "Goal string for a plan step (Plan, StepResult)." ;
+    rdfs:range xsd:string .
+
+# =============================================================================
+# Named graphs
+# =============================================================================
+# These are not OWL classes but documented here for reference:
+#
+#   (default graph)         — Core knowledge facts (extracted triples)
+#   urn:graph:source        — Extraction provenance (document → chunk → triple)
+#   urn:graph:retrieval     — Query-time explainability (question → exploration → synthesis)

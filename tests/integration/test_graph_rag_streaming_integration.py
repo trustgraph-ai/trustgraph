@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.schema import EntityMatch, Term, IRI
+from trustgraph.base import PromptResult
 from tests.utils.streaming_assertions import (
     assert_streaming_chunks_valid,
     assert_rag_streaming_chunks,
@@ -61,12 +62,12 @@ class TestGraphRagStreaming:
 
         async def prompt_side_effect(prompt_id, variables, streaming=False, chunk_callback=None, **kwargs):
             if prompt_id == "extract-concepts":
-                return ""  # Falls back to raw query
+                return PromptResult(response_type="text", text="")
             elif prompt_id == "kg-edge-scoring":
                 # Edge scoring returns JSONL with IDs and scores
-                return '{"id": "abc12345", "score": 0.9}\n'
+                return PromptResult(response_type="text", text='{"id": "abc12345", "score": 0.9}\n')
             elif prompt_id == "kg-edge-reasoning":
-                return '{"id": "abc12345", "reasoning": "Relevant to query"}\n'
+                return PromptResult(response_type="text", text='{"id": "abc12345", "reasoning": "Relevant to query"}\n')
             elif prompt_id == "kg-synthesis":
                 if streaming and chunk_callback:
                     # Simulate streaming chunks with end_of_stream flags
@@ -79,10 +80,10 @@ class TestGraphRagStreaming:
                         is_final = (i == len(chunks) - 1)
                         await chunk_callback(chunk, is_final)
 
-                    return full_text
+                    return PromptResult(response_type="text", text=full_text)
                 else:
-                    return full_text
-            return ""
+                    return PromptResult(response_type="text", text=full_text)
+            return PromptResult(response_type="text", text="")
 
         client.prompt.side_effect = prompt_side_effect
         return client
@@ -123,6 +124,7 @@ class TestGraphRagStreaming:
         )
 
         # Assert
+        response, usage = response
         assert_streaming_chunks_valid(collector.chunks, min_chunks=1)
         assert_callback_invoked(AsyncMock(call_count=len(collector.chunks)), min_calls=1)
 
@@ -172,9 +174,11 @@ class TestGraphRagStreaming:
         )
 
         # Assert - Results should be equivalent
-        assert streaming_response == non_streaming_response
+        non_streaming_text, _ = non_streaming_response
+        streaming_text, _ = streaming_response
+        assert streaming_text == non_streaming_text
         assert len(streaming_chunks) > 0
-        assert "".join(streaming_chunks) == streaming_response
+        assert "".join(streaming_chunks) == streaming_text
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_callback_invocation(self, graph_rag_streaming):
@@ -213,7 +217,8 @@ class TestGraphRagStreaming:
 
         # Assert - Should complete without error
         assert response is not None
-        assert isinstance(response, str)
+        response_text, usage = response
+        assert isinstance(response_text, str)
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_with_empty_kg(self, graph_rag_streaming,

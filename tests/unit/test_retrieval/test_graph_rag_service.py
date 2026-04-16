@@ -44,7 +44,7 @@ class TestGraphRagService:
                 await explain_callback([], "urn:trustgraph:prov:retrieval:test")
                 await explain_callback([], "urn:trustgraph:prov:selection:test")
                 await explain_callback([], "urn:trustgraph:prov:answer:test")
-            return "A small domesticated mammal."
+            return "A small domesticated mammal.", {"in_token": None, "out_token": None, "model": None}
 
         mock_rag_instance.query.side_effect = mock_query
 
@@ -79,8 +79,8 @@ class TestGraphRagService:
         # Execute
         await processor.on_request(msg, consumer, flow)
 
-        # Verify: 6 messages sent (4 provenance + 1 chunk + 1 end_of_session)
-        assert mock_response_producer.send.call_count == 6
+        # Verify: 5 messages sent (4 provenance + 1 combined chunk with end_of_session)
+        assert mock_response_producer.send.call_count == 5
 
         # First 4 messages are explain (emitted in real-time during query)
         for i in range(4):
@@ -88,17 +88,12 @@ class TestGraphRagService:
             assert prov_msg.message_type == "explain"
             assert prov_msg.explain_id is not None
 
-        # 5th message is chunk with response
+        # 5th message is chunk with response and end_of_session
         chunk_msg = mock_response_producer.send.call_args_list[4][0][0]
         assert chunk_msg.message_type == "chunk"
         assert chunk_msg.response == "A small domesticated mammal."
         assert chunk_msg.end_of_stream is True
-
-        # 6th message is empty chunk with end_of_session=True
-        close_msg = mock_response_producer.send.call_args_list[5][0][0]
-        assert close_msg.message_type == "chunk"
-        assert close_msg.response == ""
-        assert close_msg.end_of_session is True
+        assert chunk_msg.end_of_session is True
 
         # Verify provenance triples were sent to provenance queue
         assert mock_provenance_producer.send.call_count == 4
@@ -187,7 +182,7 @@ class TestGraphRagService:
 
         async def mock_query(**kwargs):
             # Don't call explain_callback
-            return "Response text"
+            return "Response text", {"in_token": None, "out_token": None, "model": None}
 
         mock_rag_instance.query.side_effect = mock_query
 
@@ -218,17 +213,12 @@ class TestGraphRagService:
         # Execute
         await processor.on_request(msg, consumer, flow)
 
-        # Verify: 2 messages (chunk + empty chunk to close)
-        assert mock_response_producer.send.call_count == 2
+        # Verify: 1 combined message (chunk with end_of_session)
+        assert mock_response_producer.send.call_count == 1
 
-        # First is the response chunk
+        # Single message has response and end_of_session
         chunk_msg = mock_response_producer.send.call_args_list[0][0][0]
         assert chunk_msg.message_type == "chunk"
         assert chunk_msg.response == "Response text"
         assert chunk_msg.end_of_stream is True
-
-        # Second is empty chunk to close session
-        close_msg = mock_response_producer.send.call_args_list[1][0][0]
-        assert close_msg.message_type == "chunk"
-        assert close_msg.response == ""
-        assert close_msg.end_of_session is True
+        assert chunk_msg.end_of_session is True

@@ -18,6 +18,7 @@ from trustgraph.storage.knowledge.store import Processor as KnowledgeStoreProces
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, GraphEmbeddings, EntityEmbeddings
 from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
+from trustgraph.base import PromptResult
 
 
 @pytest.mark.integration
@@ -31,32 +32,38 @@ class TestKnowledgeGraphPipelineIntegration:
         
         # Mock prompt client for definitions extraction
         prompt_client = AsyncMock()
-        prompt_client.extract_definitions.return_value = [
-            {
-                "entity": "Machine Learning",
-                "definition": "A subset of artificial intelligence that enables computers to learn from data without explicit programming."
-            },
-            {
-                "entity": "Neural Networks",
-                "definition": "Computing systems inspired by biological neural networks that process information."
-            }
-        ]
-        
+        prompt_client.extract_definitions.return_value = PromptResult(
+            response_type="jsonl",
+            objects=[
+                {
+                    "entity": "Machine Learning",
+                    "definition": "A subset of artificial intelligence that enables computers to learn from data without explicit programming."
+                },
+                {
+                    "entity": "Neural Networks",
+                    "definition": "Computing systems inspired by biological neural networks that process information."
+                }
+            ]
+        )
+
         # Mock prompt client for relationships extraction
-        prompt_client.extract_relationships.return_value = [
-            {
-                "subject": "Machine Learning",
-                "predicate": "is_subset_of",
-                "object": "Artificial Intelligence",
-                "object-entity": True
-            },
-            {
-                "subject": "Neural Networks",
-                "predicate": "is_used_in",
-                "object": "Machine Learning",
-                "object-entity": True
-            }
-        ]
+        prompt_client.extract_relationships.return_value = PromptResult(
+            response_type="jsonl",
+            objects=[
+                {
+                    "subject": "Machine Learning",
+                    "predicate": "is_subset_of",
+                    "object": "Artificial Intelligence",
+                    "object-entity": True
+                },
+                {
+                    "subject": "Neural Networks",
+                    "predicate": "is_used_in",
+                    "object": "Machine Learning",
+                    "object-entity": True
+                }
+            ]
+        )
         
         # Mock producers for output streams
         triples_producer = AsyncMock()
@@ -489,7 +496,10 @@ class TestKnowledgeGraphPipelineIntegration:
     async def test_empty_extraction_results_handling(self, definitions_processor, mock_flow_context, sample_chunk):
         """Test handling of empty extraction results"""
         # Arrange
-        mock_flow_context("prompt-request").extract_definitions.return_value = []
+        mock_flow_context("prompt-request").extract_definitions.return_value = PromptResult(
+            response_type="jsonl",
+            objects=[]
+        )
         
         mock_msg = MagicMock()
         mock_msg.value.return_value = sample_chunk
@@ -510,7 +520,10 @@ class TestKnowledgeGraphPipelineIntegration:
     async def test_invalid_extraction_format_handling(self, definitions_processor, mock_flow_context, sample_chunk):
         """Test handling of invalid extraction response format"""
         # Arrange
-        mock_flow_context("prompt-request").extract_definitions.return_value = "invalid format"  # Should be list
+        mock_flow_context("prompt-request").extract_definitions.return_value = PromptResult(
+            response_type="text",
+            text="invalid format"
+        )  # Should be jsonl with objects list
         
         mock_msg = MagicMock()
         mock_msg.value.return_value = sample_chunk
@@ -528,13 +541,16 @@ class TestKnowledgeGraphPipelineIntegration:
     async def test_entity_filtering_and_validation(self, definitions_processor, mock_flow_context):
         """Test entity filtering and validation in extraction"""
         # Arrange
-        mock_flow_context("prompt-request").extract_definitions.return_value = [
-            {"entity": "Valid Entity", "definition": "Valid definition"},
-            {"entity": "", "definition": "Empty entity"},  # Should be filtered
-            {"entity": "Valid Entity 2", "definition": ""},  # Should be filtered
-            {"entity": None, "definition": "None entity"},  # Should be filtered
-            {"entity": "Valid Entity 3", "definition": None},  # Should be filtered
-        ]
+        mock_flow_context("prompt-request").extract_definitions.return_value = PromptResult(
+            response_type="jsonl",
+            objects=[
+                {"entity": "Valid Entity", "definition": "Valid definition"},
+                {"entity": "", "definition": "Empty entity"},  # Should be filtered
+                {"entity": "Valid Entity 2", "definition": ""},  # Should be filtered
+                {"entity": None, "definition": "None entity"},  # Should be filtered
+                {"entity": "Valid Entity 3", "definition": None},  # Should be filtered
+            ]
+        )
         
         sample_chunk = Chunk(
             metadata=Metadata(id="test", user="user", collection="collection"),

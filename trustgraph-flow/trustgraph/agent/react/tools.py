@@ -42,7 +42,7 @@ class KnowledgeQueryImpl:
             async def explain_callback(explain_id, explain_graph, explain_triples=None):
                 self.context.last_sub_explain_uri = explain_id
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=explain_id,
                     explain_graph=explain_graph,
@@ -78,9 +78,10 @@ class TextCompletionImpl:
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
         logger.debug("Prompt question...")
-        return await client.question(
+        result = await client.question(
             arguments.get("question")
         )
+        return result.text
 
 # This tool implementation knows how to do MCP tool invocation.  This uses
 # the mcp-tool service.
@@ -227,10 +228,11 @@ class PromptImpl:
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
         logger.debug(f"Prompt template invocation: {self.template_id}...")
-        return await client.prompt(
+        result = await client.prompt(
             id=self.template_id,
             variables=arguments
         )
+        return result.text
 
 
 # This tool implementation invokes a dynamically configured tool service

@@ -7,6 +7,7 @@ import unittest.mock
 from unittest.mock import MagicMock, AsyncMock
 
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag, Query
+from trustgraph.base import PromptResult
 
 
 class TestGraphRag:
@@ -172,7 +173,7 @@ class TestQuery:
         mock_prompt_client = AsyncMock()
         mock_rag.prompt_client = mock_prompt_client
 
-        mock_prompt_client.prompt.return_value = "machine learning\nneural networks\n"
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="machine learning\nneural networks\n")
 
         query = Query(
             rag=mock_rag,
@@ -196,7 +197,7 @@ class TestQuery:
         mock_prompt_client = AsyncMock()
         mock_rag.prompt_client = mock_prompt_client
 
-        mock_prompt_client.prompt.return_value = ""
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="")
 
         query = Query(
             rag=mock_rag,
@@ -220,7 +221,7 @@ class TestQuery:
         mock_rag.graph_embeddings_client = mock_graph_embeddings_client
 
         # extract_concepts returns empty -> falls back to [query]
-        mock_prompt_client.prompt.return_value = ""
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="")
 
         # embed returns one vector set for the single concept
         test_vectors = [[0.1, 0.2, 0.3]]
@@ -565,14 +566,14 @@ class TestQuery:
         # Mock prompt responses for the multi-step process
         async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
             if prompt_name == "extract-concepts":
-                return ""  # Falls back to raw query
+                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-edge-scoring":
-                return json.dumps({"id": test_edge_id, "score": 0.9})
+                return PromptResult(response_type="jsonl", objects=[{"id": test_edge_id, "score": 0.9}])
             elif prompt_name == "kg-edge-reasoning":
-                return json.dumps({"id": test_edge_id, "reasoning": "relevant"})
+                return PromptResult(response_type="jsonl", objects=[{"id": test_edge_id, "reasoning": "relevant"}])
             elif prompt_name == "kg-synthesis":
-                return expected_response
-            return ""
+                return PromptResult(response_type="text", text=expected_response)
+            return PromptResult(response_type="text", text="")
 
         mock_prompt_client.prompt = mock_prompt
 
@@ -607,7 +608,8 @@ class TestQuery:
                 explain_callback=collect_provenance
             )
 
-            assert response == expected_response
+            response_text, usage = response
+            assert response_text == expected_response
 
             # 5 events: question, grounding, exploration, focus, synthesis
             assert len(provenance_events) == 5

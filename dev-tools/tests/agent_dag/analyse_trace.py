@@ -131,21 +131,21 @@ async def analyse(path, url, flow, user, collection):
 
     for i, msg in enumerate(messages):
         resp = msg.get("response", {})
-        chunk_type = resp.get("chunk_type", "?")
+        message_type = resp.get("message_type", "?")
 
-        if chunk_type == "explain":
+        if message_type == "explain":
             explain_id = resp.get("explain_id", "")
             explain_ids.append(explain_id)
-            print(f"  {i:3d}  {chunk_type}  {explain_id}")
+            print(f"  {i:3d}  {message_type}  {explain_id}")
         else:
-            print(f"  {i:3d}  {chunk_type}")
+            print(f"  {i:3d}  {message_type}")
 
         # Rule 7: message_id on content chunks
-        if chunk_type in ("thought", "observation", "answer"):
+        if message_type in ("thought", "observation", "answer"):
             mid = resp.get("message_id", "")
             if not mid:
                 errors.append(
-                    f"[msg {i}] {chunk_type} chunk missing message_id"
+                    f"[msg {i}] {message_type} chunk missing message_id"
                 )
 
     print()

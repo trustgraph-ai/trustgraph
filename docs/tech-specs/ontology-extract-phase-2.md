@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Ontology Knowledge Extraction - Phase 2 Refactor"
+parent: "Tech Specs"
+---
+
 # Ontology Knowledge Extraction - Phase 2 Refactor
 
 **Status**: Draft
