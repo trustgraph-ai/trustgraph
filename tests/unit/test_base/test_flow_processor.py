@@ -19,9 +19,11 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
     async def test_flow_processor_initialization_basic(self, mock_register_config, mock_async_init):
         """Test basic FlowProcessor initialization"""
         # Arrange
-        mock_async_init.return_value = None
+        def set_id(**params):
+            pass
+        mock_async_init.side_effect = set_id
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -33,10 +35,10 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Assert
         # Verify AsyncProcessor.__init__ was called
         mock_async_init.assert_called_once()
-        
+
         # Verify register_config_handler was called with the correct handler
         mock_register_config.assert_called_once_with(
-            processor.on_configure_flows, types=["active-flow"]
+            processor.on_configure_flows, types=["processor:test-flow-processor"]
         )
         
         # Verify FlowProcessor-specific initialization
@@ -50,9 +52,11 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
     async def test_register_specification(self, mock_register_config, mock_async_init):
         """Test registering a specification"""
         # Arrange
-        mock_async_init.return_value = None
+        def set_id(**params):
+            pass
+        mock_async_init.side_effect = set_id
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -77,7 +81,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -110,7 +114,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -143,7 +147,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -165,7 +169,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -182,8 +186,8 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             'test-flow': {'config': 'test-config'}
         }
         config_data = {
-            'active-flow': {
-                'test-processor': '{"test-flow": {"config": "test-config"}}'
+            'processor:test-processor': {
+                'test-flow': '{"config": "test-config"}'
             }
         }
         
@@ -203,7 +207,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -214,8 +218,8 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         
         # Configuration without flows for this processor
         config_data = {
-            'active-flow': {
-                'other-processor': '{"other-flow": {"config": "other-config"}}'
+            'processor:other-processor': {
+                'other-flow': '{"config": "other-config"}'
             }
         }
         
@@ -234,7 +238,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -263,7 +267,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         # Arrange
         mock_async_init.return_value = None
         mock_register_config.return_value = None
-        
+
         config = {
             'id': 'test-flow-processor',
             'taskgroup': AsyncMock()
@@ -278,8 +282,8 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         
         # First configuration - start flow1
         config_data1 = {
-            'active-flow': {
-                'test-processor': '{"flow1": {"config": "config1"}}'
+            'processor:test-processor': {
+                'flow1': '{"config": "config1"}'
             }
         }
 
@@ -287,8 +291,8 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
 
         # Second configuration - stop flow1, start flow2
         config_data2 = {
-            'active-flow': {
-                'test-processor': '{"flow2": {"config": "config2"}}'
+            'processor:test-processor': {
+                'flow2': '{"config": "config2"}'
             }
         }
         
@@ -310,7 +314,9 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
     async def test_start_calls_parent(self, mock_parent_start, mock_register_config, mock_async_init):
         """Test that start() calls parent start method"""
         # Arrange
-        mock_async_init.return_value = None
+        def set_id(**params):
+            pass
+        mock_async_init.side_effect = set_id
         mock_register_config.return_value = None
         mock_parent_start.return_value = None
         
@@ -332,7 +338,9 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
     async def test_add_args_calls_parent(self, mock_register_config, mock_async_init):
         """Test that add_args() calls parent add_args method"""
         # Arrange
-        mock_async_init.return_value = None
+        def set_id(**params):
+            pass
+        mock_async_init.side_effect = set_id
         mock_register_config.return_value = None
         
         mock_parser = MagicMock()

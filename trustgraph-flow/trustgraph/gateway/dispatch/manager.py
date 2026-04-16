@@ -320,7 +320,7 @@ class DispatcherManager:
                     elif kind in sender_dispatchers:
                         dispatcher = sender_dispatchers[kind](
                             backend = self.backend,
-                            queue = qconfig,
+                            queue = qconfig["flow"],
                         )
                     else:
                         raise RuntimeError("Invalid kind")
