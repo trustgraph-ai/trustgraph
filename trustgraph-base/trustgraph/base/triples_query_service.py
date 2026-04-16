@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 Triples query service.  Input is a (s, p, o) triple, some values may be
@@ -108,7 +111,7 @@ class TriplesQueryService(FlowProcessor):
             yield [], True
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 
@@ -119,7 +122,7 @@ class TriplesQueryService(FlowProcessor):
             help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
-def run():
+def run() -> None:
 
     Processor.launch(default_ident, __doc__)
 

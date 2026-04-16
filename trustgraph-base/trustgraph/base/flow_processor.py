@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+from argparse import ArgumentParser
 
 # Base class for processor with management of flows in & out which are managed
 # by configuration.  This is probably all processor types, except for the
@@ -41,7 +45,7 @@ class FlowProcessor(AsyncProcessor):
         logger.info("Service initialised.")
 
     # Register a configuration variable
-    def register_specification(self, spec):
+    def register_specification(self, spec: Any) -> None:
         self.specifications.append(spec)
 
     # Start processing for a new flow
@@ -99,7 +103,7 @@ class FlowProcessor(AsyncProcessor):
         await super(FlowProcessor, self).start()
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         AsyncProcessor.add_args(parser)
 

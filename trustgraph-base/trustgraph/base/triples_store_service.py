@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 Triples store base class
@@ -53,7 +56,7 @@ class TriplesStoreService(FlowProcessor):
             raise e
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

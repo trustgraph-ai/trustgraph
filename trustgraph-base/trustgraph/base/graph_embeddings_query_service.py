@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 Graph embeddings query service.  Input is vectors.  Output is list of
@@ -82,7 +85,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             await flow("response").send(r, properties={"id": id})
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 
@@ -93,7 +96,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
-def run():
+def run() -> None:
 
     Processor.launch(default_ident, __doc__)
 

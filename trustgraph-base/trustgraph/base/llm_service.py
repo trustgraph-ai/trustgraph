@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 LLM text completion base class
@@ -205,7 +208,7 @@ class LlmService(FlowProcessor):
                 properties={"id": id}
             )
 
-    def supports_streaming(self):
+    def supports_streaming(self) -> bool:
         """
         Override in subclass to indicate streaming support.
         Returns False by default.
@@ -221,7 +224,7 @@ class LlmService(FlowProcessor):
         raise NotImplementedError("Streaming not implemented for this provider")
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         parser.add_argument(
             '-c', '--concurrency',

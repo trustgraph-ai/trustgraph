@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 Base class for dynamically pluggable tool services.
@@ -173,7 +176,7 @@ class DynamicToolService(AsyncProcessor):
         raise NotImplementedError("Subclasses must implement invoke()")
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         AsyncProcessor.add_args(parser)
 

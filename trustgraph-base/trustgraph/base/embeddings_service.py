@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 """
 Embeddings resolution base class
@@ -100,7 +103,7 @@ class EmbeddingsService(FlowProcessor):
             )
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         parser.add_argument(
             '-c', '--concurrency',
@@ -110,6 +113,5 @@ class EmbeddingsService(FlowProcessor):
         )
 
         FlowProcessor.add_args(parser)
-
 
 

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any
 
 import logging
 
@@ -9,7 +12,7 @@ from .. knowledge import Uri, Literal
 logger = logging.getLogger(__name__)
 
 
-def to_value(x):
+def to_value(x: Any) -> Any:
     """Convert schema Term to Uri or Literal."""
     if x.type == IRI:
         return Uri(x.iri)
