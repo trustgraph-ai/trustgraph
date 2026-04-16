@@ -53,7 +53,7 @@ class MetaRouter:
                 "general": {"name": "general", "description": "General queries", "valid_patterns": ["react"], "framing": ""},
             }
 
-    async def identify_task_type(self, question, context):
+    async def identify_task_type(self, question, context, usage=None):
         """
         Use the LLM to classify the question into one of the known task types.
 
@@ -71,7 +71,7 @@ class MetaRouter:
 
         try:
             client = context("prompt-request")
-            response = await client.prompt(
+            result = await client.prompt(
                 id="task-type-classify",
                 variables={
                     "question": question,
@@ -81,7 +81,9 @@ class MetaRouter:
                     ],
                 },
             )
-            selected = response.strip().lower().replace('"', '').replace("'", "")
+            if usage:
+                usage.track(result)
+            selected = result.text.strip().lower().replace('"', '').replace("'", "")
 
             if selected in self.task_types:
                 framing = self.task_types[selected].get("framing", DEFAULT_FRAMING)
@@ -100,7 +102,7 @@ class MetaRouter:
         )
         return DEFAULT_TASK_TYPE, framing
 
-    async def select_pattern(self, question, task_type, context):
+    async def select_pattern(self, question, task_type, context, usage=None):
         """
         Use the LLM to select the best execution pattern for this task type.
 
@@ -120,7 +122,7 @@ class MetaRouter:
 
         try:
             client = context("prompt-request")
-            response = await client.prompt(
+            result = await client.prompt(
                 id="pattern-select",
                 variables={
                     "question": question,
@@ -133,7 +135,9 @@ class MetaRouter:
                     ],
                 },
             )
-            selected = response.strip().lower().replace('"', '').replace("'", "")
+            if usage:
+                usage.track(result)
+            selected = result.text.strip().lower().replace('"', '').replace("'", "")
 
             if selected in valid_patterns:
                 logger.info(f"MetaRouter: selected pattern '{selected}'")
@@ -148,19 +152,20 @@ class MetaRouter:
             logger.warning(f"MetaRouter: pattern selection failed: {e}")
             return valid_patterns[0] if valid_patterns else DEFAULT_PATTERN
 
-    async def route(self, question, context):
+    async def route(self, question, context, usage=None):
         """
         Full routing pipeline: identify task type, then select pattern.
 
         Args:
             question: The user's query.
             context: UserAwareContext (flow wrapper).
+            usage: Optional UsageTracker for token counting.
 
         Returns:
             (pattern, task_type, framing) tuple.
         """
-        task_type, framing = await self.identify_task_type(question, context)
-        pattern = await self.select_pattern(question, task_type, context)
+        task_type, framing = await self.identify_task_type(question, context, usage=usage)
+        pattern = await self.select_pattern(question, task_type, context, usage=usage)
         logger.info(
             f"MetaRouter: route result — "
             f"pattern={pattern}, task_type={task_type}, framing={framing!r}"

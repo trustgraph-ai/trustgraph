@@ -102,10 +102,10 @@ class Processor(FlowProcessor):
             __class__.cost_metric.labels(model=modelname, direction="input").inc(cost_in)
             __class__.cost_metric.labels(model=modelname, direction="output").inc(cost_out)
 
-        logger.info(f"Model: {modelname}")
-        logger.info(f"Input Tokens: {num_in}")
-        logger.info(f"Output Tokens: {num_out}")
-        logger.info(f"Cost for call: ${cost_per_call}")
+        logger.debug(
+            f"Model: {modelname}, in={num_in}, out={num_out}, "
+            f"cost=${cost_per_call}"
+        )
 
     @staticmethod
     def add_args(parser):

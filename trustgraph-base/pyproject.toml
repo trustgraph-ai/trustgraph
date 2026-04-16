@@ -15,6 +15,7 @@ dependencies = [
     "requests",
     "python-logging-loki",
     "pika",
+    "pyyaml",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -23,6 +24,9 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+processor-group = "trustgraph.base.processor_group:run"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]

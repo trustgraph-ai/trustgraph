@@ -72,6 +72,16 @@ class PulsarBackendConsumer:
         self._consumer = pulsar_consumer
         self._schema_cls = schema_cls
 
+    def ensure_connected(self) -> None:
+        """No-op for Pulsar.
+
+        PulsarBackend.create_consumer() calls client.subscribe() which is
+        synchronous and returns a fully-subscribed consumer, so the
+        consumer is already ready by the time this object is constructed.
+        Defined for parity with the BackendConsumer protocol used by
+        Subscriber.start()'s readiness barrier."""
+        pass
+
     def receive(self, timeout_millis: int = 2000) -> Message:
         """Receive a message. Raises TimeoutError if no message available."""
         try:

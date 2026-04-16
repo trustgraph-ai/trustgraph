@@ -1,0 +1,20 @@
+# Triples store.  Cassandra-backed RDF triple query/write.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.query.triples.cassandra.Processor
+    params:
+      <<: *defaults
+      id: triples-query
+      cassandra_host: localhost
+
+  - class: trustgraph.storage.triples.cassandra.Processor
+    params:
+      <<: *defaults
+      id: triples-write
+      cassandra_host: localhost

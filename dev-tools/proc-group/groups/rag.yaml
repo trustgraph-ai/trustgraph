@@ -1,0 +1,64 @@
+# RAG / retrieval / agent.  Query-time serving path.  Drives outbound
+# LLM calls via prompt-rag.  sparql-query lives here because it's a
+# read-side serving endpoint, not a backend writer.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.agent.orchestrator.Processor
+    params:
+      <<: *defaults
+      id: agent-manager
+
+  - class: trustgraph.retrieval.graph_rag.Processor
+    params:
+      <<: *defaults
+      id: graph-rag
+      concurrency: 1
+      entity_limit: 50
+      triple_limit: 30
+      edge_limit: 30
+      edge_score_limit: 10
+      max_subgraph_size: 100
+      max_path_length: 2
+
+  - class: trustgraph.retrieval.document_rag.Processor
+    params:
+      <<: *defaults
+      id: document-rag
+      doc_limit: 20
+
+  - class: trustgraph.retrieval.nlp_query.Processor
+    params:
+      <<: *defaults
+      id: nlp-query
+
+  - class: trustgraph.retrieval.structured_query.Processor
+    params:
+      <<: *defaults
+      id: structured-query
+
+  - class: trustgraph.retrieval.structured_diag.Processor
+    params:
+      <<: *defaults
+      id: structured-diag
+
+  - class: trustgraph.query.sparql.Processor
+    params:
+      <<: *defaults
+      id: sparql-query
+
+  - class: trustgraph.prompt.template.Processor
+    params:
+      <<: *defaults
+      id: prompt-rag
+      concurrency: 1
+
+  - class: trustgraph.agent.mcp_tool.Service
+    params:
+      <<: *defaults
+      id: mcp-tool

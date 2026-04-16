@@ -11,6 +11,8 @@ import time
 import asyncio
 import logging
 
+from . cassandra_async import async_execute
+
 logger = logging.getLogger(__name__)
 
 class ConfigTableStore:
@@ -102,21 +104,20 @@ class ConfigTableStore:
 
     async def inc_version(self):
 
-        self.cassandra.execute("""
+        await async_execute(self.cassandra, """
             UPDATE version set version = version + 1
             WHERE id = 'version'
         """)
 
     async def get_version(self):
 
-        resp = self.cassandra.execute("""
+        rows = await async_execute(self.cassandra, """
             SELECT version FROM version
             WHERE id = 'version'
         """)
 
-        row = resp.one()
-
-        if row: return row[0]
+        if rows:
+            return rows[0][0]
 
         return None
 
@@ -153,150 +154,91 @@ class ConfigTableStore:
         """)
 
     async def put_config(self, cls, key, value):
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.put_config_stmt,
-                    ( cls, key, value )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.put_config_stmt,
+                (cls, key, value),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
     async def get_value(self, cls, key):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_value_stmt,
+                (cls, key),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_value_stmt,
-                    ( cls, key )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        for row in resp:
+        for row in rows:
             return row[0]
-
         return None
 
     async def get_values(self, cls):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_values_stmt,
+                (cls,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_values_stmt,
-                    ( cls, )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            [row[0], row[1]]
-            for row in resp
-        ]
+        return [[row[0], row[1]] for row in rows]
 
     async def get_classes(self):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_classes_stmt,
+                (),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_classes_stmt,
-                    ()
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            row[0] for row in resp
-        ]
+        return [row[0] for row in rows]
 
     async def get_all(self):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_all_stmt,
+                (),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_all_stmt,
-                    ()
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            (row[0], row[1], row[2])
-            for row in resp
-        ]
+        return [(row[0], row[1], row[2]) for row in rows]
 
     async def get_keys(self, cls):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_keys_stmt,
+                (cls,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_keys_stmt,
-                    ( cls, )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            row[0] for row in resp
-        ]
+        return [row[0] for row in rows]
 
     async def delete_key(self, cls, key):
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_key_stmt,
-                    (cls, key)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_key_stmt,
+                (cls, key),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 

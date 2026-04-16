@@ -121,7 +121,7 @@ class Query:
     def __init__(
             self, rag, user, collection, verbose,
             entity_limit=50, triple_limit=30, max_subgraph_size=1000,
-            max_path_length=2,
+            max_path_length=2, track_usage=None,
     ):
         self.rag = rag
         self.user = user
@@ -131,23 +131,28 @@ class Query:
         self.triple_limit = triple_limit
         self.max_subgraph_size = max_subgraph_size
         self.max_path_length = max_path_length
+        self.track_usage = track_usage
 
     async def extract_concepts(self, query):
         """Extract key concepts from query for independent embedding."""
-        response = await self.rag.prompt_client.prompt(
+        result = await self.rag.prompt_client.prompt(
             "extract-concepts",
             variables={"query": query}
         )
+        if self.track_usage:
+            self.track_usage(result)
 
         concepts = []
-        if isinstance(response, str):
-            for line in response.strip().split('\n'):
+        if result.text:
+            for line in result.text.strip().split('\n'):
                 line = line.strip()
                 if line:
                     concepts.append(line)
 
         if self.verbose:
             logger.debug(f"Extracted concepts: {concepts}")
+
+        self.concepts_usage = result
 
         # Fall back to raw query if extraction returns nothing
         return concepts if concepts else [query]
@@ -609,8 +614,24 @@ class GraphRag:
             save_answer_callback: async def callback(doc_id, answer_text) -> doc_id to save answer to librarian
 
         Returns:
-            str: The synthesized answer text
+            tuple: (answer_text, usage) where usage is a dict with
+                   in_token, out_token, model
         """
+        # Accumulate token usage across all prompt calls
+        total_in = 0
+        total_out = 0
+        last_model = None
+
+        def track_usage(result):
+            nonlocal total_in, total_out, last_model
+            if result is not None:
+                if result.in_token is not None:
+                    total_in += result.in_token
+                if result.out_token is not None:
+                    total_out += result.out_token
+                if result.model is not None:
+                    last_model = result.model
+
         if self.verbose:
             logger.debug("Constructing prompt...")
 
@@ -641,14 +662,21 @@ class GraphRag:
             triple_limit = triple_limit,
             max_subgraph_size = max_subgraph_size,
             max_path_length = max_path_length,
+            track_usage = track_usage,
         )
 
         kg, uri_map, seed_entities, concepts = await q.get_labelgraph(query)
 
         # Emit grounding explain after concept extraction
         if explain_callback:
+            cu = getattr(q, 'concepts_usage', None)
             gnd_triples = set_graph(
-                grounding_triples(gnd_uri, q_uri, concepts),
+                grounding_triples(
+                    gnd_uri, q_uri, concepts,
+                    in_token=cu.in_token if cu else None,
+                    out_token=cu.out_token if cu else None,
+                    model=cu.model if cu else None,
+                ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(gnd_triples, gnd_uri)
@@ -751,42 +779,28 @@ class GraphRag:
             logger.debug(f"Built edge map with {len(edge_map)} edges")
 
         # Step 1a: Edge Scoring - LLM scores edges for relevance
-        scoring_response = await self.prompt_client.prompt(
+        scoring_result = await self.prompt_client.prompt(
             "kg-edge-scoring",
             variables={
                 "query": query,
                 "knowledge": edges_with_ids
             }
         )
+        track_usage(scoring_result)
 
         if self.verbose:
-            logger.debug(f"Edge scoring response: {scoring_response}")
+            logger.debug(f"Edge scoring result: {scoring_result}")
 
-        # Parse scoring response to get edge IDs with scores
+        # Parse scoring response (jsonl) to get edge IDs with scores
         scored_edges = []
 
-        def parse_scored_edge(obj):
+        for obj in scoring_result.objects or []:
             if isinstance(obj, dict) and "id" in obj and "score" in obj:
                 try:
                     score = int(obj["score"])
                 except (ValueError, TypeError):
                     score = 0
                 scored_edges.append({"id": obj["id"], "score": score})
-
-        if isinstance(scoring_response, list):
-            for obj in scoring_response:
-                parse_scored_edge(obj)
-        elif isinstance(scoring_response, str):
-            for line in scoring_response.strip().split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    parse_scored_edge(json.loads(line))
-                except json.JSONDecodeError:
-                    logger.warning(
-                        f"Failed to parse edge scoring line: {line}"
-                    )
 
         # Select top N edges by score
         scored_edges.sort(key=lambda x: x["score"], reverse=True)
@@ -821,25 +835,30 @@ class GraphRag:
         ]
 
         # Run reasoning and document tracing concurrently
-        reasoning_task = self.prompt_client.prompt(
-            "kg-edge-reasoning",
-            variables={
-                "query": query,
-                "knowledge": selected_edges_with_ids
-            }
-        )
+        async def _get_reasoning():
+            result = await self.prompt_client.prompt(
+                "kg-edge-reasoning",
+                variables={
+                    "query": query,
+                    "knowledge": selected_edges_with_ids
+                }
+            )
+            track_usage(result)
+            return result
+
+        reasoning_task = _get_reasoning()
         doc_trace_task = q.trace_source_documents(selected_edge_uris)
 
-        reasoning_response, source_documents = await asyncio.gather(
+        reasoning_result, source_documents = await asyncio.gather(
             reasoning_task, doc_trace_task, return_exceptions=True
         )
 
         # Handle exceptions from gather
-        if isinstance(reasoning_response, Exception):
+        if isinstance(reasoning_result, Exception):
             logger.warning(
-                f"Edge reasoning failed: {reasoning_response}"
+                f"Edge reasoning failed: {reasoning_result}"
             )
-            reasoning_response = ""
+            reasoning_result = None
         if isinstance(source_documents, Exception):
             logger.warning(
                 f"Document tracing failed: {source_documents}"
@@ -848,29 +867,15 @@ class GraphRag:
 
 
         if self.verbose:
-            logger.debug(f"Edge reasoning response: {reasoning_response}")
+            logger.debug(f"Edge reasoning result: {reasoning_result}")
 
-        # Parse reasoning response and build explainability data
+        # Parse reasoning response (jsonl) and build explainability data
         reasoning_map = {}
 
-        def parse_reasoning(obj):
-            if isinstance(obj, dict) and "id" in obj:
-                reasoning_map[obj["id"]] = obj.get("reasoning", "")
-
-        if isinstance(reasoning_response, list):
-            for obj in reasoning_response:
-                parse_reasoning(obj)
-        elif isinstance(reasoning_response, str):
-            for line in reasoning_response.strip().split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    parse_reasoning(json.loads(line))
-                except json.JSONDecodeError:
-                    logger.warning(
-                        f"Failed to parse edge reasoning line: {line}"
-                    )
+        if reasoning_result is not None:
+            for obj in reasoning_result.objects or []:
+                if isinstance(obj, dict) and "id" in obj:
+                    reasoning_map[obj["id"]] = obj.get("reasoning", "")
 
         selected_edges_with_reasoning = []
         for eid in selected_ids:
@@ -886,9 +891,25 @@ class GraphRag:
 
         # Emit focus explain after edge selection completes
         if explain_callback:
+            # Sum scoring + reasoning token usage for focus event
+            focus_in = 0
+            focus_out = 0
+            focus_model = None
+            for r in [scoring_result, reasoning_result]:
+                if r is not None:
+                    if r.in_token is not None:
+                        focus_in += r.in_token
+                    if r.out_token is not None:
+                        focus_out += r.out_token
+                    if r.model is not None:
+                        focus_model = r.model
+
             foc_triples = set_graph(
                 focus_triples(
-                    foc_uri, exp_uri, selected_edges_with_reasoning, session_id
+                    foc_uri, exp_uri, selected_edges_with_reasoning, session_id,
+                    in_token=focus_in or None,
+                    out_token=focus_out or None,
+                    model=focus_model,
                 ),
                 GRAPH_RETRIEVAL
             )
@@ -919,19 +940,22 @@ class GraphRag:
                 accumulated_chunks.append(chunk)
                 await chunk_callback(chunk, end_of_stream)
 
-            await self.prompt_client.prompt(
+            synthesis_result = await self.prompt_client.prompt(
                 "kg-synthesis",
                 variables=synthesis_variables,
                 streaming=True,
                 chunk_callback=accumulating_callback
             )
+            track_usage(synthesis_result)
             # Combine all chunks into full response
             resp = "".join(accumulated_chunks)
         else:
-            resp = await self.prompt_client.prompt(
+            synthesis_result = await self.prompt_client.prompt(
                 "kg-synthesis",
                 variables=synthesis_variables,
             )
+            track_usage(synthesis_result)
+            resp = synthesis_result.text
 
         if self.verbose:
             logger.debug("Query processing complete")
@@ -956,6 +980,9 @@ class GraphRag:
                 synthesis_triples(
                     syn_uri, foc_uri,
                     document_id=synthesis_doc_id,
+                    in_token=synthesis_result.in_token if synthesis_result else None,
+                    out_token=synthesis_result.out_token if synthesis_result else None,
+                    model=synthesis_result.model if synthesis_result else None,
                 ),
                 GRAPH_RETRIEVAL
             )
@@ -964,5 +991,11 @@ class GraphRag:
         if self.verbose:
             logger.debug(f"Emitted explain for session {session_id}")
 
-        return resp
+        usage = {
+            "in_token": total_in if total_in > 0 else None,
+            "out_token": total_out if total_out > 0 else None,
+            "model": last_model,
+        }
+
+        return resp, usage
 

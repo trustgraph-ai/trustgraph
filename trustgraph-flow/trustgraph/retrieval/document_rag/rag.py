@@ -200,7 +200,7 @@ class Processor(FlowProcessor):
 
                 # Query with streaming enabled
                 # All chunks (including final one with end_of_stream=True) are sent via callback
-                await self.rag.query(
+                response, usage = await self.rag.query(
                     v.query,
                     user=v.user,
                     collection=v.collection,
@@ -217,12 +217,15 @@ class Processor(FlowProcessor):
                         response=None,
                         end_of_session=True,
                         message_type="end",
+                        in_token=usage.get("in_token"),
+                        out_token=usage.get("out_token"),
+                        model=usage.get("model"),
                     ),
                     properties={"id": id}
                 )
             else:
-                # Non-streaming path (existing behavior)
-                response = await self.rag.query(
+                # Non-streaming path - single response with answer and token usage
+                response, usage = await self.rag.query(
                     v.query,
                     user=v.user,
                     collection=v.collection,
@@ -233,11 +236,15 @@ class Processor(FlowProcessor):
 
                 await flow("response").send(
                     DocumentRagResponse(
-                        response = response,
-                        end_of_stream = True,
-                        error = None
+                        response=response,
+                        end_of_stream=True,
+                        end_of_session=True,
+                        error=None,
+                        in_token=usage.get("in_token"),
+                        out_token=usage.get("out_token"),
+                        model=usage.get("model"),
                     ),
-                    properties = {"id": id}
+                    properties={"id": id}
                 )
 
             logger.info("Request processing complete")

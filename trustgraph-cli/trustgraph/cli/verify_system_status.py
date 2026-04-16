@@ -403,15 +403,8 @@ def main():
     # Phase 1: Infrastructure
     print(tr.t("cli.verify_system_status.phase_1"))
     print("-" * 60)
-    if not checker.run_check(
-        tr.t("cli.verify_system_status.check_name.pulsar"),
-        check_pulsar,
-        args.pulsar_url,
-        args.check_timeout,
-        tr,
-    ):
-        print(f"\n⚠️  {tr.t('cli.verify_system_status.pulsar_not_responding')}")
-        print()
+    # Pulsar check is skipped — not all deployments use Pulsar.
+    # The API Gateway check covers broker connectivity indirectly.
 
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.api_gateway"),

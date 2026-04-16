@@ -469,7 +469,7 @@ class Processor(AgentService):
 
                 # Send explain event for session
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=session_uri,
                     explain_graph=GRAPH_RETRIEVAL,
@@ -492,7 +492,7 @@ class Processor(AgentService):
 
                 if streaming:
                     r = AgentResponse(
-                        chunk_type="thought",
+                        message_type="thought",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
@@ -500,7 +500,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="thought",
+                        message_type="thought",
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
@@ -515,7 +515,7 @@ class Processor(AgentService):
 
                 if streaming:
                     r = AgentResponse(
-                        chunk_type="observation",
+                        message_type="observation",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
@@ -523,7 +523,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="observation",
+                        message_type="observation",
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
@@ -540,7 +540,7 @@ class Processor(AgentService):
 
                 if streaming:
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=x,
                         end_of_message=False,
                         end_of_dialog=False,
@@ -548,7 +548,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
@@ -637,7 +637,7 @@ class Processor(AgentService):
                 logger.debug(f"Emitted iteration triples for {iter_uri}")
 
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=iter_uri,
                     explain_graph=GRAPH_RETRIEVAL,
@@ -715,7 +715,7 @@ class Processor(AgentService):
 
                 # Send explain event for conclusion
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=final_uri,
                     explain_graph=GRAPH_RETRIEVAL,
@@ -725,7 +725,7 @@ class Processor(AgentService):
                 if streaming:
                     # End-of-dialog marker — answer chunks already sent via callback
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content="",
                         end_of_message=True,
                         end_of_dialog=True,
@@ -733,7 +733,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=f,
                         end_of_message=True,
                         end_of_dialog=True,
@@ -792,7 +792,7 @@ class Processor(AgentService):
 
             # Send explain event for observation
             await respond(AgentResponse(
-                chunk_type="explain",
+                message_type="explain",
                 content="",
                 explain_id=observation_entity_uri,
                 explain_graph=GRAPH_RETRIEVAL,
@@ -847,7 +847,7 @@ class Processor(AgentService):
             streaming = getattr(request, 'streaming', False) if 'request' in locals() else False
 
             r = AgentResponse(
-                chunk_type="error",
+                message_type="error",
                 content=str(e),
                 end_of_message=True,
                 end_of_dialog=True,

@@ -144,6 +144,25 @@ Defined in `trustgraph-base/trustgraph/provenance/namespaces.py`:
 | `TG_REASONING` | `https://trustgraph.ai/ns/reasoning` |
 | `TG_CONTENT` | `https://trustgraph.ai/ns/content` |
 | `TG_DOCUMENT` | `https://trustgraph.ai/ns/document` |
+| `TG_IN_TOKEN` | `https://trustgraph.ai/ns/inToken` |
+| `TG_OUT_TOKEN` | `https://trustgraph.ai/ns/outToken` |
+| `TG_LLM_MODEL` | `https://trustgraph.ai/ns/llmModel` |
+
+### Token Usage on Events
+
+Grounding, Focus, and Synthesis events carry per-event LLM token counts:
+
+| Predicate | Type | Present on |
+|-----------|------|------------|
+| `tg:inToken` | integer | Grounding, Focus, Synthesis |
+| `tg:outToken` | integer | Grounding, Focus, Synthesis |
+| `tg:llmModel` | string | Grounding, Focus, Synthesis |
+
+- **Grounding**: tokens from the extract-concepts LLM call
+- **Focus**: summed tokens from edge-scoring + edge-reasoning LLM calls
+- **Synthesis**: tokens from the synthesis LLM call
+
+Values are absent (not zero) when token counts are unavailable.
 
 ## GraphRagResponse Schema
 
@@ -267,8 +286,13 @@ Based on the provided knowledge statements...
 | `trustgraph-flow/trustgraph/query/triples/cassandra/service.py` | Quoted triple query support |
 | `trustgraph-cli/trustgraph/cli/invoke_graph_rag.py` | CLI with explainability display |
 
+## Vocabulary Reference
+
+The full OWL ontology covering all classes and predicates is at `specs/ontology/trustgraph.ttl`.
+
 ## References
 
 - PROV-O (W3C Provenance Ontology): https://www.w3.org/TR/prov-o/
 - RDF-star: https://w3c.github.io/rdf-star/
 - Extraction-time provenance: `docs/tech-specs/extraction-time-provenance.md`
+- Agent explainability: `docs/tech-specs/agent-explainability.md`

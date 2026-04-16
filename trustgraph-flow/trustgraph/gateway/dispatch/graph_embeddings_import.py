@@ -8,7 +8,7 @@ from ... schema import Metadata
 from ... schema import GraphEmbeddings, EntityEmbeddings
 from ... base import Publisher
 
-from . serialize import to_subgraph, to_value
+from . serialize import to_value
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -48,14 +48,13 @@ class GraphEmbeddingsImport:
         elt = GraphEmbeddings(
             metadata=Metadata(
                 id=data["metadata"]["id"],
-                metadata=to_subgraph(data["metadata"]["metadata"]),
                 user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),
             entities=[
                 EntityEmbeddings(
                     entity=to_value(ent["entity"]),
-                    vectors=ent["vectors"],
+                    vector=ent["vector"],
                 )
                 for ent in data["entities"]
             ]

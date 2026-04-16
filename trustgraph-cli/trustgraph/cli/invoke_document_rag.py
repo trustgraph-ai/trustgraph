@@ -99,7 +99,8 @@ def question_explainable(
 
 def question(
     url, flow_id, question_text, user, collection, doc_limit,
-    streaming=True, token=None, explainable=False, debug=False
+    streaming=True, token=None, explainable=False, debug=False,
+    show_usage=False
 ):
     # Explainable mode uses the API to capture and process provenance events
     if explainable:
@@ -133,22 +134,40 @@ def question(
             )
 
             # Stream output
+            last_chunk = None
             for chunk in response:
-                print(chunk, end="", flush=True)
+                print(chunk.content, end="", flush=True)
+                last_chunk = chunk
             print()  # Final newline
+
+            if show_usage and last_chunk:
+                print(
+                    f"Input tokens: {last_chunk.in_token}  "
+                    f"Output tokens: {last_chunk.out_token}  "
+                    f"Model: {last_chunk.model}",
+                    file=sys.stderr,
+                )
 
         finally:
             socket.close()
     else:
         # Use REST API for non-streaming
         flow = api.flow().id(flow_id)
-        resp = flow.document_rag(
+        result = flow.document_rag(
             query=question_text,
             user=user,
             collection=collection,
             doc_limit=doc_limit,
         )
-        print(resp)
+        print(result.text)
+
+        if show_usage:
+            print(
+                f"Input tokens: {result.in_token}  "
+                f"Output tokens: {result.out_token}  "
+                f"Model: {result.model}",
+                file=sys.stderr,
+            )
 
 
 def main():
@@ -219,6 +238,12 @@ def main():
         help='Show debug output for troubleshooting'
     )
 
+    parser.add_argument(
+        '--show-usage',
+        action='store_true',
+        help='Show token usage and model on stderr'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -234,6 +259,7 @@ def main():
             token=args.token,
             explainable=args.explainable,
             debug=args.debug,
+            show_usage=args.show_usage,
         )
 
     except Exception as e:

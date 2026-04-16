@@ -332,7 +332,7 @@ class Processor(FlowProcessor):
                     )
 
                 # Query with streaming and real-time explain
-                response = await rag.query(
+                response, usage = await rag.query(
                     query = v.query, user = v.user, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
@@ -348,7 +348,7 @@ class Processor(FlowProcessor):
 
             else:
                 # Non-streaming path with real-time explain
-                response = await rag.query(
+                response, usage = await rag.query(
                     query = v.query, user = v.user, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
@@ -360,23 +360,30 @@ class Processor(FlowProcessor):
                     parent_uri = v.parent_uri,
                 )
 
-                # Send chunk with response
+                # Send single response with answer and token usage
                 await flow("response").send(
                     GraphRagResponse(
                         message_type="chunk",
                         response=response,
                         end_of_stream=True,
-                        error=None,
+                        end_of_session=True,
+                        in_token=usage.get("in_token"),
+                        out_token=usage.get("out_token"),
+                        model=usage.get("model"),
                     ),
                     properties={"id": id}
                 )
+                return
 
-            # Send final message to close session
+            # Streaming: send final message to close session with token usage
             await flow("response").send(
                 GraphRagResponse(
                     message_type="chunk",
                     response="",
                     end_of_session=True,
+                    in_token=usage.get("in_token"),
+                    out_token=usage.get("out_token"),
+                    model=usage.get("model"),
                 ),
                 properties={"id": id}
             )

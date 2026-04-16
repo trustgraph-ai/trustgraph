@@ -41,4 +41,9 @@ class PromptResponse:
     # Indicates final message in stream
     end_of_stream: bool = False
 
+    # Token usage from the underlying text completion
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None
+
 ############################################################################

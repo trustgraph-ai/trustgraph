@@ -40,15 +40,14 @@ class CoreExport:
                         "ge",
                         {
                             "m": {
-                                "i": data["metadata"]["id"], 
-                                "m": data["metadata"]["metadata"],
+                                "i": data["metadata"]["id"],
                                 "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },
                             "e": [
                                 {
                                     "e": ent["entity"],
-                                    "v": ent["vectors"],
+                                    "v": ent["vector"],
                                 }
                                 for ent in data["entities"]
                             ]
@@ -65,8 +64,7 @@ class CoreExport:
                         "t",
                         {
                             "m": {
-                                "i": data["metadata"]["id"], 
-                                "m": data["metadata"]["metadata"],
+                                "i": data["metadata"]["id"],
                                 "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },

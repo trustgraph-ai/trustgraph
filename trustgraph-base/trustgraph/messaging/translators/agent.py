@@ -60,8 +60,8 @@ class AgentResponseTranslator(MessageTranslator):
     def encode(self, obj: AgentResponse) -> Dict[str, Any]:
         result = {}
 
-        if obj.chunk_type:
-            result["chunk_type"] = obj.chunk_type
+        if obj.message_type:
+            result["message_type"] = obj.message_type
         if obj.content:
             result["content"] = obj.content
         result["end_of_message"] = getattr(obj, "end_of_message", False)
@@ -89,6 +89,13 @@ class AgentResponseTranslator(MessageTranslator):
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
             result["error"] = {"message": obj.error.message, "code": obj.error.code}
+
+        if obj.in_token is not None:
+            result["in_token"] = obj.in_token
+        if obj.out_token is not None:
+            result["out_token"] = obj.out_token
+        if obj.model is not None:
+            result["model"] = obj.model
 
         return result
 

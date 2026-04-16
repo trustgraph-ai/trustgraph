@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.extract.kg.definitions.extract import (
     Processor, default_triples_batch_size, default_entity_batch_size,
 )
+from trustgraph.base import PromptResult
 from trustgraph.schema import (
     Chunk, Triples, EntityContexts, Triple, Metadata, Term, IRI, LITERAL,
 )
@@ -51,8 +52,12 @@ def _make_flow(prompt_result, llm_model="test-llm", ontology_uri="test-onto"):
     mock_triples_pub = AsyncMock()
     mock_ecs_pub = AsyncMock()
     mock_prompt_client = AsyncMock()
+    if isinstance(prompt_result, list):
+        wrapped = PromptResult(response_type="jsonl", objects=prompt_result)
+    else:
+        wrapped = PromptResult(response_type="text", text=prompt_result)
     mock_prompt_client.extract_definitions = AsyncMock(
-        return_value=prompt_result
+        return_value=wrapped
     )
 
     def flow(name):

@@ -6,273 +6,212 @@ parent: "Tech Specs"
 
 # Agent Explainability: Provenance Recording
 
+## Status
+
+Implemented
+
 ## Overview
 
-Add provenance recording to the React agent loop so agent sessions can be traced and debugged using the same explainability infrastructure as GraphRAG.
+Agent sessions are traced and debugged using the same explainability infrastructure as GraphRAG and Document RAG. Provenance is written to `urn:graph:retrieval` and delivered inline on the explain stream.
 
-**Design Decisions:**
-- Write to `urn:graph:retrieval` (generic explainability graph)
-- Linear dependency chain for now (analysis N → wasDerivedFrom → analysis N-1)
-- Tools are opaque black boxes (record input/output only)
-- DAG support deferred to future iteration
+The canonical vocabulary for all predicates and types is published as an OWL ontology at `specs/ontology/trustgraph.ttl`.
 
 ## Entity Types
 
-Both GraphRAG and Agent use PROV-O as the base ontology with TrustGraph-specific subtypes:
+All services use PROV-O as the base ontology with TrustGraph-specific subtypes.
 
 ### GraphRAG Types
-| Entity | PROV-O Type | TG Types | Description |
-|--------|-------------|----------|-------------|
-| Question | `prov:Activity` | `tg:Question`, `tg:GraphRagQuestion` | The user's query |
-| Exploration | `prov:Entity` | `tg:Exploration` | Edges retrieved from knowledge graph |
-| Focus | `prov:Entity` | `tg:Focus` | Selected edges with reasoning |
-| Synthesis | `prov:Entity` | `tg:Synthesis` | Final answer |
-
-### Agent Types
-| Entity | PROV-O Type | TG Types | Description |
-|--------|-------------|----------|-------------|
-| Question | `prov:Activity` | `tg:Question`, `tg:AgentQuestion` | The user's query |
-| Analysis | `prov:Entity` | `tg:Analysis` | Each think/act/observe cycle |
-| Conclusion | `prov:Entity` | `tg:Conclusion` | Final answer |
+| Entity | TG Types | Description |
+|--------|----------|-------------|
+| Question | `tg:Question`, `tg:GraphRagQuestion` | The user's query |
+| Grounding | `tg:Grounding` | Concept extraction from query |
+| Exploration | `tg:Exploration` | Edges retrieved from knowledge graph |
+| Focus | `tg:Focus` | Selected edges with reasoning |
+| Synthesis | `tg:Synthesis`, `tg:Answer` | Final answer |
 
 ### Document RAG Types
-| Entity | PROV-O Type | TG Types | Description |
-|--------|-------------|----------|-------------|
-| Question | `prov:Activity` | `tg:Question`, `tg:DocRagQuestion` | The user's query |
-| Exploration | `prov:Entity` | `tg:Exploration` | Chunks retrieved from document store |
-| Synthesis | `prov:Entity` | `tg:Synthesis` | Final answer |
+| Entity | TG Types | Description |
+|--------|----------|-------------|
+| Question | `tg:Question`, `tg:DocRagQuestion` | The user's query |
+| Grounding | `tg:Grounding` | Concept extraction from query |
+| Exploration | `tg:Exploration` | Chunks retrieved from document store |
+| Synthesis | `tg:Synthesis`, `tg:Answer` | Final answer |
 
-**Note:** Document RAG uses a subset of GraphRAG's types (no Focus step since there's no edge selection/reasoning phase).
+### Agent Types (React)
+| Entity | TG Types | Description |
+|--------|----------|-------------|
+| Question | `tg:Question`, `tg:AgentQuestion` | The user's query (session start) |
+| PatternDecision | `tg:PatternDecision` | Meta-router routing decision |
+| Analysis | `tg:Analysis`, `tg:ToolUse` | One think/act cycle |
+| Thought | `tg:Reflection`, `tg:Thought` | Agent reasoning (sub-entity of Analysis) |
+| Observation | `tg:Reflection`, `tg:Observation` | Tool result (standalone entity) |
+| Conclusion | `tg:Conclusion`, `tg:Answer` | Final answer |
+
+### Agent Types (Orchestrator — Plan)
+| Entity | TG Types | Description |
+|--------|----------|-------------|
+| Plan | `tg:Plan` | Structured plan of steps |
+| StepResult | `tg:StepResult`, `tg:Answer` | Result from executing one plan step |
+| Synthesis | `tg:Synthesis`, `tg:Answer` | Final synthesised answer |
+
+### Agent Types (Orchestrator — Supervisor)
+| Entity | TG Types | Description |
+|--------|----------|-------------|
+| Decomposition | `tg:Decomposition` | Question decomposed into sub-goals |
+| Finding | `tg:Finding`, `tg:Answer` | Result from a sub-agent |
+| Synthesis | `tg:Synthesis`, `tg:Answer` | Final synthesised answer |
+
+### Mixin Types
+| Type | Description |
+|------|-------------|
+| `tg:Answer` | Unifying type for terminal answers (Synthesis, Conclusion, Finding, StepResult) |
+| `tg:Reflection` | Unifying type for intermediate commentary (Thought, Observation) |
+| `tg:ToolUse` | Applied to Analysis when a tool is invoked |
+| `tg:Error` | Applied to Observation events where a failure occurred (tool error or LLM parse error) |
 
 ### Question Subtypes
-
-All Question entities share `tg:Question` as a base type but have a specific subtype to identify the retrieval mechanism:
 
 | Subtype | URI Pattern | Mechanism |
 |---------|-------------|-----------|
 | `tg:GraphRagQuestion` | `urn:trustgraph:question:{uuid}` | Knowledge graph RAG |
 | `tg:DocRagQuestion` | `urn:trustgraph:docrag:{uuid}` | Document/chunk RAG |
-| `tg:AgentQuestion` | `urn:trustgraph:agent:{uuid}` | ReAct agent |
+| `tg:AgentQuestion` | `urn:trustgraph:agent:session:{uuid}` | Agent orchestrator |
 
-This allows querying all questions via `tg:Question` while filtering by specific mechanism via the subtype.
+## Provenance Chains
 
-## Provenance Model
+All chains use `prov:wasDerivedFrom` links. Each entity is a `prov:Entity`.
 
-```
-Question (urn:trustgraph:agent:{uuid})
-    │
-    │  tg:query = "User's question"
-    │  prov:startedAtTime = timestamp
-    │  rdf:type = prov:Activity, tg:Question
-    │
-    ↓ prov:wasDerivedFrom
-    │
-Analysis1 (urn:trustgraph:agent:{uuid}/i1)
-    │
-    │  tg:thought = "I need to query the knowledge base..."
-    │  tg:action = "knowledge-query"
-    │  tg:arguments = {"question": "..."}
-    │  tg:observation = "Result from tool..."
-    │  rdf:type = prov:Entity, tg:Analysis
-    │
-    ↓ prov:wasDerivedFrom
-    │
-Analysis2 (urn:trustgraph:agent:{uuid}/i2)
-    │  ...
-    ↓ prov:wasDerivedFrom
-    │
-Conclusion (urn:trustgraph:agent:{uuid}/final)
-    │
-    │  tg:answer = "The final response..."
-    │  rdf:type = prov:Entity, tg:Conclusion
-```
-
-### Document RAG Provenance Model
+### GraphRAG
 
 ```
-Question (urn:trustgraph:docrag:{uuid})
-    │
-    │  tg:query = "User's question"
-    │  prov:startedAtTime = timestamp
-    │  rdf:type = prov:Activity, tg:Question
-    │
-    ↓ prov:wasGeneratedBy
-    │
-Exploration (urn:trustgraph:docrag:{uuid}/exploration)
-    │
-    │  tg:chunkCount = 5
-    │  tg:selectedChunk = "chunk-id-1"
-    │  tg:selectedChunk = "chunk-id-2"
-    │  ...
-    │  rdf:type = prov:Entity, tg:Exploration
-    │
-    ↓ prov:wasDerivedFrom
-    │
-Synthesis (urn:trustgraph:docrag:{uuid}/synthesis)
-    │
-    │  tg:content = "The synthesized answer..."
-    │  rdf:type = prov:Entity, tg:Synthesis
+Question → Grounding → Exploration → Focus → Synthesis
 ```
 
-## Changes Required
+### Document RAG
 
-### 1. Schema Changes
-
-**File:** `trustgraph-base/trustgraph/schema/services/agent.py`
-
-Add `session_id` and `collection` fields to `AgentRequest`:
-```python
-@dataclass
-class AgentRequest:
-    question: str = ""
-    state: str = ""
-    group: list[str] | None = None
-    history: list[AgentStep] = field(default_factory=list)
-    user: str = ""
-    collection: str = "default"  # NEW: Collection for provenance traces
-    streaming: bool = False
-    session_id: str = ""         # NEW: For provenance tracking across iterations
+```
+Question → Grounding → Exploration → Synthesis
 ```
 
-**File:** `trustgraph-base/trustgraph/messaging/translators/agent.py`
+### Agent React
 
-Update translator to handle `session_id` and `collection` in both `to_pulsar()` and `from_pulsar()`.
-
-### 2. Add Explainability Producer to Agent Service
-
-**File:** `trustgraph-flow/trustgraph/agent/react/service.py`
-
-Register an "explainability" producer (same pattern as GraphRAG):
-```python
-from ... base import ProducerSpec
-from ... schema import Triples
-
-# In __init__:
-self.register_specification(
-    ProducerSpec(
-        name = "explainability",
-        schema = Triples,
-    )
-)
+```
+Question → PatternDecision → Analysis(1) → Observation(1) → Analysis(2) → ... → Conclusion
 ```
 
-### 3. Provenance Triple Generation
+The PatternDecision entity records which execution pattern the meta-router selected. It is only emitted on the first iteration when routing occurs.
 
-**File:** `trustgraph-base/trustgraph/provenance/agent.py`
+Thought sub-entities derive from their parent Analysis. Observation entities derive from their parent Analysis (or from a sub-trace entity if the tool produced its own explainability, e.g. a GraphRAG query).
 
-Create helper functions (similar to GraphRAG's `question_triples`, `exploration_triples`, etc.):
-```python
-def agent_session_triples(session_uri, query, timestamp):
-    """Generate triples for agent Question."""
-    return [
-        Triple(s=session_uri, p=RDF_TYPE, o=PROV_ACTIVITY),
-        Triple(s=session_uri, p=RDF_TYPE, o=TG_QUESTION),
-        Triple(s=session_uri, p=TG_QUERY, o=query),
-        Triple(s=session_uri, p=PROV_STARTED_AT_TIME, o=timestamp),
-    ]
+### Agent Plan-then-Execute
 
-def agent_iteration_triples(iteration_uri, parent_uri, thought, action, arguments, observation):
-    """Generate triples for one Analysis step."""
-    return [
-        Triple(s=iteration_uri, p=RDF_TYPE, o=PROV_ENTITY),
-        Triple(s=iteration_uri, p=RDF_TYPE, o=TG_ANALYSIS),
-        Triple(s=iteration_uri, p=TG_THOUGHT, o=thought),
-        Triple(s=iteration_uri, p=TG_ACTION, o=action),
-        Triple(s=iteration_uri, p=TG_ARGUMENTS, o=json.dumps(arguments)),
-        Triple(s=iteration_uri, p=TG_OBSERVATION, o=observation),
-        Triple(s=iteration_uri, p=PROV_WAS_DERIVED_FROM, o=parent_uri),
-    ]
-
-def agent_final_triples(final_uri, parent_uri, answer):
-    """Generate triples for Conclusion."""
-    return [
-        Triple(s=final_uri, p=RDF_TYPE, o=PROV_ENTITY),
-        Triple(s=final_uri, p=RDF_TYPE, o=TG_CONCLUSION),
-        Triple(s=final_uri, p=TG_ANSWER, o=answer),
-        Triple(s=final_uri, p=PROV_WAS_DERIVED_FROM, o=parent_uri),
-    ]
+```
+Question → PatternDecision → Plan → StepResult(0) → StepResult(1) → ... → Synthesis
 ```
 
-### 4. Type Definitions
+### Agent Supervisor
 
-**File:** `trustgraph-base/trustgraph/provenance/namespaces.py`
-
-Add explainability entity types and agent predicates:
-```python
-# Explainability entity types (used by both GraphRAG and Agent)
-TG_QUESTION = TG + "Question"
-TG_EXPLORATION = TG + "Exploration"
-TG_FOCUS = TG + "Focus"
-TG_SYNTHESIS = TG + "Synthesis"
-TG_ANALYSIS = TG + "Analysis"
-TG_CONCLUSION = TG + "Conclusion"
-
-# Agent predicates
-TG_THOUGHT = TG + "thought"
-TG_ACTION = TG + "action"
-TG_ARGUMENTS = TG + "arguments"
-TG_OBSERVATION = TG + "observation"
-TG_ANSWER = TG + "answer"
+```
+Question → PatternDecision → Decomposition → [fan-out sub-agents]
+                                           → Finding(0) → Finding(1) → ... → Synthesis
 ```
 
-## Files Modified
+Each sub-agent runs its own session with `wasDerivedFrom` linking back to the parent's Decomposition. Findings derive from their sub-agent's Conclusion.
 
-| File | Change |
-|------|--------|
-| `trustgraph-base/trustgraph/schema/services/agent.py` | Add session_id and collection to AgentRequest |
-| `trustgraph-base/trustgraph/messaging/translators/agent.py` | Update translator for new fields |
-| `trustgraph-base/trustgraph/provenance/namespaces.py` | Add entity types, agent predicates, and Document RAG predicates |
-| `trustgraph-base/trustgraph/provenance/triples.py` | Add TG types to GraphRAG triple builders, add Document RAG triple builders |
-| `trustgraph-base/trustgraph/provenance/uris.py` | Add Document RAG URI generators |
-| `trustgraph-base/trustgraph/provenance/__init__.py` | Export new types, predicates, and Document RAG functions |
-| `trustgraph-base/trustgraph/schema/services/retrieval.py` | Add explain_id, explain_graph, and explain_triples to DocumentRagResponse |
-| `trustgraph-base/trustgraph/messaging/translators/retrieval.py` | Update DocumentRagResponseTranslator for explainability fields including inline triples |
-| `trustgraph-flow/trustgraph/agent/react/service.py` | Add explainability producer + recording logic |
-| `trustgraph-flow/trustgraph/retrieval/document_rag/document_rag.py` | Add explainability callback and emit provenance triples |
-| `trustgraph-flow/trustgraph/retrieval/document_rag/rag.py` | Add explainability producer and wire up callback |
-| `trustgraph-cli/trustgraph/cli/show_explain_trace.py` | Handle agent trace types |
-| `trustgraph-cli/trustgraph/cli/list_explain_traces.py` | List agent sessions alongside GraphRAG |
+## Predicates
 
-## Files Created
+### Session / Question
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:query` | string | The user's query text |
+| `prov:startedAtTime` | string | ISO timestamp |
 
-| File | Purpose |
-|------|---------|
-| `trustgraph-base/trustgraph/provenance/agent.py` | Agent-specific triple generators |
+### Pattern Decision
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:pattern` | string | Selected pattern (react, plan-then-execute, supervisor) |
+| `tg:taskType` | string | Identified task type (general, research, etc.) |
 
-## CLI Updates
+### Analysis (Iteration)
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:action` | string | Tool name selected by the agent |
+| `tg:arguments` | string | JSON-encoded arguments |
+| `tg:thought` | IRI | Link to Thought sub-entity |
+| `tg:toolCandidate` | string | Tool name available to the LLM (one per candidate) |
+| `tg:stepNumber` | integer | 1-based iteration counter |
+| `tg:llmDurationMs` | integer | LLM call duration in milliseconds |
+| `tg:inToken` | integer | Input token count |
+| `tg:outToken` | integer | Output token count |
+| `tg:llmModel` | string | Model identifier |
 
-**Detection:** Both GraphRAG and Agent Questions have `tg:Question` type. Distinguished by:
-1. URI pattern: `urn:trustgraph:agent:` vs `urn:trustgraph:question:`
-2. Derived entities: `tg:Analysis` (agent) vs `tg:Exploration` (GraphRAG)
+### Observation
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:document` | IRI | Librarian document reference |
+| `tg:toolDurationMs` | integer | Tool execution time in milliseconds |
+| `tg:toolError` | string | Error message (tool failure or LLM parse error) |
 
-**`list_explain_traces.py`:**
-- Shows Type column (Agent vs GraphRAG)
+When `tg:toolError` is present, the Observation also carries the `tg:Error` mixin type.
 
-**`show_explain_trace.py`:**
-- Auto-detects trace type
-- Agent rendering shows: Question → Analysis step(s) → Conclusion
+### Conclusion / Synthesis
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:document` | IRI | Librarian document reference |
+| `tg:terminationReason` | string | Why the loop stopped |
+| `tg:inToken` | integer | Input token count (synthesis LLM call) |
+| `tg:outToken` | integer | Output token count |
+| `tg:llmModel` | string | Model identifier |
 
-## Backwards Compatibility
+Termination reason values:
+- `final-answer` -- LLM produced a confident answer (react)
+- `plan-complete` -- all plan steps executed (plan-then-execute)
+- `subagents-complete` -- all sub-agents reported back (supervisor)
 
-- `session_id` defaults to `""` - old requests work, just won't have provenance
-- `collection` defaults to `"default"` - reasonable fallback
-- CLI gracefully handles both trace types
+### Decomposition
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:subagentGoal` | string | Goal assigned to a sub-agent (one per goal) |
+| `tg:inToken` | integer | Input token count |
+| `tg:outToken` | integer | Output token count |
+
+### Plan
+| Predicate | Type | Description |
+|-----------|------|-------------|
+| `tg:planStep` | string | Goal for a plan step (one per step) |
+| `tg:inToken` | integer | Input token count |
+| `tg:outToken` | integer | Output token count |
+
+### Token Counts on RAG Events
+
+Grounding, Focus, and Synthesis events on GraphRAG and Document RAG also carry `tg:inToken`, `tg:outToken`, and `tg:llmModel` for the LLM calls associated with that step.
+
+## Error Handling
+
+Tool execution errors and LLM parse errors are captured as Observation events rather than crashing the agent:
+
+- The error message is recorded on `tg:toolError`
+- The Observation carries the `tg:Error` mixin type
+- The error text becomes the observation content, visible to the LLM on the next iteration
+- The provenance chain is preserved (Observation derives from Analysis)
+- The agent gets another iteration to retry or choose a different approach
+
+## Vocabulary Reference
+
+The full OWL ontology covering all classes and predicates is at `specs/ontology/trustgraph.ttl`.
 
 ## Verification
 
 ```bash
-# Run an agent query
-tg-invoke-agent -q "What is the capital of France?"
+# Run an agent query with explainability
+tg-invoke-agent -q "What is quantum computing?" -x
 
-# List traces (should show agent sessions with Type column)
-tg-list-explain-traces -U trustgraph -C default
+# Run with token usage
+tg-invoke-agent -q "What is quantum computing?" --show-usage
 
-# Show agent trace
-tg-show-explain-trace "urn:trustgraph:agent:xxx"
+# GraphRAG with explainability
+tg-invoke-graph-rag -q "Tell me about AI" -x
+
+# Document RAG with explainability
+tg-invoke-document-rag -q "Summarize the findings" -x
 ```
-
-## Future Work (Not This PR)
-
-- DAG dependencies (when analysis N uses results from multiple prior analyses)
-- Tool-specific provenance linking (KnowledgeQuery → its GraphRAG trace)
-- Streaming provenance emission (emit as we go, not batch at end)

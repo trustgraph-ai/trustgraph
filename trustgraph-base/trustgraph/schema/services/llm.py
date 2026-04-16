@@ -17,9 +17,9 @@ class TextCompletionRequest:
 class TextCompletionResponse:
     error: Error | None = None
     response: str = ""
-    in_token: int = 0
-    out_token: int = 0
-    model: str = ""
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None
     end_of_stream: bool = False  # Indicates final message in stream
 
 ############################################################################

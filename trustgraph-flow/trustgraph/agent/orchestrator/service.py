@@ -23,6 +23,7 @@ from ... base import Consumer, Producer
 from ... base import ConsumerMetrics, ProducerMetrics
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
+from ..orchestrator.pattern_base import UsageTracker, PatternBase
 from ... schema import Triples, Metadata
 from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
@@ -493,6 +494,8 @@ class Processor(AgentService):
 
     async def agent_request(self, request, respond, next, flow):
 
+        usage = UsageTracker()
+
         try:
 
             # Intercept subagent completion messages
@@ -516,7 +519,7 @@ class Processor(AgentService):
 
                 if self.meta_router:
                     pattern, task_type, framing = await self.meta_router.route(
-                        request.question, context,
+                        request.question, context, usage=usage,
                     )
                 else:
                     pattern = "react"
@@ -534,19 +537,31 @@ class Processor(AgentService):
                 )
 
             # Dispatch to the selected pattern
+            selected = self.react_pattern
             if pattern == "plan-then-execute":
-                await self.plan_pattern.iterate(
-                    request, respond, next, flow,
-                )
+                selected = self.plan_pattern
             elif pattern == "supervisor":
-                await self.supervisor_pattern.iterate(
-                    request, respond, next, flow,
-                )
-            else:
-                # Default to react
-                await self.react_pattern.iterate(
-                    request, respond, next, flow,
-                )
+                selected = self.supervisor_pattern
+
+            # Emit pattern decision provenance on first iteration
+            pattern_decision_uri = None
+            if not request.history and pattern:
+                session_id = getattr(request, 'session_id', '')
+                if session_id:
+                    session_uri = self.provenance_session_uri(session_id)
+                    pattern_decision_uri = \
+                        await selected.emit_pattern_decision_triples(
+                            flow, session_id, session_uri,
+                            pattern, getattr(request, 'task_type', ''),
+                            request.user,
+                            getattr(request, 'collection', 'default'),
+                            respond,
+                        )
+
+            await selected.iterate(
+                request, respond, next, flow, usage=usage,
+                pattern_decision_uri=pattern_decision_uri,
+            )
 
         except Exception as e:
 
@@ -562,7 +577,7 @@ class Processor(AgentService):
             )
 
             r = AgentResponse(
-                chunk_type="error",
+                message_type="error",
                 content=str(e),
                 end_of_message=True,
                 end_of_dialog=True,

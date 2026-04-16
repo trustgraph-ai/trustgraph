@@ -3,6 +3,7 @@
 Graph writer.  Input is graph edge.  Writes edges to Cassandra graph.
 """
 
+import asyncio
 import base64
 import os
 import argparse
@@ -150,59 +151,71 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
         user = message.metadata.user
 
-        if self.table is None or self.table != user:
+        # The cassandra-driver work below — connection, schema
+        # setup, and per-triple inserts — is all synchronous.
+        # Wrap the whole batch in a worker thread so the event
+        # loop stays responsive for sibling processors when
+        # running in a processor group.
 
-            self.tg = None
+        def _do_store():
 
-            # Use factory function to select implementation
-            KGClass = EntityCentricKnowledgeGraph
+            if self.table is None or self.table != user:
 
-            try:
-                if self.cassandra_username and self.cassandra_password:
-                    self.tg = KGClass(
-                        hosts=self.cassandra_host,
-                        keyspace=message.metadata.user,
-                        username=self.cassandra_username, password=self.cassandra_password
-                    )
-                else:
-                    self.tg = KGClass(
-                        hosts=self.cassandra_host,
-                        keyspace=message.metadata.user,
-                    )
-            except Exception as e:
-                logger.error(f"Exception: {e}", exc_info=True)
-                time.sleep(1)
-                raise e
+                self.tg = None
 
-            self.table = user
+                # Use factory function to select implementation
+                KGClass = EntityCentricKnowledgeGraph
 
-        for t in message.triples:
-            # Extract values from Term objects
-            s_val = get_term_value(t.s)
-            p_val = get_term_value(t.p)
-            o_val = get_term_value(t.o)
-            # t.g is None for default graph, or a graph IRI
-            g_val = t.g if t.g is not None else DEFAULT_GRAPH
+                try:
+                    if self.cassandra_username and self.cassandra_password:
+                        self.tg = KGClass(
+                            hosts=self.cassandra_host,
+                            keyspace=message.metadata.user,
+                            username=self.cassandra_username,
+                            password=self.cassandra_password,
+                        )
+                    else:
+                        self.tg = KGClass(
+                            hosts=self.cassandra_host,
+                            keyspace=message.metadata.user,
+                        )
+                except Exception as e:
+                    logger.error(f"Exception: {e}", exc_info=True)
+                    time.sleep(1)
+                    raise e
 
-            # Extract object type metadata for entity-centric storage
-            otype = get_term_otype(t.o)
-            dtype = get_term_dtype(t.o)
-            lang = get_term_lang(t.o)
+                self.table = user
 
-            self.tg.insert(
-                message.metadata.collection,
-                s_val,
-                p_val,
-                o_val,
-                g=g_val,
-                otype=otype,
-                dtype=dtype,
-                lang=lang
-            )
+            for t in message.triples:
+                # Extract values from Term objects
+                s_val = get_term_value(t.s)
+                p_val = get_term_value(t.p)
+                o_val = get_term_value(t.o)
+                # t.g is None for default graph, or a graph IRI
+                g_val = t.g if t.g is not None else DEFAULT_GRAPH
+
+                # Extract object type metadata for entity-centric storage
+                otype = get_term_otype(t.o)
+                dtype = get_term_dtype(t.o)
+                lang = get_term_lang(t.o)
+
+                self.tg.insert(
+                    message.metadata.collection,
+                    s_val,
+                    p_val,
+                    o_val,
+                    g=g_val,
+                    otype=otype,
+                    dtype=dtype,
+                    lang=lang,
+                )
+
+        await asyncio.to_thread(_do_store)
 
     async def create_collection(self, user: str, collection: str, metadata: dict):
         """Create a collection in Cassandra triple store via config push"""
-        try:
+
+        def _do_create():
             # Create or reuse connection for this user's keyspace
             if self.table is None or self.table != user:
                 self.tg = None
@@ -216,7 +229,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                             hosts=self.cassandra_host,
                             keyspace=user,
                             username=self.cassandra_username,
-                            password=self.cassandra_password
+                            password=self.cassandra_password,
                         )
                     else:
                         self.tg = KGClass(
@@ -238,13 +251,16 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 self.tg.create_collection(collection)
                 logger.info(f"Created collection {collection}")
 
+        try:
+            await asyncio.to_thread(_do_create)
         except Exception as e:
             logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
             raise
 
     async def delete_collection(self, user: str, collection: str):
         """Delete all data for a specific collection from the unified triples table"""
-        try:
+
+        def _do_delete():
             # Create or reuse connection for this user's keyspace
             if self.table is None or self.table != user:
                 self.tg = None
@@ -258,7 +274,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                             hosts=self.cassandra_host,
                             keyspace=user,
                             username=self.cassandra_username,
-                            password=self.cassandra_password
+                            password=self.cassandra_password,
                         )
                     else:
                         self.tg = KGClass(
@@ -275,6 +291,8 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             self.tg.delete_collection(collection)
             logger.info(f"Deleted all triples for collection {collection} from keyspace {user}")
 
+        try:
+            await asyncio.to_thread(_do_delete)
         except Exception as e:
             logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
             raise
