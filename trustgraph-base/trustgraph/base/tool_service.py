@@ -1,10 +1,10 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Tool invocation base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import json
 import logging

@@ -1,11 +1,11 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Triples query service.  Input is a (s, p, o) triple, some values may be
 null.  Output is a list of triples.
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 

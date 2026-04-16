@@ -1,10 +1,10 @@
-from __future__ import annotations
-
-from argparse import ArgumentParser
-
 """
 Agent manager service completion base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import time
 import logging
