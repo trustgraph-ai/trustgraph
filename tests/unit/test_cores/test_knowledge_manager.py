@@ -30,8 +30,8 @@ def mock_flow_config():
     mock_config.flows = {
         "test-flow": {
             "interfaces": {
-                "triples-store": "test-triples-queue",
-                "graph-embeddings-store": "test-ge-queue"
+                "triples-store": {"flow": "test-triples-queue"},
+                "graph-embeddings-store": {"flow": "test-ge-queue"}
             }
         }
     }

@@ -192,8 +192,8 @@ class KnowledgeManager:
                 if "graph-embeddings-store" not in flow["interfaces"]:
                     raise RuntimeError("Flow has no graph-embeddings-store")
 
-                t_q = flow["interfaces"]["triples-store"]
-                ge_q = flow["interfaces"]["graph-embeddings-store"]
+                t_q = flow["interfaces"]["triples-store"]["flow"]
+                ge_q = flow["interfaces"]["graph-embeddings-store"]["flow"]
 
                 # Got this far, it should all work
                 await respond(

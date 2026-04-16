@@ -82,6 +82,9 @@ class Processor(AsyncProcessor):
             processor = self.id, flow = None, name = "knowledge-response"
         )
 
+        self.knowledge_request_topic = knowledge_request_queue
+        self.knowledge_request_subscriber = id
+
         self.knowledge_request_consumer = Consumer(
             taskgroup = self.taskgroup,
             backend = self.pubsub,
@@ -116,6 +119,9 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
+        await self.pubsub.ensure_queue(
+            self.knowledge_request_topic, self.knowledge_request_subscriber
+        )
         await super(Processor, self).start()
         await self.knowledge_request_consumer.start()
         await self.knowledge_response_producer.start()

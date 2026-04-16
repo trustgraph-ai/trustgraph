@@ -54,7 +54,7 @@ class ConfigReceiver:
                 return
 
             # Gateway cares about flow config
-            if notify_types and "flow" not in notify_types and "active-flow" not in notify_types:
+            if notify_types and "flow" not in notify_types:
                 logger.debug(
                     f"Ignoring config notify v{notify_version}, "
                     f"no flow types in {notify_types}"

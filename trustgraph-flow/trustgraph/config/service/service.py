@@ -11,14 +11,10 @@ from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 
-from trustgraph.schema import FlowRequest, FlowResponse
-from trustgraph.schema import flow_request_queue, flow_response_queue
-
 from trustgraph.base import AsyncProcessor, Consumer, Producer
 from trustgraph.base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 from . config import Configuration
-from . flow import FlowConfig
 
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 from ... base import Consumer, Producer
@@ -31,9 +27,6 @@ default_ident = "config-svc"
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 default_config_push_queue = config_push_queue
-
-default_flow_request_queue = flow_request_queue
-default_flow_response_queue = flow_response_queue
 
 default_cassandra_host = "cassandra"
 
@@ -49,13 +42,6 @@ class Processor(AsyncProcessor):
         )
         config_push_queue = params.get(
             "config_push_queue", default_config_push_queue
-        )
-
-        flow_request_queue = params.get(
-            "flow_request_queue", default_flow_request_queue
-        )
-        flow_response_queue = params.get(
-            "flow_response_queue", default_flow_response_queue
         )
 
         cassandra_host = params.get("cassandra_host")
@@ -77,16 +63,11 @@ class Processor(AsyncProcessor):
 
         id = params.get("id")
 
-        flow_request_schema = FlowRequest
-        flow_response_schema = FlowResponse
-
         super(Processor, self).__init__(
             **params | {
                 "config_request_schema": ConfigRequest.__name__,
                 "config_response_schema": ConfigResponse.__name__,
                 "config_push_schema": ConfigPush.__name__,
-                "flow_request_schema": FlowRequest.__name__,
-                "flow_response_schema": FlowResponse.__name__,
                 "cassandra_host": self.cassandra_host,
                 "cassandra_username": self.cassandra_username,
                 "cassandra_password": self.cassandra_password,
@@ -103,12 +84,8 @@ class Processor(AsyncProcessor):
             processor = self.id, flow = None, name = "config-push"
         )
 
-        flow_request_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "flow-request"
-        )
-        flow_response_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "flow-response"
-        )
+        self.config_request_topic = config_request_queue
+        self.config_request_subscriber = id
 
         self.config_request_consumer = Consumer(
             taskgroup = self.taskgroup,
@@ -135,24 +112,6 @@ class Processor(AsyncProcessor):
             metrics = config_push_metrics,
         )
 
-        self.flow_request_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = flow_request_queue,
-            subscriber = id,
-            schema = FlowRequest,
-            handler = self.on_flow_request,
-            metrics = flow_request_metrics,
-        )
-
-        self.flow_response_producer = Producer(
-            backend = self.pubsub,
-            topic = flow_response_queue,
-            schema = FlowResponse,
-            metrics = flow_response_metrics,
-        )
-
         self.config = Configuration(
             host = self.cassandra_host,
             username = self.cassandra_username,
@@ -161,15 +120,15 @@ class Processor(AsyncProcessor):
             push = self.push
         )
 
-        self.flow = FlowConfig(self.config)
-
         logger.info("Config service initialized")
 
     async def start(self):
 
+        await self.pubsub.ensure_queue(
+            self.config_request_topic, self.config_request_subscriber
+        )
         await self.push()  # Startup poke: empty types = everything
         await self.config_request_consumer.start()
-        await self.flow_request_consumer.start()
 
     async def push(self, types=None):
 
@@ -193,7 +152,7 @@ class Processor(AsyncProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
 
-            logger.info(f"Handling config request {id}...")
+            logger.debug(f"Handling config request {id}...")
 
             resp = await self.config.handle(v)
 
@@ -211,36 +170,6 @@ class Processor(AsyncProcessor):
             )
 
             await self.config_response_producer.send(
-                resp, properties={"id": id}
-            )
-
-    async def on_flow_request(self, msg, consumer, flow):
-
-        try:
-
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            logger.info(f"Handling flow request {id}...")
-
-            resp = await self.flow.handle(v)
-
-            await self.flow_response_producer.send(
-                resp, properties={"id": id}
-            )
-
-        except Exception as e:
-
-            resp = FlowResponse(
-                error=Error(
-                    type = "flow-error",
-                    message = str(e),
-                ),
-            )
-
-            await self.flow_response_producer.send(
                 resp, properties={"id": id}
             )
 
@@ -262,18 +191,6 @@ class Processor(AsyncProcessor):
         )
 
         # Note: --config-push-queue is already added by AsyncProcessor.add_args()
-
-        parser.add_argument(
-            '--flow-request-queue',
-            default=default_flow_request_queue,
-            help=f'Flow request queue (default: {default_flow_request_queue})'
-        )
-
-        parser.add_argument(
-            '--flow-response-queue',
-            default=default_flow_response_queue,
-            help=f'Flow response queue {default_flow_response_queue}',
-        )
 
         add_cassandra_args(parser)
 

@@ -20,7 +20,7 @@ class SubscriberSpec(Spec):
 
         subscriber = Subscriber(
             backend = processor.pubsub,
-            topic = definition[self.name],
+            topic = definition["topics"][self.name],
             subscription = flow.id,
             consumer_name = flow.id,
             schema = self.schema,

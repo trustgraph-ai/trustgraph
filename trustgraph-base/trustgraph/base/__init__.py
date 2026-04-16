@@ -5,7 +5,7 @@ from . consumer import Consumer
 from . producer import Producer
 from . publisher import Publisher
 from . subscriber import Subscriber
-from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
+from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics, SubscriberMetrics
 from . logging import add_logging_args, setup_logging
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
@@ -22,6 +22,7 @@ from . text_completion_client import (
     TextCompletionClientSpec, TextCompletionClient, TextCompletionResult,
 )
 from . prompt_client import PromptClientSpec, PromptClient, PromptResult
+from . config_client import ConfigClientSpec, ConfigClient
 from . triples_store_service import TriplesStoreService
 from . graph_embeddings_store_service import GraphEmbeddingsStoreService
 from . document_embeddings_store_service import DocumentEmbeddingsStoreService

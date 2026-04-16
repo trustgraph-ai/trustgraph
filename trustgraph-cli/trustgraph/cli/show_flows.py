@@ -33,7 +33,7 @@ def describe_interfaces(intdefs, flow):
                 lst.append(f"{k} response: {resp}")
 
             if kind == "send":
-                q = intfs[k]
+                q = intfs[k]["flow"]
 
                 lst.append(f"{k}: {q}")
 

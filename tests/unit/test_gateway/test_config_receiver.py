@@ -121,7 +121,7 @@ class TestConfigReceiver:
             fetch_calls.append(kwargs)
         config_receiver.fetch_and_apply = mock_fetch
 
-        for type_name in ["flow", "active-flow"]:
+        for type_name in ["flow"]:
             fetch_calls.clear()
             config_receiver.config_version = 1
 

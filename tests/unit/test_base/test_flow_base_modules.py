@@ -11,7 +11,7 @@ def test_parameter_spec_is_a_spec_and_adds_parameter_value():
     flow = MagicMock(parameter={})
     processor = MagicMock()
 
-    spec.add(flow, processor, {"temperature": 0.7})
+    spec.add(flow, processor, {"parameters": {"temperature": 0.7}})
 
     assert isinstance(spec, Spec)
     assert "temperature" in flow.parameter
