@@ -330,7 +330,8 @@ class TestUnifiedTableQueries:
     """Test queries against the unified rows table"""
 
     @pytest.mark.asyncio
-    async def test_query_with_index_match(self):
+    @patch('trustgraph.query.rows.cassandra.service.async_execute', new_callable=AsyncMock)
+    async def test_query_with_index_match(self, mock_async_execute):
         """Test query execution with matching index"""
         processor = MagicMock()
         processor.session = MagicMock()
@@ -340,10 +341,10 @@ class TestUnifiedTableQueries:
         processor.find_matching_index = Processor.find_matching_index.__get__(processor, Processor)
         processor.query_cassandra = Processor.query_cassandra.__get__(processor, Processor)
 
-        # Mock session execute to return test data
+        # Mock async_execute to return test data
         mock_row = MagicMock()
         mock_row.data = {"id": "123", "name": "Test Product", "category": "electronics"}
-        processor.session.execute.return_value = [mock_row]
+        mock_async_execute.return_value = [mock_row]
 
         schema = RowSchema(
             name="products",
@@ -366,12 +367,12 @@ class TestUnifiedTableQueries:
 
         # Verify Cassandra was connected and queried
         processor.connect_cassandra.assert_called_once()
-        processor.session.execute.assert_called_once()
+        mock_async_execute.assert_called_once()
 
         # Verify query structure - should query unified rows table
-        call_args = processor.session.execute.call_args
-        query = call_args[0][0]
-        params = call_args[0][1]
+        call_args = mock_async_execute.call_args
+        query = call_args[0][1]
+        params = call_args[0][2]
 
         assert "SELECT data, source FROM test_user.rows" in query
         assert "collection = %s" in query
@@ -390,7 +391,8 @@ class TestUnifiedTableQueries:
         assert results[0]["category"] == "electronics"
 
     @pytest.mark.asyncio
-    async def test_query_without_index_match(self):
+    @patch('trustgraph.query.rows.cassandra.service.async_execute', new_callable=AsyncMock)
+    async def test_query_without_index_match(self, mock_async_execute):
         """Test query execution without matching index (scan mode)"""
         processor = MagicMock()
         processor.session = MagicMock()
@@ -401,12 +403,12 @@ class TestUnifiedTableQueries:
         processor._matches_filters = Processor._matches_filters.__get__(processor, Processor)
         processor.query_cassandra = Processor.query_cassandra.__get__(processor, Processor)
 
-        # Mock session execute to return test data
+        # Mock async_execute to return test data
         mock_row1 = MagicMock()
         mock_row1.data = {"id": "1", "name": "Product A", "price": "100"}
         mock_row2 = MagicMock()
         mock_row2.data = {"id": "2", "name": "Product B", "price": "200"}
-        processor.session.execute.return_value = [mock_row1, mock_row2]
+        mock_async_execute.return_value = [mock_row1, mock_row2]
 
         schema = RowSchema(
             name="products",
@@ -428,8 +430,8 @@ class TestUnifiedTableQueries:
         )
 
         # Query should use ALLOW FILTERING for scan
-        call_args = processor.session.execute.call_args
-        query = call_args[0][0]
+        call_args = mock_async_execute.call_args
+        query = call_args[0][1]
 
         assert "ALLOW FILTERING" in query
 

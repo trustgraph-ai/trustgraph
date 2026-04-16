@@ -160,7 +160,8 @@ class TestRowsCassandraStorageLogic:
         assert id_field.primary is True
 
     @pytest.mark.asyncio
-    async def test_object_processing_stores_data_map(self):
+    @patch('trustgraph.storage.rows.cassandra.write.async_execute', new_callable=AsyncMock)
+    async def test_object_processing_stores_data_map(self, mock_async_execute):
         """Test that row processing stores data as map<text, text>"""
         processor = MagicMock()
         processor.schemas = {
@@ -184,6 +185,8 @@ class TestRowsCassandraStorageLogic:
         processor.collection_exists = MagicMock(return_value=True)
         processor.on_object = Processor.on_object.__get__(processor, Processor)
 
+        mock_async_execute.return_value = []
+
         # Create test object
         test_obj = ExtractedObject(
             metadata=Metadata(
@@ -205,10 +208,10 @@ class TestRowsCassandraStorageLogic:
         await processor.on_object(msg, None, None)
 
         # Verify insert was executed
-        processor.session.execute.assert_called()
-        insert_call = processor.session.execute.call_args
-        insert_cql = insert_call[0][0]
-        values = insert_call[0][1]
+        mock_async_execute.assert_called()
+        insert_call = mock_async_execute.call_args
+        insert_cql = insert_call[0][1]
+        values = insert_call[0][2]
 
         # Verify using unified rows table
         assert "INSERT INTO test_user.rows" in insert_cql
@@ -222,7 +225,8 @@ class TestRowsCassandraStorageLogic:
         assert values[5] == ""                 # source
 
     @pytest.mark.asyncio
-    async def test_object_processing_multiple_indexes(self):
+    @patch('trustgraph.storage.rows.cassandra.write.async_execute', new_callable=AsyncMock)
+    async def test_object_processing_multiple_indexes(self, mock_async_execute):
         """Test that row is written once per indexed field"""
         processor = MagicMock()
         processor.schemas = {
@@ -246,6 +250,8 @@ class TestRowsCassandraStorageLogic:
         processor.collection_exists = MagicMock(return_value=True)
         processor.on_object = Processor.on_object.__get__(processor, Processor)
 
+        mock_async_execute.return_value = []
+
         test_obj = ExtractedObject(
             metadata=Metadata(
                 id="test-001",
@@ -264,12 +270,12 @@ class TestRowsCassandraStorageLogic:
         await processor.on_object(msg, None, None)
 
         # Should have 3 inserts (one per indexed field: id, category, status)
-        assert processor.session.execute.call_count == 3
+        assert mock_async_execute.call_count == 3
 
         # Check that different index_names were used
         index_names_used = set()
-        for call in processor.session.execute.call_args_list:
-            values = call[0][1]
+        for call in mock_async_execute.call_args_list:
+            values = call[0][2]
             index_names_used.add(values[2])  # index_name is 3rd value
 
         assert index_names_used == {"id", "category", "status"}
@@ -279,7 +285,8 @@ class TestRowsCassandraStorageBatchLogic:
     """Test batch processing logic for unified table implementation"""
 
     @pytest.mark.asyncio
-    async def test_batch_object_processing(self):
+    @patch('trustgraph.storage.rows.cassandra.write.async_execute', new_callable=AsyncMock)
+    async def test_batch_object_processing(self, mock_async_execute):
         """Test processing of batch ExtractedObjects"""
         processor = MagicMock()
         processor.schemas = {
@@ -301,6 +308,8 @@ class TestRowsCassandraStorageBatchLogic:
         processor.register_partitions = MagicMock()
         processor.collection_exists = MagicMock(return_value=True)
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+
+        mock_async_execute.return_value = []
 
         # Create batch object with multiple values
         batch_obj = ExtractedObject(
@@ -325,12 +334,12 @@ class TestRowsCassandraStorageBatchLogic:
         await processor.on_object(msg, None, None)
 
         # Should have 3 inserts (one per row, one index per row since only primary key)
-        assert processor.session.execute.call_count == 3
+        assert mock_async_execute.call_count == 3
 
         # Check each insert has different id
         ids_inserted = set()
-        for call in processor.session.execute.call_args_list:
-            values = call[0][1]
+        for call in mock_async_execute.call_args_list:
+            values = call[0][2]
             ids_inserted.add(tuple(values[3]))  # index_value is 4th value
 
         assert ids_inserted == {("001",), ("002",), ("003",)}
