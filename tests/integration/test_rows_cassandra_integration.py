@@ -18,6 +18,20 @@ from trustgraph.schema import ExtractedObject, Metadata, RowSchema, Field
 class TestRowsCassandraIntegration:
     """Integration tests for Cassandra row storage with unified table"""
 
+    @pytest.fixture(autouse=True)
+    def patch_async_execute(self):
+        """Route async_execute through session.execute so the mock's
+        side_effect handles all CQL (DDL and DML) uniformly and every
+        call lands in mock_session.execute.call_args_list."""
+        async def _fake(session, query, params=None):
+            session.execute(query, params)
+            return []
+        with patch(
+            'trustgraph.storage.rows.cassandra.write.async_execute',
+            new=_fake,
+        ):
+            yield
+
     @pytest.fixture
     def mock_cassandra_session(self):
         """Mock Cassandra session for integration tests"""

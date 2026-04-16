@@ -36,7 +36,6 @@ def processor(mock_pulsar_client):
     return proc
 
 
-@pytest.mark.asyncio
 class TestStructuredQueryProcessor:
     """Test Structured Query service processor"""
 

@@ -72,7 +72,6 @@ def processor(mock_pulsar_client, sample_schemas):
     return proc
 
 
-@pytest.mark.asyncio
 class TestNLPQueryProcessor:
     """Test NLP Query service processor"""
 

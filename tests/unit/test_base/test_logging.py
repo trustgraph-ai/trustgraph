@@ -45,7 +45,7 @@ def test_setup_logging_without_loki_configures_console(monkeypatch):
     kwargs = basic_config.call_args.kwargs
     assert kwargs["level"] == logging.DEBUG
     assert kwargs["force"] is True
-    assert "processor-1" in kwargs["format"]
+    assert "%(processor_id)s" in kwargs["format"]
     assert len(kwargs["handlers"]) == 1
     logger.info.assert_called_once_with("Logging configured with level: debug")
 
@@ -60,11 +60,14 @@ def test_setup_logging_with_loki_enables_queue_listener(monkeypatch):
     queue_listener = MagicMock()
     loki_handler = MagicMock()
 
+    noisy_logger = MagicMock()
     logger_map = {
         None: root_logger,
         "trustgraph.base.logging": module_logger,
         "urllib3": urllib3_logger,
         "urllib3.connectionpool": connectionpool_logger,
+        "pika": noisy_logger,
+        "cassandra": noisy_logger,
     }
 
     monkeypatch.setattr(logging, "basicConfig", basic_config)

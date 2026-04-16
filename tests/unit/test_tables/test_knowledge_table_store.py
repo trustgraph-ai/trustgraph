@@ -9,7 +9,7 @@ with hand-built fake rows.
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock, patch
 
 from trustgraph.tables.knowledge import KnowledgeTableStore
 from trustgraph.schema import (
@@ -35,7 +35,10 @@ def _make_store():
 class TestGetGraphEmbeddings:
 
     @pytest.mark.asyncio
-    async def test_row_converts_to_entity_embeddings_with_singular_vector(self):
+    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
+    async def test_row_converts_to_entity_embeddings_with_singular_vector(
+        self, mock_async_execute
+    ):
         """
         Cassandra rows return entities as a list of [entity_tuple, vector]
         pairs in row[3]. The deserializer must construct EntityEmbeddings
@@ -56,8 +59,8 @@ class TestGetGraphEmbeddings:
 
         store = _make_store()
         store.cassandra = Mock()
-        store.cassandra.execute = Mock(return_value=[fake_row])
         store.get_graph_embeddings_stmt = Mock()
+        mock_async_execute.return_value = [fake_row]
 
         received = []
 
@@ -72,7 +75,8 @@ class TestGetGraphEmbeddings:
         )
 
         # Assert
-        store.cassandra.execute.assert_called_once_with(
+        mock_async_execute.assert_called_once_with(
+            store.cassandra,
             store.get_graph_embeddings_stmt,
             ("alice", "doc-1"),
         )
@@ -102,15 +106,16 @@ class TestGetGraphEmbeddings:
         assert ge.entities[2].entity.value == "a literal entity"
 
     @pytest.mark.asyncio
-    async def test_empty_entities_blob_yields_empty_list(self):
+    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
+    async def test_empty_entities_blob_yields_empty_list(self, mock_async_execute):
         """row[3] being None / empty must produce a GraphEmbeddings with
         no entities, not raise."""
         fake_row = (None, None, None, None)
 
         store = _make_store()
         store.cassandra = Mock()
-        store.cassandra.execute = Mock(return_value=[fake_row])
         store.get_graph_embeddings_stmt = Mock()
+        mock_async_execute.return_value = [fake_row]
 
         received = []
 
@@ -123,7 +128,8 @@ class TestGetGraphEmbeddings:
         assert received[0].entities == []
 
     @pytest.mark.asyncio
-    async def test_multiple_rows_each_emit_one_message(self):
+    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
+    async def test_multiple_rows_each_emit_one_message(self, mock_async_execute):
         fake_rows = [
             (None, None, None, [
                 (("http://example.org/a", True), [1.0]),
@@ -135,8 +141,8 @@ class TestGetGraphEmbeddings:
 
         store = _make_store()
         store.cassandra = Mock()
-        store.cassandra.execute = Mock(return_value=fake_rows)
         store.get_graph_embeddings_stmt = Mock()
+        mock_async_execute.return_value = fake_rows
 
         received = []
 
@@ -157,7 +163,8 @@ class TestGetTriples:
     the same Metadata construction. Cover it for parity."""
 
     @pytest.mark.asyncio
-    async def test_row_converts_to_triples(self):
+    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
+    async def test_row_converts_to_triples(self, mock_async_execute):
         # row[3] is a list of (s_val, s_uri, p_val, p_uri, o_val, o_uri)
         fake_row = (
             None, None, None,
@@ -172,8 +179,8 @@ class TestGetTriples:
 
         store = _make_store()
         store.cassandra = Mock()
-        store.cassandra.execute = Mock(return_value=[fake_row])
         store.get_triples_stmt = Mock()
+        mock_async_execute.return_value = [fake_row]
 
         received = []
 
