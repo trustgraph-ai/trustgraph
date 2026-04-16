@@ -159,6 +159,62 @@ class PubSubBackend(Protocol):
         """
         ...
 
+    async def create_queue(self, topic: str, subscription: str) -> None:
+        """
+        Pre-create a queue so it exists before any consumer connects.
+
+        The topic and subscription together identify the queue, mirroring
+        create_consumer where the queue name is derived from both.
+
+        Idempotent — creating an already-existing queue succeeds silently.
+
+        Args:
+            topic: Queue identifier in class:topicspace:topic format
+            subscription: Subscription/consumer group name
+        """
+        ...
+
+    async def delete_queue(self, topic: str, subscription: str) -> None:
+        """
+        Delete a queue and any messages it contains.
+
+        The topic and subscription together identify the queue, mirroring
+        create_consumer where the queue name is derived from both.
+
+        Idempotent — deleting a non-existent queue succeeds silently.
+
+        Args:
+            topic: Queue identifier in class:topicspace:topic format
+            subscription: Subscription/consumer group name
+        """
+        ...
+
+    async def queue_exists(self, topic: str, subscription: str) -> bool:
+        """
+        Check whether a queue exists.
+
+        Args:
+            topic: Queue identifier in class:topicspace:topic format
+            subscription: Subscription/consumer group name
+
+        Returns:
+            True if the queue exists, False otherwise.
+        """
+        ...
+
+    async def ensure_queue(self, topic: str, subscription: str) -> None:
+        """
+        Ensure a queue exists, creating it if necessary.
+
+        Convenience wrapper — checks existence, creates if missing.
+        Used by system services on startup.
+
+        Args:
+            topic: Queue identifier in class:topicspace:topic format
+            subscription: Subscription/consumer group name
+        """
+        ...
+
     def close(self) -> None:
         """Close the backend connection."""
         ...

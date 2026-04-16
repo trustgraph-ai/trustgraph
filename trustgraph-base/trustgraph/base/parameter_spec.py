@@ -18,6 +18,6 @@ class ParameterSpec(Spec):
 
     def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
 
-        value = definition.get(self.name, None)
+        value = definition.get("parameters", {}).get(self.name, None)
 
         flow.parameter[self.name] = Parameter(value)

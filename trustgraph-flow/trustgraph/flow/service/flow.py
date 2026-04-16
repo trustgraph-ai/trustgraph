@@ -1,15 +1,22 @@
 
 from trustgraph.schema import FlowResponse, Error
+import asyncio
 import json
 import logging
 
 # Module logger
 logger = logging.getLogger(__name__)
 
+# Queue deletion retry settings
+DELETE_RETRIES = 5
+DELETE_RETRY_DELAY = 2  # seconds
+
+
 class FlowConfig:
-    def __init__(self, config):
+    def __init__(self, config, pubsub):
 
         self.config = config
+        self.pubsub = pubsub
         # Cache for parameter type definitions to avoid repeated lookups
         self.param_type_cache = {}
 
@@ -22,9 +29,12 @@ class FlowConfig:
             user_params: User-provided parameters dict (may be None or empty)
 
         Returns:
-            Complete parameter dict with user values and defaults merged (all values as strings)
+            Complete parameter dict with user values and defaults merged
+            (all values as strings)
         """
+
         # If the flow blueprint has no parameters section, return user params as-is (stringified)
+
         if "parameters" not in flow_blueprint:
             if not user_params:
                 return {}
@@ -49,7 +59,9 @@ class FlowConfig:
                     if param_type not in self.param_type_cache:
                         try:
                             # Fetch parameter type definition from config store
-                            type_def = await self.config.get("parameter-type").get(param_type)
+                            type_def = await self.config.get(
+                                "parameter-type", param_type
+                            )
                             if type_def:
                                 self.param_type_cache[param_type] = json.loads(type_def)
                             else:
@@ -102,31 +114,28 @@ class FlowConfig:
 
     async def handle_list_blueprints(self, msg):
 
-        names = list(await self.config.get("flow-blueprint").keys())
+        names = list(await self.config.keys("flow-blueprint"))
 
         return FlowResponse(
             error = None,
             blueprint_names = names,
         )
-    
+
     async def handle_get_blueprint(self, msg):
 
         return FlowResponse(
             error = None,
             blueprint_definition = await self.config.get(
-                "flow-blueprint"
-            ).get(msg.blueprint_name),
+                "flow-blueprint", msg.blueprint_name
+            ),
         )
-    
+
     async def handle_put_blueprint(self, msg):
 
-        await self.config.get("flow-blueprint").put(
+        await self.config.put(
+            "flow-blueprint",
             msg.blueprint_name, msg.blueprint_definition
         )
-
-        await self.config.inc_version()
-
-        await self.config.push(types=["flow-blueprint"])
 
         return FlowResponse(
             error = None,
@@ -136,28 +145,24 @@ class FlowConfig:
 
         logger.debug(f"Flow config message: {msg}")
 
-        await self.config.get("flow-blueprint").delete(msg.blueprint_name)
-
-        await self.config.inc_version()
-
-        await self.config.push(types=["flow-blueprint"])
+        await self.config.delete("flow-blueprint", msg.blueprint_name)
 
         return FlowResponse(
             error = None,
         )
-    
+
     async def handle_list_flows(self, msg):
 
-        names = list(await self.config.get("flow").keys())
+        names = list(await self.config.keys("flow"))
 
         return FlowResponse(
             error = None,
             flow_ids = names,
         )
-    
+
     async def handle_get_flow(self, msg):
 
-        flow_data = await self.config.get("flow").get(msg.flow_id)
+        flow_data = await self.config.get("flow", msg.flow_id)
         flow = json.loads(flow_data)
 
         return FlowResponse(
@@ -166,7 +171,7 @@ class FlowConfig:
             description = flow.get("description", ""),
             parameters = flow.get("parameters", {}),
         )
-    
+
     async def handle_start_flow(self, msg):
 
         if msg.blueprint_name is None:
@@ -175,17 +180,17 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id in await self.config.get("flow").keys():
+        if msg.flow_id in await self.config.keys("flow"):
             raise RuntimeError("Flow already exists")
 
         if msg.description is None:
             raise RuntimeError("No description")
 
-        if msg.blueprint_name not in await self.config.get("flow-blueprint").keys():
+        if msg.blueprint_name not in await self.config.keys("flow-blueprint"):
             raise RuntimeError("Blueprint does not exist")
 
         cls = json.loads(
-            await self.config.get("flow-blueprint").get(msg.blueprint_name)
+            await self.config.get("flow-blueprint", msg.blueprint_name)
         )
 
         # Resolve parameters by merging user-provided values with defaults
@@ -210,6 +215,15 @@ class FlowConfig:
 
             return result
 
+        # Pre-create flow-level queues so the data path is wired
+        # before processors receive their config and start connecting.
+        queues = self._collect_flow_queues(cls, repl_template_with_params)
+        for topic, subscription in queues:
+            await self.pubsub.create_queue(topic, subscription)
+
+        # Build all processor config updates, then write in a single batch.
+        updates = []
+
         for kind in ("blueprint", "flow"):
 
             for k, v in cls[kind].items():
@@ -218,37 +232,34 @@ class FlowConfig:
 
                 variant = repl_template_with_params(variant)
 
-                v = {
+                topics = {
                     repl_template_with_params(k2): repl_template_with_params(v2)
-                    for k2, v2 in v.items()
+                    for k2, v2 in v.get("topics", {}).items()
                 }
 
-                flac = await self.config.get("active-flow").get(processor)
-                if flac is not None:
-                    target = json.loads(flac)
-                else:
-                    target = {}
+                params = {
+                    repl_template_with_params(k2): repl_template_with_params(v2)
+                    for k2, v2 in v.get("parameters", {}).items()
+                }
 
-                # The condition if variant not in target: means it only adds
-                # the configuration if the variant doesn't already exist.
-                # If "everything" already exists in the target with old
-                # values, they won't update.
+                entry = {
+                    "topics": topics,
+                    "parameters": params,
+                }
 
-                if variant not in target:
-                    target[variant] = v
+                updates.append((
+                    f"processor:{processor}",
+                    variant,
+                    json.dumps(entry),
+                ))
 
-                await self.config.get("active-flow").put(
-                    processor, json.dumps(target)
-                )
+        await self.config.put_many(updates)
 
         def repl_interface(i):
-            if isinstance(i, str):
-                return repl_template_with_params(i)
-            else:
-                return {
-                    k: repl_template_with_params(v)
-                    for k, v in i.items()
-                }
+            return {
+                k: repl_template_with_params(v)
+                for k, v in i.items()
+            }
 
         if "interfaces" in cls:
             interfaces = {
@@ -258,8 +269,8 @@ class FlowConfig:
         else:
             interfaces = {}
 
-        await self.config.get("flow").put(
-            msg.flow_id,
+        await self.config.put(
+            "flow", msg.flow_id,
             json.dumps({
                 "description": msg.description,
                 "blueprint-name": msg.blueprint_name,
@@ -268,23 +279,131 @@ class FlowConfig:
             })
         )
 
-        await self.config.inc_version()
-
-        await self.config.push(types=["active-flow", "flow"])
-
         return FlowResponse(
             error = None,
         )
-    
+
+    async def ensure_existing_flow_queues(self):
+        """Ensure queues exist for all already-running flows.
+
+        Called on startup to handle flows that were started before this
+        version of the flow service was deployed, or before a restart.
+        """
+        flow_ids = await self.config.keys("flow")
+
+        for flow_id in flow_ids:
+            try:
+                flow_data = await self.config.get("flow", flow_id)
+                if flow_data is None:
+                    continue
+
+                flow = json.loads(flow_data)
+
+                blueprint_name = flow.get("blueprint-name")
+                if blueprint_name is None:
+                    continue
+
+                # Skip flows that are mid-shutdown
+                if flow.get("status") == "stopping":
+                    continue
+
+                parameters = flow.get("parameters", {})
+
+                blueprint_data = await self.config.get(
+                    "flow-blueprint", blueprint_name
+                )
+                if blueprint_data is None:
+                    logger.warning(
+                        f"Blueprint '{blueprint_name}' not found for "
+                        f"flow '{flow_id}', skipping queue creation"
+                    )
+                    continue
+
+                cls = json.loads(blueprint_data)
+
+                def repl_template(tmp):
+                    result = tmp.replace(
+                        "{blueprint}", blueprint_name
+                    ).replace(
+                        "{id}", flow_id
+                    )
+                    for param_name, param_value in parameters.items():
+                        result = result.replace(
+                            f"{{{param_name}}}", str(param_value)
+                        )
+                    return result
+
+                queues = self._collect_flow_queues(cls, repl_template)
+                for topic, subscription in queues:
+                    await self.pubsub.ensure_queue(topic, subscription)
+
+                logger.info(
+                    f"Ensured queues for existing flow '{flow_id}'"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to ensure queues for flow '{flow_id}': {e}"
+                )
+
+    def _collect_flow_queues(self, cls, repl_template):
+        """Collect (topic, subscription) pairs for all flow-level queues.
+
+        Iterates the blueprint's "flow" section and reads only the
+        "topics" dict from each processor entry.
+        """
+        queues = []
+
+        for k, v in cls["flow"].items():
+            processor, variant = k.split(":", 1)
+            variant = repl_template(variant)
+
+            for spec_name, topic_template in v.get("topics", {}).items():
+                topic = repl_template(topic_template)
+                subscription = f"{processor}--{variant}--{spec_name}"
+                queues.append((topic, subscription))
+
+        return queues
+
+    async def _delete_queues(self, queues):
+        """Delete queues with retries. Best-effort — logs failures but
+        does not raise."""
+        for attempt in range(DELETE_RETRIES):
+            remaining = []
+
+            for topic, subscription in queues:
+                try:
+                    await self.pubsub.delete_queue(topic, subscription)
+                except Exception as e:
+                    logger.warning(
+                        f"Queue delete failed (attempt {attempt + 1}/"
+                        f"{DELETE_RETRIES}): {topic}: {e}"
+                    )
+                    remaining.append((topic, subscription))
+
+            if not remaining:
+                return
+
+            queues = remaining
+
+            if attempt < DELETE_RETRIES - 1:
+                await asyncio.sleep(DELETE_RETRY_DELAY)
+
+        for topic, subscription in queues:
+            logger.error(
+                f"Failed to delete queue after {DELETE_RETRIES} "
+                f"attempts: {topic}"
+            )
+
     async def handle_stop_flow(self, msg):
 
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id not in await self.config.get("flow").keys():
+        if msg.flow_id not in await self.config.keys("flow"):
             raise RuntimeError("Flow ID invalid")
 
-        flow = json.loads(await self.config.get("flow").get(msg.flow_id))
+        flow = json.loads(await self.config.get("flow", msg.flow_id))
 
         if "blueprint-name" not in flow:
             raise RuntimeError("Internal error: flow has no flow blueprint")
@@ -292,7 +411,9 @@ class FlowConfig:
         blueprint_name = flow["blueprint-name"]
         parameters = flow.get("parameters", {})
 
-        cls = json.loads(await self.config.get("flow-blueprint").get(blueprint_name))
+        cls = json.loads(
+            await self.config.get("flow-blueprint", blueprint_name)
+        )
 
         def repl_template(tmp):
             result = tmp.replace(
@@ -305,34 +426,33 @@ class FlowConfig:
                 result = result.replace(f"{{{param_name}}}", str(param_value))
             return result
 
-        for kind in ("flow",):
+        # Collect queue identifiers before removing config
+        queues = self._collect_flow_queues(cls, repl_template)
 
-            for k, v in cls[kind].items():
+        # Phase 1: Set status to "stopping" and remove processor config.
+        # The config push tells processors to shut down their consumers.
+        flow["status"] = "stopping"
+        await self.config.put(
+            "flow", msg.flow_id, json.dumps(flow)
+        )
 
-                processor, variant = k.split(":", 1)
+        # Delete all processor config entries for this flow.
+        deletes = []
 
-                variant = repl_template(variant)
+        for k, v in cls["flow"].items():
 
-                flac = await self.config.get("active-flow").get(processor)
+            processor, variant = k.split(":", 1)
+            variant = repl_template(variant)
 
-                if flac is not None:
-                    target = json.loads(flac)
-                else:
-                    target = {}
+            deletes.append((f"processor:{processor}", variant))
 
-                if variant in target:
-                    del target[variant]
+        await self.config.delete_many(deletes)
 
-                await self.config.get("active-flow").put(
-                    processor, json.dumps(target)
-                )
+        # Phase 2: Delete queues with retries, then remove the flow record.
+        await self._delete_queues(queues)
 
-        if msg.flow_id in await self.config.get("flow").keys():
-            await self.config.get("flow").delete(msg.flow_id)
-
-        await self.config.inc_version()
-
-        await self.config.push(types=["active-flow", "flow"])
+        if msg.flow_id in await self.config.keys("flow"):
+            await self.config.delete("flow", msg.flow_id)
 
         return FlowResponse(
             error = None,
@@ -368,4 +488,3 @@ class FlowConfig:
             )
 
         return resp
-

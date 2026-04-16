@@ -162,6 +162,9 @@ class Processor(AsyncProcessor):
             processor = self.id, flow = None, name = "storage-response"
         )
 
+        self.librarian_request_topic = librarian_request_queue
+        self.librarian_request_subscriber = id
+
         self.librarian_request_consumer = Consumer(
             taskgroup = self.taskgroup,
             backend = self.pubsub,
@@ -179,6 +182,9 @@ class Processor(AsyncProcessor):
             schema = LibrarianResponse,
             metrics = librarian_response_metrics,
         )
+
+        self.collection_request_topic = collection_request_queue
+        self.collection_request_subscriber = id
 
         self.collection_request_consumer = Consumer(
             taskgroup = self.taskgroup,
@@ -248,7 +254,7 @@ class Processor(AsyncProcessor):
 
         self.register_config_handler(
             self.on_librarian_config,
-            types=["flow", "active-flow"],
+            types=["flow"],
         )
 
         self.flows = {}
@@ -257,6 +263,12 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
+        await self.pubsub.ensure_queue(
+            self.librarian_request_topic, self.librarian_request_subscriber
+        )
+        await self.pubsub.ensure_queue(
+            self.collection_request_topic, self.collection_request_subscriber
+        )
         await super(Processor, self).start()
         await self.librarian_request_consumer.start()
         await self.librarian_response_producer.start()
@@ -365,12 +377,12 @@ class Processor(AsyncProcessor):
         else:
             kind = "document-load"
 
-        q = flow["interfaces"][kind]
+        q = flow["interfaces"][kind]["flow"]
 
         # Emit document provenance to knowledge graph
         if "triples-store" in flow["interfaces"]:
             await self.emit_document_provenance(
-                document, processing, flow["interfaces"]["triples-store"]
+                document, processing, flow["interfaces"]["triples-store"]["flow"]
             )
 
         if kind == "text-load":

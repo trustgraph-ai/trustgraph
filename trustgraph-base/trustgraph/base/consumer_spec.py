@@ -23,7 +23,7 @@ class ConsumerSpec(Spec):
             taskgroup = processor.taskgroup,
             flow = flow,
             backend = processor.pubsub,
-            topic = definition[self.name],
+            topic = definition["topics"][self.name],
             subscriber = processor.id + "--" + flow.name + "--" + self.name,
             schema = self.schema,
             handler = self.handler,
