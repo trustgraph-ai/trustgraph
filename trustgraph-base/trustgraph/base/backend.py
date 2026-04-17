@@ -121,7 +121,7 @@ class PubSubBackend(Protocol):
         Create a producer for a topic.
 
         Args:
-            topic: Generic topic format (qos/tenant/namespace/queue)
+            topic: Queue identifier in class:topicspace:topic format
             schema: Dataclass type for messages
             **options: Backend-specific options (e.g., chunking_enabled)
 
@@ -159,59 +159,55 @@ class PubSubBackend(Protocol):
         """
         ...
 
-    async def create_queue(self, topic: str, subscription: str) -> None:
+    async def create_topic(self, topic: str) -> None:
         """
-        Pre-create a queue so it exists before any consumer connects.
+        Create the broker-side resources for a logical topic.
 
-        The topic and subscription together identify the queue, mirroring
-        create_consumer where the queue name is derived from both.
+        For RabbitMQ this creates a fanout exchange.  For Pulsar this is
+        a no-op (topics auto-create on first use).
 
-        Idempotent — creating an already-existing queue succeeds silently.
+        Idempotent — creating an already-existing topic succeeds silently.
 
         Args:
-            topic: Queue identifier in class:topicspace:topic format
-            subscription: Subscription/consumer group name
+            topic: Topic identifier in class:topicspace:topic format
         """
         ...
 
-    async def delete_queue(self, topic: str, subscription: str) -> None:
+    async def delete_topic(self, topic: str) -> None:
         """
-        Delete a queue and any messages it contains.
+        Delete a topic and discard any in-flight messages.
 
-        The topic and subscription together identify the queue, mirroring
-        create_consumer where the queue name is derived from both.
+        For RabbitMQ this deletes the fanout exchange; consumer queues
+        lose their binding and drain naturally.
 
-        Idempotent — deleting a non-existent queue succeeds silently.
+        Idempotent — deleting a non-existent topic succeeds silently.
 
         Args:
-            topic: Queue identifier in class:topicspace:topic format
-            subscription: Subscription/consumer group name
+            topic: Topic identifier in class:topicspace:topic format
         """
         ...
 
-    async def queue_exists(self, topic: str, subscription: str) -> bool:
+    async def topic_exists(self, topic: str) -> bool:
         """
-        Check whether a queue exists.
+        Check whether a topic exists.
 
         Args:
-            topic: Queue identifier in class:topicspace:topic format
-            subscription: Subscription/consumer group name
+            topic: Topic identifier in class:topicspace:topic format
 
         Returns:
-            True if the queue exists, False otherwise.
+            True if the topic exists, False otherwise.
         """
         ...
 
-    async def ensure_queue(self, topic: str, subscription: str) -> None:
+    async def ensure_topic(self, topic: str) -> None:
         """
-        Ensure a queue exists, creating it if necessary.
+        Ensure a topic exists, creating it if necessary.
 
         Convenience wrapper — checks existence, creates if missing.
-        Used by system services on startup.
+        Used by the flow service and system services on startup.
 
         Args:
-            topic: Queue identifier in class:topicspace:topic format
-            subscription: Subscription/consumer group name
+            topic: Topic identifier in class:topicspace:topic format
         """
         ...
 

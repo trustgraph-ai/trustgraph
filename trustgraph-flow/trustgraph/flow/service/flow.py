@@ -7,7 +7,7 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Queue deletion retry settings
+# Topic deletion retry settings
 DELETE_RETRIES = 5
 DELETE_RETRY_DELAY = 2  # seconds
 
@@ -215,11 +215,11 @@ class FlowConfig:
 
             return result
 
-        # Pre-create flow-level queues so the data path is wired
+        # Pre-create topic exchanges so the data path is wired
         # before processors receive their config and start connecting.
-        queues = self._collect_flow_queues(cls, repl_template_with_params)
-        for topic, subscription in queues:
-            await self.pubsub.create_queue(topic, subscription)
+        topics = self._collect_flow_topics(cls, repl_template_with_params)
+        for topic in topics:
+            await self.pubsub.create_topic(topic)
 
         # Build all processor config updates, then write in a single batch.
         updates = []
@@ -283,8 +283,8 @@ class FlowConfig:
             error = None,
         )
 
-    async def ensure_existing_flow_queues(self):
-        """Ensure queues exist for all already-running flows.
+    async def ensure_existing_flow_topics(self):
+        """Ensure topics exist for all already-running flows.
 
         Called on startup to handle flows that were started before this
         version of the flow service was deployed, or before a restart.
@@ -315,7 +315,7 @@ class FlowConfig:
                 if blueprint_data is None:
                     logger.warning(
                         f"Blueprint '{blueprint_name}' not found for "
-                        f"flow '{flow_id}', skipping queue creation"
+                        f"flow '{flow_id}', skipping topic creation"
                     )
                     continue
 
@@ -333,65 +333,63 @@ class FlowConfig:
                         )
                     return result
 
-                queues = self._collect_flow_queues(cls, repl_template)
-                for topic, subscription in queues:
-                    await self.pubsub.ensure_queue(topic, subscription)
+                topics = self._collect_flow_topics(cls, repl_template)
+                for topic in topics:
+                    await self.pubsub.ensure_topic(topic)
 
                 logger.info(
-                    f"Ensured queues for existing flow '{flow_id}'"
+                    f"Ensured topics for existing flow '{flow_id}'"
                 )
 
             except Exception as e:
                 logger.error(
-                    f"Failed to ensure queues for flow '{flow_id}': {e}"
+                    f"Failed to ensure topics for flow '{flow_id}': {e}"
                 )
 
-    def _collect_flow_queues(self, cls, repl_template):
-        """Collect (topic, subscription) pairs for all flow-level queues.
+    def _collect_flow_topics(self, cls, repl_template):
+        """Collect unique topic identifiers from the blueprint.
 
-        Iterates the blueprint's "flow" section and reads only the
-        "topics" dict from each processor entry.
+        Iterates the blueprint's "flow" section and returns a
+        deduplicated set of resolved topic strings.  The flow service
+        manages topic lifecycle (create/delete exchanges), not
+        individual consumer queues.
         """
-        queues = []
+        topics = set()
 
         for k, v in cls["flow"].items():
-            processor, variant = k.split(":", 1)
-            variant = repl_template(variant)
-
             for spec_name, topic_template in v.get("topics", {}).items():
                 topic = repl_template(topic_template)
-                subscription = f"{processor}--{variant}--{spec_name}"
-                queues.append((topic, subscription))
+                topics.add(topic)
 
-        return queues
+        return topics
 
-    async def _delete_queues(self, queues):
-        """Delete queues with retries. Best-effort — logs failures but
+    async def _delete_topics(self, topics):
+        """Delete topics with retries. Best-effort — logs failures but
         does not raise."""
         for attempt in range(DELETE_RETRIES):
             remaining = []
 
-            for topic, subscription in queues:
+            for topic in topics:
                 try:
-                    await self.pubsub.delete_queue(topic, subscription)
+                    await self.pubsub.delete_topic(topic)
                 except Exception as e:
                     logger.warning(
-                        f"Queue delete failed (attempt {attempt + 1}/"
+                        f"Topic delete failed (attempt {attempt + 1}/"
                         f"{DELETE_RETRIES}): {topic}: {e}"
                     )
-                    remaining.append((topic, subscription))
+                    remaining.append(topic)
 
             if not remaining:
                 return
 
-            queues = remaining
+            topics = remaining
 
             if attempt < DELETE_RETRIES - 1:
                 await asyncio.sleep(DELETE_RETRY_DELAY)
 
-        for topic, subscription in queues:
+        for topic in topics:
             logger.error(
-                f"Failed to delete queue after {DELETE_RETRIES} "
+                f"Failed to delete topic after {DELETE_RETRIES} "
                 f"attempts: {topic}"
             )
 
@@ -426,8 +424,8 @@ class FlowConfig:
                 result = result.replace(f"{{{param_name}}}", str(param_value))
             return result
 
-        # Collect queue identifiers before removing config
-        queues = self._collect_flow_queues(cls, repl_template)
+        # Collect topic identifiers before removing config
+        topics = self._collect_flow_topics(cls, repl_template)
 
         # Phase 1: Set status to "stopping" and remove processor config.
         # The config push tells processors to shut down their consumers.
@@ -448,8 +446,8 @@ class FlowConfig:
 
         await self.config.delete_many(deletes)
 
-        # Phase 2: Delete queues with retries, then remove the flow record.
-        await self._delete_queues(queues)
+        # Phase 2: Delete topics with retries, then remove the flow record.
+        await self._delete_topics(topics)
 
         if msg.flow_id in await self.config.keys("flow"):
             await self.config.delete("flow", msg.flow_id)
