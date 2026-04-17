@@ -124,9 +124,7 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
-        await self.pubsub.ensure_queue(
-            self.config_request_topic, self.config_request_subscriber
-        )
+        await self.pubsub.ensure_topic(self.config_request_topic)
         await self.push()  # Startup poke: empty types = everything
         await self.config_request_consumer.start()
 

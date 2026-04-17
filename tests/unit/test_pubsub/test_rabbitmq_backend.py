@@ -1,5 +1,5 @@
 """
-Unit tests for RabbitMQ backend — queue name mapping and factory dispatch.
+Unit tests for RabbitMQ backend — topic parsing and factory dispatch.
 Does not require a running RabbitMQ instance.
 """
 
@@ -12,7 +12,7 @@ from trustgraph.base.rabbitmq_backend import RabbitMQBackend
 from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
 
 
-class TestRabbitMQMapQueueName:
+class TestRabbitMQParseTopic:
 
     @pytest.fixture
     def backend(self):
@@ -20,43 +20,48 @@ class TestRabbitMQMapQueueName:
         return b
 
     def test_flow_is_durable(self, backend):
-        name, durable = backend.map_queue_name('flow:tg:text-completion-request')
+        exchange, cls, durable = backend._parse_topic('flow:tg:text-completion-request')
         assert durable is True
-        assert name == 'tg.flow.text-completion-request'
+        assert cls == 'flow'
+        assert exchange == 'tg.flow.text-completion-request'
 
     def test_notify_is_not_durable(self, backend):
-        name, durable = backend.map_queue_name('notify:tg:config')
+        exchange, cls, durable = backend._parse_topic('notify:tg:config')
         assert durable is False
-        assert name == 'tg.notify.config'
+        assert cls == 'notify'
+        assert exchange == 'tg.notify.config'
 
     def test_request_is_not_durable(self, backend):
-        name, durable = backend.map_queue_name('request:tg:config')
+        exchange, cls, durable = backend._parse_topic('request:tg:config')
         assert durable is False
-        assert name == 'tg.request.config'
+        assert cls == 'request'
+        assert exchange == 'tg.request.config'
 
     def test_response_is_not_durable(self, backend):
-        name, durable = backend.map_queue_name('response:tg:librarian')
+        exchange, cls, durable = backend._parse_topic('response:tg:librarian')
         assert durable is False
-        assert name == 'tg.response.librarian'
+        assert cls == 'response'
+        assert exchange == 'tg.response.librarian'
 
     def test_custom_topicspace(self, backend):
-        name, durable = backend.map_queue_name('flow:prod:my-queue')
-        assert name == 'prod.flow.my-queue'
+        exchange, cls, durable = backend._parse_topic('flow:prod:my-queue')
+        assert exchange == 'prod.flow.my-queue'
         assert durable is True
 
     def test_no_colon_defaults_to_flow(self, backend):
-        name, durable = backend.map_queue_name('simple-queue')
-        assert name == 'tg.simple-queue'
-        assert durable is False
+        exchange, cls, durable = backend._parse_topic('simple-queue')
+        assert exchange == 'tg.flow.simple-queue'
+        assert cls == 'flow'
+        assert durable is True
 
     def test_invalid_class_raises(self, backend):
-        with pytest.raises(ValueError, match="Invalid queue class"):
-            backend.map_queue_name('unknown:tg:topic')
+        with pytest.raises(ValueError, match="Invalid topic class"):
+            backend._parse_topic('unknown:tg:topic')
 
-    def test_flow_with_flow_suffix(self, backend):
-        """Queue names with flow suffix (e.g. :default) are preserved."""
-        name, durable = backend.map_queue_name('request:tg:prompt:default')
-        assert name == 'tg.request.prompt:default'
+    def test_topic_with_flow_suffix(self, backend):
+        """Topic names with flow suffix (e.g. :default) are preserved."""
+        exchange, cls, durable = backend._parse_topic('request:tg:prompt:default')
+        assert exchange == 'tg.request.prompt:default'
 
 
 class TestGetPubsubRabbitMQ:

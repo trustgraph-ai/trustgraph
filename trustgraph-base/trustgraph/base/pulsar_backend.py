@@ -266,22 +266,22 @@ class PulsarBackend:
 
         return PulsarBackendConsumer(pulsar_consumer, schema)
 
-    async def create_queue(self, topic: str, subscription: str) -> None:
+    async def create_topic(self, topic: str) -> None:
         """No-op — Pulsar auto-creates topics on first use.
         TODO: Use admin REST API for explicit persistent topic creation."""
         pass
 
-    async def delete_queue(self, topic: str, subscription: str) -> None:
+    async def delete_topic(self, topic: str) -> None:
         """No-op — to be replaced with admin REST API calls.
-        TODO: Delete subscription and persistent topic via admin API."""
+        TODO: Delete persistent topic via admin API."""
         pass
 
-    async def queue_exists(self, topic: str, subscription: str) -> bool:
+    async def topic_exists(self, topic: str) -> bool:
         """Returns True — Pulsar auto-creates on subscribe.
         TODO: Use admin REST API for actual existence check."""
         return True
 
-    async def ensure_queue(self, topic: str, subscription: str) -> None:
+    async def ensure_topic(self, topic: str) -> None:
         """No-op — Pulsar auto-creates topics on first use.
         TODO: Use admin REST API for explicit creation."""
         pass
