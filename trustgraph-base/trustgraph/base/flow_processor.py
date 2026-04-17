@@ -29,9 +29,9 @@ class FlowProcessor(AsyncProcessor):
         # Initialise base class
         super(FlowProcessor, self).__init__(**params)
 
-        # Register configuration handler
+        # Register configuration handler for this processor's config type
         self.register_config_handler(
-            self.on_configure_flows, types=["active-flow"]
+            self.on_configure_flows, types=[f"processor:{self.id}"]
         )
 
         # Initialise flow information state
@@ -66,17 +66,16 @@ class FlowProcessor(AsyncProcessor):
 
         logger.info(f"Got config version {version}")
 
-        # Skip over invalid data
-        if "active-flow" not in config: return
+        config_type = f"processor:{self.id}"
 
-        # Check there's configuration information for me
-        if self.id in config["active-flow"]:
-
-            # Get my flow config
-            flow_config = json.loads(config["active-flow"][self.id])
-
+        # Get my flow config — each key is a variant, each value is
+        # the JSON config for that flow variant
+        if config_type in config:
+            flow_config = {
+                k: json.loads(v)
+                for k, v in config[config_type].items()
+            }
         else:
-
             logger.debug("No configuration settings for me.")
             flow_config = {}
 

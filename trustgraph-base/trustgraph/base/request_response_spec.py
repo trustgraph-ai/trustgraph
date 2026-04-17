@@ -137,10 +137,10 @@ class RequestResponseSpec(Spec):
                 "--" + str(uuid.uuid4())
             ),
             consumer_name = flow.id,
-            request_topic = definition[self.request_name],
+            request_topic = definition["topics"][self.request_name],
             request_schema = self.request_schema,
             request_metrics = request_metrics,
-            response_topic = definition[self.response_name],
+            response_topic = definition["topics"][self.response_name],
             response_schema = self.response_schema,
             response_metrics = response_metrics,
         )

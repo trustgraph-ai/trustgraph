@@ -19,6 +19,7 @@ Uses basic_consume (push) instead of basic_get (polling) for
 efficient message delivery.
 """
 
+import asyncio
 import json
 import time
 import logging
@@ -170,28 +171,37 @@ class RabbitMQBackendConsumer:
         self._connection = pika.BlockingConnection(self._connection_params)
         self._channel = self._connection.channel()
 
-        # Declare the topic exchange
+        # Declare the topic exchange (idempotent, also done by producers)
         self._channel.exchange_declare(
             exchange=self._exchange_name,
             exchange_type='topic',
             durable=True,
         )
 
-        # Declare the queue — anonymous if exclusive
-        result = self._channel.queue_declare(
-            queue=self._queue_name,
-            durable=self._durable,
-            exclusive=self._exclusive,
-            auto_delete=self._auto_delete,
-        )
-        # Capture actual name (important for anonymous queues where name='')
-        self._queue_name = result.method.queue
+        if self._exclusive:
+            # Anonymous ephemeral queue (response/notify class).
+            # These are per-consumer and must be created here — the
+            # broker assigns the name.
+            result = self._channel.queue_declare(
+                queue='',
+                durable=False,
+                exclusive=True,
+                auto_delete=True,
+            )
+            self._queue_name = result.method.queue
 
-        self._channel.queue_bind(
-            queue=self._queue_name,
-            exchange=self._exchange_name,
-            routing_key=self._routing_key,
-        )
+            self._channel.queue_bind(
+                queue=self._queue_name,
+                exchange=self._exchange_name,
+                routing_key=self._routing_key,
+            )
+        else:
+            # Named queue (flow/request class). Queue must already
+            # exist — created by the flow service or ensure_queue.
+            # We just verify it exists and bind to consume.
+            self._channel.queue_declare(
+                queue=self._queue_name, passive=True,
+            )
 
         self._channel.basic_qos(prefetch_count=1)
 
@@ -408,6 +418,125 @@ class RabbitMQBackend:
             self._connection_params, exchange, routing_key,
             queue_name, schema, queue_durable, exclusive, auto_delete,
         )
+
+    def _create_queue_sync(self, exchange, routing_key, queue_name, durable):
+        """Blocking queue creation — run via asyncio.to_thread."""
+        connection = None
+        try:
+            connection = pika.BlockingConnection(self._connection_params)
+            channel = connection.channel()
+            channel.exchange_declare(
+                exchange=exchange,
+                exchange_type='topic',
+                durable=True,
+            )
+            channel.queue_declare(
+                queue=queue_name,
+                durable=durable,
+                exclusive=False,
+                auto_delete=False,
+            )
+            channel.queue_bind(
+                queue=queue_name,
+                exchange=exchange,
+                routing_key=routing_key,
+            )
+            logger.info(f"Created queue: {queue_name}")
+        finally:
+            if connection and connection.is_open:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+
+    async def create_queue(self, topic: str, subscription: str) -> None:
+        """Pre-create a named queue bound to the topic exchange.
+
+        Only applies to shared queues (flow/request class). Response and
+        notify queues are anonymous/auto-delete and created by consumers.
+        """
+        exchange, routing_key, cls, durable = self._parse_queue_id(topic)
+
+        if cls in ('response', 'notify'):
+            return
+
+        queue_name = f"{exchange}.{routing_key}.{subscription}"
+        await asyncio.to_thread(
+            self._create_queue_sync, exchange, routing_key,
+            queue_name, durable,
+        )
+
+    def _delete_queue_sync(self, queue_name):
+        """Blocking queue deletion — run via asyncio.to_thread."""
+        connection = None
+        try:
+            connection = pika.BlockingConnection(self._connection_params)
+            channel = connection.channel()
+            channel.queue_delete(queue=queue_name)
+            logger.info(f"Deleted queue: {queue_name}")
+        except Exception as e:
+            # Idempotent — queue may already be gone
+            logger.debug(f"Queue delete for {queue_name}: {e}")
+        finally:
+            if connection and connection.is_open:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+
+    async def delete_queue(self, topic: str, subscription: str) -> None:
+        """Delete a named queue and any messages it contains.
+
+        Only applies to shared queues (flow/request class). Response and
+        notify queues are anonymous/auto-delete and managed by the broker.
+        """
+        exchange, routing_key, cls, durable = self._parse_queue_id(topic)
+
+        if cls in ('response', 'notify'):
+            return
+
+        queue_name = f"{exchange}.{routing_key}.{subscription}"
+        await asyncio.to_thread(self._delete_queue_sync, queue_name)
+
+    def _queue_exists_sync(self, queue_name):
+        """Blocking queue existence check — run via asyncio.to_thread.
+        Uses passive=True which checks without creating."""
+        connection = None
+        try:
+            connection = pika.BlockingConnection(self._connection_params)
+            channel = connection.channel()
+            channel.queue_declare(queue=queue_name, passive=True)
+            return True
+        except pika.exceptions.ChannelClosedByBroker:
+            # 404 NOT_FOUND — queue does not exist
+            return False
+        finally:
+            if connection and connection.is_open:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+
+    async def queue_exists(self, topic: str, subscription: str) -> bool:
+        """Check whether a named queue exists.
+
+        Only applies to shared queues (flow/request class). Response and
+        notify queues are anonymous/ephemeral — always returns False.
+        """
+        exchange, routing_key, cls, durable = self._parse_queue_id(topic)
+
+        if cls in ('response', 'notify'):
+            return False
+
+        queue_name = f"{exchange}.{routing_key}.{subscription}"
+        return await asyncio.to_thread(
+            self._queue_exists_sync, queue_name
+        )
+
+    async def ensure_queue(self, topic: str, subscription: str) -> None:
+        """Ensure a queue exists, creating it if necessary."""
+        if not await self.queue_exists(topic, subscription):
+            await self.create_queue(topic, subscription)
 
     def close(self) -> None:
         pass

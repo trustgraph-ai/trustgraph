@@ -277,7 +277,7 @@ class TestDispatcherManager:
         # Setup test flow
         manager.flows["test_flow"] = {
             "interfaces": {
-                "triples-store": {"queue": "test_queue"}
+                "triples-store": {"flow": "test_queue"}
             }
         }
         
@@ -298,7 +298,7 @@ class TestDispatcherManager:
                 backend=mock_backend,
                 ws="ws",
                 running="running",
-                queue={"queue": "test_queue"}
+                queue="test_queue"
             )
             mock_dispatcher.start.assert_called_once()
             assert result == mock_dispatcher
@@ -328,7 +328,7 @@ class TestDispatcherManager:
         # Setup test flow
         manager.flows["test_flow"] = {
             "interfaces": {
-                "triples-store": {"queue": "test_queue"}
+                "triples-store": {"flow": "test_queue"}
             }
         }
         
@@ -350,7 +350,7 @@ class TestDispatcherManager:
         # Setup test flow
         manager.flows["test_flow"] = {
             "interfaces": {
-                "triples-store": {"queue": "test_queue"}
+                "triples-store": {"flow": "test_queue"}
             }
         }
         
@@ -370,7 +370,7 @@ class TestDispatcherManager:
                 backend=mock_backend,
                 ws="ws",
                 running="running",
-                queue={"queue": "test_queue"},
+                queue="test_queue",
                 consumer="api-gateway-test-uuid",
                 subscriber="api-gateway-test-uuid"
             )
@@ -481,7 +481,7 @@ class TestDispatcherManager:
         # Setup test flow
         manager.flows["test_flow"] = {
             "interfaces": {
-                "text-load": {"queue": "text_load_queue"}
+                "text-load": {"flow": "text_load_queue"}
             }
         }
         
@@ -502,7 +502,7 @@ class TestDispatcherManager:
             # Verify dispatcher was created with correct parameters
             mock_dispatcher_class.assert_called_once_with(
                 backend=mock_backend,
-                queue={"queue": "text_load_queue"}
+                queue="text_load_queue"
             )
             mock_dispatcher.start.assert_called_once()
             mock_dispatcher.process.assert_called_once_with("data", "responder")

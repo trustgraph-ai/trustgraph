@@ -226,7 +226,7 @@ class DispatcherManager:
             raise RuntimeError("This kind not supported by flow")
 
         # FIXME: The -store bit, does it make sense?
-        qconfig = intf_defs[int_kind]
+        qconfig = intf_defs[int_kind]["flow"]
 
         id = str(uuid.uuid4())
         dispatcher = import_dispatchers[kind](
@@ -264,7 +264,7 @@ class DispatcherManager:
         if int_kind not in intf_defs:
             raise RuntimeError("This kind not supported by flow")
 
-        qconfig = intf_defs[int_kind]
+        qconfig = intf_defs[int_kind]["flow"]
 
         id = str(uuid.uuid4())
         dispatcher = export_dispatchers[kind](
@@ -320,7 +320,7 @@ class DispatcherManager:
                     elif kind in sender_dispatchers:
                         dispatcher = sender_dispatchers[kind](
                             backend = self.backend,
-                            queue = qconfig,
+                            queue = qconfig["flow"],
                         )
                     else:
                         raise RuntimeError("Invalid kind")

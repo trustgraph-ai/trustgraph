@@ -19,7 +19,7 @@ class ProducerSpec(Spec):
 
         producer = Producer(
             backend = processor.pubsub,
-            topic = definition[self.name],
+            topic = definition["topics"][self.name],
             schema = self.schema,
             metrics = producer_metrics,
         )
