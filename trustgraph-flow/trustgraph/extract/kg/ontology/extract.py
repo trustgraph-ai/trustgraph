@@ -429,6 +429,16 @@ class Processor(FlowProcessor):
         validated_triples = []
         ontology_id = ontology_subset.ontology_id
 
+        # Gather entity types for domain/range validation
+        entity_types = {}
+        for triple_data in triples_response:
+            if isinstance(triple_data, dict):
+                s = triple_data.get('subject', '')
+                p = triple_data.get('predicate', '')
+                o = triple_data.get('object', '')
+                if s and p and o and (p == "rdf:type" or p == str(RDF_TYPE)):
+                    entity_types[s] = o
+
         for triple_data in triples_response:
             try:
                 if isinstance(triple_data, dict):
@@ -440,7 +450,7 @@ class Processor(FlowProcessor):
                         continue
 
                     # Validate against ontology
-                    if self.is_valid_triple(subject, predicate, object_val, ontology_subset):
+                    if self.is_valid_triple(subject, predicate, object_val, ontology_subset, entity_types):
                         # Expand URIs before creating Value objects
                         subject_uri = self.expand_uri(subject, ontology_subset, ontology_id)
                         predicate_uri = self.expand_uri(predicate, ontology_subset, ontology_id)
@@ -493,8 +503,11 @@ class Processor(FlowProcessor):
         return False
 
     def is_valid_triple(self, subject: str, predicate: str, object_val: str,
-                       ontology_subset: OntologySubset) -> bool:
+                       ontology_subset: OntologySubset, entity_types: dict = None) -> bool:
         """Validate triple against ontology constraints."""
+        if entity_types is None:
+            entity_types = {}
+
         # Special case for rdf:type
         if predicate == "rdf:type" or predicate == str(RDF_TYPE):
             # Check if object is a valid class
@@ -511,7 +524,45 @@ class Processor(FlowProcessor):
         if not is_obj_prop and not is_dt_prop:
             return False  # Unknown property
 
-        # TODO: Add more sophisticated validation (domain/range checking)
+        prop_def = ontology_subset.object_properties[predicate] if is_obj_prop else ontology_subset.datatype_properties[predicate]
+        if not isinstance(prop_def, dict):
+            prop_def = prop_def.__dict__ if hasattr(prop_def, '__dict__') else {}
+
+        # Domain validation
+        expected_domain = prop_def.get('domain')
+        if expected_domain and subject in entity_types:
+            actual_domain = entity_types[subject]
+            if actual_domain != expected_domain:
+                is_subclass = False
+                curr_class = actual_domain
+                while curr_class in ontology_subset.classes:
+                    cls_def = ontology_subset.classes[curr_class]
+                    parent = cls_def.get('subclass_of') if isinstance(cls_def, dict) else None
+                    if parent == expected_domain:
+                        is_subclass = True
+                        break
+                    curr_class = parent
+                if not is_subclass:
+                    return False
+
+        # Range validation
+        if is_obj_prop:
+            expected_range = prop_def.get('range')
+            if expected_range and object_val in entity_types:
+                actual_range = entity_types[object_val]
+                if actual_range != expected_range:
+                    is_subclass = False
+                    curr_class = actual_range
+                    while curr_class in ontology_subset.classes:
+                        cls_def = ontology_subset.classes[curr_class]
+                        parent = cls_def.get('subclass_of') if isinstance(cls_def, dict) else None
+                        if parent == expected_range:
+                            is_subclass = True
+                            break
+                        curr_class = parent
+                    if not is_subclass:
+                        return False
+
         return True
 
     def expand_uri(self, value: str, ontology_subset: OntologySubset, ontology_id: str = "unknown") -> str:
