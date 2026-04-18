@@ -58,7 +58,7 @@ class Consumer:
         # consumers in the same group causes rebalance storms where
         # no consumer can fetch. Cap to the backend's limit.
         max_concurrency = getattr(backend, 'max_consumer_concurrency', None)
-        if max_concurrency is not None and concurrency > max_concurrency:
+        if isinstance(max_concurrency, int) and concurrency > max_concurrency:
             logger.info(
                 f"Capping concurrency from {concurrency} to "
                 f"{max_concurrency} (backend limit)"
