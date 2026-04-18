@@ -22,6 +22,10 @@ def _make_librarian(min_chunk_size=1):
     """Create a Librarian with mocked blob_store and table_store."""
     lib = Librarian.__new__(Librarian)
     lib.blob_store = MagicMock()
+    lib.blob_store.create_multipart_upload = AsyncMock()
+    lib.blob_store.upload_part = AsyncMock()
+    lib.blob_store.complete_multipart_upload = AsyncMock()
+    lib.blob_store.abort_multipart_upload = AsyncMock()
     lib.table_store = AsyncMock()
     lib.load_document = AsyncMock()
     lib.min_chunk_size = min_chunk_size

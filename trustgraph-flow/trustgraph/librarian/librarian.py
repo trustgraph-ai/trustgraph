@@ -301,7 +301,7 @@ class Librarian:
         object_id = uuid.uuid4()
 
         # Create S3 multipart upload
-        s3_upload_id = self.blob_store.create_multipart_upload(
+        s3_upload_id = await self.blob_store.create_multipart_upload(
             object_id, request.document_metadata.kind
         )
 
@@ -367,7 +367,7 @@ class Librarian:
 
         # Upload to S3 (part numbers are 1-indexed in S3)
         part_number = request.chunk_index + 1
-        etag = self.blob_store.upload_part(
+        etag = await self.blob_store.upload_part(
             object_id=session["object_id"],
             upload_id=session["s3_upload_id"],
             part_number=part_number,
@@ -440,7 +440,7 @@ class Librarian:
         ]
 
         # Complete S3 multipart upload
-        self.blob_store.complete_multipart_upload(
+        await self.blob_store.complete_multipart_upload(
             object_id=session["object_id"],
             upload_id=session["s3_upload_id"],
             parts=parts,
@@ -492,7 +492,7 @@ class Librarian:
             raise RequestError("Not authorized to abort this upload")
 
         # Abort S3 multipart upload
-        self.blob_store.abort_multipart_upload(
+        await self.blob_store.abort_multipart_upload(
             object_id=session["object_id"],
             upload_id=session["s3_upload_id"],
         )
