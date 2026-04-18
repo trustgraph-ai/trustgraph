@@ -5,7 +5,6 @@ as text as separate output objects.
 """
 
 import logging
-from langchain_text_splitters import TokenTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk, Metadata, Triples
@@ -42,6 +41,9 @@ class Processor(ChunkingService):
         self.default_chunk_size = chunk_size
         self.default_chunk_overlap = chunk_overlap
 
+        from langchain_text_splitters import TokenTextSplitter
+        self.TokenTextSplitter = TokenTextSplitter
+
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
                 'chunk_size', 'Chunk size',
@@ -50,7 +52,7 @@ class Processor(ChunkingService):
                          2500, 4000, 6400, 10000, 16000]
             )
 
-        self.text_splitter = TokenTextSplitter(
+        self.text_splitter = self.TokenTextSplitter(
             encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -102,7 +104,7 @@ class Processor(ChunkingService):
             chunk_overlap = int(chunk_overlap)
 
         # Create text splitter with effective parameters
-        text_splitter = TokenTextSplitter(
+        text_splitter = self.TokenTextSplitter(
             encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
