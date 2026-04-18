@@ -18,6 +18,12 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
+from google import genai
+from google.genai import types
+from google.genai.types import HarmCategory, HarmBlockThreshold
+from google.genai.errors import ClientError
+from google.api_core.exceptions import ResourceExhausted
+
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
 
@@ -37,18 +43,6 @@ class Processor(LlmService):
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
-        from google import genai                                               
-        from google.genai import types                                          
-        from google.genai.types import HarmCategory, HarmBlockThreshold        
-        from google.genai.errors import ClientError                             
-        from google.api_core.exceptions import ResourceExhausted               
-        self.genai = genai                                                      
-        self.types = types                                                      
-        self.HarmCategory = HarmCategory                                        
-        self.HarmBlockThreshold = HarmBlockThreshold                           
-        self.ClientError = ClientError                                          
-        self.ResourceExhausted = ResourceExhausted                             
-
         if api_key is None:
             raise RuntimeError("Google AI Studio API key not specified")
 
@@ -60,7 +54,7 @@ class Processor(LlmService):
             }
         )
 
-        self.client = self.genai.Client(api_key=api_key, vertexai=False)
+        self.client = genai.Client(api_key=api_key, vertexai=False)
         self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
@@ -68,23 +62,23 @@ class Processor(LlmService):
         # Cache for generation configs per model
         self.generation_configs = {}
 
-        block_level = self.HarmBlockThreshold.BLOCK_ONLY_HIGH
+        block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
 
         self.safety_settings = [
-            self.types.SafetySetting(                           
-                category = self.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            types.SafetySetting(                           
+                category = HarmCategory.HARM_CATEGORY_HATE_SPEECH,
                 threshold = block_level,
             ),
-            self.types.SafetySetting(                           
-                category = self.HarmCategory.HARM_CATEGORY_HARASSMENT,
+            types.SafetySetting(                           
+                category = HarmCategory.HARM_CATEGORY_HARASSMENT,
                 threshold = block_level,
             ),
-            self.types.SafetySetting(                           
-                category = self.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            types.SafetySetting(                           
+                category = HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
                 threshold = block_level,
             ),
-            self.types.SafetySetting(                           
-                category = self.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            types.SafetySetting(                           
+                category = HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
                 threshold = block_level,
             ),
             # There is a documentation conflict on whether or not
@@ -104,7 +98,7 @@ class Processor(LlmService):
 
         if cache_key not in self.generation_configs:
             logger.info(f"Creating generation config for '{model_name}' with temperature {effective_temperature}")
-            self.generation_configs[cache_key] = self.types.GenerateContentConfig( 
+            self.generation_configs[cache_key] = types.GenerateContentConfig( 
                 temperature = effective_temperature,
                 top_p = 1,
                 top_k = 40,
@@ -153,14 +147,14 @@ class Processor(LlmService):
 
             return resp
 
-        except self.ResourceExhausted as e:
+        except ResourceExhausted as e:
 
             logger.warning("Rate limit exceeded")
 
             # Leave rate limit retries to the default handler
             raise TooManyRequests()
 
-        except self.ClientError as e:                 
+        except ClientError as e:                 
             # google-genai SDK throws ClientError for 4xx errors
             if e.code == 429:
                 logger.warning(f"Rate limit exceeded (ClientError 429): {e}")
@@ -229,11 +223,11 @@ class Processor(LlmService):
 
             logger.debug("Streaming complete")
 
-        except self.ResourceExhausted:              
+        except ResourceExhausted:              
             logger.warning("Rate limit exceeded during streaming")
             raise TooManyRequests()
 
-        except self.ClientError as e:                 
+        except ClientError as e:                 
             # google-genai SDK throws ClientError for 4xx errors
             if e.code == 429:
                 logger.warning(f"Rate limit exceeded during streaming (ClientError 429): {e}")
