@@ -91,11 +91,10 @@ class TestRowsGraphQLQueryLogic:
         """Test parsing of schema configuration"""
         processor = MagicMock()
         processor.schemas = {}
+        processor.schema_builders = {}
+        processor.graphql_schemas = {}
         processor.config_key = "schema"
-        processor.schema_builder = MagicMock()
-        processor.schema_builder.clear = MagicMock()
-        processor.schema_builder.add_schema = MagicMock()
-        processor.schema_builder.build = MagicMock(return_value=MagicMock())
+        processor.query_cassandra = MagicMock()
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
 
         # Create test config
@@ -129,11 +128,11 @@ class TestRowsGraphQLQueryLogic:
         }
 
         # Process config
-        await processor.on_schema_config(schema_config, version=1)
+        await processor.on_schema_config("default", schema_config, version=1)
 
         # Verify schema was loaded
-        assert "customer" in processor.schemas
-        schema = processor.schemas["customer"]
+        assert "customer" in processor.schemas["default"]
+        schema = processor.schemas["default"]["customer"]
         assert schema.name == "customer"
         assert len(schema.fields) == 3
 
@@ -147,39 +146,40 @@ class TestRowsGraphQLQueryLogic:
         status_field = next(f for f in schema.fields if f.name == "status")
         assert status_field.enum_values == ["active", "inactive"]
 
-        # Verify schema builder was called
-        processor.schema_builder.add_schema.assert_called_once()
-        processor.schema_builder.build.assert_called_once()
+        # Verify per-workspace schema builder was created and graphql schema built
+        assert "default" in processor.schema_builders
+        assert "default" in processor.graphql_schemas
 
     @pytest.mark.asyncio
     async def test_graphql_context_handling(self):
         """Test GraphQL execution context setup"""
         processor = MagicMock()
-        processor.graphql_schema = AsyncMock()
+        graphql_schema = AsyncMock()
+        processor.graphql_schemas = {"default": graphql_schema}
         processor.execute_graphql_query = Processor.execute_graphql_query.__get__(processor, Processor)
 
         # Mock schema execution
         mock_result = MagicMock()
         mock_result.data = {"customers": [{"id": "1", "name": "Test"}]}
         mock_result.errors = None
-        processor.graphql_schema.execute.return_value = mock_result
+        graphql_schema.execute.return_value = mock_result
 
         result = await processor.execute_graphql_query(
+            workspace="default",
             query='{ customers { id name } }',
             variables={},
             operation_name=None,
-            user="test_user",
             collection="test_collection"
         )
 
         # Verify schema.execute was called with correct context
-        processor.graphql_schema.execute.assert_called_once()
-        call_args = processor.graphql_schema.execute.call_args
+        graphql_schema.execute.assert_called_once()
+        call_args = graphql_schema.execute.call_args
 
         # Verify context was passed
         context = call_args[1]['context_value']
         assert context["processor"] == processor
-        assert context["user"] == "test_user"
+        assert context["workspace"] == "default"
         assert context["collection"] == "test_collection"
 
         # Verify result structure
@@ -190,7 +190,8 @@ class TestRowsGraphQLQueryLogic:
     async def test_error_handling_graphql_errors(self):
         """Test GraphQL error handling and conversion"""
         processor = MagicMock()
-        processor.graphql_schema = AsyncMock()
+        graphql_schema = AsyncMock()
+        processor.graphql_schemas = {"default": graphql_schema}
         processor.execute_graphql_query = Processor.execute_graphql_query.__get__(processor, Processor)
 
         # Create a simple object to simulate GraphQL error
@@ -212,13 +213,13 @@ class TestRowsGraphQLQueryLogic:
         mock_result = MagicMock()
         mock_result.data = None
         mock_result.errors = [mock_error]
-        processor.graphql_schema.execute.return_value = mock_result
+        graphql_schema.execute.return_value = mock_result
 
         result = await processor.execute_graphql_query(
+            workspace="default",
             query='{ customers { invalid_field } }',
             variables={},
             operation_name=None,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -248,7 +249,6 @@ class TestRowsGraphQLQueryLogic:
         # Create mock message
         mock_msg = MagicMock()
         mock_request = RowsQueryRequest(
-            user="test_user",
             collection="test_collection",
             query='{ customers { id name } }',
             variables={},
@@ -259,6 +259,7 @@ class TestRowsGraphQLQueryLogic:
 
         # Mock flow
         mock_flow = MagicMock()
+        mock_flow.workspace = "default"
         mock_response_flow = AsyncMock()
         mock_flow.return_value = mock_response_flow
 
@@ -267,10 +268,10 @@ class TestRowsGraphQLQueryLogic:
 
         # Verify query was executed
         processor.execute_graphql_query.assert_called_once_with(
+            workspace="default",
             query='{ customers { id name } }',
             variables={},
             operation_name=None,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -297,7 +298,6 @@ class TestRowsGraphQLQueryLogic:
         # Create mock message
         mock_msg = MagicMock()
         mock_request = RowsQueryRequest(
-            user="test_user",
             collection="test_collection",
             query='{ invalid_query }',
             variables={},
@@ -357,7 +357,7 @@ class TestUnifiedTableQueries:
 
         # Query with filter on indexed field
         results = await processor.query_cassandra(
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             schema_name="products",
             row_schema=schema,
@@ -374,7 +374,7 @@ class TestUnifiedTableQueries:
         query = call_args[0][1]
         params = call_args[0][2]
 
-        assert "SELECT data, source FROM test_user.rows" in query
+        assert "SELECT data, source FROM test_workspace.rows" in query
         assert "collection = %s" in query
         assert "schema_name = %s" in query
         assert "index_name = %s" in query
@@ -421,7 +421,7 @@ class TestUnifiedTableQueries:
 
         # Query with filter on non-indexed field
         results = await processor.query_cassandra(
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             schema_name="products",
             row_schema=schema,

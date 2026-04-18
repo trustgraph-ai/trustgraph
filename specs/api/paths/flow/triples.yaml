@@ -81,7 +81,6 @@ post:
               s:
                 v: https://example.com/person/alice
                 e: true
-              user: alice
               collection: research
               limit: 100
           allInstancesOfType:
@@ -100,7 +99,6 @@ post:
               p:
                 v: https://example.com/knows
                 e: true
-              user: alice
               limit: 200
   responses:
     '200':

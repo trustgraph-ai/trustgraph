@@ -46,7 +46,6 @@ async def load_de(running, queue, url):
                     "metadata": {
                         "id": msg["m"]["i"],
                         "metadata": msg["m"]["m"],
-                        "user": msg["m"]["u"],
                         "collection": msg["m"]["c"],
                     },
                     "chunks": [
@@ -77,7 +76,7 @@ async def stats(running):
             f"Graph embeddings: {de_counts:10d}"
         )
 
-async def loader(running, de_queue, path, format, user, collection):
+async def loader(running, de_queue, path, format, collection):
 
     if format == "json":
 
@@ -95,9 +94,6 @@ async def loader(running, de_queue, path, format, user, collection):
                     unpacked = unpacker.unpack()
                 except:
                     break
-
-                if user:
-                    unpacked["metadata"]["user"] = user
 
                 if collection:
                     unpacked["metadata"]["collection"] = collection
@@ -148,9 +144,9 @@ async def run(running, **args):
             running=running,
             de_queue=de_q,
             path=args["input_file"], format=args["format"],
-            user=args["user"], collection=args["collection"],
+            collection=args["collection"],
         )
-        
+
     )
 
     de_task = asyncio.create_task(
@@ -178,7 +174,6 @@ async def main(running):
     )
 
     default_url = os.getenv("TRUSTGRAPH_API", "http://localhost:8088/")
-    default_user = "trustgraph"
     collection = "default"
 
     parser.add_argument(
@@ -205,11 +200,6 @@ async def main(running):
         default="msgpack",
         choices=["msgpack", "json"],
         help=f'Output format (default: msgpack)',
-    )
-
-    parser.add_argument(
-        '--user',
-        help=f'User ID to load as (default: from input)'
     )
 
     parser.add_argument(

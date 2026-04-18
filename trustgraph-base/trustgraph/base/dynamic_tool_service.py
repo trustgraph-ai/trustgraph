@@ -2,7 +2,7 @@
 Base class for dynamically pluggable tool services.
 
 Tool services are Pulsar services that can be invoked as agent tools.
-They receive a ToolServiceRequest with user, config, and arguments,
+They receive a ToolServiceRequest with config and arguments,
 and return a ToolServiceResponse with the result.
 
 Uses direct Pulsar topics (no flow configuration required):
@@ -42,7 +42,6 @@ class DynamicToolService(AsyncProcessor):
     the tool's logic.
 
     The invoke method receives:
-    - user: The user context for multi-tenancy
     - config: Dict of config values from the tool descriptor
     - arguments: Dict of arguments from the LLM
 
@@ -115,14 +114,13 @@ class DynamicToolService(AsyncProcessor):
             id = msg.properties().get("id", "unknown")
 
             # Parse the request
-            user = request.user or "trustgraph"
             config = json.loads(request.config) if request.config else {}
             arguments = json.loads(request.arguments) if request.arguments else {}
 
-            logger.debug(f"Tool service request: user={user}, config={config}, arguments={arguments}")
+            logger.debug(f"Tool service request: config={config}, arguments={arguments}")
 
             # Invoke the tool implementation
-            response = await self.invoke(user, config, arguments)
+            response = await self.invoke(config, arguments)
 
             # Send success response
             await self.producer.send(
@@ -159,14 +157,13 @@ class DynamicToolService(AsyncProcessor):
                 properties={"id": id if id else "unknown"}
             )
 
-    async def invoke(self, user, config, arguments):
+    async def invoke(self, config, arguments):
         """
         Invoke the tool service.
 
         Override this method in subclasses to implement the tool's logic.
 
         Args:
-            user: The user context for multi-tenancy
             config: Dict of config values from the tool descriptor
             arguments: Dict of arguments from the LLM
 

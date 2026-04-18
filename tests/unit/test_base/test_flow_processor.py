@@ -78,11 +78,11 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         flow_name = 'test-flow'
         flow_defn = {'config': 'test-config'}
 
-        await processor.start_flow(flow_name, flow_defn)
+        await processor.start_flow("default", flow_name, flow_defn)
 
-        assert flow_name in processor.flows
+        assert ("default", flow_name) in processor.flows
         mock_flow_class.assert_called_once_with(
-            'test-processor', flow_name, processor, flow_defn
+            'test-processor', flow_name, "default", processor, flow_defn
         )
         mock_flow.start.assert_called_once()
 
@@ -103,11 +103,11 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         mock_flow_class.return_value = mock_flow
 
         flow_name = 'test-flow'
-        await processor.start_flow(flow_name, {'config': 'test-config'})
+        await processor.start_flow("default", flow_name, {'config': 'test-config'})
 
-        await processor.stop_flow(flow_name)
+        await processor.stop_flow("default", flow_name)
 
-        assert flow_name not in processor.flows
+        assert ("default", flow_name) not in processor.flows
         mock_flow.stop.assert_called_once()
 
     @with_async_processor_patches
@@ -120,7 +120,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
 
         processor = FlowProcessor(**config)
 
-        await processor.stop_flow('non-existent-flow')
+        await processor.stop_flow("default", 'non-existent-flow')
 
         assert processor.flows == {}
 
@@ -146,11 +146,11 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             }
         }
 
-        await processor.on_configure_flows(config_data, version=1)
+        await processor.on_configure_flows("default", config_data, version=1)
 
-        assert 'test-flow' in processor.flows
+        assert ("default", 'test-flow') in processor.flows
         mock_flow_class.assert_called_once_with(
-            'test-processor', 'test-flow', processor,
+            'test-processor', 'test-flow', "default", processor,
             {'config': 'test-config'}
         )
         mock_flow.start.assert_called_once()
@@ -171,7 +171,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             }
         }
 
-        await processor.on_configure_flows(config_data, version=1)
+        await processor.on_configure_flows("default", config_data, version=1)
 
         assert processor.flows == {}
 
@@ -189,7 +189,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             'other-data': 'some-value'
         }
 
-        await processor.on_configure_flows(config_data, version=1)
+        await processor.on_configure_flows("default", config_data, version=1)
 
         assert processor.flows == {}
 
@@ -216,7 +216,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             }
         }
 
-        await processor.on_configure_flows(config_data1, version=1)
+        await processor.on_configure_flows("default", config_data1, version=1)
 
         config_data2 = {
             'processor:test-processor': {
@@ -224,12 +224,12 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             }
         }
 
-        await processor.on_configure_flows(config_data2, version=2)
+        await processor.on_configure_flows("default", config_data2, version=2)
 
-        assert 'flow1' not in processor.flows
+        assert ("default", 'flow1') not in processor.flows
         mock_flow1.stop.assert_called_once()
 
-        assert 'flow2' in processor.flows
+        assert ("default", 'flow2') in processor.flows
         mock_flow2.start.assert_called_once()
 
     @with_async_processor_patches

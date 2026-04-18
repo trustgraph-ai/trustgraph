@@ -27,8 +27,8 @@ def _make_entity_context(name, context, chunk_id="chunk-1"):
     return MagicMock(entity=entity, context=context, chunk_id=chunk_id)
 
 
-def _make_message(entities, doc_id="doc-1", user="test", collection="default"):
-    metadata = Metadata(id=doc_id, user=user, collection=collection)
+def _make_message(entities, doc_id="doc-1", collection="default"):
+    metadata = Metadata(id=doc_id, collection=collection)
     value = EntityContexts(metadata=metadata, entities=entities)
     msg = MagicMock()
     msg.value.return_value = value
@@ -151,7 +151,7 @@ class TestGraphEmbeddingsBatchProcessing:
             _make_entity_context(f"E{i}", f"ctx {i}")
             for i in range(5)
         ]
-        msg = _make_message(entities, doc_id="doc-42", user="alice", collection="main")
+        msg = _make_message(entities, doc_id="doc-42", collection="main")
 
         mock_embed = AsyncMock(return_value=[[0.0]] * 5)
         mock_output = AsyncMock()
@@ -168,7 +168,6 @@ class TestGraphEmbeddingsBatchProcessing:
         for call in mock_output.send.call_args_list:
             result = call[0][0]
             assert result.metadata.id == "doc-42"
-            assert result.metadata.user == "alice"
             assert result.metadata.collection == "main"
 
     @pytest.mark.asyncio

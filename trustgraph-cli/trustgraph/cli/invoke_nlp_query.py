@@ -10,9 +10,11 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def nlp_query(url, flow_id, question, max_results, output_format='json'):
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
+def nlp_query(url, flow_id, question, max_results, output_format='json', token=None, workspace="default"):
 
-    api = Api(url).flow().id(flow_id)
+    api = Api(url, token=token, workspace=workspace).flow().id(flow_id)
 
     resp = api.nlp_query(
         question=question,
@@ -63,6 +65,17 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
 
     parser.add_argument(
         '-f', '--flow-id',
@@ -100,6 +113,11 @@ def main():
             question=args.question,
             max_results=args.max_results,
             output_format=args.format,
+
+            token = args.token,
+
+            workspace = args.workspace,
+
         )
 
     except Exception as e:

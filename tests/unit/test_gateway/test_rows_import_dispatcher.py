@@ -235,7 +235,6 @@ class TestRowsImportMessageProcessing:
         
         # Check metadata
         assert sent_object.metadata.id == "obj-123"
-        assert sent_object.metadata.user == "testuser"
         assert sent_object.metadata.collection == "testcollection"
 
     @patch('trustgraph.gateway.dispatch.rows_import.Publisher')

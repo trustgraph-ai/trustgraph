@@ -4,16 +4,15 @@ Shows knowledge cores
 
 import argparse
 import os
-import tabulate
-from trustgraph.api import Api, ConfigKey
-import json
+from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def show_cores(url, user, token=None):
+def show_cores(url, token=None, workspace="default"):
 
-    api = Api(url, token=token).knowledge()
+    api = Api(url, token=token, workspace=workspace).knowledge()
 
     ids = api.list_kg_cores()
 
@@ -26,7 +25,7 @@ def show_cores(url, user, token=None):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-flows',
+        prog='tg-show-kg-cores',
         description=__doc__,
     )
 
@@ -43,9 +42,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default="trustgraph",
-        help='API URL (default: trustgraph)',
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     args = parser.parse_args()
@@ -54,8 +53,8 @@ def main():
 
         show_cores(
             url=args.api_url,
-            user=args.user,
             token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

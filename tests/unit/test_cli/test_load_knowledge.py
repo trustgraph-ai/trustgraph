@@ -48,7 +48,7 @@ def knowledge_loader():
     return KnowledgeLoader(
         files=["test.ttl"],
         flow="test-flow",
-        user="test-user",
+        workspace="test-user",
         collection="test-collection",
         document_id="test-doc-123",
         url="http://test.example.com/",
@@ -64,7 +64,7 @@ class TestKnowledgeLoader:
         loader = KnowledgeLoader(
             files=["file1.ttl", "file2.ttl"],
             flow="my-flow",
-            user="user1",
+            workspace="user1",
             collection="col1",
             document_id="doc1",
             url="http://example.com/",
@@ -73,7 +73,7 @@ class TestKnowledgeLoader:
 
         assert loader.files == ["file1.ttl", "file2.ttl"]
         assert loader.flow == "my-flow"
-        assert loader.user == "user1"
+        assert loader.workspace == "user1"
         assert loader.collection == "col1"
         assert loader.document_id == "doc1"
         assert loader.url == "http://example.com/"
@@ -126,7 +126,7 @@ ex:mary ex:knows ex:bob .
             loader = KnowledgeLoader(
                 files=[f.name],
                 flow="test-flow",
-                user="test-user",
+                workspace="test-user",
                 collection="test-collection",
                 document_id="test-doc",
                 url="http://test.example.com/"
@@ -151,7 +151,7 @@ ex:mary ex:knows ex:bob .
         loader = KnowledgeLoader(
             files=[temp_turtle_file],
             flow="test-flow",
-            user="test-user",
+            workspace="test-user",
             collection="test-collection",
             document_id="test-doc",
             url="http://test.example.com/",
@@ -163,7 +163,8 @@ ex:mary ex:knows ex:bob .
         # Verify Api was created with correct parameters
         mock_api_class.assert_called_once_with(
             url="http://test.example.com/",
-            token="test-token"
+            token="test-token",
+            workspace="test-user"
         )
 
         # Verify bulk client was obtained
@@ -174,7 +175,6 @@ ex:mary ex:knows ex:bob .
         call_args = mock_bulk.import_triples.call_args
         assert call_args[1]['flow'] == "test-flow"
         assert call_args[1]['metadata']['id'] == "test-doc"
-        assert call_args[1]['metadata']['user'] == "test-user"
         assert call_args[1]['metadata']['collection'] == "test-collection"
 
         # Verify import_entity_contexts was called
@@ -198,7 +198,7 @@ class TestCLIArgumentParsing:
             'tg-load-knowledge',
             '-i', 'doc-123',
             '-f', 'my-flow',
-            '-U', 'my-user',
+            '-w', 'my-user',
             '-C', 'my-collection',
             '-u', 'http://custom.example.com/',
             '-t', 'my-token',
@@ -216,7 +216,7 @@ class TestCLIArgumentParsing:
             token='my-token',
             flow='my-flow',
             files=['file1.ttl', 'file2.ttl'],
-            user='my-user',
+            workspace='my-user',
             collection='my-collection'
         )
 
@@ -242,7 +242,7 @@ class TestCLIArgumentParsing:
         # Verify defaults were used
         call_args = mock_loader_class.call_args[1]
         assert call_args['flow'] == 'default'
-        assert call_args['user'] == 'trustgraph'
+        assert call_args['workspace'] == 'default'
         assert call_args['collection'] == 'default'
         assert call_args['url'] == 'http://localhost:8088/'
         assert call_args['token'] is None
@@ -287,7 +287,7 @@ class TestErrorHandling:
         loader = KnowledgeLoader(
             files=[temp_turtle_file],
             flow="test-flow",
-            user="test-user",
+            workspace="test-user",
             collection="test-collection",
             document_id="test-doc",
             url="http://test.example.com/"

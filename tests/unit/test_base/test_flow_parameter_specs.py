@@ -172,10 +172,10 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         flow_defn = {'config': 'test-config'}
 
         # Act
-        await processor.start_flow(flow_name, flow_defn)
+        await processor.start_flow("default", flow_name, flow_defn)
 
         # Assert - Flow should be created with access to processor specifications
-        mock_flow_class.assert_called_once_with('test-processor', flow_name, processor, flow_defn)
+        mock_flow_class.assert_called_once_with('test-processor', flow_name, "default", processor, flow_defn)
 
         # The flow should have access to the processor's specifications
         # (The exact mechanism depends on Flow implementation)

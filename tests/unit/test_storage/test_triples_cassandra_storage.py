@@ -102,11 +102,10 @@ class TestCassandraStorageProcessor:
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = []
 
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user1', mock_message)
 
         # Verify KnowledgeGraph was called with auth parameters
         mock_kg_class.assert_called_once_with(
@@ -129,11 +128,10 @@ class TestCassandraStorageProcessor:
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user2'
         mock_message.metadata.collection = 'collection2'
         mock_message.triples = []
 
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user2', mock_message)
 
         # Verify KnowledgeGraph was called without auth parameters
         mock_kg_class.assert_called_once_with(
@@ -154,16 +152,15 @@ class TestCassandraStorageProcessor:
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = []
 
         # First call should create TrustGraph
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user1', mock_message)
         assert mock_kg_class.call_count == 1
 
         # Second call with same table should reuse TrustGraph
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user1', mock_message)
         assert mock_kg_class.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
@@ -205,11 +202,10 @@ class TestCassandraStorageProcessor:
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = [triple1, triple2]
 
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user1', mock_message)
 
         # Verify both triples were inserted (with g=, otype=, dtype=, lang= parameters)
         assert mock_tg_instance.insert.call_count == 2
@@ -234,11 +230,10 @@ class TestCassandraStorageProcessor:
 
         # Create mock message with empty triples
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = []
 
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user1', mock_message)
 
         # Verify no triples were inserted
         mock_tg_instance.insert.assert_not_called()
@@ -255,12 +250,11 @@ class TestCassandraStorageProcessor:
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = []
 
         with pytest.raises(Exception, match="Connection failed"):
-            await processor.store_triples(mock_message)
+            await processor.store_triples('user1', mock_message)
 
         # Verify sleep was called before re-raising
         mock_sleep.assert_called_once_with(1)
@@ -361,21 +355,19 @@ class TestCassandraStorageProcessor:
 
         # First message with table1
         mock_message1 = MagicMock()
-        mock_message1.metadata.user = 'user1'
         mock_message1.metadata.collection = 'collection1'
         mock_message1.triples = []
 
-        await processor.store_triples(mock_message1)
+        await processor.store_triples('user1', mock_message1)
         assert processor.table == 'user1'
         assert processor.tg == mock_tg_instance1
 
         # Second message with different table
         mock_message2 = MagicMock()
-        mock_message2.metadata.user = 'user2'
         mock_message2.metadata.collection = 'collection2'
         mock_message2.triples = []
 
-        await processor.store_triples(mock_message2)
+        await processor.store_triples('user2', mock_message2)
         assert processor.table == 'user2'
         assert processor.tg == mock_tg_instance2
 
@@ -407,11 +399,10 @@ class TestCassandraStorageProcessor:
         triple.g = None
 
         mock_message = MagicMock()
-        mock_message.metadata.user = 'test_user'
         mock_message.metadata.collection = 'test_collection'
         mock_message.triples = [triple]
 
-        await processor.store_triples(mock_message)
+        await processor.store_triples('test_workspace', mock_message)
 
         # Verify the triple was inserted with special characters preserved
         mock_tg_instance.insert.assert_called_once_with(
@@ -440,12 +431,11 @@ class TestCassandraStorageProcessor:
         mock_kg_class.side_effect = Exception("Connection failed")
 
         mock_message = MagicMock()
-        mock_message.metadata.user = 'new_user'
         mock_message.metadata.collection = 'new_collection'
         mock_message.triples = []
 
         with pytest.raises(Exception, match="Connection failed"):
-            await processor.store_triples(mock_message)
+            await processor.store_triples('new_user', mock_message)
 
         # Table should remain unchanged since self.table = table happens after try/except
         assert processor.table == ('old_user', 'old_collection')
@@ -468,11 +458,10 @@ class TestCassandraPerformanceOptimizations:
             processor = Processor(taskgroup=taskgroup_mock)
 
             mock_message = MagicMock()
-            mock_message.metadata.user = 'user1'
             mock_message.metadata.collection = 'collection1'
             mock_message.triples = []
 
-            await processor.store_triples(mock_message)
+            await processor.store_triples('user1', mock_message)
 
             # Verify KnowledgeGraph instance uses legacy mode
             assert mock_tg_instance is not None
@@ -489,11 +478,10 @@ class TestCassandraPerformanceOptimizations:
             processor = Processor(taskgroup=taskgroup_mock)
 
             mock_message = MagicMock()
-            mock_message.metadata.user = 'user1'
             mock_message.metadata.collection = 'collection1'
             mock_message.triples = []
 
-            await processor.store_triples(mock_message)
+            await processor.store_triples('user1', mock_message)
 
             # Verify KnowledgeGraph instance is in optimized mode
             assert mock_tg_instance is not None
@@ -523,11 +511,10 @@ class TestCassandraPerformanceOptimizations:
         triple.g = None
 
         mock_message = MagicMock()
-        mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = [triple]
 
-        await processor.store_triples(mock_message)
+        await processor.store_triples('user1', mock_message)
 
         # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
         mock_tg_instance.insert.assert_called_once_with(

@@ -2,11 +2,9 @@
 TrustGraph Collection Management
 
 This module provides interfaces for managing data collections in TrustGraph.
-Collections provide logical grouping and isolation for documents and knowledge
-graph data.
+Collections provide logical grouping within a workspace.
 """
 
-import datetime
 import logging
 
 from . types import CollectionMetadata
@@ -18,10 +16,9 @@ class Collection:
     """
     Collection management client.
 
-    Provides methods for managing data collections, including listing,
-    updating metadata, and deleting collections. Collections organize
-    documents and knowledge graph data into logical groupings for
-    isolation and access control.
+    Provides methods for managing data collections within the configured
+    workspace, including listing, updating metadata, and deleting
+    collections.
     """
 
     def __init__(self, api):
@@ -45,45 +42,20 @@ class Collection:
         """
         return self.api.request(f"collection-management", request)
 
-    def list_collections(self, user, tag_filter=None):
+    def list_collections(self, tag_filter=None):
         """
-        List all collections for a user.
-
-        Retrieves metadata for all collections owned by the specified user,
-        with optional filtering by tags.
+        List all collections in this workspace.
 
         Args:
-            user: User identifier
-            tag_filter: Optional list of tags to filter collections (default: None)
+            tag_filter: Optional list of tags to filter collections
 
         Returns:
             list[CollectionMetadata]: List of collection metadata objects
-
-        Raises:
-            ProtocolException: If response format is invalid
-
-        Example:
-            ```python
-            collection = api.collection()
-
-            # List all collections
-            all_colls = collection.list_collections(user="trustgraph")
-            for coll in all_colls:
-                print(f"{coll.collection}: {coll.name}")
-                print(f"  Description: {coll.description}")
-                print(f"  Tags: {', '.join(coll.tags)}")
-
-            # List collections with specific tags
-            research_colls = collection.list_collections(
-                user="trustgraph",
-                tag_filter=["research", "published"]
-            )
-            ```
         """
 
         input = {
             "operation": "list-collections",
-            "user": user,
+            "workspace": self.api.workspace,
         }
 
         if tag_filter:
@@ -92,7 +64,6 @@ class Collection:
         object = self.request(input)
 
         try:
-            # Handle case where collections might be None or missing
             if object is None or "collections" not in object:
                 return []
 
@@ -102,7 +73,6 @@ class Collection:
 
             return [
                 CollectionMetadata(
-                    user = v["user"],
                     collection = v["collection"],
                     name = v["name"],
                     description = v["description"],
@@ -114,15 +84,11 @@ class Collection:
             logger.error("Failed to parse collection list response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
-    def update_collection(self, user, collection, name=None, description=None, tags=None):
+    def update_collection(self, collection, name=None, description=None, tags=None):
         """
         Update collection metadata.
 
-        Updates the name, description, and/or tags for an existing collection.
-        Only provided fields are updated; others remain unchanged.
-
         Args:
-            user: User identifier
             collection: Collection identifier
             name: New collection name (optional)
             description: New collection description (optional)
@@ -130,35 +96,11 @@ class Collection:
 
         Returns:
             CollectionMetadata: Updated collection metadata, or None if not found
-
-        Raises:
-            ProtocolException: If response format is invalid
-
-        Example:
-            ```python
-            collection_api = api.collection()
-
-            # Update collection metadata
-            updated = collection_api.update_collection(
-                user="trustgraph",
-                collection="default",
-                name="Default Collection",
-                description="Main data collection for general use",
-                tags=["default", "production"]
-            )
-
-            # Update only specific fields
-            updated = collection_api.update_collection(
-                user="trustgraph",
-                collection="research",
-                description="Updated description"
-            )
-            ```
         """
 
         input = {
             "operation": "update-collection",
-            "user": user,
+            "workspace": self.api.workspace,
             "collection": collection,
         }
 
@@ -175,7 +117,6 @@ class Collection:
             if "collections" in object and object["collections"]:
                 v = object["collections"][0]
                 return CollectionMetadata(
-                    user = v["user"],
                     collection = v["collection"],
                     name = v["name"],
                     description = v["description"],
@@ -186,37 +127,23 @@ class Collection:
             logger.error("Failed to parse collection update response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
-    def delete_collection(self, user, collection):
+    def delete_collection(self, collection):
         """
         Delete a collection.
 
-        Removes a collection and all its associated data from the system.
-
         Args:
-            user: User identifier
             collection: Collection identifier to delete
 
         Returns:
             dict: Empty response object
-
-        Example:
-            ```python
-            collection_api = api.collection()
-
-            # Delete a collection
-            collection_api.delete_collection(
-                user="trustgraph",
-                collection="old-collection"
-            )
-            ```
         """
 
         input = {
             "operation": "delete-collection",
-            "user": user,
+            "workspace": self.api.workspace,
             "collection": collection,
         }
 
-        object = self.request(input)
+        self.request(input)
 
         return {}

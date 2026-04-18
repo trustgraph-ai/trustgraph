@@ -103,7 +103,12 @@ class Processor(AsyncProcessor):
 
         await self.pubsub.ensure_topic(self.flow_request_topic)
         await self.config_client.start()
-        await self.flow.ensure_existing_flow_topics()
+
+        # Discover workspaces with existing flow config and ensure
+        # their topics exist before we start accepting requests.
+        workspaces = await self.config_client.workspaces_for_type("flow")
+        await self.flow.ensure_existing_flow_topics(workspaces)
+
         await self.flow_request_consumer.start()
 
     async def on_flow_request(self, msg, consumer, flow):

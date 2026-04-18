@@ -17,7 +17,7 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 # Predicates
@@ -45,10 +45,9 @@ TYPE_MAP = {
 SOURCE_GRAPH = "urn:graph:source"
 
 
-def query_triples(socket, flow_id, user, collection, s=None, p=None, o=None, g=None, limit=1000):
+def query_triples(socket, flow_id, collection, s=None, p=None, o=None, g=None, limit=1000):
     """Query triples using the socket API."""
     request = {
-        "user": user,
         "collection": collection,
         "limit": limit,
         "streaming": False,
@@ -120,9 +119,9 @@ def extract_value(term):
     return str(term)
 
 
-def get_node_metadata(socket, flow_id, user, collection, node_uri):
+def get_node_metadata(socket, flow_id, collection, node_uri):
     """Get metadata for a node (label, types, title, format)."""
-    triples = query_triples(socket, flow_id, user, collection, s=node_uri, g=SOURCE_GRAPH)
+    triples = query_triples(socket, flow_id, collection, s=node_uri, g=SOURCE_GRAPH)
 
     metadata = {"uri": node_uri, "types": []}
     for s, p, o in triples:
@@ -146,20 +145,20 @@ def classify_node(metadata):
     return "unknown"
 
 
-def get_children(socket, flow_id, user, collection, parent_uri):
+def get_children(socket, flow_id, collection, parent_uri):
     """Get children of a node via prov:wasDerivedFrom."""
     triples = query_triples(
-        socket, flow_id, user, collection,
+        socket, flow_id, collection,
         p=PROV_WAS_DERIVED_FROM, o=parent_uri, g=SOURCE_GRAPH
     )
     return [s for s, p, o in triples]
 
 
-def get_document_content(api, user, doc_id, max_content):
+def get_document_content(api, doc_id, max_content):
     """Fetch document content from librarian API."""
     try:
         library = api.library()
-        content = library.get_document_content(user=user, id=doc_id)
+        content = library.get_document_content(id=doc_id)
 
         # Try to decode as text
         try:
@@ -173,7 +172,7 @@ def get_document_content(api, user, doc_id, max_content):
         return f"[Error fetching content: {e}]"
 
 
-def build_hierarchy(socket, flow_id, user, collection, root_uri, api=None, show_content=False, max_content=200, visited=None):
+def build_hierarchy(socket, flow_id, collection, root_uri, api=None, show_content=False, max_content=200, visited=None):
     """Build document hierarchy tree recursively."""
     if visited is None:
         visited = set()
@@ -182,7 +181,7 @@ def build_hierarchy(socket, flow_id, user, collection, root_uri, api=None, show_
         return None
     visited.add(root_uri)
 
-    metadata = get_node_metadata(socket, flow_id, user, collection, root_uri)
+    metadata = get_node_metadata(socket, flow_id, collection, root_uri)
     node_type = classify_node(metadata)
 
     node = {
@@ -195,21 +194,21 @@ def build_hierarchy(socket, flow_id, user, collection, root_uri, api=None, show_
 
     # Fetch content if requested
     if show_content and api:
-        content = get_document_content(api, user, root_uri, max_content)
+        content = get_document_content(api, root_uri, max_content)
         if content:
             node["content"] = content
 
     # Get children
-    children_uris = get_children(socket, flow_id, user, collection, root_uri)
+    children_uris = get_children(socket, flow_id, collection, root_uri)
 
     for child_uri in children_uris:
-        child_metadata = get_node_metadata(socket, flow_id, user, collection, child_uri)
+        child_metadata = get_node_metadata(socket, flow_id, collection, child_uri)
         child_type = classify_node(child_metadata)
 
         if child_type == "subgraph":
             # Subgraphs contain extracted edges — inline them
             contains_triples = query_triples(
-                socket, flow_id, user, collection,
+                socket, flow_id, collection,
                 s=child_uri, p=TG_CONTAINS, g=SOURCE_GRAPH
             )
             for _, _, edge in contains_triples:
@@ -218,7 +217,7 @@ def build_hierarchy(socket, flow_id, user, collection, root_uri, api=None, show_
         else:
             # Recurse into pages, chunks, etc.
             child_node = build_hierarchy(
-                socket, flow_id, user, collection, child_uri,
+                socket, flow_id, collection, child_uri,
                 api=api, show_content=show_content, max_content=max_content,
                 visited=visited
             )
@@ -331,9 +330,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})',
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -371,14 +370,13 @@ def main():
     args = parser.parse_args()
 
     try:
-        api = Api(args.api_url, token=args.token)
+        api = Api(args.api_url, token=args.token, workspace=args.workspace)
         socket = api.socket()
 
         try:
             hierarchy = build_hierarchy(
                 socket=socket,
                 flow_id=args.flow_id,
-                user=args.user,
                 collection=args.collection,
                 root_uri=args.document_id,
                 api=api if args.show_content else None,

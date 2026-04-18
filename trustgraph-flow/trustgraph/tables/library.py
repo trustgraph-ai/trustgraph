@@ -64,7 +64,7 @@ class LibraryTableStore:
             self.cluster = Cluster(cassandra_host)
 
         self.cassandra = self.cluster.connect()
-        
+
         logger.info("Connected.")
 
         self.ensure_cassandra_schema()
@@ -76,13 +76,13 @@ class LibraryTableStore:
         logger.debug("Ensure Cassandra schema...")
 
         logger.debug("Keyspace...")
-        
+
         # FIXME: Replication factor should be configurable
         self.cassandra.execute(f"""
             create keyspace if not exists {self.keyspace}
-                with replication = {{ 
-                   'class' : 'SimpleStrategy', 
-                   'replication_factor' : 1 
+                with replication = {{
+                   'class' : 'SimpleStrategy',
+                   'replication_factor' : 1
                 }};
         """);
 
@@ -93,7 +93,7 @@ class LibraryTableStore:
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS document (
                 id text,
-                user text,
+                workspace text,
                 time timestamp,
                 kind text,
                 title text,
@@ -103,7 +103,9 @@ class LibraryTableStore:
                 >>,
                 tags list<text>,
                 object_id uuid,
-                PRIMARY KEY (user, id)
+                parent_id text,
+                document_type text,
+                PRIMARY KEY (workspace, id)
             );
         """);
 
@@ -113,27 +115,6 @@ class LibraryTableStore:
             CREATE INDEX IF NOT EXISTS document_object
             ON document (object_id)
         """);
-
-        # Add parent_id and document_type columns for child document support
-        logger.debug("document table parent_id column...")
-
-        try:
-            self.cassandra.execute("""
-                ALTER TABLE document ADD parent_id text
-            """);
-        except Exception as e:
-            # Column may already exist
-            if "already exists" not in str(e).lower() and "Invalid column name" not in str(e):
-                logger.debug(f"parent_id column may already exist: {e}")
-
-        try:
-            self.cassandra.execute("""
-                ALTER TABLE document ADD document_type text
-            """);
-        except Exception as e:
-            # Column may already exist
-            if "already exists" not in str(e).lower() and "Invalid column name" not in str(e):
-                logger.debug(f"document_type column may already exist: {e}")
 
         logger.debug("document parent index...")
 
@@ -150,10 +131,10 @@ class LibraryTableStore:
                 document_id text,
                 time timestamp,
                 flow text,
-                user text,
+                workspace text,
                 collection text,
                 tags list<text>,
-                PRIMARY KEY (user, id)
+                PRIMARY KEY (workspace, id)
             );
         """);
 
@@ -162,7 +143,7 @@ class LibraryTableStore:
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS upload_session (
                 upload_id text PRIMARY KEY,
-                user text,
+                workspace text,
                 document_id text,
                 document_metadata text,
                 s3_upload_id text,
@@ -176,11 +157,11 @@ class LibraryTableStore:
             ) WITH default_time_to_live = 86400;
         """);
 
-        logger.debug("upload_session user index...")
+        logger.debug("upload_session workspace index...")
 
         self.cassandra.execute("""
-            CREATE INDEX IF NOT EXISTS upload_session_user
-            ON upload_session (user)
+            CREATE INDEX IF NOT EXISTS upload_session_workspace
+            ON upload_session (workspace)
         """);
 
         logger.info("Cassandra schema OK.")
@@ -190,7 +171,7 @@ class LibraryTableStore:
         self.insert_document_stmt = self.cassandra.prepare("""
             INSERT INTO document
             (
-                id, user, time,
+                id, workspace, time,
                 kind, title, comments,
                 metadata, tags, object_id,
                 parent_id, document_type
@@ -202,25 +183,25 @@ class LibraryTableStore:
             UPDATE document
             SET time = ?, title = ?, comments = ?,
                 metadata = ?, tags = ?
-            WHERE user = ? AND id = ?
+            WHERE workspace = ? AND id = ?
         """)
 
         self.get_document_stmt = self.cassandra.prepare("""
             SELECT time, kind, title, comments, metadata, tags, object_id,
                    parent_id, document_type
             FROM document
-            WHERE user = ? AND id = ?
+            WHERE workspace = ? AND id = ?
         """)
 
         self.delete_document_stmt = self.cassandra.prepare("""
             DELETE FROM document
-            WHERE user = ? AND id = ?
+            WHERE workspace = ? AND id = ?
         """)
 
         self.test_document_exists_stmt = self.cassandra.prepare("""
             SELECT id
             FROM document
-            WHERE user = ? AND id = ?
+            WHERE workspace = ? AND id = ?
             LIMIT 1
         """)
 
@@ -229,7 +210,7 @@ class LibraryTableStore:
                 id, time, kind, title, comments, metadata, tags, object_id,
                 parent_id, document_type
             FROM document
-            WHERE user = ?
+            WHERE workspace = ?
         """)
 
         self.list_document_by_tag_stmt = self.cassandra.prepare("""
@@ -237,7 +218,7 @@ class LibraryTableStore:
                 id, time, kind, title, comments, metadata, tags, object_id,
                 parent_id, document_type
             FROM document
-            WHERE user = ? AND tags CONTAINS ?
+            WHERE workspace = ? AND tags CONTAINS ?
             ALLOW FILTERING
         """)
 
@@ -245,7 +226,7 @@ class LibraryTableStore:
             INSERT INTO processing
             (
                 id, document_id, time,
-                flow, user, collection,
+                flow, workspace, collection,
                 tags
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -253,13 +234,13 @@ class LibraryTableStore:
 
         self.delete_processing_stmt = self.cassandra.prepare("""
             DELETE FROM processing
-            WHERE user = ? AND id = ?
+            WHERE workspace = ? AND id = ?
         """)
 
         self.test_processing_exists_stmt = self.cassandra.prepare("""
             SELECT id
             FROM processing
-            WHERE user = ? AND id = ?
+            WHERE workspace = ? AND id = ?
             LIMIT 1
         """)
 
@@ -267,14 +248,14 @@ class LibraryTableStore:
             SELECT
                 id, document_id, time, flow, collection, tags
             FROM processing
-            WHERE user = ?
+            WHERE workspace = ?
         """)
 
         # Upload session prepared statements
         self.insert_upload_session_stmt = self.cassandra.prepare("""
             INSERT INTO upload_session
             (
-                upload_id, user, document_id, document_metadata,
+                upload_id, workspace, document_id, document_metadata,
                 s3_upload_id, object_id, total_size, chunk_size,
                 total_chunks, chunks_received, created_at, updated_at
             )
@@ -283,7 +264,7 @@ class LibraryTableStore:
 
         self.get_upload_session_stmt = self.cassandra.prepare("""
             SELECT
-                upload_id, user, document_id, document_metadata,
+                upload_id, workspace, document_id, document_metadata,
                 s3_upload_id, object_id, total_size, chunk_size,
                 total_chunks, chunks_received, created_at, updated_at
             FROM upload_session
@@ -308,25 +289,25 @@ class LibraryTableStore:
                 total_size, chunk_size, total_chunks,
                 chunks_received, created_at, updated_at
             FROM upload_session
-            WHERE user = ?
+            WHERE workspace = ?
         """)
 
         # Child document queries
         self.list_children_stmt = self.cassandra.prepare("""
             SELECT
-                id, user, time, kind, title, comments, metadata, tags,
+                id, workspace, time, kind, title, comments, metadata, tags,
                 object_id, parent_id, document_type
             FROM document
             WHERE parent_id = ?
             ALLOW FILTERING
         """)
 
-    async def document_exists(self, user, id):
+    async def document_exists(self, workspace, id):
 
         rows = await async_execute(
             self.cassandra,
             self.test_document_exists_stmt,
-            (user, id),
+            (workspace, id),
         )
 
         return bool(rows)
@@ -351,7 +332,7 @@ class LibraryTableStore:
                 self.cassandra,
                 self.insert_document_stmt,
                 (
-                    document.id, document.user, int(document.time * 1000),
+                    document.id, document.workspace, int(document.time * 1000),
                     document.kind, document.title, document.comments,
                     metadata, document.tags, object_id,
                     parent_id, document_type
@@ -381,7 +362,7 @@ class LibraryTableStore:
                 (
                     int(document.time * 1000), document.title,
                     document.comments, metadata, document.tags,
-                    document.user, document.id
+                    document.workspace, document.id
                 ),
             )
         except Exception:
@@ -390,7 +371,7 @@ class LibraryTableStore:
 
         logger.debug("Update complete")
 
-    async def remove_document(self, user, document_id):
+    async def remove_document(self, workspace, document_id):
 
         logger.info(f"Removing document {document_id}")
 
@@ -398,7 +379,7 @@ class LibraryTableStore:
             await async_execute(
                 self.cassandra,
                 self.delete_document_stmt,
-                (user, document_id),
+                (workspace, document_id),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -406,7 +387,7 @@ class LibraryTableStore:
 
         logger.debug("Delete complete")
 
-    async def list_documents(self, user):
+    async def list_documents(self, workspace):
 
         logger.debug("List documents...")
 
@@ -414,7 +395,7 @@ class LibraryTableStore:
             rows = await async_execute(
                 self.cassandra,
                 self.list_document_stmt,
-                (user,),
+                (workspace,),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -423,7 +404,7 @@ class LibraryTableStore:
         lst = [
             DocumentMetadata(
                 id = row[0],
-                user = user,
+                workspace = workspace,
                 time = int(time.mktime(row[1].timetuple())),
                 kind = row[2],
                 title = row[3],
@@ -465,7 +446,7 @@ class LibraryTableStore:
         lst = [
             DocumentMetadata(
                 id = row[0],
-                user = row[1],
+                workspace = row[1],
                 time = int(time.mktime(row[2].timetuple())),
                 kind = row[3],
                 title = row[4],
@@ -489,7 +470,7 @@ class LibraryTableStore:
 
         return lst
 
-    async def get_document(self, user, id):
+    async def get_document(self, workspace, id):
 
         logger.debug("Get document")
 
@@ -497,7 +478,7 @@ class LibraryTableStore:
             rows = await async_execute(
                 self.cassandra,
                 self.get_document_stmt,
-                (user, id),
+                (workspace, id),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -506,7 +487,7 @@ class LibraryTableStore:
         for row in rows:
             doc = DocumentMetadata(
                 id = id,
-                user = user,
+                workspace = workspace,
                 time = int(time.mktime(row[0].timetuple())),
                 kind = row[1],
                 title = row[2],
@@ -529,7 +510,7 @@ class LibraryTableStore:
 
         raise RuntimeError("No such document row?")
 
-    async def get_document_object_id(self, user, id):
+    async def get_document_object_id(self, workspace, id):
 
         logger.debug("Get document obj ID")
 
@@ -537,7 +518,7 @@ class LibraryTableStore:
             rows = await async_execute(
                 self.cassandra,
                 self.get_document_stmt,
-                (user, id),
+                (workspace, id),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -549,12 +530,12 @@ class LibraryTableStore:
 
         raise RuntimeError("No such document row?")
 
-    async def processing_exists(self, user, id):
+    async def processing_exists(self, workspace, id):
 
         rows = await async_execute(
             self.cassandra,
             self.test_processing_exists_stmt,
-            (user, id),
+            (workspace, id),
         )
 
         return bool(rows)
@@ -570,7 +551,7 @@ class LibraryTableStore:
                 (
                     processing.id, processing.document_id,
                     int(processing.time * 1000), processing.flow,
-                    processing.user, processing.collection,
+                    processing.workspace, processing.collection,
                     processing.tags
                 ),
             )
@@ -580,7 +561,7 @@ class LibraryTableStore:
 
         logger.debug("Add complete")
 
-    async def remove_processing(self, user, processing_id):
+    async def remove_processing(self, workspace, processing_id):
 
         logger.info(f"Removing processing {processing_id}")
 
@@ -588,7 +569,7 @@ class LibraryTableStore:
             await async_execute(
                 self.cassandra,
                 self.delete_processing_stmt,
-                (user, processing_id),
+                (workspace, processing_id),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -596,7 +577,7 @@ class LibraryTableStore:
 
         logger.debug("Delete complete")
 
-    async def list_processing(self, user):
+    async def list_processing(self, workspace):
 
         logger.debug("List processing objects")
 
@@ -604,7 +585,7 @@ class LibraryTableStore:
             rows = await async_execute(
                 self.cassandra,
                 self.list_processing_stmt,
-                (user,),
+                (workspace,),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -616,7 +597,7 @@ class LibraryTableStore:
                 document_id = row[1],
                 time = int(time.mktime(row[2].timetuple())),
                 flow = row[3],
-                user = user,
+                workspace = workspace,
                 collection = row[4],
                 tags = row[5] if row[5] else [],
             )
@@ -632,7 +613,7 @@ class LibraryTableStore:
     async def create_upload_session(
         self,
         upload_id,
-        user,
+        workspace,
         document_id,
         document_metadata,
         s3_upload_id,
@@ -652,7 +633,7 @@ class LibraryTableStore:
                 self.cassandra,
                 self.insert_upload_session_stmt,
                 (
-                    upload_id, user, document_id, document_metadata,
+                    upload_id, workspace, document_id, document_metadata,
                     s3_upload_id, object_id, total_size, chunk_size,
                     total_chunks, {}, now, now
                 ),
@@ -681,7 +662,7 @@ class LibraryTableStore:
         for row in rows:
             session = {
                 "upload_id": row[0],
-                "user": row[1],
+                "workspace": row[1],
                 "document_id": row[2],
                 "document_metadata": row[3],
                 "s3_upload_id": row[4],
@@ -738,16 +719,16 @@ class LibraryTableStore:
 
         logger.debug("Upload session deleted")
 
-    async def list_upload_sessions(self, user):
-        """List all upload sessions for a user."""
+    async def list_upload_sessions(self, workspace):
+        """List all upload sessions for a workspace."""
 
-        logger.debug(f"List upload sessions for {user}")
+        logger.debug(f"List upload sessions for {workspace}")
 
         try:
             rows = await async_execute(
                 self.cassandra,
                 self.list_upload_sessions_stmt,
-                (user,),
+                (workspace,),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)

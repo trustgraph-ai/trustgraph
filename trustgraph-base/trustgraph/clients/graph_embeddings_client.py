@@ -35,11 +35,11 @@ class GraphEmbeddingsClient(BaseClient):
         )
 
     def request(
-            self, vector, user="trustgraph", collection="default",
+            self, vector, collection="default",
             limit=10, timeout=300
     ):
         return self.call(
-            user=user, collection=collection,
+            collection=collection,
             vector=vector, limit=limit, timeout=timeout
         ).entities
 

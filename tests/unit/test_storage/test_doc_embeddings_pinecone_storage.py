@@ -21,7 +21,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Create a mock message for testing"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Create test document embeddings
@@ -120,7 +119,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings for a single chunk"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -135,7 +133,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         processor.pinecone.has_index.return_value = True
         
         with patch('uuid.uuid4', side_effect=['id1', 'id2']):
-            await processor.store_document_embeddings(message)
+            await processor.store_document_embeddings('test_user', message)
         
         # Verify index name and operations (with dimension suffix)
         expected_index_name = "d-test_user-test_collection-3"  # 3 dimensions
@@ -185,7 +183,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test that writing to non-existent index creates it lazily"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         chunk = ChunkEmbeddings(
@@ -200,7 +197,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         processor.pinecone.Index.return_value = mock_index
 
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_document_embeddings(message)
+            await processor.store_document_embeddings('test_user', message)
 
         # Verify index was created with correct dimension
         expected_index_name = "d-test_user-test_collection-3"  # 3 dimensions
@@ -217,7 +214,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with empty chunk (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -229,7 +225,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no upsert was called for empty chunk
         mock_index.upsert.assert_not_called()
@@ -239,7 +235,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with None chunk (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -251,7 +246,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no upsert was called for None chunk
         mock_index.upsert.assert_not_called()
@@ -261,7 +256,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with chunk that decodes to empty string"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -273,7 +267,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no upsert was called for empty decoded chunk
         mock_index.upsert.assert_not_called()
@@ -283,7 +277,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with different vector dimensions"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Each chunk has a single vector of different dimensions
@@ -325,14 +318,13 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with empty chunks list"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         message.chunks = []
         
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no operations were performed
         processor.pinecone.Index.assert_not_called()
@@ -343,7 +335,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings for chunk with no vectors"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -355,7 +346,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no upsert was called (no vectors to insert)
         mock_index.upsert.assert_not_called()
@@ -365,7 +356,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test that lazy creation happens when index doesn't exist"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         chunk = ChunkEmbeddings(
@@ -380,7 +370,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         processor.pinecone.Index.return_value = mock_index
 
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_document_embeddings(message)
+            await processor.store_document_embeddings('test_user', message)
 
         # Verify index was created
         processor.pinecone.create_index.assert_called_once()
@@ -390,7 +380,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test that lazy creation works correctly"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         chunk = ChunkEmbeddings(
@@ -405,7 +394,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         processor.pinecone.Index.return_value = mock_index
 
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_document_embeddings(message)
+            await processor.store_document_embeddings('test_user', message)
 
         # Verify index was created and used
         processor.pinecone.create_index.assert_called_once()
@@ -416,7 +405,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with Unicode content"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -430,7 +418,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         processor.pinecone.has_index.return_value = True
         
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_document_embeddings(message)
+            await processor.store_document_embeddings('test_user', message)
         
         # Verify Unicode content was properly decoded and stored
         call_args = mock_index.upsert.call_args
@@ -442,7 +430,6 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with large document chunks"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Create a large document chunk
@@ -458,7 +445,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         processor.pinecone.has_index.return_value = True
         
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_document_embeddings(message)
+            await processor.store_document_embeddings('test_user', message)
         
         # Verify large content was stored
         call_args = mock_index.upsert.call_args

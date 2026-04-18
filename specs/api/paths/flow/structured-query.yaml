@@ -79,13 +79,11 @@ post:
             summary: Simple relationship question
             value:
               question: Who does Alice know?
-              user: alice
               collection: research
           complexQuestion:
             summary: Complex multi-hop question
             value:
               question: What companies employ engineers that Bob collaborates with?
-              user: bob
               collection: work
           filterQuestion:
             summary: Question with implicit filters

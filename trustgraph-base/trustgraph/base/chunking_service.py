@@ -48,12 +48,13 @@ class ChunkingService(FlowProcessor):
         await super(ChunkingService, self).start()
         await self.librarian.start()
 
-    async def get_document_text(self, doc):
+    async def get_document_text(self, doc, workspace):
         """
         Get text content from a TextDocument, fetching from librarian if needed.
 
         Args:
             doc: TextDocument with either inline text or document_id
+            workspace: Workspace for librarian lookup (from flow.workspace)
 
         Returns:
             str: The document text content
@@ -62,7 +63,7 @@ class ChunkingService(FlowProcessor):
             logger.info(f"Fetching document {doc.document_id} from librarian...")
             text = await self.librarian.fetch_document_text(
                 document_id=doc.document_id,
-                user=doc.metadata.user,
+                workspace=workspace,
             )
             logger.info(f"Fetched {len(text)} characters from librarian")
             return text

@@ -13,7 +13,7 @@ from trustgraph.log_level import LogLevel
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 class KnowledgeLoader:
@@ -22,19 +22,18 @@ class KnowledgeLoader:
             self,
             files,
             flow,
-            user,
             collection,
             document_id,
             url=default_url,
-            token=None,
+            token=None, workspace="default",
     ):
         self.files = files
         self.flow = flow
-        self.user = user
         self.collection = collection
         self.document_id = document_id
         self.url = url
         self.token = token
+        self.workspace = workspace
 
     def load_triples_from_file(self, file) -> Iterator[Triple]:
         """Generator that yields Triple objects from a Turtle file"""
@@ -43,11 +42,9 @@ class KnowledgeLoader:
         g.parse(file, format="turtle")
 
         for e in g:
-            # Extract subject, predicate, object
             s_value = str(e[0])
             p_value = str(e[1])
 
-            # Check if object is a URI or literal
             if isinstance(e[2], rdflib.term.URIRef):
                 o_value = str(e[2])
                 o_is_uri = True
@@ -55,9 +52,6 @@ class KnowledgeLoader:
                 o_value = str(e[2])
                 o_is_uri = False
 
-            # Create Triple object
-            # Note: The Triple dataclass has 's', 'p', 'o' fields as strings
-            # The API will handle the metadata wrapping
             yield Triple(s=s_value, p=p_value, o=o_value)
 
     def load_entity_contexts_from_file(self, file) -> Iterator[Tuple[str, str]]:
@@ -67,11 +61,9 @@ class KnowledgeLoader:
         g.parse(file, format="turtle")
 
         for s, p, o in g:
-            # If object is a URI, skip (we only want literal contexts)
             if isinstance(o, rdflib.term.URIRef):
                 continue
 
-            # If object is a literal, create entity context for subject
             s_str = str(s)
             o_str = str(o)
 
@@ -81,11 +73,9 @@ class KnowledgeLoader:
         """Load triples and entity contexts using Python API"""
 
         try:
-            # Create API client
-            api = Api(url=self.url, token=self.token)
+            api = Api(url=self.url, token=self.token, workspace=self.workspace)
             bulk = api.bulk()
 
-            # Load triples from all files
             print("Loading triples...")
             total_triples = 0
             for file in self.files:
@@ -104,7 +94,6 @@ class KnowledgeLoader:
                     metadata={
                         "id": self.document_id,
                         "metadata": [],
-                        "user": self.user,
                         "collection": self.collection
                     }
                 )
@@ -113,20 +102,16 @@ class KnowledgeLoader:
 
             print(f"Triples loaded. Total: {total_triples}")
 
-            # Load entity contexts from all files
             print("Loading entity contexts...")
             total_contexts = 0
             for file in self.files:
                 print(f"  Processing {file}...")
                 count = 0
 
-                # Convert tuples to the format expected by import_entity_contexts
-                # Entity must be in Term format: {"t": "i", "i": uri} for IRI
                 def entity_context_generator():
                     nonlocal count
                     for entity, context in self.load_entity_contexts_from_file(file):
                         count += 1
-                        # Entities from RDF are URIs, use IRI term format
                         yield {
                             "entity": {"t": "i", "i": entity},
                             "context": context
@@ -138,7 +123,6 @@ class KnowledgeLoader:
                     metadata={
                         "id": self.document_id,
                         "metadata": [],
-                        "user": self.user,
                         "collection": self.collection
                     }
                 )
@@ -171,6 +155,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-i', '--document-id',
         required=True,
         help=f'Document ID)',
@@ -180,12 +170,6 @@ def main():
         '-f', '--flow-id',
         default="default",
         help=f'Flow ID (default: default)'
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
@@ -210,8 +194,8 @@ def main():
                 token=args.token,
                 flow=args.flow_id,
                 files=args.files,
-                user=args.user,
                 collection=args.collection,
+                workspace=args.workspace,
             )
 
             loader.run()

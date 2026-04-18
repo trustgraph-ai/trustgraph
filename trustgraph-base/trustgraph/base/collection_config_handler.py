@@ -15,114 +15,139 @@ class CollectionConfigHandler:
     Storage services should:
     1. Inherit from this class along with their service base class
     2. Call register_config_handler(self.on_collection_config) in __init__
-    3. Implement create_collection(user, collection, metadata) method
-    4. Implement delete_collection(user, collection) method
+    3. Implement create_collection(workspace, collection, metadata) method
+    4. Implement delete_collection(workspace, collection) method
     """
 
     def __init__(self, **kwargs):
-        # Track known collections: {(user, collection): metadata_dict}
+        # Track known collections: {(workspace, collection): metadata_dict}
         self.known_collections: Dict[tuple, dict] = {}
         # Pass remaining kwargs up the inheritance chain
         super().__init__(**kwargs)
 
-    async def on_collection_config(self, config: dict, version: int):
+    async def on_collection_config(
+        self, workspace: str, config: dict, version: int
+    ):
         """
         Handle config push messages and extract collection information
+        for a single workspace.
 
         Args:
+            workspace: Workspace the config applies to
             config: Configuration dictionary from ConfigPush message
             version: Configuration version number
         """
-        logger.info(f"Processing collection configuration (version {version})")
+        logger.info(
+            f"Processing collection configuration "
+            f"(version {version}, workspace {workspace})"
+        )
 
-        # Extract collections from config (treat missing key as empty)
+        # Extract collections from config (treat missing key as empty).
+        # Each config key IS the collection name — config is already
+        # partitioned by workspace, so no workspace prefix is needed
+        # on the key.
         collection_config = config.get("collection", {})
 
         # Track which collections we've seen in this config
         current_collections: Set[tuple] = set()
 
-        # Process each collection in the config
-        for key, value_json in collection_config.items():
+        for collection, value_json in collection_config.items():
             try:
-                # Parse user:collection key
-                if ":" not in key:
-                    logger.warning(f"Invalid collection key format (expected user:collection): {key}")
-                    continue
+                current_collections.add((workspace, collection))
 
-                user, collection = key.split(":", 1)
-                current_collections.add((user, collection))
-
-                # Parse metadata
                 metadata = json.loads(value_json)
 
-                # Check if this is a new collection or updated
-                collection_key = (user, collection)
-                if collection_key not in self.known_collections:
-                    logger.info(f"New collection detected: {user}/{collection}")
-                    await self.create_collection(user, collection, metadata)
-                    self.known_collections[collection_key] = metadata
+                key = (workspace, collection)
+                if key not in self.known_collections:
+                    logger.info(
+                        f"New collection detected: {workspace}/{collection}"
+                    )
+                    await self.create_collection(
+                        workspace, collection, metadata
+                    )
+                    self.known_collections[key] = metadata
                 else:
-                    # Collection already exists, update metadata if changed
-                    if self.known_collections[collection_key] != metadata:
-                        logger.info(f"Collection metadata updated: {user}/{collection}")
-                        # Most storage services don't need to do anything for metadata updates
-                        # They just need to know the collection exists
-                        self.known_collections[collection_key] = metadata
+                    if self.known_collections[key] != metadata:
+                        logger.info(
+                            f"Collection metadata updated: "
+                            f"{workspace}/{collection}"
+                        )
+                        self.known_collections[key] = metadata
 
             except Exception as e:
-                logger.error(f"Error processing collection config for key {key}: {e}", exc_info=True)
+                logger.error(
+                    f"Error processing collection config for "
+                    f"{workspace}/{collection}: {e}",
+                    exc_info=True,
+                )
 
-        # Find collections that were deleted (in known but not in current)
-        deleted_collections = set(self.known_collections.keys()) - current_collections
-        for user, collection in deleted_collections:
-            logger.info(f"Collection deleted: {user}/{collection}")
+        # Find collections for THIS workspace that were deleted (in
+        # known but not in current). Only compare collections owned by
+        # this workspace — other workspaces' collections are not
+        # affected by this config update.
+        known_for_ws = {
+            (w, c) for (w, c) in self.known_collections.keys()
+            if w == workspace
+        }
+        deleted_collections = known_for_ws - current_collections
+        for ws, collection in deleted_collections:
+            logger.info(f"Collection deleted: {ws}/{collection}")
             try:
-                # Remove from known_collections FIRST to immediately reject new writes
-                # This eliminates race condition with worker threads
-                del self.known_collections[(user, collection)]
-                # Physical deletion happens after - worker threads already rejecting writes
-                await self.delete_collection(user, collection)
+                # Remove from known_collections FIRST to immediately
+                # reject new writes
+                del self.known_collections[(ws, collection)]
+                await self.delete_collection(ws, collection)
             except Exception as e:
-                logger.error(f"Error deleting collection {user}/{collection}: {e}", exc_info=True)
-                # If physical deletion failed, should we re-add to known_collections?
-                # For now, keep it removed - collection is logically deleted per config
+                logger.error(
+                    f"Error deleting collection {ws}/{collection}: {e}",
+                    exc_info=True,
+                )
 
-        logger.debug(f"Collection config processing complete. Known collections: {len(self.known_collections)}")
+        logger.debug(
+            f"Collection config processing complete. "
+            f"Known collections: {len(self.known_collections)}"
+        )
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(
+        self, workspace: str, collection: str, metadata: dict,
+    ):
         """
         Create a collection in the storage backend.
 
         Subclasses must implement this method.
 
         Args:
-            user: User ID
+            workspace: Workspace ID
             collection: Collection ID
             metadata: Collection metadata dictionary
         """
-        raise NotImplementedError("Storage service must implement create_collection method")
+        raise NotImplementedError(
+            "Storage service must implement create_collection method"
+        )
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """
         Delete a collection from the storage backend.
 
         Subclasses must implement this method.
 
         Args:
-            user: User ID
+            workspace: Workspace ID
             collection: Collection ID
         """
-        raise NotImplementedError("Storage service must implement delete_collection method")
+        raise NotImplementedError(
+            "Storage service must implement delete_collection method"
+        )
 
-    def collection_exists(self, user: str, collection: str) -> bool:
+    def collection_exists(self, workspace: str, collection: str) -> bool:
         """
-        Check if a collection is known to exist
+        Check if a collection is known to exist.
 
         Args:
-            user: User ID
+            workspace: Workspace ID
             collection: Collection ID
 
         Returns:
             True if collection exists, False otherwise
         """
-        return (user, collection) in self.known_collections
+        return (workspace, collection) in self.known_collections

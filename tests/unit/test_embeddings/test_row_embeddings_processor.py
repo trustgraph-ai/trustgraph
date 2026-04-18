@@ -214,11 +214,11 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
             }
         }
 
-        await processor.on_schema_config(config_data, 1)
+        await processor.on_schema_config("default", config_data, 1)
 
-        assert 'customers' in processor.schemas
-        assert processor.schemas['customers'].name == 'customers'
-        assert len(processor.schemas['customers'].fields) == 3
+        assert 'customers' in processor.schemas["default"]
+        assert processor.schemas["default"]['customers'].name == 'customers'
+        assert len(processor.schemas["default"]['customers'].fields) == 3
 
     async def test_on_schema_config_handles_missing_type(self):
         """Test that missing schema type is handled gracefully"""
@@ -236,9 +236,9 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
             'other_type': {}
         }
 
-        await processor.on_schema_config(config_data, 1)
+        await processor.on_schema_config("default", config_data, 1)
 
-        assert processor.schemas == {}
+        assert processor.schemas.get("default", {}) == {}
 
     async def test_on_message_drops_unknown_collection(self):
         """Test that messages for unknown collections are dropped"""
@@ -285,7 +285,7 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.known_collections[('test_user', 'test_collection')] = {}
+        processor.known_collections[('default', 'test_collection')] = {}
         # No schemas registered
 
         metadata = MagicMock()
@@ -322,17 +322,19 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.known_collections[('test_user', 'test_collection')] = {}
+        processor.known_collections[('default', 'test_collection')] = {}
 
         # Set up schema
-        processor.schemas['customers'] = RowSchema(
-            name='customers',
-            description='Customer records',
-            fields=[
-                Field(name='id', type='text', primary=True),
-                Field(name='name', type='text', indexed=True),
-            ]
-        )
+        processor.schemas["default"] = {
+            'customers': RowSchema(
+                name='customers',
+                description='Customer records',
+                fields=[
+                    Field(name='id', type='text', primary=True),
+                    Field(name='name', type='text', indexed=True),
+                ]
+            )
+        }
 
         metadata = MagicMock()
         metadata.user = 'test_user'
@@ -372,6 +374,7 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
             return MagicMock()
 
         mock_flow = MagicMock(side_effect=flow_factory)
+        mock_flow.workspace = "default"
 
         await processor.on_message(mock_msg, MagicMock(), mock_flow)
 

@@ -8,15 +8,14 @@ import tabulate
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = "trustgraph"
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def set_collection(url, user, collection, name, description, tags, token=None):
+def set_collection(url, collection, name, description, tags, token=None, workspace="default"):
 
-    api = Api(url, token=token).collection()
+    api = Api(url, token=token, workspace=workspace).collection()
 
     result = api.update_collection(
-        user=user,
         collection=collection,
         name=name,
         description=description,
@@ -60,12 +59,6 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
         '-n', '--name',
         help='Collection name'
     )
@@ -88,18 +81,24 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
 
         set_collection(
             url = args.api_url,
-            user = args.user,
             collection = args.collection,
             name = args.name,
             description = args.description,
             tags = args.tags,
-            token = args.token
+            token = args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

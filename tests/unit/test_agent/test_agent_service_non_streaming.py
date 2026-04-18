@@ -37,6 +37,9 @@ class TestAgentServiceNonStreaming:
         # Setup mock agent manager
         mock_agent_instance = AsyncMock()
         mock_agent_manager_class.return_value = mock_agent_instance
+        mock_agent_instance.tools = {}
+        mock_agent_instance.additional_context = ""
+        processor.agents["default"] = mock_agent_instance
 
         # Mock react to call think and observe callbacks
         async def mock_react(question, history, think, observe, answer, context, streaming, on_action=None):
@@ -50,7 +53,6 @@ class TestAgentServiceNonStreaming:
         msg = MagicMock()
         msg.value.return_value = AgentRequest(
             question="What is 2 + 2?",
-            user="trustgraph",
             streaming=False  # Non-streaming mode
         )
         msg.properties.return_value = {"id": "test-id"}
@@ -58,6 +60,7 @@ class TestAgentServiceNonStreaming:
         # Setup flow mock
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
 
         mock_producer = AsyncMock()
 
@@ -129,6 +132,9 @@ class TestAgentServiceNonStreaming:
         # Setup mock agent manager
         mock_agent_instance = AsyncMock()
         mock_agent_manager_class.return_value = mock_agent_instance
+        mock_agent_instance.tools = {}
+        mock_agent_instance.additional_context = ""
+        processor.agents["default"] = mock_agent_instance
 
         # Mock react to return Final directly
         async def mock_react(question, history, think, observe, answer, context, streaming, on_action=None):
@@ -140,7 +146,6 @@ class TestAgentServiceNonStreaming:
         msg = MagicMock()
         msg.value.return_value = AgentRequest(
             question="What is 2 + 2?",
-            user="trustgraph",
             streaming=False  # Non-streaming mode
         )
         msg.properties.return_value = {"id": "test-id"}
@@ -148,6 +153,7 @@ class TestAgentServiceNonStreaming:
         # Setup flow mock
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
 
         mock_producer = AsyncMock()
 

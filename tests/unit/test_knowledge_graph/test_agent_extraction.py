@@ -322,7 +322,6 @@ This is not JSON at all
         assert isinstance(sent_triples, Triples)
         # Check metadata fields individually since implementation creates new Metadata object
         assert sent_triples.metadata.id == sample_metadata.id
-        assert sent_triples.metadata.user == sample_metadata.user
         assert sent_triples.metadata.collection == sample_metadata.collection
         assert len(sent_triples.triples) == 1
         assert sent_triples.triples[0].s.iri == "test:subject"
@@ -346,7 +345,6 @@ This is not JSON at all
         assert isinstance(sent_contexts, EntityContexts)
         # Check metadata fields individually since implementation creates new Metadata object
         assert sent_contexts.metadata.id == sample_metadata.id
-        assert sent_contexts.metadata.user == sample_metadata.user
         assert sent_contexts.metadata.collection == sample_metadata.collection
         assert len(sent_contexts.entities) == 1
         assert sent_contexts.entities[0].entity.iri == "test:entity"

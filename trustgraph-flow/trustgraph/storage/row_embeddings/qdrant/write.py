@@ -2,13 +2,13 @@
 Row embeddings writer for Qdrant (Stage 2).
 
 Consumes RowEmbeddings messages (which already contain computed vectors)
-and writes them to Qdrant. One Qdrant collection per (user, collection, schema_name) pair.
+and writes them to Qdrant. One Qdrant collection per (workspace, collection, schema_name) pair.
 
 This follows the two-stage pattern used by graph-embeddings and document-embeddings:
   Stage 1 (row-embeddings): Compute embeddings
   Stage 2 (this processor): Store embeddings
 
-Collection naming: rows_{user}_{collection}_{schema_name}_{dimension}
+Collection naming: rows_{workspace}_{collection}_{schema_name}_{dimension}
 
 Payload structure:
     - index_name: The indexed field(s) this embedding represents
@@ -77,10 +77,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         return safe_name.lower()
 
     def get_collection_name(
-        self, user: str, collection: str, schema_name: str, dimension: int
+        self, workspace: str, collection: str, schema_name: str, dimension: int
     ) -> str:
         """Generate Qdrant collection name"""
-        safe_user = self.sanitize_name(user)
+        safe_user = self.sanitize_name(workspace)
         safe_collection = self.sanitize_name(collection)
         safe_schema = self.sanitize_name(schema_name)
         return f"rows_{safe_user}_{safe_collection}_{safe_schema}_{dimension}"
@@ -114,18 +114,19 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             f"{embeddings.schema_name} from {embeddings.metadata.id}"
         )
 
+        workspace = flow.workspace
+
         # Validate collection exists in config before processing
         if not self.collection_exists(
-            embeddings.metadata.user, embeddings.metadata.collection
+            workspace, embeddings.metadata.collection
         ):
             logger.warning(
-                f"Collection {embeddings.metadata.collection} for user "
-                f"{embeddings.metadata.user} does not exist in config. "
+                f"Collection {embeddings.metadata.collection} for workspace "
+                f"{workspace} does not exist in config. "
                 f"Dropping message."
             )
             return
 
-        user = embeddings.metadata.user
         collection = embeddings.metadata.collection
         schema_name = embeddings.schema_name
 
@@ -145,7 +146,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             # Create/get collection name (lazily on first vector)
             if qdrant_collection is None:
                 qdrant_collection = self.get_collection_name(
-                    user, collection, schema_name, dimension
+                    workspace, collection, schema_name, dimension
                 )
                 self.ensure_collection(qdrant_collection, dimension)
 
@@ -168,17 +169,17 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
         logger.info(f"Wrote {embeddings_written} embeddings to Qdrant")
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Collection creation via config push - collections created lazily on first write"""
         logger.info(
-            f"Row embeddings collection create request for {user}/{collection} - "
+            f"Row embeddings collection create request for {workspace}/{collection} - "
             f"will be created lazily on first write"
         )
 
-    async def delete_collection(self, user: str, collection: str):
-        """Delete all Qdrant collections for a given user/collection"""
+    async def delete_collection(self, workspace: str, collection: str):
+        """Delete all Qdrant collections for a given workspace/collection"""
         try:
-            prefix = f"rows_{self.sanitize_name(user)}_{self.sanitize_name(collection)}_"
+            prefix = f"rows_{self.sanitize_name(workspace)}_{self.sanitize_name(collection)}_"
 
             # Get all collections and filter for matches
             all_collections = self.qdrant.get_collections().collections
@@ -196,23 +197,23 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     logger.info(f"Deleted Qdrant collection: {collection_name}")
                 logger.info(
                     f"Deleted {len(matching_collections)} collection(s) "
-                    f"for {user}/{collection}"
+                    f"for {workspace}/{collection}"
                 )
 
         except Exception as e:
             logger.error(
-                f"Failed to delete collection {user}/{collection}: {e}",
+                f"Failed to delete collection {workspace}/{collection}: {e}",
                 exc_info=True
             )
             raise
 
     async def delete_collection_schema(
-        self, user: str, collection: str, schema_name: str
+        self, workspace: str, collection: str, schema_name: str
     ):
-        """Delete Qdrant collection for a specific user/collection/schema"""
+        """Delete Qdrant collection for a specific workspace/collection/schema"""
         try:
             prefix = (
-                f"rows_{self.sanitize_name(user)}_"
+                f"rows_{self.sanitize_name(workspace)}_"
                 f"{self.sanitize_name(collection)}_{self.sanitize_name(schema_name)}_"
             )
 
@@ -233,7 +234,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
         except Exception as e:
             logger.error(
-                f"Failed to delete collection {user}/{collection}/{schema_name}: {e}",
+                f"Failed to delete collection {workspace}/{collection}/{schema_name}: {e}",
                 exc_info=True
             )
             raise

@@ -213,7 +213,6 @@ class Processor(FlowProcessor):
                     Metadata(
                         id=v.metadata.id,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     batch
@@ -227,7 +226,6 @@ class Processor(FlowProcessor):
                     Metadata(
                         id=v.metadata.id,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     batch

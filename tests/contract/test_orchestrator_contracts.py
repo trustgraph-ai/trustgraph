@@ -18,7 +18,6 @@ class TestOrchestrationFieldContracts:
     def test_agent_request_orchestration_fields_roundtrip(self):
         req = AgentRequest(
             question="Test question",
-            user="testuser",
             collection="default",
             correlation_id="corr-123",
             parent_session_id="parent-sess",
@@ -42,7 +41,6 @@ class TestOrchestrationFieldContracts:
     def test_agent_request_orchestration_fields_default_empty(self):
         req = AgentRequest(
             question="Test question",
-            user="testuser",
         )
 
         assert req.correlation_id == ""
@@ -82,7 +80,6 @@ class TestSubagentCompletionStepContract:
         )
         req = AgentRequest(
             question="goal",
-            user="testuser",
             correlation_id="corr-123",
             history=[step],
         )
@@ -126,7 +123,6 @@ class TestSynthesisStepContract:
 
         req = AgentRequest(
             question="Original question",
-            user="testuser",
             pattern="supervisor",
             correlation_id="",
             session_id="parent-sess",

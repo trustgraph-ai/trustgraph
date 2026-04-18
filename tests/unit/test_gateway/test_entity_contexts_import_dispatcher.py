@@ -186,7 +186,6 @@ class TestEntityContextsImportMessageProcessing:
         assert isinstance(sent, EntityContexts)
         assert isinstance(sent.metadata, Metadata)
         assert sent.metadata.id == "doc-123"
-        assert sent.metadata.user == "testuser"
         assert sent.metadata.collection == "testcollection"
 
         assert len(sent.entities) == 2

@@ -10,14 +10,12 @@ class StructuredQueryRequestTranslator(MessageTranslator):
     def decode(self, data: Dict[str, Any]) -> StructuredQueryRequest:
         return StructuredQueryRequest(
             question=data.get("question", ""),
-            user=data.get("user", "trustgraph"),        # Default fallback
-            collection=data.get("collection", "default") # Default fallback
+            collection=data.get("collection", "default")
         )
-    
+
     def encode(self, obj: StructuredQueryRequest) -> Dict[str, Any]:
         return {
             "question": obj.question,
-            "user": obj.user,
             "collection": obj.collection
         }
 

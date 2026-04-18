@@ -46,25 +46,20 @@ from ..tool_filter import filter_tools_by_group_and_state, get_next_state
 logger = logging.getLogger(__name__)
 
 
-class UserAwareContext:
-    """Wraps flow interface to inject user context for tools that need it."""
+class FlowContext:
+    """Wraps flow interface with orchestrator-only scratch state
+    (explain URIs, response handle, streaming flag). Workspace isolation
+    is enforced by the flow layer (flow.workspace), not by this class."""
 
-    def __init__(self, flow, user, respond=None, streaming=False):
+    def __init__(self, flow, respond=None, streaming=False):
         self._flow = flow
-        self._user = user
         self.respond = respond
         self.streaming = streaming
         self.current_explain_uri = None
         self.last_sub_explain_uri = None
 
     def __call__(self, service_name):
-        client = self._flow(service_name)
-        if service_name in (
-            "structured-query-request",
-            "row-embeddings-query-request",
-        ):
-            client._current_user = self._user
-        return client
+        return self._flow(service_name)
 
 
 class UsageTracker:
@@ -131,7 +126,6 @@ class PatternBase:
             state="",
             group=getattr(request, 'group', []),
             history=[completion_step],
-            user=request.user,
             collection=getattr(request, 'collection', 'default'),
             streaming=False,
             session_id=getattr(request, 'session_id', ''),
@@ -158,9 +152,9 @@ class PatternBase:
             current_state=getattr(request, 'state', None),
         )
 
-    def make_context(self, flow, user, respond=None, streaming=False):
-        """Create a user-aware context wrapper."""
-        return UserAwareContext(flow, user, respond=respond, streaming=streaming)
+    def make_context(self, flow, respond=None, streaming=False):
+        """Create a flow context wrapper."""
+        return FlowContext(flow, respond=respond, streaming=streaming)
 
     def build_history(self, request):
         """Convert AgentStep history into Action objects."""
@@ -249,7 +243,7 @@ class PatternBase:
 
     # ---- Provenance emission ------------------------------------------------
 
-    async def emit_session_triples(self, flow, session_uri, question, user,
+    async def emit_session_triples(self, flow, session_uri, question,
                                    collection, respond, streaming,
                                    parent_uri=None):
         """Emit provenance triples for a new session."""
@@ -264,7 +258,6 @@ class PatternBase:
         await flow("explainability").send(Triples(
             metadata=Metadata(
                 id=session_uri,
-                user=user,
                 collection=collection,
             ),
             triples=triples,
@@ -281,7 +274,7 @@ class PatternBase:
 
     async def emit_pattern_decision_triples(
         self, flow, session_id, session_uri, pattern, task_type,
-        user, collection, respond,
+        collection, respond,
     ):
         """Emit provenance triples for a meta-router pattern decision."""
         uri = agent_pattern_decision_uri(session_id)
@@ -292,7 +285,7 @@ class PatternBase:
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
-            metadata=Metadata(id=uri, user=user, collection=collection),
+            metadata=Metadata(id=uri, collection=collection),
             triples=triples,
         ))
         await respond(AgentResponse(
@@ -329,7 +322,7 @@ class PatternBase:
             try:
                 await self.processor.save_answer_content(
                     doc_id=thought_doc_id,
-                    user=request.user,
+                    workspace=flow.workspace,
                     content=act.thought,
                     title=f"Agent Thought: {act.name}",
                 )
@@ -360,7 +353,6 @@ class PatternBase:
         await flow("explainability").send(Triples(
             metadata=Metadata(
                 id=iteration_uri,
-                user=request.user,
                 collection=getattr(request, 'collection', 'default'),
             ),
             triples=iter_triples,
@@ -399,7 +391,7 @@ class PatternBase:
             try:
                 await self.processor.save_answer_content(
                     doc_id=observation_doc_id,
-                    user=request.user,
+                    workspace=flow.workspace,
                     content=observation_text,
                     title=f"Agent Observation",
                 )
@@ -420,7 +412,6 @@ class PatternBase:
         await flow("explainability").send(Triples(
             metadata=Metadata(
                 id=observation_entity_uri,
-                user=request.user,
                 collection=getattr(request, 'collection', 'default'),
             ),
             triples=obs_triples,
@@ -456,7 +447,7 @@ class PatternBase:
             try:
                 await self.processor.save_answer_content(
                     doc_id=answer_doc_id,
-                    user=request.user,
+                    workspace=flow.workspace,
                     content=answer_text,
                     title=f"Agent Answer: {request.question[:50]}...",
                 )
@@ -478,7 +469,6 @@ class PatternBase:
         await flow("explainability").send(Triples(
             metadata=Metadata(
                 id=final_uri,
-                user=request.user,
                 collection=getattr(request, 'collection', 'default'),
             ),
             triples=final_triples,
@@ -496,7 +486,7 @@ class PatternBase:
     # ---- Orchestrator provenance helpers ------------------------------------
 
     async def emit_decomposition_triples(
-        self, flow, session_id, session_uri, goals, user, collection,
+        self, flow, session_id, session_uri, goals, collection,
         respond, streaming,
     ):
         """Emit provenance for a supervisor decomposition step."""
@@ -506,7 +496,7 @@ class PatternBase:
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
-            metadata=Metadata(id=uri, user=user, collection=collection),
+            metadata=Metadata(id=uri, collection=collection),
             triples=triples,
         ))
         await respond(AgentResponse(
@@ -516,7 +506,7 @@ class PatternBase:
         ))
 
     async def emit_finding_triples(
-        self, flow, session_id, index, goal, answer_text, user, collection,
+        self, flow, session_id, index, goal, answer_text, collection,
         respond, streaming, subagent_session_id="",
     ):
         """Emit provenance for a subagent finding."""
@@ -532,7 +522,7 @@ class PatternBase:
         doc_id = f"urn:trustgraph:agent:{session_id}/finding/{index}/doc"
         try:
             await self.processor.save_answer_content(
-                doc_id=doc_id, user=user,
+                doc_id=doc_id, workspace=flow.workspace,
                 content=answer_text,
                 title=f"Finding: {goal[:60]}",
             )
@@ -545,7 +535,7 @@ class PatternBase:
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
-            metadata=Metadata(id=uri, user=user, collection=collection),
+            metadata=Metadata(id=uri, collection=collection),
             triples=triples,
         ))
         await respond(AgentResponse(
@@ -555,7 +545,7 @@ class PatternBase:
         ))
 
     async def emit_plan_triples(
-        self, flow, session_id, session_uri, steps, user, collection,
+        self, flow, session_id, session_uri, steps, collection,
         respond, streaming,
     ):
         """Emit provenance for a plan creation."""
@@ -565,7 +555,7 @@ class PatternBase:
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
-            metadata=Metadata(id=uri, user=user, collection=collection),
+            metadata=Metadata(id=uri, collection=collection),
             triples=triples,
         ))
         await respond(AgentResponse(
@@ -575,7 +565,7 @@ class PatternBase:
         ))
 
     async def emit_step_result_triples(
-        self, flow, session_id, index, goal, answer_text, user, collection,
+        self, flow, session_id, index, goal, answer_text, collection,
         respond, streaming,
     ):
         """Emit provenance for a plan step result."""
@@ -585,7 +575,7 @@ class PatternBase:
         doc_id = f"urn:trustgraph:agent:{session_id}/step/{index}/doc"
         try:
             await self.processor.save_answer_content(
-                doc_id=doc_id, user=user,
+                doc_id=doc_id, workspace=flow.workspace,
                 content=answer_text,
                 title=f"Step result: {goal[:60]}",
             )
@@ -598,7 +588,7 @@ class PatternBase:
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
-            metadata=Metadata(id=uri, user=user, collection=collection),
+            metadata=Metadata(id=uri, collection=collection),
             triples=triples,
         ))
         await respond(AgentResponse(
@@ -608,7 +598,7 @@ class PatternBase:
         ))
 
     async def emit_synthesis_triples(
-        self, flow, session_id, previous_uris, answer_text, user, collection,
+        self, flow, session_id, previous_uris, answer_text, collection,
         respond, streaming, termination_reason=None,
     ):
         """Emit provenance for a synthesis answer."""
@@ -617,7 +607,7 @@ class PatternBase:
         doc_id = f"urn:trustgraph:agent:{session_id}/synthesis/doc"
         try:
             await self.processor.save_answer_content(
-                doc_id=doc_id, user=user,
+                doc_id=doc_id, workspace=flow.workspace,
                 content=answer_text,
                 title="Synthesis",
             )
@@ -633,7 +623,7 @@ class PatternBase:
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
-            metadata=Metadata(id=uri, user=user, collection=collection),
+            metadata=Metadata(id=uri, collection=collection),
             triples=triples,
         ))
         await respond(AgentResponse(
@@ -751,7 +741,6 @@ class PatternBase:
                 )
                 for h in history
             ],
-            user=request.user,
             collection=collection,
             streaming=streaming,
             session_id=session_id,

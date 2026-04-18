@@ -185,6 +185,7 @@ class TestObjectExtractionServiceIntegration:
                 return AsyncMock()
         
         context.side_effect = context_router
+        context.workspace = "default"
         return context
 
     @pytest.mark.asyncio
@@ -197,20 +198,21 @@ class TestObjectExtractionServiceIntegration:
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         
         # Act
-        await processor.on_schema_config(integration_config, version=1)
+        await processor.on_schema_config("default", integration_config, version=1)
         
         # Assert
-        assert len(processor.schemas) == 2
-        assert "customer_records" in processor.schemas
-        assert "product_catalog" in processor.schemas
-        
+        ws_schemas = processor.schemas["default"]
+        assert len(ws_schemas) == 2
+        assert "customer_records" in ws_schemas
+        assert "product_catalog" in ws_schemas
+
         # Verify customer schema
-        customer_schema = processor.schemas["customer_records"]
+        customer_schema = ws_schemas["customer_records"]
         assert customer_schema.name == "customer_records"
         assert len(customer_schema.fields) == 4
-        
+
         # Verify product schema
-        product_schema = processor.schemas["product_catalog"]
+        product_schema = ws_schemas["product_catalog"]
         assert product_schema.name == "product_catalog"
         assert len(product_schema.fields) == 4
         
@@ -237,12 +239,11 @@ class TestObjectExtractionServiceIntegration:
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
-        await processor.on_schema_config(integration_config, version=1)
+        await processor.on_schema_config("default", integration_config, version=1)
         
         # Create realistic customer data chunk
         metadata = Metadata(
             id="customer-doc-001",
-            user="integration_test",
             collection="test_documents",
         )
         
@@ -304,12 +305,11 @@ class TestObjectExtractionServiceIntegration:
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
-        await processor.on_schema_config(integration_config, version=1)
+        await processor.on_schema_config("default", integration_config, version=1)
         
         # Create realistic product data chunk
         metadata = Metadata(
             id="product-doc-001",
-            user="integration_test",
             collection="test_documents",
         )
         
@@ -368,7 +368,7 @@ class TestObjectExtractionServiceIntegration:
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
-        await processor.on_schema_config(integration_config, version=1)
+        await processor.on_schema_config("default", integration_config, version=1)
         
         # Create multiple test chunks
         chunks_data = [
@@ -382,7 +382,6 @@ class TestObjectExtractionServiceIntegration:
         for chunk_id, text in chunks_data:
             metadata = Metadata(
                 id=chunk_id,
-                user="concurrent_test",
                 collection="test_collection",
             )
             chunk = Chunk(metadata=metadata, chunk=text.encode('utf-8'))
@@ -431,19 +430,21 @@ class TestObjectExtractionServiceIntegration:
                 "customer_records": integration_config["schema"]["customer_records"]
             }
         }
-        await processor.on_schema_config(initial_config, version=1)
-        
-        assert len(processor.schemas) == 1
-        assert "customer_records" in processor.schemas
-        assert "product_catalog" not in processor.schemas
-        
+        await processor.on_schema_config("default", initial_config, version=1)
+
+        ws_schemas = processor.schemas["default"]
+        assert len(ws_schemas) == 1
+        assert "customer_records" in ws_schemas
+        assert "product_catalog" not in ws_schemas
+
         # Act - Reload with full configuration
-        await processor.on_schema_config(integration_config, version=2)
-        
+        await processor.on_schema_config("default", integration_config, version=2)
+
         # Assert
-        assert len(processor.schemas) == 2
-        assert "customer_records" in processor.schemas
-        assert "product_catalog" in processor.schemas
+        ws_schemas = processor.schemas["default"]
+        assert len(ws_schemas) == 2
+        assert "customer_records" in ws_schemas
+        assert "product_catalog" in ws_schemas
 
     @pytest.mark.asyncio
     async def test_error_resilience_integration(self, integration_config):
@@ -474,13 +475,14 @@ class TestObjectExtractionServiceIntegration:
                 return AsyncMock()
         
         failing_flow.side_effect = failing_context_router
+        failing_flow.workspace = "default"
         processor.flow = failing_flow
         
         # Load configuration
-        await processor.on_schema_config(integration_config, version=1)
+        await processor.on_schema_config("default", integration_config, version=1)
         
         # Create test chunk
-        metadata = Metadata(id="error-test", user="test", collection="test")
+        metadata = Metadata(id="error-test", collection="test")
         chunk = Chunk(metadata=metadata, chunk=b"Some text that will fail to process")
         
         mock_msg = MagicMock()
@@ -510,12 +512,11 @@ class TestObjectExtractionServiceIntegration:
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
-        await processor.on_schema_config(integration_config, version=1)
+        await processor.on_schema_config("default", integration_config, version=1)
         
         # Create chunk with rich metadata
         original_metadata = Metadata(
             id="metadata-test-chunk",
-            user="test_user",
             collection="test_collection",
         )
         
@@ -544,6 +545,5 @@ class TestObjectExtractionServiceIntegration:
         assert extracted_obj is not None
         
         # Verify metadata propagation
-        assert extracted_obj.metadata.user == "test_user"
         assert extracted_obj.metadata.collection == "test_collection"
         assert "metadata-test-chunk" in extracted_obj.metadata.id  # Should include source reference

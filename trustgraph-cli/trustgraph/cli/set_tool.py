@@ -28,6 +28,7 @@ import dataclasses
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 @dataclasses.dataclass
 class Argument:
@@ -73,9 +74,10 @@ def set_tool(
         state : str,
         applicable_states : List[str],
         token : str = None,
+        workspace : str = "default",
 ):
 
-    api = Api(url, token=token).config()
+    api = Api(url, token=token, workspace=workspace).config()
 
     values = api.get([
         ConfigKey(type="agent", key="tool-index")
@@ -179,6 +181,12 @@ def main():
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -303,6 +311,8 @@ def main():
             state=args.state,
             applicable_states=args.applicable_states,
             token=args.token,
+
+            workspace=args.workspace,
         )
 
     except Exception as e:

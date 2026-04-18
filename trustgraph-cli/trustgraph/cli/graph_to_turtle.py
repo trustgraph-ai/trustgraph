@@ -13,9 +13,9 @@ import os
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
 default_collection = 'default'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 
 def term_to_rdflib(term):
@@ -58,9 +58,10 @@ def term_to_rdflib(term):
         return rdflib.term.Literal(str(term))
 
 
-def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
+def show_graph(url, flow_id, collection, limit, batch_size,
+               token=None, workspace="default"):
 
-    socket = Api(url, token=token).socket()
+    socket = Api(url, token=token, workspace=workspace).socket()
     flow = socket.flow(flow_id)
 
     g = rdflib.Graph()
@@ -68,7 +69,7 @@ def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
     try:
         for batch in flow.triples_query_stream(
             s=None, p=None, o=None,
-            user=user, collection=collection,
+            collection=collection,
             limit=limit,
             batch_size=batch_size,
         ):
@@ -109,12 +110,6 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
         '-C', '--collection',
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
@@ -124,6 +119,12 @@ def main():
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -147,11 +148,11 @@ def main():
         show_graph(
             url = args.api_url,
             flow_id = args.flow_id,
-            user = args.user,
             collection = args.collection,
             limit = args.limit,
             batch_size = args.batch_size,
             token = args.token,
+            workspace = args.workspace,
         )
 
     except Exception as e:

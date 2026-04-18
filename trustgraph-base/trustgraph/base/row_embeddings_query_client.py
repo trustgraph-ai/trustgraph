@@ -3,13 +3,12 @@ from .. schema import RowEmbeddingsRequest, RowEmbeddingsResponse
 
 class RowEmbeddingsQueryClient(RequestResponse):
     async def row_embeddings_query(
-            self, vector, schema_name, user="trustgraph", collection="default",
+            self, vector, schema_name, collection="default",
             index_name=None, limit=10, timeout=600
     ):
         request = RowEmbeddingsRequest(
             vector=vector,
             schema_name=schema_name,
-            user=user,
             collection=collection,
             limit=limit
         )

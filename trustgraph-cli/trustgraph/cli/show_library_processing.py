@@ -4,18 +4,17 @@
 import argparse
 import os
 import tabulate
-from trustgraph.api import Api, ConfigKey
-import json
+from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = "trustgraph"
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def show_procs(url, user, token=None):
+def show_procs(url, token=None, workspace="default"):
 
-    api = Api(url, token=token).library()
+    api = Api(url, token=token, workspace=workspace).library()
 
-    procs = api.get_processings(user = user)
+    procs = api.get_processings()
 
     if len(procs) == 0:
         print("No processing objects.")
@@ -53,15 +52,15 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     args = parser.parse_args()
@@ -69,7 +68,9 @@ def main():
     try:
 
         show_procs(
-            url = args.api_url, user = args.user, token = args.token
+            url=args.api_url,
+            token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

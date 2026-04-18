@@ -26,7 +26,7 @@ from trustgraph.api import (
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 class Outputter:
@@ -115,11 +115,12 @@ def output(text, prefix="> ", width=78):
     print(out)
 
 def question_explainable(
-    url, question_text, flow_id, user, collection,
-    state=None, group=None, verbose=False, token=None, debug=False
+    url, question_text, flow_id, collection,
+    state=None, group=None, verbose=False, token=None, debug=False,
+    workspace="default",
 ):
     """Execute agent with explainability - shows provenance events inline."""
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
     explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
@@ -132,7 +133,6 @@ def question_explainable(
         # Stream agent with explainability - process events as they arrive
         for item in flow.agent_explain(
             question=question_text,
-            user=user,
             collection=collection,
             state=state,
             group=group,
@@ -191,7 +191,6 @@ def question_explainable(
                     entity = explain_client.fetch_entity(
                         prov_id,
                         graph=explain_graph,
-                        user=user,
                         collection=collection
                     )
 
@@ -269,11 +268,11 @@ def question_explainable(
 
 
 def question(
-        url, question, flow_id, user, collection,
+        url, question, flow_id, collection,
         plan=None, state=None, group=None, pattern=None,
         verbose=False, streaming=True,
         token=None, explainable=False, debug=False,
-        show_usage=False
+        show_usage=False, workspace="default",
 ):
     # Explainable mode uses the API to capture and process provenance events
     if explainable:
@@ -281,13 +280,13 @@ def question(
             url=url,
             question_text=question,
             flow_id=flow_id,
-            user=user,
             collection=collection,
             state=state,
             group=group,
             verbose=verbose,
             token=token,
-            debug=debug
+            debug=debug,
+            workspace=workspace,
         )
         return
 
@@ -296,14 +295,13 @@ def question(
         print()
 
     # Create API client
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
 
     # Prepare request parameters
     request_params = {
         "question": question,
-        "user": user,
         "streaming": streaming,
     }
 
@@ -419,6 +417,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-f', '--flow-id',
         default="default",
         help=f'Flow ID (default: default)'
@@ -428,12 +432,6 @@ def main():
         '-q', '--question',
         required=True,
         help=f'Question to answer',
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
@@ -502,7 +500,6 @@ def main():
             url = args.url,
             flow_id = args.flow_id,
             question = args.question,
-            user = args.user,
             collection = args.collection,
             plan = args.plan,
             state = args.state,
@@ -514,6 +511,7 @@ def main():
             explainable = args.explainable,
             debug = args.debug,
             show_usage = args.show_usage,
+            workspace = args.workspace,
         )
 
     except Exception as e:

@@ -1,6 +1,6 @@
 """
 Unit test for DocumentRAG service parameter passing fix.
-Tests that user and collection parameters from the message are correctly
+Tests that the collection parameter from the message is correctly
 passed to the DocumentRag.query() method.
 """
 
@@ -16,13 +16,13 @@ class TestDocumentRagService:
 
     @patch('trustgraph.retrieval.document_rag.rag.DocumentRag')
     @pytest.mark.asyncio
-    async def test_user_and_collection_parameters_passed_to_query(self, mock_document_rag_class):
+    async def test_collection_parameter_passed_to_query(self, mock_document_rag_class):
         """
-        Test that user and collection from message are passed to DocumentRag.query().
-        
-        This is a regression test for the bug where user/collection parameters
-        were ignored, causing wrong collection names like 'd_trustgraph_default_384'
-        instead of 'd_my_user_test_coll_1_384'.
+        Test that collection from message is passed to DocumentRag.query().
+
+        This is a regression test for the bug where the collection parameter
+        was ignored, causing wrong collection names like 'd_trustgraph_default_384'
+        instead of one that reflects the requested collection.
         """
         # Setup processor
         processor = Processor(
@@ -30,17 +30,16 @@ class TestDocumentRagService:
             id="test-processor",
             doc_limit=10
         )
-        
+
         # Setup mock DocumentRag instance
         mock_rag_instance = AsyncMock()
         mock_document_rag_class.return_value = mock_rag_instance
         mock_rag_instance.query.return_value = ("test response", {"in_token": None, "out_token": None, "model": None})
-        
-        # Setup message with custom user/collection
+
+        # Setup message with custom collection
         msg = MagicMock()
         msg.value.return_value = DocumentRagQuery(
             query="test query",
-            user="my_user",        # Custom user (not default "trustgraph")  
             collection="test_coll_1",  # Custom collection (not default "default")
             doc_limit=5
         )
@@ -64,7 +63,7 @@ class TestDocumentRagService:
         # Verify: DocumentRag.query was called with correct parameters
         mock_rag_instance.query.assert_called_once_with(
             "test query",
-            user="my_user",           # Must be from message, not hardcoded default
+            workspace=ANY,            # Workspace comes from flow.workspace (mock)
             collection="test_coll_1", # Must be from message, not hardcoded default
             doc_limit=5,
             explain_callback=ANY,     # Explainability callback is always passed
@@ -103,7 +102,6 @@ class TestDocumentRagService:
         msg = MagicMock()
         msg.value.return_value = DocumentRagQuery(
             query="What is a cat?",
-            user="trustgraph",
             collection="default",
             doc_limit=10,
             streaming=False  # Non-streaming mode

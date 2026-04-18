@@ -60,7 +60,9 @@ class GraphEmbeddingsQueryService(FlowProcessor):
 
             logger.debug(f"Handling graph embeddings query request {id}...")
 
-            entities = await self.query_graph_embeddings(request)
+            entities = await self.query_graph_embeddings(
+                flow.workspace, request,
+            )
 
             logger.debug("Sending graph embeddings query response...")
             r = GraphEmbeddingsResponse(entities=entities, error=None)

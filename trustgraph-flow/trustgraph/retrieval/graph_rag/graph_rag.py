@@ -75,12 +75,11 @@ def edge_id(s, p, o):
 
 
 class LRUCacheWithTTL:
-    """LRU cache with TTL for label caching
+    """LRU cache with TTL for label caching.
 
-    CRITICAL SECURITY WARNING:
-    This cache is shared within a GraphRag instance but GraphRag instances
-    are created per-request. Cache keys MUST include user:collection prefix
-    to ensure data isolation between different security contexts.
+    GraphRag instances are created per-request, so this cache is
+    request-scoped. Cache keys include the collection prefix to keep
+    entries from different collections distinct within one request.
     """
 
     def __init__(self, max_size=5000, ttl=300):
@@ -119,12 +118,11 @@ class LRUCacheWithTTL:
 class Query:
 
     def __init__(
-            self, rag, user, collection, verbose,
+            self, rag, collection, verbose,
             entity_limit=50, triple_limit=30, max_subgraph_size=1000,
             max_path_length=2, track_usage=None,
     ):
         self.rag = rag
-        self.user = user
         self.collection = collection
         self.verbose = verbose
         self.entity_limit = entity_limit
@@ -194,7 +192,7 @@ class Query:
         entity_tasks = [
             self.rag.graph_embeddings_client.query(
                 vector=v, limit=per_concept_limit,
-                user=self.user, collection=self.collection,
+                collection=self.collection,
             )
             for v in vectors
         ]
@@ -222,18 +220,18 @@ class Query:
         
     async def maybe_label(self, e):
 
-        # CRITICAL SECURITY: Cache key MUST include user and collection
-        # to prevent data leakage between different contexts
-        cache_key = f"{self.user}:{self.collection}:{e}"
+        # The label cache lives on a per-request GraphRag instance — no
+        # cross-request isolation concern. The collection prefix keeps
+        # entries from different collections distinct within one request.
+        cache_key = f"{self.collection}:{e}"
 
-        # Check LRU cache first with isolated key
         cached_label = self.rag.label_cache.get(cache_key)
         if cached_label is not None:
             return cached_label
 
         res = await self.rag.triples_client.query(
             s=e, p=LABEL, o=None, limit=1,
-            user=self.user, collection=self.collection,
+            collection=self.collection,
             g="",
         )
 
@@ -255,19 +253,19 @@ class Query:
                 self.rag.triples_client.query_stream(
                     s=entity, p=None, o=None,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection,
+                    collection=self.collection,
                     batch_size=20, g="",
                 ),
                 self.rag.triples_client.query_stream(
                     s=None, p=entity, o=None,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection,
+                    collection=self.collection,
                     batch_size=20, g="",
                 ),
                 self.rag.triples_client.query_stream(
                     s=None, p=None, o=entity,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection,
+                    collection=self.collection,
                     batch_size=20, g="",
                 )
             ])
@@ -468,7 +466,7 @@ class Query:
             subgraph_tasks.append(
                 self.rag.triples_client.query(
                     s=None, p=TG_CONTAINS, o=quoted, limit=1,
-                    user=self.user, collection=self.collection,
+                    collection=self.collection,
                     g=GRAPH_SOURCE,
                 )
             )
@@ -501,7 +499,7 @@ class Query:
             derivation_tasks = [
                 self.rag.triples_client.query(
                     s=uri, p=PROV_WAS_DERIVED_FROM, o=None, limit=5,
-                    user=self.user, collection=self.collection,
+                    collection=self.collection,
                     g=GRAPH_SOURCE,
                 )
                 for uri in current_uris
@@ -535,7 +533,7 @@ class Query:
         metadata_tasks = [
             self.rag.triples_client.query(
                 s=uri, p=None, o=None, limit=50,
-                user=self.user, collection=self.collection,
+                collection=self.collection,
             )
             for uri in doc_uris
         ]
@@ -560,11 +558,9 @@ class Query:
 
 class GraphRag:
     """
-    CRITICAL SECURITY:
-    This class MUST be instantiated per-request to ensure proper isolation
-    between users and collections. The cache within this instance will only
-    live for the duration of a single request, preventing cross-contamination
-    of data between different security contexts.
+    Must be instantiated per-request so the label cache lives only for
+    the duration of a single request. Workspace isolation is enforced
+    by the trusted flow layer (flow.workspace), not by this class.
     """
 
     def __init__(
@@ -587,7 +583,7 @@ class GraphRag:
             logger.debug("GraphRag initialized")
 
     async def query(
-            self, query, user = "trustgraph", collection = "default",
+            self, query, collection = "default",
             entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
             max_path_length = 2, edge_score_limit = 30, edge_limit = 25,
             streaming = False,
@@ -600,7 +596,6 @@ class GraphRag:
 
         Args:
             query: The query string
-            user: User identifier
             collection: Collection identifier
             entity_limit: Max entities to retrieve
             triple_limit: Max triples per entity
@@ -657,7 +652,7 @@ class GraphRag:
             await explain_callback(q_triples, q_uri)
 
         q = Query(
-            rag = self, user = user, collection = collection,
+            rag = self, collection = collection,
             verbose = self.verbose, entity_limit = entity_limit,
             triple_limit = triple_limit,
             max_subgraph_size = max_subgraph_size,

@@ -26,11 +26,11 @@ LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 class Query:
 
     def __init__(
-            self, rag, user, collection, verbose,
+            self, rag, workspace, collection, verbose,
             doc_limit=20, track_usage=None,
     ):
         self.rag = rag
-        self.user = user
+        self.workspace = workspace
         self.collection = collection
         self.verbose = verbose
         self.doc_limit = doc_limit
@@ -97,7 +97,7 @@ class Query:
         async def query_concept(vec):
             return await self.rag.doc_embeddings_client.query(
                 vector=vec, limit=per_concept_limit,
-                user=self.user, collection=self.collection,
+                collection=self.collection,
             )
 
         results = await asyncio.gather(
@@ -122,7 +122,7 @@ class Query:
         for match in chunk_matches:
             if match.chunk_id:
                 try:
-                    content = await self.rag.fetch_chunk(match.chunk_id, self.user)
+                    content = await self.rag.fetch_chunk(match.chunk_id, self.workspace)
                     docs.append(content)
                     chunk_ids.append(match.chunk_id)
                 except Exception as e:
@@ -154,7 +154,7 @@ class DocumentRag:
             logger.debug("DocumentRag initialized")
 
     async def query(
-            self, query, user="trustgraph", collection="default",
+            self, query, workspace="default", collection="default",
             doc_limit=20, streaming=False, chunk_callback=None,
             explain_callback=None, save_answer_callback=None,
     ):
@@ -163,7 +163,7 @@ class DocumentRag:
 
         Args:
             query: The query string
-            user: User identifier
+            workspace: Workspace for isolation (also scopes chunk lookup)
             collection: Collection identifier
             doc_limit: Max chunks to retrieve
             streaming: Enable streaming LLM response
@@ -210,7 +210,8 @@ class DocumentRag:
             await explain_callback(q_triples, q_uri)
 
         q = Query(
-            rag=self, user=user, collection=collection, verbose=self.verbose,
+            rag=self, workspace=workspace, collection=collection,
+            verbose=self.verbose,
             doc_limit=doc_limit, track_usage=track_usage,
         )
 

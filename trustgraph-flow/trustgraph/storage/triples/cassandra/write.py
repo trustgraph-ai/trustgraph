@@ -147,9 +147,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-    async def store_triples(self, message):
-
-        user = message.metadata.user
+    async def store_triples(self, workspace, message):
 
         # The cassandra-driver work below — connection, schema
         # setup, and per-triple inserts — is all synchronous.
@@ -159,7 +157,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
         def _do_store():
 
-            if self.table is None or self.table != user:
+            if self.table is None or self.table != workspace:
 
                 self.tg = None
 
@@ -170,21 +168,21 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                     if self.cassandra_username and self.cassandra_password:
                         self.tg = KGClass(
                             hosts=self.cassandra_host,
-                            keyspace=message.metadata.user,
+                            keyspace=workspace,
                             username=self.cassandra_username,
                             password=self.cassandra_password,
                         )
                     else:
                         self.tg = KGClass(
                             hosts=self.cassandra_host,
-                            keyspace=message.metadata.user,
+                            keyspace=workspace,
                         )
                 except Exception as e:
                     logger.error(f"Exception: {e}", exc_info=True)
                     time.sleep(1)
                     raise e
 
-                self.table = user
+                self.table = workspace
 
             for t in message.triples:
                 # Extract values from Term objects
@@ -212,12 +210,12 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
         await asyncio.to_thread(_do_store)
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Create a collection in Cassandra triple store via config push"""
 
         def _do_create():
-            # Create or reuse connection for this user's keyspace
-            if self.table is None or self.table != user:
+            # Create or reuse connection for this workspace's keyspace
+            if self.table is None or self.table != workspace:
                 self.tg = None
 
                 # Use factory function to select implementation
@@ -227,23 +225,23 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                     if self.cassandra_username and self.cassandra_password:
                         self.tg = KGClass(
                             hosts=self.cassandra_host,
-                            keyspace=user,
+                            keyspace=workspace,
                             username=self.cassandra_username,
                             password=self.cassandra_password,
                         )
                     else:
                         self.tg = KGClass(
                             hosts=self.cassandra_host,
-                            keyspace=user,
+                            keyspace=workspace,
                         )
                 except Exception as e:
-                    logger.error(f"Failed to connect to Cassandra for user {user}: {e}")
+                    logger.error(f"Failed to connect to Cassandra for workspace {workspace}: {e}")
                     raise
 
-                self.table = user
+                self.table = workspace
 
             # Create collection using the built-in method
-            logger.info(f"Creating collection {collection} for user {user}")
+            logger.info(f"Creating collection {collection} for workspace {workspace}")
 
             if self.tg.collection_exists(collection):
                 logger.info(f"Collection {collection} already exists")
@@ -254,15 +252,15 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         try:
             await asyncio.to_thread(_do_create)
         except Exception as e:
-            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to create collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Delete all data for a specific collection from the unified triples table"""
 
         def _do_delete():
-            # Create or reuse connection for this user's keyspace
-            if self.table is None or self.table != user:
+            # Create or reuse connection for this workspace's keyspace
+            if self.table is None or self.table != workspace:
                 self.tg = None
 
                 # Use factory function to select implementation
@@ -272,29 +270,29 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                     if self.cassandra_username and self.cassandra_password:
                         self.tg = KGClass(
                             hosts=self.cassandra_host,
-                            keyspace=user,
+                            keyspace=workspace,
                             username=self.cassandra_username,
                             password=self.cassandra_password,
                         )
                     else:
                         self.tg = KGClass(
                             hosts=self.cassandra_host,
-                            keyspace=user,
+                            keyspace=workspace,
                         )
                 except Exception as e:
-                    logger.error(f"Failed to connect to Cassandra for user {user}: {e}")
+                    logger.error(f"Failed to connect to Cassandra for workspace {workspace}: {e}")
                     raise
 
-                self.table = user
+                self.table = workspace
 
             # Delete all triples for this collection using the built-in method
             self.tg.delete_collection(collection)
-            logger.info(f"Deleted all triples for collection {collection} from keyspace {user}")
+            logger.info(f"Deleted all triples for collection {collection} from keyspace {workspace}")
 
         try:
             await asyncio.to_thread(_do_delete)
         except Exception as e:
-            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to delete collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
     @staticmethod

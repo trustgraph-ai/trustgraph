@@ -45,10 +45,13 @@ class ConfigValue:
         type: Configuration type/category
         key: Specific configuration key
         value: Configuration value as string
+        workspace: Workspace the value belongs to. Only populated for
+            responses to getvalues-all-ws; empty otherwise.
     """
     type : str
     key : str
     value : str
+    workspace : str = ""
 
 @dataclasses.dataclass
 class DocumentMetadata:
@@ -62,7 +65,7 @@ class DocumentMetadata:
         title: Document title
         comments: Additional comments or description
         metadata: List of RDF triples providing structured metadata
-        user: User/owner identifier
+        workspace: Workspace the document belongs to
         tags: List of tags for categorization
         parent_id: Parent document ID for child documents (empty for top-level docs)
         document_type: "source" for uploaded documents, "extracted" for derived content
@@ -73,7 +76,7 @@ class DocumentMetadata:
     title : str
     comments : str
     metadata : List[Triple]
-    user : str
+    workspace : str
     tags : List[str]
     parent_id : str = ""
     document_type : str = "source"
@@ -88,7 +91,7 @@ class ProcessingMetadata:
         document_id: ID of the document being processed
         time: Processing start timestamp
         flow: Flow instance handling the processing
-        user: User identifier
+        workspace: Workspace the processing job belongs to
         collection: Target collection for processed data
         tags: List of tags for categorization
     """
@@ -96,7 +99,7 @@ class ProcessingMetadata:
     document_id : str
     time : datetime.datetime
     flow : str
-    user : str
+    workspace : str
     collection : str
     tags : List[str]
 
@@ -105,17 +108,15 @@ class CollectionMetadata:
     """
     Metadata for a data collection.
 
-    Collections provide logical grouping and isolation for documents and
-    knowledge graph data.
+    Collections provide logical grouping within a workspace for documents
+    and knowledge graph data.
 
     Attributes:
-        user: User/owner identifier
         collection: Collection identifier
         name: Human-readable collection name
         description: Collection description
         tags: List of tags for categorization
     """
-    user : str
     collection : str
     name : str
     description : str

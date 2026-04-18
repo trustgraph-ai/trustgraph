@@ -87,6 +87,7 @@ class TestPromptStreaming:
                 return AsyncMock()
 
         context.side_effect = context_router
+        context.workspace = "default"
         return context
 
     @pytest.fixture
@@ -109,7 +110,7 @@ class TestPromptStreaming:
     def prompt_processor_streaming(self, mock_prompt_manager):
         """Create Prompt processor with streaming support"""
         processor = MagicMock()
-        processor.manager = mock_prompt_manager
+        processor.managers = {"default": mock_prompt_manager}
         processor.config_key = "prompt"
 
         # Bind the actual on_request method
@@ -248,6 +249,7 @@ class TestPromptStreaming:
                 return AsyncMock()
 
         context.side_effect = context_router
+        context.workspace = "default"
 
         request = PromptRequest(
             id="test_prompt",
@@ -341,6 +343,7 @@ class TestPromptStreaming:
                 return AsyncMock()
 
         context.side_effect = context_router
+        context.workspace = "default"
 
         request = PromptRequest(
             id="test_prompt",

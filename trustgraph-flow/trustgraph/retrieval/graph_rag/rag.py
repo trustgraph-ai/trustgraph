@@ -62,9 +62,9 @@ class Processor(FlowProcessor):
         self.default_edge_score_limit = edge_score_limit
         self.default_edge_limit = edge_limit
 
-        # CRITICAL SECURITY: NEVER share data between users or collections
-        # Each user/collection combination MUST have isolated data access
-        # Caching must NEVER allow information leakage across these boundaries
+        # Workspace isolation is enforced by the flow layer (flow.workspace).
+        # Per-request caching (see GraphRag) keeps within-request state
+        # scoped; no cross-request sharing here.
 
         self.register_specification(
             ConsumerSpec(
@@ -170,13 +170,13 @@ class Processor(FlowProcessor):
             future = self.pending_librarian_requests.pop(request_id)
             future.set_result(response)
 
-    async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
+    async def save_answer_content(self, doc_id, workspace, content, title=None, timeout=120):
         """
         Save answer content to the librarian.
 
         Args:
             doc_id: ID for the answer document
-            user: User ID
+            workspace: Workspace for isolation
             content: Answer text content
             title: Optional title
             timeout: Request timeout in seconds
@@ -188,7 +188,7 @@ class Processor(FlowProcessor):
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            user=user,
+            workspace=workspace,
             kind="text/plain",
             title=title or "GraphRAG Answer",
             document_type="answer",
@@ -199,7 +199,7 @@ class Processor(FlowProcessor):
             document_id=doc_id,
             document_metadata=doc_metadata,
             content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            user=user,
+            workspace=workspace,
         )
 
         # Create future for response
@@ -241,14 +241,13 @@ class Processor(FlowProcessor):
             explainability_refs_emitted = []
 
             # Real-time explainability callback - emits triples and IDs as they're generated
-            # Triples are stored in the user's collection with a named graph (urn:graph:retrieval)
+            # Triples are stored in the request's collection with a named graph (urn:graph:retrieval)
             async def send_explainability(triples, explain_id):
                 # Send triples to explainability queue - stores in same collection with named graph
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=explain_id,
-                        user=v.user,
-                        collection=v.collection,  # Store in user's collection, not separate explainability collection
+                        collection=v.collection,
                     ),
                     triples=triples,
                 ))
@@ -266,9 +265,9 @@ class Processor(FlowProcessor):
 
                 explainability_refs_emitted.append(explain_id)
 
-            # CRITICAL SECURITY: Create new GraphRag instance per request
-            # This ensures proper isolation between users and collections
-            # Flow clients are request-scoped and must not be shared
+            # Create new GraphRag instance per request — its label cache
+            # is request-scoped, and flow clients must not be shared
+            # across requests.
             rag = GraphRag(
                 embeddings_client=flow("embeddings-request"),
                 graph_embeddings_client=flow("graph-embeddings-request"),
@@ -311,7 +310,7 @@ class Processor(FlowProcessor):
             async def save_answer(doc_id, answer_text):
                 await self.save_answer_content(
                     doc_id=doc_id,
-                    user=v.user,
+                    workspace=flow.workspace,
                     content=answer_text,
                     title=f"GraphRAG Answer: {v.query[:50]}...",
                 )
@@ -333,7 +332,7 @@ class Processor(FlowProcessor):
 
                 # Query with streaming and real-time explain
                 response, usage = await rag.query(
-                    query = v.query, user = v.user, collection = v.collection,
+                    query = v.query, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
@@ -349,7 +348,7 @@ class Processor(FlowProcessor):
             else:
                 # Non-streaming path with real-time explain
                 response, usage = await rag.query(
-                    query = v.query, user = v.user, collection = v.collection,
+                    query = v.query, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
@@ -464,7 +463,7 @@ class Processor(FlowProcessor):
             help=f'Max edges after LLM scoring (default: 25)'
         )
 
-        # Note: Explainability triples are now stored in the user's collection
+        # Note: Explainability triples are now stored in the request's collection
         # with the named graph urn:graph:retrieval (no separate collection needed)
 
 def run():

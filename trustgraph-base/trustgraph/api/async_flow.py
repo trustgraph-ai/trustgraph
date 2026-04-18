@@ -326,9 +326,7 @@ class AsyncFlow:
 
             # Use flow services
             result = await flow.graph_rag(
-                query="What is TrustGraph?",
-                user="trustgraph",
-                collection="default"
+                query="What is TrustGraph?",collection="default"
             )
             ```
         """
@@ -385,7 +383,7 @@ class AsyncFlowInstance:
         """
         return await self.flow.request(f"flow/{self.flow_id}/service/{service}", request_data)
 
-    async def agent(self, question: str, user: str, state: Optional[Dict] = None,
+    async def agent(self, question: str, state: Optional[Dict] = None,
                     group: Optional[str] = None, history: Optional[List] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute an agent operation (non-streaming).
@@ -399,7 +397,6 @@ class AsyncFlowInstance:
 
         Args:
             question: User question or instruction
-            user: User identifier
             state: Optional state dictionary for conversation context
             group: Optional group identifier for session management
             history: Optional conversation history list
@@ -416,14 +413,12 @@ class AsyncFlowInstance:
             # Execute agent
             result = await flow.agent(
                 question="What is the capital of France?",
-                user="trustgraph"
-            )
+                )
             print(f"Answer: {result.get('response')}")
             ```
         """
         request_data = {
             "question": question,
-            "user": user,
             "streaming": False  # REST doesn't support streaming
         }
         if state is not None:
@@ -481,7 +476,7 @@ class AsyncFlowInstance:
             model=result.get("model"),
         )
 
-    async def graph_rag(self, query: str, user: str, collection: str,
+    async def graph_rag(self, query: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
                         max_entity_distance: int = 3, **kwargs: Any) -> str:
         """
@@ -496,7 +491,6 @@ class AsyncFlowInstance:
 
         Args:
             query: User query text
-            user: User identifier
             collection: Collection identifier containing the knowledge graph
             max_subgraph_size: Maximum number of triples per subgraph (default: 1000)
             max_subgraph_count: Maximum number of subgraphs to retrieve (default: 5)
@@ -513,9 +507,7 @@ class AsyncFlowInstance:
 
             # Query knowledge graph
             response = await flow.graph_rag(
-                query="What are the relationships between these entities?",
-                user="trustgraph",
-                collection="medical-kb",
+                query="What are the relationships between these entities?",collection="medical-kb",
                 max_subgraph_count=3
             )
             print(response)
@@ -523,7 +515,6 @@ class AsyncFlowInstance:
         """
         request_data = {
             "query": query,
-            "user": user,
             "collection": collection,
             "max-subgraph-size": max_subgraph_size,
             "max-subgraph-count": max_subgraph_count,
@@ -535,7 +526,7 @@ class AsyncFlowInstance:
         result = await self.request("graph-rag", request_data)
         return result.get("response", "")
 
-    async def document_rag(self, query: str, user: str, collection: str,
+    async def document_rag(self, query: str, collection: str,
                            doc_limit: int = 10, **kwargs: Any) -> str:
         """
         Execute document-based RAG query (non-streaming).
@@ -549,7 +540,6 @@ class AsyncFlowInstance:
 
         Args:
             query: User query text
-            user: User identifier
             collection: Collection identifier containing documents
             doc_limit: Maximum number of document chunks to retrieve (default: 10)
             **kwargs: Additional service-specific parameters
@@ -564,9 +554,7 @@ class AsyncFlowInstance:
 
             # Query documents
             response = await flow.document_rag(
-                query="What does the documentation say about authentication?",
-                user="trustgraph",
-                collection="docs",
+                query="What does the documentation say about authentication?",collection="docs",
                 doc_limit=5
             )
             print(response)
@@ -574,7 +562,6 @@ class AsyncFlowInstance:
         """
         request_data = {
             "query": query,
-            "user": user,
             "collection": collection,
             "doc-limit": doc_limit,
             "streaming": False
@@ -584,7 +571,7 @@ class AsyncFlowInstance:
         result = await self.request("document-rag", request_data)
         return result.get("response", "")
 
-    async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs: Any):
+    async def graph_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs: Any):
         """
         Query graph embeddings for semantic entity search.
 
@@ -593,7 +580,6 @@ class AsyncFlowInstance:
 
         Args:
             text: Query text for semantic search
-            user: User identifier
             collection: Collection identifier containing graph embeddings
             limit: Maximum number of results to return (default: 10)
             **kwargs: Additional service-specific parameters
@@ -608,9 +594,7 @@ class AsyncFlowInstance:
 
             # Find related entities
             results = await flow.graph_embeddings_query(
-                text="machine learning algorithms",
-                user="trustgraph",
-                collection="tech-kb",
+                text="machine learning algorithms",collection="tech-kb",
                 limit=5
             )
 
@@ -624,7 +608,6 @@ class AsyncFlowInstance:
 
         request_data = {
             "vector": vector,
-            "user": user,
             "collection": collection,
             "limit": limit
         }
@@ -663,7 +646,7 @@ class AsyncFlowInstance:
 
         return await self.request("embeddings", request_data)
 
-    async def triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs: Any):
+    async def triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs: Any):
         """
         Query RDF triples using pattern matching.
 
@@ -674,7 +657,6 @@ class AsyncFlowInstance:
             s: Subject pattern (None for wildcard)
             p: Predicate pattern (None for wildcard)
             o: Object pattern (None for wildcard)
-            user: User identifier (None for all users)
             collection: Collection identifier (None for all collections)
             limit: Maximum number of triples to return (default: 100)
             **kwargs: Additional service-specific parameters
@@ -689,9 +671,7 @@ class AsyncFlowInstance:
 
             # Find all triples with a specific predicate
             results = await flow.triples_query(
-                p="knows",
-                user="trustgraph",
-                collection="social",
+                p="knows",collection="social",
                 limit=50
             )
 
@@ -706,15 +686,13 @@ class AsyncFlowInstance:
             request_data["p"] = str(p)
         if o is not None:
             request_data["o"] = str(o)
-        if user is not None:
-            request_data["user"] = user
         if collection is not None:
             request_data["collection"] = collection
         request_data.update(kwargs)
 
         return await self.request("triples", request_data)
 
-    async def rows_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
+    async def rows_query(self, query: str, collection: str, variables: Optional[Dict] = None,
                          operation_name: Optional[str] = None, **kwargs: Any):
         """
         Execute a GraphQL query on stored rows.
@@ -724,7 +702,6 @@ class AsyncFlowInstance:
 
         Args:
             query: GraphQL query string
-            user: User identifier
             collection: Collection identifier containing rows
             variables: Optional GraphQL query variables
             operation_name: Optional operation name for multi-operation queries
@@ -750,9 +727,7 @@ class AsyncFlowInstance:
             '''
 
             result = await flow.rows_query(
-                query=query,
-                user="trustgraph",
-                collection="users",
+                query=query,collection="users",
                 variables={"status": "active"}
             )
 
@@ -762,7 +737,6 @@ class AsyncFlowInstance:
         """
         request_data = {
             "query": query,
-            "user": user,
             "collection": collection
         }
         if variables:
@@ -774,7 +748,7 @@ class AsyncFlowInstance:
         return await self.request("rows", request_data)
 
     async def row_embeddings_query(
-        self, text: str, schema_name: str, user: str = "trustgraph",
+        self, text: str, schema_name: str,
         collection: str = "default", index_name: Optional[str] = None,
         limit: int = 10, **kwargs: Any
     ):
@@ -788,7 +762,6 @@ class AsyncFlowInstance:
         Args:
             text: Query text for semantic search
             schema_name: Schema name to search within
-            user: User identifier (default: "trustgraph")
             collection: Collection identifier (default: "default")
             index_name: Optional index name to filter search to specific index
             limit: Maximum number of results to return (default: 10)
@@ -806,9 +779,7 @@ class AsyncFlowInstance:
             # Search for customers by name similarity
             results = await flow.row_embeddings_query(
                 text="John Smith",
-                schema_name="customers",
-                user="trustgraph",
-                collection="sales",
+                schema_name="customers",collection="sales",
                 limit=5
             )
 
@@ -823,7 +794,6 @@ class AsyncFlowInstance:
         request_data = {
             "vector": vector,
             "schema_name": schema_name,
-            "user": user,
             "collection": collection,
             "limit": limit
         }

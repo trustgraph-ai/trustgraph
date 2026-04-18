@@ -11,10 +11,11 @@ import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def set_costs(api_url, model, input_costs, output_costs, token=None):
+def set_costs(api_url, model, input_costs, output_costs, token=None, workspace="default"):
 
-    api = Api(api_url, token=token).config()
+    api = Api(api_url, token=token, workspace=workspace).config()
 
     api.put([
         ConfigValue(
@@ -26,9 +27,9 @@ def set_costs(api_url, model, input_costs, output_costs, token=None):
         ),
     ])
 
-def set_prompt(url, id, prompt, response, schema):
+def set_prompt(url, id, prompt, response, schema, workspace="default"):
 
-    api = Api(url)
+    api = Api(url, workspace=workspace)
 
     values = api.config_get([
         ConfigKey(type="prompt", key="template-index")
@@ -100,6 +101,12 @@ def main():
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     args = parser.parse_args()

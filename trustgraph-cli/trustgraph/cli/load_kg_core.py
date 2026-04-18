@@ -6,20 +6,19 @@ run this utility.
 
 import argparse
 import os
-import tabulate
 from trustgraph.api import Api
-import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_flow = "default"
 default_collection = "default"
 
-def load_kg_core(url, user, id, flow, collection):
+def load_kg_core(url, id, flow, collection, token=None, workspace="default"):
 
-    api = Api(url).knowledge()
+    api = Api(url, token=token, workspace=workspace).knowledge()
 
-    class_names = api.load_kg_core(user = user, id = id, flow=flow,
-                                   collection=collection)
+    api.load_kg_core(id=id, flow=flow, collection=collection)
 
 def main():
 
@@ -35,12 +34,6 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default="trustgraph",
-        help='API URL (default: trustgraph)',
-    )
-
-    parser.add_argument(
         '--id', '--identifier',
         required=True,
         help=f'Knowledge core ID',
@@ -49,13 +42,25 @@ def main():
     parser.add_argument(
         '-f', '--flow-id',
         default=default_flow,
-        help=f'Flow ID (default: {default_flow}',
+        help=f'Flow ID (default: {default_flow})',
     )
 
     parser.add_argument(
         '-C', '--collection',
         default=default_collection,
-        help=f'Collection ID (default: {default_collection}',
+        help=f'Collection ID (default: {default_collection})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     args = parser.parse_args()
@@ -64,10 +69,11 @@ def main():
 
         load_kg_core(
             url=args.api_url,
-            user=args.user,
             id=args.id,
             flow=args.flow_id,
             collection=args.collection,
+            token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

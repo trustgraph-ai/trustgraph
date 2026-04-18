@@ -12,10 +12,11 @@ from trustgraph.api import Api
 from tabulate import tabulate
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
-def format_output(data, output_format):
+def format_output(data, output_format, token=None, workspace="default"):
     """Format GraphQL response data in the specified format"""
     if not data:
         return "No data returned"
@@ -82,10 +83,10 @@ def format_table_data(rows, table_name, output_format):
         return json.dumps({table_name: rows}, indent=2)
 
 def rows_query(
-        url, flow_id, query, user, collection, variables, operation_name, output_format='table'
+        url, flow_id, query, collection, variables, operation_name, output_format='table', token=None, workspace="default"
 ):
 
-    api = Api(url).flow().id(flow_id)
+    api = Api(url, token=token, workspace=workspace).flow().id(flow_id)
 
     # Parse variables if provided as JSON string
     parsed_variables = {}
@@ -98,7 +99,6 @@ def rows_query(
 
     resp = api.rows_query(
         query=query,
-        user=user,
         collection=collection,
         variables=parsed_variables if parsed_variables else None,
         operation_name=operation_name
@@ -135,6 +135,17 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
 
     parser.add_argument(
         '-f', '--flow-id',
@@ -146,12 +157,6 @@ def main():
         '-q', '--query',
         required=True,
         help='GraphQL query to execute',
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
@@ -185,11 +190,13 @@ def main():
             url=args.url,
             flow_id=args.flow_id,
             query=args.query,
-            user=args.user,
             collection=args.collection,
             variables=args.variables,
             operation_name=args.operation_name,
             output_format=args.format,
+            token=args.token,
+            workspace=args.workspace,
+
         )
 
     except Exception as e:

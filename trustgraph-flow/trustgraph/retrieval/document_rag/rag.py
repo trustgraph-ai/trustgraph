@@ -96,19 +96,19 @@ class Processor(FlowProcessor):
         await super(Processor, self).start()
         await self.librarian.start()
 
-    async def fetch_chunk_content(self, chunk_id, user, timeout=120):
+    async def fetch_chunk_content(self, chunk_id, workspace, timeout=120):
         """Fetch chunk content from librarian. Chunks are small so
         single request-response is fine."""
         return await self.librarian.fetch_document_text(
-            document_id=chunk_id, user=user, timeout=timeout,
+            document_id=chunk_id, workspace=workspace, timeout=timeout,
         )
 
-    async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
+    async def save_answer_content(self, doc_id, workspace, content, title=None, timeout=120):
         """Save answer content to the librarian."""
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            user=user,
+            workspace=workspace,
             kind="text/plain",
             title=title or "DocumentRAG Answer",
             document_type="answer",
@@ -119,7 +119,7 @@ class Processor(FlowProcessor):
             document_id=doc_id,
             document_metadata=doc_metadata,
             content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            user=user,
+            workspace=workspace,
         )
 
         await self.librarian.request(request, timeout=timeout)
@@ -150,14 +150,13 @@ class Processor(FlowProcessor):
                 doc_limit = self.doc_limit
 
             # Real-time explainability callback - emits triples and IDs as they're generated
-            # Triples are stored in the user's collection with a named graph (urn:graph:retrieval)
+            # Triples are stored in the request's collection with a named graph (urn:graph:retrieval)
             async def send_explainability(triples, explain_id):
                 # Send triples to explainability queue - stores in same collection with named graph
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=explain_id,
-                        user=v.user,
-                        collection=v.collection,  # Store in user's collection
+                        collection=v.collection,
                     ),
                     triples=triples,
                 ))
@@ -178,7 +177,7 @@ class Processor(FlowProcessor):
             async def save_answer(doc_id, answer_text):
                 await self.save_answer_content(
                     doc_id=doc_id,
-                    user=v.user,
+                    workspace=flow.workspace,
                     content=answer_text,
                     title=f"DocumentRAG Answer: {v.query[:50]}...",
                 )
@@ -202,7 +201,7 @@ class Processor(FlowProcessor):
                 # All chunks (including final one with end_of_stream=True) are sent via callback
                 response, usage = await self.rag.query(
                     v.query,
-                    user=v.user,
+                    workspace=flow.workspace,
                     collection=v.collection,
                     doc_limit=doc_limit,
                     streaming=True,
@@ -227,7 +226,7 @@ class Processor(FlowProcessor):
                 # Non-streaming path - single response with answer and token usage
                 response, usage = await self.rag.query(
                     v.query,
-                    user=v.user,
+                    workspace=flow.workspace,
                     collection=v.collection,
                     doc_limit=doc_limit,
                     explain_callback=send_explainability,

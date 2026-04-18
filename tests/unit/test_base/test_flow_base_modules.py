@@ -40,10 +40,11 @@ def test_flow_initialization_calls_registered_specs():
     spec_two = MagicMock()
     processor = MagicMock(specifications=[spec_one, spec_two])
 
-    flow = Flow("processor-1", "flow-a", processor, {"answer": 42})
+    flow = Flow("processor-1", "flow-a", "default", processor, {"answer": 42})
 
     assert flow.id == "processor-1"
     assert flow.name == "flow-a"
+    assert flow.workspace == "default"
     assert flow.producer == {}
     assert flow.consumer == {}
     assert flow.parameter == {}
@@ -54,7 +55,7 @@ def test_flow_initialization_calls_registered_specs():
 def test_flow_start_and_stop_visit_all_consumers():
     consumer_one = AsyncMock()
     consumer_two = AsyncMock()
-    flow = Flow("processor-1", "flow-a", MagicMock(specifications=[]), {})
+    flow = Flow("processor-1", "flow-a", "default", MagicMock(specifications=[]), {})
     flow.consumer = {"one": consumer_one, "two": consumer_two}
 
     asyncio.run(flow.start())
@@ -67,7 +68,7 @@ def test_flow_start_and_stop_visit_all_consumers():
 
 
 def test_flow_call_returns_values_in_priority_order():
-    flow = Flow("processor-1", "flow-a", MagicMock(specifications=[]), {})
+    flow = Flow("processor-1", "flow-a", "default", MagicMock(specifications=[]), {})
     flow.producer["shared"] = "producer-value"
     flow.consumer["consumer-only"] = "consumer-value"
     flow.consumer["shared"] = "consumer-value"

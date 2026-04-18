@@ -41,10 +41,11 @@ class TestSchemaFieldContracts:
     def test_metadata_fields(self):
         # NOTE: there is no `metadata` field. A previous regression
         # constructed Metadata(metadata=...) and crashed at runtime.
+        # `user` was also dropped in the workspace refactor — workspace
+        # now flows via flow.workspace, not via message payload.
         assert _field_names(Metadata) == {
             "id",
             "root",
-            "user",
             "collection",
         }
 

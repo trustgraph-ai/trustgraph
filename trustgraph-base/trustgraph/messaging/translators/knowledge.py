@@ -21,7 +21,6 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 metadata=Metadata(
                     id=data["triples"]["metadata"]["id"],
                     root=data["triples"]["metadata"].get("root", ""),
-                    user=data["triples"]["metadata"]["user"],
                     collection=data["triples"]["metadata"]["collection"]
                 ),
                 triples=self.subgraph_translator.decode(data["triples"]["triples"]),
@@ -33,7 +32,6 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 metadata=Metadata(
                     id=data["graph-embeddings"]["metadata"]["id"],
                     root=data["graph-embeddings"]["metadata"].get("root", ""),
-                    user=data["graph-embeddings"]["metadata"]["user"],
                     collection=data["graph-embeddings"]["metadata"]["collection"]
                 ),
                 entities=[
@@ -47,7 +45,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
 
         return KnowledgeRequest(
             operation=data.get("operation"),
-            user=data.get("user"),
+            workspace=data.get("workspace", ""),
             id=data.get("id"),
             flow=data.get("flow"),
             collection=data.get("collection"),
@@ -60,8 +58,8 @@ class KnowledgeRequestTranslator(MessageTranslator):
 
         if obj.operation:
             result["operation"] = obj.operation
-        if obj.user:
-            result["user"] = obj.user
+        if obj.workspace:
+            result["workspace"] = obj.workspace
         if obj.id:
             result["id"] = obj.id
         if obj.flow:
@@ -74,7 +72,6 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 "metadata": {
                     "id": obj.triples.metadata.id,
                     "root": obj.triples.metadata.root,
-                    "user": obj.triples.metadata.user,
                     "collection": obj.triples.metadata.collection,
                 },
                 "triples": self.subgraph_translator.encode(obj.triples.triples),
@@ -85,7 +82,6 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 "metadata": {
                     "id": obj.graph_embeddings.metadata.id,
                     "root": obj.graph_embeddings.metadata.root,
-                    "user": obj.graph_embeddings.metadata.user,
                     "collection": obj.graph_embeddings.metadata.collection,
                 },
                 "entities": [
@@ -122,7 +118,6 @@ class KnowledgeResponseTranslator(MessageTranslator):
                     "metadata": {
                         "id": obj.triples.metadata.id,
                         "root": obj.triples.metadata.root,
-                        "user": obj.triples.metadata.user,
                         "collection": obj.triples.metadata.collection,
                     },
                     "triples": self.subgraph_translator.encode(obj.triples.triples),
@@ -136,7 +131,6 @@ class KnowledgeResponseTranslator(MessageTranslator):
                     "metadata": {
                         "id": obj.graph_embeddings.metadata.id,
                         "root": obj.graph_embeddings.metadata.root,
-                        "user": obj.graph_embeddings.metadata.user,
                         "collection": obj.graph_embeddings.metadata.collection,
                     },
                     "entities": [

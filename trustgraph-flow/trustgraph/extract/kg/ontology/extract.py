@@ -109,20 +109,22 @@ class Processor(FlowProcessor):
         # Register config handler for ontology updates
         self.register_config_handler(self.on_ontology_config, types=["ontology"])
 
-        # Shared components (not flow-specific)
-        self.ontology_loader = OntologyLoader()
+        # Per-workspace ontology loaders
+        self.ontology_loaders = {}  # workspace -> OntologyLoader
         self.text_processor = TextProcessor()
 
-        # Per-flow components (each flow gets its own embedder/vector store/selector)
-        self.flow_components = {}  # flow_id -> {embedder, vector_store, selector}
+        # Per-flow components (each flow gets its own embedder/vector
+        # store/selector). Keyed by id(flow) — Flow objects are unique
+        # per (workspace, flow), so this is implicitly workspace-scoped.
+        self.flow_components = {}
 
         # Configuration
         self.top_k = params.get("top_k", 10)
         self.similarity_threshold = params.get("similarity_threshold", 0.3)
 
-        # Track loaded ontology version
-        self.current_ontology_version = None
-        self.loaded_ontology_ids = set()
+        # Per-workspace ontology version tracking
+        self.current_ontology_versions = {}  # workspace -> version
+        self.loaded_ontology_ids = {}  # workspace -> set of ids
 
     async def initialize_flow_components(self, flow):
         """Initialize per-flow OntoRAG components.
@@ -167,17 +169,23 @@ class Processor(FlowProcessor):
                 vector_store=vector_store
             )
 
-            # Embed all loaded ontologies for this flow
-            if self.ontology_loader.get_all_ontologies():
-                logger.info(f"Embedding ontologies for flow {flow_id}")
-                for ont_id, ontology in self.ontology_loader.get_all_ontologies().items():
+            workspace = flow.workspace
+
+            # Embed all loaded ontologies for this workspace
+            loader = self.ontology_loaders.get(workspace)
+            if loader is not None and loader.get_all_ontologies():
+                logger.info(
+                    f"Embedding ontologies for flow {flow_id} "
+                    f"(workspace {workspace})"
+                )
+                for ont_id, ontology in loader.get_all_ontologies().items():
                     await ontology_embedder.embed_ontology(ontology)
                 logger.info(f"Embedded {ontology_embedder.get_embedded_count()} ontology elements for flow {flow_id}")
 
             # Initialize ontology selector
             ontology_selector = OntologySelector(
                 ontology_embedder=ontology_embedder,
-                ontology_loader=self.ontology_loader,
+                ontology_loader=loader,
                 top_k=self.top_k,
                 similarity_threshold=self.similarity_threshold
             )
@@ -187,7 +195,8 @@ class Processor(FlowProcessor):
                 'embedder': ontology_embedder,
                 'vector_store': vector_store,
                 'selector': ontology_selector,
-                'dimension': dimension
+                'dimension': dimension,
+                'workspace': workspace,
             }
 
             logger.info(f"Flow {flow_id} components initialized successfully (dimension={dimension})")
@@ -197,31 +206,27 @@ class Processor(FlowProcessor):
             logger.error(f"Failed to initialize flow {flow_id} components: {e}", exc_info=True)
             raise
 
-    async def on_ontology_config(self, config, version):
-        """
-        Handle ontology configuration updates from ConfigPush queue.
-
-        Parses and stores ontologies. Embedding happens per-flow on first message.
-
-        Called automatically when:
-        - Processor starts (gets full config history via start_of_messages=True)
-        - Config service pushes updates (immediate event-driven notification)
-
-        Args:
-            config: Full configuration map - config[type][key] = value
-            version: Config version number (monotonically increasing)
-        """
+    async def on_ontology_config(self, workspace, config, version):
+        """Handle ontology configuration updates for a workspace."""
         try:
-            logger.info(f"Received ontology config update, version={version}")
+            logger.info(
+                f"Received ontology config update, "
+                f"version={version} workspace={workspace}"
+            )
 
-            # Skip if we've already processed this version
-            if version == self.current_ontology_version:
-                logger.debug(f"Already at version {version}, skipping")
+            # Skip if we've already processed this version for this workspace
+            if version == self.current_ontology_versions.get(workspace):
+                logger.debug(
+                    f"Already at version {version} for {workspace}, "
+                    f"skipping"
+                )
                 return
 
             # Extract ontology configurations
             if "ontology" not in config:
-                logger.warning("No 'ontology' section in config")
+                logger.warning(
+                    f"No 'ontology' section in config for {workspace}"
+                )
                 return
 
             ontology_configs = config["ontology"]
@@ -235,37 +240,64 @@ class Processor(FlowProcessor):
                     logger.error(f"Failed to parse ontology '{ont_id}': {e}")
                     continue
 
-            logger.info(f"Loaded {len(ontologies)} ontology definitions")
+            logger.info(
+                f"Loaded {len(ontologies)} ontology definitions "
+                f"for {workspace}"
+            )
 
-            # Determine what changed (for incremental updates)
+            # Determine what changed for this workspace
+            ws_loaded_ids = self.loaded_ontology_ids.get(workspace, set())
             new_ids = set(ontologies.keys())
-            added_ids = new_ids - self.loaded_ontology_ids
-            removed_ids = self.loaded_ontology_ids - new_ids
-            updated_ids = new_ids & self.loaded_ontology_ids  # May have changed content
+            added_ids = new_ids - ws_loaded_ids
+            removed_ids = ws_loaded_ids - new_ids
+            updated_ids = new_ids & ws_loaded_ids  # May have changed content
 
             if added_ids:
-                logger.info(f"New ontologies: {added_ids}")
+                logger.info(f"New ontologies in {workspace}: {added_ids}")
             if removed_ids:
-                logger.info(f"Removed ontologies: {removed_ids}")
+                logger.info(f"Removed ontologies in {workspace}: {removed_ids}")
             if updated_ids:
-                logger.info(f"Updated ontologies: {updated_ids}")
+                logger.info(f"Updated ontologies in {workspace}: {updated_ids}")
 
-            # Update ontology loader's internal state
-            self.ontology_loader.update_ontologies(ontologies)
+            # Get or create per-workspace loader
+            loader = self.ontology_loaders.get(workspace)
+            if loader is None:
+                loader = OntologyLoader()
+                self.ontology_loaders[workspace] = loader
+            loader.update_ontologies(ontologies)
 
-            # Clear all flow components to force re-embedding with new ontologies
+            # Clear flow components for this workspace to force
+            # re-embedding with new ontologies.
             if added_ids or removed_ids or updated_ids:
-                logger.info("Clearing flow components to trigger re-embedding")
-                self.flow_components.clear()
+                self._clear_workspace_flow_components(workspace)
 
             # Update tracking
-            self.current_ontology_version = version
-            self.loaded_ontology_ids = new_ids
+            self.current_ontology_versions[workspace] = version
+            self.loaded_ontology_ids[workspace] = new_ids
 
-            logger.info(f"Ontology config update complete, version={version}")
+            logger.info(
+                f"Ontology config update complete for {workspace}, "
+                f"version={version}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to process ontology config: {e}", exc_info=True)
+
+    def _clear_workspace_flow_components(self, workspace):
+        """Drop cached flow components belonging to the given workspace
+        so they're re-initialised on next message with fresh ontology
+        embeddings."""
+        to_remove = [
+            fid for fid, comp in self.flow_components.items()
+            if comp.get("workspace") == workspace
+        ]
+        if to_remove:
+            logger.info(
+                f"Clearing {len(to_remove)} flow components for "
+                f"workspace {workspace}"
+            )
+        for fid in to_remove:
+            del self.flow_components[fid]
 
     async def on_message(self, msg, consumer, flow):
         """Process incoming chunk message."""
@@ -624,7 +656,6 @@ class Processor(FlowProcessor):
             metadata=Metadata(
                 id=metadata.id,
                 root=metadata.root,
-                user=metadata.user,
                 collection=metadata.collection,
             ),
             triples=triples,
@@ -637,7 +668,6 @@ class Processor(FlowProcessor):
             metadata=Metadata(
                 id=metadata.id,
                 root=metadata.root,
-                user=metadata.user,
                 collection=metadata.collection,
             ),
             entities=entities,

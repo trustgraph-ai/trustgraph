@@ -45,12 +45,9 @@ class TestGetGraphEmbeddings:
         with `vector=` (singular) — the schema field name. A previous
         version used `vectors=` and TypeError'd at runtime.
         """
-        # Arrange — fake row matching the get_triples_stmt result shape:
-        #   row[0..2] are unused by the method, row[3] is the entities blob
         fake_row = (
             None, None, None,
             [
-                # ((value, is_uri), vector)
                 (("http://example.org/alice", True), [0.1, 0.2, 0.3]),
                 (("http://example.org/bob", True), [0.4, 0.5, 0.6]),
                 (("a literal entity", False), [0.7, 0.8, 0.9]),
@@ -67,14 +64,8 @@ class TestGetGraphEmbeddings:
         async def receiver(msg):
             received.append(msg)
 
-        # Act
-        await store.get_graph_embeddings(
-            user="alice",
-            document_id="doc-1",
-            receiver=receiver,
-        )
+        await store.get_graph_embeddings("alice", "doc-1", receiver)
 
-        # Assert
         mock_async_execute.assert_called_once_with(
             store.cassandra,
             store.get_graph_embeddings_stmt,
@@ -86,7 +77,6 @@ class TestGetGraphEmbeddings:
         assert isinstance(ge, GraphEmbeddings)
         assert isinstance(ge.metadata, Metadata)
         assert ge.metadata.id == "doc-1"
-        assert ge.metadata.user == "alice"
 
         assert len(ge.entities) == 3
         assert all(isinstance(e, EntityEmbeddings) for e in ge.entities)
@@ -122,7 +112,7 @@ class TestGetGraphEmbeddings:
         async def receiver(msg):
             received.append(msg)
 
-        await store.get_graph_embeddings("u", "d", receiver)
+        await store.get_graph_embeddings("w", "d", receiver)
 
         assert len(received) == 1
         assert received[0].entities == []
@@ -149,7 +139,7 @@ class TestGetGraphEmbeddings:
         async def receiver(msg):
             received.append(msg)
 
-        await store.get_graph_embeddings("u", "d", receiver)
+        await store.get_graph_embeddings("w", "d", receiver)
 
         assert len(received) == 2
         assert received[0].entities[0].entity.iri == "http://example.org/a"
@@ -194,7 +184,6 @@ class TestGetTriples:
         assert isinstance(triples_msg, Triples)
         assert isinstance(triples_msg.metadata, Metadata)
         assert triples_msg.metadata.id == "doc-1"
-        assert triples_msg.metadata.user == "alice"
 
         assert len(triples_msg.triples) == 1
         t = triples_msg.triples[0]

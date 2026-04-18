@@ -16,7 +16,7 @@ class CoreExport:
     async def process(self, data, error, ok, request):
 
         id = request.query["id"]
-        user = request.query["user"]
+        workspace = request.query.get("workspace", "default")
 
         response = await ok()
 
@@ -41,7 +41,6 @@ class CoreExport:
                         {
                             "m": {
                                 "i": data["metadata"]["id"],
-                                "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },
                             "e": [
@@ -65,7 +64,6 @@ class CoreExport:
                         {
                             "m": {
                                 "i": data["metadata"]["id"],
-                                "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },
                             "t": data["triples"],
@@ -78,7 +76,7 @@ class CoreExport:
             await kr.process(
                 {
                     "operation": "get-kg-core",
-                    "user": user,
+                    "workspace": workspace,
                     "id": id,
                 },
                 responder
