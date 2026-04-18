@@ -119,9 +119,7 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
-        await self.pubsub.ensure_queue(
-            self.knowledge_request_topic, self.knowledge_request_subscriber
-        )
+        await self.pubsub.ensure_topic(self.knowledge_request_topic)
         await super(Processor, self).start()
         await self.knowledge_request_consumer.start()
         await self.knowledge_response_producer.start()

@@ -17,6 +17,12 @@ DEFAULT_RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME", 'guest')
 DEFAULT_RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", 'guest')
 DEFAULT_RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST", '/')
 
+DEFAULT_KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", 'kafka:9092')
+DEFAULT_KAFKA_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", 'PLAINTEXT')
+DEFAULT_KAFKA_SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", None)
+DEFAULT_KAFKA_SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
+DEFAULT_KAFKA_SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
+
 
 def get_pubsub(**config: Any) -> Any:
     """
@@ -47,6 +53,25 @@ def get_pubsub(**config: Any) -> Any:
             password=config.get('rabbitmq_password', DEFAULT_RABBITMQ_PASSWORD),
             vhost=config.get('rabbitmq_vhost', DEFAULT_RABBITMQ_VHOST),
         )
+    elif backend_type == 'kafka':
+        from .kafka_backend import KafkaBackend
+        return KafkaBackend(
+            bootstrap_servers=config.get(
+                'kafka_bootstrap_servers', DEFAULT_KAFKA_BOOTSTRAP,
+            ),
+            security_protocol=config.get(
+                'kafka_security_protocol', DEFAULT_KAFKA_PROTOCOL,
+            ),
+            sasl_mechanism=config.get(
+                'kafka_sasl_mechanism', DEFAULT_KAFKA_SASL_MECHANISM,
+            ),
+            sasl_username=config.get(
+                'kafka_sasl_username', DEFAULT_KAFKA_SASL_USERNAME,
+            ),
+            sasl_password=config.get(
+                'kafka_sasl_password', DEFAULT_KAFKA_SASL_PASSWORD,
+            ),
+        )
     else:
         raise ValueError(f"Unknown pub/sub backend: {backend_type}")
 
@@ -65,6 +90,7 @@ def add_pubsub_args(parser: ArgumentParser, standalone: bool = False) -> None:
     pulsar_host = STANDALONE_PULSAR_HOST if standalone else DEFAULT_PULSAR_HOST
     pulsar_listener = 'localhost' if standalone else None
     rabbitmq_host = 'localhost' if standalone else DEFAULT_RABBITMQ_HOST
+    kafka_bootstrap = 'localhost:9092' if standalone else DEFAULT_KAFKA_BOOTSTRAP
 
     parser.add_argument(
         '--pubsub-backend',
@@ -121,4 +147,35 @@ def add_pubsub_args(parser: ArgumentParser, standalone: bool = False) -> None:
         '--rabbitmq-vhost',
         default=DEFAULT_RABBITMQ_VHOST,
         help=f'RabbitMQ vhost (default: {DEFAULT_RABBITMQ_VHOST})',
+    )
+
+    # Kafka options
+    parser.add_argument(
+        '--kafka-bootstrap-servers',
+        default=kafka_bootstrap,
+        help=f'Kafka bootstrap servers (default: {kafka_bootstrap})',
+    )
+
+    parser.add_argument(
+        '--kafka-security-protocol',
+        default=DEFAULT_KAFKA_PROTOCOL,
+        help=f'Kafka security protocol (default: {DEFAULT_KAFKA_PROTOCOL})',
+    )
+
+    parser.add_argument(
+        '--kafka-sasl-mechanism',
+        default=DEFAULT_KAFKA_SASL_MECHANISM,
+        help='Kafka SASL mechanism',
+    )
+
+    parser.add_argument(
+        '--kafka-sasl-username',
+        default=DEFAULT_KAFKA_SASL_USERNAME,
+        help='Kafka SASL username',
+    )
+
+    parser.add_argument(
+        '--kafka-sasl-password',
+        default=DEFAULT_KAFKA_SASL_PASSWORD,
+        help='Kafka SASL password',
     )

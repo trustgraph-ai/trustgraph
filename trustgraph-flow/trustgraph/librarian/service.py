@@ -263,12 +263,8 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
-        await self.pubsub.ensure_queue(
-            self.librarian_request_topic, self.librarian_request_subscriber
-        )
-        await self.pubsub.ensure_queue(
-            self.collection_request_topic, self.collection_request_subscriber
-        )
+        await self.pubsub.ensure_topic(self.librarian_request_topic)
+        await self.pubsub.ensure_topic(self.collection_request_topic)
         await super(Processor, self).start()
         await self.librarian_request_consumer.start()
         await self.librarian_response_producer.start()

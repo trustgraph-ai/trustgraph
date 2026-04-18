@@ -101,11 +101,9 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
-        await self.pubsub.ensure_queue(
-            self.flow_request_topic, self.flow_request_subscriber
-        )
+        await self.pubsub.ensure_topic(self.flow_request_topic)
         await self.config_client.start()
-        await self.flow.ensure_existing_flow_queues()
+        await self.flow.ensure_existing_flow_topics()
         await self.flow_request_consumer.start()
 
     async def on_flow_request(self, msg, consumer, flow):
