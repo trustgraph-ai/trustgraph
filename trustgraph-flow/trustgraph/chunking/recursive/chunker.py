@@ -10,6 +10,8 @@ from prometheus_client import Histogram
 from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
 
+RecursiveCharacterTextSplitter = None
+
 from ... provenance import (
     chunk_uri as make_chunk_uri, derived_entity_triples,
     set_graph, GRAPH_SOURCE,
@@ -41,8 +43,12 @@ class Processor(ChunkingService):
         self.default_chunk_size = chunk_size
         self.default_chunk_overlap = chunk_overlap
 
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
-        self.RecursiveCharacterTextSplitter = RecursiveCharacterTextSplitter
+        global RecursiveCharacterTextSplitter
+        if RecursiveCharacterTextSplitter is None:
+            from langchain_text_splitters import (
+                RecursiveCharacterTextSplitter as _cls,
+            )
+            RecursiveCharacterTextSplitter = _cls
 
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
@@ -52,7 +58,7 @@ class Processor(ChunkingService):
                          2500, 4000, 6400, 10000, 16000]
             )
 
-        self.text_splitter = self.RecursiveCharacterTextSplitter(
+        self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
@@ -105,7 +111,7 @@ class Processor(ChunkingService):
             chunk_overlap = int(chunk_overlap)
 
         # Create text splitter with effective parameters
-        text_splitter = self.RecursiveCharacterTextSplitter(
+        text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,

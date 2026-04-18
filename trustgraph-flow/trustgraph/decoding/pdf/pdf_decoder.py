@@ -15,6 +15,9 @@ from ... schema import Document, TextDocument, Metadata
 from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianClient
+
+PyPDFLoader = None
+
 from ... provenance import (
     document_uri, page_uri as make_page_uri, derived_entity_triples,
     set_graph, GRAPH_SOURCE,
@@ -128,7 +131,12 @@ class Processor(FlowProcessor):
                 fp.write(base64.b64decode(v.data))
                 fp.close()
 
-            from langchain_community.document_loaders import PyPDFLoader
+            global PyPDFLoader
+            if PyPDFLoader is None:
+                from langchain_community.document_loaders import (
+                    PyPDFLoader as _cls,
+                )
+                PyPDFLoader = _cls
             loader = PyPDFLoader(temp_path)
             pages = loader.load()
 
