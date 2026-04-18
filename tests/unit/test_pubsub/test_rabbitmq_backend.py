@@ -6,8 +6,6 @@ Does not require a running RabbitMQ instance.
 import pytest
 import argparse
 
-pika = pytest.importorskip("pika", reason="pika not installed")
-
 from trustgraph.base.rabbitmq_backend import RabbitMQBackend
 from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
 

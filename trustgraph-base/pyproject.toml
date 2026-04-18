@@ -15,6 +15,7 @@ dependencies = [
     "requests",
     "python-logging-loki",
     "pika",
+    "confluent-kafka",
     "pyyaml",
 ]
 classifiers = [
