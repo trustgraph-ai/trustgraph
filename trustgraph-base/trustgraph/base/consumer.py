@@ -54,6 +54,17 @@ class Consumer:
         self.running = True
         self.consumer_task = None
 
+        # Kafka topics are created with 1 partition, so multiple
+        # consumers in the same group causes rebalance storms where
+        # no consumer can fetch. Cap to the backend's limit.
+        max_concurrency = getattr(backend, 'max_consumer_concurrency', None)
+        if max_concurrency is not None and concurrency > max_concurrency:
+            logger.info(
+                f"Capping concurrency from {concurrency} to "
+                f"{max_concurrency} (backend limit)"
+            )
+            concurrency = max_concurrency
+
         self.concurrency = concurrency
 
         self.metrics = metrics
