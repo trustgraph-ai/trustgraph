@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from unittest import IsolatedAsyncioTestCase
 
-from trustgraph.exceptions import TooManyRequests
+from trustgraph.exceptions import TooManyRequests, LlmError
 
 
 class TestAzureServerless429(IsolatedAsyncioTestCase):
@@ -77,6 +77,24 @@ class TestOpenAIRateLimit(IsolatedAsyncioTestCase):
         with pytest.raises(TooManyRequests):
             await proc.generate_content("sys", "prompt")
 
+    @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
+    @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
+    async def test_503_raises_llm_error(self, _llm, _async, mock_cls):
+        from openai import InternalServerError
+        from trustgraph.model.text_completion.openai.llm import Processor
+        mock_client = MagicMock()
+        mock_cls.return_value = mock_client
+        proc = Processor(
+            api_key="k", concurrency=1, taskgroup=AsyncMock(), id="t",
+        )
+        mock_client.chat.completions.create.side_effect = InternalServerError(
+            "service unavailable", response=MagicMock(), body=None
+        )
+
+        with pytest.raises(LlmError):
+            await proc.generate_content("sys", "prompt")
+
 
 class TestClaudeRateLimit(IsolatedAsyncioTestCase):
     """Claude/Anthropic: anthropic.RateLimitError → TooManyRequests"""
@@ -103,30 +121,118 @@ class TestClaudeRateLimit(IsolatedAsyncioTestCase):
             await proc.generate_content("sys", "prompt")
 
 
+class TestMistralRateLimit(IsolatedAsyncioTestCase):
+    """Mistral: models.SDKError (429/503) → TooManyRequests/LlmError"""
+
+    @patch('trustgraph.model.text_completion.mistral.llm.Mistral')
+    @patch('trustgraph.model.text_completion.mistral.llm.models')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
+    @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
+    async def test_429_raises_too_many_requests(self, _llm, _async, mock_models, mock_cls):
+        from trustgraph.model.text_completion.mistral.llm import Processor
+        mock_client = MagicMock()
+        mock_cls.return_value = mock_client
+        proc = Processor(
+            api_key="k", concurrency=1, taskgroup=AsyncMock(), id="t",
+        )
+        
+        # Define a mock exception class
+        mock_models.SDKError = type("SDKError", (Exception,), {"status_code": 429})
+        mock_client.chat.complete.side_effect = mock_models.SDKError()
+
+        with pytest.raises(TooManyRequests):
+            await proc.generate_content("sys", "prompt")
+
+    @patch('trustgraph.model.text_completion.mistral.llm.Mistral')
+    @patch('trustgraph.model.text_completion.mistral.llm.models')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
+    @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
+    async def test_503_raises_llm_error(self, _llm, _async, mock_models, mock_cls):
+        from trustgraph.model.text_completion.mistral.llm import Processor
+        mock_client = MagicMock()
+        mock_cls.return_value = mock_client
+        proc = Processor(
+            api_key="k", concurrency=1, taskgroup=AsyncMock(), id="t",
+        )
+        
+        mock_models.SDKError = type("SDKError", (Exception,), {"status_code": 503})
+        mock_client.chat.complete.side_effect = mock_models.SDKError()
+
+        with pytest.raises(LlmError):
+            await proc.generate_content("sys", "prompt")
+
+
 class TestCohereRateLimit(IsolatedAsyncioTestCase):
-    """Cohere: cohere.TooManyRequestsError → TooManyRequests"""
+    """Cohere: cohere.errors (429/503) → TooManyRequests/LlmError"""
 
     @patch('trustgraph.model.text_completion.cohere.llm.cohere')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
     @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
     async def test_rate_limit_error_raises_too_many_requests(self, _llm, _async, mock_cohere):
         from trustgraph.model.text_completion.cohere.llm import Processor
-
+        import trustgraph.model.text_completion.cohere.llm as cohere_llm
+        
         mock_client = MagicMock()
         mock_cohere.Client.return_value = mock_client
-
         proc = Processor(
             api_key="k", concurrency=1, taskgroup=AsyncMock(), id="t",
         )
+        
+        ErrorCls = type("TooManyRequestsError", (Exception,), {})
+        with patch.object(cohere_llm, 'TooManyRequestsError', ErrorCls):
+            mock_client.chat.side_effect = ErrorCls()
+            with pytest.raises(TooManyRequests):
+                await proc.generate_content("sys", "prompt")
 
-        mock_cohere.TooManyRequestsError = type(
-            "TooManyRequestsError", (Exception,), {}
+    @patch('trustgraph.model.text_completion.cohere.llm.cohere')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
+    @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
+    async def test_503_raises_llm_error(self, _llm, _async, mock_cohere):
+        from trustgraph.model.text_completion.cohere.llm import Processor
+        import trustgraph.model.text_completion.cohere.llm as cohere_llm
+        
+        mock_client = MagicMock()
+        mock_cohere.Client.return_value = mock_client
+        proc = Processor(
+            api_key="k", concurrency=1, taskgroup=AsyncMock(), id="t",
         )
-        mock_client.chat.side_effect = mock_cohere.TooManyRequestsError(
-            "rate limited"
-        )
+        
+        ErrorCls = type("ServiceUnavailableError", (Exception,), {})
+        with patch.object(cohere_llm, 'ServiceUnavailableError', ErrorCls):
+            mock_client.chat.side_effect = ErrorCls()
+            with pytest.raises(LlmError):
+                await proc.generate_content("sys", "prompt")
+
+
+class TestVllmRateLimit(IsolatedAsyncioTestCase):
+    """vLLM: HTTP 429/503 → TooManyRequests/LlmError"""
+
+    @patch('trustgraph.model.text_completion.vllm.llm.aiohttp.ClientSession')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
+    @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
+    async def test_429_raises_too_many_requests(self, _llm, _async, mock_session):
+        from trustgraph.model.text_completion.vllm.llm import Processor
+        proc = Processor(concurrency=1, taskgroup=AsyncMock(), id="t")
+        
+        mock_resp = AsyncMock()
+        mock_resp.status = 429
+        mock_session.return_value.post.return_value.__aenter__.return_value = mock_resp
 
         with pytest.raises(TooManyRequests):
+            await proc.generate_content("sys", "prompt")
+
+    @patch('trustgraph.model.text_completion.vllm.llm.aiohttp.ClientSession')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
+    @patch('trustgraph.base.llm_service.LlmService.__init__', return_value=None)
+    async def test_503_raises_llm_error(self, _llm, _async, mock_session):
+        from trustgraph.model.text_completion.vllm.llm import Processor
+        proc = Processor(concurrency=1, taskgroup=AsyncMock(), id="t")
+        
+        mock_resp = AsyncMock()
+        mock_resp.status = 503
+        mock_session.return_value.post.return_value.__aenter__.return_value = mock_resp
+
+        with pytest.raises(LlmError):
             await proc.generate_content("sys", "prompt")
 
 

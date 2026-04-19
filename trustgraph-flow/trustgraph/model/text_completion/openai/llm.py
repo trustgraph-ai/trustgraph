@@ -4,11 +4,11 @@ Simple LLM service, performs text prompt completion using OpenAI.
 Input is prompt, output is response.
 """
 
-from openai import OpenAI, RateLimitError
+from openai import OpenAI, RateLimitError, InternalServerError
 import os
 import logging
 
-from .... exceptions import TooManyRequests
+from .... exceptions import TooManyRequests, LlmError
 from .... base import LlmService, LlmResult, LlmChunk
 
 # Module logger
@@ -104,12 +104,13 @@ class Processor(LlmService):
 
             return resp
 
-        # FIXME: Wrong exception, don't know what this LLM throws
-        # for a rate limit
         except RateLimitError:
-
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
+
+        except InternalServerError:
+            # Treat 503 as a retryable LlmError
+            raise LlmError()
 
         except Exception as e:
 
@@ -190,6 +191,10 @@ class Processor(LlmService):
         except RateLimitError:
             logger.warning("Hit rate limit during streaming")
             raise TooManyRequests()
+
+        except InternalServerError:
+            logger.warning("Hit internal server error during streaming")
+            raise LlmError()
 
         except Exception as e:
             logger.error(f"OpenAI streaming exception ({type(e).__name__}): {e}", exc_info=True)
