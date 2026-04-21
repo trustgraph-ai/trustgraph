@@ -326,7 +326,15 @@ class RabbitMQBackend:
             port=port,
             virtual_host=vhost,
             credentials=pika.PlainCredentials(username, password),
-            heartbeat=0,
+            # Heartbeats let us detect silently-dead connections
+            # (broker restarts, network partitions, orphaned channels)
+            # within ~2×interval.  Consumer threads drive pika's I/O
+            # loop every 100ms via process_data_events() in receive(),
+            # so heartbeat frames get pumped automatically.  Producers
+            # reconnect lazily on the next publish if their connection
+            # has been aged out by the broker.
+            heartbeat=60,
+            blocked_connection_timeout=300,
         )
         logger.info(f"RabbitMQ backend: {host}:{port} vhost={vhost}")
 
