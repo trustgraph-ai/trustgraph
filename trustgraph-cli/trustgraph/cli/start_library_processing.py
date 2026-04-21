@@ -4,19 +4,18 @@ Submits a library document for processing
 
 import argparse
 import os
-import tabulate
-from trustgraph.api import Api, ConfigKey
-import json
+from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = "trustgraph"
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def start_processing(
-        url, user, document_id, id, flow, collection, tags, token=None
+        url, document_id, id, flow, collection, tags,
+        token=None, workspace="default",
 ):
 
-    api = Api(url, token=token).library()
+    api = Api(url, token=token, workspace=workspace).library()
 
     if tags:
         tags = tags.split(",")
@@ -27,9 +26,8 @@ def start_processing(
         id = id,
         document_id = document_id,
         flow = flow,
-        user = user,
         collection = collection,
-        tags = tags
+        tags = tags,
     )
 
 def main():
@@ -52,9 +50,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -91,14 +89,14 @@ def main():
     try:
 
         start_processing(
-            url = args.api_url,
-            user = args.user,
-            document_id = args.document_id,
-            id = args.id,
-            flow = args.flow_id,
-            collection = args.collection,
-            tags = args.tags,
-            token = args.token,
+            url=args.api_url,
+            document_id=args.document_id,
+            id=args.id,
+            flow=args.flow_id,
+            collection=args.collection,
+            tags=args.tags,
+            token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

@@ -28,7 +28,6 @@ def sample_text_document():
     """Sample document with moderate length text."""
     metadata = Metadata(
         id="test-doc-1",
-        user="test-user",
         collection="test-collection"
     )
     text = "The quick brown fox jumps over the lazy dog. " * 20
@@ -43,7 +42,6 @@ def long_text_document():
     """Long document for testing multiple chunks."""
     metadata = Metadata(
         id="test-doc-long",
-        user="test-user",
         collection="test-collection"
     )
     # Create a long text that will definitely be chunked
@@ -59,7 +57,6 @@ def unicode_text_document():
     """Document with various unicode characters."""
     metadata = Metadata(
         id="test-doc-unicode",
-        user="test-user",
         collection="test-collection"
     )
     text = """
@@ -84,7 +81,6 @@ def empty_text_document():
     """Empty document for edge case testing."""
     metadata = Metadata(
         id="test-doc-empty",
-        user="test-user",
         collection="test-collection"
     )
     return TextDocument(

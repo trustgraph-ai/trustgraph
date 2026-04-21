@@ -12,7 +12,6 @@ class SparqlQueryRequestTranslator(MessageTranslator):
 
     def decode(self, data: Dict[str, Any]) -> SparqlQueryRequest:
         return SparqlQueryRequest(
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             query=data.get("query", ""),
             limit=int(data.get("limit", 10000)),
@@ -22,7 +21,6 @@ class SparqlQueryRequestTranslator(MessageTranslator):
 
     def encode(self, obj: SparqlQueryRequest) -> Dict[str, Any]:
         return {
-            "user": obj.user,
             "collection": obj.collection,
             "query": obj.query,
             "limit": obj.limit,

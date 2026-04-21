@@ -30,14 +30,14 @@ class EvaluationError(Exception):
     pass
 
 
-async def evaluate(node, triples_client, user, collection, limit=10000):
+async def evaluate(node, triples_client, workspace, collection, limit=10000):
     """
     Evaluate a SPARQL algebra node.
 
     Args:
         node: rdflib CompValue algebra node
         triples_client: TriplesClient instance for triple pattern queries
-        user: user/keyspace identifier
+        workspace: workspace/keyspace identifier
         collection: collection identifier
         limit: safety limit on results
 
@@ -55,24 +55,24 @@ async def evaluate(node, triples_client, user, collection, limit=10000):
         logger.warning(f"Unsupported algebra node: {name}")
         return [{}]
 
-    return await handler(node, triples_client, user, collection, limit)
+    return await handler(node, triples_client, workspace, collection, limit)
 
 
 # --- Node handlers ---
 
-async def _eval_select_query(node, tc, user, collection, limit):
+async def _eval_select_query(node, tc, workspace, collection, limit):
     """Evaluate a SelectQuery node."""
-    return await evaluate(node.p, tc, user, collection, limit)
+    return await evaluate(node.p, tc, workspace, collection, limit)
 
 
-async def _eval_project(node, tc, user, collection, limit):
+async def _eval_project(node, tc, workspace, collection, limit):
     """Evaluate a Project node (SELECT variable projection)."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
     variables = [str(v) for v in node.PV]
     return project(solutions, variables)
 
 
-async def _eval_bgp(node, tc, user, collection, limit):
+async def _eval_bgp(node, tc, workspace, collection, limit):
     """
     Evaluate a Basic Graph Pattern.
 
@@ -107,7 +107,7 @@ async def _eval_bgp(node, tc, user, collection, limit):
 
             # Query the triples store
             results = await _query_pattern(
-                tc, s_val, p_val, o_val, user, collection, limit
+                tc, s_val, p_val, o_val, workspace, collection, limit
             )
 
             # Map results back to variable bindings,
@@ -130,17 +130,17 @@ async def _eval_bgp(node, tc, user, collection, limit):
     return solutions[:limit]
 
 
-async def _eval_join(node, tc, user, collection, limit):
+async def _eval_join(node, tc, workspace, collection, limit):
     """Evaluate a Join node."""
-    left = await evaluate(node.p1, tc, user, collection, limit)
-    right = await evaluate(node.p2, tc, user, collection, limit)
+    left = await evaluate(node.p1, tc, workspace, collection, limit)
+    right = await evaluate(node.p2, tc, workspace, collection, limit)
     return hash_join(left, right)[:limit]
 
 
-async def _eval_left_join(node, tc, user, collection, limit):
+async def _eval_left_join(node, tc, workspace, collection, limit):
     """Evaluate a LeftJoin node (OPTIONAL)."""
-    left_sols = await evaluate(node.p1, tc, user, collection, limit)
-    right_sols = await evaluate(node.p2, tc, user, collection, limit)
+    left_sols = await evaluate(node.p1, tc, workspace, collection, limit)
+    right_sols = await evaluate(node.p2, tc, workspace, collection, limit)
 
     filter_fn = None
     if hasattr(node, "expr") and node.expr is not None:
@@ -153,16 +153,16 @@ async def _eval_left_join(node, tc, user, collection, limit):
     return left_join(left_sols, right_sols, filter_fn)[:limit]
 
 
-async def _eval_union(node, tc, user, collection, limit):
+async def _eval_union(node, tc, workspace, collection, limit):
     """Evaluate a Union node."""
-    left = await evaluate(node.p1, tc, user, collection, limit)
-    right = await evaluate(node.p2, tc, user, collection, limit)
+    left = await evaluate(node.p1, tc, workspace, collection, limit)
+    right = await evaluate(node.p2, tc, workspace, collection, limit)
     return union(left, right)[:limit]
 
 
-async def _eval_filter(node, tc, user, collection, limit):
+async def _eval_filter(node, tc, workspace, collection, limit):
     """Evaluate a Filter node."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
     expr = node.expr
     return [
         sol for sol in solutions
@@ -170,22 +170,22 @@ async def _eval_filter(node, tc, user, collection, limit):
     ]
 
 
-async def _eval_distinct(node, tc, user, collection, limit):
+async def _eval_distinct(node, tc, workspace, collection, limit):
     """Evaluate a Distinct node."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
     return distinct(solutions)
 
 
-async def _eval_reduced(node, tc, user, collection, limit):
+async def _eval_reduced(node, tc, workspace, collection, limit):
     """Evaluate a Reduced node (like Distinct but implementation-defined)."""
     # Treat same as Distinct
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
     return distinct(solutions)
 
 
-async def _eval_order_by(node, tc, user, collection, limit):
+async def _eval_order_by(node, tc, workspace, collection, limit):
     """Evaluate an OrderBy node."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
 
     key_fns = []
     for cond in node.expr:
@@ -206,7 +206,7 @@ async def _eval_order_by(node, tc, user, collection, limit):
     return order_by(solutions, key_fns)
 
 
-async def _eval_slice(node, tc, user, collection, limit):
+async def _eval_slice(node, tc, workspace, collection, limit):
     """Evaluate a Slice node (LIMIT/OFFSET)."""
     # Pass tighter limit downstream if possible
     inner_limit = limit
@@ -214,13 +214,13 @@ async def _eval_slice(node, tc, user, collection, limit):
         offset = node.start or 0
         inner_limit = min(limit, offset + node.length)
 
-    solutions = await evaluate(node.p, tc, user, collection, inner_limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, inner_limit)
     return slice_solutions(solutions, node.start or 0, node.length)
 
 
-async def _eval_extend(node, tc, user, collection, limit):
+async def _eval_extend(node, tc, workspace, collection, limit):
     """Evaluate an Extend node (BIND)."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
     var_name = str(node.var)
     expr = node.expr
 
@@ -246,9 +246,9 @@ async def _eval_extend(node, tc, user, collection, limit):
     return result
 
 
-async def _eval_group(node, tc, user, collection, limit):
+async def _eval_group(node, tc, workspace, collection, limit):
     """Evaluate a Group node (GROUP BY with aggregation)."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
 
     # Extract grouping expressions
     group_exprs = []
@@ -289,9 +289,9 @@ async def _eval_group(node, tc, user, collection, limit):
     return result
 
 
-async def _eval_aggregate_join(node, tc, user, collection, limit):
+async def _eval_aggregate_join(node, tc, workspace, collection, limit):
     """Evaluate an AggregateJoin (aggregation functions after GROUP BY)."""
-    solutions = await evaluate(node.p, tc, user, collection, limit)
+    solutions = await evaluate(node.p, tc, workspace, collection, limit)
 
     result = []
     for sol in solutions:
@@ -310,7 +310,7 @@ async def _eval_aggregate_join(node, tc, user, collection, limit):
     return result
 
 
-async def _eval_graph(node, tc, user, collection, limit):
+async def _eval_graph(node, tc, workspace, collection, limit):
     """Evaluate a Graph node (GRAPH clause)."""
     term = node.term
 
@@ -319,16 +319,16 @@ async def _eval_graph(node, tc, user, collection, limit):
         # We'd need to pass graph to triples queries
         # For now, evaluate inner pattern normally
         logger.info(f"GRAPH <{term}> clause - graph filtering not yet wired")
-        return await evaluate(node.p, tc, user, collection, limit)
+        return await evaluate(node.p, tc, workspace, collection, limit)
     elif isinstance(term, Variable):
         # GRAPH ?g { ... } — variable graph
         logger.info(f"GRAPH ?{term} clause - variable graph not yet wired")
-        return await evaluate(node.p, tc, user, collection, limit)
+        return await evaluate(node.p, tc, workspace, collection, limit)
     else:
-        return await evaluate(node.p, tc, user, collection, limit)
+        return await evaluate(node.p, tc, workspace, collection, limit)
 
 
-async def _eval_values(node, tc, user, collection, limit):
+async def _eval_values(node, tc, workspace, collection, limit):
     """Evaluate a VALUES clause (inline data)."""
     variables = [str(v) for v in node.var]
     solutions = []
@@ -343,9 +343,9 @@ async def _eval_values(node, tc, user, collection, limit):
     return solutions
 
 
-async def _eval_to_multiset(node, tc, user, collection, limit):
+async def _eval_to_multiset(node, tc, workspace, collection, limit):
     """Evaluate a ToMultiSet node (subquery)."""
-    return await evaluate(node.p, tc, user, collection, limit)
+    return await evaluate(node.p, tc, workspace, collection, limit)
 
 
 # --- Aggregate computation ---
@@ -487,7 +487,7 @@ def _resolve_term(tmpl, solution):
         return rdflib_term_to_term(tmpl)
 
 
-async def _query_pattern(tc, s, p, o, user, collection, limit):
+async def _query_pattern(tc, s, p, o, workspace, collection, limit):
     """
     Issue a streaming triple pattern query via TriplesClient.
 
@@ -496,7 +496,7 @@ async def _query_pattern(tc, s, p, o, user, collection, limit):
     results = await tc.query(
         s=s, p=p, o=o,
         limit=limit,
-        user=user,
+        workspace=workspace,
         collection=collection,
     )
     return results

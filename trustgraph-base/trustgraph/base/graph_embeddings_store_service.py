@@ -41,7 +41,8 @@ class GraphEmbeddingsStoreService(FlowProcessor):
 
             request = msg.value()
 
-            await self.store_graph_embeddings(request)
+            # Workspace comes from the flow the message arrived on.
+            await self.store_graph_embeddings(flow.workspace, request)
 
         except TooManyRequests as e:
             raise e

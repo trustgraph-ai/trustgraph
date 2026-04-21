@@ -277,18 +277,22 @@ class Processor(AsyncProcessor):
         """Forward config responses to collection manager"""
         await self.collection_manager.on_config_response(message, consumer, flow)
 
-    async def on_librarian_config(self, config, version):
+    async def on_librarian_config(self, workspace, config, version):
 
-        logger.info(f"Configuration version: {version}")
+        logger.info(
+            f"Configuration version: {version} workspace: {workspace}"
+        )
 
         if "flow" in config:
 
-            self.flows = {
+            self.flows[workspace] = {
                 k: json.loads(v)
                 for k, v in config["flow"].items()
             }
+        else:
+            self.flows[workspace] = {}
 
-        logger.debug(f"Flows: {self.flows}")
+        logger.debug(f"Flows for {workspace}: {self.flows[workspace]}")
 
     def __del__(self):
 
@@ -345,7 +349,6 @@ class Processor(AsyncProcessor):
                 metadata=Metadata(
                     id=doc_uri,
                     root=document.id,
-                    user=processing.user,
                     collection=processing.collection,
                 ),
                 triples=all_triples,
@@ -363,10 +366,15 @@ class Processor(AsyncProcessor):
 
         logger.debug(f"Document: {document}, processing: {processing}, content length: {len(content)}")
 
-        if processing.flow not in self.flows:
-            raise RuntimeError("Invalid flow ID")
+        workspace = processing.workspace
+        ws_flows = self.flows.get(workspace, {})
+        if processing.flow not in ws_flows:
+            raise RuntimeError(
+                f"Invalid flow ID {processing.flow} for workspace "
+                f"{workspace}"
+            )
 
-        flow = self.flows[processing.flow]
+        flow = ws_flows[processing.flow]
 
         if document.kind == "text/plain":
             kind = "text-load"
@@ -386,7 +394,6 @@ class Processor(AsyncProcessor):
                 metadata = Metadata(
                     id = document.id,
                     root = document.id,
-                    user = processing.user,
                     collection = processing.collection
                 ),
                 document_id = document.id,
@@ -398,7 +405,6 @@ class Processor(AsyncProcessor):
                 metadata = Metadata(
                     id = document.id,
                     root = document.id,
-                    user = processing.user,
                     collection = processing.collection
                 ),
                 document_id = document.id,
@@ -429,9 +435,9 @@ class Processor(AsyncProcessor):
         """
         # Ensure collection exists when processing is added
         if hasattr(request, 'processing_metadata') and request.processing_metadata:
-            user = request.processing_metadata.user
+            workspace = request.processing_metadata.workspace
             collection = request.processing_metadata.collection
-            await self.collection_manager.ensure_collection_exists(user, collection)
+            await self.collection_manager.ensure_collection_exists(workspace, collection)
 
         # Call the original add_processing method
         return await self.librarian.add_processing(request)

@@ -60,7 +60,9 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
 
             logger.debug(f"Handling document embeddings query request {id}...")
 
-            docs = await self.query_document_embeddings(request)
+            docs = await self.query_document_embeddings(
+                flow.workspace, request,
+            )
 
             logger.debug("Sending document embeddings query response...")
             r = DocumentEmbeddingsResponse(chunks=docs, error=None)

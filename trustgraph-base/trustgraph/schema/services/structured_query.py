@@ -9,7 +9,6 @@ from ..core.primitives import Error
 @dataclass
 class StructuredQueryRequest:
     question: str = ""
-    user: str = ""        # Cassandra keyspace identifier
     collection: str = ""  # Data collection identifier
 
 @dataclass

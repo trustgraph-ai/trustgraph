@@ -141,7 +141,7 @@ class Processor(FlowProcessor):
             solutions = await evaluate(
                 parsed.algebra,
                 triples_client,
-                user=request.user or "trustgraph",
+                workspace=flow.workspace,
                 collection=request.collection or "default",
                 limit=request.limit or 10000,
             )

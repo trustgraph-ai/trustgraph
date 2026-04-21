@@ -36,7 +36,7 @@ from trustgraph.api import (
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 # Graphs
@@ -50,13 +50,12 @@ PROV = "http://www.w3.org/ns/prov#"
 PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
 
 
-def trace_edge_provenance(flow, user, collection, edge, label_cache, explain_client):
+def trace_edge_provenance(flow, collection, edge, label_cache, explain_client):
     """
     Trace an edge back to its source document via reification.
 
     Args:
         flow: SocketFlowInstance
-        user: User identifier
         collection: Collection identifier
         edge: Dict with s, p, o keys
         label_cache: Dict for caching labels
@@ -90,7 +89,6 @@ def trace_edge_provenance(flow, user, collection, edge, label_cache, explain_cli
             p=TG_CONTAINS,
             o=quoted_triple,
             g=SOURCE_GRAPH,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -108,14 +106,14 @@ def trace_edge_provenance(flow, user, collection, edge, label_cache, explain_cli
     # For each statement, trace wasDerivedFrom chain
     provenance_chains = []
     for stmt_uri in stmt_uris:
-        chain = trace_provenance_chain(flow, user, collection, stmt_uri, label_cache, explain_client)
+        chain = trace_provenance_chain(flow, collection, stmt_uri, label_cache, explain_client)
         if chain:
             provenance_chains.append(chain)
 
     return provenance_chains
 
 
-def trace_provenance_chain(flow, user, collection, start_uri, label_cache, explain_client, max_depth=10):
+def trace_provenance_chain(flow, collection, start_uri, label_cache, explain_client, max_depth=10):
     """Trace prov:wasDerivedFrom chain from start_uri to root."""
     chain = []
     current = start_uri
@@ -128,7 +126,7 @@ def trace_provenance_chain(flow, user, collection, start_uri, label_cache, expla
         if current in label_cache:
             label = label_cache[current]
         else:
-            label = explain_client.resolve_label(current, user, collection)
+            label = explain_client.resolve_label(current, collection)
             label_cache[current] = label
 
         chain.append({"uri": current, "label": label})
@@ -139,7 +137,6 @@ def trace_provenance_chain(flow, user, collection, start_uri, label_cache, expla
                 s=current,
                 p=PROV_WAS_DERIVED_FROM,
                 g=SOURCE_GRAPH,
-                user=user,
                 collection=collection,
                 limit=1
             )
@@ -167,7 +164,7 @@ def format_provenance_chain(chain):
     return " -> ".join(labels)
 
 
-def print_graphrag_text(trace, explain_client, flow, user, collection, api=None, show_provenance=False):
+def print_graphrag_text(trace, explain_client, flow, collection, api=None, show_provenance=False):
     """Print GraphRAG trace in text format."""
     question = trace.get("question")
 
@@ -202,7 +199,7 @@ def print_graphrag_text(trace, explain_client, flow, user, collection, api=None,
         for i, edge_sel in enumerate(edges, 1):
             if edge_sel.edge:
                 s_label, p_label, o_label = explain_client.resolve_edge_labels(
-                    edge_sel.edge, user, collection
+                    edge_sel.edge, collection
                 )
                 print(f"  {i}. ({s_label}, {p_label}, {o_label})")
 
@@ -212,7 +209,7 @@ def print_graphrag_text(trace, explain_client, flow, user, collection, api=None,
 
             if show_provenance and edge_sel.edge:
                 provenance = trace_edge_provenance(
-                    flow, user, collection, edge_sel.edge,
+                    flow, collection, edge_sel.edge,
                     label_cache, explain_client
                 )
                 for chain in provenance:
@@ -238,7 +235,7 @@ def print_graphrag_text(trace, explain_client, flow, user, collection, api=None,
         content = ""
         if synthesis.document and api:
             content = explain_client.fetch_document_content(
-                synthesis.document, api, user
+                synthesis.document, api
             )
         if content:
             print("Answer:")
@@ -252,7 +249,7 @@ def print_graphrag_text(trace, explain_client, flow, user, collection, api=None,
         print("No synthesis data found")
 
 
-def print_docrag_text(trace, explain_client, api, user):
+def print_docrag_text(trace, explain_client, api):
     """Print DocRAG trace in text format."""
     question = trace.get("question")
 
@@ -288,7 +285,7 @@ def print_docrag_text(trace, explain_client, api, user):
         content = ""
         if synthesis.document and api:
             content = explain_client.fetch_document_content(
-                synthesis.document, api, user
+                synthesis.document, api
             )
         if content:
             print("Answer:")
@@ -302,14 +299,14 @@ def print_docrag_text(trace, explain_client, api, user):
         print("No synthesis data found")
 
 
-def _print_document_content(explain_client, api, user, document_uri, label="Answer"):
+def _print_document_content(explain_client, api, document_uri, label="Answer"):
     """Fetch and print document content, or fall back to URI."""
     if not document_uri:
         return
     content = ""
     if api:
         content = explain_client.fetch_document_content(
-            document_uri, api, user
+            document_uri, api
         )
     if content:
         print(f"{label}:")
@@ -319,7 +316,7 @@ def _print_document_content(explain_client, api, user, document_uri, label="Answ
         print(f"Document: {document_uri}")
 
 
-def print_agent_text(trace, explain_client, api, user):
+def print_agent_text(trace, explain_client, api):
     """Print Agent trace in text format."""
     question = trace.get("question")
 
@@ -348,7 +345,7 @@ def print_agent_text(trace, explain_client, api, user):
             print("--- Finding ---")
             print(f"Goal: {step.goal}")
             _print_document_content(
-                explain_client, api, user, step.document, "Result",
+                explain_client, api, step.document, "Result",
             )
             print()
 
@@ -363,7 +360,7 @@ def print_agent_text(trace, explain_client, api, user):
             print("--- Step Result ---")
             print(f"Step: {step.step}")
             _print_document_content(
-                explain_client, api, user, step.document, "Result",
+                explain_client, api, step.document, "Result",
             )
             print()
 
@@ -385,21 +382,21 @@ def print_agent_text(trace, explain_client, api, user):
         elif isinstance(step, Observation):
             print("--- Observation ---")
             _print_document_content(
-                explain_client, api, user, step.document, "Content",
+                explain_client, api, step.document, "Content",
             )
             print()
 
         elif isinstance(step, Synthesis):
             print("--- Synthesis ---")
             _print_document_content(
-                explain_client, api, user, step.document, "Answer",
+                explain_client, api, step.document, "Answer",
             )
             print()
 
         elif isinstance(step, Conclusion):
             print("--- Conclusion ---")
             _print_document_content(
-                explain_client, api, user, step.document, "Answer",
+                explain_client, api, step.document, "Answer",
             )
             print()
 
@@ -559,9 +556,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})',
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -599,7 +596,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        api = Api(args.api_url, token=args.token)
+        api = Api(args.api_url, token=args.token, workspace=args.workspace)
         socket = api.socket()
         flow = socket.flow(args.flow_id)
         explain_client = ExplainabilityClient(flow)
@@ -609,7 +606,6 @@ def main():
             trace_type = explain_client.detect_session_type(
                 args.question_id,
                 graph=RETRIEVAL_GRAPH,
-                user=args.user,
                 collection=args.collection,
             )
 
@@ -618,7 +614,6 @@ def main():
                 trace = explain_client.fetch_agent_trace(
                     args.question_id,
                     graph=RETRIEVAL_GRAPH,
-                    user=args.user,
                     collection=args.collection,
                     api=api,
                     max_content=args.max_answer,
@@ -627,14 +622,13 @@ def main():
                 if args.format == 'json':
                     print(json.dumps(trace_to_dict(trace, "agent"), indent=2))
                 else:
-                    print_agent_text(trace, explain_client, api, args.user)
+                    print_agent_text(trace, explain_client, api)
 
             elif trace_type == "docrag":
                 # Fetch and display DocRAG trace
                 trace = explain_client.fetch_docrag_trace(
                     args.question_id,
                     graph=RETRIEVAL_GRAPH,
-                    user=args.user,
                     collection=args.collection,
                     api=api,
                     max_content=args.max_answer,
@@ -643,14 +637,13 @@ def main():
                 if args.format == 'json':
                     print(json.dumps(trace_to_dict(trace, "docrag"), indent=2))
                 else:
-                    print_docrag_text(trace, explain_client, api, args.user)
+                    print_docrag_text(trace, explain_client, api)
 
             else:
                 # Fetch and display GraphRAG trace
                 trace = explain_client.fetch_graphrag_trace(
                     args.question_id,
                     graph=RETRIEVAL_GRAPH,
-                    user=args.user,
                     collection=args.collection,
                     api=api,
                     max_content=args.max_answer,
@@ -661,7 +654,7 @@ def main():
                 else:
                     print_graphrag_text(
                         trace, explain_client, flow,
-                        args.user, args.collection,
+                        args.collection,
                         api=api,
                         show_provenance=args.show_provenance
                     )

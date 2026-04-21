@@ -84,32 +84,39 @@ class Processor(FlowProcessor):
         # Register config handler for schema updates
         self.register_config_handler(self.on_schema_config, types=["schema"])
 
-        # Schema storage: name -> RowSchema
-        self.schemas: Dict[str, RowSchema] = {}
+        # Per-workspace schema storage: {workspace: {name: RowSchema}}
+        self.schemas: Dict[str, Dict[str, RowSchema]] = {}
 
-    async def on_schema_config(self, config, version):
+    async def on_schema_config(self, workspace, config, version):
         """Handle schema configuration updates"""
 
-        logger.info(f"Loading schema configuration version {version}")
+        logger.info(
+            f"Loading schema configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
-        # Clear existing schemas
-        self.schemas = {}
+        # Replace existing schemas for this workspace
+        ws_schemas: Dict[str, RowSchema] = {}
+        self.schemas[workspace] = ws_schemas
 
         # Check if our config type exists
         if self.config_key not in config:
-            logger.warning(f"No '{self.config_key}' type in configuration")
+            logger.warning(
+                f"No '{self.config_key}' type in configuration "
+                f"for {workspace}"
+            )
             return
 
         # Get the schemas dictionary for our type
         schemas_config = config[self.config_key]
-        
+
         # Process each schema in the schemas config
         for schema_name, schema_json in schemas_config.items():
-            
+
             try:
                 # Parse the JSON schema definition
                 schema_def = json.loads(schema_json)
-                
+
                 # Create Field objects
                 fields = []
                 for field_def in schema_def.get("fields", []):
@@ -124,21 +131,27 @@ class Processor(FlowProcessor):
                         indexed=field_def.get("indexed", False)
                     )
                     fields.append(field)
-                
+
                 # Create RowSchema
                 row_schema = RowSchema(
                     name=schema_def.get("name", schema_name),
                     description=schema_def.get("description", ""),
                     fields=fields
                 )
-                
-                self.schemas[schema_name] = row_schema
-                logger.info(f"Loaded schema: {schema_name} with {len(fields)} fields")
-                
+
+                ws_schemas[schema_name] = row_schema
+                logger.info(
+                    f"Loaded schema: {schema_name} with "
+                    f"{len(fields)} fields for {workspace}"
+                )
+
             except Exception as e:
                 logger.error(f"Failed to parse schema {schema_name}: {e}", exc_info=True)
 
-        logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
+        logger.info(
+            f"Schema configuration loaded for {workspace}: "
+            f"{len(ws_schemas)} schemas"
+        )
 
     async def extract_objects_for_schema(self, text: str, schema_name: str, schema: RowSchema, flow) -> List[Dict[str, Any]]:
         """Extract objects from text for a specific schema"""
@@ -234,18 +247,26 @@ class Processor(FlowProcessor):
         """Process incoming chunk and extract objects"""
 
         v = msg.value()
-        logger.info(f"Extracting objects from chunk {v.metadata.id}...")
+        workspace = flow.workspace
+        logger.info(
+            f"Extracting objects from chunk {v.metadata.id} "
+            f"(workspace {workspace})..."
+        )
 
         chunk_text = v.chunk.decode("utf-8")
 
-        # If no schemas configured, log warning and return
-        if not self.schemas:
-            logger.warning("No schemas configured - skipping extraction")
+        # If no schemas configured for this workspace, log and return
+        ws_schemas = self.schemas.get(workspace, {})
+        if not ws_schemas:
+            logger.warning(
+                f"No schemas configured for workspace {workspace} "
+                f"- skipping extraction"
+            )
             return
 
         try:
             # Extract objects for each configured schema
-            for schema_name, schema in self.schemas.items():
+            for schema_name, schema in ws_schemas.items():
                 
                 logger.debug(f"Extracting {schema_name} objects from chunk")
                 
@@ -274,7 +295,6 @@ class Processor(FlowProcessor):
                         metadata=Metadata(
                             id=f"{v.metadata.id}:{schema_name}",
                             root=v.metadata.root,
-                            user=v.metadata.user,
                             collection=v.metadata.collection,
                         ),
                         schema_name=schema_name,

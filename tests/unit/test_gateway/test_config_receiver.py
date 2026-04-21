@@ -17,6 +17,12 @@ _real_config_loader = ConfigReceiver.config_loader
 ConfigReceiver.config_loader = Mock()
 
 
+def _notify(version, changes):
+    msg = Mock()
+    msg.value.return_value = Mock(version=version, changes=changes)
+    return msg
+
+
 class TestConfigReceiver:
     """Test cases for ConfigReceiver class"""
 
@@ -47,98 +53,70 @@ class TestConfigReceiver:
         assert handler2 in config_receiver.flow_handlers
 
     @pytest.mark.asyncio
-    async def test_on_config_notify_new_version(self):
-        """Test on_config_notify triggers fetch for newer version"""
+    async def test_on_config_notify_new_version_fetches_per_workspace(self):
+        """Notify with newer version fetches each affected workspace."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
         config_receiver.config_version = 1
 
-        # Mock fetch_and_apply
         fetch_calls = []
-        async def mock_fetch(**kwargs):
-            fetch_calls.append(kwargs)
-        config_receiver.fetch_and_apply = mock_fetch
 
-        # Create notify message with newer version
-        mock_msg = Mock()
-        mock_msg.value.return_value = Mock(version=2, types=["flow"])
+        async def mock_fetch(workspace, retry=False):
+            fetch_calls.append(workspace)
 
-        await config_receiver.on_config_notify(mock_msg, None, None)
+        config_receiver.fetch_and_apply_workspace = mock_fetch
 
-        assert len(fetch_calls) == 1
+        msg = _notify(2, {"flow": ["ws1", "ws2"]})
+        await config_receiver.on_config_notify(msg, None, None)
+
+        assert set(fetch_calls) == {"ws1", "ws2"}
+        assert config_receiver.config_version == 2
 
     @pytest.mark.asyncio
     async def test_on_config_notify_old_version_ignored(self):
-        """Test on_config_notify ignores older versions"""
+        """Older-version notifies are ignored."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
         config_receiver.config_version = 5
 
         fetch_calls = []
-        async def mock_fetch(**kwargs):
-            fetch_calls.append(kwargs)
-        config_receiver.fetch_and_apply = mock_fetch
 
-        # Create notify message with older version
-        mock_msg = Mock()
-        mock_msg.value.return_value = Mock(version=3, types=["flow"])
+        async def mock_fetch(workspace, retry=False):
+            fetch_calls.append(workspace)
 
-        await config_receiver.on_config_notify(mock_msg, None, None)
+        config_receiver.fetch_and_apply_workspace = mock_fetch
 
-        assert len(fetch_calls) == 0
+        msg = _notify(3, {"flow": ["ws1"]})
+        await config_receiver.on_config_notify(msg, None, None)
+
+        assert fetch_calls == []
 
     @pytest.mark.asyncio
     async def test_on_config_notify_irrelevant_types_ignored(self):
-        """Test on_config_notify ignores types the gateway doesn't care about"""
+        """Notifies without flow changes advance version but skip fetch."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
         config_receiver.config_version = 1
 
         fetch_calls = []
-        async def mock_fetch(**kwargs):
-            fetch_calls.append(kwargs)
-        config_receiver.fetch_and_apply = mock_fetch
 
-        # Create notify message with non-flow type
-        mock_msg = Mock()
-        mock_msg.value.return_value = Mock(version=2, types=["prompt"])
+        async def mock_fetch(workspace, retry=False):
+            fetch_calls.append(workspace)
 
-        await config_receiver.on_config_notify(mock_msg, None, None)
+        config_receiver.fetch_and_apply_workspace = mock_fetch
 
-        # Version should be updated but no fetch
-        assert len(fetch_calls) == 0
+        msg = _notify(2, {"prompt": ["ws1"]})
+        await config_receiver.on_config_notify(msg, None, None)
+
+        assert fetch_calls == []
         assert config_receiver.config_version == 2
 
     @pytest.mark.asyncio
-    async def test_on_config_notify_flow_type_triggers_fetch(self):
-        """Test on_config_notify fetches for flow-related types"""
-        mock_backend = Mock()
-        config_receiver = ConfigReceiver(mock_backend)
-        config_receiver.config_version = 1
-
-        fetch_calls = []
-        async def mock_fetch(**kwargs):
-            fetch_calls.append(kwargs)
-        config_receiver.fetch_and_apply = mock_fetch
-
-        for type_name in ["flow"]:
-            fetch_calls.clear()
-            config_receiver.config_version = 1
-
-            mock_msg = Mock()
-            mock_msg.value.return_value = Mock(version=2, types=[type_name])
-
-            await config_receiver.on_config_notify(mock_msg, None, None)
-
-            assert len(fetch_calls) == 1, f"Expected fetch for type {type_name}"
-
-    @pytest.mark.asyncio
     async def test_on_config_notify_exception_handling(self):
-        """Test on_config_notify handles exceptions gracefully"""
+        """on_config_notify swallows exceptions from message decode."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
-        # Create notify message that causes an exception
         mock_msg = Mock()
         mock_msg.value.side_effect = Exception("Test exception")
 
@@ -146,19 +124,18 @@ class TestConfigReceiver:
         await config_receiver.on_config_notify(mock_msg, None, None)
 
     @pytest.mark.asyncio
-    async def test_fetch_and_apply_with_new_flows(self):
-        """Test fetch_and_apply starts new flows"""
+    async def test_fetch_and_apply_workspace_starts_new_flows(self):
+        """fetch_and_apply_workspace starts newly-configured flows."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
-        # Mock _create_config_client to return a mock client
         mock_resp = Mock()
         mock_resp.error = None
         mock_resp.version = 5
         mock_resp.config = {
             "flow": {
                 "flow1": '{"name": "test_flow_1"}',
-                "flow2": '{"name": "test_flow_2"}'
+                "flow2": '{"name": "test_flow_2"}',
             }
         }
 
@@ -167,36 +144,39 @@ class TestConfigReceiver:
         config_receiver._create_config_client = Mock(return_value=mock_client)
 
         start_flow_calls = []
-        async def mock_start_flow(id, flow):
-            start_flow_calls.append((id, flow))
+
+        async def mock_start_flow(workspace, id, flow):
+            start_flow_calls.append((workspace, id, flow))
+
         config_receiver.start_flow = mock_start_flow
 
-        await config_receiver.fetch_and_apply()
+        await config_receiver.fetch_and_apply_workspace("default")
 
         assert config_receiver.config_version == 5
-        assert "flow1" in config_receiver.flows
-        assert "flow2" in config_receiver.flows
+        assert "flow1" in config_receiver.flows["default"]
+        assert "flow2" in config_receiver.flows["default"]
         assert len(start_flow_calls) == 2
+        assert all(c[0] == "default" for c in start_flow_calls)
 
     @pytest.mark.asyncio
-    async def test_fetch_and_apply_with_removed_flows(self):
-        """Test fetch_and_apply stops removed flows"""
+    async def test_fetch_and_apply_workspace_stops_removed_flows(self):
+        """fetch_and_apply_workspace stops flows no longer configured."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
-        # Pre-populate with existing flows
         config_receiver.flows = {
-            "flow1": {"name": "test_flow_1"},
-            "flow2": {"name": "test_flow_2"}
+            "default": {
+                "flow1": {"name": "test_flow_1"},
+                "flow2": {"name": "test_flow_2"},
+            }
         }
 
-        # Config now only has flow1
         mock_resp = Mock()
         mock_resp.error = None
         mock_resp.version = 5
         mock_resp.config = {
             "flow": {
-                "flow1": '{"name": "test_flow_1"}'
+                "flow1": '{"name": "test_flow_1"}',
             }
         }
 
@@ -205,20 +185,22 @@ class TestConfigReceiver:
         config_receiver._create_config_client = Mock(return_value=mock_client)
 
         stop_flow_calls = []
-        async def mock_stop_flow(id, flow):
-            stop_flow_calls.append((id, flow))
+
+        async def mock_stop_flow(workspace, id, flow):
+            stop_flow_calls.append((workspace, id, flow))
+
         config_receiver.stop_flow = mock_stop_flow
 
-        await config_receiver.fetch_and_apply()
+        await config_receiver.fetch_and_apply_workspace("default")
 
-        assert "flow1" in config_receiver.flows
-        assert "flow2" not in config_receiver.flows
+        assert "flow1" in config_receiver.flows["default"]
+        assert "flow2" not in config_receiver.flows["default"]
         assert len(stop_flow_calls) == 1
-        assert stop_flow_calls[0][0] == "flow2"
+        assert stop_flow_calls[0][:2] == ("default", "flow2")
 
     @pytest.mark.asyncio
-    async def test_fetch_and_apply_with_no_flows(self):
-        """Test fetch_and_apply with empty config"""
+    async def test_fetch_and_apply_workspace_with_no_flows(self):
+        """Empty workspace config clears any local flow state."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
@@ -231,88 +213,100 @@ class TestConfigReceiver:
         mock_client.request.return_value = mock_resp
         config_receiver._create_config_client = Mock(return_value=mock_client)
 
-        await config_receiver.fetch_and_apply()
+        await config_receiver.fetch_and_apply_workspace("default")
 
-        assert config_receiver.flows == {}
+        assert config_receiver.flows.get("default", {}) == {}
         assert config_receiver.config_version == 1
 
     @pytest.mark.asyncio
     async def test_start_flow_with_handlers(self):
-        """Test start_flow method with multiple handlers"""
+        """start_flow fans out to every registered flow handler."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
         handler1 = Mock()
-        handler1.start_flow = Mock()
+        handler1.start_flow = AsyncMock()
         handler2 = Mock()
-        handler2.start_flow = Mock()
+        handler2.start_flow = AsyncMock()
 
         config_receiver.add_handler(handler1)
         config_receiver.add_handler(handler2)
 
         flow_data = {"name": "test_flow", "steps": []}
 
-        await config_receiver.start_flow("flow1", flow_data)
+        await config_receiver.start_flow("default", "flow1", flow_data)
 
-        handler1.start_flow.assert_called_once_with("flow1", flow_data)
-        handler2.start_flow.assert_called_once_with("flow1", flow_data)
+        handler1.start_flow.assert_awaited_once_with(
+            "default", "flow1", flow_data
+        )
+        handler2.start_flow.assert_awaited_once_with(
+            "default", "flow1", flow_data
+        )
 
     @pytest.mark.asyncio
     async def test_start_flow_with_handler_exception(self):
-        """Test start_flow method handles handler exceptions"""
+        """Handler exceptions in start_flow do not propagate."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
         handler = Mock()
-        handler.start_flow = Mock(side_effect=Exception("Handler error"))
+        handler.start_flow = AsyncMock(side_effect=Exception("Handler error"))
 
         config_receiver.add_handler(handler)
 
         flow_data = {"name": "test_flow", "steps": []}
 
         # Should not raise
-        await config_receiver.start_flow("flow1", flow_data)
+        await config_receiver.start_flow("default", "flow1", flow_data)
 
-        handler.start_flow.assert_called_once_with("flow1", flow_data)
+        handler.start_flow.assert_awaited_once_with(
+            "default", "flow1", flow_data
+        )
 
     @pytest.mark.asyncio
     async def test_stop_flow_with_handlers(self):
-        """Test stop_flow method with multiple handlers"""
+        """stop_flow fans out to every registered flow handler."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
         handler1 = Mock()
-        handler1.stop_flow = Mock()
+        handler1.stop_flow = AsyncMock()
         handler2 = Mock()
-        handler2.stop_flow = Mock()
+        handler2.stop_flow = AsyncMock()
 
         config_receiver.add_handler(handler1)
         config_receiver.add_handler(handler2)
 
         flow_data = {"name": "test_flow", "steps": []}
 
-        await config_receiver.stop_flow("flow1", flow_data)
+        await config_receiver.stop_flow("default", "flow1", flow_data)
 
-        handler1.stop_flow.assert_called_once_with("flow1", flow_data)
-        handler2.stop_flow.assert_called_once_with("flow1", flow_data)
+        handler1.stop_flow.assert_awaited_once_with(
+            "default", "flow1", flow_data
+        )
+        handler2.stop_flow.assert_awaited_once_with(
+            "default", "flow1", flow_data
+        )
 
     @pytest.mark.asyncio
     async def test_stop_flow_with_handler_exception(self):
-        """Test stop_flow method handles handler exceptions"""
+        """Handler exceptions in stop_flow do not propagate."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
         handler = Mock()
-        handler.stop_flow = Mock(side_effect=Exception("Handler error"))
+        handler.stop_flow = AsyncMock(side_effect=Exception("Handler error"))
 
         config_receiver.add_handler(handler)
 
         flow_data = {"name": "test_flow", "steps": []}
 
         # Should not raise
-        await config_receiver.stop_flow("flow1", flow_data)
+        await config_receiver.stop_flow("default", "flow1", flow_data)
 
-        handler.stop_flow.assert_called_once_with("flow1", flow_data)
+        handler.stop_flow.assert_awaited_once_with(
+            "default", "flow1", flow_data
+        )
 
     @patch('asyncio.create_task')
     @pytest.mark.asyncio
@@ -329,25 +323,25 @@ class TestConfigReceiver:
         mock_create_task.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_fetch_and_apply_mixed_flow_operations(self):
-        """Test fetch_and_apply with mixed add/remove operations"""
+    async def test_fetch_and_apply_workspace_mixed_flow_operations(self):
+        """fetch_and_apply_workspace adds, keeps and removes flows in one pass."""
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
-        # Pre-populate
         config_receiver.flows = {
-            "flow1": {"name": "test_flow_1"},
-            "flow2": {"name": "test_flow_2"}
+            "default": {
+                "flow1": {"name": "test_flow_1"},
+                "flow2": {"name": "test_flow_2"},
+            }
         }
 
-        # Config removes flow1, keeps flow2, adds flow3
         mock_resp = Mock()
         mock_resp.error = None
         mock_resp.version = 5
         mock_resp.config = {
             "flow": {
                 "flow2": '{"name": "test_flow_2"}',
-                "flow3": '{"name": "test_flow_3"}'
+                "flow3": '{"name": "test_flow_3"}',
             }
         }
 
@@ -358,20 +352,22 @@ class TestConfigReceiver:
         start_calls = []
         stop_calls = []
 
-        async def mock_start_flow(id, flow):
-            start_calls.append((id, flow))
-        async def mock_stop_flow(id, flow):
-            stop_calls.append((id, flow))
+        async def mock_start_flow(workspace, id, flow):
+            start_calls.append((workspace, id, flow))
+
+        async def mock_stop_flow(workspace, id, flow):
+            stop_calls.append((workspace, id, flow))
 
         config_receiver.start_flow = mock_start_flow
         config_receiver.stop_flow = mock_stop_flow
 
-        await config_receiver.fetch_and_apply()
+        await config_receiver.fetch_and_apply_workspace("default")
 
-        assert "flow1" not in config_receiver.flows
-        assert "flow2" in config_receiver.flows
-        assert "flow3" in config_receiver.flows
+        ws_flows = config_receiver.flows["default"]
+        assert "flow1" not in ws_flows
+        assert "flow2" in ws_flows
+        assert "flow3" in ws_flows
         assert len(start_calls) == 1
-        assert start_calls[0][0] == "flow3"
+        assert start_calls[0][:2] == ("default", "flow3")
         assert len(stop_calls) == 1
-        assert stop_calls[0][0] == "flow1"
+        assert stop_calls[0][:2] == ("default", "flow1")

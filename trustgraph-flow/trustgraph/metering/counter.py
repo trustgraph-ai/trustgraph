@@ -50,36 +50,45 @@ class Processor(FlowProcessor):
             )
         )
 
+        # Per-workspace price tables
         self.prices = {}
 
         self.config_key = "token-cost"
 
-    # Load token costs from the config service
-    async def on_cost_config(self, config, version):
+    async def on_cost_config(self, workspace, config, version):
 
-        logger.info(f"Loading metering configuration version {version}")
+        logger.info(
+            f"Loading metering configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
         if self.config_key not in config:
-            logger.warning(f"No key {self.config_key} in config")
+            logger.warning(
+                f"No key {self.config_key} in config for {workspace}"
+            )
+            self.prices[workspace] = {}
             return
 
-        config = config[self.config_key]
+        prices = config[self.config_key]
 
-        self.prices = {
+        self.prices[workspace] = {
             k: json.loads(v)
-            for k, v in config.items()
+            for k, v in prices.items()
         }
 
-    def get_prices(self, modelname):
+    def get_prices(self, workspace, modelname):
 
-        if modelname in self.prices:
-            model = self.prices[modelname]
+        ws_prices = self.prices.get(workspace, {})
+        if modelname in ws_prices:
+            model = ws_prices[modelname]
             return model["input_price"], model["output_price"]
         return None, None  # Return None if model is not found
 
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
+
+        workspace = flow.workspace
 
         modelname = v.model or "unknown"
         num_in = v.in_token or 0
@@ -89,7 +98,9 @@ class Processor(FlowProcessor):
         __class__.token_metric.labels(model=modelname, direction="input").inc(num_in)
         __class__.token_metric.labels(model=modelname, direction="output").inc(num_out)
 
-        model_input_price, model_output_price = self.get_prices(modelname)
+        model_input_price, model_output_price = self.get_prices(
+            workspace, modelname
+        )
 
         if model_input_price == None:
             cost_per_call = f"Model Not Found in Price list"

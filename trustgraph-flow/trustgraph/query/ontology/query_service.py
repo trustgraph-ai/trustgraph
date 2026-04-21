@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class QueryRequest:
-    """Query request from user."""
+    """Query request from workspace."""
     question: str
     context: Optional[str] = None
     ontology_hint: Optional[str] = None

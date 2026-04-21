@@ -48,7 +48,6 @@ class EntityContextsImport:
         elt = EntityContexts(
             metadata=Metadata(
                 id=data["metadata"]["id"],
-                user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),
             entities=[

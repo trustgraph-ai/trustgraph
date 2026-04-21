@@ -22,7 +22,7 @@ from trustgraph.api import (
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 default_entity_limit = 50
 default_triple_limit = 30
@@ -108,7 +108,7 @@ def _format_provenance_details(event_type, triples):
     return lines
 
 
-async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, graph=None, debug=False):
+async def _query_triples_once(ws_url, flow_id, prov_id, collection, graph=None, debug=False):
     """Query triples for a provenance node (single attempt)"""
     request = {
         "id": "triples-request",
@@ -116,7 +116,6 @@ async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, graph=
         "flow": flow_id,
         "request": {
             "s": {"t": "i", "i": prov_id},
-            "user": user,
             "collection": collection,
             "limit": 100
         }
@@ -182,10 +181,10 @@ async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, graph=
     return triples
 
 
-async def _query_triples(ws_url, flow_id, prov_id, user, collection, graph=None, max_retries=5, retry_delay=0.2, debug=False):
+async def _query_triples(ws_url, flow_id, prov_id, collection, graph=None, max_retries=5, retry_delay=0.2, debug=False):
     """Query triples for a provenance node with retries for race condition"""
     for attempt in range(max_retries):
-        triples = await _query_triples_once(ws_url, flow_id, prov_id, user, collection, graph=graph, debug=debug)
+        triples = await _query_triples_once(ws_url, flow_id, prov_id, collection, graph=graph, debug=debug)
         if triples:
             return triples
         # Wait before retry if empty (triples may not be stored yet)
@@ -196,7 +195,7 @@ async def _query_triples(ws_url, flow_id, prov_id, user, collection, graph=None,
     return []
 
 
-async def _query_edge_provenance(ws_url, flow_id, edge_s, edge_p, edge_o, user, collection, debug=False):
+async def _query_edge_provenance(ws_url, flow_id, edge_s, edge_p, edge_o, collection, debug=False):
     """
     Query for provenance of an edge (s, p, o) in the knowledge graph.
 
@@ -220,7 +219,6 @@ async def _query_edge_provenance(ws_url, flow_id, edge_s, edge_p, edge_o, user, 
                     "o": {"t": "i", "i": edge_o} if edge_o.startswith("http") or edge_o.startswith("urn:") else {"t": "l", "v": edge_o},
                 }
             },
-            "user": user,
             "collection": collection,
             "limit": 10
         }
@@ -273,7 +271,6 @@ async def _query_edge_provenance(ws_url, flow_id, edge_s, edge_p, edge_o, user, 
             "request": {
                 "s": {"t": "i", "i": stmt_uri},
                 "p": {"t": "i", "i": PROV_WAS_DERIVED_FROM},
-                "user": user,
                 "collection": collection,
                 "limit": 10
             }
@@ -312,7 +309,7 @@ async def _query_edge_provenance(ws_url, flow_id, edge_s, edge_p, edge_o, user, 
     return sources
 
 
-async def _query_derived_from(ws_url, flow_id, uri, user, collection, debug=False):
+async def _query_derived_from(ws_url, flow_id, uri, collection, debug=False):
     """Query for the prov:wasDerivedFrom parent of a URI. Returns None if no parent."""
     request = {
         "id": "parent-request",
@@ -321,7 +318,6 @@ async def _query_derived_from(ws_url, flow_id, uri, user, collection, debug=Fals
         "request": {
             "s": {"t": "i", "i": uri},
             "p": {"t": "i", "i": PROV_WAS_DERIVED_FROM},
-            "user": user,
             "collection": collection,
             "limit": 1
         }
@@ -355,7 +351,7 @@ async def _query_derived_from(ws_url, flow_id, uri, user, collection, debug=Fals
     return None
 
 
-async def _trace_provenance_chain(ws_url, flow_id, source_uri, user, collection, label_cache, debug=False):
+async def _trace_provenance_chain(ws_url, flow_id, source_uri, collection, label_cache, debug=False):
     """
     Trace the full provenance chain from a source URI up to the root document.
     Returns a list of (uri, label) tuples from leaf to root.
@@ -369,11 +365,11 @@ async def _trace_provenance_chain(ws_url, flow_id, source_uri, user, collection,
             break
 
         # Get label for current entity
-        label = await _query_label(ws_url, flow_id, current, user, collection, label_cache, debug)
+        label = await _query_label(ws_url, flow_id, current, collection, label_cache, debug)
         chain.append((current, label))
 
         # Get parent
-        parent = await _query_derived_from(ws_url, flow_id, current, user, collection, debug)
+        parent = await _query_derived_from(ws_url, flow_id, current, collection, debug)
         if not parent or parent == current:
             break
         current = parent
@@ -401,7 +397,7 @@ def _is_iri(value):
     return value.startswith("http://") or value.startswith("https://") or value.startswith("urn:")
 
 
-async def _query_label(ws_url, flow_id, iri, user, collection, label_cache, debug=False):
+async def _query_label(ws_url, flow_id, iri, collection, label_cache, debug=False):
     """
     Query for the rdfs:label of an IRI.
     Uses label_cache to avoid repeated queries.
@@ -421,7 +417,6 @@ async def _query_label(ws_url, flow_id, iri, user, collection, label_cache, debu
         "request": {
             "s": {"t": "i", "i": iri},
             "p": {"t": "i", "i": RDFS_LABEL},
-            "user": user,
             "collection": collection,
             "limit": 1
         }
@@ -460,7 +455,7 @@ async def _query_label(ws_url, flow_id, iri, user, collection, label_cache, debu
     return label
 
 
-async def _resolve_edge_labels(ws_url, flow_id, edge_triple, user, collection, label_cache, debug=False):
+async def _resolve_edge_labels(ws_url, flow_id, edge_triple, collection, label_cache, debug=False):
     """
     Resolve labels for all IRI components of an edge triple.
     Returns (s_label, p_label, o_label).
@@ -469,15 +464,15 @@ async def _resolve_edge_labels(ws_url, flow_id, edge_triple, user, collection, l
     p = edge_triple.get("p", "?")
     o = edge_triple.get("o", "?")
 
-    s_label = await _query_label(ws_url, flow_id, s, user, collection, label_cache, debug)
-    p_label = await _query_label(ws_url, flow_id, p, user, collection, label_cache, debug)
-    o_label = await _query_label(ws_url, flow_id, o, user, collection, label_cache, debug)
+    s_label = await _query_label(ws_url, flow_id, s, collection, label_cache, debug)
+    p_label = await _query_label(ws_url, flow_id, p, collection, label_cache, debug)
+    o_label = await _query_label(ws_url, flow_id, o, collection, label_cache, debug)
 
     return s_label, p_label, o_label
 
 
 async def _question_explainable(
-        url, flow_id, question, user, collection, entity_limit, triple_limit,
+        url, flow_id, question, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, token=None, debug=False
 ):
     """Execute graph RAG with explainability - shows provenance events with details"""
@@ -502,7 +497,6 @@ async def _question_explainable(
         "flow": flow_id,
         "request": {
             "query": question,
-            "user": user,
             "collection": collection,
             "entity-limit": entity_limit,
             "triple-limit": triple_limit,
@@ -549,7 +543,7 @@ async def _question_explainable(
 
                         # Query triples for this explain node (using named graph filter)
                         triples = await _query_triples(
-                            ws_url, flow_id, explain_id, user, collection, graph=explain_graph, debug=debug
+                            ws_url, flow_id, explain_id, collection, graph=explain_graph, debug=debug
                         )
 
                         # Format and display details
@@ -564,7 +558,7 @@ async def _question_explainable(
                                 print(f"    Seed entities: {len(entity_iris)}", file=sys.stderr)
                                 for iri in entity_iris:
                                     label = await _query_label(
-                                        ws_url, flow_id, iri, user, collection,
+                                        ws_url, flow_id, iri, collection,
                                         label_cache, debug=debug
                                     )
                                     print(f"      - {label}", file=sys.stderr)
@@ -579,7 +573,7 @@ async def _question_explainable(
                                         print(f"    [debug] querying edge selection: {o}", file=sys.stderr)
                                     # Query the edge selection entity (using named graph filter)
                                     edge_triples = await _query_triples(
-                                        ws_url, flow_id, o, user, collection, graph=explain_graph, debug=debug
+                                        ws_url, flow_id, o, collection, graph=explain_graph, debug=debug
                                     )
                                     if debug:
                                         print(f"    [debug] got {len(edge_triples)} edge triples", file=sys.stderr)
@@ -597,7 +591,7 @@ async def _question_explainable(
                                     if edge_triple:
                                         # Resolve labels for edge components
                                         s_label, p_label, o_label = await _resolve_edge_labels(
-                                            ws_url, flow_id, edge_triple, user, collection,
+                                            ws_url, flow_id, edge_triple, collection,
                                             label_cache, debug=debug
                                         )
                                         print(f"      Edge: ({s_label}, {p_label}, {o_label})", file=sys.stderr)
@@ -605,21 +599,21 @@ async def _question_explainable(
                                         r_short = reasoning[:100] + "..." if len(reasoning) > 100 else reasoning
                                         print(f"        Reason: {r_short}", file=sys.stderr)
 
-                                    # Trace edge provenance in the user's collection (not explainability)
+                                    # Trace edge provenance in the workspace collection (not explainability)
                                     if edge_triple:
                                         sources = await _query_edge_provenance(
                                             ws_url, flow_id,
                                             edge_triple.get("s", ""),
                                             edge_triple.get("p", ""),
                                             edge_triple.get("o", ""),
-                                            user, collection,  # Use the query collection, not explainability
+                                            collection,  # Use the query collection, not explainability
                                             debug=debug
                                         )
                                         if sources:
                                             for src in sources:
                                                 # Trace full chain from source to root document
                                                 chain = await _trace_provenance_chain(
-                                                    ws_url, flow_id, src, user, collection,
+                                                    ws_url, flow_id, src, collection,
                                                     label_cache, debug=debug
                                                 )
                                                 chain_str = _format_provenance_chain(chain)
@@ -639,12 +633,12 @@ async def _question_explainable(
 
 
 def _question_explainable_api(
-        url, flow_id, question_text, user, collection, entity_limit, triple_limit,
+        url, flow_id, question_text, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, edge_score_limit=30,
-        edge_limit=25, token=None, debug=False
+        edge_limit=25, token=None, debug=False, workspace="default",
 ):
     """Execute graph RAG with explainability using the new API classes."""
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
     explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
@@ -653,8 +647,7 @@ def _question_explainable_api(
         # Stream GraphRAG with explainability - process events as they arrive
         for item in flow.graph_rag_explain(
             query=question_text,
-            user=user,
-            collection=collection,
+                        collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
@@ -676,8 +669,7 @@ def _question_explainable_api(
                     entity = explain_client.fetch_entity(
                         prov_id,
                         graph=explain_graph,
-                        user=user,
-                        collection=collection
+                                                collection=collection
                     )
 
                 if entity is None:
@@ -707,7 +699,7 @@ def _question_explainable_api(
                     if entity.entities:
                         print(f"    Seed entities: {len(entity.entities)}", file=sys.stderr)
                         for ent in entity.entities:
-                            label = explain_client.resolve_label(ent, user, collection)
+                            label = explain_client.resolve_label(ent, collection)
                             print(f"      - {label}", file=sys.stderr)
 
                 elif isinstance(entity, Focus):
@@ -719,15 +711,14 @@ def _question_explainable_api(
                     focus_full = explain_client.fetch_focus_with_edges(
                         prov_id,
                         graph=explain_graph,
-                        user=user,
-                        collection=collection
+                                                collection=collection
                     )
                     if focus_full and focus_full.edge_selections:
                         for edge_sel in focus_full.edge_selections:
                             if edge_sel.edge:
                                 # Resolve labels for edge components
                                 s_label, p_label, o_label = explain_client.resolve_edge_labels(
-                                    edge_sel.edge, user, collection
+                                    edge_sel.edge, collection
                                 )
                                 print(f"      Edge: ({s_label}, {p_label}, {o_label})", file=sys.stderr)
                             if edge_sel.reasoning:
@@ -750,10 +741,11 @@ def _question_explainable_api(
 
 
 def question(
-        url, flow_id, question, user, collection, entity_limit, triple_limit,
+        url, flow_id, question, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, edge_score_limit=50,
         edge_limit=25, streaming=True, token=None,
-        explainable=False, debug=False, show_usage=False
+        explainable=False, debug=False, show_usage=False,
+        workspace="default",
 ):
 
     # Explainable mode uses the API to capture and process provenance events
@@ -762,8 +754,7 @@ def question(
             url=url,
             flow_id=flow_id,
             question_text=question,
-            user=user,
-            collection=collection,
+                        collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
@@ -771,12 +762,13 @@ def question(
             edge_score_limit=edge_score_limit,
             edge_limit=edge_limit,
             token=token,
-            debug=debug
+            debug=debug,
+            workspace=workspace,
         )
         return
 
     # Create API client
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
 
     if streaming:
         # Use socket client for streaming
@@ -786,8 +778,7 @@ def question(
         try:
             response = flow.graph_rag(
                 query=question,
-                user=user,
-                collection=collection,
+                                collection=collection,
                 entity_limit=entity_limit,
                 triple_limit=triple_limit,
                 max_subgraph_size=max_subgraph_size,
@@ -819,8 +810,7 @@ def question(
         flow = api.flow().id(flow_id)
         result = flow.graph_rag(
             query=question,
-            user=user,
-            collection=collection,
+                        collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
@@ -858,6 +848,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-f', '--flow-id',
         default="default",
         help=f'Flow ID (default: default)'
@@ -867,12 +863,6 @@ def main():
         '-q', '--question',
         required=True,
         help=f'Question to answer',
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
@@ -955,7 +945,6 @@ def main():
             url=args.url,
             flow_id=args.flow_id,
             question=args.question,
-            user=args.user,
             collection=args.collection,
             entity_limit=args.entity_limit,
             triple_limit=args.triple_limit,
@@ -968,6 +957,7 @@ def main():
             explainable=args.explainable,
             debug=args.debug,
             show_usage=args.show_usage,
+            workspace=args.workspace,
         )
 
     except Exception as e:

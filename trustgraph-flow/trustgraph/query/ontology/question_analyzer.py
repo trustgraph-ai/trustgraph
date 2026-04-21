@@ -1,6 +1,6 @@
 """
 Question analyzer for ontology-sensitive query system.
-Decomposes user questions into semantic components.
+Decomposes workspace questions into semantic components.
 """
 
 import logging

@@ -30,7 +30,6 @@ def sample():
         metadata=Metadata(
             id="doc-1",
             root="",
-            user="alice",
             collection="testcoll",
         ),
         chunks=[
@@ -56,7 +55,6 @@ class TestDocumentEmbeddingsTranslator:
         assert isinstance(decoded, DocumentEmbeddings)
         assert isinstance(decoded.metadata, Metadata)
         assert decoded.metadata.id == "doc-1"
-        assert decoded.metadata.user == "alice"
         assert decoded.metadata.collection == "testcoll"
 
         assert len(decoded.chunks) == 2

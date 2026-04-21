@@ -48,7 +48,6 @@ class GraphEmbeddingsImport:
         elt = GraphEmbeddings(
             metadata=Metadata(
                 id=data["metadata"]["id"],
-                user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),
             entities=[

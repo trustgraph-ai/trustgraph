@@ -53,7 +53,7 @@ class PlanThenExecutePattern(PatternBase):
         if iteration_num == 1:
             await self.emit_session_triples(
                 flow, session_uri, request.question,
-                request.user, collection, respond, streaming,
+                collection, respond, streaming,
             )
 
         logger.info(
@@ -109,11 +109,17 @@ class PlanThenExecutePattern(PatternBase):
 
         think = self.make_think_callback(respond, streaming)
 
-        tools = self.filter_tools(self.processor.agent.tools, request)
+        agent = self.processor.agents.get(flow.workspace)
+        if agent is None:
+            raise RuntimeError(
+                f"No agent configuration for workspace {flow.workspace}"
+            )
+
+        tools = self.filter_tools(agent.tools, request)
         framing = getattr(request, 'framing', '')
 
         context = self.make_context(
-            flow, request.user,
+            flow,
             respond=respond, streaming=streaming,
         )
         client = context("prompt-request")
@@ -147,7 +153,7 @@ class PlanThenExecutePattern(PatternBase):
         step_goals = [ps.get("goal", "") for ps in plan_steps]
         await self.emit_plan_triples(
             flow, session_id, session_uri, step_goals,
-            request.user, collection, respond, streaming,
+            collection, respond, streaming,
         )
 
         # Build PlanStep objects
@@ -179,7 +185,6 @@ class PlanThenExecutePattern(PatternBase):
             state=request.state,
             group=getattr(request, 'group', []),
             history=new_history,
-            user=request.user,
             collection=collection,
             streaming=streaming,
             session_id=session_id,
@@ -237,9 +242,15 @@ class PlanThenExecutePattern(PatternBase):
                             "result": dep_result,
                         })
 
-        tools = self.filter_tools(self.processor.agent.tools, request)
+        agent = self.processor.agents.get(flow.workspace)
+        if agent is None:
+            raise RuntimeError(
+                f"No agent configuration for workspace {flow.workspace}"
+            )
+
+        tools = self.filter_tools(agent.tools, request)
         context = self.make_context(
-            flow, request.user,
+            flow,
             respond=respond, streaming=streaming,
         )
 
@@ -307,7 +318,7 @@ class PlanThenExecutePattern(PatternBase):
         # Emit step result provenance
         await self.emit_step_result_triples(
             flow, session_id, pending_idx, goal, step_result,
-            request.user, collection, respond, streaming,
+            collection, respond, streaming,
         )
 
         # Build execution step for history
@@ -327,7 +338,6 @@ class PlanThenExecutePattern(PatternBase):
             state=request.state,
             group=getattr(request, 'group', []),
             history=new_history,
-            user=request.user,
             collection=collection,
             streaming=streaming,
             session_id=session_id,
@@ -352,7 +362,7 @@ class PlanThenExecutePattern(PatternBase):
         framing = getattr(request, 'framing', '')
 
         context = self.make_context(
-            flow, request.user,
+            flow,
             respond=respond, streaming=streaming,
         )
         client = context("prompt-request")
@@ -387,7 +397,7 @@ class PlanThenExecutePattern(PatternBase):
         last_step_uri = make_step_result_uri(session_id, len(plan) - 1)
         await self.emit_synthesis_triples(
             flow, session_id, last_step_uri,
-            response_text, request.user, collection, respond, streaming,
+            response_text, collection, respond, streaming,
             termination_reason="plan-complete",
         )
 

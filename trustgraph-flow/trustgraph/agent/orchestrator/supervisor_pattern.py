@@ -54,7 +54,7 @@ class SupervisorPattern(PatternBase):
         if iteration_num == 1:
             await self.emit_session_triples(
                 flow, session_uri, request.question,
-                request.user, collection, respond, streaming,
+                collection, respond, streaming,
             )
 
         logger.info(
@@ -99,10 +99,16 @@ class SupervisorPattern(PatternBase):
         )
         framing = getattr(request, 'framing', '')
 
-        tools = self.filter_tools(self.processor.agent.tools, request)
+        agent = self.processor.agents.get(flow.workspace)
+        if agent is None:
+            raise RuntimeError(
+                f"No agent configuration for workspace {flow.workspace}"
+            )
+
+        tools = self.filter_tools(agent.tools, request)
 
         context = self.make_context(
-            flow, request.user,
+            flow,
             respond=respond, streaming=streaming,
         )
         client = context("prompt-request")
@@ -144,7 +150,7 @@ class SupervisorPattern(PatternBase):
         # Emit decomposition provenance
         await self.emit_decomposition_triples(
             flow, session_id, session_uri, goals,
-            request.user, collection, respond, streaming,
+            collection, respond, streaming,
         )
 
         # Fan out: emit a subagent request for each goal
@@ -155,7 +161,6 @@ class SupervisorPattern(PatternBase):
                 state="",
                 group=getattr(request, 'group', []),
                 history=[],
-                user=request.user,
                 collection=collection,
                 streaming=False,  # Subagents don't stream
                 session_id=subagent_session,
@@ -207,7 +212,7 @@ class SupervisorPattern(PatternBase):
             subagent_results = {"(no results)": "No subagent results available"}
 
         context = self.make_context(
-            flow, request.user,
+            flow,
             respond=respond, streaming=streaming,
         )
         client = context("prompt-request")
@@ -237,7 +242,7 @@ class SupervisorPattern(PatternBase):
         ]
         await self.emit_synthesis_triples(
             flow, session_id, finding_uris,
-            response_text, request.user, collection, respond, streaming,
+            response_text, collection, respond, streaming,
             termination_reason="subagents-complete",
         )
 

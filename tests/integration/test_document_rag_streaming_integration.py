@@ -107,7 +107,6 @@ class TestDocumentRagStreaming:
         # Act
         result = await document_rag_streaming.query(
             query=query,
-            user="test_user",
             collection="test_collection",
             doc_limit=10,
             streaming=True,
@@ -141,7 +140,6 @@ class TestDocumentRagStreaming:
         # Act - Non-streaming
         non_streaming_result = await document_rag_streaming.query(
             query=query,
-            user=user,
             collection=collection,
             doc_limit=doc_limit,
             streaming=False
@@ -155,7 +153,6 @@ class TestDocumentRagStreaming:
 
         streaming_result = await document_rag_streaming.query(
             query=query,
-            user=user,
             collection=collection,
             doc_limit=doc_limit,
             streaming=True,
@@ -178,7 +175,6 @@ class TestDocumentRagStreaming:
         # Act
         result = await document_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             doc_limit=5,
             streaming=True,
@@ -200,7 +196,6 @@ class TestDocumentRagStreaming:
         # Arrange & Act
         result = await document_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             doc_limit=5,
             streaming=True,
@@ -223,7 +218,6 @@ class TestDocumentRagStreaming:
         # Act
         result = await document_rag_streaming.query(
             query="unknown topic",
-            user="test_user",
             collection="test_collection",
             doc_limit=10,
             streaming=True,
@@ -247,7 +241,6 @@ class TestDocumentRagStreaming:
         with pytest.raises(Exception) as exc_info:
             await document_rag_streaming.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection",
                 doc_limit=5,
                 streaming=True,
@@ -272,7 +265,6 @@ class TestDocumentRagStreaming:
             # Act
             result = await document_rag_streaming.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection",
                 doc_limit=limit,
                 streaming=True,
@@ -300,7 +292,6 @@ class TestDocumentRagStreaming:
         # Act
         await document_rag_streaming.query(
             query="test query",
-            user=user,
             collection=collection,
             doc_limit=10,
             streaming=True,
@@ -309,5 +300,4 @@ class TestDocumentRagStreaming:
 
         # Assert - Verify user/collection were passed to document embeddings client
         call_args = mock_doc_embeddings_client.query.call_args
-        assert call_args.kwargs['user'] == user
         assert call_args.kwargs['collection'] == collection

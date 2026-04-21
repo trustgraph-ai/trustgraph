@@ -117,7 +117,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify index was accessed correctly (with dimension suffix)
         expected_index_name = "d-test_user-test_collection-3"  # 3 dimensions
@@ -160,7 +160,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         
         mock_index.query.side_effect = [mock_results1, mock_results2]
         
-        chunks = await processor.query_document_embeddings(mock_query_message)
+        chunks = await processor.query_document_embeddings('default', mock_query_message)
         
         # Verify both queries were made
         assert mock_index.query.call_count == 2
@@ -191,7 +191,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify limit is passed to query
         mock_index.query.assert_called_once()
@@ -213,7 +213,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify no query was made and empty result returned
         mock_index.query.assert_not_called()
@@ -231,7 +231,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify no query was made and empty result returned
         mock_index.query.assert_not_called()
@@ -259,7 +259,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
 
         mock_index.query.side_effect = [mock_results_2d, mock_results_4d]
 
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
 
         # Verify different indexes used for different dimensions
         assert processor.pinecone.Index.call_count == 2
@@ -287,7 +287,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify no queries were made and empty result returned
         processor.pinecone.Index.assert_not_called()
@@ -310,7 +310,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         mock_results.matches = []
         mock_index.query.return_value = mock_results
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify empty results
         assert chunks == []
@@ -334,7 +334,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify Unicode content is properly handled
         assert len(chunks) == 2
@@ -361,7 +361,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify large content is properly handled
         assert len(chunks) == 1
@@ -389,7 +389,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify all content types are properly handled
         assert len(chunks) == 5
@@ -413,7 +413,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         mock_index.query.side_effect = Exception("Query failed")
         
         with pytest.raises(Exception, match="Query failed"):
-            await processor.query_document_embeddings(message)
+            await processor.query_document_embeddings('test_user', message)
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_index_access_failure(self, processor):
@@ -427,7 +427,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         processor.pinecone.Index.side_effect = Exception("Index access failed")
         
         with pytest.raises(Exception, match="Index access failed"):
-            await processor.query_document_embeddings(message)
+            await processor.query_document_embeddings('test_user', message)
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_vector_accumulation(self, processor):
@@ -462,7 +462,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         
         mock_index.query.side_effect = [mock_results1, mock_results2, mock_results3]
         
-        chunks = await processor.query_document_embeddings(message)
+        chunks = await processor.query_document_embeddings('test_user', message)
         
         # Verify all queries were made
         assert mock_index.query.call_count == 3

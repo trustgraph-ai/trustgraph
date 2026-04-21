@@ -87,14 +87,12 @@ post:
             value:
               text: This is the document text...
               id: doc-123
-              user: alice
               collection: research
           withMetadata:
             summary: Load with RDF metadata using base64 text
             value:
               text: UXVhbnR1bSBjb21wdXRpbmcgdXNlcyBxdWFudHVtIG1lY2hhbmljcyBwcmluY2lwbGVzLi4u
               id: doc-456
-              user: alice
               collection: research
               metadata:
                 - s: {v: "doc-456", e: false}

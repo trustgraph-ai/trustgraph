@@ -286,11 +286,11 @@ class TestNLPQueryProcessor:
         }
         
         # Act
-        await processor.on_schema_config(config, "v1")
+        await processor.on_schema_config("default", config, "v1")
         
         # Assert
-        assert "test_schema" in processor.schemas
-        schema = processor.schemas["test_schema"]
+        assert "test_schema" in processor.schemas["default"]
+        schema = processor.schemas["default"]["test_schema"]
         assert schema.name == "test_schema"
         assert schema.description == "Test schema"
         assert len(schema.fields) == 2
@@ -308,10 +308,10 @@ class TestNLPQueryProcessor:
         }
         
         # Act
-        await processor.on_schema_config(config, "v1")
+        await processor.on_schema_config("default", config, "v1")
         
         # Assert - bad schema should be ignored
-        assert "bad_schema" not in processor.schemas
+        assert "bad_schema" not in processor.schemas.get("default", {})
 
     def test_processor_initialization(self, mock_pulsar_client):
         """Test processor initialization with correct specifications"""

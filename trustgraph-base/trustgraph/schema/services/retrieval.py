@@ -8,7 +8,6 @@ from ..core.primitives import Error, Term, Triple
 @dataclass
 class GraphRagQuery:
     query: str = ""
-    user: str = ""
     collection: str = ""
     entity_limit: int = 0
     triple_limit: int = 0
@@ -40,7 +39,6 @@ class GraphRagResponse:
 @dataclass
 class DocumentRagQuery:
     query: str = ""
-    user: str = ""
     collection: str = ""
     doc_limit: int = 0
     streaming: bool = False

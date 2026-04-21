@@ -126,7 +126,6 @@ def make_base_request(**kwargs):
         state="",
         group=[],
         history=[],
-        user="testuser",
         collection="default",
         streaming=False,
         session_id="test-session-123",

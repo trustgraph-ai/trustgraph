@@ -9,7 +9,8 @@ import sys
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 
@@ -44,10 +45,10 @@ def _term_str(val):
     return str(val)
 
 
-def sparql_query(url, token, flow_id, query, user, collection, limit,
-                 batch_size, output_format):
+def sparql_query(url, token, flow_id, query, collection, limit,
+                 batch_size, output_format, workspace="default"):
 
-    socket = Api(url=url, token=token).socket()
+    socket = Api(url=url, token=token, workspace=workspace).socket()
     flow = socket.flow(flow_id)
 
     variables = None
@@ -57,7 +58,6 @@ def sparql_query(url, token, flow_id, query, user, collection, limit,
 
         for response in flow.sparql_query_stream(
             query=query,
-            user=user,
             collection=collection,
             limit=limit,
             batch_size=batch_size,
@@ -154,8 +154,14 @@ def main():
 
     parser.add_argument(
         '-t', '--token',
-        default=os.getenv("TRUSTGRAPH_TOKEN"),
-        help='API bearer token (default: TRUSTGRAPH_TOKEN env var)',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -172,12 +178,6 @@ def main():
     parser.add_argument(
         '-i', '--input',
         help='Read SPARQL query from file (use - for stdin)',
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})',
     )
 
     parser.add_argument(
@@ -228,11 +228,11 @@ def main():
             token=args.token,
             flow_id=args.flow_id,
             query=query,
-            user=args.user,
             collection=args.collection,
             limit=args.limit,
             batch_size=args.batch_size,
             output_format=args.format,
+            workspace=args.workspace,
         )
 
     except Exception as e:

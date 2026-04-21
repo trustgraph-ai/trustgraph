@@ -53,7 +53,6 @@ class RowsImport:
         elt = ExtractedObject(
             metadata=Metadata(
                 id=data["metadata"]["id"],
-                user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),
             schema_name=data["schema_name"],

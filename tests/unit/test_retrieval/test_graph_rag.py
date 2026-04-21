@@ -78,14 +78,12 @@ class TestQuery:
         # Initialize Query with defaults
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
 
         # Verify initialization
         assert query.rag == mock_rag
-        assert query.user == "test_user"
         assert query.collection == "test_collection"
         assert query.verbose is False
         assert query.entity_limit == 50  # Default value
@@ -101,7 +99,6 @@ class TestQuery:
         # Initialize Query with custom parameters
         query = Query(
             rag=mock_rag,
-            user="custom_user",
             collection="custom_collection",
             verbose=True,
             entity_limit=100,
@@ -112,7 +109,6 @@ class TestQuery:
 
         # Verify initialization
         assert query.rag == mock_rag
-        assert query.user == "custom_user"
         assert query.collection == "custom_collection"
         assert query.verbose is True
         assert query.entity_limit == 100
@@ -133,7 +129,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -156,7 +151,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=True
         )
@@ -177,7 +171,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -201,7 +194,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -244,7 +236,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False,
             entity_limit=25
@@ -269,7 +260,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -277,7 +267,7 @@ class TestQuery:
         result = await query.maybe_label("entity1")
 
         assert result == "Entity One Label"
-        mock_cache.get.assert_called_once_with("test_user:test_collection:entity1")
+        mock_cache.get.assert_called_once_with("test_collection:entity1")
 
     @pytest.mark.asyncio
     async def test_maybe_label_with_label_lookup(self):
@@ -295,7 +285,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -307,13 +296,12 @@ class TestQuery:
             p="http://www.w3.org/2000/01/rdf-schema#label",
             o=None,
             limit=1,
-            user="test_user",
             collection="test_collection",
             g=""
         )
 
         assert result == "Human Readable Label"
-        cache_key = "test_user:test_collection:http://example.com/entity"
+        cache_key = "test_collection:http://example.com/entity"
         mock_cache.put.assert_called_once_with(cache_key, "Human Readable Label")
 
     @pytest.mark.asyncio
@@ -330,7 +318,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -342,13 +329,12 @@ class TestQuery:
             p="http://www.w3.org/2000/01/rdf-schema#label",
             o=None,
             limit=1,
-            user="test_user",
             collection="test_collection",
             g=""
         )
 
         assert result == "unlabeled_entity"
-        cache_key = "test_user:test_collection:unlabeled_entity"
+        cache_key = "test_collection:unlabeled_entity"
         mock_cache.put.assert_called_once_with(cache_key, "unlabeled_entity")
 
     @pytest.mark.asyncio
@@ -375,7 +361,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False,
             triple_limit=10
@@ -388,15 +373,15 @@ class TestQuery:
 
         mock_triples_client.query_stream.assert_any_call(
             s="entity1", p=None, o=None, limit=10,
-            user="test_user", collection="test_collection", batch_size=20, g=""
+            collection="test_collection", batch_size=20, g=""
         )
         mock_triples_client.query_stream.assert_any_call(
             s=None, p="entity1", o=None, limit=10,
-            user="test_user", collection="test_collection", batch_size=20, g=""
+            collection="test_collection", batch_size=20, g=""
         )
         mock_triples_client.query_stream.assert_any_call(
             s=None, p=None, o="entity1", limit=10,
-            user="test_user", collection="test_collection", batch_size=20, g=""
+            collection="test_collection", batch_size=20, g=""
         )
 
         expected_subgraph = {
@@ -415,7 +400,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False
         )
@@ -435,7 +419,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False,
             max_subgraph_size=2
@@ -455,7 +438,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False,
             max_path_length=1
@@ -493,7 +475,6 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
             collection="test_collection",
             verbose=False,
             max_subgraph_size=100
@@ -601,7 +582,6 @@ class TestQuery:
         try:
             response = await graph_rag.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection",
                 entity_limit=25,
                 triple_limit=15,

@@ -22,14 +22,12 @@ def to_value(x: Any) -> Any:
     return Literal(x.value or x.iri)
 
 class GraphEmbeddingsClient(RequestResponse):
-    async def query(self, vector, limit=20, user="trustgraph",
-                    collection="default", timeout=30):
+    async def query(self, vector, limit=20, collection="default", timeout=30):
 
         resp = await self.request(
             GraphEmbeddingsRequest(
                 vector = vector,
                 limit = limit,
-                user = user,
                 collection = collection
             ),
             timeout=timeout

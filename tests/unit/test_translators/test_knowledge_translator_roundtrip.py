@@ -41,7 +41,7 @@ def translator():
 def graph_embeddings_request():
     return KnowledgeRequest(
         operation="put-kg-core",
-        user="alice",
+        workspace="alice",
         id="doc-1",
         flow="default",
         collection="testcoll",
@@ -49,7 +49,6 @@ def graph_embeddings_request():
             metadata=Metadata(
                 id="doc-1",
                 root="",
-                user="alice",
                 collection="testcoll",
             ),
             entities=[
@@ -70,7 +69,6 @@ def graph_embeddings_request():
 def triples_request():
     return KnowledgeRequest(
         operation="put-kg-core",
-        user="alice",
         id="doc-1",
         flow="default",
         collection="testcoll",
@@ -78,7 +76,6 @@ def triples_request():
             metadata=Metadata(
                 id="doc-1",
                 root="",
-                user="alice",
                 collection="testcoll",
             ),
             triples=[
@@ -113,7 +110,7 @@ class TestKnowledgeRequestTranslatorGraphEmbeddings:
 
         assert isinstance(decoded, KnowledgeRequest)
         assert decoded.operation == "put-kg-core"
-        assert decoded.user == "alice"
+        assert decoded.workspace == "alice"
         assert decoded.id == "doc-1"
         assert decoded.flow == "default"
         assert decoded.collection == "testcoll"
@@ -123,7 +120,6 @@ class TestKnowledgeRequestTranslatorGraphEmbeddings:
         assert isinstance(ge, GraphEmbeddings)
         assert isinstance(ge.metadata, Metadata)
         assert ge.metadata.id == "doc-1"
-        assert ge.metadata.user == "alice"
         assert ge.metadata.collection == "testcoll"
 
         assert len(ge.entities) == 2
@@ -143,7 +139,6 @@ class TestKnowledgeRequestTranslatorTriples:
         assert decoded.triples is not None
         assert isinstance(decoded.triples.metadata, Metadata)
         assert decoded.triples.metadata.id == "doc-1"
-        assert decoded.triples.metadata.user == "alice"
         assert decoded.triples.metadata.collection == "testcoll"
 
         assert len(decoded.triples.triples) == 1

@@ -24,7 +24,10 @@ class ConsumerSpec(Spec):
             flow = flow,
             backend = processor.pubsub,
             topic = definition["topics"][self.name],
-            subscriber = processor.id + "--" + flow.name + "--" + self.name,
+            subscriber = (
+                processor.id + "--" + flow.workspace + "--" +
+                flow.name + "--" + self.name
+            ),
             schema = self.schema,
             handler = self.handler,
             metrics = consumer_metrics,

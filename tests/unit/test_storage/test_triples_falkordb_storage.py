@@ -17,7 +17,6 @@ class TestFalkorDBStorageProcessor:
         """Create a mock message for testing"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Create a test triple
@@ -89,13 +88,13 @@ class TestFalkorDBStorageProcessor:
 
         processor.io.query.return_value = mock_result
 
-        processor.create_node(test_uri, 'test_user', 'test_collection')
+        processor.create_node(test_uri, 'test_workspace', 'test_collection')
 
         processor.io.query.assert_called_once_with(
-            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
             params={
                 "uri": test_uri,
-                "user": 'test_user',
+                "workspace": 'test_workspace',
                 "collection": 'test_collection',
             },
         )
@@ -109,13 +108,13 @@ class TestFalkorDBStorageProcessor:
 
         processor.io.query.return_value = mock_result
 
-        processor.create_literal(test_value, 'test_user', 'test_collection')
+        processor.create_literal(test_value, 'test_workspace', 'test_collection')
 
         processor.io.query.assert_called_once_with(
-            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            "MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",
             params={
                 "value": test_value,
-                "user": 'test_user',
+                "workspace": 'test_workspace',
                 "collection": 'test_collection',
             },
         )
@@ -132,17 +131,17 @@ class TestFalkorDBStorageProcessor:
 
         processor.io.query.return_value = mock_result
 
-        processor.relate_node(src_uri, pred_uri, dest_uri, 'test_user', 'test_collection')
+        processor.relate_node(src_uri, pred_uri, dest_uri, 'test_workspace', 'test_collection')
 
         processor.io.query.assert_called_once_with(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             params={
                 "src": src_uri,
                 "dest": dest_uri,
                 "uri": pred_uri,
-                "user": 'test_user',
+                "workspace": 'test_workspace',
                 "collection": 'test_collection',
             },
         )
@@ -159,17 +158,17 @@ class TestFalkorDBStorageProcessor:
 
         processor.io.query.return_value = mock_result
 
-        processor.relate_literal(src_uri, pred_uri, literal_value, 'test_user', 'test_collection')
+        processor.relate_literal(src_uri, pred_uri, literal_value, 'test_workspace', 'test_collection')
 
         processor.io.query.assert_called_once_with(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             params={
                 "src": src_uri,
                 "dest": literal_value,
                 "uri": pred_uri,
-                "user": 'test_user',
+                "workspace": 'test_workspace',
                 "collection": 'test_collection',
             },
         )
@@ -179,7 +178,6 @@ class TestFalkorDBStorageProcessor:
         """Test storing triple with URI object"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         triple = Triple(
@@ -200,21 +198,21 @@ class TestFalkorDBStorageProcessor:
         with patch.object(processor, 'collection_exists', return_value=True):
 
         
-            await processor.store_triples(message)
+            await processor.store_triples('test_workspace', message)
         
         # Verify queries were called in the correct order
         expected_calls = [
             # Create subject node
-            (("MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",),
-             {"params": {"uri": "http://example.com/subject", "user": "test_user", "collection": "test_collection"}}),
+            (("MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",),
+             {"params": {"uri": "http://example.com/subject", "workspace": "test_workspace", "collection": "test_collection"}}),
             # Create object node
-            (("MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",),
-             {"params": {"uri": "http://example.com/object", "user": "test_user", "collection": "test_collection"}}),
+            (("MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",),
+             {"params": {"uri": "http://example.com/object", "workspace": "test_workspace", "collection": "test_collection"}}),
             # Create relationship
-            (("MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-              "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
-              "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",),
-             {"params": {"src": "http://example.com/subject", "dest": "http://example.com/object", "uri": "http://example.com/predicate", "user": "test_user", "collection": "test_collection"}}),
+            (("MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+              "MATCH (dest:Node {uri: $dest, workspace: $workspace, collection: $collection}) "
+              "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",),
+             {"params": {"src": "http://example.com/subject", "dest": "http://example.com/object", "uri": "http://example.com/predicate", "workspace": "test_workspace", "collection": "test_collection"}}),
         ]
         
         assert processor.io.query.call_count == 3
@@ -237,21 +235,21 @@ class TestFalkorDBStorageProcessor:
         with patch.object(processor, 'collection_exists', return_value=True):
 
         
-            await processor.store_triples(mock_message)
-        
+            await processor.store_triples('test_workspace', mock_message)
+
         # Verify queries were called in the correct order
         expected_calls = [
             # Create subject node
-            (("MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",),
-             {"params": {"uri": "http://example.com/subject", "user": "test_user", "collection": "test_collection"}}),
+            (("MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",),
+             {"params": {"uri": "http://example.com/subject", "workspace": "test_workspace", "collection": "test_collection"}}),
             # Create literal object
-            (("MERGE (n:Literal {value: $value, user: $user, collection: $collection})",),
-             {"params": {"value": "literal object", "user": "test_user", "collection": "test_collection"}}),
+            (("MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",),
+             {"params": {"value": "literal object", "workspace": "test_workspace", "collection": "test_collection"}}),
             # Create relationship
-            (("MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-              "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
-              "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",),
-             {"params": {"src": "http://example.com/subject", "dest": "literal object", "uri": "http://example.com/predicate", "user": "test_user", "collection": "test_collection"}}),
+            (("MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+              "MATCH (dest:Literal {value: $dest, workspace: $workspace, collection: $collection}) "
+              "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",),
+             {"params": {"src": "http://example.com/subject", "dest": "literal object", "uri": "http://example.com/predicate", "workspace": "test_workspace", "collection": "test_collection"}}),
         ]
         
         assert processor.io.query.call_count == 3
@@ -265,7 +263,6 @@ class TestFalkorDBStorageProcessor:
         """Test storing multiple triples"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         triple1 = Triple(
@@ -291,7 +288,7 @@ class TestFalkorDBStorageProcessor:
         with patch.object(processor, 'collection_exists', return_value=True):
 
         
-            await processor.store_triples(message)
+            await processor.store_triples('test_workspace', message)
         
         # Verify total number of queries (3 per triple)
         assert processor.io.query.call_count == 6
@@ -313,7 +310,6 @@ class TestFalkorDBStorageProcessor:
         """Test storing empty triples list"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         message.triples = []
         
@@ -323,7 +319,7 @@ class TestFalkorDBStorageProcessor:
         with patch.object(processor, 'collection_exists', return_value=True):
 
         
-            await processor.store_triples(message)
+            await processor.store_triples('test_workspace', message)
         
         # Verify no queries were made
         processor.io.query.assert_not_called()
@@ -333,7 +329,6 @@ class TestFalkorDBStorageProcessor:
         """Test storing triples with mixed URI and literal objects"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         triple1 = Triple(
@@ -359,7 +354,7 @@ class TestFalkorDBStorageProcessor:
         with patch.object(processor, 'collection_exists', return_value=True):
 
         
-            await processor.store_triples(message)
+            await processor.store_triples('test_workspace', message)
         
         # Verify total number of queries (3 per triple)
         assert processor.io.query.call_count == 6
@@ -450,13 +445,13 @@ class TestFalkorDBStorageProcessor:
         
         processor.io.query.return_value = mock_result
         
-        processor.create_node(test_uri, 'test_user', 'test_collection')
+        processor.create_node(test_uri, 'test_workspace', 'test_collection')
         
         processor.io.query.assert_called_once_with(
-            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
             params={
                 "uri": test_uri,
-                "user": 'test_user',
+                "workspace": 'test_workspace',
                 "collection": 'test_collection',
             },
         )
@@ -470,13 +465,13 @@ class TestFalkorDBStorageProcessor:
         
         processor.io.query.return_value = mock_result
         
-        processor.create_literal(test_value, 'test_user', 'test_collection')
+        processor.create_literal(test_value, 'test_workspace', 'test_collection')
         
         processor.io.query.assert_called_once_with(
-            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            "MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",
             params={
                 "value": test_value,
-                "user": 'test_user',
+                "workspace": 'test_workspace',
                 "collection": 'test_collection',
             },
         )

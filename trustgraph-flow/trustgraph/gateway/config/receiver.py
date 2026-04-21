@@ -30,6 +30,7 @@ class ConfigReceiver:
 
         self.flow_handlers = []
 
+        # Per-workspace flow tracking: {workspace: {flow_id: flow_def}}
         self.flows = {}
 
         self.config_version = 0
@@ -43,7 +44,7 @@ class ConfigReceiver:
 
             v = msg.value()
             notify_version = v.version
-            notify_types = set(v.types)
+            changes = v.changes
 
             # Skip if we already have this version or newer
             if notify_version <= self.config_version:
@@ -53,20 +54,27 @@ class ConfigReceiver:
                 )
                 return
 
-            # Gateway cares about flow config
-            if notify_types and "flow" not in notify_types:
+            # Gateway cares about flow config — check if any flow
+            # types changed in any workspace
+            flow_workspaces = changes.get("flow", [])
+            if changes and not flow_workspaces:
                 logger.debug(
                     f"Ignoring config notify v{notify_version}, "
-                    f"no flow types in {notify_types}"
+                    f"no flow changes"
                 )
                 self.config_version = notify_version
                 return
 
             logger.info(
-                f"Config notify v{notify_version}, fetching config..."
+                f"Config notify v{notify_version} "
+                f"types={list(changes.keys())}, fetching config..."
             )
 
-            await self.fetch_and_apply()
+            # Refresh config for each affected workspace
+            for workspace in flow_workspaces:
+                await self.fetch_and_apply_workspace(workspace)
+
+            self.config_version = notify_version
 
         except Exception as e:
             logger.error(
@@ -98,20 +106,25 @@ class ConfigReceiver:
             response_metrics=config_resp_metrics,
         )
 
-    async def fetch_and_apply(self, retry=False):
-        """Fetch full config and apply flow changes.
+    async def fetch_and_apply_workspace(self, workspace, retry=False):
+        """Fetch config for a single workspace and apply flow changes.
         If retry=True, keeps retrying until successful."""
 
         while True:
 
             try:
-                logger.info("Fetching config from config service...")
+                logger.info(
+                    f"Fetching config for workspace {workspace}..."
+                )
 
                 client = self._create_config_client()
                 try:
                     await client.start()
                     resp = await client.request(
-                        ConfigRequest(operation="config"),
+                        ConfigRequest(
+                            operation="config",
+                            workspace=workspace,
+                        ),
                         timeout=10,
                     )
                 finally:
@@ -137,18 +150,22 @@ class ConfigReceiver:
 
                 flows = config.get("flow", {})
 
+                ws_flows = self.flows.get(workspace, {})
+
                 wanted = list(flows.keys())
-                current = list(self.flows.keys())
+                current = list(ws_flows.keys())
 
                 for k in wanted:
                     if k not in current:
-                        self.flows[k] = json.loads(flows[k])
-                        await self.start_flow(k, self.flows[k])
+                        ws_flows[k] = json.loads(flows[k])
+                        await self.start_flow(workspace, k, ws_flows[k])
 
                 for k in current:
                     if k not in wanted:
-                        await self.stop_flow(k, self.flows[k])
-                        del self.flows[k]
+                        await self.stop_flow(workspace, k, ws_flows[k])
+                        del ws_flows[k]
+
+                self.flows[workspace] = ws_flows
 
                 return
 
@@ -164,27 +181,91 @@ class ConfigReceiver:
                 )
                 return
 
-    async def start_flow(self, id, flow):
+    async def fetch_all_workspaces(self, retry=False):
+        """Fetch config for all workspaces at startup.
+        Discovers workspaces via the config service getvalues-all-ws
+        operation on the flow type."""
 
-        logger.info(f"Starting flow: {id}")
+        while True:
+
+            try:
+                logger.info("Discovering workspaces with flows...")
+
+                client = self._create_config_client()
+                try:
+                    await client.start()
+
+                    # Discover workspaces that have any flow config
+                    resp = await client.request(
+                        ConfigRequest(
+                            operation="getvalues-all-ws",
+                            type="flow",
+                        ),
+                        timeout=10,
+                    )
+
+                    if resp.error:
+                        raise RuntimeError(
+                            f"Config error: {resp.error.message}"
+                        )
+
+                    workspaces = {
+                        v.workspace for v in resp.values if v.workspace
+                    }
+
+                    # Always include the default workspace, even if
+                    # empty, so that newly-created flows in it can be
+                    # picked up by subsequent notifications.
+                    workspaces.add("default")
+
+                    logger.info(
+                        f"Found workspaces with flows: {workspaces}"
+                    )
+
+                finally:
+                    await client.stop()
+
+                # Fetch and apply config for each workspace
+                for workspace in workspaces:
+                    await self.fetch_and_apply_workspace(
+                        workspace, retry=retry
+                    )
+
+                return
+
+            except Exception as e:
+                if retry:
+                    logger.warning(
+                        f"Workspace fetch failed: {e}, retrying in 2s..."
+                    )
+                    await asyncio.sleep(2)
+                    continue
+                logger.error(
+                    f"Workspace fetch exception: {e}", exc_info=True
+                )
+                return
+
+    async def start_flow(self, workspace, id, flow):
+
+        logger.info(f"Starting flow: {workspace}/{id}")
 
         for handler in self.flow_handlers:
 
             try:
-                await handler.start_flow(id, flow)
+                await handler.start_flow(workspace, id, flow)
             except Exception as e:
                 logger.error(
                     f"Config processing exception: {e}", exc_info=True
                 )
 
-    async def stop_flow(self, id, flow):
+    async def stop_flow(self, workspace, id, flow):
 
-        logger.info(f"Stopping flow: {id}")
+        logger.info(f"Stopping flow: {workspace}/{id}")
 
         for handler in self.flow_handlers:
 
             try:
-                await handler.stop_flow(id, flow)
+                await handler.stop_flow(workspace, id, flow)
             except Exception as e:
                 logger.error(
                     f"Config processing exception: {e}", exc_info=True
@@ -218,7 +299,7 @@ class ConfigReceiver:
 
                     # Fetch current config (subscribe-then-fetch pattern)
                     # Retry until config service is available
-                    await self.fetch_and_apply(retry=True)
+                    await self.fetch_all_workspaces(retry=True)
 
                     logger.info(
                         "Config loader initialised, waiting for notifys..."

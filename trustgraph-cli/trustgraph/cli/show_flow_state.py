@@ -10,10 +10,12 @@ import os
 default_metrics_url = "http://localhost:8088/api/metrics"
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def dump_status(metrics_url, api_url, flow_id, token=None):
+def dump_status(metrics_url, api_url, flow_id, token=None,
+                workspace="default"):
 
-    api = Api(api_url, token=token).flow()
+    api = Api(api_url, token=token, workspace=workspace).flow()
 
     flow = api.get(flow_id)
     blueprint_name = flow["blueprint-name"]
@@ -84,11 +86,20 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
 
-        dump_status(args.metrics_url, args.api_url, args.flow_id, token=args.token)
+        dump_status(
+            args.metrics_url, args.api_url, args.flow_id,
+            token=args.token, workspace=args.workspace,
+        )
 
     except Exception as e:
 

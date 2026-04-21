@@ -66,24 +66,37 @@ class Processor(FlowProcessor):
 
         self.register_config_handler(self.on_prompt_config, types=["prompt"])
 
-        # Null configuration, should reload quickly
-        self.manager = PromptManager()
+        # Per-workspace prompt managers. Populated lazily as config
+        # arrives for each workspace.
+        self.managers = {}
 
-    async def on_prompt_config(self, config, version):
+    async def on_prompt_config(self, workspace, config, version):
 
-        logger.info(f"Loading prompt configuration version {version}")
+        logger.info(
+            f"Loading prompt configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
         if self.config_key not in config:
-            logger.warning(f"No key {self.config_key} in config")
+            logger.warning(
+                f"No key {self.config_key} in config for {workspace}"
+            )
             return
 
-        config = config[self.config_key]
+        prompt_config = config[self.config_key]
 
         try:
 
-            self.manager.load_config(config)
+            manager = self.managers.get(workspace)
+            if manager is None:
+                manager = PromptManager()
+                self.managers[workspace] = manager
 
-            logger.info("Prompt configuration reloaded")
+            manager.load_config(prompt_config)
+
+            logger.info(
+                f"Prompt configuration reloaded for {workspace}"
+            )
 
         except Exception as e:
 
@@ -102,6 +115,29 @@ class Processor(FlowProcessor):
 
         # Check if streaming is requested
         streaming = getattr(v, 'streaming', False)
+
+        # Look up the prompt manager for this workspace. If none is
+        # loaded yet, the request can't be handled.
+        workspace = flow.workspace
+        manager = self.managers.get(workspace)
+        if manager is None:
+            logger.error(
+                f"No prompt configuration loaded for workspace {workspace}"
+            )
+            r = PromptResponse(
+                error=Error(
+                    type="no-configuration",
+                    message=(
+                        f"No prompt configuration for workspace "
+                        f"{workspace}"
+                    ),
+                ),
+                text=None,
+                object=None,
+                end_of_stream=True,
+            )
+            await flow("response").send(r, properties={"id": id})
+            return
 
         try:
 
@@ -149,7 +185,7 @@ class Processor(FlowProcessor):
                     return ""
 
                 try:
-                    await self.manager.invoke(kind, input, llm_streaming)
+                    await manager.invoke(kind, input, llm_streaming)
                 except Exception as e:
                     logger.error(f"Prompt streaming exception: {e}", exc_info=True)
                     raise e
@@ -177,7 +213,7 @@ class Processor(FlowProcessor):
                     return None
 
             try:
-                resp = await self.manager.invoke(kind, input, llm)
+                resp = await manager.invoke(kind, input, llm)
             except Exception as e:
                 logger.error(f"Prompt invocation exception: {e}", exc_info=True)
                 raise e

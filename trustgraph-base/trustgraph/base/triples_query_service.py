@@ -58,9 +58,13 @@ class TriplesQueryService(FlowProcessor):
 
             logger.debug(f"Handling triples query request {id}...")
 
+            workspace = flow.workspace
+
             if request.streaming:
                 # Streaming mode: send batches
-                async for batch, is_final in self.query_triples_stream(request):
+                async for batch, is_final in self.query_triples_stream(
+                    workspace, request,
+                ):
                     r = TriplesQueryResponse(
                         triples=batch,
                         error=None,
@@ -70,7 +74,7 @@ class TriplesQueryService(FlowProcessor):
                 logger.debug("Triples query streaming completed")
             else:
                 # Non-streaming mode: single response
-                triples = await self.query_triples(request)
+                triples = await self.query_triples(workspace, request)
                 logger.debug("Sending triples query response...")
                 r = TriplesQueryResponse(triples=triples, error=None)
                 await flow("response").send(r, properties={"id": id})
@@ -92,13 +96,13 @@ class TriplesQueryService(FlowProcessor):
 
             await flow("response").send(r, properties={"id": id})
 
-    async def query_triples_stream(self, request):
+    async def query_triples_stream(self, workspace, request):
         """
         Streaming query - yields (batch, is_final) tuples.
         Default implementation batches results from query_triples.
         Override for true streaming from backend.
         """
-        triples = await self.query_triples(request)
+        triples = await self.query_triples(workspace, request)
         batch_size = request.batch_size if request.batch_size > 0 else 20
 
         for i in range(0, len(triples), batch_size):

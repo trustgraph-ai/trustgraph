@@ -167,39 +167,28 @@ class TestToolServiceRequest:
     """Test cases for tool service request format"""
 
     def test_request_format(self):
-        """Test that request is properly formatted with user, config, and arguments"""
-        # Arrange
-        user = "alice"
+        """Test that request is properly formatted with config and arguments"""
         config_values = {"style": "pun", "collection": "jokes"}
         arguments = {"topic": "programming"}
 
-        # Act - simulate request building
         request = {
-            "user": user,
             "config": json.dumps(config_values),
             "arguments": json.dumps(arguments)
         }
 
-        # Assert
-        assert request["user"] == "alice"
         assert json.loads(request["config"]) == {"style": "pun", "collection": "jokes"}
         assert json.loads(request["arguments"]) == {"topic": "programming"}
 
     def test_request_with_empty_config(self):
         """Test request when no config values are provided"""
-        # Arrange
-        user = "bob"
         config_values = {}
         arguments = {"query": "test"}
 
-        # Act
         request = {
-            "user": user,
             "config": json.dumps(config_values) if config_values else "{}",
             "arguments": json.dumps(arguments) if arguments else "{}"
         }
 
-        # Assert
         assert request["config"] == "{}"
         assert json.loads(request["arguments"]) == {"query": "test"}
 
@@ -386,18 +375,13 @@ class TestJokeServiceLogic:
         assert map_topic_to_category("random topic") == "default"
         assert map_topic_to_category("") == "default"
 
-    def test_joke_response_personalization(self):
-        """Test that joke responses include user personalization"""
-        # Arrange
-        user = "alice"
+    def test_joke_response_format(self):
+        """Test that joke response is formatted as expected"""
         style = "pun"
         joke = "Why do programmers prefer dark mode? Because light attracts bugs!"
 
-        # Act
-        response = f"Hey {user}! Here's a {style} for you:\n\n{joke}"
+        response = f"Here's a {style} for you:\n\n{joke}"
 
-        # Assert
-        assert "Hey alice!" in response
         assert "pun" in response
         assert joke in response
 
@@ -439,20 +423,14 @@ class TestDynamicToolServiceBase:
 
     def test_request_parsing(self):
         """Test parsing of incoming request"""
-        # Arrange
         request_data = {
-            "user": "alice",
             "config": '{"style": "pun"}',
             "arguments": '{"topic": "programming"}'
         }
 
-        # Act
-        user = request_data.get("user", "trustgraph")
         config = json.loads(request_data["config"]) if request_data["config"] else {}
         arguments = json.loads(request_data["arguments"]) if request_data["arguments"] else {}
 
-        # Assert
-        assert user == "alice"
         assert config == {"style": "pun"}
         assert arguments == {"topic": "programming"}
 

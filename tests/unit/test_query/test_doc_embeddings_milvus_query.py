@@ -31,7 +31,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     def mock_query_request(self):
         """Create a mock query request for testing"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=10
@@ -69,7 +68,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_single_vector(self, processor):
         """Test querying document embeddings with a single vector"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -83,7 +81,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify search was called with correct parameters including user/collection
         processor.vecstore.search.assert_called_once_with(
@@ -101,7 +99,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_longer_vector(self, processor):
         """Test querying document embeddings with a longer vector"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=3
@@ -115,7 +112,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
 
         # Verify search was called once with the full vector
         processor.vecstore.search.assert_called_once_with(
@@ -133,7 +130,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_with_limit(self, processor):
         """Test querying document embeddings respects limit parameter"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=2
@@ -148,7 +144,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify search was called with the specified limit
         processor.vecstore.search.assert_called_once_with(
@@ -162,13 +158,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_empty_vectors(self, processor):
         """Test querying document embeddings with empty vectors list"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[],
             limit=5
         )
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify no search was called
         processor.vecstore.search.assert_not_called()
@@ -180,7 +175,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_empty_search_results(self, processor):
         """Test querying document embeddings with empty search results"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -189,7 +183,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         # Mock empty search results
         processor.vecstore.search.return_value = []
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify search was called
         processor.vecstore.search.assert_called_once_with(
@@ -203,7 +197,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_unicode_documents(self, processor):
         """Test querying document embeddings with Unicode document content"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -217,7 +210,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify Unicode content is preserved in ChunkMatch objects
         assert len(result) == 3
@@ -230,7 +223,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_large_documents(self, processor):
         """Test querying document embeddings with large document content"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -244,7 +236,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify large content is preserved in ChunkMatch objects
         assert len(result) == 2
@@ -256,7 +248,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_special_characters(self, processor):
         """Test querying document embeddings with special characters in documents"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -270,7 +261,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify special characters are preserved in ChunkMatch objects
         assert len(result) == 3
@@ -283,13 +274,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_zero_limit(self, processor):
         """Test querying document embeddings with zero limit"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=0
         )
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify no search was called (optimization for zero limit)
         processor.vecstore.search.assert_not_called()
@@ -301,13 +291,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_negative_limit(self, processor):
         """Test querying document embeddings with negative limit"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=-1
         )
         
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
         
         # Verify no search was called (optimization for negative limit)
         processor.vecstore.search.assert_not_called()
@@ -319,7 +308,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_exception_handling(self, processor):
         """Test exception handling during query processing"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -330,13 +318,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Should raise the exception
         with pytest.raises(Exception, match="Milvus connection failed"):
-            await processor.query_document_embeddings(query)
+            await processor.query_document_embeddings('test_user', query)
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_different_vector_dimensions(self, processor):
         """Test querying document embeddings with different vector dimensions"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5],  # 5D vector
             limit=5
@@ -349,7 +336,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
 
         # Verify search was called with the vector
         processor.vecstore.search.assert_called_once()
@@ -364,7 +351,6 @@ class TestMilvusDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_multiple_results(self, processor):
         """Test querying document embeddings with multiple results"""
         query = DocumentEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
@@ -378,7 +364,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_document_embeddings(query)
+        result = await processor.query_document_embeddings('test_user', query)
 
         # Verify results are ChunkMatch objects
         assert len(result) == 3

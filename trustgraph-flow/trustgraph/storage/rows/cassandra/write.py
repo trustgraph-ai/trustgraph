@@ -119,19 +119,27 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             logger.error(f"Failed to connect to Cassandra: {e}", exc_info=True)
             raise
 
-    async def on_schema_config(self, config, version):
+    async def on_schema_config(self, workspace, config, version):
         """Handle schema configuration updates"""
-        logger.info(f"Loading schema configuration version {version}")
+        logger.info(
+            f"Loading schema configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
-        # Track which schemas changed so we can clear partition cache
-        old_schema_names = set(self.schemas.keys())
+        # Track which schemas changed in this workspace
+        old_schemas = self.schemas.get(workspace, {})
+        old_schema_names = set(old_schemas.keys())
 
-        # Clear existing schemas
-        self.schemas = {}
+        # Replace existing schemas for this workspace
+        ws_schemas: Dict[str, RowSchema] = {}
+        self.schemas[workspace] = ws_schemas
 
         # Check if our config type exists
         if self.config_key not in config:
-            logger.warning(f"No '{self.config_key}' type in configuration")
+            logger.warning(
+                f"No '{self.config_key}' type in configuration "
+                f"for {workspace}"
+            )
             return
 
         # Get the schemas dictionary for our type
@@ -165,24 +173,32 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     fields=fields
                 )
 
-                self.schemas[schema_name] = row_schema
-                logger.info(f"Loaded schema: {schema_name} with {len(fields)} fields")
+                ws_schemas[schema_name] = row_schema
+                logger.info(
+                    f"Loaded schema: {schema_name} with "
+                    f"{len(fields)} fields for {workspace}"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to parse schema {schema_name}: {e}", exc_info=True)
 
-        logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
+        logger.info(
+            f"Schema configuration loaded for {workspace}: "
+            f"{len(ws_schemas)} schemas"
+        )
 
-        # Clear partition cache for schemas that changed
-        # This ensures next write will re-register partitions
-        new_schema_names = set(self.schemas.keys())
+        # Clear partition cache for schemas that changed in this workspace
+        new_schema_names = set(ws_schemas.keys())
         changed_schemas = old_schema_names.symmetric_difference(new_schema_names)
         if changed_schemas:
             self.registered_partitions = {
                 (col, sch) for col, sch in self.registered_partitions
                 if sch not in changed_schemas
             }
-            logger.info(f"Cleared partition cache for changed schemas: {changed_schemas}")
+            logger.info(
+                f"Cleared partition cache for changed schemas "
+                f"in {workspace}: {changed_schemas}"
+            )
 
     def sanitize_name(self, name: str) -> str:
         """Sanitize names for Cassandra compatibility"""
@@ -286,7 +302,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
         return index_names
 
-    def register_partitions(self, keyspace: str, collection: str, schema_name: str):
+    def register_partitions(
+        self, keyspace: str, collection: str, schema_name: str,
+        workspace: str,
+    ):
         """
         Register partition entries for a (collection, schema_name) pair.
         Called once on first row for each pair.
@@ -295,9 +314,13 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         if cache_key in self.registered_partitions:
             return
 
-        schema = self.schemas.get(schema_name)
+        ws_schemas = self.schemas.get(workspace, {})
+        schema = ws_schemas.get(schema_name)
         if not schema:
-            logger.warning(f"Cannot register partitions - schema {schema_name} not found")
+            logger.warning(
+                f"Cannot register partitions - schema {schema_name} "
+                f"not found in workspace {workspace}"
+            )
             return
 
         safe_keyspace = self.sanitize_name(keyspace)
@@ -338,13 +361,14 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """Process incoming ExtractedObject and store in Cassandra"""
 
         obj = msg.value()
+        workspace = flow.workspace
         logger.info(
             f"Storing {len(obj.values)} rows for schema {obj.schema_name} "
-            f"from {obj.metadata.id}"
+            f"from {obj.metadata.id} (workspace {workspace})"
         )
 
         # Validate collection exists before accepting writes
-        if not self.collection_exists(obj.metadata.user, obj.metadata.collection):
+        if not self.collection_exists(workspace, obj.metadata.collection):
             error_msg = (
                 f"Collection {obj.metadata.collection} does not exist. "
                 f"Create it first via collection management API."
@@ -352,13 +376,17 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        # Get schema definition
-        schema = self.schemas.get(obj.schema_name)
+        # Get schema definition for this workspace
+        ws_schemas = self.schemas.get(workspace, {})
+        schema = ws_schemas.get(obj.schema_name)
         if not schema:
-            logger.warning(f"No schema found for {obj.schema_name} - skipping")
+            logger.warning(
+                f"No schema found for {obj.schema_name} in "
+                f"workspace {workspace} - skipping"
+            )
             return
 
-        keyspace = obj.metadata.user
+        keyspace = workspace
         collection = obj.metadata.collection
         schema_name = obj.schema_name
         source = getattr(obj.metadata, 'source', '') or ''
@@ -370,7 +398,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
         # Register partitions if first time seeing this (collection, schema_name)
         await asyncio.to_thread(
-            self.register_partitions, keyspace, collection, schema_name
+            self.register_partitions,
+            keyspace, collection, schema_name, workspace,
         )
 
         safe_keyspace = self.sanitize_name(keyspace)
@@ -430,25 +459,25 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             f"({len(index_names)} indexes per row)"
         )
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Create/verify collection exists in Cassandra row store"""
         # Connect if not already connected (sync, push to thread)
         await asyncio.to_thread(self.connect_cassandra)
 
         # Ensure tables exist (sync DDL, push to thread)
-        await asyncio.to_thread(self.ensure_tables, user)
+        await asyncio.to_thread(self.ensure_tables, workspace)
 
-        logger.info(f"Collection {collection} ready for user {user}")
+        logger.info(f"Collection {collection} ready for workspace {workspace}")
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Delete all data for a specific collection using partition tracking"""
         # Connect if not already connected
         await asyncio.to_thread(self.connect_cassandra)
 
-        safe_keyspace = self.sanitize_name(user)
+        safe_keyspace = self.sanitize_name(workspace)
 
         # Check if keyspace exists
-        if user not in self.known_keyspaces:
+        if workspace not in self.known_keyspaces:
             check_keyspace_cql = """
             SELECT keyspace_name FROM system_schema.keyspaces
             WHERE keyspace_name = %s
@@ -459,7 +488,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             if not result:
                 logger.info(f"Keyspace {safe_keyspace} does not exist, nothing to delete")
                 return
-            self.known_keyspaces.add(user)
+            self.known_keyspaces.add(workspace)
 
         # Discover all partitions for this collection
         select_partitions_cql = f"""
@@ -522,12 +551,12 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             f"from keyspace {safe_keyspace}"
         )
 
-    async def delete_collection_schema(self, user: str, collection: str, schema_name: str):
+    async def delete_collection_schema(self, workspace: str, collection: str, schema_name: str):
         """Delete all data for a specific collection + schema combination"""
         # Connect if not already connected
         await asyncio.to_thread(self.connect_cassandra)
 
-        safe_keyspace = self.sanitize_name(user)
+        safe_keyspace = self.sanitize_name(workspace)
 
         # Discover partitions for this collection + schema
         select_partitions_cql = f"""

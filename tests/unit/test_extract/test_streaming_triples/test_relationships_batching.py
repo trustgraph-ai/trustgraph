@@ -38,12 +38,11 @@ def _make_rel(subject, predicate, obj, object_entity=True):
     }
 
 
-def _make_chunk_msg(text, meta_id="chunk-1", root="root-1",
-                    user="user-1", collection="col-1", document_id=""):
+def _make_chunk_msg(text, meta_id="chunk-1", root="root-1", collection="col-1", document_id=""):
     """Build a mock message wrapping a Chunk."""
     chunk = Chunk(
         metadata=Metadata(
-            id=meta_id, root=root, user=user, collection=collection,
+            id=meta_id, root=root, collection=collection,
         ),
         chunk=text.encode("utf-8"),
         document_id=document_id,
@@ -189,8 +188,7 @@ class TestMetadataPreservation:
         rels = [_make_rel("X", "rel", "Y")]
         flow, pub, _ = _make_flow(rels)
         msg = _make_chunk_msg(
-            "text", meta_id="c-1", root="r-1",
-            user="u-1", collection="coll-1",
+            "text", meta_id="c-1", root="r-1", collection="coll-1",
         )
 
         await proc.on_message(msg, MagicMock(), flow)
@@ -198,7 +196,6 @@ class TestMetadataPreservation:
         for triples_msg in _sent_triples(pub):
             assert triples_msg.metadata.id == "c-1"
             assert triples_msg.metadata.root == "r-1"
-            assert triples_msg.metadata.user == "u-1"
             assert triples_msg.metadata.collection == "coll-1"
 
 

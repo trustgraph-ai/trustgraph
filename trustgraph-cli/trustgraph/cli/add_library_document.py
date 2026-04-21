@@ -15,17 +15,17 @@ from trustgraph.knowledge import Organization, PublicationEvent
 from trustgraph.knowledge import DigitalDocument
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 class Loader:
 
     def __init__(
-            self, id, url, user, metadata, title, comments, kind, tags
-    ):
+            self, id, url, metadata, title, comments, kind, tags
+    , token=None, workspace="default"):
 
-        self.api = Api(url).library()
+        self.api = Api(url, token=token, workspace=workspace).library()
 
-        self.user = user
         self.metadata = metadata
         self.title = title
         self.comments = comments
@@ -55,13 +55,13 @@ class Loader:
             else:
                 id = hash(data)
                 id = to_uri(PREF_DOC, id)
-                
+
 
             self.metadata.id = id
 
             self.api.add_document(
-                document=data, id=id, metadata=self.metadata, 
-                user=self.user, kind=self.kind, title=self.title,
+                document=data, id=id, metadata=self.metadata,
+                kind=self.kind, title=self.title,
                 comments=self.comments, tags=self.tags
             )
 
@@ -83,11 +83,16 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -186,12 +191,13 @@ def main():
         p = Loader(
             id=args.identifier,
             url=args.url,
-            user=args.user,
             metadata=document,
             title=args.name,
             comments=args.description,
             kind=args.kind,
             tags=args.tags,
+            token=args.token,
+            workspace=args.workspace,
         )
 
         p.load(args.files)

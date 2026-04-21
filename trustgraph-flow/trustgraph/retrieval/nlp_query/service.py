@@ -66,32 +66,39 @@ class Processor(FlowProcessor):
         # Register config handler for schema updates
         self.register_config_handler(self.on_schema_config, types=["schema"])
         
-        # Schema storage: name -> RowSchema
-        self.schemas: Dict[str, RowSchema] = {}
-        
+        # Per-workspace schema storage: {workspace: {name: RowSchema}}
+        self.schemas: Dict[str, Dict[str, RowSchema]] = {}
+
         logger.info("NLP Query service initialized")
 
-    async def on_schema_config(self, config, version):
+    async def on_schema_config(self, workspace, config, version):
         """Handle schema configuration updates"""
-        logger.info(f"Loading schema configuration version {version}")
-        
-        # Clear existing schemas
-        self.schemas = {}
-        
+        logger.info(
+            f"Loading schema configuration version {version} "
+            f"for workspace {workspace}"
+        )
+
+        # Replace existing schemas for this workspace
+        ws_schemas: Dict[str, RowSchema] = {}
+        self.schemas[workspace] = ws_schemas
+
         # Check if our config type exists
         if self.config_key not in config:
-            logger.warning(f"No '{self.config_key}' type in configuration")
+            logger.warning(
+                f"No '{self.config_key}' type in configuration "
+                f"for {workspace}"
+            )
             return
-        
+
         # Get the schemas dictionary for our type
         schemas_config = config[self.config_key]
-        
+
         # Process each schema in the schemas config
         for schema_name, schema_json in schemas_config.items():
             try:
                 # Parse the JSON schema definition
                 schema_def = json.loads(schema_json)
-                
+
                 # Create Field objects
                 fields = []
                 for field_def in schema_def.get("fields", []):
@@ -106,29 +113,37 @@ class Processor(FlowProcessor):
                         indexed=field_def.get("indexed", False)
                     )
                     fields.append(field)
-                
+
                 # Create RowSchema
                 row_schema = RowSchema(
                     name=schema_def.get("name", schema_name),
                     description=schema_def.get("description", ""),
                     fields=fields
                 )
-                
-                self.schemas[schema_name] = row_schema
-                logger.info(f"Loaded schema: {schema_name} with {len(fields)} fields")
-                
+
+                ws_schemas[schema_name] = row_schema
+                logger.info(
+                    f"Loaded schema: {schema_name} with "
+                    f"{len(fields)} fields for {workspace}"
+                )
+
             except Exception as e:
                 logger.error(f"Failed to parse schema {schema_name}: {e}", exc_info=True)
-        
-        logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
+
+        logger.info(
+            f"Schema configuration loaded for {workspace}: "
+            f"{len(ws_schemas)} schemas"
+        )
 
     async def phase1_select_schemas(self, question: str, flow) -> List[str]:
         """Phase 1: Use prompt service to select relevant schemas for the question"""
         logger.info("Starting Phase 1: Schema selection")
-        
+
+        ws_schemas = self.schemas.get(flow.workspace, {})
+
         # Prepare schema information for the prompt
         schema_info = []
-        for name, schema in self.schemas.items():
+        for name, schema in ws_schemas.items():
             schema_desc = {
                 "name": name,
                 "description": schema.description,
@@ -176,12 +191,14 @@ class Processor(FlowProcessor):
     async def phase2_generate_graphql(self, question: str, selected_schemas: List[str], flow) -> Dict[str, Any]:
         """Phase 2: Generate GraphQL query using selected schemas"""
         logger.info(f"Starting Phase 2: GraphQL generation for schemas: {selected_schemas}")
-        
+
+        ws_schemas = self.schemas.get(flow.workspace, {})
+
         # Get detailed schema information for selected schemas only
         selected_schema_info = []
         for schema_name in selected_schemas:
-            if schema_name in self.schemas:
-                schema = self.schemas[schema_name]
+            if schema_name in ws_schemas:
+                schema = ws_schemas[schema_name]
                 schema_desc = {
                     "name": schema_name,
                     "description": schema.description,

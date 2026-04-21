@@ -22,7 +22,6 @@ class AgentStep:
     action: str = ""
     arguments: dict[str, str] = field(default_factory=dict)
     observation: str = ""
-    user: str = ""              # User context for the step
     step_type: str = ""         # "react", "plan", "execute", "decompose", "synthesise"
     plan: list[PlanStep] = field(default_factory=list)      # Plan steps (for plan-then-execute)
     subagent_results: dict[str, str] = field(default_factory=dict)  # Subagent results keyed by goal
@@ -33,7 +32,6 @@ class AgentRequest:
     state: str = ""
     group: list[str] | None = None
     history: list[AgentStep] = field(default_factory=list)
-    user: str = ""              # User context for multi-tenancy
     collection: str = "default" # Collection for provenance traces
     streaming: bool = False     # Enable streaming response delivery (default false)
     session_id: str = ""        # For provenance tracking across iterations

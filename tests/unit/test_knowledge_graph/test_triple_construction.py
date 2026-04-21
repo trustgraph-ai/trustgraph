@@ -371,7 +371,6 @@ class TestTripleConstructionLogic:
 
         metadata = Metadata(
             id="test-doc-123",
-            user="test_user",
             collection="test_collection",
         )
 
@@ -384,7 +383,6 @@ class TestTripleConstructionLogic:
         # Assert
         assert isinstance(triples_batch, Triples)
         assert triples_batch.metadata.id == "test-doc-123"
-        assert triples_batch.metadata.user == "test_user"
         assert triples_batch.metadata.collection == "test_collection"
         assert len(triples_batch.triples) == 2
 

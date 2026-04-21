@@ -4,20 +4,19 @@ Remove a document from the library
 
 import argparse
 import os
-import uuid
 
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 
-def remove_doc(url, user, id, token=None):
+def remove_doc(url, id, token=None, workspace="default"):
 
-    api = Api(url, token=token).library()
+    api = Api(url, token=token, workspace=workspace).library()
 
-    api.remove_document(user=user, id=id)
+    api.remove_document(id=id)
 
 def main():
 
@@ -33,12 +32,6 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
         '--identifier', '--id',
         required=True,
         help=f'Document ID'
@@ -50,11 +43,20 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
 
-        remove_doc(args.url, args.user, args.identifier, token=args.token)
+        remove_doc(
+            args.url, args.identifier,
+            token=args.token, workspace=args.workspace,
+        )
 
     except Exception as e:
 

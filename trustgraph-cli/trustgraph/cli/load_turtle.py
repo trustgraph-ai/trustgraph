@@ -13,7 +13,7 @@ from trustgraph.log_level import LogLevel
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 class Loader:
@@ -22,15 +22,14 @@ class Loader:
             self,
             files,
             flow,
-            user,
             collection,
             document_id,
             url=default_url,
-            token=None,
+            token=None, workspace="default",
     ):
         self.files = files
         self.flow = flow
-        self.user = user
+        self.workspace = workspace
         self.collection = collection
         self.document_id = document_id
         self.url = url
@@ -43,28 +42,23 @@ class Loader:
         g.parse(file, format="turtle")
 
         for e in g:
-            # Extract subject, predicate, object
             s_value = str(e[0])
             p_value = str(e[1])
 
-            # Check if object is a URI or literal
             if isinstance(e[2], rdflib.term.URIRef):
                 o_value = str(e[2])
             else:
                 o_value = str(e[2])
 
-            # Create Triple object
             yield Triple(s=s_value, p=p_value, o=o_value)
 
     def run(self):
         """Load triples using Python API"""
 
         try:
-            # Create API client
-            api = Api(url=self.url, token=self.token)
+            api = Api(url=self.url, token=self.token, workspace=self.workspace)
             bulk = api.bulk()
 
-            # Load triples from all files
             print("Loading triples...")
             for file in self.files:
                 print(f"  Processing {file}...")
@@ -76,7 +70,6 @@ class Loader:
                     metadata={
                         "id": self.document_id,
                         "metadata": [],
-                        "user": self.user,
                         "collection": self.collection
                     }
                 )
@@ -107,6 +100,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-i', '--document-id',
         required=True,
         help=f'Document ID)',
@@ -116,12 +115,6 @@ def main():
         '-f', '--flow-id',
         default="default",
         help=f'Flow ID (default: default)'
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
@@ -146,8 +139,8 @@ def main():
                 token=args.token,
                 flow=args.flow_id,
                 files=args.files,
-                user=args.user,
                 collection=args.collection,
+                workspace=args.workspace,
             )
 
             loader.run()

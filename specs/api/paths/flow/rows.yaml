@@ -89,7 +89,6 @@ post:
                     email
                   }
                 }
-              user: alice
               collection: research
           queryWithVariables:
             summary: Query with variables

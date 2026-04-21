@@ -45,7 +45,10 @@ class TriplesStoreService(FlowProcessor):
 
             request = msg.value()
 
-            await self.store_triples(request)
+            # Workspace is derived from the flow the message arrived on,
+            # not from fields in the message payload. Topic routing is
+            # the isolation boundary.
+            await self.store_triples(flow.workspace, request)
 
         except TooManyRequests as e:
             raise e

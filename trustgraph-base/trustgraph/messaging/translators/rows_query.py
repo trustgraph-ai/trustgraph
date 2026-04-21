@@ -9,7 +9,6 @@ class RowsQueryRequestTranslator(MessageTranslator):
 
     def decode(self, data: Dict[str, Any]) -> RowsQueryRequest:
         return RowsQueryRequest(
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             query=data.get("query", ""),
             variables=data.get("variables", {}),
@@ -18,7 +17,6 @@ class RowsQueryRequestTranslator(MessageTranslator):
 
     def encode(self, obj: RowsQueryRequest) -> Dict[str, Any]:
         result = {
-            "user": obj.user,
             "collection": obj.collection,
             "query": obj.query,
             "variables": dict(obj.variables) if obj.variables else {}

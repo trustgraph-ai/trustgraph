@@ -14,6 +14,17 @@ from trustgraph.storage.rows.cassandra.write import Processor
 from trustgraph.schema import ExtractedObject, Metadata, RowSchema, Field
 
 
+
+
+class _MockFlowDefault:
+    """Mock Flow with default workspace for testing."""
+    workspace = "default"
+    name = "default"
+    id = "test-processor"
+
+
+mock_flow_default = _MockFlowDefault()
+
 @pytest.mark.integration
 class TestRowsCassandraIntegration:
     """Integration tests for Cassandra row storage with unified table"""
@@ -125,14 +136,13 @@ class TestRowsCassandraIntegration:
                 }
             }
 
-            await processor.on_schema_config(config, version=1)
-            assert "customer_records" in processor.schemas
+            await processor.on_schema_config("default", config, version=1)
+            assert "customer_records" in processor.schemas["default"]
 
             # Step 2: Process an ExtractedObject
             test_obj = ExtractedObject(
                 metadata=Metadata(
                     id="doc-001",
-                    user="test_user",
                     collection="import_2024",
                 ),
                 schema_name="customer_records",
@@ -149,7 +159,7 @@ class TestRowsCassandraIntegration:
             msg = MagicMock()
             msg.value.return_value = test_obj
 
-            await processor.on_object(msg, None, None)
+            await processor.on_object(msg, None, mock_flow_default)
 
             # Verify Cassandra interactions
             assert mock_cluster.connect.called
@@ -158,7 +168,7 @@ class TestRowsCassandraIntegration:
             keyspace_calls = [call for call in mock_session.execute.call_args_list
                             if "CREATE KEYSPACE" in str(call)]
             assert len(keyspace_calls) == 1
-            assert "test_user" in str(keyspace_calls[0])
+            assert "default" in str(keyspace_calls[0])
 
             # Verify unified table creation (rows table, not per-schema table)
             table_calls = [call for call in mock_session.execute.call_args_list
@@ -209,12 +219,12 @@ class TestRowsCassandraIntegration:
                 }
             }
 
-            await processor.on_schema_config(config, version=1)
-            assert len(processor.schemas) == 2
+            await processor.on_schema_config("default", config, version=1)
+            assert len(processor.schemas["default"]) == 2
 
             # Process objects for different schemas
             product_obj = ExtractedObject(
-                metadata=Metadata(id="p1", user="shop", collection="catalog"),
+                metadata=Metadata(id="p1", collection="catalog"),
                 schema_name="products",
                 values=[{"product_id": "P001", "name": "Widget", "price": "19.99"}],
                 confidence=0.9,
@@ -222,7 +232,7 @@ class TestRowsCassandraIntegration:
             )
 
             order_obj = ExtractedObject(
-                metadata=Metadata(id="o1", user="shop", collection="sales"),
+                metadata=Metadata(id="o1", collection="sales"),
                 schema_name="orders",
                 values=[{"order_id": "O001", "customer_id": "C001", "total": "59.97"}],
                 confidence=0.85,
@@ -233,7 +243,7 @@ class TestRowsCassandraIntegration:
             for obj in [product_obj, order_obj]:
                 msg = MagicMock()
                 msg.value.return_value = obj
-                await processor.on_object(msg, None, None)
+                await processor.on_object(msg, None, mock_flow_default)
 
             # All data goes into the same unified rows table
             table_calls = [call for call in mock_session.execute.call_args_list
@@ -256,18 +266,20 @@ class TestRowsCassandraIntegration:
 
         with patch('trustgraph.storage.rows.cassandra.write.Cluster', return_value=mock_cluster):
             # Schema with multiple indexed fields
-            processor.schemas["indexed_data"] = RowSchema(
-                name="indexed_data",
-                fields=[
-                    Field(name="id", type="string", size=50, primary=True),
-                    Field(name="category", type="string", size=50, indexed=True),
-                    Field(name="status", type="string", size=50, indexed=True),
-                    Field(name="description", type="string", size=200)  # Not indexed
-                ]
-            )
+            processor.schemas["default"] = {
+                "indexed_data": RowSchema(
+                    name="indexed_data",
+                    fields=[
+                        Field(name="id", type="string", size=50, primary=True),
+                        Field(name="category", type="string", size=50, indexed=True),
+                        Field(name="status", type="string", size=50, indexed=True),
+                        Field(name="description", type="string", size=200)  # Not indexed
+                    ]
+                )
+            }
 
             test_obj = ExtractedObject(
-                metadata=Metadata(id="t1", user="test", collection="test"),
+                metadata=Metadata(id="t1", collection="test"),
                 schema_name="indexed_data",
                 values=[{
                     "id": "123",
@@ -282,7 +294,7 @@ class TestRowsCassandraIntegration:
             msg = MagicMock()
             msg.value.return_value = test_obj
 
-            await processor.on_object(msg, None, None)
+            await processor.on_object(msg, None, mock_flow_default)
 
             # Should have 3 data inserts (one per indexed field: id, category, status)
             rows_insert_calls = [call for call in mock_session.execute.call_args_list
@@ -342,13 +354,12 @@ class TestRowsCassandraIntegration:
                 }
             }
 
-            await processor.on_schema_config(config, version=1)
+            await processor.on_schema_config("default", config, version=1)
 
             # Process batch object with multiple values
             batch_obj = ExtractedObject(
                 metadata=Metadata(
                     id="batch-001",
-                    user="test_user",
                     collection="batch_import",
                 ),
                 schema_name="batch_customers",
@@ -376,7 +387,7 @@ class TestRowsCassandraIntegration:
             msg = MagicMock()
             msg.value.return_value = batch_obj
 
-            await processor.on_object(msg, None, None)
+            await processor.on_object(msg, None, mock_flow_default)
 
             # Verify unified table creation
             table_calls = [call for call in mock_session.execute.call_args_list
@@ -396,14 +407,16 @@ class TestRowsCassandraIntegration:
         processor, mock_cluster, mock_session = processor_with_mocks
 
         with patch('trustgraph.storage.rows.cassandra.write.Cluster', return_value=mock_cluster):
-            processor.schemas["empty_test"] = RowSchema(
-                name="empty_test",
-                fields=[Field(name="id", type="string", size=50, primary=True)]
-            )
+            processor.schemas["default"] = {
+                "empty_test": RowSchema(
+                    name="empty_test",
+                    fields=[Field(name="id", type="string", size=50, primary=True)]
+                )
+            }
 
             # Process empty batch object
             empty_obj = ExtractedObject(
-                metadata=Metadata(id="empty-1", user="test", collection="empty"),
+                metadata=Metadata(id="empty-1", collection="empty"),
                 schema_name="empty_test",
                 values=[],  # Empty batch
                 confidence=1.0,
@@ -413,7 +426,7 @@ class TestRowsCassandraIntegration:
             msg = MagicMock()
             msg.value.return_value = empty_obj
 
-            await processor.on_object(msg, None, None)
+            await processor.on_object(msg, None, mock_flow_default)
 
             # Should not create any data insert statements for empty batch
             # (partition registration may still happen)
@@ -428,17 +441,19 @@ class TestRowsCassandraIntegration:
         processor, mock_cluster, mock_session = processor_with_mocks
 
         with patch('trustgraph.storage.rows.cassandra.write.Cluster', return_value=mock_cluster):
-            processor.schemas["map_test"] = RowSchema(
-                name="map_test",
-                fields=[
-                    Field(name="id", type="string", size=50, primary=True),
-                    Field(name="name", type="string", size=100),
-                    Field(name="count", type="integer", size=0)
-                ]
-            )
+            processor.schemas["default"] = {
+                "map_test": RowSchema(
+                    name="map_test",
+                    fields=[
+                        Field(name="id", type="string", size=50, primary=True),
+                        Field(name="name", type="string", size=100),
+                        Field(name="count", type="integer", size=0)
+                    ]
+                )
+            }
 
             test_obj = ExtractedObject(
-                metadata=Metadata(id="t1", user="test", collection="test"),
+                metadata=Metadata(id="t1", collection="test"),
                 schema_name="map_test",
                 values=[{"id": "123", "name": "Test Item", "count": "42"}],
                 confidence=0.9,
@@ -448,7 +463,7 @@ class TestRowsCassandraIntegration:
             msg = MagicMock()
             msg.value.return_value = test_obj
 
-            await processor.on_object(msg, None, None)
+            await processor.on_object(msg, None, mock_flow_default)
 
             # Verify insert uses map for data
             rows_insert_calls = [call for call in mock_session.execute.call_args_list
@@ -473,16 +488,18 @@ class TestRowsCassandraIntegration:
         processor, mock_cluster, mock_session = processor_with_mocks
 
         with patch('trustgraph.storage.rows.cassandra.write.Cluster', return_value=mock_cluster):
-            processor.schemas["partition_test"] = RowSchema(
-                name="partition_test",
-                fields=[
-                    Field(name="id", type="string", size=50, primary=True),
-                    Field(name="category", type="string", size=50, indexed=True)
-                ]
-            )
+            processor.schemas["default"] = {
+                "partition_test": RowSchema(
+                    name="partition_test",
+                    fields=[
+                        Field(name="id", type="string", size=50, primary=True),
+                        Field(name="category", type="string", size=50, indexed=True)
+                    ]
+                )
+            }
 
             test_obj = ExtractedObject(
-                metadata=Metadata(id="t1", user="test", collection="my_collection"),
+                metadata=Metadata(id="t1", collection="my_collection"),
                 schema_name="partition_test",
                 values=[{"id": "123", "category": "test"}],
                 confidence=0.9,
@@ -492,7 +509,7 @@ class TestRowsCassandraIntegration:
             msg = MagicMock()
             msg.value.return_value = test_obj
 
-            await processor.on_object(msg, None, None)
+            await processor.on_object(msg, None, mock_flow_default)
 
             # Verify partition registration
             partition_inserts = [call for call in mock_session.execute.call_args_list

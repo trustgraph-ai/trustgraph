@@ -116,7 +116,6 @@ class TestGraphRagStreaming:
         # Act - query() returns response, provenance via callback
         response = await graph_rag_streaming.query(
             query=query,
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collector.collect,
@@ -154,7 +153,6 @@ class TestGraphRagStreaming:
         # Act - Non-streaming
         non_streaming_response = await graph_rag_streaming.query(
             query=query,
-            user=user,
             collection=collection,
             streaming=False
         )
@@ -167,7 +165,6 @@ class TestGraphRagStreaming:
 
         streaming_response = await graph_rag_streaming.query(
             query=query,
-            user=user,
             collection=collection,
             streaming=True,
             chunk_callback=collect
@@ -189,7 +186,6 @@ class TestGraphRagStreaming:
         # Act
         response = await graph_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=callback
@@ -209,7 +205,6 @@ class TestGraphRagStreaming:
         # Arrange & Act
         response = await graph_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=None  # No callback provided
@@ -231,7 +226,6 @@ class TestGraphRagStreaming:
         # Act
         response = await graph_rag_streaming.query(
             query="unknown topic",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=callback
@@ -253,7 +247,6 @@ class TestGraphRagStreaming:
         with pytest.raises(Exception) as exc_info:
             await graph_rag_streaming.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection",
                 streaming=True,
                 chunk_callback=callback
@@ -273,7 +266,6 @@ class TestGraphRagStreaming:
         # Act
         await graph_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             entity_limit=entity_limit,
             triple_limit=triple_limit,

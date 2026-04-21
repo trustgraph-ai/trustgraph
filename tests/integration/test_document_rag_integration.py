@@ -99,7 +99,6 @@ class TestDocumentRagIntegration:
         # Act
         result = await document_rag.query(
             query=query,
-            user=user,
             collection=collection,
             doc_limit=doc_limit
         )
@@ -110,7 +109,6 @@ class TestDocumentRagIntegration:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]],
             limit=doc_limit,
-            user=user,
             collection=collection
         )
 
@@ -278,14 +276,12 @@ class TestDocumentRagIntegration:
             # Act
             await document_rag.query(
                 f"query from {user} in {collection}",
-                user=user,
                 collection=collection
             )
 
             # Assert
             mock_doc_embeddings_client.query.assert_called_once()
             call_args = mock_doc_embeddings_client.query.call_args
-            assert call_args.kwargs['user'] == user
             assert call_args.kwargs['collection'] == collection
 
     @pytest.mark.asyncio
@@ -353,6 +349,5 @@ class TestDocumentRagIntegration:
         # Assert
         mock_doc_embeddings_client.query.assert_called_once()
         call_args = mock_doc_embeddings_client.query.call_args
-        assert call_args.kwargs['user'] == "trustgraph"
         assert call_args.kwargs['collection'] == "default"
         assert call_args.kwargs['limit'] == 20

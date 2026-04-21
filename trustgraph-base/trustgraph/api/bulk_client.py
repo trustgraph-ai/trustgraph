@@ -85,7 +85,7 @@ class BulkClient:
         Args:
             flow: Flow identifier
             triples: Iterator yielding Triple objects
-            metadata: Metadata dict with id, metadata, user, collection
+            metadata: Metadata dict with id, metadata, collection
             batch_size: Number of triples per batch (default 100)
             **kwargs: Additional parameters (reserved for future use)
 
@@ -105,7 +105,7 @@ class BulkClient:
             bulk.import_triples(
                 flow="default",
                 triples=triple_generator(),
-                metadata={"id": "doc1", "metadata": [], "user": "user1", "collection": "default"}
+                metadata={"id": "doc1", "metadata": [], "collection": "default"}
             )
             ```
         """
@@ -121,7 +121,7 @@ class BulkClient:
             ws_url = f"{ws_url}?token={self.token}"
 
         if metadata is None:
-            metadata = {"id": "", "metadata": [], "user": "trustgraph", "collection": "default"}
+            metadata = {"id": "", "metadata": [], "collection": "default"}
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             batch = []
@@ -418,7 +418,7 @@ class BulkClient:
         Args:
             flow: Flow identifier
             contexts: Iterator yielding context dictionaries
-            metadata: Metadata dict with id, metadata, user, collection
+            metadata: Metadata dict with id, metadata, collection
             batch_size: Number of contexts per batch (default 100)
             **kwargs: Additional parameters (reserved for future use)
 
@@ -435,7 +435,7 @@ class BulkClient:
             bulk.import_entity_contexts(
                 flow="default",
                 contexts=context_generator(),
-                metadata={"id": "doc1", "metadata": [], "user": "user1", "collection": "default"}
+                metadata={"id": "doc1", "metadata": [], "collection": "default"}
             )
             ```
         """
@@ -451,7 +451,7 @@ class BulkClient:
             ws_url = f"{ws_url}?token={self.token}"
 
         if metadata is None:
-            metadata = {"id": "", "metadata": [], "user": "trustgraph", "collection": "default"}
+            metadata = {"id": "", "metadata": [], "collection": "default"}
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             batch = []

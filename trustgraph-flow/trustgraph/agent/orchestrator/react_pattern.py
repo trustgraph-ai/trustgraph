@@ -61,7 +61,7 @@ class ReactPattern(PatternBase):
             )
             await self.emit_session_triples(
                 flow, session_uri, request.question,
-                request.user, collection, respond, streaming,
+                collection, respond, streaming,
                 parent_uri=parent_uri,
             )
 
@@ -80,13 +80,20 @@ class ReactPattern(PatternBase):
         observe = self.make_observe_callback(respond, streaming, message_id=observation_msg_id)
         answer_cb = self.make_answer_callback(respond, streaming, message_id=answer_msg_id)
 
+        # Look up the per-workspace agent
+        agent = self.processor.agents.get(flow.workspace)
+        if agent is None:
+            raise RuntimeError(
+                f"No agent configuration for workspace {flow.workspace}"
+            )
+
         # Filter tools
         filtered_tools = self.filter_tools(
-            self.processor.agent.tools, request,
+            agent.tools, request,
         )
 
         # Create temporary agent with filtered tools and optional framing
-        additional_context = self.processor.agent.additional_context
+        additional_context = agent.additional_context
         framing = getattr(request, 'framing', '')
         if framing:
             if additional_context:
@@ -100,7 +107,7 @@ class ReactPattern(PatternBase):
         )
 
         context = self.make_context(
-            flow, request.user,
+            flow,
             respond=respond, streaming=streaming,
         )
 

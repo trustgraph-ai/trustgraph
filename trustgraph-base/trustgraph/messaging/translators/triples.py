@@ -22,16 +22,14 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             o=o,
             g=g,
             limit=int(data.get("limit", 10000)),
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             streaming=data.get("streaming", False),
             batch_size=int(data.get("batch-size", 20)),
         )
-    
+
     def encode(self, obj: TriplesQueryRequest) -> Dict[str, Any]:
         result = {
             "limit": obj.limit,
-            "user": obj.user,
             "collection": obj.collection,
             "streaming": obj.streaming,
             "batch-size": obj.batch_size,

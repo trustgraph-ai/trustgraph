@@ -1,3 +1,12 @@
+
+def _flow_mock(workspace):
+    """Build a mock flow object that is callable and exposes .workspace."""
+    from unittest.mock import MagicMock
+    f = MagicMock()
+    f.workspace = workspace
+    return f
+
+
 """
 Unit tests for trustgraph.storage.row_embeddings.qdrant.write
 Tests the Stage 2 processor that stores pre-computed row embeddings in Qdrant.
@@ -92,13 +101,13 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         collection_name = processor.get_collection_name(
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             schema_name="customer_data",
             dimension=384
         )
 
-        assert collection_name == "rows_test_user_test_collection_customer_data_384"
+        assert collection_name == "rows_test_workspace_test_collection_customer_data_384"
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_ensure_collection_creates_new(self, mock_qdrant_client):
@@ -185,11 +194,10 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.known_collections[('test_user', 'test_collection')] = {}
+        processor.known_collections[('test_workspace', 'test_collection')] = {}
 
         # Create embeddings message
         metadata = MagicMock()
-        metadata.user = 'test_user'
         metadata.collection = 'test_collection'
         metadata.id = 'doc-123'
 
@@ -210,14 +218,14 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = embeddings_msg
 
-        await processor.on_embeddings(mock_msg, MagicMock(), MagicMock())
+        await processor.on_embeddings(mock_msg, MagicMock(), _flow_mock('test_workspace'))
 
         # Verify upsert was called
         mock_qdrant_instance.upsert.assert_called_once()
 
         # Verify upsert parameters
         upsert_call_args = mock_qdrant_instance.upsert.call_args
-        assert upsert_call_args[1]['collection_name'] == 'rows_test_user_test_collection_customers_3'
+        assert upsert_call_args[1]['collection_name'] == 'rows_test_workspace_test_collection_customers_3'
 
         point = upsert_call_args[1]['points'][0]
         assert point.vector == [0.1, 0.2, 0.3]
@@ -243,10 +251,9 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.known_collections[('test_user', 'test_collection')] = {}
+        processor.known_collections[('test_workspace', 'test_collection')] = {}
 
         metadata = MagicMock()
-        metadata.user = 'test_user'
         metadata.collection = 'test_collection'
         metadata.id = 'doc-123'
 
@@ -267,7 +274,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = embeddings_msg
 
-        await processor.on_embeddings(mock_msg, MagicMock(), MagicMock())
+        await processor.on_embeddings(mock_msg, MagicMock(), _flow_mock('test_workspace'))
 
         # Should be called once for the single embedding
         assert mock_qdrant_instance.upsert.call_count == 1
@@ -287,10 +294,9 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.known_collections[('test_user', 'test_collection')] = {}
+        processor.known_collections[('test_workspace', 'test_collection')] = {}
 
         metadata = MagicMock()
-        metadata.user = 'test_user'
         metadata.collection = 'test_collection'
         metadata.id = 'doc-123'
 
@@ -311,7 +317,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = embeddings_msg
 
-        await processor.on_embeddings(mock_msg, MagicMock(), MagicMock())
+        await processor.on_embeddings(mock_msg, MagicMock(), _flow_mock('test_workspace'))
 
         # Should not call upsert for empty vectors
         mock_qdrant_instance.upsert.assert_not_called()
@@ -334,7 +340,6 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         # No collections registered
 
         metadata = MagicMock()
-        metadata.user = 'unknown_user'
         metadata.collection = 'unknown_collection'
         metadata.id = 'doc-123'
 
@@ -354,7 +359,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = embeddings_msg
 
-        await processor.on_embeddings(mock_msg, MagicMock(), MagicMock())
+        await processor.on_embeddings(mock_msg, MagicMock(), _flow_mock('test_workspace'))
 
         # Should not call upsert for unknown collection
         mock_qdrant_instance.upsert.assert_not_called()
@@ -368,11 +373,11 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Mock collections list
         mock_coll1 = MagicMock()
-        mock_coll1.name = 'rows_test_user_test_collection_schema1_384'
+        mock_coll1.name = 'rows_test_workspace_test_collection_schema1_384'
         mock_coll2 = MagicMock()
-        mock_coll2.name = 'rows_test_user_test_collection_schema2_384'
+        mock_coll2.name = 'rows_test_workspace_test_collection_schema2_384'
         mock_coll3 = MagicMock()
-        mock_coll3.name = 'rows_other_user_other_collection_schema_384'
+        mock_coll3.name = 'rows_other_workspace_other_collection_schema_384'
 
         mock_collections = MagicMock()
         mock_collections.collections = [mock_coll1, mock_coll2, mock_coll3]
@@ -386,15 +391,15 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.created_collections.add('rows_test_user_test_collection_schema1_384')
+        processor.created_collections.add('rows_test_workspace_test_collection_schema1_384')
 
-        await processor.delete_collection('test_user', 'test_collection')
+        await processor.delete_collection('test_workspace', 'test_collection')
 
         # Should delete only the matching collections
         assert mock_qdrant_instance.delete_collection.call_count == 2
 
         # Verify the cached collection was removed
-        assert 'rows_test_user_test_collection_schema1_384' not in processor.created_collections
+        assert 'rows_test_workspace_test_collection_schema1_384' not in processor.created_collections
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_delete_collection_schema(self, mock_qdrant_client):
@@ -404,9 +409,9 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_qdrant_instance = MagicMock()
 
         mock_coll1 = MagicMock()
-        mock_coll1.name = 'rows_test_user_test_collection_customers_384'
+        mock_coll1.name = 'rows_test_workspace_test_collection_customers_384'
         mock_coll2 = MagicMock()
-        mock_coll2.name = 'rows_test_user_test_collection_orders_384'
+        mock_coll2.name = 'rows_test_workspace_test_collection_orders_384'
 
         mock_collections = MagicMock()
         mock_collections.collections = [mock_coll1, mock_coll2]
@@ -422,13 +427,13 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         await processor.delete_collection_schema(
-            'test_user', 'test_collection', 'customers'
+            'test_workspace', 'test_collection', 'customers'
         )
 
         # Should only delete the customers schema collection
         mock_qdrant_instance.delete_collection.assert_called_once()
         call_args = mock_qdrant_instance.delete_collection.call_args[0]
-        assert call_args[0] == 'rows_test_user_test_collection_customers_384'
+        assert call_args[0] == 'rows_test_workspace_test_collection_customers_384'
 
 
 if __name__ == '__main__':
