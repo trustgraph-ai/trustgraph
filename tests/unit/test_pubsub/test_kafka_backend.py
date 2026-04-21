@@ -57,9 +57,9 @@ class TestKafkaParseTopic:
             backend._parse_topic('unknown:tg:topic')
 
     def test_topic_with_flow_suffix(self, backend):
-        """Topic names with flow suffix (e.g. :default) are preserved."""
+        """Topic names with flow suffix (e.g. :default) have colons replaced with dots."""
         name, cls, durable = backend._parse_topic('request:tg:prompt:default')
-        assert name == 'tg.request.prompt:default'
+        assert name == 'tg.request.prompt.default'
 
 
 class TestKafkaRetention:
