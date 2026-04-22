@@ -84,6 +84,18 @@ class ConfigClient(RequestResponse):
         )
         return resp.directory
 
+    async def get_all(self, workspace, timeout=CONFIG_TIMEOUT):
+        """Return every config entry in ``workspace`` as a nested dict
+        ``{type: {key: value}}``.  Values are returned as the raw
+        strings stored by config-svc (typically JSON); callers parse
+        as needed.  An empty dict means the workspace has no config."""
+        resp = await self._request(
+            operation="config",
+            workspace=workspace,
+            timeout=timeout,
+        )
+        return resp.config
+
     async def workspaces_for_type(self, type, timeout=CONFIG_TIMEOUT):
         """Return the set of distinct workspaces with any config of
         the given type."""
