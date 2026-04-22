@@ -42,7 +42,6 @@ class TestStructuredQueryServiceIntegration:
         # Arrange - Create realistic query request
         request = StructuredQueryRequest(
             question="Show me all customers from California who have made purchases over $500",
-            user="trustgraph",
             collection="default"
         )
         
@@ -126,7 +125,6 @@ class TestStructuredQueryServiceIntegration:
         assert "orders" in objects_call_args.query
         assert objects_call_args.variables["minAmount"] == "500.0"  # Converted to string
         assert objects_call_args.variables["state"] == "California"
-        assert objects_call_args.user == "trustgraph"
         assert objects_call_args.collection == "default"
         
         # Verify response

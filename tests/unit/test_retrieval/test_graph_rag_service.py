@@ -52,7 +52,6 @@ class TestGraphRagService:
         msg = MagicMock()
         msg.value.return_value = GraphRagQuery(
             query="What is a cat?",
-            user="trustgraph",
             collection="default",
             entity_limit=50,
             triple_limit=30,
@@ -123,7 +122,6 @@ class TestGraphRagService:
         msg = MagicMock()
         msg.value.return_value = GraphRagQuery(
             query="What is a cat?",
-            user="trustgraph",
             collection="default",
             entity_limit=50,
             triple_limit=30,
@@ -190,7 +188,6 @@ class TestGraphRagService:
         msg = MagicMock()
         msg.value.return_value = GraphRagQuery(
             query="Test query",
-            user="trustgraph",
             collection="default",
             streaming=False
         )

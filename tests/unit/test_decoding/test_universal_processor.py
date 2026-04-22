@@ -237,7 +237,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
 
         # Mock message with inline data
         content = b"# Document Title\nBody text content."
-        mock_metadata = Metadata(id="test-doc", user="testuser",
+        mock_metadata = Metadata(id="test-doc",
                                  collection="default")
         mock_document = Document(
             metadata=mock_metadata,
@@ -294,7 +294,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
 
         # Mock message
         content = b"fake pdf"
-        mock_metadata = Metadata(id="test-doc", user="testuser",
+        mock_metadata = Metadata(id="test-doc",
                                  collection="default")
         mock_document = Document(
             metadata=mock_metadata,
@@ -345,7 +345,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         ]
 
         content = b"fake pdf"
-        mock_metadata = Metadata(id="test-doc", user="testuser",
+        mock_metadata = Metadata(id="test-doc",
                                  collection="default")
         mock_document = Document(
             metadata=mock_metadata,

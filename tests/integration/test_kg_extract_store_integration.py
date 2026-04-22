@@ -97,7 +97,6 @@ class TestKnowledgeGraphPipelineIntegration:
         return Chunk(
             metadata=Metadata(
                 id="doc-123",
-                user="test_user",
                 collection="test_collection",
             ),
             chunk=b"Machine Learning is a subset of Artificial Intelligence. Neural Networks are used in Machine Learning to process complex patterns."
@@ -247,7 +246,6 @@ class TestKnowledgeGraphPipelineIntegration:
         # Arrange
         metadata = Metadata(
             id="test-doc",
-            user="test_user",
             collection="test_collection",
         )
 
@@ -305,7 +303,6 @@ class TestKnowledgeGraphPipelineIntegration:
         # Arrange
         metadata = Metadata(
             id="test-doc",
-            user="test_user",
             collection="test_collection",
         )
 
@@ -375,7 +372,6 @@ class TestKnowledgeGraphPipelineIntegration:
         sample_triples = Triples(
             metadata=Metadata(
                 id="test-doc",
-                user="test_user",
                 collection="test_collection",
             ),
             triples=[
@@ -390,11 +386,14 @@ class TestKnowledgeGraphPipelineIntegration:
         mock_msg = MagicMock()
         mock_msg.value.return_value = sample_triples
 
+        mock_flow = MagicMock()
+        mock_flow.workspace = "test_workspace"
+
         # Act
-        await processor.on_triples(mock_msg, None, None)
+        await processor.on_triples(mock_msg, None, mock_flow)
 
         # Assert
-        mock_cassandra_store.add_triples.assert_called_once_with(sample_triples)
+        mock_cassandra_store.add_triples.assert_called_once_with("test_workspace", sample_triples)
 
     @pytest.mark.asyncio
     async def test_knowledge_store_graph_embeddings_storage(self, mock_cassandra_store):
@@ -407,7 +406,6 @@ class TestKnowledgeGraphPipelineIntegration:
         sample_embeddings = GraphEmbeddings(
             metadata=Metadata(
                 id="test-doc",
-                user="test_user",
                 collection="test_collection",
             ),
             entities=[
@@ -421,11 +419,14 @@ class TestKnowledgeGraphPipelineIntegration:
         mock_msg = MagicMock()
         mock_msg.value.return_value = sample_embeddings
 
+        mock_flow = MagicMock()
+        mock_flow.workspace = "test_workspace"
+
         # Act
-        await processor.on_graph_embeddings(mock_msg, None, None)
+        await processor.on_graph_embeddings(mock_msg, None, mock_flow)
 
         # Assert
-        mock_cassandra_store.add_graph_embeddings.assert_called_once_with(sample_embeddings)
+        mock_cassandra_store.add_graph_embeddings.assert_called_once_with("test_workspace", sample_embeddings)
 
     @pytest.mark.asyncio
     async def test_end_to_end_pipeline_coordination(self, definitions_processor, relationships_processor, 
@@ -553,7 +554,7 @@ class TestKnowledgeGraphPipelineIntegration:
         )
         
         sample_chunk = Chunk(
-            metadata=Metadata(id="test", user="user", collection="collection"),
+            metadata=Metadata(id="test", collection="collection"),
             chunk=b"Test chunk"
         )
         
@@ -580,7 +581,7 @@ class TestKnowledgeGraphPipelineIntegration:
         # Arrange
         large_chunk_batch = [
             Chunk(
-                metadata=Metadata(id=f"doc-{i}", user="user", collection="collection"),
+                metadata=Metadata(id=f"doc-{i}", collection="collection"),
                 chunk=f"Document {i} contains machine learning and AI content.".encode("utf-8")
             )
             for i in range(100)  # Large batch
@@ -617,7 +618,6 @@ class TestKnowledgeGraphPipelineIntegration:
         # Arrange
         original_metadata = Metadata(
             id="test-doc-123",
-            user="test_user",
             collection="test_collection",
         )
 
@@ -646,9 +646,7 @@ class TestKnowledgeGraphPipelineIntegration:
         entity_contexts_call = entity_contexts_producer.send.call_args[0][0]
         
         assert triples_call.metadata.id == "test-doc-123"
-        assert triples_call.metadata.user == "test_user"
         assert triples_call.metadata.collection == "test_collection"
         
         assert entity_contexts_call.metadata.id == "test-doc-123"
-        assert entity_contexts_call.metadata.user == "test_user"
         assert entity_contexts_call.metadata.collection == "test_collection"

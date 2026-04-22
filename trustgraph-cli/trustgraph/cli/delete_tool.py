@@ -12,12 +12,16 @@ import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 def delete_tool(
         url : str,
         id : str,
+        token=None,
+        workspace="default",
 ):
 
-    api = Api(url).config()
+    api = Api(url, token=token, workspace=workspace).config()
 
     # Check if the tool configuration exists
     try:
@@ -78,6 +82,18 @@ def main():
         help='Tool ID to delete',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -86,8 +102,10 @@ def main():
             raise RuntimeError("Must specify --id for tool to delete")
 
         delete_tool(
-            url=args.api_url, 
-            id=args.id
+            url=args.api_url,
+            id=args.id,
+            token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

@@ -1,17 +1,14 @@
 """
 Tests for AsyncProcessor config notify pattern:
 - register_config_handler with types filtering
-- on_config_notify version comparison and type matching
-- fetch_config with short-lived client
-- fetch_and_apply_config retry logic
+- on_config_notify version comparison, type/workspace matching
+- fetch_and_apply_config retry logic over per-workspace fetches
 """
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from trustgraph.schema import Term, IRI, LITERAL
 
 
-# Patch heavy dependencies before importing AsyncProcessor
 @pytest.fixture
 def processor():
     """Create an AsyncProcessor with mocked dependencies."""
@@ -68,6 +65,13 @@ class TestRegisterConfigHandler:
         assert len(processor.config_handlers) == 2
 
 
+def _notify_msg(version, changes):
+    """Build a Mock config-notify message with given version and changes dict."""
+    msg = Mock()
+    msg.value.return_value = Mock(version=version, changes=changes)
+    return msg
+
+
 class TestOnConfigNotify:
 
     @pytest.mark.asyncio
@@ -77,9 +81,7 @@ class TestOnConfigNotify:
         handler = AsyncMock()
         processor.register_config_handler(handler, types=["prompt"])
 
-        msg = Mock()
-        msg.value.return_value = Mock(version=3, types=["prompt"])
-
+        msg = _notify_msg(3, {"prompt": ["default"]})
         await processor.on_config_notify(msg, None, None)
 
         handler.assert_not_called()
@@ -91,9 +93,7 @@ class TestOnConfigNotify:
         handler = AsyncMock()
         processor.register_config_handler(handler, types=["prompt"])
 
-        msg = Mock()
-        msg.value.return_value = Mock(version=5, types=["prompt"])
-
+        msg = _notify_msg(5, {"prompt": ["default"]})
         await processor.on_config_notify(msg, None, None)
 
         handler.assert_not_called()
@@ -105,9 +105,7 @@ class TestOnConfigNotify:
         handler = AsyncMock()
         processor.register_config_handler(handler, types=["prompt"])
 
-        msg = Mock()
-        msg.value.return_value = Mock(version=2, types=["schema"])
-
+        msg = _notify_msg(2, {"schema": ["default"]})
         await processor.on_config_notify(msg, None, None)
 
         handler.assert_not_called()
@@ -121,40 +119,36 @@ class TestOnConfigNotify:
         handler = AsyncMock()
         processor.register_config_handler(handler, types=["prompt"])
 
-        # Mock fetch_config
-        mock_config = {"prompt": {"key": "value"}}
+        mock_client = AsyncMock()
         with patch.object(
-            processor, 'fetch_config',
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_workspace',
             new_callable=AsyncMock,
-            return_value=(mock_config, 2)
+            return_value={"key": "value"},
         ):
-            msg = Mock()
-            msg.value.return_value = Mock(version=2, types=["prompt"])
-
+            msg = _notify_msg(2, {"prompt": ["default"]})
             await processor.on_config_notify(msg, None, None)
 
-        handler.assert_called_once_with(mock_config, 2)
+        handler.assert_called_once_with(
+            "default", {"prompt": {"key": "value"}}, 2
+        )
         assert processor.config_version == 2
 
     @pytest.mark.asyncio
-    async def test_handler_without_types_always_called(self, processor):
+    async def test_handler_without_types_ignored_on_notify(self, processor):
+        """Handlers registered without types never fire on notifications."""
         processor.config_version = 1
 
         handler = AsyncMock()
-        processor.register_config_handler(handler)  # No types = all
+        processor.register_config_handler(handler)  # No types
 
-        mock_config = {"anything": {}}
-        with patch.object(
-            processor, 'fetch_config',
-            new_callable=AsyncMock,
-            return_value=(mock_config, 2)
-        ):
-            msg = Mock()
-            msg.value.return_value = Mock(version=2, types=["whatever"])
+        msg = _notify_msg(2, {"whatever": ["default"]})
+        await processor.on_config_notify(msg, None, None)
 
-            await processor.on_config_notify(msg, None, None)
-
-        handler.assert_called_once_with(mock_config, 2)
+        handler.assert_not_called()
+        # Version still advances past the notify
+        assert processor.config_version == 2
 
     @pytest.mark.asyncio
     async def test_mixed_handlers_type_filtering(self, processor):
@@ -168,156 +162,149 @@ class TestOnConfigNotify:
         processor.register_config_handler(schema_handler, types=["schema"])
         processor.register_config_handler(all_handler)
 
-        mock_config = {"prompt": {}}
+        mock_client = AsyncMock()
         with patch.object(
-            processor, 'fetch_config',
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_workspace',
             new_callable=AsyncMock,
-            return_value=(mock_config, 2)
+            return_value={},
         ):
-            msg = Mock()
-            msg.value.return_value = Mock(version=2, types=["prompt"])
-
+            msg = _notify_msg(2, {"prompt": ["default"]})
             await processor.on_config_notify(msg, None, None)
 
-        prompt_handler.assert_called_once()
+        prompt_handler.assert_called_once_with(
+            "default", {"prompt": {}}, 2
+        )
         schema_handler.assert_not_called()
-        all_handler.assert_called_once()
+        all_handler.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_empty_types_invokes_all(self, processor):
-        """Empty types list (startup signal) should invoke all handlers."""
+    async def test_multi_workspace_notify_invokes_handler_per_ws(
+        self, processor
+    ):
+        """Notify affecting multiple workspaces invokes handler once per workspace."""
         processor.config_version = 1
 
-        h1 = AsyncMock()
-        h2 = AsyncMock()
-        processor.register_config_handler(h1, types=["prompt"])
-        processor.register_config_handler(h2, types=["schema"])
+        handler = AsyncMock()
+        processor.register_config_handler(handler, types=["prompt"])
 
-        mock_config = {}
+        mock_client = AsyncMock()
         with patch.object(
-            processor, 'fetch_config',
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_workspace',
             new_callable=AsyncMock,
-            return_value=(mock_config, 2)
+            return_value={},
         ):
-            msg = Mock()
-            msg.value.return_value = Mock(version=2, types=[])
-
+            msg = _notify_msg(2, {"prompt": ["ws1", "ws2"]})
             await processor.on_config_notify(msg, None, None)
 
-        h1.assert_called_once()
-        h2.assert_called_once()
+        assert handler.call_count == 2
+        called_workspaces = {c.args[0] for c in handler.call_args_list}
+        assert called_workspaces == {"ws1", "ws2"}
 
     @pytest.mark.asyncio
     async def test_fetch_failure_handled(self, processor):
         processor.config_version = 1
 
         handler = AsyncMock()
-        processor.register_config_handler(handler)
+        processor.register_config_handler(handler, types=["prompt"])
 
+        mock_client = AsyncMock()
         with patch.object(
-            processor, 'fetch_config',
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_workspace',
             new_callable=AsyncMock,
-            side_effect=RuntimeError("Connection failed")
+            side_effect=RuntimeError("Connection failed"),
         ):
-            msg = Mock()
-            msg.value.return_value = Mock(version=2, types=["prompt"])
-
+            msg = _notify_msg(2, {"prompt": ["default"]})
             # Should not raise
             await processor.on_config_notify(msg, None, None)
 
         handler.assert_not_called()
 
 
-class TestFetchConfig:
-
-    @pytest.mark.asyncio
-    async def test_fetch_returns_config_and_version(self, processor):
-        mock_resp = Mock()
-        mock_resp.error = None
-        mock_resp.config = {"prompt": {"key": "val"}}
-        mock_resp.version = 42
-
-        mock_client = AsyncMock()
-        mock_client.request.return_value = mock_resp
-
-        with patch.object(
-            processor, '_create_config_client', return_value=mock_client
-        ):
-            config, version = await processor.fetch_config()
-
-        assert config == {"prompt": {"key": "val"}}
-        assert version == 42
-        mock_client.stop.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_fetch_raises_on_error_response(self, processor):
-        mock_resp = Mock()
-        mock_resp.error = Mock(message="not found")
-        mock_resp.config = {}
-        mock_resp.version = 0
-
-        mock_client = AsyncMock()
-        mock_client.request.return_value = mock_resp
-
-        with patch.object(
-            processor, '_create_config_client', return_value=mock_client
-        ):
-            with pytest.raises(RuntimeError, match="Config error"):
-                await processor.fetch_config()
-
-        mock_client.stop.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_fetch_stops_client_on_exception(self, processor):
-        mock_client = AsyncMock()
-        mock_client.request.side_effect = TimeoutError("timeout")
-
-        with patch.object(
-            processor, '_create_config_client', return_value=mock_client
-        ):
-            with pytest.raises(TimeoutError):
-                await processor.fetch_config()
-
-        mock_client.stop.assert_called_once()
-
-
 class TestFetchAndApplyConfig:
 
     @pytest.mark.asyncio
-    async def test_applies_config_to_all_handlers(self, processor):
-        h1 = AsyncMock()
-        h2 = AsyncMock()
-        processor.register_config_handler(h1, types=["prompt"])
-        processor.register_config_handler(h2, types=["schema"])
+    async def test_applies_config_per_workspace(self, processor):
+        """Startup fetch invokes handler once per workspace affected."""
+        h = AsyncMock()
+        processor.register_config_handler(h, types=["prompt"])
 
-        mock_config = {"prompt": {}, "schema": {}}
+        mock_client = AsyncMock()
+
+        async def fake_fetch_all(client, config_type):
+            return {
+                "ws1": {"k": "v1"},
+                "ws2": {"k": "v2"},
+            }, 10
+
         with patch.object(
-            processor, 'fetch_config',
-            new_callable=AsyncMock,
-            return_value=(mock_config, 10)
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_all_workspaces',
+            new=fake_fetch_all,
         ):
             await processor.fetch_and_apply_config()
 
-        # On startup, all handlers are invoked regardless of type
-        h1.assert_called_once_with(mock_config, 10)
-        h2.assert_called_once_with(mock_config, 10)
+        assert h.call_count == 2
+        call_map = {c.args[0]: c.args[1] for c in h.call_args_list}
+        assert call_map["ws1"] == {"prompt": {"k": "v1"}}
+        assert call_map["ws2"] == {"prompt": {"k": "v2"}}
         assert processor.config_version == 10
 
     @pytest.mark.asyncio
-    async def test_retries_on_failure(self, processor):
-        call_count = 0
-        mock_config = {"prompt": {}}
+    async def test_handler_without_types_skipped_at_startup(self, processor):
+        """Handlers registered without types fetch nothing at startup."""
+        typed = AsyncMock()
+        untyped = AsyncMock()
+        processor.register_config_handler(typed, types=["prompt"])
+        processor.register_config_handler(untyped)
 
-        async def mock_fetch():
+        mock_client = AsyncMock()
+
+        async def fake_fetch_all(client, config_type):
+            return {"default": {}}, 1
+
+        with patch.object(
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_all_workspaces',
+            new=fake_fetch_all,
+        ):
+            await processor.fetch_and_apply_config()
+
+        typed.assert_called_once()
+        untyped.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_retries_on_failure(self, processor):
+        h = AsyncMock()
+        processor.register_config_handler(h, types=["prompt"])
+
+        call_count = 0
+
+        async def fake_fetch_all(client, config_type):
             nonlocal call_count
             call_count += 1
             if call_count < 3:
                 raise RuntimeError("not ready")
-            return mock_config, 5
+            return {"default": {"k": "v"}}, 5
 
-        with patch.object(processor, 'fetch_config', side_effect=mock_fetch), \
-             patch('asyncio.sleep', new_callable=AsyncMock):
+        mock_client = AsyncMock()
+        with patch.object(
+            processor, '_create_config_client', return_value=mock_client
+        ), patch.object(
+            processor, '_fetch_type_all_workspaces',
+            new=fake_fetch_all,
+        ), patch('asyncio.sleep', new_callable=AsyncMock):
             await processor.fetch_and_apply_config()
 
         assert call_count == 3
         assert processor.config_version == 5
+        h.assert_called_once_with(
+            "default", {"prompt": {"k": "v"}}, 5
+        )

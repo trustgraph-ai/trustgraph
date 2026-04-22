@@ -14,14 +14,9 @@ properties:
       - delete-collection
     description: |
       Collection operation:
-      - `list-collections`: List collections for user
+      - `list-collections`: List collections in workspace
       - `update-collection`: Create or update collection metadata
       - `delete-collection`: Delete collection
-  user:
-    type: string
-    description: User identifier
-    default: trustgraph
-    example: alice
   collection:
     type: string
     description: Collection identifier (for update, delete)

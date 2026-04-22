@@ -16,7 +16,6 @@ class SparqlBinding:
 
 @dataclass
 class SparqlQueryRequest:
-    user: str = ""
     collection: str = ""
     query: str = ""           # SPARQL query string
     limit: int = 10000        # Safety limit on results

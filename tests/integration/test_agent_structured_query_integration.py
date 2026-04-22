@@ -58,7 +58,7 @@ class TestAgentStructuredQueryIntegration:
     async def test_agent_structured_query_basic_integration(self, agent_processor, structured_query_tool_config):
         """Test basic agent integration with structured query tool"""
         # Arrange - Load tool configuration
-        await agent_processor.on_tools_config(structured_query_tool_config, "v1")
+        await agent_processor.on_tools_config("default", structured_query_tool_config, "v1")
         
         # Create agent request
         request = AgentRequest(
@@ -66,7 +66,6 @@ class TestAgentStructuredQueryIntegration:
             state="",
             group=None,
             history=[],
-            user="test_user"
         )
         
         msg = MagicMock()
@@ -119,6 +118,7 @@ Args: {
         # Mock flow parameter in agent_processor.on_request
         flow = MagicMock()
         flow.side_effect = flow_context
+        flow.workspace = "default"
         
         # Act
         await agent_processor.on_request(msg, consumer, flow)
@@ -146,14 +146,13 @@ Args: {
     async def test_agent_structured_query_error_handling(self, agent_processor, structured_query_tool_config):
         """Test agent handling of structured query errors"""
         # Arrange
-        await agent_processor.on_tools_config(structured_query_tool_config, "v1")
+        await agent_processor.on_tools_config("default", structured_query_tool_config, "v1")
         
         request = AgentRequest(
             question="Find data from a table that doesn't exist using structured query.",
             state="",
             group=None,
             history=[],
-            user="test_user"
         )
         
         msg = MagicMock()
@@ -199,6 +198,7 @@ Args: {
         
         flow = MagicMock()
         flow.side_effect = flow_context
+        flow.workspace = "default"
         
         # Act
         await agent_processor.on_request(msg, consumer, flow)
@@ -221,14 +221,13 @@ Args: {
     async def test_agent_multi_step_structured_query_reasoning(self, agent_processor, structured_query_tool_config):
         """Test agent using structured query in multi-step reasoning"""
         # Arrange  
-        await agent_processor.on_tools_config(structured_query_tool_config, "v1")
+        await agent_processor.on_tools_config("default", structured_query_tool_config, "v1")
         
         request = AgentRequest(
             question="First find all customers from California, then tell me how many orders they have made.",
             state="",
             group=None,
             history=[],
-            user="test_user"
         )
         
         msg = MagicMock()
@@ -279,6 +278,7 @@ Args: {
         
         flow = MagicMock()
         flow.side_effect = flow_context
+        flow.workspace = "default"
         
         # Act
         await agent_processor.on_request(msg, consumer, flow)
@@ -313,14 +313,13 @@ Args: {
             }
         }
         
-        await agent_processor.on_tools_config(tool_config_with_collection, "v1")
+        await agent_processor.on_tools_config("default", tool_config_with_collection, "v1")
         
         request = AgentRequest(
             question="Query the sales data for recent transactions.",
             state="",
             group=None,
             history=[],
-            user="test_user"
         )
         
         msg = MagicMock()
@@ -371,6 +370,7 @@ Args: {
         
         flow = MagicMock()
         flow.side_effect = flow_context
+        flow.workspace = "default"
         
         # Act
         await agent_processor.on_request(msg, consumer, flow)
@@ -394,10 +394,10 @@ Args: {
     async def test_agent_structured_query_tool_argument_validation(self, agent_processor, structured_query_tool_config):
         """Test that structured query tool arguments are properly validated"""
         # Arrange
-        await agent_processor.on_tools_config(structured_query_tool_config, "v1")
+        await agent_processor.on_tools_config("default", structured_query_tool_config, "v1")
         
         # Check that the tool was registered with correct arguments
-        tools = agent_processor.agent.tools
+        tools = agent_processor.agents["default"].tools
         assert "structured-query" in tools
         
         structured_tool = tools["structured-query"]
@@ -414,14 +414,13 @@ Args: {
     async def test_agent_structured_query_json_formatting(self, agent_processor, structured_query_tool_config):
         """Test that structured query results are properly formatted for agent consumption"""
         # Arrange
-        await agent_processor.on_tools_config(structured_query_tool_config, "v1")
+        await agent_processor.on_tools_config("default", structured_query_tool_config, "v1")
         
         request = AgentRequest(
             question="Get customer information and format it nicely.",
             state="",
             group=None,
             history=[],
-            user="test_user"
         )
         
         msg = MagicMock()
@@ -482,6 +481,7 @@ Args: {
         
         flow = MagicMock()
         flow.side_effect = flow_context
+        flow.workspace = "default"
         
         # Act
         await agent_processor.on_request(msg, consumer, flow)

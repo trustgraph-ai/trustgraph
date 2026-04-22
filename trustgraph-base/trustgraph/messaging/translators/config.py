@@ -23,13 +23,15 @@ class ConfigRequestTranslator(MessageTranslator):
                 ConfigValue(
                     type=v["type"],
                     key=v["key"],
-                    value=v["value"]
+                    value=v["value"],
+                    workspace=v.get("workspace", ""),
                 )
                 for v in data["values"]
             ]
         
         return ConfigRequest(
             operation=data.get("operation"),
+            workspace=data.get("workspace", ""),
             keys=keys,
             type=data.get("type"),
             values=values
@@ -37,9 +39,12 @@ class ConfigRequestTranslator(MessageTranslator):
     
     def encode(self, obj: ConfigRequest) -> Dict[str, Any]:
         result = {}
-        
+
         if obj.operation is not None:
             result["operation"] = obj.operation
+
+        if obj.workspace is not None:
+            result["workspace"] = obj.workspace
 
         if obj.type is not None:
             result["type"] = obj.type
@@ -56,13 +61,14 @@ class ConfigRequestTranslator(MessageTranslator):
         if obj.values is not None:
             result["values"] = [
                 {
+                    **({"workspace": v.workspace} if v.workspace else {}),
                     "type": v.type,
                     "key": v.key,
-                    "value": v.value
+                    "value": v.value,
                 }
                 for v in obj.values
             ]
-        
+
         return result
 
 
@@ -81,13 +87,14 @@ class ConfigResponseTranslator(MessageTranslator):
         if obj.values is not None:
             result["values"] = [
                 {
+                    **({"workspace": v.workspace} if v.workspace else {}),
                     "type": v.type,
                     "key": v.key,
-                    "value": v.value
+                    "value": v.value,
                 }
                 for v in obj.values
             ]
-        
+
         if obj.directory is not None:
             result["directory"] = obj.directory
         

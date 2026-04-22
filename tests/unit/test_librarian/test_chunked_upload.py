@@ -33,12 +33,12 @@ def _make_librarian(min_chunk_size=1):
 
 
 def _make_doc_metadata(
-    doc_id="doc-1", kind="application/pdf", user="alice", title="Test Doc"
+    doc_id="doc-1", kind="application/pdf", workspace="alice", title="Test Doc"
 ):
     meta = MagicMock()
     meta.id = doc_id
     meta.kind = kind
-    meta.user = user
+    meta.workspace = workspace
     meta.title = title
     meta.time = 1700000000
     meta.comments = ""
@@ -47,27 +47,27 @@ def _make_doc_metadata(
 
 
 def _make_begin_request(
-    doc_id="doc-1", kind="application/pdf", user="alice",
+    doc_id="doc-1", kind="application/pdf", workspace="alice",
     total_size=10_000_000, chunk_size=0
 ):
     req = MagicMock()
-    req.document_metadata = _make_doc_metadata(doc_id=doc_id, kind=kind, user=user)
+    req.document_metadata = _make_doc_metadata(doc_id=doc_id, kind=kind, workspace=workspace)
     req.total_size = total_size
     req.chunk_size = chunk_size
     return req
 
 
-def _make_upload_chunk_request(upload_id="up-1", chunk_index=0, user="alice", content=b"data"):
+def _make_upload_chunk_request(upload_id="up-1", chunk_index=0, workspace="alice", content=b"data"):
     req = MagicMock()
     req.upload_id = upload_id
     req.chunk_index = chunk_index
-    req.user = user
+    req.workspace = workspace
     req.content = base64.b64encode(content)
     return req
 
 
 def _make_session(
-    user="alice", total_chunks=5, chunk_size=2_000_000,
+    workspace="alice", total_chunks=5, chunk_size=2_000_000,
     total_size=10_000_000, chunks_received=None, object_id="obj-1",
     s3_upload_id="s3-up-1", document_metadata=None, document_id="doc-1",
 ):
@@ -76,11 +76,11 @@ def _make_session(
     if document_metadata is None:
         document_metadata = json.dumps({
             "id": document_id, "kind": "application/pdf",
-            "user": user, "title": "Test", "time": 1700000000,
+            "workspace": workspace, "title": "Test", "time": 1700000000,
             "comments": "", "tags": [],
         })
     return {
-        "user": user,
+        "workspace": workspace,
         "total_chunks": total_chunks,
         "chunk_size": chunk_size,
         "total_size": total_size,
@@ -259,10 +259,10 @@ class TestUploadChunk:
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
         lib = _make_librarian()
-        session = _make_session(user="alice")
+        session = _make_session(workspace="alice")
         lib.table_store.get_upload_session.return_value = session
 
-        req = _make_upload_chunk_request(user="bob")
+        req = _make_upload_chunk_request(workspace="bob")
         with pytest.raises(RequestError, match="Not authorized"):
             await lib.upload_chunk(req)
 
@@ -353,7 +353,7 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.complete_upload(req)
 
@@ -375,7 +375,7 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "alice"
+        req.workspace = "alice"
 
         await lib.complete_upload(req)
 
@@ -394,7 +394,7 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "alice"
+        req.workspace = "alice"
 
         with pytest.raises(RequestError, match="Missing chunks"):
             await lib.complete_upload(req)
@@ -406,7 +406,7 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-gone"
-        req.user = "alice"
+        req.workspace = "alice"
 
         with pytest.raises(RequestError, match="not found"):
             await lib.complete_upload(req)
@@ -414,12 +414,12 @@ class TestCompleteUpload:
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
         lib = _make_librarian()
-        session = _make_session(user="alice")
+        session = _make_session(workspace="alice")
         lib.table_store.get_upload_session.return_value = session
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "bob"
+        req.workspace = "bob"
 
         with pytest.raises(RequestError, match="Not authorized"):
             await lib.complete_upload(req)
@@ -439,7 +439,7 @@ class TestAbortUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.abort_upload(req)
 
@@ -456,7 +456,7 @@ class TestAbortUpload:
 
         req = MagicMock()
         req.upload_id = "up-gone"
-        req.user = "alice"
+        req.workspace = "alice"
 
         with pytest.raises(RequestError, match="not found"):
             await lib.abort_upload(req)
@@ -464,12 +464,12 @@ class TestAbortUpload:
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
         lib = _make_librarian()
-        session = _make_session(user="alice")
+        session = _make_session(workspace="alice")
         lib.table_store.get_upload_session.return_value = session
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "bob"
+        req.workspace = "bob"
 
         with pytest.raises(RequestError, match="Not authorized"):
             await lib.abort_upload(req)
@@ -492,7 +492,7 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.get_upload_status(req)
 
@@ -510,7 +510,7 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-expired"
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.get_upload_status(req)
 
@@ -527,7 +527,7 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.get_upload_status(req)
 
@@ -539,12 +539,12 @@ class TestGetUploadStatus:
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
         lib = _make_librarian()
-        session = _make_session(user="alice")
+        session = _make_session(workspace="alice")
         lib.table_store.get_upload_session.return_value = session
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.user = "bob"
+        req.workspace = "bob"
 
         with pytest.raises(RequestError, match="Not authorized"):
             await lib.get_upload_status(req)
@@ -564,7 +564,7 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x" * 2000)
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 2000
 
@@ -587,7 +587,7 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x" * 500)
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 2000
 
@@ -608,7 +608,7 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x" * 100)
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 2000
 
@@ -630,7 +630,7 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x")
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 0  # Should use default 1MB
 
@@ -649,7 +649,7 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=raw)
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 1000
 
@@ -666,7 +666,7 @@ class TestStreamDocument:
         lib.blob_store.get_size = AsyncMock(return_value=5000)
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 512
 
@@ -698,7 +698,7 @@ class TestListUploads:
         ]
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.list_uploads(req)
 
@@ -713,7 +713,7 @@ class TestListUploads:
         lib.table_store.list_upload_sessions.return_value = []
 
         req = MagicMock()
-        req.user = "alice"
+        req.workspace = "alice"
 
         resp = await lib.list_uploads(req)
 

@@ -35,11 +35,11 @@ class RowEmbeddingsClient(BaseClient):
         )
 
     def request(
-            self, vector, schema_name, user="trustgraph", collection="default",
+            self, vector, schema_name, collection="default",
             index_name=None, limit=10, timeout=300
     ):
         kwargs = dict(
-            user=user, collection=collection,
+            collection=collection,
             vector=vector, schema_name=schema_name,
             limit=limit, timeout=timeout
         )

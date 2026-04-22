@@ -92,14 +92,13 @@ class TestQuery:
         # Initialize Query with defaults
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
 
         # Verify initialization
         assert query.rag == mock_rag
-        assert query.user == "test_user"
         assert query.collection == "test_collection"
         assert query.verbose is False
         assert query.doc_limit == 20  # Default value
@@ -112,7 +111,7 @@ class TestQuery:
         # Initialize Query with custom doc_limit
         query = Query(
             rag=mock_rag,
-            user="custom_user",
+            workspace="test_workspace",
             collection="custom_collection",
             verbose=True,
             doc_limit=50
@@ -120,7 +119,6 @@ class TestQuery:
 
         # Verify initialization
         assert query.rag == mock_rag
-        assert query.user == "custom_user"
         assert query.collection == "custom_collection"
         assert query.verbose is True
         assert query.doc_limit == 50
@@ -137,7 +135,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -162,7 +160,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -184,7 +182,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -223,7 +221,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False,
             doc_limit=15
@@ -240,7 +238,6 @@ class TestQuery:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[0.1, 0.2, 0.3],
             limit=15,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -286,7 +283,6 @@ class TestQuery:
 
         result = await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             doc_limit=10
         )
@@ -304,7 +300,6 @@ class TestQuery:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[0.1, 0.2, 0.3],
             limit=10,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -350,7 +345,6 @@ class TestQuery:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[[0.1, 0.2]],
             limit=20,  # Default doc_limit
-            user="trustgraph",  # Default user
             collection="default"  # Default collection
         )
 
@@ -380,7 +374,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=True,
             doc_limit=5
@@ -453,7 +447,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -509,7 +503,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=True
         )
@@ -558,7 +552,6 @@ class TestQuery:
 
         result = await document_rag.query(
             query=query_text,
-            user="research_user",
             collection="ml_knowledge",
             doc_limit=25
         )
@@ -619,7 +612,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False,
             doc_limit=10

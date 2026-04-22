@@ -69,19 +69,26 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         self.register_config_handler(self.on_schema_config, types=["schema"])
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-        # Schema storage: name -> RowSchema
-        self.schemas: Dict[str, RowSchema] = {}
+        # Per-workspace schema storage: {workspace: {name: RowSchema}}
+        self.schemas: Dict[str, Dict[str, RowSchema]] = {}
 
-    async def on_schema_config(self, config, version):
+    async def on_schema_config(self, workspace, config, version):
         """Handle schema configuration updates"""
-        logger.info(f"Loading schema configuration version {version}")
+        logger.info(
+            f"Loading schema configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
-        # Clear existing schemas
-        self.schemas = {}
+        # Replace existing schemas for this workspace
+        ws_schemas: Dict[str, RowSchema] = {}
+        self.schemas[workspace] = ws_schemas
 
         # Check if our config type exists
         if self.config_key not in config:
-            logger.warning(f"No '{self.config_key}' type in configuration")
+            logger.warning(
+                f"No '{self.config_key}' type in configuration "
+                f"for {workspace}"
+            )
             return
 
         # Get the schemas dictionary for our type
@@ -115,13 +122,19 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     fields=fields
                 )
 
-                self.schemas[schema_name] = row_schema
-                logger.info(f"Loaded schema: {schema_name} with {len(fields)} fields")
+                ws_schemas[schema_name] = row_schema
+                logger.info(
+                    f"Loaded schema: {schema_name} with "
+                    f"{len(fields)} fields for {workspace}"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to parse schema {schema_name}: {e}", exc_info=True)
 
-        logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
+        logger.info(
+            f"Schema configuration loaded for {workspace}: "
+            f"{len(ws_schemas)} schemas"
+        )
 
     def get_index_names(self, schema: RowSchema) -> List[str]:
         """Get all index names for a schema."""
@@ -149,23 +162,29 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """Process incoming ExtractedObject and compute embeddings"""
 
         obj = msg.value()
+        workspace = flow.workspace
         logger.info(
             f"Computing embeddings for {len(obj.values)} rows, "
-            f"schema {obj.schema_name}, doc {obj.metadata.id}"
+            f"schema {obj.schema_name}, doc {obj.metadata.id}, "
+            f"workspace {workspace}"
         )
 
         # Validate collection exists before processing
-        if not self.collection_exists(obj.metadata.user, obj.metadata.collection):
+        if not self.collection_exists(workspace, obj.metadata.collection):
             logger.warning(
-                f"Collection {obj.metadata.collection} for user {obj.metadata.user} "
+                f"Collection {obj.metadata.collection} for workspace {workspace} "
                 f"does not exist in config. Dropping message."
             )
             return
 
-        # Get schema definition
-        schema = self.schemas.get(obj.schema_name)
+        # Get schema definition for this workspace
+        ws_schemas = self.schemas.get(workspace, {})
+        schema = ws_schemas.get(obj.schema_name)
         if not schema:
-            logger.warning(f"No schema found for {obj.schema_name} - skipping")
+            logger.warning(
+                f"No schema found for {obj.schema_name} in "
+                f"workspace {workspace} - skipping"
+            )
             return
 
         # Get all index names for this schema
@@ -239,13 +258,13 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             logger.error("Exception during embedding computation", exc_info=True)
             raise e
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Collection creation notification - no action needed for embedding stage"""
-        logger.debug(f"Row embeddings collection notification for {user}/{collection}")
+        logger.debug(f"Row embeddings collection notification for {workspace}/{collection}")
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Collection deletion notification - no action needed for embedding stage"""
-        logger.debug(f"Row embeddings collection delete notification for {user}/{collection}")
+        logger.debug(f"Row embeddings collection delete notification for {workspace}/{collection}")
 
     @staticmethod
     def add_args(parser):

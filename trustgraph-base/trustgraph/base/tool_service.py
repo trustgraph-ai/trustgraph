@@ -64,6 +64,7 @@ class ToolService(FlowProcessor):
             id = msg.properties()["id"]
 
             response = await self.invoke_tool(
+                flow.workspace,
                 request.name,
                 json.loads(request.parameters) if request.parameters else {},
             )

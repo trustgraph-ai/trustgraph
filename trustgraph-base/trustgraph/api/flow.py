@@ -115,72 +115,32 @@ class Flow:
         return FlowInstance(api=self, id=id)
 
     def list_blueprints(self):
-        """
-        List all available flow blueprints.
+        """List blueprints in the current workspace."""
 
-        Returns:
-            list[str]: List of blueprint names
-
-        Example:
-            ```python
-            blueprints = api.flow().list_blueprints()
-            print(blueprints)  # ['default', 'custom-flow', ...]
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "list-blueprints",
+            "workspace": self.api.workspace,
         }
 
         return self.request(request = input)["blueprint-names"]
 
     def get_blueprint(self, blueprint_name):
-        """
-        Get a flow blueprint definition by name.
+        """Get a flow blueprint definition by name."""
 
-        Args:
-            blueprint_name: Name of the blueprint to retrieve
-
-        Returns:
-            dict: Blueprint definition as a dictionary
-
-        Example:
-            ```python
-            blueprint = api.flow().get_blueprint("default")
-            print(blueprint)  # Blueprint configuration
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "get-blueprint",
+            "workspace": self.api.workspace,
             "blueprint-name": blueprint_name,
         }
 
         return json.loads(self.request(request = input)["blueprint-definition"])
 
     def put_blueprint(self, blueprint_name, definition):
-        """
-        Create or update a flow blueprint.
+        """Create or update a flow blueprint."""
 
-        Args:
-            blueprint_name: Name for the blueprint
-            definition: Blueprint definition dictionary
-
-        Example:
-            ```python
-            definition = {
-                "services": ["text-completion", "graph-rag"],
-                "parameters": {"model": "gpt-4"}
-            }
-            api.flow().put_blueprint("my-blueprint", definition)
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "put-blueprint",
+            "workspace": self.api.workspace,
             "blueprint-name": blueprint_name,
             "blueprint-definition": json.dumps(definition),
         }
@@ -188,96 +148,43 @@ class Flow:
         self.request(request = input)
 
     def delete_blueprint(self, blueprint_name):
-        """
-        Delete a flow blueprint.
+        """Delete a flow blueprint."""
 
-        Args:
-            blueprint_name: Name of the blueprint to delete
-
-        Example:
-            ```python
-            api.flow().delete_blueprint("old-blueprint")
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "delete-blueprint",
+            "workspace": self.api.workspace,
             "blueprint-name": blueprint_name,
         }
 
         self.request(request = input)
 
     def list(self):
-        """
-        List all active flow instances.
+        """List flow instances in the current workspace."""
 
-        Returns:
-            list[str]: List of flow instance IDs
-
-        Example:
-            ```python
-            flows = api.flow().list()
-            print(flows)  # ['default', 'flow-1', 'flow-2', ...]
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "list-flows",
+            "workspace": self.api.workspace,
         }
 
         return self.request(request = input)["flow-ids"]
 
     def get(self, id):
-        """
-        Get the definition of a running flow instance.
+        """Get the definition of a flow instance."""
 
-        Args:
-            id: Flow instance ID
-
-        Returns:
-            dict: Flow instance definition
-
-        Example:
-            ```python
-            flow_def = api.flow().get("default")
-            print(flow_def)
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "get-flow",
+            "workspace": self.api.workspace,
             "flow-id": id,
         }
 
         return json.loads(self.request(request = input)["flow"])
 
     def start(self, blueprint_name, id, description, parameters=None):
-        """
-        Start a new flow instance from a blueprint.
+        """Start a new flow instance from a blueprint."""
 
-        Args:
-            blueprint_name: Name of the blueprint to instantiate
-            id: Unique identifier for the flow instance
-            description: Human-readable description
-            parameters: Optional parameters dictionary
-
-        Example:
-            ```python
-            api.flow().start(
-                blueprint_name="default",
-                id="my-flow",
-                description="My custom flow",
-                parameters={"model": "gpt-4"}
-            )
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "start-flow",
+            "workspace": self.api.workspace,
             "flow-id": id,
             "blueprint-name": blueprint_name,
             "description": description,
@@ -289,21 +196,11 @@ class Flow:
         self.request(request = input)
 
     def stop(self, id):
-        """
-        Stop a running flow instance.
+        """Stop a running flow instance."""
 
-        Args:
-            id: Flow instance ID to stop
-
-        Example:
-            ```python
-            api.flow().stop("my-flow")
-            ```
-        """
-
-        # The input consists of system and prompt strings
         input = {
             "operation": "stop-flow",
+            "workspace": self.api.workspace,
             "flow-id": id,
         }
 
@@ -349,6 +246,13 @@ class FlowInstance:
         Returns:
             dict: Service response
         """
+        # Inject workspace so the gateway can route to the right
+        # workspace's flow. If already present, keep the caller's value.
+        if isinstance(request, dict) and "workspace" not in request:
+            request = {
+                "workspace": self.api.api.workspace,
+                **request,
+            }
         return self.api.request(path = f"{self.id}/{path}", request = request)
 
     def text_completion(self, system, prompt):
@@ -392,7 +296,7 @@ class FlowInstance:
             model=result.get("model"),
         )
 
-    def agent(self, question, user="trustgraph", state=None, group=None, history=None):
+    def agent(self, question,state=None, group=None, history=None):
         """
         Execute an agent operation with reasoning and tool use capabilities.
 
@@ -401,7 +305,6 @@ class FlowInstance:
 
         Args:
             question: User question or instruction
-            user: User identifier (default: "trustgraph")
             state: Optional state dictionary for stateful conversations
             group: Optional group identifier for multi-user contexts
             history: Optional conversation history as list of message dicts
@@ -416,8 +319,7 @@ class FlowInstance:
             # Simple question
             answer = flow.agent(
                 question="What is the capital of France?",
-                user="trustgraph"
-            )
+                )
 
             # With conversation history
             history = [
@@ -425,9 +327,7 @@ class FlowInstance:
                 {"role": "assistant", "content": "Hi! How can I help?"}
             ]
             answer = flow.agent(
-                question="Tell me about Paris",
-                user="trustgraph",
-                history=history
+                question="Tell me about Paris",history=history
             )
             ```
         """
@@ -435,7 +335,6 @@ class FlowInstance:
         # The input consists of a question and optional context
         input = {
             "question": question,
-            "user": user,
         }
         
         # Only include state if it has a value
@@ -455,7 +354,7 @@ class FlowInstance:
         )["answer"]
 
     def graph_rag(
-            self, query, user="trustgraph", collection="default",
+            self, query,collection="default",
             entity_limit=50, triple_limit=30, max_subgraph_size=150,
             max_path_length=2, edge_score_limit=30, edge_limit=25,
     ):
@@ -467,7 +366,6 @@ class FlowInstance:
 
         Args:
             query: Natural language query
-            user: User/keyspace identifier (default: "trustgraph")
             collection: Collection identifier (default: "default")
             entity_limit: Maximum entities to retrieve (default: 50)
             triple_limit: Maximum triples per entity (default: 30)
@@ -483,9 +381,7 @@ class FlowInstance:
             ```python
             flow = api.flow().id("default")
             response = flow.graph_rag(
-                query="Tell me about Marie Curie's discoveries",
-                user="trustgraph",
-                collection="scientists",
+                query="Tell me about Marie Curie's discoveries",collection="scientists",
                 entity_limit=20,
                 max_path_length=3
             )
@@ -496,7 +392,6 @@ class FlowInstance:
         # The input consists of a question
         input = {
             "query": query,
-            "user": user,
             "collection": collection,
             "entity-limit": entity_limit,
             "triple-limit": triple_limit,
@@ -519,7 +414,7 @@ class FlowInstance:
         )
 
     def document_rag(
-            self, query, user="trustgraph", collection="default",
+            self, query,collection="default",
             doc_limit=10,
     ):
         """
@@ -530,7 +425,6 @@ class FlowInstance:
 
         Args:
             query: Natural language query
-            user: User/keyspace identifier (default: "trustgraph")
             collection: Collection identifier (default: "default")
             doc_limit: Maximum document chunks to retrieve (default: 10)
 
@@ -541,9 +435,7 @@ class FlowInstance:
             ```python
             flow = api.flow().id("default")
             response = flow.document_rag(
-                query="Summarize the key findings",
-                user="trustgraph",
-                collection="research-papers",
+                query="Summarize the key findings",collection="research-papers",
                 doc_limit=5
             )
             print(response)
@@ -553,7 +445,6 @@ class FlowInstance:
         # The input consists of a question
         input = {
             "query": query,
-            "user": user,
             "collection": collection,
             "doc-limit": doc_limit,
         }
@@ -600,7 +491,7 @@ class FlowInstance:
             input
         )["vectors"]
 
-    def graph_embeddings_query(self, text, user, collection, limit=10):
+    def graph_embeddings_query(self, text, collection, limit=10):
         """
         Query knowledge graph entities using semantic similarity.
 
@@ -609,7 +500,6 @@ class FlowInstance:
 
         Args:
             text: Query text for semantic search
-            user: User/keyspace identifier
             collection: Collection identifier
             limit: Maximum number of results (default: 10)
 
@@ -620,9 +510,7 @@ class FlowInstance:
             ```python
             flow = api.flow().id("default")
             results = flow.graph_embeddings_query(
-                text="physicist who discovered radioactivity",
-                user="trustgraph",
-                collection="scientists",
+                text="physicist who discovered radioactivity",collection="scientists",
                 limit=5
             )
             # results contains {"entities": [{"entity": {...}, "score": 0.95}, ...]}
@@ -636,7 +524,6 @@ class FlowInstance:
         # Query graph embeddings for semantic search
         input = {
             "vector": vector,
-            "user": user,
             "collection": collection,
             "limit": limit
         }
@@ -646,7 +533,7 @@ class FlowInstance:
             input
         )
 
-    def document_embeddings_query(self, text, user, collection, limit=10):
+    def document_embeddings_query(self, text, collection, limit=10):
         """
         Query document chunks using semantic similarity.
 
@@ -655,7 +542,6 @@ class FlowInstance:
 
         Args:
             text: Query text for semantic search
-            user: User/keyspace identifier
             collection: Collection identifier
             limit: Maximum number of results (default: 10)
 
@@ -666,9 +552,7 @@ class FlowInstance:
             ```python
             flow = api.flow().id("default")
             results = flow.document_embeddings_query(
-                text="machine learning algorithms",
-                user="trustgraph",
-                collection="research-papers",
+                text="machine learning algorithms",collection="research-papers",
                 limit=5
             )
             # results contains {"chunks": [{"chunk_id": "doc1/p0/c0", "score": 0.95}, ...]}
@@ -682,7 +566,6 @@ class FlowInstance:
         # Query document embeddings for semantic search
         input = {
             "vector": vector,
-            "user": user,
             "collection": collection,
             "limit": limit
         }
@@ -805,7 +688,7 @@ class FlowInstance:
 
     def triples_query(
             self, s=None, p=None, o=None,
-            user=None, collection=None, limit=10000
+            collection=None, limit=10000
     ):
         """
         Query knowledge graph triples using pattern matching.
@@ -817,7 +700,6 @@ class FlowInstance:
             s: Subject URI (optional, use None for wildcard)
             p: Predicate URI (optional, use None for wildcard)
             o: Object URI or Literal (optional, use None for wildcard)
-            user: User/keyspace identifier (optional)
             collection: Collection identifier (optional)
             limit: Maximum results to return (default: 10000)
 
@@ -835,9 +717,7 @@ class FlowInstance:
 
             # Find all triples about a specific subject
             triples = flow.triples_query(
-                s=Uri("http://example.org/person/marie-curie"),
-                user="trustgraph",
-                collection="scientists"
+                s=Uri("http://example.org/person/marie-curie"),collection="scientists"
             )
 
             # Find all instances of a specific relationship
@@ -851,10 +731,6 @@ class FlowInstance:
         input = {
             "limit": limit
         }
-
-        if user:
-            input["user"] = user
-
         if collection:
             input["collection"] = collection
 
@@ -888,7 +764,7 @@ class FlowInstance:
         ]
 
     def load_document(
-            self, document, id=None, metadata=None, user=None,
+            self, document, id=None, metadata=None,
             collection=None,
     ):
         """
@@ -901,7 +777,6 @@ class FlowInstance:
             document: Document content as bytes
             id: Optional document identifier (auto-generated if None)
             metadata: Optional metadata (list of Triples or object with emit method)
-            user: User/keyspace identifier (optional)
             collection: Collection identifier (optional)
 
         Returns:
@@ -918,9 +793,7 @@ class FlowInstance:
             with open("research.pdf", "rb") as f:
                 result = flow.load_document(
                     document=f.read(),
-                    id="research-001",
-                    user="trustgraph",
-                    collection="papers"
+                    id="research-001",collection="papers"
                 )
             ```
         """
@@ -955,10 +828,6 @@ class FlowInstance:
             "metadata": triples,
             "data": base64.b64encode(document).decode("utf-8"),
         }
-
-        if user:
-            input["user"] = user
-
         if collection:
             input["collection"] = collection
 
@@ -969,7 +838,7 @@ class FlowInstance:
 
     def load_text(
             self, text, id=None, metadata=None, charset="utf-8",
-            user=None, collection=None,
+            collection=None,
     ):
         """
         Load text content for processing.
@@ -982,7 +851,6 @@ class FlowInstance:
             id: Optional document identifier (auto-generated if None)
             metadata: Optional metadata (list of Triples or object with emit method)
             charset: Character encoding (default: "utf-8")
-            user: User/keyspace identifier (optional)
             collection: Collection identifier (optional)
 
         Returns:
@@ -1000,9 +868,7 @@ class FlowInstance:
             result = flow.load_text(
                 text=text_content,
                 id="text-001",
-                charset="utf-8",
-                user="trustgraph",
-                collection="documents"
+                charset="utf-8",collection="documents"
             )
             ```
         """
@@ -1035,10 +901,6 @@ class FlowInstance:
             "charset": charset,
             "text": base64.b64encode(text).decode("utf-8"),
         }
-
-        if user:
-            input["user"] = user
-
         if collection:
             input["collection"] = collection
 
@@ -1048,7 +910,7 @@ class FlowInstance:
         )
 
     def rows_query(
-            self, query, user="trustgraph", collection="default",
+            self, query,collection="default",
             variables=None, operation_name=None
     ):
         """
@@ -1059,7 +921,6 @@ class FlowInstance:
 
         Args:
             query: GraphQL query string
-            user: User/keyspace identifier (default: "trustgraph")
             collection: Collection identifier (default: "default")
             variables: Optional query variables dictionary
             operation_name: Optional operation name for multi-operation documents
@@ -1085,9 +946,7 @@ class FlowInstance:
             }
             '''
             result = flow.rows_query(
-                query=query,
-                user="trustgraph",
-                collection="scientists"
+                query=query,collection="scientists"
             )
 
             # Query with variables
@@ -1109,7 +968,6 @@ class FlowInstance:
         # The input consists of a GraphQL query and optional variables
         input = {
             "query": query,
-            "user": user,
             "collection": collection,
         }
 
@@ -1145,7 +1003,7 @@ class FlowInstance:
         return result
 
     def sparql_query(
-            self, query, user="trustgraph", collection="default",
+            self, query,collection="default",
             limit=10000
     ):
         """
@@ -1153,7 +1011,6 @@ class FlowInstance:
 
         Args:
             query: SPARQL 1.1 query string
-            user: User/keyspace identifier (default: "trustgraph")
             collection: Collection identifier (default: "default")
             limit: Safety limit on results (default: 10000)
 
@@ -1169,7 +1026,6 @@ class FlowInstance:
 
         input = {
             "query": query,
-            "user": user,
             "collection": collection,
             "limit": limit,
         }
@@ -1213,14 +1069,13 @@ class FlowInstance:
         
         return response
 
-    def structured_query(self, question, user="trustgraph", collection="default"):
+    def structured_query(self, question,collection="default"):
         """
         Execute a natural language question against structured data.
         Combines NLP query conversion and GraphQL execution.
         
         Args:
             question: Natural language question
-            user: Cassandra keyspace identifier (default: "trustgraph")
             collection: Data collection identifier (default: "default")
             
         Returns:
@@ -1229,7 +1084,6 @@ class FlowInstance:
         
         input = {
             "question": question,
-            "user": user,
             "collection": collection
         }
         
@@ -1383,7 +1237,7 @@ class FlowInstance:
         return response["schema-matches"]
 
     def row_embeddings_query(
-            self, text, schema_name, user="trustgraph", collection="default",
+            self, text, schema_name,collection="default",
             index_name=None, limit=10
     ):
         """
@@ -1396,7 +1250,6 @@ class FlowInstance:
         Args:
             text: Query text for semantic search
             schema_name: Schema name to search within
-            user: User/keyspace identifier (default: "trustgraph")
             collection: Collection identifier (default: "default")
             index_name: Optional index name to filter search to specific index
             limit: Maximum number of results (default: 10)
@@ -1412,9 +1265,7 @@ class FlowInstance:
             # Search for customers by name similarity
             results = flow.row_embeddings_query(
                 text="John Smith",
-                schema_name="customers",
-                user="trustgraph",
-                collection="sales",
+                schema_name="customers",collection="sales",
                 limit=5
             )
 
@@ -1436,7 +1287,6 @@ class FlowInstance:
         input = {
             "vector": vector,
             "schema_name": schema_name,
-            "user": user,
             "collection": collection,
             "limit": limit
         }

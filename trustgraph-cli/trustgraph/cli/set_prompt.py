@@ -11,10 +11,11 @@ import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def set_system(url, system, token=None):
+def set_system(url, system, token=None, workspace="default"):
 
-    api = Api(url, token=token).config()
+    api = Api(url, token=token, workspace=workspace).config()
 
     api.put([
         ConfigValue(type="prompt", key="system", value=json.dumps(system))
@@ -22,9 +23,9 @@ def set_system(url, system, token=None):
 
     print("System prompt set.")
 
-def set_prompt(url, id, prompt, response, schema, token=None):
+def set_prompt(url, id, prompt, response, schema, token=None, workspace="default"):
 
-    api = Api(url, token=token).config()
+    api = Api(url, token=token, workspace=workspace).config()
 
     values = api.get([
         ConfigKey(type="prompt", key="template-index")
@@ -76,6 +77,12 @@ def main():
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(

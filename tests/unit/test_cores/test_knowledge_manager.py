@@ -28,10 +28,12 @@ def mock_flow_config():
     """Mock flow configuration."""
     mock_config = Mock()
     mock_config.flows = {
-        "test-flow": {
-            "interfaces": {
-                "triples-store": {"flow": "test-triples-queue"},
-                "graph-embeddings-store": {"flow": "test-ge-queue"}
+        "test-user": {
+            "test-flow": {
+                "interfaces": {
+                    "triples-store": {"flow": "test-triples-queue"},
+                    "graph-embeddings-store": {"flow": "test-ge-queue"}
+                }
             }
         }
     }
@@ -43,7 +45,7 @@ def mock_flow_config():
 def mock_request():
     """Mock knowledge load request."""
     request = Mock()
-    request.user = "test-user"
+    request.workspace = "test-user"
     request.id = "test-doc-id"
     request.collection = "test-collection"
     request.flow = "test-flow"
@@ -71,7 +73,6 @@ def sample_triples():
     return Triples(
         metadata=Metadata(
             id="test-doc-id",
-            user="test-user",
             collection="default",  # This should be overridden
         ),
         triples=[
@@ -90,7 +91,6 @@ def sample_graph_embeddings():
     return GraphEmbeddings(
         metadata=Metadata(
             id="test-doc-id",
-            user="test-user",
             collection="default",  # This should be overridden
         ),
         entities=[
@@ -146,7 +146,6 @@ class TestKnowledgeManagerLoadCore:
             mock_triples_pub.send.assert_called_once()
             sent_triples = mock_triples_pub.send.call_args[0][1]
             assert sent_triples.metadata.collection == "test-collection"
-            assert sent_triples.metadata.user == "test-user"
             assert sent_triples.metadata.id == "test-doc-id"
 
     @pytest.mark.asyncio
@@ -185,7 +184,6 @@ class TestKnowledgeManagerLoadCore:
             mock_ge_pub.send.assert_called_once()
             sent_ge = mock_ge_pub.send.call_args[0][1] 
             assert sent_ge.metadata.collection == "test-collection"
-            assert sent_ge.metadata.user == "test-user"
             assert sent_ge.metadata.id == "test-doc-id"
 
     @pytest.mark.asyncio 
@@ -193,7 +191,7 @@ class TestKnowledgeManagerLoadCore:
         """Test that load_kg_core falls back to 'default' when request.collection is None."""
         # Create request with None collection
         mock_request = Mock()
-        mock_request.user = "test-user"
+        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
         mock_request.collection = None  # Should fall back to "default"
         mock_request.flow = "test-flow"
@@ -269,7 +267,7 @@ class TestKnowledgeManagerLoadCore:
         """Test that load_kg_core validates flow configuration before processing."""
         # Request with invalid flow
         mock_request = Mock()
-        mock_request.user = "test-user"
+        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
         mock_request.collection = "test-collection"
         mock_request.flow = "invalid-flow"  # Not in mock_flow_config.flows
@@ -297,7 +295,7 @@ class TestKnowledgeManagerLoadCore:
         
         # Test missing ID
         mock_request = Mock()
-        mock_request.user = "test-user"
+        mock_request.workspace = "test-user"
         mock_request.id = None  # Missing
         mock_request.collection = "test-collection"
         mock_request.flow = "test-flow"
@@ -323,7 +321,7 @@ class TestKnowledgeManagerOtherMethods:
     async def test_get_kg_core_preserves_collection_from_store(self, knowledge_manager, sample_triples):
         """Test that get_kg_core preserves collection field from stored data."""
         mock_request = Mock()
-        mock_request.user = "test-user"
+        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
         
         mock_respond = AsyncMock()
@@ -354,7 +352,7 @@ class TestKnowledgeManagerOtherMethods:
     async def test_list_kg_cores(self, knowledge_manager):
         """Test listing knowledge cores."""
         mock_request = Mock()
-        mock_request.user = "test-user"
+        mock_request.workspace = "test-user"
         
         mock_respond = AsyncMock()
         
@@ -376,7 +374,7 @@ class TestKnowledgeManagerOtherMethods:
     async def test_delete_kg_core(self, knowledge_manager):
         """Test deleting knowledge cores."""
         mock_request = Mock()
-        mock_request.user = "test-user"
+        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
         
         mock_respond = AsyncMock()

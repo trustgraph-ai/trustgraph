@@ -12,7 +12,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_basic(self):
         """Test basic collection name creation"""
         result = make_safe_collection_name(
-            user="test_user",
+            workspace="test_user",
             collection="test_collection",
             prefix="doc"
         )
@@ -21,7 +21,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_with_special_characters(self):
         """Test collection name creation with special characters that need sanitization"""
         result = make_safe_collection_name(
-            user="user@domain.com",
+            workspace="user@domain.com",
             collection="test-collection.v2",
             prefix="entity"
         )
@@ -30,7 +30,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_with_unicode(self):
         """Test collection name creation with Unicode characters"""
         result = make_safe_collection_name(
-            user="测试用户",
+            workspace="测试用户",
             collection="colección_española",
             prefix="doc"
         )
@@ -39,7 +39,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_with_spaces(self):
         """Test collection name creation with spaces"""
         result = make_safe_collection_name(
-            user="test user",
+            workspace="test user",
             collection="my test collection",
             prefix="entity"
         )
@@ -48,7 +48,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_with_multiple_consecutive_special_chars(self):
         """Test collection name creation with multiple consecutive special characters"""
         result = make_safe_collection_name(
-            user="user@@@domain!!!",
+            workspace="user@@@domain!!!",
             collection="test---collection...v2",
             prefix="doc"
         )
@@ -57,7 +57,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_with_leading_trailing_underscores(self):
         """Test collection name creation with leading/trailing special characters"""
         result = make_safe_collection_name(
-            user="__test_user__",
+            workspace="__test_user__",
             collection="@@test_collection##",
             prefix="entity"
         )
@@ -66,7 +66,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_empty_user(self):
         """Test collection name creation with empty user (should fallback to 'default')"""
         result = make_safe_collection_name(
-            user="",
+            workspace="",
             collection="test_collection",
             prefix="doc"
         )
@@ -75,7 +75,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_empty_collection(self):
         """Test collection name creation with empty collection (should fallback to 'default')"""
         result = make_safe_collection_name(
-            user="test_user",
+            workspace="test_user",
             collection="",
             prefix="doc"
         )
@@ -84,7 +84,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_both_empty(self):
         """Test collection name creation with both user and collection empty"""
         result = make_safe_collection_name(
-            user="",
+            workspace="",
             collection="",
             prefix="doc"
         )
@@ -93,7 +93,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_only_special_characters(self):
         """Test collection name creation with only special characters (should fallback to 'default')"""
         result = make_safe_collection_name(
-            user="@@@!!!",
+            workspace="@@@!!!",
             collection="---###",
             prefix="entity"
         )
@@ -102,7 +102,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_whitespace_only(self):
         """Test collection name creation with whitespace-only strings"""
         result = make_safe_collection_name(
-            user="   \n\t   ",
+            workspace="   \n\t   ",
             collection="  \r\n  ",
             prefix="doc"
         )
@@ -111,7 +111,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_mixed_valid_invalid_chars(self):
         """Test collection name creation with mixed valid and invalid characters"""
         result = make_safe_collection_name(
-            user="user123@test",
+            workspace="user123@test",
             collection="coll_2023.v1",
             prefix="entity"
         )
@@ -147,7 +147,7 @@ class TestMilvusCollectionNaming:
         long_collection = "b" * 100
 
         result = make_safe_collection_name(
-            user=long_user,
+            workspace=long_user,
             collection=long_collection,
             prefix="doc"
         )
@@ -159,7 +159,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_numeric_values(self):
         """Test collection name creation with numeric user/collection values"""
         result = make_safe_collection_name(
-            user="user123",
+            workspace="user123",
             collection="collection456",
             prefix="doc"
         )
@@ -168,7 +168,7 @@ class TestMilvusCollectionNaming:
     def test_make_safe_collection_name_case_sensitivity(self):
         """Test that collection name creation preserves case"""
         result = make_safe_collection_name(
-            user="TestUser",
+            workspace="TestUser",
             collection="TestCollection",
             prefix="Doc"
         )

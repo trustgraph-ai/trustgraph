@@ -62,7 +62,6 @@ post:
               vectors: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156, 0.201, -0.178]
               schema_name: customers
               limit: 10
-              user: alice
               collection: sales
           filteredQuery:
             summary: Search specific index

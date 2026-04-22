@@ -17,11 +17,6 @@ properties:
     minimum: 1
     maximum: 1000
     example: 20
-  user:
-    type: string
-    description: User identifier
-    default: trustgraph
-    example: alice
   collection:
     type: string
     description: Collection to search

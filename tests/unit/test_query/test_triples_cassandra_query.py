@@ -95,7 +95,6 @@ class TestCassandraQueryProcessor:
 
         # Create query request with all SPO values
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=Term(type=LITERAL, value='test_predicate'),
@@ -103,7 +102,7 @@ class TestCassandraQueryProcessor:
             limit=100
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         # Verify KnowledgeGraph was created with correct parameters
         mock_kg_class.assert_called_once_with(
@@ -170,7 +169,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=Term(type=LITERAL, value='test_predicate'),
@@ -178,7 +176,7 @@ class TestCassandraQueryProcessor:
             limit=50
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         mock_tg_instance.get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', g=None, limit=50)
         assert len(result) == 1
@@ -207,7 +205,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=None,
@@ -215,7 +212,7 @@ class TestCassandraQueryProcessor:
             limit=25
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         mock_tg_instance.get_s.assert_called_once_with('test_collection', 'test_subject', g=None, limit=25)
         assert len(result) == 1
@@ -244,7 +241,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=Term(type=LITERAL, value='test_predicate'),
@@ -252,7 +248,7 @@ class TestCassandraQueryProcessor:
             limit=10
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         mock_tg_instance.get_p.assert_called_once_with('test_collection', 'test_predicate', g=None, limit=10)
         assert len(result) == 1
@@ -281,7 +277,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=None,
@@ -289,7 +284,7 @@ class TestCassandraQueryProcessor:
             limit=75
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         mock_tg_instance.get_o.assert_called_once_with('test_collection', 'test_object', g=None, limit=75)
         assert len(result) == 1
@@ -319,7 +314,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=None,
@@ -327,7 +321,7 @@ class TestCassandraQueryProcessor:
             limit=1000
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         mock_tg_instance.get_all.assert_called_once_with('test_collection', limit=1000)
         assert len(result) == 1
@@ -425,7 +419,6 @@ class TestCassandraQueryProcessor:
         )
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=Term(type=LITERAL, value='test_predicate'),
@@ -433,7 +426,7 @@ class TestCassandraQueryProcessor:
             limit=100
         )
 
-        await processor.query_triples(query)
+        await processor.query_triples('test_user', query)
 
         # Verify KnowledgeGraph was created with authentication
         mock_kg_class.assert_called_once_with(
@@ -463,7 +456,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=Term(type=LITERAL, value='test_predicate'),
@@ -472,11 +464,11 @@ class TestCassandraQueryProcessor:
         )
 
         # First query should create TrustGraph
-        await processor.query_triples(query)
+        await processor.query_triples('test_user', query)
         assert mock_kg_class.call_count == 1
 
         # Second query with same table should reuse TrustGraph
-        await processor.query_triples(query)
+        await processor.query_triples('test_user', query)
         assert mock_kg_class.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
@@ -504,7 +496,6 @@ class TestCassandraQueryProcessor:
 
         # First query
         query1 = TriplesQueryRequest(
-            user='user1',
             collection='collection1',
             s=Term(type=LITERAL, value='test_subject'),
             p=None,
@@ -512,12 +503,11 @@ class TestCassandraQueryProcessor:
             limit=100
         )
 
-        await processor.query_triples(query1)
+        await processor.query_triples('user1', query1)
         assert processor.table == 'user1'
 
         # Second query with different table
         query2 = TriplesQueryRequest(
-            user='user2',
             collection='collection2',
             s=Term(type=LITERAL, value='test_subject'),
             p=None,
@@ -525,7 +515,7 @@ class TestCassandraQueryProcessor:
             limit=100
         )
 
-        await processor.query_triples(query2)
+        await processor.query_triples('user2', query2)
         assert processor.table == 'user2'
 
         # Verify TrustGraph was created twice
@@ -544,7 +534,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=Term(type=LITERAL, value='test_predicate'),
@@ -553,7 +542,7 @@ class TestCassandraQueryProcessor:
         )
 
         with pytest.raises(Exception, match="Query failed"):
-            await processor.query_triples(query)
+            await processor.query_triples('test_user', query)
 
     @pytest.mark.asyncio
     @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
@@ -582,7 +571,6 @@ class TestCassandraQueryProcessor:
         processor = Processor(taskgroup=MagicMock())
 
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=Term(type=LITERAL, value='test_predicate'),
@@ -590,7 +578,7 @@ class TestCassandraQueryProcessor:
             limit=100
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         assert len(result) == 2
         assert result[0].o.value == 'object1'
@@ -621,7 +609,6 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # PO query pattern (predicate + object, find subjects)
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=Term(type=LITERAL, value='test_predicate'),
@@ -629,7 +616,7 @@ class TestCassandraQueryPerformanceOptimizations:
             limit=50
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         # Verify get_po was called (should use optimized po_table)
         mock_tg_instance.get_po.assert_called_once_with(
@@ -662,7 +649,6 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # OS query pattern (object + subject, find predicates)
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=LITERAL, value='test_subject'),
             p=None,
@@ -670,7 +656,7 @@ class TestCassandraQueryPerformanceOptimizations:
             limit=25
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
 
         # Verify get_os was called (should use optimized subject_table with clustering)
         mock_tg_instance.get_os.assert_called_once_with(
@@ -721,7 +707,6 @@ class TestCassandraQueryPerformanceOptimizations:
             mock_tg_instance.reset_mock()
 
             query = TriplesQueryRequest(
-                user='test_user',
                 collection='test_collection',
                 s=Term(type=LITERAL, value=s) if s else None,
                 p=Term(type=LITERAL, value=p) if p else None,
@@ -729,7 +714,7 @@ class TestCassandraQueryPerformanceOptimizations:
                 limit=10
             )
 
-            await processor.query_triples(query)
+            await processor.query_triples('test_user', query)
 
             # Verify the correct method was called
             method = getattr(mock_tg_instance, expected_method)
@@ -780,7 +765,6 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # This is the query pattern that was slow with ALLOW FILTERING
         query = TriplesQueryRequest(
-            user='large_dataset_user',
             collection='massive_collection',
             s=None,
             p=Term(type=IRI, iri='http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
@@ -788,7 +772,7 @@ class TestCassandraQueryPerformanceOptimizations:
             limit=1000
         )
 
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('large_dataset_user', query)
 
         # Verify optimized get_po was used (no ALLOW FILTERING needed!)
         mock_tg_instance.get_po.assert_called_once_with(

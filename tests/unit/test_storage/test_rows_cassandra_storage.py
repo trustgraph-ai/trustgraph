@@ -17,6 +17,17 @@ from trustgraph.storage.rows.cassandra.write import Processor
 from trustgraph.schema import ExtractedObject, Metadata, RowSchema, Field
 
 
+
+
+class _MockFlowDefault:
+    """Mock Flow with default workspace for testing."""
+    workspace = "default"
+    name = "default"
+    id = "test-processor"
+
+
+mock_flow_default = _MockFlowDefault()
+
 class TestRowsCassandraStorageLogic:
     """Test business logic for unified table implementation"""
 
@@ -145,11 +156,11 @@ class TestRowsCassandraStorageLogic:
         }
 
         # Process configuration
-        await processor.on_schema_config(config, version=1)
+        await processor.on_schema_config("default", config, version=1)
 
         # Verify schema was loaded
-        assert "customer_records" in processor.schemas
-        schema = processor.schemas["customer_records"]
+        assert "customer_records" in processor.schemas["default"]
+        schema = processor.schemas["default"]["customer_records"]
         assert schema.name == "customer_records"
         assert len(schema.fields) == 3
 
@@ -165,16 +176,18 @@ class TestRowsCassandraStorageLogic:
         """Test that row processing stores data as map<text, text>"""
         processor = MagicMock()
         processor.schemas = {
-            "test_schema": RowSchema(
-                name="test_schema",
-                description="Test",
-                fields=[
-                    Field(name="id", type="string", size=50, primary=True),
-                    Field(name="value", type="string", size=100)
-                ]
-            )
+            "default": {
+                "test_schema": RowSchema(
+                    name="test_schema",
+                    description="Test",
+                    fields=[
+                        Field(name="id", type="string", size=50, primary=True),
+                        Field(name="value", type="string", size=100)
+                    ]
+                )
+            }
         }
-        processor.tables_initialized = {"test_user"}
+        processor.tables_initialized = {"default"}
         processor.registered_partitions = set()
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
@@ -191,7 +204,6 @@ class TestRowsCassandraStorageLogic:
         test_obj = ExtractedObject(
             metadata=Metadata(
                 id="test-001",
-                user="test_user",
                 collection="test_collection",
             ),
             schema_name="test_schema",
@@ -205,7 +217,7 @@ class TestRowsCassandraStorageLogic:
         msg.value.return_value = test_obj
 
         # Process object
-        await processor.on_object(msg, None, None)
+        await processor.on_object(msg, None, mock_flow_default)
 
         # Verify insert was executed
         mock_async_execute.assert_called()
@@ -214,7 +226,7 @@ class TestRowsCassandraStorageLogic:
         values = insert_call[0][2]
 
         # Verify using unified rows table
-        assert "INSERT INTO test_user.rows" in insert_cql
+        assert "INSERT INTO default.rows" in insert_cql
 
         # Values should be: (collection, schema_name, index_name, index_value, data, source)
         assert values[0] == "test_collection"  # collection
@@ -230,16 +242,18 @@ class TestRowsCassandraStorageLogic:
         """Test that row is written once per indexed field"""
         processor = MagicMock()
         processor.schemas = {
-            "multi_index_schema": RowSchema(
-                name="multi_index_schema",
-                fields=[
-                    Field(name="id", type="string", primary=True),
-                    Field(name="category", type="string", indexed=True),
-                    Field(name="status", type="string", indexed=True)
-                ]
-            )
+            "default": {
+                "multi_index_schema": RowSchema(
+                    name="multi_index_schema",
+                    fields=[
+                        Field(name="id", type="string", primary=True),
+                        Field(name="category", type="string", indexed=True),
+                        Field(name="status", type="string", indexed=True)
+                    ]
+                )
+            }
         }
-        processor.tables_initialized = {"test_user"}
+        processor.tables_initialized = {"default"}
         processor.registered_partitions = set()
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
@@ -255,7 +269,6 @@ class TestRowsCassandraStorageLogic:
         test_obj = ExtractedObject(
             metadata=Metadata(
                 id="test-001",
-                user="test_user",
                 collection="test_collection",
             ),
             schema_name="multi_index_schema",
@@ -267,7 +280,7 @@ class TestRowsCassandraStorageLogic:
         msg = MagicMock()
         msg.value.return_value = test_obj
 
-        await processor.on_object(msg, None, None)
+        await processor.on_object(msg, None, mock_flow_default)
 
         # Should have 3 inserts (one per indexed field: id, category, status)
         assert mock_async_execute.call_count == 3
@@ -290,15 +303,17 @@ class TestRowsCassandraStorageBatchLogic:
         """Test processing of batch ExtractedObjects"""
         processor = MagicMock()
         processor.schemas = {
-            "batch_schema": RowSchema(
-                name="batch_schema",
-                fields=[
-                    Field(name="id", type="string", primary=True),
-                    Field(name="name", type="string")
-                ]
-            )
+            "default": {
+                "batch_schema": RowSchema(
+                    name="batch_schema",
+                    fields=[
+                        Field(name="id", type="string", primary=True),
+                        Field(name="name", type="string")
+                    ]
+                )
+            }
         }
-        processor.tables_initialized = {"test_user"}
+        processor.tables_initialized = {"default"}
         processor.registered_partitions = set()
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
@@ -315,7 +330,6 @@ class TestRowsCassandraStorageBatchLogic:
         batch_obj = ExtractedObject(
             metadata=Metadata(
                 id="batch-001",
-                user="test_user",
                 collection="batch_collection",
             ),
             schema_name="batch_schema",
@@ -331,7 +345,7 @@ class TestRowsCassandraStorageBatchLogic:
         msg = MagicMock()
         msg.value.return_value = batch_obj
 
-        await processor.on_object(msg, None, None)
+        await processor.on_object(msg, None, mock_flow_default)
 
         # Should have 3 inserts (one per row, one index per row since only primary key)
         assert mock_async_execute.call_count == 3
@@ -349,12 +363,14 @@ class TestRowsCassandraStorageBatchLogic:
         """Test processing of empty batch ExtractedObjects"""
         processor = MagicMock()
         processor.schemas = {
-            "empty_schema": RowSchema(
-                name="empty_schema",
-                fields=[Field(name="id", type="string", primary=True)]
-            )
+            "default": {
+                "empty_schema": RowSchema(
+                    name="empty_schema",
+                    fields=[Field(name="id", type="string", primary=True)]
+                )
+            }
         }
-        processor.tables_initialized = {"test_user"}
+        processor.tables_initialized = {"default"}
         processor.registered_partitions = set()
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
@@ -369,7 +385,6 @@ class TestRowsCassandraStorageBatchLogic:
         empty_batch_obj = ExtractedObject(
             metadata=Metadata(
                 id="empty-001",
-                user="test_user",
                 collection="empty_collection",
             ),
             schema_name="empty_schema",
@@ -381,7 +396,7 @@ class TestRowsCassandraStorageBatchLogic:
         msg = MagicMock()
         msg.value.return_value = empty_batch_obj
 
-        await processor.on_object(msg, None, None)
+        await processor.on_object(msg, None, mock_flow_default)
 
         # Verify no insert calls for empty batch
         processor.session.execute.assert_not_called()
@@ -446,19 +461,21 @@ class TestPartitionRegistration:
         processor.registered_partitions = set()
         processor.session = MagicMock()
         processor.schemas = {
-            "test_schema": RowSchema(
-                name="test_schema",
-                fields=[
-                    Field(name="id", type="string", primary=True),
-                    Field(name="category", type="string", indexed=True)
-                ]
-            )
+            "default": {
+                "test_schema": RowSchema(
+                    name="test_schema",
+                    fields=[
+                        Field(name="id", type="string", primary=True),
+                        Field(name="category", type="string", indexed=True)
+                    ]
+                )
+            }
         }
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
         processor.register_partitions = Processor.register_partitions.__get__(processor, Processor)
 
-        processor.register_partitions("test_user", "test_collection", "test_schema")
+        processor.register_partitions("test_user", "test_collection", "test_schema", "default")
 
         # Should have 2 inserts (one per index: id, category)
         assert processor.session.execute.call_count == 2
@@ -473,7 +490,7 @@ class TestPartitionRegistration:
         processor.session = MagicMock()
         processor.register_partitions = Processor.register_partitions.__get__(processor, Processor)
 
-        processor.register_partitions("test_user", "test_collection", "test_schema")
+        processor.register_partitions("test_user", "test_collection", "test_schema", "default")
 
         # Should not execute any CQL since already registered
         processor.session.execute.assert_not_called()

@@ -13,7 +13,9 @@ from tabulate import tabulate
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def format_output(data, output_format):
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
+def format_output(data, output_format, token=None, workspace="default"):
     """Format structured query response data in the specified format"""
     if not data:
         return "No data returned"
@@ -79,11 +81,11 @@ def format_table_data(rows, table_name, output_format):
     else:
         return json.dumps({table_name: rows}, indent=2)
 
-def structured_query(url, flow_id, question, user='trustgraph', collection='default', output_format='table'):
+def structured_query(url, flow_id, question, collection='default', output_format='table', token=None, workspace="default"):
 
-    api = Api(url).flow().id(flow_id)
+    api = Api(url, token=token, workspace=workspace).flow().id(flow_id)
 
-    resp = api.structured_query(question=question, user=user, collection=collection)
+    resp = api.structured_query(question=question, collection=collection)
 
     # Check for errors
     if "error" in resp and resp["error"]:
@@ -119,6 +121,17 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
 
     parser.add_argument(
         '-f', '--flow-id',
@@ -130,12 +143,6 @@ def main():
         '-q', '--question',
         required=True,
         help='Natural language question to execute',
-    )
-
-    parser.add_argument(
-        '--user',
-        default='trustgraph',
-        help='Cassandra keyspace identifier (default: trustgraph)'
     )
 
     parser.add_argument(
@@ -159,9 +166,12 @@ def main():
             url=args.url,
             flow_id=args.flow_id,
             question=args.question,
-            user=args.user,
             collection=args.collection,
             output_format=args.format,
+            token=args.token,
+
+            workspace = args.workspace,
+
         )
 
     except Exception as e:

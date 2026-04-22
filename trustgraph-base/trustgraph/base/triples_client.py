@@ -45,7 +45,7 @@ def from_value(x: Any) -> Any:
 
 class TriplesClient(RequestResponse):
     async def query(self, s=None, p=None, o=None, limit=20,
-                    user="trustgraph", collection="default",
+                    collection="default",
                     timeout=30, g=None):
 
         resp = await self.request(
@@ -54,7 +54,6 @@ class TriplesClient(RequestResponse):
                 p = from_value(p),
                 o = from_value(o),
                 limit = limit,
-                user = user,
                 collection = collection,
                 g = g,
             ),
@@ -72,7 +71,7 @@ class TriplesClient(RequestResponse):
         return triples
 
     async def query_stream(self, s=None, p=None, o=None, limit=20,
-                           user="trustgraph", collection="default",
+                           collection="default",
                            batch_size=20, timeout=30,
                            batch_callback=None, g=None):
         """
@@ -81,7 +80,6 @@ class TriplesClient(RequestResponse):
         Args:
             s, p, o: Triple pattern (None for wildcard)
             limit: Maximum total triples to return
-            user: User/keyspace
             collection: Collection name
             batch_size: Triples per batch
             timeout: Request timeout in seconds
@@ -116,7 +114,6 @@ class TriplesClient(RequestResponse):
                 p=from_value(p),
                 o=from_value(o),
                 limit=limit,
-                user=user,
                 collection=collection,
                 streaming=True,
                 batch_size=batch_size,

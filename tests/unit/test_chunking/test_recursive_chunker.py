@@ -185,7 +185,6 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         mock_text_doc = MagicMock()
         mock_text_doc.metadata = Metadata(
             id="test-doc-123",
-            user="test-user",
             collection="test-collection"
         )
         mock_text_doc.text = b"This is test document content"

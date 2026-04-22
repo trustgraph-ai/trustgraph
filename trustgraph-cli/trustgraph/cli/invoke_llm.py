@@ -9,12 +9,13 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def query(url, flow_id, system, prompt, streaming=True, token=None,
-          show_usage=False):
+          show_usage=False, workspace="default"):
 
     # Create API client
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
 
@@ -75,6 +76,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         'system',
         nargs=1,
         help='LLM system prompt e.g. You are a helpful assistant',
@@ -116,6 +123,7 @@ def main():
             streaming=not args.no_streaming,
             token=args.token,
             show_usage=args.show_usage,
+            workspace=args.workspace,
         )
 
     except Exception as e:

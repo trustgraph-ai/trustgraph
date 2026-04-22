@@ -178,34 +178,34 @@ class Processor(TriplesQueryService):
         self.cassandra_password = password
         self.table = None
 
-    def ensure_connection(self, user):
+    def ensure_connection(self, workspace):
         """Ensure we have a connection to the correct keyspace."""
-        if user != self.table:
+        if workspace != self.table:
             KGClass = EntityCentricKnowledgeGraph
 
             if self.cassandra_username and self.cassandra_password:
                 self.tg = KGClass(
                     hosts=self.cassandra_host,
-                    keyspace=user,
+                    keyspace=workspace,
                     username=self.cassandra_username,
                     password=self.cassandra_password
                 )
             else:
                 self.tg = KGClass(
                     hosts=self.cassandra_host,
-                    keyspace=user,
+                    keyspace=workspace,
                 )
-            self.table = user
+            self.table = workspace
 
-    async def query_triples(self, query):
+    async def query_triples(self, workspace, query):
 
         try:
 
             # ensure_connection may construct a fresh
             # EntityCentricKnowledgeGraph which does sync schema
             # setup against Cassandra.  Push it to a worker thread
-            # so the event loop doesn't block on first-use per user.
-            await asyncio.to_thread(self.ensure_connection, query.user)
+            # so the event loop doesn't block on first-use per workspace.
+            await asyncio.to_thread(self.ensure_connection, workspace)
 
             # Extract values from query
             s_val = get_term_value(query.s)
@@ -359,13 +359,13 @@ class Processor(TriplesQueryService):
             logger.error(f"Exception querying triples: {e}", exc_info=True)
             raise e
 
-    async def query_triples_stream(self, query):
+    async def query_triples_stream(self, workspace, query):
         """
         Streaming query - yields (batch, is_final) tuples.
         Uses Cassandra's paging to fetch results incrementally.
         """
         try:
-            await asyncio.to_thread(self.ensure_connection, query.user)
+            await asyncio.to_thread(self.ensure_connection, workspace)
 
             batch_size = query.batch_size if query.batch_size > 0 else 20
             limit = query.limit if query.limit > 0 else 10000
@@ -395,7 +395,7 @@ class Processor(TriplesQueryService):
             else:
                 # For specific patterns, fall back to non-streaming
                 # (these typically return small result sets anyway)
-                async for batch, is_final in self._fallback_stream(query, batch_size):
+                async for batch, is_final in self._fallback_stream(workspace, query, batch_size):
                     yield batch, is_final
                 return
 
@@ -452,9 +452,9 @@ class Processor(TriplesQueryService):
             logger.error(f"Exception in streaming query: {e}", exc_info=True)
             raise e
 
-    async def _fallback_stream(self, query, batch_size):
+    async def _fallback_stream(self, workspace, query, batch_size):
         """Fallback to non-streaming query with post-hoc batching."""
-        triples = await self.query_triples(query)
+        triples = await self.query_triples(workspace, query)
 
         for i in range(0, len(triples), batch_size):
             batch = triples[i:i + batch_size]

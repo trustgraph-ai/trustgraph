@@ -72,10 +72,10 @@ class TestDispatcherManager:
         
         flow_data = {"name": "test_flow", "steps": []}
         
-        await manager.start_flow("flow1", flow_data)
-        
-        assert "flow1" in manager.flows
-        assert manager.flows["flow1"] == flow_data
+        await manager.start_flow("default", "flow1", flow_data)
+
+        assert ("default", "flow1") in manager.flows
+        assert manager.flows[("default", "flow1")] == flow_data
 
     @pytest.mark.asyncio
     async def test_stop_flow(self):
@@ -86,11 +86,11 @@ class TestDispatcherManager:
         
         # Pre-populate with a flow
         flow_data = {"name": "test_flow", "steps": []}
-        manager.flows["flow1"] = flow_data
-        
-        await manager.stop_flow("flow1", flow_data)
-        
-        assert "flow1" not in manager.flows
+        manager.flows[("default", "flow1")] = flow_data
+
+        await manager.stop_flow("default", "flow1", flow_data)
+
+        assert ("default", "flow1") not in manager.flows
 
     def test_dispatch_global_service_returns_wrapper(self):
         """Test dispatch_global_service returns DispatcherWrapper"""
@@ -275,12 +275,12 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Setup test flow
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "triples-store": {"flow": "test_queue"}
             }
         }
-        
+
         with patch('trustgraph.gateway.dispatch.manager.import_dispatchers') as mock_dispatchers, \
              patch('uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = "test-uuid"
@@ -290,7 +290,7 @@ class TestDispatcherManager:
             mock_dispatcher_class.return_value = mock_dispatcher
             mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
             mock_dispatchers.__contains__.return_value = True
-            
+
             params = {"flow": "test_flow", "kind": "triples"}
             result = await manager.process_flow_import("ws", "running", params)
             
@@ -326,12 +326,12 @@ class TestDispatcherManager:
             manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Setup test flow
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "triples-store": {"flow": "test_queue"}
             }
         }
-        
+
         with patch('trustgraph.gateway.dispatch.manager.import_dispatchers') as mock_dispatchers:
             mock_dispatchers.__contains__.return_value = False
             
@@ -348,12 +348,12 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Setup test flow
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "triples-store": {"flow": "test_queue"}
             }
         }
-        
+
         with patch('trustgraph.gateway.dispatch.manager.export_dispatchers') as mock_dispatchers, \
              patch('uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = "test-uuid"
@@ -404,7 +404,7 @@ class TestDispatcherManager:
         params = {"flow": "test_flow", "kind": "agent"}
         result = await manager.process_flow_service("data", "responder", params)
         
-        manager.invoke_flow_service.assert_called_once_with("data", "responder", "test_flow", "agent")
+        manager.invoke_flow_service.assert_called_once_with("data", "responder", "default", "test_flow", "agent")
         assert result == "flow_result"
 
     @pytest.mark.asyncio
@@ -415,14 +415,14 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Add flow to the flows dictionary
-        manager.flows["test_flow"] = {"services": {"agent": {}}}
-        
+        manager.flows[("default", "test_flow")] = {"services": {"agent": {}}}
+
         # Pre-populate with existing dispatcher
         mock_dispatcher = Mock()
         mock_dispatcher.process = AsyncMock(return_value="cached_result")
-        manager.dispatchers[("test_flow", "agent")] = mock_dispatcher
-        
-        result = await manager.invoke_flow_service("data", "responder", "test_flow", "agent")
+        manager.dispatchers[("default", "test_flow", "agent")] = mock_dispatcher
+
+        result = await manager.invoke_flow_service("data", "responder", "default", "test_flow", "agent")
         
         mock_dispatcher.process.assert_called_once_with("data", "responder")
         assert result == "cached_result"
@@ -435,7 +435,7 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Setup test flow
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "agent": {
                     "request": "agent_request_queue",
@@ -443,7 +443,7 @@ class TestDispatcherManager:
                 }
             }
         }
-        
+
         with patch('trustgraph.gateway.dispatch.manager.request_response_dispatchers') as mock_dispatchers:
             mock_dispatcher_class = Mock()
             mock_dispatcher = Mock()
@@ -452,23 +452,23 @@ class TestDispatcherManager:
             mock_dispatcher_class.return_value = mock_dispatcher
             mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
             mock_dispatchers.__contains__.return_value = True
-            
-            result = await manager.invoke_flow_service("data", "responder", "test_flow", "agent")
-            
+
+            result = await manager.invoke_flow_service("data", "responder", "default", "test_flow", "agent")
+
             # Verify dispatcher was created with correct parameters
             mock_dispatcher_class.assert_called_once_with(
                 backend=mock_backend,
                 request_queue="agent_request_queue",
                 response_queue="agent_response_queue",
                 timeout=120,
-                consumer="api-gateway-test_flow-agent-request",
-                subscriber="api-gateway-test_flow-agent-request"
+                consumer="api-gateway-default-test_flow-agent-request",
+                subscriber="api-gateway-default-test_flow-agent-request"
             )
             mock_dispatcher.start.assert_called_once()
             mock_dispatcher.process.assert_called_once_with("data", "responder")
-            
+
             # Verify dispatcher was cached
-            assert manager.dispatchers[("test_flow", "agent")] == mock_dispatcher
+            assert manager.dispatchers[("default", "test_flow", "agent")] == mock_dispatcher
             assert result == "new_result"
 
     @pytest.mark.asyncio
@@ -479,26 +479,26 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Setup test flow
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "text-load": {"flow": "text_load_queue"}
             }
         }
-        
+
         with patch('trustgraph.gateway.dispatch.manager.request_response_dispatchers') as mock_rr_dispatchers, \
              patch('trustgraph.gateway.dispatch.manager.sender_dispatchers') as mock_sender_dispatchers:
             mock_rr_dispatchers.__contains__.return_value = False
             mock_sender_dispatchers.__contains__.return_value = True
-            
+
             mock_dispatcher_class = Mock()
             mock_dispatcher = Mock()
             mock_dispatcher.start = AsyncMock()
             mock_dispatcher.process = AsyncMock(return_value="sender_result")
             mock_dispatcher_class.return_value = mock_dispatcher
             mock_sender_dispatchers.__getitem__.return_value = mock_dispatcher_class
-            
-            result = await manager.invoke_flow_service("data", "responder", "test_flow", "text-load")
-            
+
+            result = await manager.invoke_flow_service("data", "responder", "default", "test_flow", "text-load")
+
             # Verify dispatcher was created with correct parameters
             mock_dispatcher_class.assert_called_once_with(
                 backend=mock_backend,
@@ -506,9 +506,9 @@ class TestDispatcherManager:
             )
             mock_dispatcher.start.assert_called_once()
             mock_dispatcher.process.assert_called_once_with("data", "responder")
-            
+
             # Verify dispatcher was cached
-            assert manager.dispatchers[("test_flow", "text-load")] == mock_dispatcher
+            assert manager.dispatchers[("default", "test_flow", "text-load")] == mock_dispatcher
             assert result == "sender_result"
 
     @pytest.mark.asyncio
@@ -519,7 +519,7 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         with pytest.raises(RuntimeError, match="Invalid flow"):
-            await manager.invoke_flow_service("data", "responder", "invalid_flow", "agent")
+            await manager.invoke_flow_service("data", "responder", "default", "invalid_flow", "agent")
 
     @pytest.mark.asyncio
     async def test_invoke_flow_service_unsupported_kind_by_flow(self):
@@ -529,14 +529,14 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
         
         # Setup test flow without agent interface
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "text-completion": {"request": "req", "response": "resp"}
             }
         }
-        
+
         with pytest.raises(RuntimeError, match="This kind not supported by flow"):
-            await manager.invoke_flow_service("data", "responder", "test_flow", "agent")
+            await manager.invoke_flow_service("data", "responder", "default", "test_flow", "agent")
 
     @pytest.mark.asyncio
     async def test_invoke_flow_service_invalid_kind(self):
@@ -546,7 +546,7 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver)
 
         # Setup test flow with interface but unsupported kind
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "invalid-kind": {"request": "req", "response": "resp"}
             }
@@ -558,7 +558,7 @@ class TestDispatcherManager:
             mock_sender_dispatchers.__contains__.return_value = False
 
             with pytest.raises(RuntimeError, match="Invalid kind"):
-                await manager.invoke_flow_service("data", "responder", "test_flow", "invalid-kind")
+                await manager.invoke_flow_service("data", "responder", "default", "test_flow", "invalid-kind")
 
     @pytest.mark.asyncio
     async def test_invoke_global_service_concurrent_calls_create_single_dispatcher(self):
@@ -608,7 +608,7 @@ class TestDispatcherManager:
         mock_config_receiver = Mock()
         manager = DispatcherManager(mock_backend, mock_config_receiver)
 
-        manager.flows["test_flow"] = {
+        manager.flows[("default", "test_flow")] = {
             "interfaces": {
                 "agent": {
                     "request": "agent_request_queue",
@@ -630,7 +630,7 @@ class TestDispatcherManager:
             mock_rr_dispatchers.__contains__.return_value = True
 
             results = await asyncio.gather(*[
-                manager.invoke_flow_service("data", "responder", "test_flow", "agent")
+                manager.invoke_flow_service("data", "responder", "default", "test_flow", "agent")
                 for _ in range(5)
             ])
 
@@ -638,5 +638,5 @@ class TestDispatcherManager:
             "Dispatcher class instantiated more than once — duplicate consumer bug"
         )
         assert mock_dispatcher.start.call_count == 1
-        assert manager.dispatchers[("test_flow", "agent")] is mock_dispatcher
+        assert manager.dispatchers[("default", "test_flow", "agent")] is mock_dispatcher
         assert all(r == "result" for r in results)

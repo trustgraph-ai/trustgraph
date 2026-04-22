@@ -10,10 +10,12 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def put_flow_blueprint(url, blueprint_name, config, token=None):
+def put_flow_blueprint(url, blueprint_name, config, token=None,
+                       workspace="default"):
 
-    api = Api(url, token=token)
+    api = Api(url, token=token, workspace=workspace)
 
     blueprint_names = api.flow().put_blueprint(blueprint_name, config)
 
@@ -37,6 +39,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-n', '--blueprint-name',
         help=f'Flow blueprint name',
     )
@@ -55,6 +63,7 @@ def main():
             blueprint_name=args.blueprint_name,
             config=json.loads(args.config),
             token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

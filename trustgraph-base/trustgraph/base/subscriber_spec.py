@@ -21,7 +21,7 @@ class SubscriberSpec(Spec):
         subscriber = Subscriber(
             backend = processor.pubsub,
             topic = definition["topics"][self.name],
-            subscription = flow.id,
+            subscription = flow.id + "--" + flow.workspace + "--" + flow.name,
             consumer_name = flow.id,
             schema = self.schema,
             metrics = subscriber_metrics,

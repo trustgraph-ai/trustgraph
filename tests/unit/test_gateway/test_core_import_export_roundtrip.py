@@ -36,7 +36,6 @@ def _ge_response_dict():
             "metadata": {
                 "id": "doc-1",
                 "root": "",
-                "user": "alice",
                 "collection": "testcoll",
             },
             "entities": [
@@ -59,7 +58,6 @@ def _triples_response_dict():
             "metadata": {
                 "id": "doc-1",
                 "root": "",
-                "user": "alice",
                 "collection": "testcoll",
             },
             "triples": [
@@ -73,9 +71,9 @@ def _triples_response_dict():
     }
 
 
-def _make_request(id_="doc-1", user="alice"):
+def _make_request(id_="doc-1", workspace="alice"):
     request = Mock()
-    request.query = {"id": id_, "user": user}
+    request.query = {"id": id_, "workspace": workspace}
     return request
 
 
@@ -149,12 +147,8 @@ class TestCoreExportWireFormat:
         msg_type, payload = items[0]
         assert msg_type == "ge"
 
-        # Metadata envelope: only id/user/collection — no stale `m["m"]`.
-        assert payload["m"] == {
-            "i": "doc-1",
-            "u": "alice",
-            "c": "testcoll",
-        }
+        # Metadata envelope: only id/collection — no stale `m["m"]`.
+        assert payload["m"] == {"i": "doc-1", "c": "testcoll"}
 
         # Entities: each carries the *singular* `v` and the term envelope
         assert len(payload["e"]) == 2
@@ -202,11 +196,7 @@ class TestCoreExportWireFormat:
 
         msg_type, payload = items[0]
         assert msg_type == "t"
-        assert payload["m"] == {
-            "i": "doc-1",
-            "u": "alice",
-            "c": "testcoll",
-        }
+        assert payload["m"] == {"i": "doc-1", "c": "testcoll"}
         assert len(payload["t"]) == 1
 
 
@@ -240,7 +230,7 @@ class TestCoreImportWireFormat:
         payload = msgpack.packb((
             "ge",
             {
-                "m": {"i": "doc-1", "u": "alice", "c": "testcoll"},
+                "m": {"i": "doc-1", "c": "testcoll"},
                 "e": [
                     {
                         "e": {"t": "i", "i": "http://example.org/alice"},
@@ -266,7 +256,7 @@ class TestCoreImportWireFormat:
 
         req = captured[0]
         assert req["operation"] == "put-kg-core"
-        assert req["user"] == "alice"
+        assert req["workspace"] == "alice"
         assert req["id"] == "doc-1"
 
         ge = req["graph-embeddings"]
@@ -275,7 +265,6 @@ class TestCoreImportWireFormat:
         assert "metadata" not in ge["metadata"]
         assert ge["metadata"] == {
             "id": "doc-1",
-            "user": "alice",
             "collection": "default",
         }
 
@@ -302,7 +291,7 @@ class TestCoreImportWireFormat:
         payload = msgpack.packb((
             "t",
             {
-                "m": {"i": "doc-1", "u": "alice", "c": "testcoll"},
+                "m": {"i": "doc-1", "c": "testcoll"},
                 "t": [
                     {
                         "s": {"t": "i", "i": "http://example.org/alice"},
@@ -407,11 +396,10 @@ class TestCoreImportExportRoundTrip:
         original = _ge_response_dict()["graph-embeddings"]
 
         ge = req["graph-embeddings"]
-        # The import side overrides id/user from the URL query (intentional),
+        # The import side overrides id from the URL query (intentional),
         # so we only round-trip the entity payload itself.
         assert ge["metadata"]["id"] == original["metadata"]["id"]
-        assert ge["metadata"]["user"] == original["metadata"]["user"]
-
+        
         assert len(ge["entities"]) == len(original["entities"])
         for got, want in zip(ge["entities"], original["entities"]):
             assert got["vector"] == want["vector"]

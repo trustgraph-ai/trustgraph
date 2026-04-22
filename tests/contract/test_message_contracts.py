@@ -132,7 +132,6 @@ class TestDocumentRagMessageContracts:
         # Test required fields
         query = DocumentRagQuery(**query_data)
         assert hasattr(query, 'query')
-        assert hasattr(query, 'user')
         assert hasattr(query, 'collection')
         assert hasattr(query, 'doc_limit')
 
@@ -154,12 +153,10 @@ class TestDocumentRagMessageContracts:
         # Test valid query
         valid_query = DocumentRagQuery(
             query="What is AI?",
-            user="test_user",
             collection="test_collection",
             doc_limit=5
         )
         assert valid_query.query == "What is AI?"
-        assert valid_query.user == "test_user"
         assert valid_query.collection == "test_collection"
         assert valid_query.doc_limit == 5
 
@@ -400,7 +397,6 @@ class TestMetadataMessageContracts:
         
         metadata = Metadata(**metadata_data)
         assert metadata.id == "test-doc-123"
-        assert metadata.user == "test_user"
         assert metadata.collection == "test_collection"
 
     def test_error_schema_contract(self):
@@ -491,7 +487,7 @@ class TestSchemaEvolutionContracts:
         required_fields = {
             "TextCompletionRequest": ["system", "prompt"],
             "TextCompletionResponse": ["error", "response", "model"],
-            "DocumentRagQuery": ["query", "user", "collection"],
+            "DocumentRagQuery": ["query", "collection"],
             "DocumentRagResponse": ["error", "response"],
             "AgentRequest": ["question", "history"],
             "AgentResponse": ["error"],

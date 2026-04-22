@@ -20,9 +20,8 @@ def processor():
     )
 
 
-def _make_chunk_message(chunk_text="Hello world", doc_id="doc-1",
-                        user="test", collection="default"):
-    metadata = Metadata(id=doc_id, user=user, collection=collection)
+def _make_chunk_message(chunk_text="Hello world", doc_id="doc-1", collection="default"):
+    metadata = Metadata(id=doc_id, collection=collection)
     value = Chunk(metadata=metadata, chunk=chunk_text, document_id=doc_id)
     msg = MagicMock()
     msg.value.return_value = value
@@ -127,7 +126,7 @@ class TestDocumentEmbeddingsProcessor:
     @pytest.mark.asyncio
     async def test_metadata_preserved(self, processor):
         """Output should carry the original metadata."""
-        msg = _make_chunk_message(user="alice", collection="reports", doc_id="d1")
+        msg = _make_chunk_message(collection="reports", doc_id="d1")
 
         mock_request = AsyncMock(return_value=EmbeddingsResponse(
             error=None, vectors=[[0.0]]
@@ -144,7 +143,6 @@ class TestDocumentEmbeddingsProcessor:
         await processor.on_message(msg, MagicMock(), flow)
 
         result = mock_output.send.call_args[0][0]
-        assert result.metadata.user == "alice"
         assert result.metadata.collection == "reports"
         assert result.metadata.id == "d1"
 

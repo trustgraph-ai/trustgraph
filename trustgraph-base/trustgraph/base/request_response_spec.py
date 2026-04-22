@@ -133,8 +133,9 @@ class RequestResponseSpec(Spec):
             # Make subscription names unique, so that all subscribers get
             # to see all response messages
             subscription = (
-                processor.id + "--" + flow.name + "--" + self.request_name +
-                "--" + str(uuid.uuid4())
+                processor.id + "--" + flow.workspace + "--" +
+                flow.name + "--" + self.request_name + "--" +
+                str(uuid.uuid4())
             ),
             consumer_name = flow.id,
             request_topic = definition["topics"][self.request_name],

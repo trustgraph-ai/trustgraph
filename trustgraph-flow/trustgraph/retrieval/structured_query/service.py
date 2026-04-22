@@ -111,9 +111,9 @@ class Processor(FlowProcessor):
                     else:
                         variables_as_strings[key] = str(value)
             
-            # Use user/collection values from request
+            # Use collection from request. Workspace isolation is
+            # enforced by flow.workspace at the rows-query service.
             objects_request = RowsQueryRequest(
-                user=request.user,
                 collection=request.collection,
                 query=nlp_response.graphql_query,
                 variables=variables_as_strings,

@@ -1,10 +1,9 @@
 """
-Uses the agent service to answer a question
+Puts a knowledge core into the knowledge manager via the API socket.
 """
 
 import argparse
 import os
-import textwrap
 import uuid
 import asyncio
 import json
@@ -12,18 +11,17 @@ from websockets.asyncio.client import connect
 import msgpack
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
-default_user = 'trustgraph'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def read_message(unpacked, id, user):
-    
+def read_message(unpacked, id):
+
     if unpacked[0] == "ge":
         msg = unpacked[1]
         return "ge", {
             "metadata": {
                 "id": id,
                 "metadata": msg["m"]["m"],
-                "user": user,
                 "collection": "default",  # Not used?
             },
             "entities": [
@@ -40,7 +38,6 @@ def read_message(unpacked, id, user):
             "metadata": {
                 "id": id,
                 "metadata": msg["m"]["m"],
-                "user": user,
                 "collection": "default",   # Not used by receiver?
             },
             "triples": msg["t"],
@@ -48,7 +45,7 @@ def read_message(unpacked, id, user):
     else:
         raise RuntimeError("Unpacked unexpected messsage type", unpacked[0])
 
-async def put(url, user, id, input, token=None):
+async def put(url, workspace, id, input, token=None):
 
     if not url.endswith("/"):
         url += "/"
@@ -59,7 +56,6 @@ async def put(url, user, id, input, token=None):
         url = f"{url}?token={token}"
 
     async with connect(url) as ws:
-
 
         ge = 0
         t = 0
@@ -75,7 +71,7 @@ async def put(url, user, id, input, token=None):
                 except:
                     break
 
-                kind, msg = read_message(unpacked, id, user)
+                kind, msg = read_message(unpacked, id)
 
                 mid = str(uuid.uuid4())
 
@@ -85,10 +81,11 @@ async def put(url, user, id, input, token=None):
 
                     req = json.dumps({
                         "id": mid,
+                        "workspace": workspace,
                         "service": "knowledge",
                         "request": {
                             "operation": "put-kg-core",
-                            "user": user,
+                            "workspace": workspace,
                             "id": id,
                             "graph-embeddings": msg
                         }
@@ -100,10 +97,11 @@ async def put(url, user, id, input, token=None):
 
                     req = json.dumps({
                         "id": mid,
+                        "workspace": workspace,
                         "service": "knowledge",
                         "request": {
                             "operation": "put-kg-core",
-                            "user": user,
+                            "workspace": workspace,
                             "id": id,
                             "triples": msg
                         }
@@ -117,7 +115,7 @@ async def put(url, user, id, input, token=None):
 
                 # Retry loop, wait for right response to come back
                 while True:
-                    
+
                     msg = await ws.recv()
                     msg = json.loads(msg)
 
@@ -146,10 +144,11 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
+
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -176,11 +175,11 @@ def main():
 
         asyncio.run(
             put(
-                url = args.url,
-                user = args.user,
-                id = args.id,
-                input = args.input,
-                token = args.token,
+                url=args.url,
+                workspace=args.workspace,
+                id=args.id,
+                input=args.input,
+                token=args.token,
             )
         )
 

@@ -35,6 +35,8 @@ class FlowProcessor(AsyncProcessor):
         )
 
         # Initialise flow information state
+        # Keyed by (workspace, flow) tuples; each workspace has its own
+        # set of flow variants for this processor.
         self.flows = {}
 
         # These can be overriden by a derived class:
@@ -48,23 +50,28 @@ class FlowProcessor(AsyncProcessor):
     def register_specification(self, spec: Any) -> None:
         self.specifications.append(spec)
 
-    # Start processing for a new flow
-    async def start_flow(self, flow, defn):
-        self.flows[flow] = Flow(self.id, flow, self, defn)
-        await self.flows[flow].start()
-        logger.info(f"Started flow: {flow}")
-        
-    # Stop processing for a new flow
-    async def stop_flow(self, flow):
-        if flow in self.flows:
-            await self.flows[flow].stop()
-            del self.flows[flow]
-            logger.info(f"Stopped flow: {flow}")
+    # Start processing for a new flow within a workspace
+    async def start_flow(self, workspace, flow, defn):
+        key = (workspace, flow)
+        self.flows[key] = Flow(self.id, flow, workspace, self, defn)
+        await self.flows[key].start()
+        logger.info(f"Started flow: {workspace}/{flow}")
 
-    # Event handler - called for a configuration change
-    async def on_configure_flows(self, config, version):
+    # Stop processing for a flow within a workspace
+    async def stop_flow(self, workspace, flow):
+        key = (workspace, flow)
+        if key in self.flows:
+            await self.flows[key].stop()
+            del self.flows[key]
+            logger.info(f"Stopped flow: {workspace}/{flow}")
 
-        logger.info(f"Got config version {version}")
+    # Event handler - called for a configuration change for a single
+    # workspace
+    async def on_configure_flows(self, workspace, config, version):
+
+        logger.info(
+            f"Got config version {version} for workspace {workspace}"
+        )
 
         config_type = f"processor:{self.id}"
 
@@ -76,26 +83,28 @@ class FlowProcessor(AsyncProcessor):
                 for k, v in config[config_type].items()
             }
         else:
-            logger.debug("No configuration settings for me.")
+            logger.debug(
+                f"No configuration settings for me in {workspace}."
+            )
             flow_config = {}
 
-        # Get list of flows which should be running and are currently
-        # running
-        wanted_flows = flow_config.keys()
-        # This takes a copy, needed because dict gets modified by stop_flow
-        current_flows = list(self.flows.keys())
+        # Get list of flows which should be running in this workspace,
+        # and the list currently running in this workspace
+        wanted_flows = set(flow_config.keys())
+        current_flows = {
+            f for (ws, f) in self.flows.keys() if ws == workspace
+        }
 
-        # Start all the flows which arent currently running
-        for flow in wanted_flows:
-            if flow not in current_flows:
-                await self.start_flow(flow, flow_config[flow])
+        # Start all the flows which aren't currently running in this
+        # workspace
+        for flow in wanted_flows - current_flows:
+            await self.start_flow(workspace, flow, flow_config[flow])
 
-        # Stop all the unwanted flows which are due to be stopped
-        for flow in current_flows:
-            if flow not in wanted_flows:
-                await self.stop_flow(flow)
+        # Stop all the unwanted flows in this workspace
+        for flow in current_flows - wanted_flows:
+            await self.stop_flow(workspace, flow)
 
-        logger.info("Handled config update")
+        logger.info(f"Handled config update for workspace {workspace}")
 
     # Start threads, just call parent
     async def start(self):

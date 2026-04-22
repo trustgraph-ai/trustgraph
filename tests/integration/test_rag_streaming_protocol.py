@@ -84,7 +84,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=callback
@@ -108,7 +107,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -137,7 +135,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -162,7 +159,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -188,7 +184,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -267,7 +262,6 @@ class TestDocumentRagStreamingProtocol:
         # Act
         await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=callback
@@ -290,7 +284,6 @@ class TestDocumentRagStreamingProtocol:
         # Act
         await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -314,7 +307,6 @@ class TestDocumentRagStreamingProtocol:
         # Act
         await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect

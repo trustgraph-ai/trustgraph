@@ -116,18 +116,48 @@ class DispatcherManager:
         # Format: {"config": {"request": "...", "response": "..."}, ...}
         self.queue_overrides = queue_overrides or {}
 
+        # Flows keyed by (workspace, flow_id)
         self.flows = {}
+        # Dispatchers keyed by (workspace, flow_id, kind)
         self.dispatchers = {}
         self.dispatcher_lock = asyncio.Lock()
 
-    async def start_flow(self, id, flow):
-        logger.info(f"Starting flow {id}")
-        self.flows[id] = flow
+    async def start_flow(self, workspace, id, flow):
+        logger.info(f"Starting flow {workspace}/{id}")
+        self.flows[(workspace, id)] = flow
         return
 
-    async def stop_flow(self, id, flow):
-        logger.info(f"Stopping flow {id}")
-        del self.flows[id]
+    async def stop_flow(self, workspace, id, flow):
+        logger.info(f"Stopping flow {workspace}/{id}")
+        self.flows.pop((workspace, id), None)
+
+        # Drop any cached dispatchers for this (workspace, flow).
+        # Their publishers and subscribers were wired to the flow's
+        # per-flow exchanges, which flow-svc tears down when the flow
+        # stops.  Leaving the cached dispatcher in place means a
+        # subsequent restart of the same flow id would reuse a
+        # dispatcher whose subscription queue is still bound to the
+        # torn-down (now re-created) response exchange — requests go
+        # out but responses are silently dropped and the caller hangs.
+        #
+        # Per-flow dispatchers are keyed (workspace, flow_id, kind).
+        # Global dispatchers are keyed (None, kind) — the len==3
+        # check naturally excludes them.
+        async with self.dispatcher_lock:
+            stale_keys = [
+                k for k in self.dispatchers
+                if isinstance(k, tuple) and len(k) == 3
+                   and k[0] == workspace and k[1] == id
+            ]
+            for key in stale_keys:
+                dispatcher = self.dispatchers.pop(key)
+                try:
+                    await dispatcher.stop()
+                except Exception as e:
+                    logger.warning(
+                        f"Error stopping cached dispatcher {key}: {e}"
+                    )
+
         return
 
     def dispatch_global_service(self):
@@ -203,18 +233,20 @@ class DispatcherManager:
 
     async def process_flow_import(self, ws, running, params):
 
+        workspace = params.get("workspace", "default")
         flow = params.get("flow")
         kind = params.get("kind")
 
-        if flow not in self.flows:
-            raise RuntimeError("Invalid flow")
+        flow_key = (workspace, flow)
+        if flow_key not in self.flows:
+            raise RuntimeError(f"Invalid flow {workspace}/{flow}")
 
         if kind not in import_dispatchers:
             raise RuntimeError("Invalid kind")
 
-        key = (flow, kind)
+        key = (workspace, flow, kind)
 
-        intf_defs = self.flows[flow]["interfaces"]
+        intf_defs = self.flows[flow_key]["interfaces"]
 
         # FIXME: The -store bit, does it make sense?
         if kind == "entity-contexts":
@@ -242,18 +274,20 @@ class DispatcherManager:
 
     async def process_flow_export(self, ws, running, params):
 
+        workspace = params.get("workspace", "default")
         flow = params.get("flow")
         kind = params.get("kind")
 
-        if flow not in self.flows:
-            raise RuntimeError("Invalid flow")
+        flow_key = (workspace, flow)
+        if flow_key not in self.flows:
+            raise RuntimeError(f"Invalid flow {workspace}/{flow}")
 
         if kind not in export_dispatchers:
             raise RuntimeError("Invalid kind")
 
-        key = (flow, kind)
+        key = (workspace, flow, kind)
 
-        intf_defs = self.flows[flow]["interfaces"]
+        intf_defs = self.flows[flow_key]["interfaces"]
 
         # FIXME: The -store bit, does it make sense?
         if kind == "entity-contexts":
@@ -286,22 +320,36 @@ class DispatcherManager:
 
     async def process_flow_service(self, data, responder, params):
 
+        # Workspace can come from URL or from request body, defaulting
+        # to "default". Having it in the URL allows gateway routing to
+        # be workspace-aware without touching the body.
+        workspace = params.get("workspace")
+        if not workspace and isinstance(data, dict):
+            workspace = data.get("workspace")
+        if not workspace:
+            workspace = "default"
+
         flow = params.get("flow")
         kind = params.get("kind")
 
-        return await self.invoke_flow_service(data, responder, flow, kind)
+        return await self.invoke_flow_service(
+            data, responder, workspace, flow, kind,
+        )
 
-    async def invoke_flow_service(self, data, responder, flow, kind):
+    async def invoke_flow_service(
+        self, data, responder, workspace, flow, kind,
+    ):
 
-        if flow not in self.flows:
-            raise RuntimeError("Invalid flow")
+        flow_key = (workspace, flow)
+        if flow_key not in self.flows:
+            raise RuntimeError(f"Invalid flow {workspace}/{flow}")
 
-        key = (flow, kind)
+        key = (workspace, flow, kind)
 
         if key not in self.dispatchers:
             async with self.dispatcher_lock:
                 if key not in self.dispatchers:
-                    intf_defs = self.flows[flow]["interfaces"]
+                    intf_defs = self.flows[flow_key]["interfaces"]
 
                     if kind not in intf_defs:
                         raise RuntimeError("This kind not supported by flow")
@@ -314,8 +362,8 @@ class DispatcherManager:
                             request_queue = qconfig["request"],
                             response_queue = qconfig["response"],
                             timeout = 120,
-                            consumer = f"{self.prefix}-{flow}-{kind}-request",
-                            subscriber = f"{self.prefix}-{flow}-{kind}-request",
+                            consumer = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
+                            subscriber = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                         )
                     elif kind in sender_dispatchers:
                         dispatcher = sender_dispatchers[kind](

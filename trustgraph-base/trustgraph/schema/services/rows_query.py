@@ -15,7 +15,6 @@ class GraphQLError:
 
 @dataclass
 class RowsQueryRequest:
-    user: str = ""              # Cassandra keyspace (follows pattern from TriplesQueryRequest)
     collection: str = ""        # Data collection identifier (required for partition key)
     query: str = ""             # GraphQL query string
     variables: dict[str, str] = field(default_factory=dict)    # GraphQL variables

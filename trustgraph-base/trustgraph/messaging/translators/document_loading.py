@@ -39,7 +39,6 @@ class DocumentTranslator(SendTranslator):
             metadata=Metadata(
                 id=data.get("id"),
                 root=data.get("root", ""),
-                user=data.get("user", "trustgraph"),
                 collection=data.get("collection", "default"),
             ),
             data=base64.b64encode(doc).decode("utf-8")
@@ -56,8 +55,6 @@ class DocumentTranslator(SendTranslator):
                 metadata_dict["id"] = obj.metadata.id
             if obj.metadata.root:
                 metadata_dict["root"] = obj.metadata.root
-            if obj.metadata.user:
-                metadata_dict["user"] = obj.metadata.user
             if obj.metadata.collection:
                 metadata_dict["collection"] = obj.metadata.collection
 
@@ -79,7 +76,6 @@ class TextDocumentTranslator(SendTranslator):
             metadata=Metadata(
                 id=data.get("id"),
                 root=data.get("root", ""),
-                user=data.get("user", "trustgraph"),
                 collection=data.get("collection", "default"),
             ),
             text=text.encode("utf-8")
@@ -96,8 +92,6 @@ class TextDocumentTranslator(SendTranslator):
                 metadata_dict["id"] = obj.metadata.id
             if obj.metadata.root:
                 metadata_dict["root"] = obj.metadata.root
-            if obj.metadata.user:
-                metadata_dict["user"] = obj.metadata.user
             if obj.metadata.collection:
                 metadata_dict["collection"] = obj.metadata.collection
 
@@ -115,7 +109,6 @@ class ChunkTranslator(SendTranslator):
             metadata=Metadata(
                 id=data.get("id"),
                 root=data.get("root", ""),
-                user=data.get("user", "trustgraph"),
                 collection=data.get("collection", "default"),
             ),
             chunk=data["chunk"].encode("utf-8") if isinstance(data["chunk"], str) else data["chunk"]
@@ -132,8 +125,6 @@ class ChunkTranslator(SendTranslator):
                 metadata_dict["id"] = obj.metadata.id
             if obj.metadata.root:
                 metadata_dict["root"] = obj.metadata.root
-            if obj.metadata.user:
-                metadata_dict["user"] = obj.metadata.user
             if obj.metadata.collection:
                 metadata_dict["collection"] = obj.metadata.collection
 
@@ -161,7 +152,6 @@ class DocumentEmbeddingsTranslator(SendTranslator):
             metadata=Metadata(
                 id=metadata.get("id"),
                 root=metadata.get("root", ""),
-                user=metadata.get("user", "trustgraph"),
                 collection=metadata.get("collection", "default"),
             ),
             chunks=chunks
@@ -184,8 +174,6 @@ class DocumentEmbeddingsTranslator(SendTranslator):
                 metadata_dict["id"] = obj.metadata.id
             if obj.metadata.root:
                 metadata_dict["root"] = obj.metadata.root
-            if obj.metadata.user:
-                metadata_dict["user"] = obj.metadata.user
             if obj.metadata.collection:
                 metadata_dict["collection"] = obj.metadata.collection
 

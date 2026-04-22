@@ -146,7 +146,6 @@ class TestGraphRagIntegration:
         # Act
         response = await graph_rag.query(
             query=query,
-            user=user,
             collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
@@ -163,7 +162,6 @@ class TestGraphRagIntegration:
         call_args = mock_graph_embeddings_client.query.call_args
         assert call_args.kwargs['vector'] == [[0.1, 0.2, 0.3, 0.4, 0.5]]
         assert call_args.kwargs['limit'] == entity_limit
-        assert call_args.kwargs['user'] == user
         assert call_args.kwargs['collection'] == collection
 
         # 3. Should query triples to build knowledge subgraph
@@ -204,7 +202,6 @@ class TestGraphRagIntegration:
             # Act
             await graph_rag.query(
                 query=query,
-                user="test_user",
                 collection="test_collection",
                 entity_limit=config["entity_limit"],
                 triple_limit=config["triple_limit"]
@@ -224,7 +221,6 @@ class TestGraphRagIntegration:
         with pytest.raises(Exception) as exc_info:
             await graph_rag.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection"
             )
 
@@ -247,7 +243,6 @@ class TestGraphRagIntegration:
         # Act
         response = await graph_rag.query(
             query="unknown topic",
-            user="test_user",
             collection="test_collection",
             explain_callback=collect_provenance
         )
@@ -267,7 +262,6 @@ class TestGraphRagIntegration:
         # First query
         await graph_rag.query(
             query=query,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -277,7 +271,6 @@ class TestGraphRagIntegration:
         # Second identical query
         await graph_rag.query(
             query=query,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -289,26 +282,27 @@ class TestGraphRagIntegration:
         assert second_call_count >= 0  # Should complete without errors
 
     @pytest.mark.asyncio
-    async def test_graph_rag_multi_user_isolation(self, graph_rag, mock_graph_embeddings_client):
-        """Test that different users/collections are properly isolated"""
+    async def test_graph_rag_multi_collection_isolation(self, graph_rag, mock_graph_embeddings_client):
+        """Test that different collections propagate through to the embeddings query.
+
+        Workspace isolation is enforced by flow.workspace at the service
+        boundary — not by parameters on GraphRag.query — so this test
+        verifies collection routing only.
+        """
         # Arrange
         query = "test query"
-        user1, collection1 = "user1", "collection1"
-        user2, collection2 = "user2", "collection2"
+        collection1 = "collection1"
+        collection2 = "collection2"
 
         # Act
-        await graph_rag.query(query=query, user=user1, collection=collection1)
-        await graph_rag.query(query=query, user=user2, collection=collection2)
+        await graph_rag.query(query=query, collection=collection1)
+        await graph_rag.query(query=query, collection=collection2)
 
-        # Assert - Both users should have separate queries
+        # Assert - Each call propagated its collection
         assert mock_graph_embeddings_client.query.call_count == 2
 
-        # Verify first call
         first_call = mock_graph_embeddings_client.query.call_args_list[0]
-        assert first_call.kwargs['user'] == user1
         assert first_call.kwargs['collection'] == collection1
 
-        # Verify second call
         second_call = mock_graph_embeddings_client.query.call_args_list[1]
-        assert second_call.kwargs['user'] == user2
         assert second_call.kwargs['collection'] == collection2

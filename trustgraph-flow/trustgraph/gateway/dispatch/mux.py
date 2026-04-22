@@ -47,7 +47,9 @@ class Mux:
                 raise RuntimeError("Bad message")
 
             await self.q.put((
-                    data["id"], data.get("flow"),
+                    data["id"],
+                    data.get("workspace", "default"),
+                    data.get("flow"),
                     data["service"],
                     data["request"]
             ))
@@ -87,8 +89,10 @@ class Mux:
                 # worker[0] still running, move on
                 break
 
-    async def start_request_task(self, ws, id, flow, svc, request, workers):
-            
+    async def start_request_task(
+        self, ws, id, workspace, flow, svc, request, workers,
+    ):
+
         # Wait for outstanding requests to go below MAX_OUTSTANDING_REQUESTS
         while len(workers) > MAX_OUTSTANDING_REQUESTS:
 
@@ -106,19 +110,23 @@ class Mux:
             })
 
         worker = asyncio.create_task(
-            self.request_task(id, request, responder, flow, svc)
+            self.request_task(
+                id, request, responder, workspace, flow, svc,
+            )
         )
 
         workers.append(worker)
 
-    async def request_task(self, id, request, responder, flow, svc):
+    async def request_task(
+        self, id, request, responder, workspace, flow, svc,
+    ):
 
         try:
 
             if flow:
 
                 await self.dispatcher_manager.invoke_flow_service(
-                    request, responder, flow, svc
+                    request, responder, workspace, flow, svc,
                 )
 
             else:
@@ -148,7 +156,7 @@ class Mux:
 
                 # Get next request on queue
                 item = await asyncio.wait_for(self.q.get(), 1)
-                id, flow, svc, request = item
+                id, workspace, flow, svc, request = item
 
             except TimeoutError:
                 continue
@@ -172,7 +180,7 @@ class Mux:
             try:
 
                 await self.start_request_task(
-                    self.ws, id, flow, svc, request, workers
+                    self.ws, id, workspace, flow, svc, request, workers
                 )
 
             except Exception as e:

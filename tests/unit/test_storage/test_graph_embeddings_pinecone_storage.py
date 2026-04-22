@@ -21,7 +21,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Create a mock message for testing"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Create test entity embeddings (each entity has a single vector)
@@ -124,7 +123,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings for a single entity"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         entity = EntityEmbeddings(
@@ -139,7 +137,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         processor.pinecone.has_index.return_value = True
 
         with patch('uuid.uuid4', side_effect=['id1']):
-            await processor.store_graph_embeddings(message)
+            await processor.store_graph_embeddings('test_user', message)
 
         # Verify index name and operations (with dimension suffix)
         expected_index_name = "t-test_user-test_collection-3"  # 3 dimensions
@@ -189,7 +187,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test that writing to non-existent index creates it lazily"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         entity = EntityEmbeddings(
@@ -204,7 +201,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         processor.pinecone.Index.return_value = mock_index
 
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_graph_embeddings(message)
+            await processor.store_graph_embeddings('test_user', message)
 
         # Verify index was created with correct dimension
         expected_index_name = "t-test_user-test_collection-3"  # 3 dimensions
@@ -221,7 +218,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with empty entity value (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
@@ -233,7 +229,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no upsert was called for empty entity
         mock_index.upsert.assert_not_called()
@@ -243,7 +239,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with None entity value (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
@@ -255,7 +250,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no upsert was called for None entity
         mock_index.upsert.assert_not_called()
@@ -265,7 +260,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with different vector dimensions"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         # Each entity has a single vector of different dimensions
@@ -288,7 +282,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         processor.pinecone.has_index.return_value = True
 
         with patch('uuid.uuid4', side_effect=['id1', 'id2', 'id3']):
-            await processor.store_graph_embeddings(message)
+            await processor.store_graph_embeddings('test_user', message)
 
         # Verify different indexes were used for different dimensions
         index_calls = processor.pinecone.Index.call_args_list
@@ -307,14 +301,13 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with empty entities list"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         message.entities = []
         
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no operations were performed
         processor.pinecone.Index.assert_not_called()
@@ -325,7 +318,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings for entity with no vectors"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
@@ -337,7 +329,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no upsert was called (no vectors to insert)
         mock_index.upsert.assert_not_called()
@@ -347,7 +339,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test that lazy creation happens when index doesn't exist"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         entity = EntityEmbeddings(
@@ -362,7 +353,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         processor.pinecone.Index.return_value = mock_index
 
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_graph_embeddings(message)
+            await processor.store_graph_embeddings('test_user', message)
 
         # Verify index was created
         processor.pinecone.create_index.assert_called_once()
@@ -372,7 +363,6 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         """Test that lazy creation works correctly"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         entity = EntityEmbeddings(
@@ -387,7 +377,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         processor.pinecone.Index.return_value = mock_index
 
         with patch('uuid.uuid4', return_value='test-id'):
-            await processor.store_graph_embeddings(message)
+            await processor.store_graph_embeddings('test_user', message)
 
         # Verify index was created and used
         processor.pinecone.create_index.assert_called_once()

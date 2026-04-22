@@ -21,6 +21,7 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def set_mcp_tool(
         url : str,
@@ -29,9 +30,10 @@ def set_mcp_tool(
         tool_url : str,
         auth_token : str = None,
         token : str = None,
+        workspace : str = "default",
 ):
 
-    api = Api(url, token=token).config()
+    api = Api(url, token=token, workspace=workspace).config()
 
     # Build the MCP tool configuration
     config = {
@@ -81,6 +83,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-i', '--id',
         required=True,
         help='MCP tool identifier',
@@ -126,6 +134,8 @@ def main():
             tool_url=args.tool_url,
             auth_token=args.auth_token,
             token=args.token,
+
+            workspace=args.workspace,
         )
 
     except Exception as e:

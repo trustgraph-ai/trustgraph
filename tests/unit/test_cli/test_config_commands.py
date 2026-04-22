@@ -109,7 +109,8 @@ class TestListConfigItems:
                 url='http://custom.com',
                 config_type='prompt',
                 format_type='json',
-                token=None
+                token=None,
+                workspace='default'
             )
 
     def test_list_main_uses_defaults(self):
@@ -128,7 +129,8 @@ class TestListConfigItems:
                 url='http://localhost:8088/',
                 config_type='prompt',
                 format_type='text',
-                token=None
+                token=None,
+                workspace='default'
             )
 
 
@@ -196,7 +198,8 @@ class TestGetConfigItem:
                 config_type='prompt',
                 key='template-1',
                 format_type='json',
-                token=None
+                token=None,
+                workspace='default'
             )
 
 
@@ -253,7 +256,8 @@ class TestPutConfigItem:
                 config_type='prompt',
                 key='new-template',
                 value='Custom prompt: {input}',
-                token=None
+                token=None,
+                workspace='default'
             )
 
     def test_put_main_with_stdin_arg(self):
@@ -278,7 +282,8 @@ class TestPutConfigItem:
                 config_type='prompt',
                 key='stdin-template',
                 value=stdin_content,
-                token=None
+                token=None,
+                workspace='default'
             )
 
     def test_put_main_mutually_exclusive_args(self):
@@ -334,7 +339,8 @@ class TestDeleteConfigItem:
                 url='http://custom.com',
                 config_type='prompt',
                 key='old-template',
-                token=None
+                token=None,
+                workspace='default'
             )
 
 

@@ -275,7 +275,7 @@ class Processor(FlowProcessor):
         await self.librarian.save_child_document(
             doc_id=doc_id,
             parent_id=parent_doc_id,
-            user=metadata.user,
+            workspace=flow.workspace,
             content=page_content,
             document_type="page" if is_page else "section",
             title=label,
@@ -303,7 +303,6 @@ class Processor(FlowProcessor):
             metadata=Metadata(
                 id=entity_uri,
                 root=metadata.root,
-                user=metadata.user,
                 collection=metadata.collection,
             ),
             triples=set_graph(prov_triples, GRAPH_SOURCE),
@@ -314,7 +313,6 @@ class Processor(FlowProcessor):
             metadata=Metadata(
                 id=entity_uri,
                 root=metadata.root,
-                user=metadata.user,
                 collection=metadata.collection,
             ),
             document_id=doc_id,
@@ -356,7 +354,7 @@ class Processor(FlowProcessor):
             await self.librarian.save_child_document(
                 doc_id=img_uri,
                 parent_id=parent_doc_id,
-                user=metadata.user,
+                workspace=flow.workspace,
                 content=img_content,
                 document_type="image",
                 title=f"Image from page {page_number}" if page_number else "Image",
@@ -379,7 +377,6 @@ class Processor(FlowProcessor):
             metadata=Metadata(
                 id=img_uri,
                 root=metadata.root,
-                user=metadata.user,
                 collection=metadata.collection,
             ),
             triples=set_graph(prov_triples, GRAPH_SOURCE),
@@ -404,13 +401,13 @@ class Processor(FlowProcessor):
 
             doc_meta = await self.librarian.fetch_document_metadata(
                 document_id=v.document_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
             )
             mime_type = doc_meta.kind if doc_meta else None
 
             content = await self.librarian.fetch_document_content(
                 document_id=v.document_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
             )
 
             if isinstance(content, str):

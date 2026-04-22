@@ -41,7 +41,8 @@ class DocumentEmbeddingsStoreService(FlowProcessor):
 
             request = msg.value()
 
-            await self.store_document_embeddings(request)
+            # Workspace comes from the flow the message arrived on.
+            await self.store_document_embeddings(flow.workspace, request)
 
         except TooManyRequests as e:
             raise e

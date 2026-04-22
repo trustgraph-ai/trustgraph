@@ -17,7 +17,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Create a mock message for testing"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Create test entities with embeddings
@@ -80,7 +79,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings for a single entity"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         entity = EntityEmbeddings(
@@ -89,7 +87,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [entity]
 
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
 
         # Verify insert was called once with the full vector
         processor.vecstore.insert.assert_called_once()
@@ -102,14 +100,14 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_multiple_entities(self, processor, mock_message):
         """Test storing graph embeddings for multiple entities"""
-        await processor.store_graph_embeddings(mock_message)
+        await processor.store_graph_embeddings('test_workspace', mock_message)
 
-        # Verify insert was called once per entity with user/collection parameters
+        # Verify insert was called once per entity with workspace/collection parameters
         expected_calls = [
             # Entity 1 - single vector
-            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'http://example.com/entity1', 'test_user', 'test_collection'),
+            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'http://example.com/entity1', 'test_workspace', 'test_collection'),
             # Entity 2 - single vector
-            ([0.7, 0.8, 0.9], 'literal entity', 'test_user', 'test_collection'),
+            ([0.7, 0.8, 0.9], 'literal entity', 'test_workspace', 'test_collection'),
         ]
 
         assert processor.vecstore.insert.call_count == 2
@@ -125,7 +123,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with empty entity value (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
@@ -134,7 +131,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [entity]
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no insert was called for empty entity
         processor.vecstore.insert.assert_not_called()
@@ -144,7 +141,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with None entity value (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
@@ -153,7 +149,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [entity]
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no insert was called for None entity
         processor.vecstore.insert.assert_not_called()
@@ -163,7 +159,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with mix of valid and invalid entities"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         valid_entity = EntityEmbeddings(
@@ -183,7 +178,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [valid_entity, empty_entity, none_entity]
 
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
 
         # Verify only valid entity was inserted with user/collection/chunk_id parameters
         processor.vecstore.insert.assert_called_once_with(
@@ -196,11 +191,10 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with empty entities list"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         message.entities = []
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no insert was called
         processor.vecstore.insert.assert_not_called()
@@ -210,7 +204,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings for entity with no vectors"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
@@ -219,7 +212,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [entity]
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify no insert was called (no vectors to insert)
         processor.vecstore.insert.assert_not_called()
@@ -229,7 +222,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings with different vector dimensions"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         # Each entity has a single vector of different dimensions
@@ -247,7 +239,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [entity1, entity2, entity3]
 
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
 
         # Verify all vectors were inserted regardless of dimension
         expected_calls = [
@@ -267,7 +259,6 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         """Test storing graph embeddings for both URI and literal entities"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         uri_entity = EntityEmbeddings(
@@ -280,7 +271,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         message.entities = [uri_entity, literal_entity]
         
-        await processor.store_graph_embeddings(message)
+        await processor.store_graph_embeddings('test_user', message)
         
         # Verify both entities were inserted
         expected_calls = [

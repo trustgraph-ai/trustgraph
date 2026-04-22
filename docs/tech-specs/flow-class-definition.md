@@ -20,8 +20,8 @@ Defines shared service processors that are instantiated once per flow blueprint.
 ```json
 "class": {
   "service-name:{class}": {
-    "request": "queue-pattern:{class}",
-    "response": "queue-pattern:{class}",
+    "request": "queue-pattern:{workspace}:{class}",
+    "response": "queue-pattern:{workspace}:{class}",
     "settings": {
       "setting-name": "fixed-value",
       "parameterized-setting": "{parameter-name}"
@@ -31,11 +31,11 @@ Defines shared service processors that are instantiated once per flow blueprint.
 ```
 
 **Characteristics:**
-- Shared across all flow instances of the same class
+- Shared across all flow instances of the same class within a workspace
 - Typically expensive or stateless services (LLMs, embedding models)
-- Use `{class}` template variable for queue naming
+- Use `{workspace}` and `{class}` template variables for queue naming
 - Settings can be fixed values or parameterized with `{parameter-name}` syntax
-- Examples: `embeddings:{class}`, `text-completion:{class}`, `graph-rag:{class}`
+- Examples: `embeddings:{workspace}:{class}`, `text-completion:{workspace}:{class}`
 
 ### 2. Flow Section
 Defines flow-specific processors that are instantiated for each individual flow instance. Each flow gets its own isolated set of these processors.
@@ -43,8 +43,8 @@ Defines flow-specific processors that are instantiated for each individual flow 
 ```json
 "flow": {
   "processor-name:{id}": {
-    "input": "queue-pattern:{id}",
-    "output": "queue-pattern:{id}",
+    "input": "queue-pattern:{workspace}:{id}",
+    "output": "queue-pattern:{workspace}:{id}",
     "settings": {
       "setting-name": "fixed-value",
       "parameterized-setting": "{parameter-name}"
@@ -56,9 +56,9 @@ Defines flow-specific processors that are instantiated for each individual flow 
 **Characteristics:**
 - Unique instance per flow
 - Handle flow-specific data and state
-- Use `{id}` template variable for queue naming
+- Use `{workspace}` and `{id}` template variables for queue naming
 - Settings can be fixed values or parameterized with `{parameter-name}` syntax
-- Examples: `chunker:{id}`, `pdf-decoder:{id}`, `kg-extract-relationships:{id}`
+- Examples: `chunker:{workspace}:{id}`, `pdf-decoder:{workspace}:{id}`
 
 ### 3. Interfaces Section
 Defines the entry points and interaction contracts for the flow. These form the API surface for external systems and internal component communication.
@@ -68,8 +68,8 @@ Interfaces can take two forms:
 **Fire-and-Forget Pattern** (single queue):
 ```json
 "interfaces": {
-  "document-load": "persistent://tg/flow/document-load:{id}",
-  "triples-store": "persistent://tg/flow/triples-store:{id}"
+  "document-load": "persistent://tg/flow/{workspace}:document-load:{id}",
+  "triples-store": "persistent://tg/flow/{workspace}:triples-store:{id}"
 }
 ```
 
@@ -77,8 +77,8 @@ Interfaces can take two forms:
 ```json
 "interfaces": {
   "embeddings": {
-    "request": "non-persistent://tg/request/embeddings:{class}",
-    "response": "non-persistent://tg/response/embeddings:{class}"
+    "request": "non-persistent://tg/request/{workspace}:embeddings:{class}",
+    "response": "non-persistent://tg/response/{workspace}:embeddings:{class}"
   }
 }
 ```
@@ -116,6 +116,16 @@ Additional information about the flow blueprint:
 ## Template Variables
 
 ### System Variables
+
+#### {workspace}
+- Replaced with the workspace identifier
+- Isolates queue names between workspaces so that two workspaces
+  starting the same flow do not share queues
+- Must be included in all queue name patterns to ensure workspace
+  isolation
+- Example: `ws-acme`, `ws-globex`
+- All blueprint templates must include `{workspace}` in queue name
+  patterns
 
 #### {id}
 - Replaced with the unique flow instance identifier

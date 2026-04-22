@@ -72,10 +72,11 @@ class ConfigTableStore:
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS config (
+                workspace text,
                 class text,
                 key text,
                 value text,
-                PRIMARY KEY (class, key)
+                PRIMARY KEY ((workspace, class), key)
             );
         """);
 
@@ -124,52 +125,63 @@ class ConfigTableStore:
     def prepare_statements(self):
 
         self.put_config_stmt = self.cassandra.prepare("""
-            INSERT INTO config ( class, key, value )
-            VALUES (?, ?, ?)
-        """)
-
-        self.get_classes_stmt = self.cassandra.prepare("""
-            SELECT DISTINCT class FROM config;
+            INSERT INTO config ( workspace, class, key, value )
+            VALUES (?, ?, ?, ?)
         """)
 
         self.get_keys_stmt = self.cassandra.prepare("""
-            SELECT key FROM config WHERE class = ?;
+            SELECT key FROM config
+            WHERE workspace = ? AND class = ?;
         """)
 
         self.get_value_stmt = self.cassandra.prepare("""
-            SELECT value FROM config WHERE class = ? AND key = ?;
+            SELECT value FROM config
+            WHERE workspace = ? AND class = ? AND key = ?;
         """)
 
         self.delete_key_stmt = self.cassandra.prepare("""
             DELETE FROM config
-            WHERE class = ? AND key = ?;
+            WHERE workspace = ? AND class = ? AND key = ?;
         """)
 
         self.get_all_stmt = self.cassandra.prepare("""
-            SELECT class AS cls, key, value FROM config;
+            SELECT workspace, class AS cls, key, value FROM config;
+        """)
+
+        self.get_all_for_workspace_stmt = self.cassandra.prepare("""
+            SELECT class AS cls, key, value FROM config
+            WHERE workspace = ?
+            ALLOW FILTERING;
         """)
 
         self.get_values_stmt = self.cassandra.prepare("""
-            SELECT key, value FROM config WHERE class = ?;
+            SELECT key, value FROM config
+            WHERE workspace = ? AND class = ?;
         """)
 
-    async def put_config(self, cls, key, value):
+        self.get_values_all_ws_stmt = self.cassandra.prepare("""
+            SELECT workspace, key, value FROM config
+            WHERE class = ?
+            ALLOW FILTERING;
+        """)
+
+    async def put_config(self, workspace, cls, key, value):
         try:
             await async_execute(
                 self.cassandra,
                 self.put_config_stmt,
-                (cls, key, value),
+                (workspace, cls, key, value),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
             raise
 
-    async def get_value(self, cls, key):
+    async def get_value(self, workspace, cls, key):
         try:
             rows = await async_execute(
                 self.cassandra,
                 self.get_value_stmt,
-                (cls, key),
+                (workspace, cls, key),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -179,12 +191,12 @@ class ConfigTableStore:
             return row[0]
         return None
 
-    async def get_values(self, cls):
+    async def get_values(self, workspace, cls):
         try:
             rows = await async_execute(
                 self.cassandra,
                 self.get_values_stmt,
-                (cls,),
+                (workspace, cls),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -192,18 +204,20 @@ class ConfigTableStore:
 
         return [[row[0], row[1]] for row in rows]
 
-    async def get_classes(self):
+    async def get_values_all_ws(self, cls):
+        """Return (workspace, key, value) tuples for all workspaces
+        with entries of the given class."""
         try:
             rows = await async_execute(
                 self.cassandra,
-                self.get_classes_stmt,
-                (),
+                self.get_values_all_ws_stmt,
+                (cls,),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
             raise
 
-        return [row[0] for row in rows]
+        return [(row[0], row[1], row[2]) for row in rows]
 
     async def get_all(self):
         try:
@@ -216,14 +230,27 @@ class ConfigTableStore:
             logger.error("Exception occurred", exc_info=True)
             raise
 
+        return [(row[0], row[1], row[2], row[3]) for row in rows]
+
+    async def get_all_for_workspace(self, workspace):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_all_for_workspace_stmt,
+                (workspace,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
+
         return [(row[0], row[1], row[2]) for row in rows]
 
-    async def get_keys(self, cls):
+    async def get_keys(self, workspace, cls):
         try:
             rows = await async_execute(
                 self.cassandra,
                 self.get_keys_stmt,
-                (cls,),
+                (workspace, cls),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)
@@ -231,12 +258,12 @@ class ConfigTableStore:
 
         return [row[0] for row in rows]
 
-    async def delete_key(self, cls, key):
+    async def delete_key(self, workspace, cls, key):
         try:
             await async_execute(
                 self.cassandra,
                 self.delete_key_stmt,
-                (cls, key),
+                (workspace, cls, key),
             )
         except Exception:
             logger.error("Exception occurred", exc_info=True)

@@ -26,42 +26,50 @@ class Service(ToolService):
 
         self.register_config_handler(self.on_mcp_config, types=["mcp"])
 
+        # Per-workspace MCP service registries
         self.mcp_services = {}
 
-    async def on_mcp_config(self, config, version):
+    async def on_mcp_config(self, workspace, config, version):
 
-        logger.info(f"Got config version {version}")
+        logger.info(
+            f"Got config version {version} for workspace {workspace}"
+        )
 
         if "mcp" not in config:
-            self.mcp_services = {}
+            self.mcp_services[workspace] = {}
             return
 
-        self.mcp_services = {
+        self.mcp_services[workspace] = {
             k: json.loads(v)
             for k, v in config["mcp"].items()
         }
 
-    async def invoke_tool(self, name, parameters):
+    async def invoke_tool(self, workspace, name, parameters):
 
         try:
 
-            if name not in self.mcp_services:
-                raise RuntimeError(f"MCP service {name} not known")
+            ws_services = self.mcp_services.get(workspace, {})
 
-            if "url" not in self.mcp_services[name]:
+            if name not in ws_services:
+                raise RuntimeError(
+                    f"MCP service {name} not known in workspace "
+                    f"{workspace}"
+                )
+
+            if "url" not in ws_services[name]:
                 raise RuntimeError(f"MCP service {name} URL not defined")
 
-            url = self.mcp_services[name]["url"]
+            url = ws_services[name]["url"]
 
-            if "remote-name" in self.mcp_services[name]:
-                remote_name = self.mcp_services[name]["remote-name"]
+            if "remote-name" in ws_services[name]:
+                remote_name = ws_services[name]["remote-name"]
             else:
                 remote_name = name
 
             # Build headers with optional bearer token
             headers = {}
-            if "auth-token" in self.mcp_services[name]:
-                token = self.mcp_services[name]["auth-token"]
+            if "auth-token" in ws_services[name]:
+                token = ws_services[name]["auth-token"]
                 headers["Authorization"] = f"Bearer {token}"
 
             logger.info(f"Invoking {remote_name} at {url}")

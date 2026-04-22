@@ -94,7 +94,7 @@ class Library:
         return self.api.request(f"librarian", request)
 
     def add_document(
-            self, document, id, metadata, user, title, comments,
+            self, document, id, metadata, title, comments,
             kind="text/plain", tags=[], on_progress=None,
     ):
         """
@@ -108,7 +108,6 @@ class Library:
             document: Document content as bytes
             id: Document identifier (auto-generated if None)
             metadata: Document metadata as list of Triple objects or object with emit method
-            user: User/owner identifier
             title: Document title
             comments: Document description or comments
             kind: MIME type of the document (default: "text/plain")
@@ -131,7 +130,6 @@ class Library:
                     document=f.read(),
                     id="research-001",
                     metadata=[],
-                    user="trustgraph",
                     title="Research Paper",
                     comments="Key findings in quantum computing",
                     kind="application/pdf",
@@ -147,7 +145,6 @@ class Library:
                     document=f.read(),
                     id="large-doc-001",
                     metadata=[],
-                    user="trustgraph",
                     title="Large Document",
                     comments="A very large document",
                     kind="application/pdf",
@@ -176,7 +173,6 @@ class Library:
                 document=document,
                 id=id,
                 metadata=metadata,
-                user=user,
                 title=title,
                 comments=comments,
                 kind=kind,
@@ -213,6 +209,7 @@ class Library:
 
         input = {
             "operation": "add-document",
+            "workspace": self.api.workspace,
             "document-metadata": {
                 "id": id,
                 "time": int(time.time()),
@@ -220,7 +217,7 @@ class Library:
                 "title": title,
                 "comments": comments,
                 "metadata": triples,
-                "user": user,
+                "workspace": self.api.workspace,
                 "tags": tags
             },
             "content": base64.b64encode(document).decode("utf-8"),
@@ -229,7 +226,7 @@ class Library:
         return self.request(input)
 
     def _add_document_chunked(
-            self, document, id, metadata, user, title, comments,
+            self, document, id, metadata, title, comments,
             kind, tags, on_progress=None,
     ):
         """
@@ -245,13 +242,14 @@ class Library:
         # Begin upload session
         begin_request = {
             "operation": "begin-upload",
+            "workspace": self.api.workspace,
             "document-metadata": {
                 "id": id,
                 "time": int(time.time()),
                 "kind": kind,
                 "title": title,
                 "comments": comments,
-                "user": user,
+                "workspace": self.api.workspace,
                 "tags": tags,
             },
             "total-size": total_size,
@@ -279,10 +277,10 @@ class Library:
 
                 chunk_request = {
                     "operation": "upload-chunk",
+                    "workspace": self.api.workspace,
                     "upload-id": upload_id,
                     "chunk-index": chunk_index,
                     "content": base64.b64encode(chunk_data).decode("utf-8"),
-                    "user": user,
                 }
 
                 chunk_response = self.request(chunk_request)
@@ -298,8 +296,8 @@ class Library:
             # Complete upload
             complete_request = {
                 "operation": "complete-upload",
+                "workspace": self.api.workspace,
                 "upload-id": upload_id,
-                "user": user,
             }
 
             complete_response = self.request(complete_request)
@@ -314,8 +312,8 @@ class Library:
             try:
                 abort_request = {
                     "operation": "abort-upload",
+                    "workspace": self.api.workspace,
                     "upload-id": upload_id,
-                    "user": user,
                 }
                 self.request(abort_request)
                 logger.info(f"Aborted failed upload {upload_id}")
@@ -323,15 +321,13 @@ class Library:
                 logger.warning(f"Failed to abort upload: {abort_error}")
             raise
 
-    def get_documents(self, user, include_children=False):
+    def get_documents(self, include_children=False):
         """
-        List all documents for a user.
+        List all documents in the current workspace.
 
-        Retrieves metadata for all documents owned by the specified user.
         By default, only returns top-level documents (not child/extracted documents).
 
         Args:
-            user: User identifier
             include_children: If True, also include child documents (default: False)
 
         Returns:
@@ -345,7 +341,7 @@ class Library:
             library = api.library()
 
             # Get only top-level documents
-            docs = library.get_documents(user="trustgraph")
+            docs = library.get_documents()
 
             for doc in docs:
                 print(f"{doc.id}: {doc.title} ({doc.kind})")
@@ -353,13 +349,13 @@ class Library:
                 print(f"  Tags: {', '.join(doc.tags)}")
 
             # Get all documents including extracted pages
-            all_docs = library.get_documents(user="trustgraph", include_children=True)
+            all_docs = library.get_documents(include_children=True)
             ```
         """
 
         input = {
             "operation": "list-documents",
-            "user": user,
+            "workspace": self.api.workspace,
             "include-children": include_children,
         }
 
@@ -381,7 +377,7 @@ class Library:
                         )
                         for w in v["metadata"]
                     ],
-                    user = v["user"],
+                    workspace = v.get("workspace", ""),
                     tags = v["tags"],
                     parent_id = v.get("parent-id", ""),
                     document_type = v.get("document-type", "source"),
@@ -392,14 +388,13 @@ class Library:
             logger.error("Failed to parse document list response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
-    def get_document(self, user, id):
+    def get_document(self, id):
         """
         Get metadata for a specific document.
 
         Retrieves the metadata for a single document by ID.
 
         Args:
-            user: User identifier
             id: Document identifier
 
         Returns:
@@ -411,7 +406,7 @@ class Library:
         Example:
             ```python
             library = api.library()
-            doc = library.get_document(user="trustgraph", id="doc-123")
+            doc = library.get_document(id="doc-123")
             print(f"Title: {doc.title}")
             print(f"Comments: {doc.comments}")
             ```
@@ -419,7 +414,7 @@ class Library:
 
         input = {
             "operation": "get-document",
-            "user": user,
+            "workspace": self.api.workspace,
             "document-id": id,
         }
 
@@ -441,7 +436,7 @@ class Library:
                     )
                     for w in doc["metadata"]
                 ],
-                user = doc["user"],
+                workspace = doc.get("workspace", ""),
                 tags = doc["tags"],
                 parent_id = doc.get("parent-id", ""),
                 document_type = doc.get("document-type", "source"),
@@ -450,14 +445,13 @@ class Library:
             logger.error("Failed to parse document response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
-    def update_document(self, user, id, metadata):
+    def update_document(self, id, metadata):
         """
         Update document metadata.
 
         Updates the metadata for an existing document in the library.
 
         Args:
-            user: User identifier
             id: Document identifier
             metadata: Updated DocumentMetadata object
 
@@ -472,7 +466,7 @@ class Library:
             library = api.library()
 
             # Get existing document
-            doc = library.get_document(user="trustgraph", id="doc-123")
+            doc = library.get_document(id="doc-123")
 
             # Update metadata
             doc.title = "Updated Title"
@@ -481,7 +475,6 @@ class Library:
 
             # Save changes
             updated_doc = library.update_document(
-                user="trustgraph",
                 id="doc-123",
                 metadata=doc
             )
@@ -490,8 +483,9 @@ class Library:
 
         input = {
             "operation": "update-document",
+            "workspace": self.api.workspace,
             "document-metadata": {
-                "user": user,
+                "workspace": self.api.workspace,
                 "document-id": id,
                 "time": metadata.time,
                 "title": metadata.title,
@@ -526,21 +520,20 @@ class Library:
                     )
                     for w in doc["metadata"]
                 ],
-                user = doc["user"],
+                workspace = doc.get("workspace", ""),
                 tags = doc["tags"]
             )
         except Exception as e:
             logger.error("Failed to parse document update response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
-    def remove_document(self, user, id):
+    def remove_document(self, id):
         """
         Remove a document from the library.
 
         Deletes a document and its metadata from the library.
 
         Args:
-            user: User identifier
             id: Document identifier to remove
 
         Returns:
@@ -549,13 +542,13 @@ class Library:
         Example:
             ```python
             library = api.library()
-            library.remove_document(user="trustgraph", id="doc-123")
+            library.remove_document(id="doc-123")
             ```
         """
 
         input = {
             "operation": "remove-document",
-            "user": user,
+            "workspace": self.api.workspace,
             "document-id": id,
         }
 
@@ -565,7 +558,7 @@ class Library:
 
     def start_processing(
             self, id, document_id, flow="default",
-            user="trustgraph", collection="default", tags=[],
+            collection="default", tags=[],
     ):
         """
         Start a document processing workflow.
@@ -577,7 +570,6 @@ class Library:
             id: Unique processing job identifier
             document_id: ID of the document to process
             flow: Flow instance to use for processing (default: "default")
-            user: User identifier (default: "trustgraph")
             collection: Target collection for processed data (default: "default")
             tags: List of tags for the processing job (default: [])
 
@@ -593,7 +585,6 @@ class Library:
                 id="proc-001",
                 document_id="doc-123",
                 flow="default",
-                user="trustgraph",
                 collection="research",
                 tags=["automated", "extract"]
             )
@@ -602,12 +593,13 @@ class Library:
 
         input = {
             "operation": "add-processing",
+            "workspace": self.api.workspace,
             "processing-metadata": {
                 "id": id,
                 "document-id": document_id,
                 "time": int(time.time()),
                 "flow": flow,
-                "user": user,
+                "workspace": self.api.workspace,
                 "collection": collection,
                 "tags": tags,
             }
@@ -618,7 +610,7 @@ class Library:
         return {}
 
     def stop_processing(
-            self, id, user="trustgraph",
+            self, id,
     ):
         """
         Stop a running document processing job.
@@ -627,7 +619,6 @@ class Library:
 
         Args:
             id: Processing job identifier to stop
-            user: User identifier (default: "trustgraph")
 
         Returns:
             dict: Empty response object
@@ -635,29 +626,26 @@ class Library:
         Example:
             ```python
             library = api.library()
-            library.stop_processing(id="proc-001", user="trustgraph")
+            library.stop_processing(id="proc-001")
             ```
         """
 
         input = {
             "operation": "remove-processing",
+            "workspace": self.api.workspace,
             "processing-id": id,
-            "user": user,
         }
 
         object = self.request(input)
 
         return {}
 
-    def get_processings(self, user="trustgraph"):
+    def get_processings(self):
         """
         List all active document processing jobs.
 
         Retrieves metadata for all currently running document processing workflows
-        for the specified user.
-
-        Args:
-            user: User identifier (default: "trustgraph")
+        in the current workspace.
 
         Returns:
             list[ProcessingMetadata]: List of processing job metadata objects
@@ -668,7 +656,7 @@ class Library:
         Example:
             ```python
             library = api.library()
-            jobs = library.get_processings(user="trustgraph")
+            jobs = library.get_processings()
 
             for job in jobs:
                 print(f"Job {job.id}:")
@@ -681,7 +669,7 @@ class Library:
 
         input = {
             "operation": "list-processing",
-            "user": user,
+            "workspace": self.api.workspace,
         }
 
         object = self.request(input)
@@ -693,7 +681,7 @@ class Library:
                     document_id = v["document-id"],
                     time = datetime.datetime.fromtimestamp(v["time"]),
                     flow = v["flow"],
-                    user = v["user"],
+                    workspace = v.get("workspace", ""),
                     collection = v["collection"],
                     tags = v["tags"],
                 )
@@ -705,15 +693,12 @@ class Library:
 
     # Chunked upload management methods
 
-    def get_pending_uploads(self, user):
+    def get_pending_uploads(self):
         """
-        List all pending (in-progress) uploads for a user.
+        List all pending (in-progress) uploads in the current workspace.
 
         Retrieves information about chunked uploads that have been started
         but not yet completed.
-
-        Args:
-            user: User identifier
 
         Returns:
             list[dict]: List of pending upload information
@@ -721,7 +706,7 @@ class Library:
         Example:
             ```python
             library = api.library()
-            pending = library.get_pending_uploads(user="trustgraph")
+            pending = library.get_pending_uploads()
 
             for upload in pending:
                 print(f"Upload {upload['upload_id']}:")
@@ -731,14 +716,14 @@ class Library:
         """
         input = {
             "operation": "list-uploads",
-            "user": user,
+            "workspace": self.api.workspace,
         }
 
         response = self.request(input)
 
         return response.get("upload-sessions", [])
 
-    def get_upload_status(self, upload_id, user):
+    def get_upload_status(self, upload_id):
         """
         Get the status of a specific upload.
 
@@ -747,7 +732,6 @@ class Library:
 
         Args:
             upload_id: Upload session identifier
-            user: User identifier
 
         Returns:
             dict: Upload status information including:
@@ -763,10 +747,7 @@ class Library:
         Example:
             ```python
             library = api.library()
-            status = library.get_upload_status(
-                upload_id="abc-123",
-                user="trustgraph"
-            )
+            status = library.get_upload_status(upload_id="abc-123")
 
             if status['state'] == 'in-progress':
                 print(f"Missing chunks: {status['missing_chunks']}")
@@ -774,13 +755,13 @@ class Library:
         """
         input = {
             "operation": "get-upload-status",
+            "workspace": self.api.workspace,
             "upload-id": upload_id,
-            "user": user,
         }
 
         return self.request(input)
 
-    def abort_upload(self, upload_id, user):
+    def abort_upload(self, upload_id):
         """
         Abort an in-progress upload.
 
@@ -788,7 +769,6 @@ class Library:
 
         Args:
             upload_id: Upload session identifier
-            user: User identifier
 
         Returns:
             dict: Empty response on success
@@ -796,18 +776,18 @@ class Library:
         Example:
             ```python
             library = api.library()
-            library.abort_upload(upload_id="abc-123", user="trustgraph")
+            library.abort_upload(upload_id="abc-123")
             ```
         """
         input = {
             "operation": "abort-upload",
+            "workspace": self.api.workspace,
             "upload-id": upload_id,
-            "user": user,
         }
 
         return self.request(input)
 
-    def resume_upload(self, upload_id, document, user, on_progress=None):
+    def resume_upload(self, upload_id, document, on_progress=None):
         """
         Resume an interrupted upload.
 
@@ -817,7 +797,6 @@ class Library:
         Args:
             upload_id: Upload session identifier to resume
             document: Complete document content as bytes
-            user: User identifier
             on_progress: Optional callback(bytes_sent, total_bytes) for progress updates
 
         Returns:
@@ -828,23 +807,19 @@ class Library:
             library = api.library()
 
             # Check what's missing
-            status = library.get_upload_status(
-                upload_id="abc-123",
-                user="trustgraph"
-            )
+            status = library.get_upload_status(upload_id="abc-123")
 
             if status['state'] == 'in-progress':
                 # Resume with the same document
                 with open("large_document.pdf", "rb") as f:
                     library.resume_upload(
                         upload_id="abc-123",
-                        document=f.read(),
-                        user="trustgraph"
+                        document=f.read()
                     )
             ```
         """
         # Get current status
-        status = self.get_upload_status(upload_id, user)
+        status = self.get_upload_status(upload_id)
 
         if status.get("upload-state") == "expired":
             raise RuntimeError("Upload session has expired, please start a new upload")
@@ -867,10 +842,10 @@ class Library:
 
             chunk_request = {
                 "operation": "upload-chunk",
+                "workspace": self.api.workspace,
                 "upload-id": upload_id,
                 "chunk-index": chunk_index,
                 "content": base64.b64encode(chunk_data).decode("utf-8"),
-                "user": user,
             }
 
             self.request(chunk_request)
@@ -886,8 +861,8 @@ class Library:
         # Complete upload
         complete_request = {
             "operation": "complete-upload",
+            "workspace": self.api.workspace,
             "upload-id": upload_id,
-            "user": user,
         }
 
         return self.request(complete_request)
@@ -895,7 +870,7 @@ class Library:
     # Child document methods
 
     def add_child_document(
-            self, document, id, parent_id, user, title, comments,
+            self, document, id, parent_id, title, comments,
             kind="text/plain", tags=[], metadata=None,
     ):
         """
@@ -909,7 +884,6 @@ class Library:
             document: Document content as bytes
             id: Document identifier (auto-generated if None)
             parent_id: Parent document identifier (required)
-            user: User/owner identifier
             title: Document title
             comments: Document description or comments
             kind: MIME type of the document (default: "text/plain")
@@ -931,7 +905,6 @@ class Library:
                 document=page_text.encode('utf-8'),
                 id="doc-123-page-1",
                 parent_id="doc-123",
-                user="trustgraph",
                 title="Page 1 of Research Paper",
                 comments="First page extracted from PDF",
                 kind="text/plain",
@@ -964,6 +937,7 @@ class Library:
 
         input = {
             "operation": "add-child-document",
+            "workspace": self.api.workspace,
             "document-metadata": {
                 "id": id,
                 "time": int(time.time()),
@@ -971,7 +945,7 @@ class Library:
                 "title": title,
                 "comments": comments,
                 "metadata": triples,
-                "user": user,
+                "workspace": self.api.workspace,
                 "tags": tags,
                 "parent-id": parent_id,
                 "document-type": "extracted",
@@ -981,13 +955,12 @@ class Library:
 
         return self.request(input)
 
-    def list_children(self, document_id, user):
+    def list_children(self, document_id):
         """
         List all child documents for a given parent document.
 
         Args:
             document_id: Parent document identifier
-            user: User identifier
 
         Returns:
             list[DocumentMetadata]: List of child document metadata objects
@@ -995,10 +968,7 @@ class Library:
         Example:
             ```python
             library = api.library()
-            children = library.list_children(
-                document_id="doc-123",
-                user="trustgraph"
-            )
+            children = library.list_children(document_id="doc-123")
 
             for child in children:
                 print(f"{child.id}: {child.title}")
@@ -1006,8 +976,8 @@ class Library:
         """
         input = {
             "operation": "list-children",
+            "workspace": self.api.workspace,
             "document-id": document_id,
-            "user": user,
         }
 
         response = self.request(input)
@@ -1028,7 +998,7 @@ class Library:
                         )
                         for w in v.get("metadata", [])
                     ],
-                    user=v["user"],
+                    workspace=v.get("workspace", ""),
                     tags=v.get("tags", []),
                     parent_id=v.get("parent-id", ""),
                     document_type=v.get("document-type", "source"),
@@ -1039,14 +1009,13 @@ class Library:
             logger.error("Failed to parse children response", exc_info=True)
             raise ProtocolException("Response not formatted correctly")
 
-    def get_document_content(self, user, id):
+    def get_document_content(self, id):
         """
         Get the content of a document.
 
         Retrieves the full content of a document as bytes.
 
         Args:
-            user: User identifier
             id: Document identifier
 
         Returns:
@@ -1055,10 +1024,7 @@ class Library:
         Example:
             ```python
             library = api.library()
-            content = library.get_document_content(
-                user="trustgraph",
-                id="doc-123"
-            )
+            content = library.get_document_content(id="doc-123")
 
             # Write to file
             with open("output.pdf", "wb") as f:
@@ -1067,7 +1033,7 @@ class Library:
         """
         input = {
             "operation": "get-document-content",
-            "user": user,
+            "workspace": self.api.workspace,
             "document-id": id,
         }
 
@@ -1076,7 +1042,7 @@ class Library:
 
         return base64.b64decode(content_b64)
 
-    def stream_document_to_file(self, user, id, file_path, chunk_size=1024*1024, on_progress=None):
+    def stream_document_to_file(self, id, file_path, chunk_size=1024*1024, on_progress=None):
         """
         Stream document content to a file.
 
@@ -1084,7 +1050,6 @@ class Library:
         enabling memory-efficient handling of large documents.
 
         Args:
-            user: User identifier
             id: Document identifier
             file_path: Path to write the document content
             chunk_size: Size of each chunk to download (default 1MB)
@@ -1101,7 +1066,6 @@ class Library:
                 print(f"Downloaded {received}/{total} bytes")
 
             library.stream_document_to_file(
-                user="trustgraph",
                 id="large-doc-123",
                 file_path="/tmp/document.pdf",
                 on_progress=progress
@@ -1116,7 +1080,7 @@ class Library:
             while True:
                 input = {
                     "operation": "stream-document",
-                    "user": user,
+                    "workspace": self.api.workspace,
                     "document-id": id,
                     "chunk-index": chunk_index,
                     "chunk-size": chunk_size,

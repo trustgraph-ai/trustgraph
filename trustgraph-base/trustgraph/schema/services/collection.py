@@ -13,7 +13,6 @@ from ..core.topic import queue
 @dataclass
 class CollectionMetadata:
     """Collection metadata record"""
-    user: str = ""
     collection: str = ""
     name: str = ""
     description: str = ""
@@ -23,11 +22,17 @@ class CollectionMetadata:
 
 @dataclass
 class CollectionManagementRequest:
-    """Request for collection management operations"""
+    """Request for collection management operations.
+
+    Collection-management is a global (non-flow-scoped) service, so the
+    workspace has to travel on the wire — it's the isolation boundary
+    for which workspace's collections the request operates on.
+    """
     operation: str = ""  # e.g., "delete-collection"
 
-    # For 'list-collections'
-    user: str = ""
+    # Workspace the collection belongs to.
+    workspace: str = ""
+
     collection: str = ""
     timestamp: str = ""  # ISO timestamp
     name: str = ""

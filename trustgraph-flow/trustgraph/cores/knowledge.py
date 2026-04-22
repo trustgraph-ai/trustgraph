@@ -33,7 +33,7 @@ class KnowledgeManager:
         logger.info("Deleting knowledge core...")
 
         await self.table_store.delete_kg_core(
-            request.user, request.id
+            request.workspace, request.id
         )
 
         await respond(
@@ -63,7 +63,7 @@ class KnowledgeManager:
 
         # Remove doc table row
         await self.table_store.get_triples(
-            request.user,
+            request.workspace,
             request.id,
             publish_triples,
         )
@@ -81,7 +81,7 @@ class KnowledgeManager:
 
         # Remove doc table row
         await self.table_store.get_graph_embeddings(
-            request.user,
+            request.workspace,
             request.id,
             publish_ge,
         )
@@ -100,7 +100,7 @@ class KnowledgeManager:
 
     async def list_kg_cores(self, request, respond):
 
-        ids = await self.table_store.list_kg_cores(request.user)
+        ids = await self.table_store.list_kg_cores(request.workspace)
 
         await respond(
             KnowledgeResponse(
@@ -114,12 +114,14 @@ class KnowledgeManager:
 
     async def put_kg_core(self, request, respond):
 
+        workspace = request.workspace
+
         if request.triples:
-            await self.table_store.add_triples(request.triples)
+            await self.table_store.add_triples(workspace, request.triples)
 
         if request.graph_embeddings:
             await self.table_store.add_graph_embeddings(
-                request.graph_embeddings
+                workspace, request.graph_embeddings
             )
 
         await respond(
@@ -178,10 +180,15 @@ class KnowledgeManager:
                 if request.flow is None:
                     raise RuntimeError("Flow ID must be specified")
 
-                if request.flow not in self.flow_config.flows:
-                    raise RuntimeError("Invalid flow")
+                workspace = request.workspace
+                ws_flows = self.flow_config.flows.get(workspace, {})
+                if request.flow not in ws_flows:
+                    raise RuntimeError(
+                        f"Invalid flow {request.flow} for workspace "
+                        f"{workspace}"
+                    )
 
-                flow = self.flow_config.flows[request.flow]
+                flow = ws_flows[request.flow]
 
                 if "interfaces" not in flow:
                     raise RuntimeError("No defined interfaces")
@@ -257,7 +264,7 @@ class KnowledgeManager:
 
                 # Remove doc table row
                 await self.table_store.get_triples(
-                    request.user,
+                    request.workspace,
                     request.id,
                     publish_triples,
                 )
@@ -272,7 +279,7 @@ class KnowledgeManager:
 
                 # Remove doc table row
                 await self.table_store.get_graph_embeddings(
-                    request.user,
+                    request.workspace,
                     request.id,
                     publish_ge,
                 )

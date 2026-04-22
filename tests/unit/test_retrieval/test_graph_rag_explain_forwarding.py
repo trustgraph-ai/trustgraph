@@ -120,7 +120,6 @@ class TestGraphRagServiceExplainTriples:
         msg = MagicMock()
         msg.value.return_value = GraphRagQuery(
             query="What is quantum computing?",
-            user="trustgraph",
             collection="default",
             streaming=False,
         )

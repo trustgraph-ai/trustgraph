@@ -48,7 +48,7 @@ class Librarian:
             raise RequestError("Document kind (MIME type) is required")
 
         if await self.table_store.document_exists(
-                request.document_metadata.user,
+                request.document_metadata.workspace,
                 request.document_metadata.id
         ):
             raise RuntimeError("Document already exists")
@@ -78,7 +78,7 @@ class Librarian:
         logger.debug("Removing document...")
 
         if not await self.table_store.document_exists(
-                request.user,
+                request.workspace,
                 request.document_id,
         ):
             raise RuntimeError("Document does not exist")
@@ -89,17 +89,17 @@ class Librarian:
             logger.debug(f"Cascade deleting child document {child.id}")
             try:
                 child_object_id = await self.table_store.get_document_object_id(
-                    child.user,
+                    child.workspace,
                     child.id
                 )
                 await self.blob_store.remove(child_object_id)
-                await self.table_store.remove_document(child.user, child.id)
+                await self.table_store.remove_document(child.workspace, child.id)
             except Exception as e:
                 logger.warning(f"Failed to delete child document {child.id}: {e}")
 
         # Now remove the parent document
         object_id = await self.table_store.get_document_object_id(
-            request.user,
+            request.workspace,
             request.document_id
         )
 
@@ -108,7 +108,7 @@ class Librarian:
 
         # Remove doc table row
         await self.table_store.remove_document(
-            request.user,
+            request.workspace,
             request.document_id
         )
 
@@ -120,10 +120,10 @@ class Librarian:
 
         logger.debug("Updating document...")
 
-        # You can't update the document ID, user or kind.
+        # You can't update the document ID, workspace or kind.
 
         if not await self.table_store.document_exists(
-                request.document_metadata.user,
+                request.document_metadata.workspace,
                 request.document_metadata.id
         ):
             raise RuntimeError("Document does not exist")
@@ -139,7 +139,7 @@ class Librarian:
         logger.debug("Getting document metadata...")
 
         doc = await self.table_store.get_document(
-            request.user,
+            request.workspace,
             request.document_id
         )
 
@@ -156,7 +156,7 @@ class Librarian:
         logger.debug("Getting document content...")
 
         object_id = await self.table_store.get_document_object_id(
-            request.user,
+            request.workspace,
             request.document_id
         )
 
@@ -180,18 +180,18 @@ class Librarian:
             raise RuntimeError("Collection parameter is required")
 
         if await self.table_store.processing_exists(
-                request.processing_metadata.user,
+                request.processing_metadata.workspace,
                 request.processing_metadata.id
         ):
             raise RuntimeError("Processing already exists")
 
         doc = await self.table_store.get_document(
-            request.processing_metadata.user,
+            request.processing_metadata.workspace,
             request.processing_metadata.document_id
         )
 
         object_id = await self.table_store.get_document_object_id(
-            request.processing_metadata.user,
+            request.processing_metadata.workspace,
             request.processing_metadata.document_id
         )
 
@@ -222,14 +222,14 @@ class Librarian:
         logger.debug("Removing processing metadata...")
 
         if not await self.table_store.processing_exists(
-                request.user,
+                request.workspace,
                 request.processing_id,
         ):
             raise RuntimeError("Processing object does not exist")
 
         # Remove doc table row
         await self.table_store.remove_processing(
-            request.user,
+            request.workspace,
             request.processing_id
         )
 
@@ -239,7 +239,7 @@ class Librarian:
 
     async def list_documents(self, request):
 
-        docs = await self.table_store.list_documents(request.user)
+        docs = await self.table_store.list_documents(request.workspace)
 
         # Filter out child documents and answer documents by default
         include_children = getattr(request, 'include_children', False)
@@ -256,7 +256,7 @@ class Librarian:
 
     async def list_processing(self, request):
 
-        procs = await self.table_store.list_processing(request.user)
+        procs = await self.table_store.list_processing(request.workspace)
 
         return LibrarianResponse(
             processing_metadatas = procs,
@@ -276,7 +276,7 @@ class Librarian:
             raise RequestError("Document kind (MIME type) is required")
 
         if await self.table_store.document_exists(
-                request.document_metadata.user,
+                request.document_metadata.workspace,
                 request.document_metadata.id
         ):
             raise RequestError("Document already exists")
@@ -312,14 +312,14 @@ class Librarian:
             "kind": request.document_metadata.kind,
             "title": request.document_metadata.title,
             "comments": request.document_metadata.comments,
-            "user": request.document_metadata.user,
+            "workspace": request.document_metadata.workspace,
             "tags": request.document_metadata.tags,
         })
 
         # Store session in Cassandra
         await self.table_store.create_upload_session(
             upload_id=upload_id,
-            user=request.document_metadata.user,
+            workspace=request.document_metadata.workspace,
             document_id=request.document_metadata.id,
             document_metadata=doc_meta_json,
             s3_upload_id=s3_upload_id,
@@ -352,7 +352,7 @@ class Librarian:
             raise RequestError("Upload session not found or expired")
 
         # Validate ownership
-        if session["user"] != request.user:
+        if session["workspace"] != request.workspace:
             raise RequestError("Not authorized to upload to this session")
 
         # Validate chunk index
@@ -419,7 +419,7 @@ class Librarian:
             raise RequestError("Upload session not found or expired")
 
         # Validate ownership
-        if session["user"] != request.user:
+        if session["workspace"] != request.workspace:
             raise RequestError("Not authorized to complete this upload")
 
         # Verify all chunks received
@@ -457,7 +457,7 @@ class Librarian:
             kind=doc_meta_dict["kind"],
             title=doc_meta_dict.get("title", ""),
             comments=doc_meta_dict.get("comments", ""),
-            user=doc_meta_dict["user"],
+            workspace=doc_meta_dict["workspace"],
             tags=doc_meta_dict.get("tags", []),
             metadata=[],  # Triples not supported in chunked upload yet
         )
@@ -488,7 +488,7 @@ class Librarian:
             raise RequestError("Upload session not found or expired")
 
         # Validate ownership
-        if session["user"] != request.user:
+        if session["workspace"] != request.workspace:
             raise RequestError("Not authorized to abort this upload")
 
         # Abort S3 multipart upload
@@ -520,7 +520,7 @@ class Librarian:
             )
 
         # Validate ownership
-        if session["user"] != request.user:
+        if session["workspace"] != request.workspace:
             raise RequestError("Not authorized to view this upload")
 
         chunks_received = session["chunks_received"]
@@ -548,11 +548,11 @@ class Librarian:
 
     async def list_uploads(self, request):
         """
-        List all in-progress uploads for a user.
+        List all in-progress uploads for a workspace.
         """
-        logger.debug(f"Listing uploads for user {request.user}")
+        logger.debug(f"Listing uploads for workspace {request.workspace}")
 
-        sessions = await self.table_store.list_upload_sessions(request.user)
+        sessions = await self.table_store.list_upload_sessions(request.workspace)
 
         upload_sessions = [
             UploadSession(
@@ -591,7 +591,7 @@ class Librarian:
 
         # Verify parent exists
         if not await self.table_store.document_exists(
-                request.document_metadata.user,
+                request.document_metadata.workspace,
                 request.document_metadata.parent_id
         ):
             raise RequestError(
@@ -599,7 +599,7 @@ class Librarian:
             )
 
         if await self.table_store.document_exists(
-                request.document_metadata.user,
+                request.document_metadata.workspace,
                 request.document_metadata.id
         ):
             raise RequestError("Document already exists")
@@ -665,7 +665,7 @@ class Librarian:
             )
 
         object_id = await self.table_store.get_document_object_id(
-            request.user,
+            request.workspace,
             request.document_id
         )
 

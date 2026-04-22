@@ -11,6 +11,7 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def describe_interfaces(intdefs, flow):
 
@@ -97,17 +98,19 @@ def format_parameters(flow_params, blueprint_params_metadata, param_type_defs):
 
     return "\n".join(param_list) if param_list else "None"
 
-async def fetch_show_flows(client):
+async def fetch_show_flows(client, workspace):
     """Fetch all data needed for show_flows concurrently."""
 
     # Round 1: list interfaces and list flows in parallel
     interface_names_resp, flow_ids_resp = await asyncio.gather(
         client._send_request("config", None, {
             "operation": "list",
+            "workspace": workspace,
             "type": "interface-description",
         }),
         client._send_request("flow", None, {
             "operation": "list-flows",
+            "workspace": workspace,
         }),
     )
 
@@ -115,12 +118,13 @@ async def fetch_show_flows(client):
     flow_ids = flow_ids_resp.get("flow-ids", [])
 
     if not flow_ids:
-        return {}, [], {}, {}
+        return {}, [], {}, {}, {}
 
     # Round 2: get all interfaces + all flows in parallel
     interface_tasks = [
         client._send_request("config", None, {
             "operation": "get",
+            "workspace": workspace,
             "keys": [{"type": "interface-description", "key": name}],
         })
         for name in interface_names
@@ -129,6 +133,7 @@ async def fetch_show_flows(client):
     flow_tasks = [
         client._send_request("flow", None, {
             "operation": "get-flow",
+            "workspace": workspace,
             "flow-id": fid,
         })
         for fid in flow_ids
@@ -163,6 +168,7 @@ async def fetch_show_flows(client):
     blueprint_tasks = [
         client._send_request("flow", None, {
             "operation": "get-blueprint",
+            "workspace": workspace,
             "blueprint-name": bp_name,
         })
         for bp_name in blueprint_names
@@ -186,6 +192,7 @@ async def fetch_show_flows(client):
     param_type_tasks = [
         client._send_request("config", None, {
             "operation": "get",
+            "workspace": workspace,
             "keys": [{"type": "parameter-type", "key": pt}],
         })
         for pt in param_types_needed
@@ -204,14 +211,16 @@ async def fetch_show_flows(client):
 
     return interface_defs, flow_ids, flows, blueprints, param_type_defs
 
-async def _show_flows_async(url, token=None):
+async def _show_flows_async(url, token=None, workspace="default"):
 
     async with AsyncSocketClient(url, timeout=60, token=token) as client:
-        return await fetch_show_flows(client)
+        return await fetch_show_flows(client, workspace)
 
-def show_flows(url, token=None):
+def show_flows(url, token=None, workspace="default"):
 
-    result = asyncio.run(_show_flows_async(url, token=token))
+    result = asyncio.run(_show_flows_async(
+        url, token=token, workspace=workspace,
+    ))
 
     interface_defs, flow_ids, flows, blueprints, param_type_defs = result
 
@@ -269,6 +278,12 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -276,6 +291,7 @@ def main():
         show_flows(
             url=args.api_url,
             token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

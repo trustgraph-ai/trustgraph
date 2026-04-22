@@ -31,7 +31,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
         self.vecstore = DocVectors(store_uri)
 
-    async def query_document_embeddings(self, msg):
+    async def query_document_embeddings(self, workspace, msg):
 
         try:
 
@@ -45,7 +45,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
             resp = self.vecstore.search(
                 vec,
-                msg.user,
+                workspace,
                 msg.collection,
                 limit=msg.limit
             )

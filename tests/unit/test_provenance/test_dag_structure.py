@@ -239,7 +239,7 @@ def _make_processor(tools=None):
     agent = MagicMock()
     agent.tools = tools or {}
     agent.additional_context = ""
-    processor.agent = agent
+    processor.agents = {"default": agent}
     processor.aggregator = MagicMock()
 
     return processor
@@ -254,6 +254,7 @@ def _make_flow():
         return producers[name]
 
     flow = MagicMock(side_effect=factory)
+    flow.workspace = "default"
     return flow
 
 
@@ -299,7 +300,7 @@ class TestAgentReactDagStructure:
         service.max_iterations = 10
         service.save_answer_content = AsyncMock()
         service.provenance_session_uri = processor.provenance_session_uri
-        service.agent = processor.agent
+        service.agents = processor.agents
         service.aggregator = processor.aggregator
 
         service.react_pattern = ReactPattern(service)
@@ -344,7 +345,6 @@ class TestAgentReactDagStructure:
 
             request1 = AgentRequest(
                 question="What is 6x7?",
-                user="testuser",
                 collection="default",
                 streaming=False,
                 session_id=session_id,
@@ -433,7 +433,7 @@ class TestAgentPlanDagStructure:
         service.max_iterations = 10
         service.save_answer_content = AsyncMock()
         service.provenance_session_uri = processor.provenance_session_uri
-        service.agent = processor.agent
+        service.agents = processor.agents
         service.aggregator = processor.aggregator
 
         service.react_pattern = ReactPattern(service)
@@ -480,7 +480,6 @@ class TestAgentPlanDagStructure:
         # Iteration 1: planning
         request1 = AgentRequest(
             question="Test?",
-            user="testuser",
             collection="default",
             streaming=False,
             session_id=session_id,
@@ -537,7 +536,7 @@ class TestAgentSupervisorDagStructure:
         service.max_iterations = 10
         service.save_answer_content = AsyncMock()
         service.provenance_session_uri = processor.provenance_session_uri
-        service.agent = processor.agent
+        service.agents = processor.agents
         service.aggregator = processor.aggregator
 
         service.react_pattern = ReactPattern(service)
@@ -563,7 +562,6 @@ class TestAgentSupervisorDagStructure:
 
         request = AgentRequest(
             question="Research quantum computing",
-            user="testuser",
             collection="default",
             streaming=False,
             session_id=str(uuid.uuid4()),

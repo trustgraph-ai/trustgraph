@@ -69,10 +69,11 @@ def ensure_namespace(url, tenant, namespace, config):
 
     print(f"Namespace {tenant}/{namespace} created.", flush=True)
 
-def ensure_config(config, **pubsub_config):
+def ensure_config(config, workspace="default", **pubsub_config):
 
     cli = ConfigClient(
         subscriber=subscriber,
+        workspace=workspace,
         **pubsub_config,
     )
 
@@ -147,7 +148,8 @@ def init_pulsar(pulsar_admin_url, tenant):
     })
 
 
-def push_config(config_json, config_file, **pubsub_config):
+def push_config(config_json, config_file, workspace="default",
+                **pubsub_config):
     """Push initial config if provided."""
 
     if config_json is not None:
@@ -160,7 +162,7 @@ def push_config(config_json, config_file, **pubsub_config):
             print("Exception:", e, flush=True)
             raise e
 
-        ensure_config(dec, **pubsub_config)
+        ensure_config(dec, workspace=workspace, **pubsub_config)
 
     elif config_file is not None:
 
@@ -172,7 +174,7 @@ def push_config(config_json, config_file, **pubsub_config):
             print("Exception:", e, flush=True)
             raise e
 
-        ensure_config(dec, **pubsub_config)
+        ensure_config(dec, workspace=workspace, **pubsub_config)
 
     else:
         print("No config to update.", flush=True)
@@ -207,6 +209,12 @@ def main():
         help=f'Tenant (default: tg)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default="default",
+        help=f'Workspace (default: default)',
+    )
+
     add_pubsub_args(parser)
 
     args = parser.parse_args()
@@ -216,7 +224,10 @@ def main():
     # Extract pubsub config from args
     pubsub_config = {
         k: v for k, v in vars(args).items()
-        if k not in ('pulsar_admin_url', 'config', 'config_file', 'tenant')
+        if k not in (
+            'pulsar_admin_url', 'config', 'config_file', 'tenant',
+            'workspace',
+        )
     }
 
     while True:
@@ -241,6 +252,7 @@ def main():
             # Push config (works with any backend)
             push_config(
                 args.config, args.config_file,
+                workspace=args.workspace,
                 **pubsub_config,
             )
 

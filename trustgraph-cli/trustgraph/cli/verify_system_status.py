@@ -25,6 +25,7 @@ default_pulsar_url = "http://localhost:8080"
 default_api_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
 default_ui_url = "http://localhost:8888"
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 
 class HealthChecker:
@@ -210,10 +211,10 @@ def check_processors(url: str, min_processors: int, timeout: int, tr, token: Opt
         return False, tr.t("cli.verify_system_status.processors.error", error=str(e))
 
 
-def check_flow_blueprints(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_flow_blueprints(url: str, timeout: int, tr, token: Optional[str] = None, workspace: str = "default") -> Tuple[bool, str]:
     """Check if flow blueprints are loaded."""
     try:
-        api = Api(url, token=token, timeout=timeout)
+        api = Api(url, token=token, timeout=timeout, workspace=workspace)
         flow_api = api.flow()
 
         blueprints = flow_api.list_blueprints()
@@ -227,10 +228,10 @@ def check_flow_blueprints(url: str, timeout: int, tr, token: Optional[str] = Non
         return False, tr.t("cli.verify_system_status.flow_blueprints.error", error=str(e))
 
 
-def check_flows(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_flows(url: str, timeout: int, tr, token: Optional[str] = None, workspace: str = "default") -> Tuple[bool, str]:
     """Check if flow manager is responding."""
     try:
-        api = Api(url, token=token, timeout=timeout)
+        api = Api(url, token=token, timeout=timeout, workspace=workspace)
         flow_api = api.flow()
 
         flows = flow_api.list()
@@ -242,10 +243,10 @@ def check_flows(url: str, timeout: int, tr, token: Optional[str] = None) -> Tupl
         return False, tr.t("cli.verify_system_status.flows.error", error=str(e))
 
 
-def check_prompts(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_prompts(url: str, timeout: int, tr, token: Optional[str] = None, workspace: str = "default") -> Tuple[bool, str]:
     """Check if prompts are loaded."""
     try:
-        api = Api(url, token=token, timeout=timeout)
+        api = Api(url, token=token, timeout=timeout, workspace=workspace)
         config = api.config()
 
         # Import ConfigKey here to avoid top-level import issues
@@ -268,14 +269,14 @@ def check_prompts(url: str, timeout: int, tr, token: Optional[str] = None) -> Tu
         return False, tr.t("cli.verify_system_status.prompts.error", error=str(e))
 
 
-def check_library(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
+def check_library(url: str, timeout: int, tr, token: Optional[str] = None, workspace: str = "default") -> Tuple[bool, str]:
     """Check if library service is responding."""
     try:
-        api = Api(url, token=token, timeout=timeout)
+        api = Api(url, token=token, timeout=timeout, workspace=workspace)
         library_api = api.library()
 
-        # Try to get documents (with default user)
-        docs = library_api.get_documents(user="trustgraph")
+        # Try to get documents
+        docs = library_api.get_documents()
 
         # Success if we get a valid response (even if empty)
         return True, tr.t("cli.verify_system_status.library.responding", count=len(docs))
@@ -377,6 +378,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='Show detailed output'
@@ -438,6 +445,7 @@ def main():
         args.check_timeout,
         tr,
         args.token,
+        args.workspace,
     )
 
     checker.run_check(
@@ -447,6 +455,7 @@ def main():
         args.check_timeout,
         tr,
         args.token,
+        args.workspace,
     )
 
     checker.run_check(
@@ -456,6 +465,7 @@ def main():
         args.check_timeout,
         tr,
         args.token,
+        args.workspace,
     )
 
     print()
@@ -471,6 +481,7 @@ def main():
         args.check_timeout,
         tr,
         args.token,
+        args.workspace,
     )
 
     print()

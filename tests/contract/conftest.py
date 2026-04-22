@@ -72,7 +72,6 @@ def sample_message_data():
         },
         "DocumentRagQuery": {
             "query": "What is artificial intelligence?",
-            "user": "test_user",
             "collection": "test_collection",
             "doc_limit": 10
         },
@@ -95,7 +94,6 @@ def sample_message_data():
         },
         "Metadata": {
             "id": "test-doc-123",
-            "user": "test_user",
             "collection": "test_collection"
         },
         "Term": {
@@ -130,9 +128,8 @@ def invalid_message_data():
             {},  # Missing required fields
         ],
         "DocumentRagQuery": [
-            {"query": None, "user": "test", "collection": "test", "doc_limit": 10},  # Invalid query
-            {"query": "test", "user": None, "collection": "test", "doc_limit": 10},  # Invalid user
-            {"query": "test", "user": "test", "collection": "test", "doc_limit": -1},  # Invalid doc_limit
+            {"query": None, "collection": "test", "doc_limit": 10},  # Invalid query
+            {"query": "test", "collection": "test", "doc_limit": -1},  # Invalid doc_limit
             {"query": "test"},  # Missing required fields
         ],
         "Term": [

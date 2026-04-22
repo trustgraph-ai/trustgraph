@@ -10,7 +10,7 @@ Usage:
         id=id, backend=self.pubsub, taskgroup=self.taskgroup, **params
     )
     await self.librarian.start()
-    content = await self.librarian.fetch_document_content(doc_id, user)
+    content = await self.librarian.fetch_document_content(doc_id, workspace)
 """
 
 import asyncio
@@ -150,7 +150,7 @@ class LibrarianClient:
         finally:
             self._streams.pop(request_id, None)
 
-    async def fetch_document_content(self, document_id, user, timeout=120):
+    async def fetch_document_content(self, document_id, workspace, timeout=120):
         """Fetch document content using streaming.
 
         Returns base64-encoded content. Caller is responsible for decoding.
@@ -158,7 +158,7 @@ class LibrarianClient:
         req = LibrarianRequest(
             operation="stream-document",
             document_id=document_id,
-            user=user,
+            workspace=workspace,
         )
         chunks = await self.stream(req, timeout=timeout)
 
@@ -176,24 +176,24 @@ class LibrarianClient:
 
         return base64.b64encode(raw)
 
-    async def fetch_document_text(self, document_id, user, timeout=120):
+    async def fetch_document_text(self, document_id, workspace, timeout=120):
         """Fetch document content and decode as UTF-8 text."""
         content = await self.fetch_document_content(
-            document_id, user, timeout=timeout,
+            document_id, workspace, timeout=timeout,
         )
         return base64.b64decode(content).decode("utf-8")
 
-    async def fetch_document_metadata(self, document_id, user, timeout=120):
+    async def fetch_document_metadata(self, document_id, workspace, timeout=120):
         """Fetch document metadata from the librarian."""
         req = LibrarianRequest(
             operation="get-document-metadata",
             document_id=document_id,
-            user=user,
+            workspace=workspace,
         )
         response = await self.request(req, timeout=timeout)
         return response.document_metadata
 
-    async def save_child_document(self, doc_id, parent_id, user, content,
+    async def save_child_document(self, doc_id, parent_id, workspace, content,
                                   document_type="chunk", title=None,
                                   kind="text/plain", timeout=120):
         """Save a child document to the librarian."""
@@ -202,7 +202,7 @@ class LibrarianClient:
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            user=user,
+            workspace=workspace,
             kind=kind,
             title=title or doc_id,
             parent_id=parent_id,
@@ -218,7 +218,7 @@ class LibrarianClient:
         await self.request(req, timeout=timeout)
         return doc_id
 
-    async def save_document(self, doc_id, user, content, title=None,
+    async def save_document(self, doc_id, workspace, content, title=None,
                             document_type="answer", kind="text/plain",
                             timeout=120):
         """Save a document to the librarian."""
@@ -227,7 +227,7 @@ class LibrarianClient:
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            user=user,
+            workspace=workspace,
             kind=kind,
             title=title or doc_id,
             document_type=document_type,
@@ -238,7 +238,7 @@ class LibrarianClient:
             document_id=doc_id,
             document_metadata=doc_metadata,
             content=base64.b64encode(content).decode("utf-8"),
-            user=user,
+            workspace=workspace,
         )
 
         await self.request(req, timeout=timeout)

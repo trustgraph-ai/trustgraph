@@ -115,7 +115,7 @@ class TestCassandraIntegration:
         
         # Create test message
         storage_message = Triples(
-            metadata=Metadata(user="testuser", collection="testcol"),
+            metadata=Metadata(collection="testcol"),
             triples=[
                 Triple(
                     s=Term(type=IRI, iri="http://example.org/person1"),
@@ -178,7 +178,7 @@ class TestCassandraIntegration:
         
         # Store test data for querying
         query_test_message = Triples(
-            metadata=Metadata(user="testuser", collection="testcol"),
+            metadata=Metadata(collection="testcol"),
             triples=[
                 Triple(
                     s=Term(type=IRI, iri="http://example.org/alice"),
@@ -212,7 +212,6 @@ class TestCassandraIntegration:
             p=None,  # None for wildcard
             o=None,  # None for wildcard
             limit=10,
-            user="testuser",
             collection="testcol"
         )
         s_results = await query_processor.query_triples(s_query)
@@ -232,7 +231,6 @@ class TestCassandraIntegration:
             p=Term(type=IRI, iri="http://example.org/knows"),
             o=None,  # None for wildcard
             limit=10,
-            user="testuser",
             collection="testcol"
         )
         p_results = await query_processor.query_triples(p_query)
@@ -259,7 +257,7 @@ class TestCassandraIntegration:
         # Create multiple coroutines for concurrent storage
         async def store_person_data(person_id, name, age, department):
             message = Triples(
-                metadata=Metadata(user="concurrent_test", collection="people"),
+                metadata=Metadata(collection="people"),
                 triples=[
                     Triple(
                         s=Term(type=IRI, iri=f"http://example.org/{person_id}"),
@@ -329,7 +327,7 @@ class TestCassandraIntegration:
         
         # Create a knowledge graph about a company
         company_graph = Triples(
-            metadata=Metadata(user="integration_test", collection="company"),
+            metadata=Metadata(collection="company"),
             triples=[
                 # People and their types
                 Triple(
