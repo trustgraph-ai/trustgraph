@@ -848,7 +848,6 @@ service, not in the config service. Reasons:
 - **API key scoping.** API keys could be scoped to specific collections
   within a workspace rather than granting workspace-wide access. To be
   designed when the need arises.
-- **tg-init-trustgraph** only initialises a single workspace.
 
 ## References
 

@@ -286,8 +286,9 @@ the general rule and its enforcement.
 ## Operational Notes
 
 - Running the bootstrapper as a processor-group entry replaces the
-  `tg-init-trustgraph` container. The script remains CLI-invocable
-  for standalone testing (`Processor.launch(...)` pattern).
+  previous `tg-init-trustgraph` container. The bootstrapper is also
+  CLI-invocable directly for standalone testing via
+  `Processor.launch(...)`.
 - First-boot convergence is typically a handful of short cycles
   followed by a transition to the steady cadence. Deployments
   should expect the first few minutes of logs to show
