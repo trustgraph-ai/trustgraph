@@ -412,7 +412,13 @@ class Processor(FlowProcessor):
                 id="extract-with-ontologies",
                 variables=prompt_variables
             )
-            extraction_response = result.object
+
+            # extract-with-ontologies is a JSONL prompt, so PromptResult
+            # always populates .objects (a list of dicts).  Reading .object
+            # (singular) silently gives None for JSONL responses and drops
+            # every extraction.
+            extraction_response = result.objects
+
             logger.debug(f"Simplified extraction response: {extraction_response}")
 
             # Parse response into structured format
