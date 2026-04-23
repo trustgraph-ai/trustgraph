@@ -12,31 +12,35 @@ class TestMetricsEndpoint:
     """Test cases for MetricsEndpoint class"""
 
     def test_metrics_endpoint_initialization(self):
-        """Test MetricsEndpoint initialization"""
+        """Construction records the configured capability on the
+        instance.  In production MetricsEndpoint is gated by
+        'metrics:read' so that's the natural value to pass."""
         mock_auth = MagicMock()
-        
+
         endpoint = MetricsEndpoint(
             prometheus_url="http://prometheus:9090",
             endpoint_path="/metrics",
-            auth=mock_auth
+            auth=mock_auth,
+            capability="metrics:read",
         )
-        
+
         assert endpoint.prometheus_url == "http://prometheus:9090"
         assert endpoint.path == "/metrics"
         assert endpoint.auth == mock_auth
-        assert endpoint.operation == "service"
+        assert endpoint.capability == "metrics:read"
 
     @pytest.mark.asyncio
     async def test_metrics_endpoint_start_method(self):
         """Test MetricsEndpoint start method (should be no-op)"""
         mock_auth = MagicMock()
-        
+
         endpoint = MetricsEndpoint(
             prometheus_url="http://localhost:9090",
             endpoint_path="/metrics",
-            auth=mock_auth
+            auth=mock_auth,
+            capability="metrics:read",
         )
-        
+
         # start() should complete without error
         await endpoint.start()
 
@@ -44,15 +48,16 @@ class TestMetricsEndpoint:
         """Test add_routes method registers GET route with wildcard path"""
         mock_auth = MagicMock()
         mock_app = MagicMock()
-        
+
         endpoint = MetricsEndpoint(
             prometheus_url="http://prometheus:9090",
             endpoint_path="/metrics",
-            auth=mock_auth
+            auth=mock_auth,
+            capability="metrics:read",
         )
-        
+
         endpoint.add_routes(mock_app)
-        
+
         # Verify add_routes was called with GET route
         mock_app.add_routes.assert_called_once()
         # The call should include web.get with wildcard path pattern

@@ -42,7 +42,7 @@ class TestDispatcherManager:
         mock_backend = Mock()
         mock_config_receiver = Mock()
         
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         assert manager.backend == mock_backend
         assert manager.config_receiver == mock_config_receiver
@@ -59,7 +59,10 @@ class TestDispatcherManager:
         mock_backend = Mock()
         mock_config_receiver = Mock()
         
-        manager = DispatcherManager(mock_backend, mock_config_receiver, prefix="custom-prefix")
+        manager = DispatcherManager(
+            mock_backend, mock_config_receiver,
+            auth=Mock(), prefix="custom-prefix",
+        )
         
         assert manager.prefix == "custom-prefix"
 
@@ -68,7 +71,7 @@ class TestDispatcherManager:
         """Test start_flow method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         flow_data = {"name": "test_flow", "steps": []}
         
@@ -82,7 +85,7 @@ class TestDispatcherManager:
         """Test stop_flow method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Pre-populate with a flow
         flow_data = {"name": "test_flow", "steps": []}
@@ -96,7 +99,7 @@ class TestDispatcherManager:
         """Test dispatch_global_service returns DispatcherWrapper"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         wrapper = manager.dispatch_global_service()
         
@@ -107,7 +110,7 @@ class TestDispatcherManager:
         """Test dispatch_core_export returns DispatcherWrapper"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         wrapper = manager.dispatch_core_export()
         
@@ -118,7 +121,7 @@ class TestDispatcherManager:
         """Test dispatch_core_import returns DispatcherWrapper"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         wrapper = manager.dispatch_core_import()
         
@@ -130,7 +133,7 @@ class TestDispatcherManager:
         """Test process_core_import method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         with patch('trustgraph.gateway.dispatch.manager.CoreImport') as mock_core_import:
             mock_importer = Mock()
@@ -148,7 +151,7 @@ class TestDispatcherManager:
         """Test process_core_export method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         with patch('trustgraph.gateway.dispatch.manager.CoreExport') as mock_core_export:
             mock_exporter = Mock()
@@ -166,7 +169,7 @@ class TestDispatcherManager:
         """Test process_global_service method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         manager.invoke_global_service = AsyncMock(return_value="global_result")
         
@@ -181,7 +184,7 @@ class TestDispatcherManager:
         """Test invoke_global_service with existing dispatcher"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Pre-populate with existing dispatcher
         mock_dispatcher = Mock()
@@ -198,7 +201,7 @@ class TestDispatcherManager:
         """Test invoke_global_service creates new dispatcher"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         with patch('trustgraph.gateway.dispatch.manager.global_dispatchers') as mock_dispatchers:
             mock_dispatcher_class = Mock()
@@ -230,7 +233,7 @@ class TestDispatcherManager:
         """Test dispatch_flow_import returns correct method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         result = manager.dispatch_flow_import()
         
@@ -240,7 +243,7 @@ class TestDispatcherManager:
         """Test dispatch_flow_export returns correct method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         result = manager.dispatch_flow_export()
         
@@ -250,7 +253,7 @@ class TestDispatcherManager:
         """Test dispatch_socket returns correct method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         result = manager.dispatch_socket()
         
@@ -260,7 +263,7 @@ class TestDispatcherManager:
         """Test dispatch_flow_service returns DispatcherWrapper"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         wrapper = manager.dispatch_flow_service()
         
@@ -272,7 +275,7 @@ class TestDispatcherManager:
         """Test process_flow_import with valid flow and kind"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Setup test flow
         manager.flows[("default", "test_flow")] = {
@@ -308,7 +311,7 @@ class TestDispatcherManager:
         """Test process_flow_import with invalid flow"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         params = {"flow": "invalid_flow", "kind": "triples"}
         
@@ -323,7 +326,7 @@ class TestDispatcherManager:
             warnings.simplefilter("ignore", RuntimeWarning)
             mock_backend = Mock()
             mock_config_receiver = Mock()
-            manager = DispatcherManager(mock_backend, mock_config_receiver)
+            manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Setup test flow
         manager.flows[("default", "test_flow")] = {
@@ -345,7 +348,7 @@ class TestDispatcherManager:
         """Test process_flow_export with valid flow and kind"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Setup test flow
         manager.flows[("default", "test_flow")] = {
@@ -378,26 +381,47 @@ class TestDispatcherManager:
 
     @pytest.mark.asyncio
     async def test_process_socket(self):
-        """Test process_socket method"""
+        """process_socket constructs a Mux with the manager's auth
+        instance passed through — this is the gateway's trust path
+        for first-frame WebSocket authentication.  A Mux cannot be
+        built without auth (tested separately); this test pins that
+        the dispatcher-manager threads the correct auth value into
+        the Mux constructor call."""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
-        
+        mock_auth = Mock()
+        manager = DispatcherManager(
+            mock_backend, mock_config_receiver, auth=mock_auth,
+        )
+
         with patch('trustgraph.gateway.dispatch.manager.Mux') as mock_mux:
             mock_mux_instance = Mock()
             mock_mux.return_value = mock_mux_instance
-            
+
             result = await manager.process_socket("ws", "running", {})
-            
-            mock_mux.assert_called_once_with(manager, "ws", "running")
+
+            mock_mux.assert_called_once_with(
+                manager, "ws", "running", auth=mock_auth,
+            )
             assert result == mock_mux_instance
+
+    def test_dispatcher_manager_requires_auth(self):
+        """Constructing a DispatcherManager without an auth argument
+        must fail — a no-auth DispatcherManager would produce a
+        Mux without authentication, silently downgrading the socket
+        auth path."""
+        mock_backend = Mock()
+        mock_config_receiver = Mock()
+
+        with pytest.raises(ValueError, match="auth"):
+            DispatcherManager(mock_backend, mock_config_receiver, auth=None)
 
     @pytest.mark.asyncio
     async def test_process_flow_service(self):
         """Test process_flow_service method"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         manager.invoke_flow_service = AsyncMock(return_value="flow_result")
         
@@ -412,7 +436,7 @@ class TestDispatcherManager:
         """Test invoke_flow_service with existing dispatcher"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Add flow to the flows dictionary
         manager.flows[("default", "test_flow")] = {"services": {"agent": {}}}
@@ -432,7 +456,7 @@ class TestDispatcherManager:
         """Test invoke_flow_service creates request-response dispatcher"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Setup test flow
         manager.flows[("default", "test_flow")] = {
@@ -476,7 +500,7 @@ class TestDispatcherManager:
         """Test invoke_flow_service creates sender dispatcher"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Setup test flow
         manager.flows[("default", "test_flow")] = {
@@ -516,7 +540,7 @@ class TestDispatcherManager:
         """Test invoke_flow_service with invalid flow"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         with pytest.raises(RuntimeError, match="Invalid flow"):
             await manager.invoke_flow_service("data", "responder", "default", "invalid_flow", "agent")
@@ -526,7 +550,7 @@ class TestDispatcherManager:
         """Test invoke_flow_service with kind not supported by flow"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         # Setup test flow without agent interface
         manager.flows[("default", "test_flow")] = {
@@ -543,7 +567,7 @@ class TestDispatcherManager:
         """Test invoke_flow_service with invalid kind"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
 
         # Setup test flow with interface but unsupported kind
         manager.flows[("default", "test_flow")] = {
@@ -570,7 +594,7 @@ class TestDispatcherManager:
         """
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
 
         async def slow_start():
             # Yield to the event loop so other coroutines get a chance to run,
@@ -606,7 +630,7 @@ class TestDispatcherManager:
         """
         mock_backend = Mock()
         mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_backend, mock_config_receiver)
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
 
         manager.flows[("default", "test_flow")] = {
             "interfaces": {

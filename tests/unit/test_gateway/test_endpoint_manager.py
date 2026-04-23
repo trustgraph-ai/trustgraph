@@ -12,30 +12,24 @@ class TestEndpointManager:
     """Test cases for EndpointManager class"""
 
     def test_endpoint_manager_initialization(self):
-        """Test EndpointManager initialization creates all endpoints"""
+        """EndpointManager wires up the full endpoint set and
+        records dispatcher_manager / timeout on the instance."""
         mock_dispatcher_manager = MagicMock()
         mock_auth = MagicMock()
-        
-        # Mock dispatcher methods
-        mock_dispatcher_manager.dispatch_global_service.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_socket.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_flow_service.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_flow_import.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_flow_export.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_core_import.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_core_export.return_value = MagicMock()
-        
+
+        # The dispatcher_manager exposes a small set of factory
+        # methods — MagicMock auto-creates them, returning fresh
+        # MagicMocks on each call.
         manager = EndpointManager(
             dispatcher_manager=mock_dispatcher_manager,
             auth=mock_auth,
             prometheus_url="http://prometheus:9090",
-            timeout=300
+            timeout=300,
         )
-        
+
         assert manager.dispatcher_manager == mock_dispatcher_manager
         assert manager.timeout == 300
-        assert manager.services == {}
-        assert len(manager.endpoints) > 0  # Should have multiple endpoints
+        assert len(manager.endpoints) > 0
 
     def test_endpoint_manager_with_default_timeout(self):
         """Test EndpointManager with default timeout value"""
@@ -79,9 +73,15 @@ class TestEndpointManager:
             prometheus_url="http://test:9090"
         )
         
-        # Verify all dispatcher methods were called during initialization
+        # Each dispatcher factory is invoked exactly once during
+        # construction — one per endpoint that needs a dedicated
+        # wire.  dispatch_auth_iam is the dedicated factory for the
+        # AuthEndpoints forwarder (login / bootstrap /
+        # change-password), distinct from dispatch_global_service
+        # (the generic /api/v1/{kind} route).
         mock_dispatcher_manager.dispatch_global_service.assert_called_once()
-        mock_dispatcher_manager.dispatch_socket.assert_called()  # Called twice
+        mock_dispatcher_manager.dispatch_auth_iam.assert_called_once()
+        mock_dispatcher_manager.dispatch_socket.assert_called_once()
         mock_dispatcher_manager.dispatch_flow_service.assert_called_once()
         mock_dispatcher_manager.dispatch_flow_import.assert_called_once()
         mock_dispatcher_manager.dispatch_flow_export.assert_called_once()

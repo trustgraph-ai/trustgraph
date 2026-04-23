@@ -12,48 +12,57 @@ class TestStreamEndpoint:
     """Test cases for StreamEndpoint class"""
 
     def test_stream_endpoint_initialization_with_post(self):
-        """Test StreamEndpoint initialization with POST method"""
+        """Construction records the configured capability on the
+        instance.  StreamEndpoint is used in production for the
+        core-import / core-export / document-stream routes; a
+        document-write capability is a realistic value for a POST
+        stream (e.g. core-import)."""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
+
         endpoint = StreamEndpoint(
             endpoint_path="/api/stream",
             auth=mock_auth,
             dispatcher=mock_dispatcher,
-            method="POST"
+            capability="documents:write",
+            method="POST",
         )
-        
+
         assert endpoint.path == "/api/stream"
         assert endpoint.auth == mock_auth
         assert endpoint.dispatcher == mock_dispatcher
-        assert endpoint.operation == "service"
+        assert endpoint.capability == "documents:write"
         assert endpoint.method == "POST"
 
     def test_stream_endpoint_initialization_with_get(self):
-        """Test StreamEndpoint initialization with GET method"""
+        """GET stream — export-style endpoint, read capability."""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
+
         endpoint = StreamEndpoint(
             endpoint_path="/api/stream",
             auth=mock_auth,
             dispatcher=mock_dispatcher,
-            method="GET"
+            capability="documents:read",
+            method="GET",
         )
-        
+
         assert endpoint.method == "GET"
 
     def test_stream_endpoint_initialization_default_method(self):
-        """Test StreamEndpoint initialization with default POST method"""
+        """Test StreamEndpoint initialization with default POST method.
+        The method default is cosmetic; the capability is not
+        defaulted — it is always required."""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
+
         endpoint = StreamEndpoint(
             endpoint_path="/api/stream",
             auth=mock_auth,
-            dispatcher=mock_dispatcher
+            dispatcher=mock_dispatcher,
+            capability="documents:write",
         )
-        
+
         assert endpoint.method == "POST"  # Default value
 
     @pytest.mark.asyncio
@@ -61,9 +70,12 @@ class TestStreamEndpoint:
         """Test StreamEndpoint start method (should be no-op)"""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
-        endpoint = StreamEndpoint("/api/stream", mock_auth, mock_dispatcher)
-        
+
+        endpoint = StreamEndpoint(
+            "/api/stream", mock_auth, mock_dispatcher,
+            capability="documents:write",
+        )
+
         # start() should complete without error
         await endpoint.start()
 
@@ -72,16 +84,17 @@ class TestStreamEndpoint:
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
         mock_app = MagicMock()
-        
+
         endpoint = StreamEndpoint(
             endpoint_path="/api/stream",
             auth=mock_auth,
             dispatcher=mock_dispatcher,
-            method="POST"
+            capability="documents:write",
+            method="POST",
         )
-        
+
         endpoint.add_routes(mock_app)
-        
+
         # Verify add_routes was called with POST route
         mock_app.add_routes.assert_called_once()
         call_args = mock_app.add_routes.call_args[0][0]
@@ -92,16 +105,17 @@ class TestStreamEndpoint:
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
         mock_app = MagicMock()
-        
+
         endpoint = StreamEndpoint(
             endpoint_path="/api/stream",
             auth=mock_auth,
             dispatcher=mock_dispatcher,
-            method="GET"
+            capability="documents:read",
+            method="GET",
         )
-        
+
         endpoint.add_routes(mock_app)
-        
+
         # Verify add_routes was called with GET route
         mock_app.add_routes.assert_called_once()
         call_args = mock_app.add_routes.call_args[0][0]
@@ -112,13 +126,14 @@ class TestStreamEndpoint:
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
         mock_app = MagicMock()
-        
+
         endpoint = StreamEndpoint(
             endpoint_path="/api/stream",
             auth=mock_auth,
             dispatcher=mock_dispatcher,
-            method="INVALID"
+            capability="documents:write",
+            method="INVALID",
         )
-        
+
         with pytest.raises(RuntimeError, match="Bad method"):
             endpoint.add_routes(mock_app)

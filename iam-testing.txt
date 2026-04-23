@@ -1,0 +1,252 @@
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation": "bootstrap"}'
+
+
+
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation": "resolve-api-key", "api_key": "tg_r-n43hDWV9WOY06w6o5YpevAxirlS33D"}'
+
+
+
+
+
+
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation": "resolve-api-key", "api_key": "asdalsdjasdkasdasda"}'
+
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"list-users","workspace":"default"}'
+
+
+
+  # 1. Admin creates a writer user "alice"
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{
+      "operation": "create-user",
+      "workspace": "default",
+      "user": {
+        "username": "alice",
+        "name": "Alice",
+        "email": "alice@example.com",
+        "password": "changeme",
+        "roles": ["writer"]
+      }
+    }'
+  # expect: {"user": {"id": "<alice-uuid>", ...}}  — grab alice's uuid                                                                           
+                                                                                                                                                 
+  # 2. Issue alice an API key                                                                                                                    
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{
+      "operation": "create-api-key",
+      "workspace": "default",
+      "key": {
+        "user_id": "f2363a10-3b83-44ea-a008-43caae8ba607",
+        "name": "alice-laptop"
+      }
+    }'
+  # expect: {"api_key_plaintext": "tg_...", "api_key": {"id": "<key-uuid>", "prefix": "tg_xxxx", ...}}                                           
+                                                                                                                                                 
+  # 3. Resolve alice's key — should return alice's id + workspace + writer role                                                                  
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"resolve-api-key","api_key":"tg_gt4buvk5NG-QS7oP_0Gk5yTWyj1qensf"}'
+
+  # expect: {"resolved_user_id":"<alice-uuid>","resolved_workspace":"default","resolved_roles":["writer"]}                                       
+                                                                                                                                                 
+  # 4. List alice's keys (admin view of alice's keys)
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"list-api-keys","workspace":"default","user_id":"f2363a10-3b83-44ea-a008-43caae8ba607"}'
+  # expect: {"api_keys": [{"id":"<key-uuid>","user_id":"<alice-uuid>","name":"alice-laptop","prefix":"tg_xxxx",...}]}                            
+                                                                                                                                                 
+  # 5. Revoke alice's key                                                                                                                        
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"revoke-api-key","workspace":"default","key_id":"55f1c1f7-5448-49fd-9eda-56c192b61177"}'
+
+
+  # expect: {}  (empty, no error)                                                                                                                
+                                                                      
+  # 6. Confirm the revoked key no longer resolves                                                                                                
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"resolve-api-key","api_key":"tg_gt4buvk5NG-QS7oP_0Gk5yTWyj1qensf"}'
+  # expect: {"error":{"type":"auth-failed","message":"unknown api key"}}                                                                         
+
+
+
+----------------------------------------------------------------------------
+
+  You'll want to re-bootstrap a fresh deployment to pick up the new signing-key row (or accept that login will lazily generate one on first      
+  call). Then:                                                        
+                                                                                                                                                 
+  # 1. Create a user with a known password (admin's password is random)
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"create-user","workspace":"default","user":{"username":"alice","password":"s3cret","roles":["writer"]}}'
+
+
+                                                                                                                                                 
+  # 2. Log alice in                                                                                                                              
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"login","username":"alice","password":"s3cret"}'
+  # expect: {"jwt":"eyJ...","jwt_expires":"2026-..."}                                                                                            
+                                                                                                                                                 
+  # 3. Fetch the public key (what the gateway will use later to verify)
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"get-signing-key-public"}'
+
+  # expect: {"signing_key_public":"-----BEGIN PUBLIC KEY-----\n..."}                                                                             
+                                                                                                                                                 
+  # 4. Wrong password
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Authorization: Bearer $GATEWAY_SECRET" \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"login","username":"alice","password":"nope"}'
+
+
+
+  # expect: {"error":{"type":"auth-failed","message":"bad credentials"}}                                                                         
+
+
+
+
+
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAseLB/a9Bo/RN/Rb/x763
++vdxmUKG75oWsXBmbwZGDXyN6fwqZ3L7cEje93qK0PYFuCHxhY1Hn0gW7FZ8ovH+
+qEksekUlpfPYqKGiT5Mb0DKk49D4yKkIbJFugWalpwIilvRbQO0jy3V8knqGQ1xL
+NfNYFrI2Rxe0Tq2OHVYc5YwYbyj1nz2TY5fd9qrzXtGRv5HZztkl25lWhRvG9G0K
+urKDdBDbi894gIYorXvcwZw/b1GDXG/aUy/By1Oy3hXnCLsN8pA3nA437TTTWxHx
+QgPH15jIF9hezO+3/ESZ7EhVEtgmwTxPddfXRa0ZoT6JyWOgcloKtnP4Lp9eQ4va
+yQIDAQAB
+-----END PUBLIC KEY-----
+
+
+
+
+
+  New operations:                                                                                                                                
+  - change-password — self-service. Requires current + new password.
+  - reset-password — admin-driven. Generates a random temporary, sets must_change_password=true, returns plaintext once.                         
+  - get-user, update-user, disable-user — workspace-scoped. update-user refuses to change username (immutable — error if different) and refuses
+  password-via-update. disable-user also revokes all the user's API keys, per spec.                                                              
+  - create-workspace, list-workspaces, get-workspace, update-workspace, disable-workspace — system-level. disable-workspace cascades: disables   
+  all users + revokes all their keys. Rejects ids starting with _ (reserved, per the bootstrap framework convention).                            
+  - rotate-signing-key — generates a new Ed25519 key, retires the current one (sets retired timestamp; row stays for future grace-period         
+  validation), switches the in-memory cache.                          
+                                                                                                                                                 
+  Touched files:                                                      
+  - trustgraph-flow/trustgraph/tables/iam.py — added retire_signing_key, update_user_profile, update_user_password, update_user_enabled,         
+  update_workspace.                                                                                                                              
+  - trustgraph-flow/trustgraph/iam/service/iam.py — 12 new handlers + dispatch entries.
+  - trustgraph-base/trustgraph/base/iam_client.py — matching client helpers for all of them.                                                     
+                                                                                                                                                 
+  Smoke-test suggestions:
+                                                                                                                                                 
+  # change password for alice (from "s3cret" → "n3wer")               
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"change-password","user_id":"b2960feb-caef-401d-af65-01bdb6960cad","password":"s3cret","new_password":"n3wer"}'
+                                                                                                                                                 
+  # login with new password                                                                                                                      
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"login","username":"alice","password":"n3wer"}'
+
+  # admin resets alice's password                                                                                                                
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"reset-password","workspace":"default","user_id":"b2960feb-caef-401d-af65-01bdb6960cad"}'
+
+
+  # → {"temporary_password":"..."}                                                                                                               
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"login","username":"alice","password":"fH2ttyrIcVXCIkH_"}'
+
+                                                                                                                                                 
+  # create a second workspace                                                                                                                    
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"create-workspace","workspace_record":{"id":"acme","name":"Acme Corp","enabled":true}}'
+
+
+  # rotate signing key (next login produces a JWT signed by a new kid)
+
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"rotate-signing-key"}'
+                                                                      
+
+
+
+
+
+  curl -s -X POST "http://localhost:8088/api/v1/flow" \
+    -H "Authorization: Bearer tg_bs_kBAhfejiEJmbcO1gElbxk3MpV7wQFygP" \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"list-flows"}'
+
+  curl -s -X POST "http://localhost:8088/api/v1/iam" \
+    -H "Authorization: Bearer tg_bs_kBAhfejiEJmbcO1gElbxk3MpV7wQFygP" \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"list-users"}'
+
+
+
+  curl -s -X POST http://localhost:8088/api/v1/iam \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer tg_bs_kBAhfejiEJmbcO1gElbxk3MpV7wQFygP" \
+    -d '{
+      "operation": "create-user",
+      "workspace": "default",
+      "user": {
+        "username": "alice",
+        "name": "Alice",
+        "email": "alice@example.com",
+        "password": "s3cret",
+        "roles": ["writer"]
+      }
+    }'
+
+
+
+
+  # Login (public, no token needed) → returns a JWT                                                                                              
+  curl -s -X POST "http://localhost:8088/api/v1/auth/login" \
+    -H "Content-Type: application/json" \
+    -d '{"username":"alice","password":"s3cret"}'
+
+
+
+  export TRUSTGRAPH_TOKEN=$(tg-bootstrap-iam)   # on fresh bootstrap-mode deployment
+  # or set to your existing admin API key
+
+  tg-create-user --username alice --roles writer
+  # → prints alice's user id
+
+  ALICE_ID=<uuid from above>
+
+  ALICE_KEY=$(tg-create-api-key --user-id $ALICE_ID --name alice-laptop)
+  # → alice's plaintext API key
+
+  tg-list-users
+  tg-list-api-keys --user-id $ALICE_ID
+
+  tg-revoke-api-key --key-id <...>
+  tg-disable-user --user-id $ALICE_ID
+
+  # User self-service:
+  tg-login --username alice          # prompts for password, prints JWT
+  tg-change-password                  # prompts for current + new
+
+

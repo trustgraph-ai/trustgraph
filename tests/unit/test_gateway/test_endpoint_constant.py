@@ -13,29 +13,36 @@ class TestConstantEndpoint:
     """Test cases for ConstantEndpoint class"""
 
     def test_constant_endpoint_initialization(self):
-        """Test ConstantEndpoint initialization"""
+        """Construction records the configured capability on the
+        instance.  The capability is a required argument — no
+        permissive default — and the test passes an explicit
+        value to demonstrate the contract."""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
+
         endpoint = ConstantEndpoint(
             endpoint_path="/api/test",
             auth=mock_auth,
-            dispatcher=mock_dispatcher
+            dispatcher=mock_dispatcher,
+            capability="config:read",
         )
-        
+
         assert endpoint.path == "/api/test"
         assert endpoint.auth == mock_auth
         assert endpoint.dispatcher == mock_dispatcher
-        assert endpoint.operation == "service"
+        assert endpoint.capability == "config:read"
 
     @pytest.mark.asyncio
     async def test_constant_endpoint_start_method(self):
         """Test ConstantEndpoint start method (should be no-op)"""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
-        endpoint = ConstantEndpoint("/api/test", mock_auth, mock_dispatcher)
-        
+
+        endpoint = ConstantEndpoint(
+            "/api/test", mock_auth, mock_dispatcher,
+            capability="config:read",
+        )
+
         # start() should complete without error
         await endpoint.start()
 
@@ -44,10 +51,13 @@ class TestConstantEndpoint:
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
         mock_app = MagicMock()
-        
-        endpoint = ConstantEndpoint("/api/test", mock_auth, mock_dispatcher)
+
+        endpoint = ConstantEndpoint(
+            "/api/test", mock_auth, mock_dispatcher,
+            capability="config:read",
+        )
         endpoint.add_routes(mock_app)
-        
+
         # Verify add_routes was called with POST route
         mock_app.add_routes.assert_called_once()
         # The call should include web.post with the path and handler
