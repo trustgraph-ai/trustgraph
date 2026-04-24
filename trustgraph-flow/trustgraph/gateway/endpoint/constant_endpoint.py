@@ -1,28 +1,27 @@
 
-import asyncio
-from aiohttp import web
-import uuid
 import logging
+
+from aiohttp import web
+
+from .. capabilities import enforce, enforce_workspace
 
 logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)
 
+
 class ConstantEndpoint:
 
-    def __init__(self, endpoint_path, auth, dispatcher):
+    def __init__(self, endpoint_path, auth, dispatcher, capability):
 
         self.path = endpoint_path
-
         self.auth = auth
-        self.operation = "service"
-
+        self.capability = capability
         self.dispatcher = dispatcher
 
     async def start(self):
         pass
 
     def add_routes(self, app):
-
         app.add_routes([
             web.post(self.path, self.handle),
         ])
@@ -31,21 +30,13 @@ class ConstantEndpoint:
 
         logger.debug(f"Processing request: {request.path}")
 
-        try:
-            ht = request.headers["Authorization"]
-            tokens = ht.split(" ", 2)
-            if tokens[0] != "Bearer":
-                return web.HTTPUnauthorized()
-            token = tokens[1]
-        except:
-            token = ""
-
-        if not self.auth.permitted(token, self.operation):
-            return web.HTTPUnauthorized()
+        identity = await enforce(request, self.auth, self.capability)
 
         try:
-
             data = await request.json()
+
+            if identity is not None:
+                enforce_workspace(data, identity)
 
             async def responder(x, fin):
                 pass
@@ -54,10 +45,8 @@ class ConstantEndpoint:
 
             return web.json_response(resp)
 
+        except web.HTTPException:
+            raise
         except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
+            logger.error(f"Exception: {e}", exc_info=True)
+            return web.json_response({"error": str(e)})

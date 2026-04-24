@@ -1,4 +1,15 @@
-"""Unit tests for SocketEndpoint graceful shutdown functionality."""
+"""Unit tests for SocketEndpoint graceful shutdown functionality.
+
+These tests exercise SocketEndpoint in its handshake-auth
+configuration (``in_band_auth=False``) — the mode used in production
+for the flow import/export streaming endpoints.  The mux socket at
+``/api/v1/socket`` uses ``in_band_auth=True`` instead, where the
+handshake always accepts and authentication runs on the first
+WebSocket frame; that path is covered by the Mux tests.
+
+Every endpoint constructor here passes an explicit capability — no
+permissive default is relied upon.
+"""
 
 import pytest
 import asyncio
@@ -6,13 +17,31 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from aiohttp import web, WSMsgType
 from trustgraph.gateway.endpoint.socket import SocketEndpoint
 from trustgraph.gateway.running import Running
+from trustgraph.gateway.auth import Identity
+
+
+# Representative capability used across these tests — corresponds to
+# the flow-import streaming endpoint pattern that uses this class.
+TEST_CAP = "graph:write"
+
+
+def _valid_identity(roles=("admin",)):
+    return Identity(
+        user_id="test-user",
+        workspace="default",
+        roles=list(roles),
+        source="api-key",
+    )
 
 
 @pytest.fixture
 def mock_auth():
-    """Mock authentication service."""
+    """Mock IAM-backed authenticator.  Successful by default —
+    ``authenticate`` returns a valid admin identity.  Tests that
+    need the auth failure path override the ``authenticate``
+    attribute locally."""
     auth = MagicMock()
-    auth.permitted.return_value = True
+    auth.authenticate = AsyncMock(return_value=_valid_identity())
     return auth
 
 
@@ -25,7 +54,7 @@ def mock_dispatcher_factory():
         dispatcher.receive = AsyncMock()
         dispatcher.destroy = AsyncMock()
         return dispatcher
-    
+
     return dispatcher_factory
 
 
@@ -35,7 +64,8 @@ def socket_endpoint(mock_auth, mock_dispatcher_factory):
     return SocketEndpoint(
         endpoint_path="/test-socket",
         auth=mock_auth,
-        dispatcher=mock_dispatcher_factory
+        dispatcher=mock_dispatcher_factory,
+        capability=TEST_CAP,
     )
 
 
@@ -61,7 +91,10 @@ def mock_request():
 @pytest.mark.asyncio
 async def test_listener_graceful_shutdown_on_close():
     """Test listener handles websocket close gracefully."""
-    socket_endpoint = SocketEndpoint("/test", MagicMock(), AsyncMock())
+    socket_endpoint = SocketEndpoint(
+        "/test", MagicMock(), AsyncMock(),
+        capability=TEST_CAP,
+    )
     
     # Mock websocket that closes after one message
     ws = AsyncMock()
@@ -99,9 +132,9 @@ async def test_listener_graceful_shutdown_on_close():
 
 @pytest.mark.asyncio
 async def test_handle_normal_flow():
-    """Test normal websocket handling flow."""
+    """Valid bearer → handshake accepted, dispatcher created."""
     mock_auth = MagicMock()
-    mock_auth.permitted.return_value = True
+    mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
 
     dispatcher_created = False
     async def mock_dispatcher_factory(ws, running, match_info):
@@ -111,7 +144,10 @@ async def test_handle_normal_flow():
         dispatcher.destroy = AsyncMock()
         return dispatcher
 
-    socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
+    socket_endpoint = SocketEndpoint(
+        "/test", mock_auth, mock_dispatcher_factory,
+        capability=TEST_CAP,
+    )
 
     request = MagicMock()
     request.query = {"token": "valid-token"}
@@ -155,7 +191,7 @@ async def test_handle_normal_flow():
 async def test_handle_exception_group_cleanup():
     """Test exception group triggers dispatcher cleanup."""
     mock_auth = MagicMock()
-    mock_auth.permitted.return_value = True
+    mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
 
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()
@@ -163,7 +199,10 @@ async def test_handle_exception_group_cleanup():
     async def mock_dispatcher_factory(ws, running, match_info):
         return mock_dispatcher
 
-    socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
+    socket_endpoint = SocketEndpoint(
+        "/test", mock_auth, mock_dispatcher_factory,
+        capability=TEST_CAP,
+    )
 
     request = MagicMock()
     request.query = {"token": "valid-token"}
@@ -222,7 +261,7 @@ async def test_handle_exception_group_cleanup():
 async def test_handle_dispatcher_cleanup_timeout():
     """Test dispatcher cleanup with timeout."""
     mock_auth = MagicMock()
-    mock_auth.permitted.return_value = True
+    mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
 
     # Mock dispatcher that takes long to destroy
     mock_dispatcher = AsyncMock()
@@ -231,7 +270,10 @@ async def test_handle_dispatcher_cleanup_timeout():
     async def mock_dispatcher_factory(ws, running, match_info):
         return mock_dispatcher
 
-    socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
+    socket_endpoint = SocketEndpoint(
+        "/test", mock_auth, mock_dispatcher_factory,
+        capability=TEST_CAP,
+    )
 
     request = MagicMock()
     request.query = {"token": "valid-token"}
@@ -285,49 +327,67 @@ async def test_handle_dispatcher_cleanup_timeout():
 
 @pytest.mark.asyncio
 async def test_handle_unauthorized_request():
-    """Test handling of unauthorized requests."""
+    """A bearer that the IAM layer rejects causes the handshake to
+    fail with 401.  IamAuth surfaces an HTTPUnauthorized; the
+    endpoint propagates it.  Note that the endpoint intentionally
+    does NOT distinguish 'bad token', 'expired', 'revoked', etc. —
+    that's the IAM error-masking policy."""
     mock_auth = MagicMock()
-    mock_auth.permitted.return_value = False  # Unauthorized
-    
-    socket_endpoint = SocketEndpoint("/test", mock_auth, AsyncMock())
-    
+    mock_auth.authenticate = AsyncMock(side_effect=web.HTTPUnauthorized(
+        text='{"error":"auth failure"}',
+        content_type="application/json",
+    ))
+
+    socket_endpoint = SocketEndpoint(
+        "/test", mock_auth, AsyncMock(),
+        capability=TEST_CAP,
+    )
+
     request = MagicMock()
     request.query = {"token": "invalid-token"}
-    
+
     result = await socket_endpoint.handle(request)
-    
-    # Should return HTTP 401
+
     assert isinstance(result, web.HTTPUnauthorized)
-    
-    # Should have checked permission
-    mock_auth.permitted.assert_called_once_with("invalid-token", "socket")
+    # authenticate must have been invoked with a synthetic request
+    # carrying Bearer <the-token>.  The endpoint wraps the query-
+    # string token into an Authorization header for a uniform auth
+    # path — the IAM layer does not look at query strings directly.
+    mock_auth.authenticate.assert_called_once()
+    passed_req = mock_auth.authenticate.call_args.args[0]
+    assert passed_req.headers["Authorization"] == "Bearer invalid-token"
 
 
 @pytest.mark.asyncio
 async def test_handle_missing_token():
-    """Test handling of requests with missing token."""
+    """Request with no ``token`` query param → 401 before any
+    IAM call is made (cheap short-circuit)."""
     mock_auth = MagicMock()
-    mock_auth.permitted.return_value = False
-    
-    socket_endpoint = SocketEndpoint("/test", mock_auth, AsyncMock())
-    
+    mock_auth.authenticate = AsyncMock(
+        side_effect=AssertionError(
+            "authenticate must not be invoked when no token is present"
+        ),
+    )
+
+    socket_endpoint = SocketEndpoint(
+        "/test", mock_auth, AsyncMock(),
+        capability=TEST_CAP,
+    )
+
     request = MagicMock()
     request.query = {}  # No token
-    
+
     result = await socket_endpoint.handle(request)
-    
-    # Should return HTTP 401
+
     assert isinstance(result, web.HTTPUnauthorized)
-    
-    # Should have checked permission with empty token
-    mock_auth.permitted.assert_called_once_with("", "socket")
+    mock_auth.authenticate.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_handle_websocket_already_closed():
     """Test handling when websocket is already closed."""
     mock_auth = MagicMock()
-    mock_auth.permitted.return_value = True
+    mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
 
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()
@@ -335,7 +395,10 @@ async def test_handle_websocket_already_closed():
     async def mock_dispatcher_factory(ws, running, match_info):
         return mock_dispatcher
 
-    socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
+    socket_endpoint = SocketEndpoint(
+        "/test", mock_auth, mock_dispatcher_factory,
+        capability=TEST_CAP,
+    )
 
     request = MagicMock()
     request.query = {"token": "valid-token"}

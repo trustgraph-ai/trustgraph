@@ -16,11 +16,28 @@ MAX_QUEUE_SIZE = 10
 
 class Mux:
 
-    def __init__(self, dispatcher_manager, ws, running):
+    def __init__(self, dispatcher_manager, ws, running, auth):
+        """
+        ``auth`` is required — the Mux implements the first-frame
+        auth protocol described in ``iam.md`` and will refuse any
+        non-auth frame until an ``auth-ok`` has been issued.  There
+        is no no-auth mode.
+        """
+        if auth is None:
+            raise ValueError(
+                "Mux requires an 'auth' argument — there is no "
+                "no-auth mode"
+            )
 
         self.dispatcher_manager = dispatcher_manager
         self.ws = ws
         self.running = running
+        self.auth = auth
+
+        # Authenticated identity, populated by the first-frame auth
+        # protocol.  ``None`` means the socket is not yet
+        # authenticated; any non-auth frame is refused.
+        self.identity = None
 
         self.q = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 
@@ -31,6 +48,41 @@ class Mux:
         if self.ws:
             await self.ws.close()
 
+    async def _handle_auth_frame(self, data):
+        """Process a ``{"type": "auth", "token": "..."}`` frame.
+        On success, updates ``self.identity`` and returns an
+        ``auth-ok`` response frame.  On failure, returns the masked
+        auth-failure frame.  Never raises — auth failures keep the
+        socket open so the client can retry without reconnecting
+        (important for browsers, which treat a handshake-time 401
+        as terminal)."""
+        token = data.get("token", "")
+        if not token:
+            await self.ws.send_json({
+                "type": "auth-failed",
+                "error": "auth failure",
+            })
+            return
+
+        class _Shim:
+            def __init__(self, tok):
+                self.headers = {"Authorization": f"Bearer {tok}"}
+
+        try:
+            identity = await self.auth.authenticate(_Shim(token))
+        except Exception:
+            await self.ws.send_json({
+                "type": "auth-failed",
+                "error": "auth failure",
+            })
+            return
+
+        self.identity = identity
+        await self.ws.send_json({
+            "type": "auth-ok",
+            "workspace": identity.workspace,
+        })
+
     async def receive(self, msg):
 
         request_id = None
@@ -38,6 +90,16 @@ class Mux:
         try:
 
             data = msg.json()
+
+            # In-band auth protocol: the client sends
+            # ``{"type": "auth", "token": "..."}`` as its first frame
+            # (and any time it wants to re-auth: JWT refresh, token
+            # rotation, etc).  Auth is always required on a Mux —
+            # there is no no-auth mode.
+            if isinstance(data, dict) and data.get("type") == "auth":
+                await self._handle_auth_frame(data)
+                return
+
             request_id = data.get("id")
 
             if "request" not in data:
@@ -46,9 +108,49 @@ class Mux:
             if "id" not in data:
                 raise RuntimeError("Bad message")
 
+            # Reject all non-auth frames until an ``auth-ok`` has
+            # been issued.
+            if self.identity is None:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "auth failure",
+                        "type": "auth-required",
+                    },
+                    "complete": True,
+                })
+                return
+
+            # Workspace resolution.  Role workspace scope determines
+            # which target workspaces are permitted.  The resolved
+            # value is written to both the envelope and the inner
+            # request payload so clients don't have to repeat it
+            # per-message (same convenience HTTP callers get via
+            # enforce_workspace).
+            from ..capabilities import enforce_workspace
+            from aiohttp import web as _web
+
+            try:
+                enforce_workspace(data, self.identity)
+                inner = data.get("request")
+                if isinstance(inner, dict):
+                    enforce_workspace(inner, self.identity)
+            except _web.HTTPForbidden:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "access denied",
+                        "type": "access-denied",
+                    },
+                    "complete": True,
+                })
+                return
+
+            workspace = data["workspace"]
+
             await self.q.put((
                     data["id"],
-                    data.get("workspace", "default"),
+                    workspace,
                     data.get("flow"),
                     data["service"],
                     data["request"]

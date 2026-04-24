@@ -423,6 +423,37 @@ resolve API keys and to handle login requests. User management
 operations (create user, revoke key, etc.) also go through the IAM
 service.
 
+### Error policy
+
+External error responses carry **no diagnostic detail** for
+authentication or access-control failures. The goal is to give an
+attacker probing the endpoint no signal about which condition they
+tripped.
+
+| Category | HTTP | Body | WebSocket frame |
+|----------|------|------|-----------------|
+| Authentication failure | `401 Unauthorized` | `{"error": "auth failure"}` | `{"type": "auth-failed", "error": "auth failure"}` |
+| Access control failure | `403 Forbidden` | `{"error": "access denied"}` | `{"error": "access denied"}` (endpoint-specific frame type) |
+
+"Authentication failure" covers missing credential, malformed
+credential, invalid signature, expired token, revoked API key, and
+unknown API key — all indistinguishable to the caller.
+
+"Access control failure" covers role insufficient, workspace
+mismatch, user disabled, and workspace disabled — all
+indistinguishable to the caller.
+
+**Server-side logging is richer.** The audit log records the specific
+reason (`"workspace-mismatch: user alice assigned 'acme', requested
+'beta'"`, `"role-insufficient: admin required, user has writer"`,
+etc.) for operators and post-incident forensics. These messages never
+appear in responses.
+
+Other error classes (bad request, internal error) remain descriptive
+because they do not reveal anything about the auth or access-control
+surface — e.g. `"missing required field 'workspace'"` or
+`"invalid JSON"` is fine.
+
 ### Gateway changes
 
 The current `Authenticator` class is replaced with a thin authentication
@@ -713,6 +744,16 @@ These are not implemented but the architecture does not preclude them:
 - **Multi-workspace access.** Users could be granted access to
   additional workspaces beyond their primary assignment. The workspace
   validation step checks a grant list instead of a single assignment.
+- **Workspace resolver.** Workspace resolution on each authenticated
+  request — "given this user and this requested workspace, which
+  workspace (if any) may the request operate on?" — is encapsulated
+  in a single pluggable resolver. The open-source edition ships a
+  resolver that permits only the user's single assigned workspace;
+  enterprise editions that implement multi-workspace access swap in a
+  resolver that consults a permitted set. The wire protocol (the
+  optional `workspace` field on the authenticated request) is
+  identical in both editions, so clients written against one edition
+  work unchanged against the other.
 - **Rules-based access control.** A separate access control service
   could evaluate fine-grained policies (per-collection permissions,
   operation-level restrictions, time-based access). The gateway
