@@ -5,7 +5,6 @@ to a local file in msgpack format.
 
 import argparse
 import os
-import textwrap
 import uuid
 import asyncio
 import json
@@ -13,17 +12,16 @@ from websockets.asyncio.client import connect
 import msgpack
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
-default_user = 'trustgraph'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def write_triple(f, data):
     msg = (
         "t",
         {
             "m": {
-                "i": data["metadata"]["id"], 
+                "i": data["metadata"]["id"],
                 "m": data["metadata"]["metadata"],
-                "u": data["metadata"]["user"],
                 "c": data["metadata"]["collection"],
             },
             "t": data["triples"],
@@ -36,9 +34,8 @@ def write_ge(f, data):
         "ge",
         {
             "m": {
-                "i": data["metadata"]["id"], 
+                "i": data["metadata"]["id"],
                 "m": data["metadata"]["metadata"],
-                "u": data["metadata"]["user"],
                 "c": data["metadata"]["collection"],
             },
             "e": [
@@ -52,7 +49,7 @@ def write_ge(f, data):
     )
     f.write(msgpack.packb(msg, use_bin_type=True))
 
-async def fetch(url, user, id, output, token=None):
+async def fetch(url, workspace, id, output, token=None):
 
     if not url.endswith("/"):
         url += "/"
@@ -68,10 +65,11 @@ async def fetch(url, user, id, output, token=None):
 
         req = json.dumps({
             "id": mid,
+            "workspace": workspace,
             "service": "knowledge",
             "request": {
                 "operation": "get-kg-core",
-                "user": user,
+                "workspace": workspace,
                 "id": id,
             }
         })
@@ -124,10 +122,11 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
+
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -154,11 +153,11 @@ def main():
 
         asyncio.run(
             fetch(
-                url = args.url,
-                user = args.user,
-                id = args.id,
-                output = args.output,
-                token = args.token,
+                url=args.url,
+                workspace=args.workspace,
+                id=args.id,
+                output=args.output,
+                token=args.token,
             )
         )
 

@@ -77,13 +77,11 @@ post:
             summary: Basic graph query
             value:
               query: What connections exist between quantum physics and computer science?
-              user: alice
               collection: research
           streamingQuery:
             summary: Streaming query with custom limits
             value:
               query: Trace the historical development of AI from Turing to modern LLMs
-              user: alice
               collection: research
               entity-limit: 40
               triple-limit: 25

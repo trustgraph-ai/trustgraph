@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Pub/Sub Infrastructure"
+parent: "Tech Specs"
+---
+
 # Pub/Sub Infrastructure
 
 ## Overview
@@ -955,4 +961,3 @@ class Consumer:
 - Could add optional persistence layer (e.g., retained messages, external store)
 - Would allow supporting `initial_position='earliest'`
 - Not required for initial implementation
-

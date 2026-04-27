@@ -101,7 +101,7 @@ def service(mock_schemas):
         taskgroup=MagicMock(),
         id="test-processor"
     )
-    service.schemas = mock_schemas
+    service.schemas = {"default": dict(mock_schemas)}
     return service
 
 
@@ -109,6 +109,7 @@ def service(mock_schemas):
 def mock_flow():
     """Create mock flow with prompt service"""
     flow = MagicMock()
+    flow.workspace = "default"
     prompt_request_flow = AsyncMock()
     flow.return_value.request = prompt_request_flow
     return flow, prompt_request_flow

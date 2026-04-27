@@ -31,7 +31,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     def mock_query_request(self):
         """Create a mock query request for testing"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=10
@@ -117,7 +116,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_single_vector(self, processor):
         """Test querying graph embeddings with a single vector"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -131,7 +129,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
         
         # Verify search was called with correct parameters including user/collection
         processor.vecstore.search.assert_called_once_with(
@@ -154,7 +152,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_multiple_results(self, processor):
         """Test querying graph embeddings returns multiple results"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
@@ -168,7 +165,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
 
         # Verify search was called once with the full vector
         processor.vecstore.search.assert_called_once_with(
@@ -186,7 +183,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_with_limit(self, processor):
         """Test querying graph embeddings respects limit parameter"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=2
@@ -201,7 +197,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
         
         # Verify search was called with 2*limit for better deduplication
         processor.vecstore.search.assert_called_once_with(
@@ -215,7 +211,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_preserves_order(self, processor):
         """Test that query results preserve order from the vector store"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
@@ -229,7 +224,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
 
         # Verify results are in the same order as returned by the store
         assert len(result) == 3
@@ -241,7 +236,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_results_limited(self, processor):
         """Test that results are properly limited when store returns more than requested"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=2
@@ -255,7 +249,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
 
         # Verify search was called with the full vector
         processor.vecstore.search.assert_called_once_with(
@@ -269,13 +263,12 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_empty_vectors(self, processor):
         """Test querying graph embeddings with empty vectors list"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[],
             limit=5
         )
         
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
         
         # Verify no search was called
         processor.vecstore.search.assert_not_called()
@@ -287,7 +280,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_empty_search_results(self, processor):
         """Test querying graph embeddings with empty search results"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -296,7 +288,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         # Mock empty search results
         processor.vecstore.search.return_value = []
         
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
         
         # Verify search was called
         processor.vecstore.search.assert_called_once_with(
@@ -310,7 +302,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_mixed_uri_literal_results(self, processor):
         """Test querying graph embeddings with mixed URI and literal results"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -325,7 +316,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
         
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
         
         # Verify all results are properly typed
         assert len(result) == 4
@@ -348,7 +339,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_exception_handling(self, processor):
         """Test exception handling during query processing"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=5
@@ -359,7 +349,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Should raise the exception
         with pytest.raises(Exception, match="Milvus connection failed"):
-            await processor.query_graph_embeddings(query)
+            await processor.query_graph_embeddings('test_user', query)
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""
@@ -430,13 +420,12 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_zero_limit(self, processor):
         """Test querying graph embeddings with zero limit"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3],
             limit=0
         )
         
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
         
         # Verify no search was called (optimization for zero limit)
         processor.vecstore.search.assert_not_called()
@@ -448,7 +437,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     async def test_query_graph_embeddings_longer_vector(self, processor):
         """Test querying graph embeddings with a longer vector"""
         query = GraphEmbeddingsRequest(
-            user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
             limit=5
@@ -461,7 +449,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         ]
         processor.vecstore.search.return_value = mock_results
 
-        result = await processor.query_graph_embeddings(query)
+        result = await processor.query_graph_embeddings('test_user', query)
 
         # Verify search was called once with the full vector
         processor.vecstore.search.assert_called_once()

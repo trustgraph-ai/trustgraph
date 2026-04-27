@@ -11,7 +11,6 @@ import logging
 from ...schema import Definition, Relationship, Triple
 from ...schema import Topic
 from ...schema import PromptRequest, PromptResponse, Error
-from ...schema import TextCompletionRequest, TextCompletionResponse
 
 from ...base import FlowProcessor
 from ...base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
@@ -67,24 +66,37 @@ class Processor(FlowProcessor):
 
         self.register_config_handler(self.on_prompt_config, types=["prompt"])
 
-        # Null configuration, should reload quickly
-        self.manager = PromptManager()
+        # Per-workspace prompt managers. Populated lazily as config
+        # arrives for each workspace.
+        self.managers = {}
 
-    async def on_prompt_config(self, config, version):
+    async def on_prompt_config(self, workspace, config, version):
 
-        logger.info(f"Loading prompt configuration version {version}")
+        logger.info(
+            f"Loading prompt configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
         if self.config_key not in config:
-            logger.warning(f"No key {self.config_key} in config")
+            logger.warning(
+                f"No key {self.config_key} in config for {workspace}"
+            )
             return
 
-        config = config[self.config_key]
+        prompt_config = config[self.config_key]
 
         try:
 
-            self.manager.load_config(config)
+            manager = self.managers.get(workspace)
+            if manager is None:
+                manager = PromptManager()
+                self.managers[workspace] = manager
 
-            logger.info("Prompt configuration reloaded")
+            manager.load_config(prompt_config)
+
+            logger.info(
+                f"Prompt configuration reloaded for {workspace}"
+            )
 
         except Exception as e:
 
@@ -103,6 +115,29 @@ class Processor(FlowProcessor):
 
         # Check if streaming is requested
         streaming = getattr(v, 'streaming', False)
+
+        # Look up the prompt manager for this workspace. If none is
+        # loaded yet, the request can't be handled.
+        workspace = flow.workspace
+        manager = self.managers.get(workspace)
+        if manager is None:
+            logger.error(
+                f"No prompt configuration loaded for workspace {workspace}"
+            )
+            r = PromptResponse(
+                error=Error(
+                    type="no-configuration",
+                    message=(
+                        f"No prompt configuration for workspace "
+                        f"{workspace}"
+                    ),
+                ),
+                text=None,
+                object=None,
+                end_of_stream=True,
+            )
+            await flow("response").send(r, properties={"id": id})
+            return
 
         try:
 
@@ -124,42 +159,33 @@ class Processor(FlowProcessor):
                     logger.debug(f"System prompt: {system}")
                     logger.debug(f"User prompt: {prompt}")
 
-                    # Use the text completion client with recipient handler
-                    client = flow("text-completion-request")
-
                     async def forward_chunks(resp):
-                        if resp.error:
-                            raise RuntimeError(resp.error.message)
-
                         is_final = getattr(resp, 'end_of_stream', False)
 
                         # Always send a message if there's content OR if it's the final message
                         if resp.response or is_final:
-                            # Forward each chunk immediately
                             r = PromptResponse(
                                 text=resp.response if resp.response else "",
                                 object=None,
                                 error=None,
                                 end_of_stream=is_final,
+                                in_token=resp.in_token,
+                                out_token=resp.out_token,
+                                model=resp.model,
                             )
                             await flow("response").send(r, properties={"id": id})
 
-                        # Return True when end_of_stream
-                        return is_final
-
-                    await client.request(
-                        TextCompletionRequest(
-                            system=system, prompt=prompt, streaming=True
-                        ),
-                        recipient=forward_chunks,
-                        timeout=600
+                    await flow("text-completion-request").text_completion_stream(
+                        system=system, prompt=prompt,
+                        handler=forward_chunks,
+                        timeout=600,
                     )
 
                     # Return empty string since we already sent all chunks
                     return ""
 
                 try:
-                    await self.manager.invoke(kind, input, llm_streaming)
+                    await manager.invoke(kind, input, llm_streaming)
                 except Exception as e:
                     logger.error(f"Prompt streaming exception: {e}", exc_info=True)
                     raise e
@@ -167,23 +193,27 @@ class Processor(FlowProcessor):
                 return
 
             # Non-streaming path (original behavior)
+            usage = {}
+
             async def llm(system, prompt):
 
                 logger.debug(f"System prompt: {system}")
                 logger.debug(f"User prompt: {prompt}")
 
-                resp = await flow("text-completion-request").text_completion(
-                    system = system, prompt = prompt, streaming = False,
-                )
-
                 try:
-                    return resp
+                    result = await flow("text-completion-request").text_completion(
+                        system = system, prompt = prompt,
+                    )
+                    usage["in_token"] = result.in_token
+                    usage["out_token"] = result.out_token
+                    usage["model"] = result.model
+                    return result.text
                 except Exception as e:
                     logger.error(f"LLM Exception: {e}", exc_info=True)
                     return None
 
             try:
-                resp = await self.manager.invoke(kind, input, llm)
+                resp = await manager.invoke(kind, input, llm)
             except Exception as e:
                 logger.error(f"Prompt invocation exception: {e}", exc_info=True)
                 raise e
@@ -199,6 +229,9 @@ class Processor(FlowProcessor):
                     object=None,
                     error=None,
                     end_of_stream=True,
+                    in_token=usage.get("in_token", 0),
+                    out_token=usage.get("out_token", 0),
+                    model=usage.get("model", ""),
                 )
 
                 await flow("response").send(r, properties={"id": id})
@@ -215,6 +248,9 @@ class Processor(FlowProcessor):
                     object=json.dumps(resp),
                     error=None,
                     end_of_stream=True,
+                    in_token=usage.get("in_token", 0),
+                    out_token=usage.get("out_token", 0),
+                    model=usage.get("model", ""),
                 )
 
                 await flow("response").send(r, properties={"id": id})

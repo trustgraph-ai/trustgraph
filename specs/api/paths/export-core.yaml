@@ -23,7 +23,6 @@ get:
       "m": {              // Metadata
         "i": "core-id",   // Knowledge core ID
         "m": [...],       // Metadata triples array
-        "u": "user",      // User
         "c": "collection" // Collection
       },
       "t": [...]          // Triples array
@@ -36,7 +35,6 @@ get:
       "m": {              // Metadata
         "i": "core-id",
         "m": [...],
-        "u": "user",
         "c": "collection"
       },
       "e": [              // Entities array
@@ -56,7 +54,6 @@ get:
     ## Query Parameters
 
     - **id**: Knowledge core ID to export
-    - **user**: User identifier
 
     ## Streaming
 
@@ -86,13 +83,6 @@ get:
         type: string
       description: Knowledge core ID to export
       example: core-123
-    - name: user
-      in: query
-      required: true
-      schema:
-        type: string
-      description: User identifier
-      example: alice
   responses:
     '200':
       description: Export stream

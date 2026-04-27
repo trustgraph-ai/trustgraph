@@ -154,7 +154,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_schema_configuration_and_generation(self, processor, sample_schema_config):
         """Test schema configuration loading and GraphQL schema generation"""
         # Load schema configuration
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         
         # Verify schemas were loaded
         assert len(processor.schemas) == 2
@@ -181,7 +181,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_cassandra_connection_and_table_creation(self, processor, sample_schema_config):
         """Test Cassandra connection and dynamic table creation"""
         # Load schema configuration
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         
         # Connect to Cassandra
         processor.connect_cassandra()
@@ -218,7 +218,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_data_insertion_and_graphql_query(self, processor, sample_schema_config):
         """Test inserting data and querying via GraphQL"""
         # Load schema and connect
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         processor.connect_cassandra()
         
         # Setup test data
@@ -292,7 +292,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_graphql_query_with_filters(self, processor, sample_schema_config):
         """Test GraphQL queries with filtering on indexed fields"""
         # Setup (reuse previous setup)
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         processor.connect_cassandra()
         
         keyspace = "test_user"
@@ -353,7 +353,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_graphql_error_handling(self, processor, sample_schema_config):
         """Test GraphQL error handling for invalid queries"""
         # Setup
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         
         # Test invalid field query
         invalid_query = '''
@@ -386,7 +386,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_message_processing_integration(self, processor, sample_schema_config):
         """Test full message processing workflow"""
         # Setup
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         processor.connect_cassandra()
         
         # Create mock message
@@ -432,7 +432,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_concurrent_queries(self, processor, sample_schema_config):
         """Test handling multiple concurrent GraphQL queries"""
         # Setup
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         processor.connect_cassandra()
         
         # Create multiple query tasks
@@ -476,7 +476,7 @@ class TestObjectsGraphQLQueryIntegration:
             }
         }
         
-        await processor.on_schema_config(initial_config, version=1)
+        await processor.on_schema_config("default", initial_config, version=1)
         assert len(processor.schemas) == 1
         assert "simple" in processor.schemas
         
@@ -500,7 +500,7 @@ class TestObjectsGraphQLQueryIntegration:
             }
         }
         
-        await processor.on_schema_config(updated_config, version=2)
+        await processor.on_schema_config("default", updated_config, version=2)
         
         # Verify updated schemas
         assert len(processor.schemas) == 2
@@ -518,7 +518,7 @@ class TestObjectsGraphQLQueryIntegration:
     async def test_large_result_set_handling(self, processor, sample_schema_config):
         """Test handling of large query result sets"""
         # Setup
-        await processor.on_schema_config(sample_schema_config, version=1)
+        await processor.on_schema_config("default", sample_schema_config, version=1)
         processor.connect_cassandra()
         
         keyspace = "large_test_user"
@@ -601,7 +601,7 @@ class TestObjectsGraphQLQueryPerformance:
             }
         }
         
-        await processor.on_schema_config(schema_config, version=1)
+        await processor.on_schema_config("default", schema_config, version=1)
         
         # Measure query execution time
         start_time = time.time()

@@ -61,7 +61,6 @@ class TestDocEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         emb = MagicMock()
@@ -69,7 +68,7 @@ class TestDocEmbeddingsNullProtection:
         emb.vector = []  # Empty vector
         msg.chunks = [emb]
 
-        await proc.store_document_embeddings(msg)
+        await proc.store_document_embeddings("user1", msg)
 
         # No upsert should be called
         proc.qdrant.upsert.assert_not_called()
@@ -83,7 +82,6 @@ class TestDocEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         emb = MagicMock()
@@ -91,7 +89,7 @@ class TestDocEmbeddingsNullProtection:
         emb.vector = None  # None vector
         msg.chunks = [emb]
 
-        await proc.store_document_embeddings(msg)
+        await proc.store_document_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -103,7 +101,6 @@ class TestDocEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         emb = MagicMock()
@@ -111,7 +108,7 @@ class TestDocEmbeddingsNullProtection:
         emb.vector = [0.1, 0.2, 0.3]
         msg.chunks = [emb]
 
-        await proc.store_document_embeddings(msg)
+        await proc.store_document_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -124,7 +121,6 @@ class TestDocEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         emb = MagicMock()
@@ -132,7 +128,7 @@ class TestDocEmbeddingsNullProtection:
         emb.vector = [0.1, 0.2, 0.3]
         msg.chunks = [emb]
 
-        await proc.store_document_embeddings(msg)
+        await proc.store_document_embeddings("user1", msg)
         proc.qdrant.upsert.assert_called_once()
 
     @pytest.mark.asyncio
@@ -146,7 +142,6 @@ class TestDocEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "alice"
         msg.metadata.collection = "docs"
 
         emb = MagicMock()
@@ -154,7 +149,7 @@ class TestDocEmbeddingsNullProtection:
         emb.vector = [0.0] * 384  # 384-dim vector
         msg.chunks = [emb]
 
-        await proc.store_document_embeddings(msg)
+        await proc.store_document_embeddings("alice", msg)
 
         call_args = proc.qdrant.upsert.call_args
         assert "d_alice_docs_384" in call_args[1]["collection_name"]
@@ -175,7 +170,6 @@ class TestGraphEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         entity = MagicMock()
@@ -183,7 +177,7 @@ class TestGraphEmbeddingsNullProtection:
         entity.vector = [0.1, 0.2, 0.3]
         msg.entities = [entity]
 
-        await proc.store_graph_embeddings(msg)
+        await proc.store_graph_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -195,7 +189,6 @@ class TestGraphEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         entity = MagicMock()
@@ -203,7 +196,7 @@ class TestGraphEmbeddingsNullProtection:
         entity.vector = [0.1, 0.2, 0.3]
         msg.entities = [entity]
 
-        await proc.store_graph_embeddings(msg)
+        await proc.store_graph_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -215,7 +208,6 @@ class TestGraphEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         entity = MagicMock()
@@ -223,7 +215,7 @@ class TestGraphEmbeddingsNullProtection:
         entity.vector = []  # Empty vector
         msg.entities = [entity]
 
-        await proc.store_graph_embeddings(msg)
+        await proc.store_graph_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -236,7 +228,6 @@ class TestGraphEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "col1"
 
         entity = MagicMock()
@@ -245,7 +236,7 @@ class TestGraphEmbeddingsNullProtection:
         entity.chunk_id = "c1"
         msg.entities = [entity]
 
-        await proc.store_graph_embeddings(msg)
+        await proc.store_graph_embeddings("user1", msg)
         proc.qdrant.upsert.assert_called_once()
 
     @pytest.mark.asyncio
@@ -258,7 +249,6 @@ class TestGraphEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
 
         msg = MagicMock()
-        msg.metadata.user = "alice"
         msg.metadata.collection = "graphs"
 
         entity = MagicMock()
@@ -267,7 +257,7 @@ class TestGraphEmbeddingsNullProtection:
         entity.chunk_id = ""
         msg.entities = [entity]
 
-        await proc.store_graph_embeddings(msg)
+        await proc.store_graph_embeddings("alice", msg)
 
         # Collection should be created with correct dimension
         proc.qdrant.create_collection.assert_called_once()
@@ -290,11 +280,10 @@ class TestCollectionValidation:
         proc.collection_exists = MagicMock(return_value=False)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "deleted-col"
         msg.chunks = [MagicMock()]
 
-        await proc.store_document_embeddings(msg)
+        await proc.store_document_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -306,9 +295,8 @@ class TestCollectionValidation:
         proc.collection_exists = MagicMock(return_value=False)
 
         msg = MagicMock()
-        msg.metadata.user = "user1"
         msg.metadata.collection = "deleted-col"
         msg.entities = [MagicMock()]
 
-        await proc.store_graph_embeddings(msg)
+        await proc.store_graph_embeddings("user1", msg)
         proc.qdrant.upsert.assert_not_called()

@@ -68,9 +68,9 @@ class TestNeo4jStorageProcessor:
             "CREATE INDEX Node_uri FOR (n:Node) ON (n.uri)",
             "CREATE INDEX Literal_value FOR (n:Literal) ON (n.value)",
             "CREATE INDEX Rel_uri FOR ()-[r:Rel]-() ON (r.uri)",
-            "CREATE INDEX node_user_collection_uri FOR (n:Node) ON (n.user, n.collection, n.uri)",
-            "CREATE INDEX literal_user_collection_value FOR (n:Literal) ON (n.user, n.collection, n.value)",
-            "CREATE INDEX rel_user FOR ()-[r:Rel]-() ON (r.user)",
+            "CREATE INDEX node_workspace_collection_uri FOR (n:Node) ON (n.workspace, n.collection, n.uri)",
+            "CREATE INDEX literal_workspace_collection_value FOR (n:Literal) ON (n.workspace, n.collection, n.value)",
+            "CREATE INDEX rel_workspace FOR ()-[r:Rel]-() ON (r.workspace)",
             "CREATE INDEX rel_collection FOR ()-[r:Rel]-() ON (r.collection)"
         ]
         
@@ -116,12 +116,12 @@ class TestNeo4jStorageProcessor:
         processor = Processor(taskgroup=taskgroup_mock)
         
         # Test create_node
-        processor.create_node("http://example.com/node", "test_user", "test_collection")
+        processor.create_node("http://example.com/node", "test_workspace", "test_collection")
         
         mock_driver.execute_query.assert_called_with(
-            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
             uri="http://example.com/node",
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )
@@ -146,12 +146,12 @@ class TestNeo4jStorageProcessor:
         processor = Processor(taskgroup=taskgroup_mock)
         
         # Test create_literal
-        processor.create_literal("literal value", "test_user", "test_collection")
+        processor.create_literal("literal value", "test_workspace", "test_collection")
         
         mock_driver.execute_query.assert_called_with(
-            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            "MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",
             value="literal value",
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )
@@ -180,18 +180,18 @@ class TestNeo4jStorageProcessor:
             "http://example.com/subject",
             "http://example.com/predicate",
             "http://example.com/object",
-            "test_user",
+            "test_workspace",
             "test_collection"
         )
         
         mock_driver.execute_query.assert_called_with(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             src="http://example.com/subject",
             dest="http://example.com/object",
             uri="http://example.com/predicate",
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )
@@ -220,18 +220,18 @@ class TestNeo4jStorageProcessor:
             "http://example.com/subject",
             "http://example.com/predicate",
             "literal value",
-            "test_user",
+            "test_workspace",
             "test_collection"
         )
         
         mock_driver.execute_query.assert_called_with(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             src="http://example.com/subject",
             dest="literal value",
             uri="http://example.com/predicate",
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )
@@ -268,36 +268,35 @@ class TestNeo4jStorageProcessor:
         # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple]
-        mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
         # Mock collection_exists to bypass validation in unit tests
         with patch.object(processor, 'collection_exists', return_value=True):
-            await processor.store_triples(mock_message)
+            await processor.store_triples("test_workspace", mock_message)
         
         # Verify create_node was called for subject and object
         # Verify relate_node was called
         expected_calls = [
             # Subject node creation
             (
-                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
-                {"uri": "http://example.com/subject", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
+                "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
+                {"uri": "http://example.com/subject", "workspace": "test_workspace", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Object node creation
             (
-                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
-                {"uri": "http://example.com/object", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
+                "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
+                {"uri": "http://example.com/object", "workspace": "test_workspace", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Relationship creation
             (
-                "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-                "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
-                "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+                "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+                "MATCH (dest:Node {uri: $dest, workspace: $workspace, collection: $collection}) "
+                "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
                 {
                     "src": "http://example.com/subject",
                     "dest": "http://example.com/object",
                     "uri": "http://example.com/predicate",
-                    "user": "test_user",
+                    "workspace": "test_workspace",
                     "collection": "test_collection",
                     "database_": "neo4j"
                 }
@@ -340,12 +339,11 @@ class TestNeo4jStorageProcessor:
         # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple]
-        mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
         # Mock collection_exists to bypass validation in unit tests
         with patch.object(processor, 'collection_exists', return_value=True):
-            await processor.store_triples(mock_message)
+            await processor.store_triples("test_workspace", mock_message)
         
         # Verify create_node was called for subject
         # Verify create_literal was called for object
@@ -353,24 +351,24 @@ class TestNeo4jStorageProcessor:
         expected_calls = [
             # Subject node creation
             (
-                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
-                {"uri": "http://example.com/subject", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
+                "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
+                {"uri": "http://example.com/subject", "workspace": "test_workspace", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Literal creation
             (
-                "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
-                {"value": "literal value", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
+                "MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",
+                {"value": "literal value", "workspace": "test_workspace", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Relationship creation
             (
-                "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-                "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
-                "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+                "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+                "MATCH (dest:Literal {value: $dest, workspace: $workspace, collection: $collection}) "
+                "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
                 {
                     "src": "http://example.com/subject",
                     "dest": "literal value",
                     "uri": "http://example.com/predicate",
-                    "user": "test_user",
+                    "workspace": "test_workspace",
                     "collection": "test_collection",
                     "database_": "neo4j"
                 }
@@ -421,12 +419,11 @@ class TestNeo4jStorageProcessor:
         # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple1, triple2]
-        mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
         # Mock collection_exists to bypass validation in unit tests
         with patch.object(processor, 'collection_exists', return_value=True):
-            await processor.store_triples(mock_message)
+            await processor.store_triples("test_workspace", mock_message)
         
         # Should have processed both triples
         # Triple1: 2 nodes + 1 relationship = 3 calls
@@ -449,12 +446,11 @@ class TestNeo4jStorageProcessor:
         # Create mock message with empty triples and metadata
         mock_message = MagicMock()
         mock_message.triples = []
-        mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
         # Mock collection_exists to bypass validation in unit tests
         with patch.object(processor, 'collection_exists', return_value=True):
-            await processor.store_triples(mock_message)
+            await processor.store_triples("test_workspace", mock_message)
         
         # Should not have made any execute_query calls beyond index creation
         # Only index creation calls should have been made during initialization
@@ -568,38 +564,37 @@ class TestNeo4jStorageProcessor:
         
         mock_message = MagicMock()
         mock_message.triples = [triple]
-        mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
         # Mock collection_exists to bypass validation in unit tests
         with patch.object(processor, 'collection_exists', return_value=True):
-            await processor.store_triples(mock_message)
+            await processor.store_triples("test_workspace", mock_message)
         
         # Verify the triple was processed with special characters preserved
         mock_driver.execute_query.assert_any_call(
-            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
             uri="http://example.com/subject with spaces",
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )
         
         mock_driver.execute_query.assert_any_call(
-            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            "MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",
             value='literal with "quotes" and unicode: ñáéíóú',
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )
         
         mock_driver.execute_query.assert_any_call(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             src="http://example.com/subject with spaces",
             dest='literal with "quotes" and unicode: ñáéíóú',
             uri="http://example.com/predicate:with/symbols",
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             database_="neo4j"
         )

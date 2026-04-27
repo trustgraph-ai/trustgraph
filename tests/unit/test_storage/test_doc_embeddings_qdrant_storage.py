@@ -84,7 +84,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with chunks and vectors
         mock_message = MagicMock()
-        mock_message.metadata.user = 'test_user'
         mock_message.metadata.collection = 'test_collection'
 
         mock_chunk = MagicMock()
@@ -94,7 +93,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('test_user', mock_message)
 
         # Assert
         # Verify collection existence was checked (with dimension suffix)
@@ -138,7 +137,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with multiple chunks
         mock_message = MagicMock()
-        mock_message.metadata.user = 'multi_user'
         mock_message.metadata.collection = 'multi_collection'
 
         mock_chunk1 = MagicMock()
@@ -152,7 +150,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk1, mock_chunk2]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('multi_user', mock_message)
 
         # Assert
         # Should be called twice (once per chunk)
@@ -198,7 +196,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with multiple chunks, each having a single vector
         mock_message = MagicMock()
-        mock_message.metadata.user = 'vector_user'
         mock_message.metadata.collection = 'vector_collection'
 
         mock_chunk1 = MagicMock()
@@ -216,7 +213,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk1, mock_chunk2, mock_chunk3]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('vector_user', mock_message)
 
         # Assert
         # Should be called 3 times (once per chunk)
@@ -255,7 +252,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with empty chunk_id
         mock_message = MagicMock()
-        mock_message.metadata.user = 'empty_user'
         mock_message.metadata.collection = 'empty_collection'
 
         mock_chunk_empty = MagicMock()
@@ -265,7 +261,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk_empty]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('empty_user', mock_message)
 
         # Assert
         # Should not call upsert for empty chunk_ids
@@ -298,7 +294,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'new_user'
         mock_message.metadata.collection = 'new_collection'
 
         mock_chunk = MagicMock()
@@ -308,7 +303,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('new_user', mock_message)
 
         # Assert - collection should be lazily created
         expected_collection = 'd_new_user_new_collection_5'  # 5 dimensions
@@ -350,7 +345,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message
         mock_message = MagicMock()
-        mock_message.metadata.user = 'error_user'
         mock_message.metadata.collection = 'error_collection'
 
         mock_chunk = MagicMock()
@@ -361,7 +355,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Act & Assert - should propagate the creation error
         with pytest.raises(Exception, match="Connection error"):
-            await processor.store_document_embeddings(mock_message)
+            await processor.store_document_embeddings('error_user', mock_message)
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
@@ -388,7 +382,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create first mock message
         mock_message1 = MagicMock()
-        mock_message1.metadata.user = 'cache_user'
         mock_message1.metadata.collection = 'cache_collection'
 
         mock_chunk1 = MagicMock()
@@ -398,7 +391,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message1.chunks = [mock_chunk1]
 
         # First call
-        await processor.store_document_embeddings(mock_message1)
+        await processor.store_document_embeddings('cache_user', mock_message1)
 
         # Reset mock to track second call
         mock_qdrant_instance.reset_mock()
@@ -406,7 +399,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create second mock message with same dimensions
         mock_message2 = MagicMock()
-        mock_message2.metadata.user = 'cache_user'
         mock_message2.metadata.collection = 'cache_collection'
 
         mock_chunk2 = MagicMock()
@@ -416,7 +408,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message2.chunks = [mock_chunk2]
 
         # Act - Second call with same collection
-        await processor.store_document_embeddings(mock_message2)
+        await processor.store_document_embeddings('cache_user', mock_message2)
 
         # Assert
         expected_collection = 'd_cache_user_cache_collection_3'  # 3 dimensions
@@ -452,7 +444,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with chunks of different dimensions
         mock_message = MagicMock()
-        mock_message.metadata.user = 'dim_user'
         mock_message.metadata.collection = 'dim_collection'
 
         mock_chunk1 = MagicMock()
@@ -466,7 +457,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk1, mock_chunk2]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('dim_user', mock_message)
 
         # Assert
         # Should check existence of DIFFERENT collections for each dimension
@@ -526,7 +517,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with URI-style chunk_id
         mock_message = MagicMock()
-        mock_message.metadata.user = 'uri_user'
         mock_message.metadata.collection = 'uri_collection'
 
         mock_chunk = MagicMock()
@@ -536,7 +526,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.chunks = [mock_chunk]
 
         # Act
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('uri_user', mock_message)
 
         # Assert
         # Verify the chunk_id was stored correctly

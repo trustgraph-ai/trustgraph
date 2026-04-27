@@ -122,7 +122,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=IRI, iri="http://example.com/subject"),
             p=Term(type=IRI, iri="http://example.com/predicate"),
@@ -130,7 +129,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -164,7 +163,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=IRI, iri="http://example.com/subject"),
             p=Term(type=IRI, iri="http://example.com/predicate"),
@@ -172,7 +170,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -210,7 +208,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
@@ -218,7 +215,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -256,7 +253,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
@@ -264,7 +260,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -302,7 +298,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=Term(type=IRI, iri="http://example.com/predicate"),
@@ -310,7 +305,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -348,7 +343,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=Term(type=IRI, iri="http://example.com/predicate"),
@@ -356,7 +350,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -394,7 +388,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=None,
@@ -402,7 +395,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -440,7 +433,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=None,
             p=None,
@@ -448,7 +440,7 @@ class TestMemgraphQueryProcessor:
             limit=100
         )
         
-        result = await processor.query_triples(query)
+        result = await processor.query_triples('test_user', query)
         
         # Verify both literal and URI queries were executed
         assert mock_driver.execute_query.call_count == 2
@@ -478,7 +470,6 @@ class TestMemgraphQueryProcessor:
         
         # Create query request
         query = TriplesQueryRequest(
-            user='test_user',
             collection='test_collection',
             s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
@@ -488,7 +479,7 @@ class TestMemgraphQueryProcessor:
         
         # Should raise the exception
         with pytest.raises(Exception, match="Database connection failed"):
-            await processor.query_triples(query)
+            await processor.query_triples('test_user', query)
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""

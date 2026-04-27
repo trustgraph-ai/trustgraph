@@ -14,12 +14,12 @@ class DocumentStreamExport:
 
     async def process(self, data, error, ok, request):
 
-        user = request.query.get("user")
+        workspace = request.query.get("workspace", "default")
         document_id = request.query.get("document-id")
         chunk_size = int(request.query.get("chunk-size", 1024 * 1024))
 
-        if not user or not document_id:
-            return await error("Missing required parameters: user, document-id")
+        if not document_id:
+            return await error("Missing required parameter: document-id")
 
         response = await ok()
 
@@ -45,7 +45,7 @@ class DocumentStreamExport:
             await lr.process(
                 {
                     "operation": "stream-document",
-                    "user": user,
+                    "workspace": workspace,
                     "document-id": document_id,
                     "chunk-size": chunk_size,
                 },

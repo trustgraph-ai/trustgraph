@@ -8,7 +8,6 @@ get:
 
     ## Parameters
 
-    - `user`: User identifier (required)
     - `document-id`: Document IRI to retrieve (required)
     - `chunk-size`: Size of each response chunk in bytes (optional, default: 1MB)
 
@@ -16,13 +15,6 @@ get:
   security:
     - bearerAuth: []
   parameters:
-    - name: user
-      in: query
-      required: true
-      schema:
-        type: string
-      description: User identifier
-      example: trustgraph
     - name: document-id
       in: query
       required: true

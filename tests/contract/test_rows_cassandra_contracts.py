@@ -22,7 +22,6 @@ class TestRowsCassandraContracts:
         # Create test object with all required fields
         test_metadata = Metadata(
             id="test-doc-001",
-            user="test_user",
             collection="test_collection",
         )
         
@@ -47,7 +46,6 @@ class TestRowsCassandraContracts:
         
         # Verify metadata structure
         assert hasattr(test_object.metadata, 'id')
-        assert hasattr(test_object.metadata, 'user')
         assert hasattr(test_object.metadata, 'collection')
         
         # Verify types
@@ -150,7 +148,6 @@ class TestRowsCassandraContracts:
         original = ExtractedObject(
             metadata=Metadata(
                 id="serial-001",
-                user="test_user",
                 collection="test_coll",
             ),
             schema_name="test_schema",
@@ -168,7 +165,6 @@ class TestRowsCassandraContracts:
         
         # Verify round-trip
         assert decoded.metadata.id == original.metadata.id
-        assert decoded.metadata.user == original.metadata.user
         assert decoded.metadata.collection == original.metadata.collection
         assert decoded.schema_name == original.schema_name
         assert decoded.values == original.values
@@ -228,8 +224,7 @@ class TestRowsCassandraContracts:
         # Create test object
         test_obj = ExtractedObject(
             metadata=Metadata(
-                id="meta-001",
-                user="user123",  # -> keyspace
+                id="meta-001",  # -> keyspace
                 collection="coll456",  # -> partition key
             ),
             schema_name="table789",  # -> table name
@@ -242,7 +237,6 @@ class TestRowsCassandraContracts:
         # - metadata.user -> Cassandra keyspace
         # - schema_name -> Cassandra table
         # - metadata.collection -> Part of primary key
-        assert test_obj.metadata.user  # Required for keyspace
         assert test_obj.schema_name  # Required for table
         assert test_obj.metadata.collection  # Required for partition key
 
@@ -256,7 +250,6 @@ class TestRowsCassandraContractsBatch:
         # Create test object with multiple values in batch
         test_metadata = Metadata(
             id="batch-doc-001",
-            user="test_user",
             collection="test_collection",
         )
         
@@ -302,7 +295,6 @@ class TestRowsCassandraContractsBatch:
         """Test empty batch ExtractedObject contract"""
         test_metadata = Metadata(
             id="empty-batch-001",
-            user="test_user",
             collection="test_collection",
         )
 
@@ -324,7 +316,6 @@ class TestRowsCassandraContractsBatch:
         """Test single-item batch (backward compatibility) contract"""
         test_metadata = Metadata(
             id="single-batch-001",
-            user="test_user",
             collection="test_collection",
         )
 
@@ -353,7 +344,6 @@ class TestRowsCassandraContractsBatch:
         original = ExtractedObject(
             metadata=Metadata(
                 id="batch-serial-001",
-                user="test_user",
                 collection="test_coll",
             ),
             schema_name="test_schema",
@@ -375,7 +365,6 @@ class TestRowsCassandraContractsBatch:
         
         # Verify round-trip for batch
         assert decoded.metadata.id == original.metadata.id
-        assert decoded.metadata.user == original.metadata.user
         assert decoded.metadata.collection == original.metadata.collection
         assert decoded.schema_name == original.schema_name
         assert len(decoded.values) == len(original.values)
@@ -425,8 +414,7 @@ class TestRowsCassandraContractsBatch:
         # 3. Be stored in the same keyspace (user)
         
         test_metadata = Metadata(
-            id="partition-test-001",
-            user="consistent_user",  # Same keyspace
+            id="partition-test-001",  # Same keyspace
             collection="consistent_collection",  # Same partition
         )
 
@@ -443,7 +431,6 @@ class TestRowsCassandraContractsBatch:
         )
         
         # Verify consistency contract
-        assert batch_object.metadata.user  # Must have user for keyspace
         assert batch_object.metadata.collection  # Must have collection for partition key
         
         # Verify unique primary keys in batch

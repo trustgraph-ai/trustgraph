@@ -167,7 +167,7 @@ class QueryExplainer:
             question_components, query_results, processing_metadata
         )
 
-        # Generate user-friendly explanation
+        # Generate workspace-friendly explanation
         user_friendly_explanation = self._generate_user_friendly_explanation(
             question, question_components, ontology_subsets, final_answer
         )
@@ -503,7 +503,7 @@ class QueryExplainer:
                                           question_components: QuestionComponents,
                                           ontology_subsets: List[QueryOntologySubset],
                                           final_answer: str) -> str:
-        """Generate user-friendly explanation of the process."""
+        """Generate workspace-friendly explanation of the process."""
         explanation_parts = []
 
         # Introduction

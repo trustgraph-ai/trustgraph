@@ -12,8 +12,8 @@ from trustgraph.api import Api
 from trustgraph.api.types import hash, Uri, Literal, Triple
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 
 from requests.adapters import HTTPAdapter
@@ -656,11 +656,10 @@ documents = [
 class Loader:
 
     def __init__(
-            self, url, user, token=None
+            self, url, token=None, workspace="default",
     ):
 
-        self.api = Api(url, token=token).library()
-        self.user = user
+        self.api = Api(url, token=token, workspace=workspace).library()
 
     def load(self, documents):
 
@@ -689,10 +688,10 @@ class Loader:
             print("  adding...")
 
             self.api.add_document(
-                id = doc["id"], metadata = doc["metadata"], 
-                user = self.user, kind = doc["kind"], title = doc["title"],
-                comments = doc["comments"], tags = doc["tags"],
-                document = content
+                id=doc["id"], metadata=doc["metadata"],
+                kind=doc["kind"], title=doc["title"],
+                comments=doc["comments"], tags=doc["tags"],
+                document=content,
             )
 
             print("  successful.")
@@ -715,15 +714,15 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     args = parser.parse_args()
@@ -732,8 +731,8 @@ def main():
 
         p = Loader(
             url=args.url,
-            user=args.user,
             token=args.token,
+            workspace=args.workspace,
         )
 
         p.load(documents)

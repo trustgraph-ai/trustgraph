@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Structured Data Descriptor Specification"
+parent: "Tech Specs"
+---
+
 # Structured Data Descriptor Specification
 
 ## Overview

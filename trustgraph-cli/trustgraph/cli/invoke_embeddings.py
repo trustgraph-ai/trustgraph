@@ -9,11 +9,12 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def query(url, flow_id, texts, token=None):
+def query(url, flow_id, texts, token=None, workspace="default"):
 
     # Create API client
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
 
@@ -52,6 +53,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-f', '--flow-id',
         default="default",
         help=f'Flow ID (default: default)'
@@ -72,6 +79,8 @@ def main():
             flow_id=args.flow_id,
             texts=args.texts,
             token=args.token,
+
+            workspace=args.workspace,
         )
 
     except Exception as e:

@@ -100,10 +100,11 @@ class Processor(FlowProcessor):
 
             try:
 
-                rels = await flow("prompt-request").extract_relationships(
+                result = await flow("prompt-request").extract_relationships(
                     text = chunk
                 )
 
+                rels = result.objects
                 logger.debug(f"Prompt response: {rels}")
 
                 if type(rels) != list:
@@ -206,7 +207,6 @@ class Processor(FlowProcessor):
                     Metadata(
                         id=v.metadata.id,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     batch

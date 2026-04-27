@@ -39,12 +39,12 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-    async def store_document_embeddings(self, message):
+    async def store_document_embeddings(self, workspace, message):
 
         # Validate collection exists in config before processing
-        if not self.collection_exists(message.metadata.user, message.metadata.collection):
+        if not self.collection_exists(workspace, message.metadata.collection):
             logger.warning(
-                f"Collection {message.metadata.collection} for user {message.metadata.user} "
+                f"Collection {message.metadata.collection} for workspace {workspace} "
                 f"does not exist in config (likely deleted while data was in-flight). "
                 f"Dropping message."
             )
@@ -63,7 +63,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
             # Create collection name with dimension suffix for lazy creation
             dim = len(vec)
             collection = (
-                f"d_{message.metadata.user}_{message.metadata.collection}_{dim}"
+                f"d_{workspace}_{message.metadata.collection}_{dim}"
             )
 
             # Lazily create collection if it doesn't exist (but only if authorized in config)
@@ -107,22 +107,22 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
             help=f'Qdrant API key (default: None)'
         )
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """
         Create collection via config push - collections are created lazily on first write
         with the correct dimension determined from the actual embeddings.
         """
         try:
-            logger.info(f"Collection create request for {user}/{collection} - will be created lazily on first write")
+            logger.info(f"Collection create request for {workspace}/{collection} - will be created lazily on first write")
 
         except Exception as e:
-            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to create collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Delete the collection for document embeddings via config push"""
         try:
-            prefix = f"d_{user}_{collection}_"
+            prefix = f"d_{workspace}_{collection}_"
 
             # Get all collections and filter for matches
             all_collections = self.qdrant.get_collections().collections
@@ -137,10 +137,10 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                 for collection_name in matching_collections:
                     self.qdrant.delete_collection(collection_name)
                     logger.info(f"Deleted Qdrant collection: {collection_name}")
-                logger.info(f"Deleted {len(matching_collections)} collection(s) for {user}/{collection}")
+                logger.info(f"Deleted {len(matching_collections)} collection(s) for {workspace}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to delete collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
 def run():

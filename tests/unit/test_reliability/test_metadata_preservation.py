@@ -30,7 +30,7 @@ class TestDocumentMetadataTranslator:
             "title": "Test Document",
             "comments": "No comments",
             "metadata": [],
-            "user": "alice",
+            "workspace": "alice",
             "tags": ["finance", "q4"],
             "parent-id": "doc-100",
             "document-type": "page",
@@ -40,14 +40,14 @@ class TestDocumentMetadataTranslator:
         assert obj.time == 1710000000
         assert obj.kind == "application/pdf"
         assert obj.title == "Test Document"
-        assert obj.user == "alice"
+        assert obj.workspace == "alice"
         assert obj.tags == ["finance", "q4"]
         assert obj.parent_id == "doc-100"
         assert obj.document_type == "page"
 
         wire = self.tx.encode(obj)
         assert wire["id"] == "doc-123"
-        assert wire["user"] == "alice"
+        assert wire["workspace"] == "alice"
         assert wire["parent-id"] == "doc-100"
         assert wire["document-type"] == "page"
 
@@ -80,10 +80,10 @@ class TestDocumentMetadataTranslator:
 
     def test_falsy_fields_omitted_from_wire(self):
         """Empty string fields should be omitted from wire format."""
-        obj = DocumentMetadata(id="", time=0, user="")
+        obj = DocumentMetadata(id="", time=0, workspace="")
         wire = self.tx.encode(obj)
         assert "id" not in wire
-        assert "user" not in wire
+        assert "workspace" not in wire
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ class TestProcessingMetadataTranslator:
             "document-id": "doc-123",
             "time": 1710000000,
             "flow": "default",
-            "user": "alice",
+            "workspace": "alice",
             "collection": "my-collection",
             "tags": ["tag1"],
         }
@@ -109,20 +109,20 @@ class TestProcessingMetadataTranslator:
         assert obj.id == "proc-1"
         assert obj.document_id == "doc-123"
         assert obj.flow == "default"
-        assert obj.user == "alice"
+        assert obj.workspace == "alice"
         assert obj.collection == "my-collection"
         assert obj.tags == ["tag1"]
 
         wire = self.tx.encode(obj)
         assert wire["id"] == "proc-1"
         assert wire["document-id"] == "doc-123"
-        assert wire["user"] == "alice"
+        assert wire["workspace"] == "alice"
         assert wire["collection"] == "my-collection"
 
     def test_missing_fields_use_defaults(self):
         obj = self.tx.decode({})
         assert obj.id is None
-        assert obj.user is None
+        assert obj.workspace is None
         assert obj.collection is None
 
     def test_tags_none_omitted(self):
@@ -135,10 +135,10 @@ class TestProcessingMetadataTranslator:
         wire = self.tx.encode(obj)
         assert wire["tags"] == []
 
-    def test_user_and_collection_preserved(self):
+    def test_workspace_and_collection_preserved(self):
         """Core pipeline routing fields must survive round-trip."""
-        data = {"user": "bob", "collection": "research"}
+        data = {"workspace": "bob", "collection": "research"}
         obj = self.tx.decode(data)
         wire = self.tx.encode(obj)
-        assert wire["user"] == "bob"
+        assert wire["workspace"] == "bob"
         assert wire["collection"] == "research"

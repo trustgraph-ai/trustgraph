@@ -1,3 +1,9 @@
+---
+layout: default
+title: "MCP Tool Arguments Specification"
+parent: "Tech Specs"
+---
+
 # MCP Tool Arguments Specification
 
 ## Overview

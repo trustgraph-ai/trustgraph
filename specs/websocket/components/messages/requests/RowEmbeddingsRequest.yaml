@@ -26,5 +26,4 @@ examples:
       vectors: [0.023, -0.142, 0.089, 0.234]
       schema_name: customers
       limit: 10
-      user: trustgraph
       collection: default

@@ -63,12 +63,11 @@ class Processor(TriplesQueryService):
         else:
             return Term(type=LITERAL, value=ent)
 
-    async def query_triples(self, query):
+    async def query_triples(self, workspace, query):
 
         try:
 
-            # Extract user and collection, use defaults if not provided
-            user = query.user if query.user else "default"
+            workspace = workspace
             collection = query.collection if query.collection else "default"
             
             triples = []
@@ -80,13 +79,13 @@ class Processor(TriplesQueryService):
                         # SPO
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
-                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {value: $value, workspace: $workspace, collection: $collection}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s), rel=get_term_value(query.p), value=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -94,13 +93,13 @@ class Processor(TriplesQueryService):
                             triples.append((get_term_value(query.s), get_term_value(query.p), get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
-                            "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {uri: $uri, workspace: $workspace, collection: $collection}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s), rel=get_term_value(query.p), uri=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -112,13 +111,13 @@ class Processor(TriplesQueryService):
                         # SP
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
-                            "(dest:Literal {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {workspace: $workspace, collection: $collection}) "
                             "RETURN dest.value as dest "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s), rel=get_term_value(query.p),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -127,13 +126,13 @@ class Processor(TriplesQueryService):
                             triples.append((get_term_value(query.s), get_term_value(query.p), data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
-                            "(dest:Node {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {workspace: $workspace, collection: $collection}) "
                             "RETURN dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s), rel=get_term_value(query.p),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -148,13 +147,13 @@ class Processor(TriplesQueryService):
                         # SO
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {value: $value, workspace: $workspace, collection: $collection}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s), value=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -163,13 +162,13 @@ class Processor(TriplesQueryService):
                             triples.append((get_term_value(query.s), data["rel"], get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {uri: $uri, workspace: $workspace, collection: $collection}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s), uri=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -182,13 +181,13 @@ class Processor(TriplesQueryService):
                         # S
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Literal {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {workspace: $workspace, collection: $collection}) "
                             "RETURN rel.uri as rel, dest.value as dest "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -197,13 +196,13 @@ class Processor(TriplesQueryService):
                             triples.append((get_term_value(query.s), data["rel"], data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Node {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {workspace: $workspace, collection: $collection}) "
                             "RETURN rel.uri as rel, dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             src=get_term_value(query.s),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -221,13 +220,13 @@ class Processor(TriplesQueryService):
                         # PO
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
-                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {value: $value, workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
                             uri=get_term_value(query.p), value=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -236,13 +235,13 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], get_term_value(query.p), get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
-                            "(dest:Node {uri: $dest, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {uri: $dest, workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
                             uri=get_term_value(query.p), dest=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -255,13 +254,13 @@ class Processor(TriplesQueryService):
                         # P
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
-                            "(dest:Literal {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src, dest.value as dest "
                             "LIMIT " + str(query.limit),
                             uri=get_term_value(query.p),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -270,13 +269,13 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], get_term_value(query.p), data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
-                            "(dest:Node {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src, dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             uri=get_term_value(query.p),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -291,13 +290,13 @@ class Processor(TriplesQueryService):
                         # O
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {value: $value, workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             value=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -306,13 +305,13 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], data["rel"], get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {uri: $uri, workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             uri=get_term_value(query.o),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -325,12 +324,12 @@ class Processor(TriplesQueryService):
                         # *
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Literal {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Literal {workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel, dest.value as dest "
                             "LIMIT " + str(query.limit),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 
@@ -339,12 +338,12 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], data["rel"], data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {user: $user, collection: $collection})-"
-                            "[rel:Rel {user: $user, collection: $collection}]->"
-                            "(dest:Node {user: $user, collection: $collection}) "
+                            "MATCH (src:Node {workspace: $workspace, collection: $collection})-"
+                            "[rel:Rel {workspace: $workspace, collection: $collection}]->"
+                            "(dest:Node {workspace: $workspace, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel, dest.uri as dest "
                             "LIMIT " + str(query.limit),
-                            user=user, collection=collection,
+                            workspace=workspace, collection=collection,
                             database_=self.db,
                         )
 

@@ -49,7 +49,6 @@ class TriplesImport:
             metadata=Metadata(
                 id=data["metadata"]["id"],
                 root=data["metadata"].get("root", ""),
-                user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),
             triples=to_subgraph(data["triples"]),

@@ -23,6 +23,7 @@ from .... schema import RowsQueryRequest, RowsQueryResponse, GraphQLError
 from .... schema import Error, RowSchema, Field as SchemaField
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .... tables.cassandra_async import async_execute
 
 from ... graphql import GraphQLSchemaBuilder, SortDirection
 
@@ -86,12 +87,12 @@ class Processor(FlowProcessor):
         # Register config handler for schema updates
         self.register_config_handler(self.on_schema_config, types=["schema"])
 
-        # Schema storage: name -> RowSchema
-        self.schemas: Dict[str, RowSchema] = {}
+        # Per-workspace schema storage: {workspace: {name: RowSchema}}
+        self.schemas: Dict[str, Dict[str, RowSchema]] = {}
 
-        # GraphQL schema builder and generated schema
-        self.schema_builder = GraphQLSchemaBuilder()
-        self.graphql_schema = None
+        # Per-workspace GraphQL schema builders and compiled schemas
+        self.schema_builders: Dict[str, GraphQLSchemaBuilder] = {}
+        self.graphql_schemas: Dict[str, Any] = {}
 
         # Cassandra session
         self.cluster = None
@@ -132,17 +133,27 @@ class Processor(FlowProcessor):
             safe_name = 'r_' + safe_name
         return safe_name.lower()
 
-    async def on_schema_config(self, config, version):
+    async def on_schema_config(self, workspace, config, version):
         """Handle schema configuration updates"""
-        logger.info(f"Loading schema configuration version {version}")
+        logger.info(
+            f"Loading schema configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
-        # Clear existing schemas
-        self.schemas = {}
-        self.schema_builder.clear()
+        # Replace existing schemas for this workspace
+        ws_schemas: Dict[str, RowSchema] = {}
+        self.schemas[workspace] = ws_schemas
+
+        builder = GraphQLSchemaBuilder()
+        self.schema_builders[workspace] = builder
 
         # Check if our config type exists
         if self.config_key not in config:
-            logger.warning(f"No '{self.config_key}' type in configuration")
+            logger.warning(
+                f"No '{self.config_key}' type in configuration "
+                f"for {workspace}"
+            )
+            self.graphql_schemas[workspace] = None
             return
 
         # Get the schemas dictionary for our type
@@ -176,17 +187,23 @@ class Processor(FlowProcessor):
                     fields=fields
                 )
 
-                self.schemas[schema_name] = row_schema
-                self.schema_builder.add_schema(schema_name, row_schema)
-                logger.info(f"Loaded schema: {schema_name} with {len(fields)} fields")
+                ws_schemas[schema_name] = row_schema
+                builder.add_schema(schema_name, row_schema)
+                logger.info(
+                    f"Loaded schema: {schema_name} with "
+                    f"{len(fields)} fields for {workspace}"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to parse schema {schema_name}: {e}", exc_info=True)
 
-        logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
+        logger.info(
+            f"Schema configuration loaded for {workspace}: "
+            f"{len(ws_schemas)} schemas"
+        )
 
-        # Regenerate GraphQL schema
-        self.graphql_schema = self.schema_builder.build(self.query_cassandra)
+        # Regenerate GraphQL schema for this workspace
+        self.graphql_schemas[workspace] = builder.build(self.query_cassandra)
 
     def get_index_names(self, schema: RowSchema) -> List[str]:
         """Get all index names for a schema."""
@@ -221,7 +238,7 @@ class Processor(FlowProcessor):
 
     async def query_cassandra(
         self,
-        user: str,
+        workspace: str,
         collection: str,
         schema_name: str,
         row_schema: RowSchema,
@@ -239,7 +256,7 @@ class Processor(FlowProcessor):
         # Connect if needed
         self.connect_cassandra()
 
-        safe_keyspace = self.sanitize_name(user)
+        safe_keyspace = self.sanitize_name(workspace)
 
         # Try to find an index that matches the filters
         index_match = self.find_matching_index(row_schema, filters)
@@ -263,7 +280,7 @@ class Processor(FlowProcessor):
                 query += f" LIMIT {limit}"
 
             try:
-                rows = self.session.execute(query, params)
+                rows = await async_execute(self.session, query, params)
                 for row in rows:
                     # Convert data map to dict with proper field names
                     row_dict = dict(row.data) if row.data else {}
@@ -301,7 +318,7 @@ class Processor(FlowProcessor):
             params = [collection, schema_name, primary_index]
 
             try:
-                rows = self.session.execute(query, params)
+                rows = await async_execute(self.session, query, params)
 
                 for row in rows:
                     row_dict = dict(row.data) if row.data else {}
@@ -388,26 +405,30 @@ class Processor(FlowProcessor):
 
     async def execute_graphql_query(
         self,
+        workspace: str,
         query: str,
         variables: Dict[str, Any],
         operation_name: Optional[str],
-        user: str,
         collection: str
     ) -> Dict[str, Any]:
-        """Execute a GraphQL query"""
+        """Execute a GraphQL query against the workspace's schema"""
 
-        if not self.graphql_schema:
-            raise RuntimeError("No GraphQL schema available - no schemas loaded")
+        graphql_schema = self.graphql_schemas.get(workspace)
+        if not graphql_schema:
+            raise RuntimeError(
+                f"No GraphQL schema available for workspace {workspace} "
+                f"- no schemas loaded"
+            )
 
         # Create context for the query
         context = {
             "processor": self,
-            "user": user,
+            "workspace": workspace,
             "collection": collection
         }
 
         # Execute the query
-        result = await self.graphql_schema.execute(
+        result = await graphql_schema.execute(
             query,
             variable_values=variables,
             operation_name=operation_name,
@@ -453,10 +474,10 @@ class Processor(FlowProcessor):
 
             # Execute GraphQL query
             result = await self.execute_graphql_query(
+                workspace=flow.workspace,
                 query=request.query,
                 variables=dict(request.variables) if request.variables else {},
                 operation_name=request.operation_name,
-                user=request.user,
                 collection=request.collection
             )
 

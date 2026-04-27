@@ -13,7 +13,6 @@ class AgentRequestTranslator(MessageTranslator):
             state=data.get("state", None),
             group=data.get("group", None),
             history=data.get("history", []),
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             streaming=data.get("streaming", False),
             session_id=data.get("session_id", ""),
@@ -33,7 +32,6 @@ class AgentRequestTranslator(MessageTranslator):
             "state": obj.state,
             "group": obj.group,
             "history": obj.history,
-            "user": obj.user,
             "collection": getattr(obj, "collection", "default"),
             "streaming": getattr(obj, "streaming", False),
             "session_id": getattr(obj, "session_id", ""),
@@ -60,8 +58,8 @@ class AgentResponseTranslator(MessageTranslator):
     def encode(self, obj: AgentResponse) -> Dict[str, Any]:
         result = {}
 
-        if obj.chunk_type:
-            result["chunk_type"] = obj.chunk_type
+        if obj.message_type:
+            result["message_type"] = obj.message_type
         if obj.content:
             result["content"] = obj.content
         result["end_of_message"] = getattr(obj, "end_of_message", False)
@@ -89,6 +87,13 @@ class AgentResponseTranslator(MessageTranslator):
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
             result["error"] = {"message": obj.error.message, "code": obj.error.code}
+
+        if obj.in_token is not None:
+            result["in_token"] = obj.in_token
+        if obj.out_token is not None:
+            result["out_token"] = obj.out_token
+        if obj.model is not None:
+            result["model"] = obj.model
 
         return result
 

@@ -71,7 +71,7 @@ class Processor(GraphEmbeddingsQueryService):
         else:
             return Term(type=LITERAL, value=ent)
         
-    async def query_graph_embeddings(self, msg):
+    async def query_graph_embeddings(self, workspace, msg):
 
         try:
 
@@ -81,7 +81,7 @@ class Processor(GraphEmbeddingsQueryService):
 
             # Use dimension suffix in collection name
             dim = len(vec)
-            collection = f"t_{msg.user}_{msg.collection}_{dim}"
+            collection = f"t_{workspace}_{msg.collection}_{dim}"
 
             # Check if collection exists - return empty if not
             if not self.collection_exists(collection):

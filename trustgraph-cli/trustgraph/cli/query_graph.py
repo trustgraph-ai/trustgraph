@@ -23,9 +23,9 @@ import sys
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = 'trustgraph'
 default_collection = 'default'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 
 def parse_inline_quoted_triple(value):
@@ -285,15 +285,16 @@ def output_jsonl(triples):
 
 
 def query_graph(
-    url, flow_id, user, collection, limit, batch_size,
+    url, flow_id, collection, limit, batch_size,
     subject=None, predicate=None, obj=None, graph=None,
-    output_format="space", headers=False, token=None
+    output_format="space", headers=False, token=None,
+    workspace="default",
 ):
     """Query the triple store with pattern matching.
 
     Uses the API's triples_query_stream for efficient streaming delivery.
     """
-    socket = Api(url, token=token).socket()
+    socket = Api(url, token=token, workspace=workspace).socket()
     flow = socket.flow(flow_id)
 
     all_triples = []
@@ -305,7 +306,6 @@ def query_graph(
             p=predicate,
             o=obj,
             g=graph,
-            user=user,
             collection=collection,
             limit=limit,
             batch_size=batch_size,
@@ -457,13 +457,6 @@ def main():
     )
 
     std_group.add_argument(
-        '-U', '--user',
-        default=default_user,
-        metavar='USER',
-        help=f'User/keyspace (default: {default_user})'
-    )
-
-    std_group.add_argument(
         '-C', '--collection',
         default=default_collection,
         metavar='COLL',
@@ -475,6 +468,12 @@ def main():
         default=default_token,
         metavar='TOKEN',
         help='Auth token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     std_group.add_argument(
@@ -550,7 +549,6 @@ def main():
         query_graph(
             url=args.api_url,
             flow_id=args.flow_id,
-            user=args.user,
             collection=args.collection,
             limit=args.limit,
             batch_size=args.batch_size,
@@ -561,6 +559,8 @@ def main():
             output_format=args.format,
             headers=args.headers,
             token=args.token,
+
+            workspace=args.workspace,
         )
 
     except json.JSONDecodeError as e:

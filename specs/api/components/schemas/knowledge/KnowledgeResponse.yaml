@@ -15,17 +15,12 @@ properties:
         type: object
         required:
           - id
-          - user
           - collection
         properties:
           id:
             type: string
             description: Knowledge core ID
             example: core-123
-          user:
-            type: string
-            description: User identifier
-            example: alice
           collection:
             type: string
             description: Collection identifier
@@ -48,17 +43,12 @@ properties:
         type: object
         required:
           - id
-          - user
           - collection
         properties:
           id:
             type: string
             description: Knowledge core ID
             example: core-123
-          user:
-            type: string
-            description: User identifier
-            example: alice
           collection:
             type: string
             description: Collection identifier

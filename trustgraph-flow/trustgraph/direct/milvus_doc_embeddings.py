@@ -6,9 +6,9 @@ import re
 
 logger = logging.getLogger(__name__)
 
-def make_safe_collection_name(user, collection, prefix):
+def make_safe_collection_name(workspace, collection, prefix):
     """
-    Create a safe Milvus collection name from user/collection parameters.
+    Create a safe Milvus collection name from workspace/collection parameters.
     Milvus only allows letters, numbers, and underscores.
     """
     def sanitize(s):
@@ -23,10 +23,10 @@ def make_safe_collection_name(user, collection, prefix):
             safe = 'default'
         return safe
     
-    safe_user = sanitize(user)
+    safe_workspace = sanitize(workspace)
     safe_collection = sanitize(collection)
     
-    return f"{prefix}_{safe_user}_{safe_collection}"
+    return f"{prefix}_{safe_workspace}_{safe_collection}"
 
 class DocVectors:
 
@@ -49,26 +49,26 @@ class DocVectors:
         self.next_reload = time.time() + self.reload_time
         logger.debug(f"Reload at {self.next_reload}")
 
-    def collection_exists(self, user, collection):
+    def collection_exists(self, workspace, collection):
         """
-        Check if any collection exists for this user/collection combination.
+        Check if any collection exists for this workspace/collection combination.
         Since collections are dimension-specific, this checks if ANY dimension variant exists.
         """
-        base_name = make_safe_collection_name(user, collection, self.prefix)
+        base_name = make_safe_collection_name(workspace, collection, self.prefix)
         prefix = f"{base_name}_"
         all_collections = self.client.list_collections()
         return any(coll.startswith(prefix) for coll in all_collections)
 
-    def create_collection(self, user, collection, dimension=384):
+    def create_collection(self, workspace, collection, dimension=384):
         """
         No-op for explicit collection creation.
         Collections are created lazily on first insert with actual dimension.
         """
-        logger.info(f"Collection creation requested for {user}/{collection} - will be created lazily on first insert")
+        logger.info(f"Collection creation requested for {workspace}/{collection} - will be created lazily on first insert")
 
-    def init_collection(self, dimension, user, collection):
+    def init_collection(self, dimension, workspace, collection):
 
-        base_name = make_safe_collection_name(user, collection, self.prefix)
+        base_name = make_safe_collection_name(workspace, collection, self.prefix)
         collection_name = f"{base_name}_{dimension}"
 
         pkey_field = FieldSchema(
@@ -116,15 +116,15 @@ class DocVectors:
             index_params=index_params
         )
 
-        self.collections[(dimension, user, collection)] = collection_name
+        self.collections[(dimension, workspace, collection)] = collection_name
         logger.info(f"Created Milvus collection {collection_name} with dimension {dimension}")
 
-    def insert(self, embeds, chunk_id, user, collection):
+    def insert(self, embeds, chunk_id, workspace, collection):
 
         dim = len(embeds)
 
-        if (dim, user, collection) not in self.collections:
-            self.init_collection(dim, user, collection)
+        if (dim, workspace, collection) not in self.collections:
+            self.init_collection(dim, workspace, collection)
 
         data = [
             {
@@ -134,25 +134,25 @@ class DocVectors:
         ]
 
         self.client.insert(
-            collection_name=self.collections[(dim, user, collection)],
+            collection_name=self.collections[(dim, workspace, collection)],
             data=data
         )
 
-    def search(self, embeds, user, collection, fields=["chunk_id"], limit=10):
+    def search(self, embeds, workspace, collection, fields=["chunk_id"], limit=10):
 
         dim = len(embeds)
 
         # Check if collection exists - return empty if not
-        if (dim, user, collection) not in self.collections:
-            base_name = make_safe_collection_name(user, collection, self.prefix)
+        if (dim, workspace, collection) not in self.collections:
+            base_name = make_safe_collection_name(workspace, collection, self.prefix)
             collection_name = f"{base_name}_{dim}"
             if not self.client.has_collection(collection_name):
                 logger.info(f"Collection {collection_name} does not exist, returning empty results")
                 return []
             # Collection exists but not in cache, add it
-            self.collections[(dim, user, collection)] = collection_name
+            self.collections[(dim, workspace, collection)] = collection_name
 
-        coll = self.collections[(dim, user, collection)]
+        coll = self.collections[(dim, workspace, collection)]
 
         logger.debug("Loading...")
         self.client.load_collection(
@@ -181,12 +181,12 @@ class DocVectors:
 
         return res
 
-    def delete_collection(self, user, collection):
+    def delete_collection(self, workspace, collection):
         """
-        Delete all dimension variants of the collection for the given user/collection.
+        Delete all dimension variants of the collection for the given workspace/collection.
         Since collections are created with dimension suffixes, we need to find and delete all.
         """
-        base_name = make_safe_collection_name(user, collection, self.prefix)
+        base_name = make_safe_collection_name(workspace, collection, self.prefix)
         prefix = f"{base_name}_"
 
         # Get all collections and filter for matches
@@ -199,10 +199,10 @@ class DocVectors:
             for collection_name in matching_collections:
                 self.client.drop_collection(collection_name)
                 logger.info(f"Deleted Milvus collection: {collection_name}")
-            logger.info(f"Deleted {len(matching_collections)} collection(s) for {user}/{collection}")
+            logger.info(f"Deleted {len(matching_collections)} collection(s) for {workspace}/{collection}")
 
         # Remove from our local cache
-        keys_to_remove = [key for key in self.collections.keys() if key[1] == user and key[2] == collection]
+        keys_to_remove = [key for key in self.collections.keys() if key[1] == workspace and key[2] == collection]
         for key in keys_to_remove:
             del self.collections[key]
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Large Document Loading Technical Specification"
+parent: "Tech Specs"
+---
+
 # Large Document Loading Technical Specification
 
 ## Overview

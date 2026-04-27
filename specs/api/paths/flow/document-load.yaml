@@ -88,14 +88,12 @@ post:
             value:
               data: JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PmVuZG9iagoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvS2lkc1szIDAgUl0vQ291bnQgMT4+ZW5kb2JqCg==
               id: doc-789
-              user: alice
               collection: research
           withMetadata:
             summary: Load with metadata
             value:
               data: JVBERi0xLjQKJeLjz9MK...
               id: doc-101112
-              user: bob
               collection: papers
               metadata:
                 - s: {v: "doc-101112", e: false}

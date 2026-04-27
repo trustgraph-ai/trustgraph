@@ -1,0 +1,257 @@
+# Multi-processor group config, derived from docker-compose.yaml.
+#
+# Covers every AsyncProcessor-based service from the compose file.
+# Out of scope:
+#   - api-gateway       (aiohttp, not AsyncProcessor)
+#   - init-trustgraph   (one-shot init, not a processor)
+#   - document-decoder  (universal-decoder, trustgraph-unstructured package —
+#                        packable but lives in a separate image/package)
+#   - mcp-server        (trustgraph-mcp package, separate image)
+#   - ddg-mcp-server    (third-party image)
+#   - infrastructure    (cassandra, rabbitmq, qdrant, garage, grafana,
+#                        prometheus, loki, workbench-ui)
+#
+# Run with:
+#   processor-group -c group.yaml
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.agent.orchestrator.Processor
+    params:
+      <<: *defaults
+      id: agent-manager
+
+  - class: trustgraph.chunking.recursive.Processor
+    params:
+      <<: *defaults
+      id: chunker
+      chunk_size: 2000
+      chunk_overlap: 50
+
+  - class: trustgraph.config.service.Processor
+    params:
+      <<: *defaults
+      id: config-svc
+      cassandra_host: localhost
+
+  - class: trustgraph.decoding.universal.Processor
+    params:
+      <<: *defaults
+      id: document-decoder
+
+  - class: trustgraph.embeddings.document_embeddings.Processor
+    params:
+      <<: *defaults
+      id: document-embeddings
+
+  - class: trustgraph.retrieval.document_rag.Processor
+    params:
+      <<: *defaults
+      id: document-rag
+      doc_limit: 20
+
+  - class: trustgraph.embeddings.fastembed.Processor
+    params:
+      <<: *defaults
+      id: embeddings
+      concurrency: 1
+
+  - class: trustgraph.embeddings.graph_embeddings.Processor
+    params:
+      <<: *defaults
+      id: graph-embeddings
+
+  - class: trustgraph.retrieval.graph_rag.Processor
+    params:
+      <<: *defaults
+      id: graph-rag
+      concurrency: 1
+      entity_limit: 50
+      triple_limit: 30
+      edge_limit: 30
+      edge_score_limit: 10
+      max_subgraph_size: 100
+      max_path_length: 2
+
+  - class: trustgraph.extract.kg.agent.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-agent
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.definitions.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-definitions
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.ontology.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-ontology
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.relationships.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-relationships
+      concurrency: 1
+
+  - class: trustgraph.extract.kg.rows.Processor
+    params:
+      <<: *defaults
+      id: kg-extract-rows
+      concurrency: 1
+
+  - class: trustgraph.cores.service.Processor
+    params:
+      <<: *defaults
+      id: knowledge
+      cassandra_host: localhost
+
+  - class: trustgraph.storage.knowledge.store.Processor
+    params:
+      <<: *defaults
+      id: kg-store
+      cassandra_host: localhost
+
+  - class: trustgraph.librarian.Processor
+    params:
+      <<: *defaults
+      id: librarian
+      cassandra_host: localhost
+      object_store_endpoint: localhost:3900
+      object_store_access_key: GK000000000000000000000001
+      object_store_secret_key: b171f00be9be4c32c734f4c05fe64c527a8ab5eb823b376cfa8c2531f70fc427
+      object_store_region: garage
+
+  - class: trustgraph.agent.mcp_tool.Service
+    params:
+      <<: *defaults
+      id: mcp-tool
+
+  - class: trustgraph.metering.Processor
+    params:
+      <<: *defaults
+      id: metering
+
+  - class: trustgraph.metering.Processor
+    params:
+      <<: *defaults
+      id: metering-rag
+
+  - class: trustgraph.retrieval.nlp_query.Processor
+    params:
+      <<: *defaults
+      id: nlp-query
+
+  - class: trustgraph.prompt.template.Processor
+    params:
+      <<: *defaults
+      id: prompt
+      concurrency: 1
+
+  - class: trustgraph.prompt.template.Processor
+    params:
+      <<: *defaults
+      id: prompt-rag
+      concurrency: 1
+
+  - class: trustgraph.query.doc_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: doc-embeddings-query
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.query.graph_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: graph-embeddings-query
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.query.row_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: row-embeddings-query
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.query.rows.cassandra.Processor
+    params:
+      <<: *defaults
+      id: rows-query
+      cassandra_host: localhost
+
+  - class: trustgraph.query.triples.cassandra.Processor
+    params:
+      <<: *defaults
+      id: triples-query
+      cassandra_host: localhost
+
+  - class: trustgraph.embeddings.row_embeddings.Processor
+    params:
+      <<: *defaults
+      id: row-embeddings
+
+  - class: trustgraph.query.sparql.Processor
+    params:
+      <<: *defaults
+      id: sparql-query
+
+  - class: trustgraph.storage.doc_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: doc-embeddings-write
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.storage.graph_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: graph-embeddings-write
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.storage.row_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: row-embeddings-write
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.storage.rows.cassandra.Processor
+    params:
+      <<: *defaults
+      id: rows-write
+      cassandra_host: localhost
+
+  - class: trustgraph.storage.triples.cassandra.Processor
+    params:
+      <<: *defaults
+      id: triples-write
+      cassandra_host: localhost
+
+  - class: trustgraph.retrieval.structured_diag.Processor
+    params:
+      <<: *defaults
+      id: structured-diag
+
+  - class: trustgraph.retrieval.structured_query.Processor
+    params:
+      <<: *defaults
+      id: structured-query
+
+  - class: trustgraph.model.text_completion.openai.Processor
+    params:
+      <<: *defaults
+      id: text-completion
+      max_output: 8192
+      temperature: 0.0
+
+  - class: trustgraph.model.text_completion.openai.Processor
+    params:
+      <<: *defaults
+      id: text-completion-rag
+      max_output: 8192
+      temperature: 0.0

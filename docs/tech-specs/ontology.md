@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Ontology Structure Technical Specification"
+parent: "Tech Specs"
+---
+
 # Ontology Structure Technical Specification
 
 ## Overview

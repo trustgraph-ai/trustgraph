@@ -5,6 +5,7 @@ Input is prompt, output is response.
 """
 
 import cohere
+from cohere.errors import TooManyRequestsError, ServiceUnavailableError
 from prometheus_client import Histogram
 import os
 import logging
@@ -12,7 +13,7 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
-from .... exceptions import TooManyRequests
+from .... exceptions import TooManyRequests, LlmError
 from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
@@ -84,12 +85,13 @@ class Processor(LlmService):
 
             return resp
 
-        # FIXME: Wrong exception, don't know what this LLM throws
-        # for a rate limit
-        except cohere.TooManyRequestsError:
-
+        except TooManyRequestsError:
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
+
+        except ServiceUnavailableError:
+            # Treat 503 as a retryable LlmError
+            raise LlmError()
 
         except Exception as e:
 
@@ -152,9 +154,13 @@ class Processor(LlmService):
 
             logger.debug("Streaming complete")
 
-        except cohere.TooManyRequestsError:
+        except TooManyRequestsError:
             logger.warning("Rate limit exceeded during streaming")
             raise TooManyRequests()
+
+        except ServiceUnavailableError:
+            logger.warning("Service unavailable during streaming")
+            raise LlmError()
 
         except Exception as e:
             logger.error(f"Cohere streaming exception ({type(e).__name__}): {e}", exc_info=True)

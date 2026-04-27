@@ -15,7 +15,6 @@ class DocumentEmbeddingsRequestTranslator(MessageTranslator):
         return DocumentEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default")
         )
 
@@ -23,7 +22,6 @@ class DocumentEmbeddingsRequestTranslator(MessageTranslator):
         return {
             "vector": obj.vector,
             "limit": obj.limit,
-            "user": obj.user,
             "collection": obj.collection
         }
 
@@ -60,7 +58,6 @@ class GraphEmbeddingsRequestTranslator(MessageTranslator):
         return GraphEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default")
         )
 
@@ -68,7 +65,6 @@ class GraphEmbeddingsRequestTranslator(MessageTranslator):
         return {
             "vector": obj.vector,
             "limit": obj.limit,
-            "user": obj.user,
             "collection": obj.collection
         }
 
@@ -108,7 +104,6 @@ class RowEmbeddingsRequestTranslator(MessageTranslator):
         return RowEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             schema_name=data.get("schema_name", ""),
             index_name=data.get("index_name")
@@ -118,7 +113,6 @@ class RowEmbeddingsRequestTranslator(MessageTranslator):
         result = {
             "vector": obj.vector,
             "limit": obj.limit,
-            "user": obj.user,
             "collection": obj.collection,
             "schema_name": obj.schema_name,
         }

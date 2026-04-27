@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any
 
 import logging
 
@@ -9,7 +12,7 @@ from .. knowledge import Uri, Literal
 logger = logging.getLogger(__name__)
 
 
-def to_value(x):
+def to_value(x: Any) -> Any:
     """Convert schema Term to Uri or Literal."""
     if x.type == IRI:
         return Uri(x.iri)
@@ -19,14 +22,12 @@ def to_value(x):
     return Literal(x.value or x.iri)
 
 class GraphEmbeddingsClient(RequestResponse):
-    async def query(self, vector, limit=20, user="trustgraph",
-                    collection="default", timeout=30):
+    async def query(self, vector, limit=20, collection="default", timeout=30):
 
         resp = await self.request(
             GraphEmbeddingsRequest(
                 vector = vector,
                 limit = limit,
-                user = user,
                 collection = collection
             ),
             timeout=timeout

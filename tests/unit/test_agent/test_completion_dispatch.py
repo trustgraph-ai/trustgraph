@@ -15,7 +15,6 @@ from trustgraph.agent.orchestrator.aggregator import Aggregator
 def _make_request(**kwargs):
     defaults = dict(
         question="Test question",
-        user="testuser",
         collection="default",
     )
     defaults.update(kwargs)
@@ -130,7 +129,6 @@ class TestAggregatorIntegration:
         synth = agg.build_synthesis_request(
             "corr-1",
             original_question="Original question",
-            user="testuser",
             collection="default",
         )
 
@@ -160,7 +158,7 @@ class TestAggregatorIntegration:
         agg.record_completion("corr-1", "goal", "answer")
 
         synth = agg.build_synthesis_request(
-            "corr-1", "question", "user", "default",
+            "corr-1", "question", "default",
         )
 
         # correlation_id must be empty so it's not intercepted

@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.extract.kg.definitions.extract import (
     Processor, default_triples_batch_size, default_entity_batch_size,
 )
+from trustgraph.base import PromptResult
 from trustgraph.schema import (
     Chunk, Triples, EntityContexts, Triple, Metadata, Term, IRI, LITERAL,
 )
@@ -33,11 +34,10 @@ def _make_defn(entity, definition):
     return {"entity": entity, "definition": definition}
 
 
-def _make_chunk_msg(text, meta_id="chunk-1", root="root-1",
-                    user="user-1", collection="col-1", document_id=""):
+def _make_chunk_msg(text, meta_id="chunk-1", root="root-1", collection="col-1", document_id=""):
     chunk = Chunk(
         metadata=Metadata(
-            id=meta_id, root=root, user=user, collection=collection,
+            id=meta_id, root=root, collection=collection,
         ),
         chunk=text.encode("utf-8"),
         document_id=document_id,
@@ -51,8 +51,12 @@ def _make_flow(prompt_result, llm_model="test-llm", ontology_uri="test-onto"):
     mock_triples_pub = AsyncMock()
     mock_ecs_pub = AsyncMock()
     mock_prompt_client = AsyncMock()
+    if isinstance(prompt_result, list):
+        wrapped = PromptResult(response_type="jsonl", objects=prompt_result)
+    else:
+        wrapped = PromptResult(response_type="text", text=prompt_result)
     mock_prompt_client.extract_definitions = AsyncMock(
-        return_value=prompt_result
+        return_value=wrapped
     )
 
     def flow(name):
@@ -224,8 +228,7 @@ class TestMetadataPreservation:
         defs = [_make_defn("X", "def X")]
         flow, triples_pub, _, _ = _make_flow(defs)
         msg = _make_chunk_msg(
-            "text", meta_id="c-1", root="r-1",
-            user="u-1", collection="coll-1",
+            "text", meta_id="c-1", root="r-1", collection="coll-1",
         )
 
         await proc.on_message(msg, MagicMock(), flow)
@@ -233,7 +236,6 @@ class TestMetadataPreservation:
         for triples_msg in _sent_triples(triples_pub):
             assert triples_msg.metadata.id == "c-1"
             assert triples_msg.metadata.root == "r-1"
-            assert triples_msg.metadata.user == "u-1"
             assert triples_msg.metadata.collection == "coll-1"
 
     @pytest.mark.asyncio
@@ -242,8 +244,7 @@ class TestMetadataPreservation:
         defs = [_make_defn("X", "def X")]
         flow, _, ecs_pub, _ = _make_flow(defs)
         msg = _make_chunk_msg(
-            "text", meta_id="c-2", root="r-2",
-            user="u-2", collection="coll-2",
+            "text", meta_id="c-2", root="r-2", collection="coll-2",
         )
 
         await proc.on_message(msg, MagicMock(), flow)

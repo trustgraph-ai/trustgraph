@@ -82,6 +82,9 @@ class Processor(AsyncProcessor):
             processor = self.id, flow = None, name = "knowledge-response"
         )
 
+        self.knowledge_request_topic = knowledge_request_queue
+        self.knowledge_request_subscriber = id
+
         self.knowledge_request_consumer = Consumer(
             taskgroup = self.taskgroup,
             backend = self.pubsub,
@@ -116,23 +119,26 @@ class Processor(AsyncProcessor):
 
     async def start(self):
 
+        await self.pubsub.ensure_topic(self.knowledge_request_topic)
         await super(Processor, self).start()
         await self.knowledge_request_consumer.start()
         await self.knowledge_response_producer.start()
 
-    async def on_knowledge_config(self, config, version):
+    async def on_knowledge_config(self, workspace, config, version):
 
-        logger.info(f"Configuration version: {version}")
+        logger.info(
+            f"Configuration version: {version} workspace: {workspace}"
+        )
 
         if "flow" in config:
-            self.flows = {
+            self.flows[workspace] = {
                 k: json.loads(v)
                 for k, v in config["flow"].items()
             }
         else:
-            self.flows = {}
+            self.flows[workspace] = {}
 
-        logger.debug(f"Flows: {self.flows}")
+        logger.debug(f"Flows for {workspace}: {self.flows[workspace]}")
 
     async def process_request(self, v, id):
 

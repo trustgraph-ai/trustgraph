@@ -1,3 +1,9 @@
+---
+layout: default
+title: "JSONL Prompt Output Technical Specification"
+parent: "Tech Specs"
+---
+
 # JSONL Prompt Output Technical Specification
 
 ## Overview

@@ -34,7 +34,7 @@ class GraphRagClient(BaseClient):
         )
 
     def request(
-            self, query, user="trustgraph", collection="default",
+            self, query, collection="default",
             chunk_callback=None,
             explain_callback=None,
             timeout=500
@@ -44,7 +44,6 @@ class GraphRagClient(BaseClient):
 
         Args:
             query: The question to ask
-            user: User identifier
             collection: Collection identifier
             chunk_callback: Optional callback(text, end_of_stream) for text chunks
             explain_callback: Optional callback(explain_id, explain_graph, explain_triples) for explain notifications
@@ -76,7 +75,7 @@ class GraphRagClient(BaseClient):
             return False  # Continue receiving
 
         self.call(
-            user=user, collection=collection, query=query,
+            collection=collection, query=query,
             inspect=inspect, timeout=timeout
         )
 

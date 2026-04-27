@@ -21,7 +21,7 @@ class Running:
     def get(self): return self.running
     def stop(self): self.running = False
 
-async def fetch_de(running, queue, user, collection, url):
+async def fetch_de(running, queue, collection, url):
 
     async with aiohttp.ClientSession() as session:
 
@@ -38,10 +38,6 @@ async def fetch_de(running, queue, user, collection, url):
 
                     data = msg.json()
 
-                    if user:
-                        if data["metadata"]["user"] != user:
-                            continue
-
                     if collection:
                         if data["metadata"]["collection"] != collection:
                             continue
@@ -52,7 +48,6 @@ async def fetch_de(running, queue, user, collection, url):
                             "m": {
                                 "i": data["metadata"]["id"],
                                 "m": data["metadata"]["metadata"],
-                                "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },
                             "c": [
@@ -119,7 +114,7 @@ async def run(running, **args):
     de_task = asyncio.create_task(
         fetch_de(
             running=running,
-            queue=q, user=args["user"], collection=args["collection"],
+            queue=q, collection=args["collection"],
             url = f"{url}api/v1/flow/{flow_id}/export/document-embeddings"
         )
     )
@@ -148,7 +143,6 @@ async def main(running):
     )
 
     default_url = os.getenv("TRUSTGRAPH_API", "http://localhost:8088/")
-    default_user = "trustgraph"
     collection = "default"
 
     parser.add_argument(
@@ -175,11 +169,6 @@ async def main(running):
         default="msgpack",
         choices=["msgpack", "json"],
         help=f'Output format (default: msgpack)',
-    )
-
-    parser.add_argument(
-        '--user',
-        help=f'User ID to filter on (default: no filter)'
     )
 
     parser.add_argument(

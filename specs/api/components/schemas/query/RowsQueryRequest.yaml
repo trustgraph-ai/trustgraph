@@ -28,11 +28,6 @@ properties:
     type: string
     description: Operation name (for multi-operation documents)
     example: GetPerson
-  user:
-    type: string
-    description: User identifier
-    default: trustgraph
-    example: alice
   collection:
     type: string
     description: Collection to query

@@ -1,7 +1,10 @@
-
 """
 Graph embeddings store base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 
@@ -38,7 +41,8 @@ class GraphEmbeddingsStoreService(FlowProcessor):
 
             request = msg.value()
 
-            await self.store_graph_embeddings(request)
+            # Workspace comes from the flow the message arrived on.
+            await self.store_graph_embeddings(flow.workspace, request)
 
         except TooManyRequests as e:
             raise e
@@ -49,7 +53,7 @@ class GraphEmbeddingsStoreService(FlowProcessor):
             raise e
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL, TRIPLE
@@ -11,7 +14,7 @@ class Triple:
         self.o = o
 
 
-def to_value(x):
+def to_value(x: Any) -> Any:
     """Convert schema Term to Uri or Literal."""
     if x.type == IRI:
         return Uri(x.iri)
@@ -21,7 +24,7 @@ def to_value(x):
     return Literal(x.value or x.iri)
 
 
-def from_value(x):
+def from_value(x: Any) -> Any:
     """Convert Uri, Literal, string, or Term to schema Term."""
     if x is None:
         return None
@@ -42,7 +45,7 @@ def from_value(x):
 
 class TriplesClient(RequestResponse):
     async def query(self, s=None, p=None, o=None, limit=20,
-                    user="trustgraph", collection="default",
+                    collection="default",
                     timeout=30, g=None):
 
         resp = await self.request(
@@ -51,7 +54,6 @@ class TriplesClient(RequestResponse):
                 p = from_value(p),
                 o = from_value(o),
                 limit = limit,
-                user = user,
                 collection = collection,
                 g = g,
             ),
@@ -69,7 +71,7 @@ class TriplesClient(RequestResponse):
         return triples
 
     async def query_stream(self, s=None, p=None, o=None, limit=20,
-                           user="trustgraph", collection="default",
+                           collection="default",
                            batch_size=20, timeout=30,
                            batch_callback=None, g=None):
         """
@@ -78,7 +80,6 @@ class TriplesClient(RequestResponse):
         Args:
             s, p, o: Triple pattern (None for wildcard)
             limit: Maximum total triples to return
-            user: User/keyspace
             collection: Collection name
             batch_size: Triples per batch
             timeout: Request timeout in seconds
@@ -113,7 +114,6 @@ class TriplesClient(RequestResponse):
                 p=from_value(p),
                 o=from_value(o),
                 limit=limit,
-                user=user,
                 collection=collection,
                 streaming=True,
                 batch_size=batch_size,

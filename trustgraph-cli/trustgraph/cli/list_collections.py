@@ -1,23 +1,22 @@
 """
-List collections for a user
+List collections in a workspace
 """
 
 import argparse
 import os
 import tabulate
 from trustgraph.api import Api
-import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
-default_user = "trustgraph"
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def list_collections(url, user, tag_filter):
+def list_collections(url, tag_filter, token=None, workspace="default"):
 
-    api = Api(url).collection()
+    api = Api(url, token=token, workspace=workspace).collection()
 
-    collections = api.list_collections(user=user, tag_filter=tag_filter)
+    collections = api.list_collections(tag_filter=tag_filter)
 
-    # Handle None or empty collections
     if not collections or len(collections) == 0:
         print("No collections found.")
         return
@@ -55,15 +54,21 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
         '-t', '--tag-filter',
         action='append',
         help='Filter by tags (can be specified multiple times)'
+    )
+
+    parser.add_argument(
+        '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     args = parser.parse_args()
@@ -72,8 +77,9 @@ def main():
 
         list_collections(
             url = args.api_url,
-            user = args.user,
-            tag_filter = args.tag_filter
+            tag_filter = args.tag_filter,
+            token = args.token,
+            workspace = args.workspace,
         )
 
     except Exception as e:

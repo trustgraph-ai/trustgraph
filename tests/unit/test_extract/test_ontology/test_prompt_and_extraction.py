@@ -231,6 +231,52 @@ class TestTripleValidation:
             is_valid = extractor.is_valid_triple(subject, predicate, object_val, sample_ontology_subset)
             assert is_valid == expected, f"Validation of {predicate} should be {expected}"
 
+    def test_validates_domain_correctly_with_entity_types(self, extractor, sample_ontology_subset):
+        """Test domain validation correctly compares against extracted entity_types."""
+        subject = "my-recipe"
+        predicate = "produces"
+        object_val = "my-food"
+
+        # Proper domain for produces is Recipe
+        entity_types = {
+            "my-recipe": "Recipe",
+            "my-food": "Food"
+        }
+
+        is_valid = extractor.is_valid_triple(subject, predicate, object_val, sample_ontology_subset, entity_types)
+        assert is_valid, "Valid domain should be accepted"
+
+        # Invalid domain
+        entity_types_invalid = {
+            "my-recipe": "Ingredient",
+            "my-food": "Food"
+        }
+        is_invalid = extractor.is_valid_triple(subject, predicate, object_val, sample_ontology_subset, entity_types_invalid)
+        assert not is_invalid, "Invalid domain should be rejected"
+
+    def test_validates_range_correctly_with_entity_types(self, extractor, sample_ontology_subset):
+        """Test range validation correctly compares against extracted entity_types."""
+        subject = "my-recipe"
+        predicate = "produces"
+        object_val = "my-food"
+
+        # Proper range for produces is Food
+        entity_types = {
+            "my-recipe": "Recipe",
+            "my-food": "Food"
+        }
+
+        is_valid = extractor.is_valid_triple(subject, predicate, object_val, sample_ontology_subset, entity_types)
+        assert is_valid, "Valid range should be accepted"
+
+        # Invalid range
+        entity_types_invalid = {
+            "my-recipe": "Recipe",
+            "my-food": "Recipe"
+        }
+        is_invalid = extractor.is_valid_triple(subject, predicate, object_val, sample_ontology_subset, entity_types_invalid)
+        assert not is_invalid, "Invalid range should be rejected"
+
 
 class TestTripleParsing:
     """Test suite for parsing triples from LLM responses."""

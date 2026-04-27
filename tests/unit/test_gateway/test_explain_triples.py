@@ -158,7 +158,7 @@ class TestAgentExplainTriples:
         translator = AgentResponseTranslator()
 
         response = AgentResponse(
-            chunk_type="explain",
+            message_type="explain",
             content="",
             explain_id="urn:trustgraph:agent:session:abc123",
             explain_graph="urn:graph:retrieval",
@@ -179,7 +179,7 @@ class TestAgentExplainTriples:
         translator = AgentResponseTranslator()
 
         response = AgentResponse(
-            chunk_type="thought",
+            message_type="thought",
             content="I need to think...",
         )
 
@@ -190,7 +190,7 @@ class TestAgentExplainTriples:
         translator = AgentResponseTranslator()
 
         response = AgentResponse(
-            chunk_type="explain",
+            message_type="explain",
             explain_id="urn:trustgraph:agent:session:abc123",
             explain_triples=sample_triples(),
             end_of_dialog=False,
@@ -203,7 +203,7 @@ class TestAgentExplainTriples:
         translator = AgentResponseTranslator()
 
         response = AgentResponse(
-            chunk_type="answer",
+            message_type="answer",
             content="The answer is...",
             end_of_dialog=True,
         )

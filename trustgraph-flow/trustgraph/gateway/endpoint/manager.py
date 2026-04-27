@@ -7,6 +7,7 @@ from . stream_endpoint import StreamEndpoint
 from . variable_endpoint import VariableEndpoint
 from . socket import SocketEndpoint
 from . metrics import MetricsEndpoint
+from . i18n import I18nPackEndpoint
 
 from .. dispatch.manager import DispatcherManager
 
@@ -23,6 +24,10 @@ class EndpointManager:
         }
 
         self.endpoints = [
+            I18nPackEndpoint(
+                endpoint_path = "/api/v1/i18n/packs/{lang}",
+                auth = auth,
+            ),
             MetricsEndpoint(
                 endpoint_path = "/api/metrics",
                 prometheus_url = prometheus_url,

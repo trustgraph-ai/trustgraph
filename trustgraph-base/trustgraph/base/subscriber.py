@@ -41,13 +41,54 @@ class Subscriber:
         self.consumer = None
         self.executor = None
 
+        # Readiness barrier — completed by run() once the underlying
+        # backend consumer is fully connected and bound. start() awaits
+        # this so callers know any subsequently published request will
+        # have a queue ready to receive its response. Without this,
+        # ephemeral per-subscriber response queues (RabbitMQ auto-delete
+        # exclusive queues) would race the request and lose the reply.
+        # A Future is used (rather than an Event) so that a first-attempt
+        # connection failure can be propagated to start() as an exception.
+        self._ready = None  # created in start() so we have a running loop
+
     def __del__(self):
 
         self.running = False
 
     async def start(self):
 
+        self._ready = asyncio.get_event_loop().create_future()
         self.task = asyncio.create_task(self.run())
+
+        # Block until run() signals readiness OR exits. The future
+        # carries the outcome of the first connect attempt: a value on
+        # success, an exception on first-attempt failure. If run() exits
+        # without ever signalling (e.g. cancelled, or a code path bug),
+        # we surface that as a clear RuntimeError rather than hanging
+        # forever waiting on the future.
+        ready_wait = asyncio.ensure_future(
+            asyncio.shield(self._ready)
+        )
+        try:
+            await asyncio.wait(
+                {self.task, ready_wait},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            ready_wait.cancel()
+
+        if self._ready.done():
+            # Re-raise first-attempt connect failure if any.
+            self._ready.result()
+            return
+
+        # run() exited before _ready was settled. Propagate its exception
+        # if it had one, otherwise raise a generic readiness error.
+        if self.task.done() and self.task.exception() is not None:
+            raise self.task.exception()
+        raise RuntimeError(
+            "Subscriber.run() exited before signalling readiness"
+        )
 
     async def stop(self):
         """Initiate graceful shutdown with draining"""
@@ -66,6 +107,7 @@ class Subscriber:
 
     async def run(self):
         """Enhanced run method with integrated draining logic"""
+        first_attempt = True
         while self.running or self.draining:
 
             if self.metrics:
@@ -87,10 +129,27 @@ class Subscriber:
                         ),
                     )
 
+                    # Eagerly bind the queue. For backends that connect
+                    # lazily on first receive (RabbitMQ), this is what
+                    # closes the request/response setup race — without
+                    # it the response queue is not bound until later and
+                    # any reply published in the meantime is dropped.
+                    await loop.run_in_executor(
+                        self.executor,
+                        lambda: self.consumer.ensure_connected(),
+                    )
+
                 if self.metrics:
                     self.metrics.state("running")
 
                 logger.info("Subscriber running...")
+
+                # Signal start() that the consumer is ready. This must
+                # happen AFTER ensure_connected() above so callers can
+                # safely publish requests immediately after start() returns.
+                if first_attempt and not self._ready.done():
+                    self._ready.set_result(None)
+                    first_attempt = False
                 drain_end_time = None
 
                 while self.running or self.draining:
@@ -162,6 +221,16 @@ class Subscriber:
             except Exception as e:
                 logger.error(f"Subscriber exception: {e}", exc_info=True)
 
+                # First-attempt connection failure: propagate to start()
+                # so the caller can decide what to do (retry, give up).
+                # Subsequent failures use the existing retry-with-backoff
+                # path so a long-lived subscriber survives broker blips.
+                if first_attempt and not self._ready.done():
+                    self._ready.set_exception(e)
+                    first_attempt = False
+                    # Falls through into finally for cleanup, then the
+                    # outer return below ends run() so start() unblocks.
+
             finally:
                 # Negative acknowledge any pending messages
                 for msg in self.pending_acks.values():
@@ -191,6 +260,11 @@ class Subscriber:
                 self.metrics.state("stopped")
 
             if not self.running and not self.draining:
+                return
+
+            # If start() has already returned with an exception there is
+            # nothing more to do — exit run() rather than busy-retry.
+            if self._ready.done() and self._ready.exception() is not None:
                 return
 
             # Sleep before retry

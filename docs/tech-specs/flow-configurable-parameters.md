@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Flow Blueprint Configurable Parameters Technical Specification"
+parent: "Tech Specs"
+---
+
 # Flow Blueprint Configurable Parameters Technical Specification
 
 ## Overview

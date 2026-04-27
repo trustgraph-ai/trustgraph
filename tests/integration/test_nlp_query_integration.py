@@ -72,7 +72,7 @@ class TestNLPQueryServiceIntegration:
         )
         
         # Set up schemas
-        proc.schemas = sample_schemas
+        proc.schemas = {"default": dict(sample_schemas)}
         
         # Mock the client method
         proc.client = MagicMock()
@@ -94,6 +94,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         
@@ -173,6 +174,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         
@@ -229,7 +231,7 @@ class TestNLPQueryServiceIntegration:
         }
         
         # Act - Update configuration
-        await integration_processor.on_schema_config(new_schema_config, "v2")
+        await integration_processor.on_schema_config("default", new_schema_config, "v2")
         
         # Arrange - Test query using new schema
         request = QuestionToStructuredQueryRequest(
@@ -243,6 +245,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         
@@ -272,7 +275,7 @@ class TestNLPQueryServiceIntegration:
         await integration_processor.on_message(msg, consumer, flow)
         
         # Assert
-        assert "inventory" in integration_processor.schemas
+        assert "inventory" in integration_processor.schemas["default"]
         response_call = flow_response.send.call_args
         response = response_call[0][0]
         assert response.detected_schemas == ["inventory"]
@@ -293,6 +296,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         
@@ -334,7 +338,7 @@ class TestNLPQueryServiceIntegration:
             graphql_generation_template="custom-graphql-generator"
         )
         
-        custom_processor.schemas = sample_schemas
+        custom_processor.schemas = {"default": dict(sample_schemas)}
         custom_processor.client = MagicMock()
         
         request = QuestionToStructuredQueryRequest(
@@ -348,6 +352,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         
@@ -394,7 +399,7 @@ class TestNLPQueryServiceIntegration:
                 ] + [SchemaField(name=f"field_{j}", type="string") for j in range(5)]
             )
         
-        integration_processor.schemas.update(large_schema_set)
+        integration_processor.schemas["default"].update(large_schema_set)
         
         request = QuestionToStructuredQueryRequest(
             question="Show me data from table_05 and table_12",
@@ -407,6 +412,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         
@@ -462,6 +468,7 @@ class TestNLPQueryServiceIntegration:
             msg.properties.return_value = {"id": f"concurrent-test-{i}"}
             
             flow = MagicMock()
+            flow.workspace = "default"
             flow_response = AsyncMock()
             flow.return_value = flow_response
             
@@ -532,6 +539,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
+        flow.workspace = "default"
         flow_response = AsyncMock()
         flow.return_value = flow_response
         

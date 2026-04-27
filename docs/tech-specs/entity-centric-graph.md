@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Entity-Centric Knowledge Graph Storage on Cassandra"
+parent: "Tech Specs"
+---
+
 # Entity-Centric Knowledge Graph Storage on Cassandra
 
 ## Overview
@@ -258,4 +264,3 @@ The entity-centric model can coexist with the existing multi-table model during 
 | Operational overhead | 6 tables to tune/repair | 1 data table |
 | Reification support | Additional complexity | Natural fit |
 | Object type filtering | Not available | Native (via otype clustering) |
-

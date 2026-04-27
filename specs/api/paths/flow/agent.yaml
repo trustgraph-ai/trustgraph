@@ -69,25 +69,21 @@ post:
             summary: Simple question
             value:
               question: What is the capital of France?
-              user: alice
           streamingQuestion:
             summary: Question with streaming enabled
             value:
               question: Explain quantum computing
-              user: alice
               streaming: true
           conversationWithHistory:
             summary: Multi-turn conversation
             value:
               question: And what about its population?
-              user: alice
               history:
                 - thought: User is asking about the capital of France
                   action: search
                   arguments:
                     query: "capital of France"
                   observation: "Paris is the capital of France"
-                  user: alice
   responses:
     '200':
       description: Successful response

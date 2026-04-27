@@ -40,7 +40,6 @@ post:
       - Higher = more context but slower
       - Lower = faster but may miss relevant info
     - **collection**: Target specific document collection
-    - **user**: Multi-tenant isolation
 
   operationId: documentRagService
   security:
@@ -64,13 +63,11 @@ post:
             summary: Basic document query
             value:
               query: What are the key findings in the research papers?
-              user: alice
               collection: research
           streamingQuery:
             summary: Streaming query
             value:
               query: Summarize the main conclusions
-              user: alice
               collection: research
               doc-limit: 15
               streaming: true

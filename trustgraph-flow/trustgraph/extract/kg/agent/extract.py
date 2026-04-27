@@ -75,24 +75,36 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Null configuration, should reload quickly
-        self.manager = PromptManager()
+        # Per-workspace prompt managers
+        self.managers = {}
 
-    async def on_prompt_config(self, config, version):
+    async def on_prompt_config(self, workspace, config, version):
 
-        logger.info(f"Loading configuration version {version}")
+        logger.info(
+            f"Loading configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
         if self.config_key not in config:
-            logger.warning(f"No key {self.config_key} in config")
+            logger.warning(
+                f"No key {self.config_key} in config for {workspace}"
+            )
             return
 
-        config = config[self.config_key]
+        prompt_config = config[self.config_key]
 
         try:
 
-            self.manager.load_config(config)
+            manager = self.managers.get(workspace)
+            if manager is None:
+                manager = PromptManager()
+                self.managers[workspace] = manager
 
-            logger.info("Prompt configuration reloaded")
+            manager.load_config(prompt_config)
+
+            logger.info(
+                f"Prompt configuration reloaded for {workspace}"
+            )
 
         except Exception as e:
 
@@ -107,7 +119,6 @@ class Processor(FlowProcessor):
             metadata = Metadata(
                 id = metadata.id,
                 root = metadata.root,
-                user = metadata.user,
                 collection = metadata.collection,
             ),
             triples = triples,
@@ -120,7 +131,6 @@ class Processor(FlowProcessor):
             metadata = Metadata(
                 id = metadata.id,
                 root = metadata.root,
-                user = metadata.user,
                 collection = metadata.collection,
             ),
             entities = entity_contexts,
@@ -170,13 +180,24 @@ class Processor(FlowProcessor):
         try:
 
             v = msg.value()
+            workspace = flow.workspace
 
             # Extract chunk text
             chunk_text = v.chunk.decode('utf-8')
 
-            logger.debug("Processing chunk for agent extraction")
+            logger.debug(
+                f"Processing chunk for agent extraction, "
+                f"workspace {workspace}"
+            )
 
-            prompt = self.manager.render(
+            manager = self.managers.get(workspace)
+            if manager is None:
+                logger.error(
+                    f"No prompt configuration for workspace {workspace}"
+                )
+                return
+
+            prompt = manager.render(
                 self.template_id,
                 {
                     "text": chunk_text

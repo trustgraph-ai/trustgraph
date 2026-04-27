@@ -1,6 +1,6 @@
 """
 Tests for tool service lifecycle, invoke contract, streaming responses,
-multi-tenancy, and error propagation.
+and error propagation.
 
 Tests the actual DynamicToolService, ToolService, and ToolServiceClient
 classes rather than plain dicts.
@@ -31,7 +31,7 @@ class TestDynamicToolServiceInvokeContract:
         svc = DynamicToolService.__new__(DynamicToolService)
 
         with pytest.raises(NotImplementedError):
-            await svc.invoke("user", {}, {})
+            await svc.invoke({}, {})
 
     @pytest.mark.asyncio
     async def test_on_request_calls_invoke_with_parsed_args(self):
@@ -44,8 +44,8 @@ class TestDynamicToolServiceInvokeContract:
 
         calls = []
 
-        async def tracking_invoke(user, config, arguments):
-            calls.append({"user": user, "config": config, "arguments": arguments})
+        async def tracking_invoke(config, arguments):
+            calls.append({"config": config, "arguments": arguments})
             return "ok"
 
         svc.invoke = tracking_invoke
@@ -56,7 +56,6 @@ class TestDynamicToolServiceInvokeContract:
 
         msg = MagicMock()
         msg.value.return_value = ToolServiceRequest(
-            user="alice",
             config='{"style": "pun"}',
             arguments='{"topic": "cats"}',
         )
@@ -65,38 +64,8 @@ class TestDynamicToolServiceInvokeContract:
         await svc.on_request(msg, MagicMock(), None)
 
         assert len(calls) == 1
-        assert calls[0]["user"] == "alice"
         assert calls[0]["config"] == {"style": "pun"}
         assert calls[0]["arguments"] == {"topic": "cats"}
-
-    @pytest.mark.asyncio
-    async def test_on_request_empty_user_defaults_to_trustgraph(self):
-        """Empty user field should default to 'trustgraph'."""
-        from trustgraph.base.dynamic_tool_service import DynamicToolService
-
-        svc = DynamicToolService.__new__(DynamicToolService)
-        svc.id = "test-svc"
-        svc.producer = AsyncMock()
-
-        received_user = None
-
-        async def capture_invoke(user, config, arguments):
-            nonlocal received_user
-            received_user = user
-            return "ok"
-
-        svc.invoke = capture_invoke
-
-        if not hasattr(DynamicToolService, "tool_service_metric"):
-            DynamicToolService.tool_service_metric = MagicMock()
-
-        msg = MagicMock()
-        msg.value.return_value = ToolServiceRequest(user="", config="", arguments="")
-        msg.properties.return_value = {"id": "req-2"}
-
-        await svc.on_request(msg, MagicMock(), None)
-
-        assert received_user == "trustgraph"
 
     @pytest.mark.asyncio
     async def test_on_request_string_response_sent_directly(self):
@@ -107,7 +76,7 @@ class TestDynamicToolServiceInvokeContract:
         svc.id = "test-svc"
         svc.producer = AsyncMock()
 
-        async def string_invoke(user, config, arguments):
+        async def string_invoke(config, arguments):
             return "hello world"
 
         svc.invoke = string_invoke
@@ -116,7 +85,7 @@ class TestDynamicToolServiceInvokeContract:
             DynamicToolService.tool_service_metric = MagicMock()
 
         msg = MagicMock()
-        msg.value.return_value = ToolServiceRequest(user="u", config="{}", arguments="{}")
+        msg.value.return_value = ToolServiceRequest(config="{}", arguments="{}")
         msg.properties.return_value = {"id": "r1"}
 
         await svc.on_request(msg, MagicMock(), None)
@@ -136,7 +105,7 @@ class TestDynamicToolServiceInvokeContract:
         svc.id = "test-svc"
         svc.producer = AsyncMock()
 
-        async def dict_invoke(user, config, arguments):
+        async def dict_invoke(config, arguments):
             return {"result": 42}
 
         svc.invoke = dict_invoke
@@ -145,7 +114,7 @@ class TestDynamicToolServiceInvokeContract:
             DynamicToolService.tool_service_metric = MagicMock()
 
         msg = MagicMock()
-        msg.value.return_value = ToolServiceRequest(user="u", config="{}", arguments="{}")
+        msg.value.return_value = ToolServiceRequest(config="{}", arguments="{}")
         msg.properties.return_value = {"id": "r2"}
 
         await svc.on_request(msg, MagicMock(), None)
@@ -162,13 +131,13 @@ class TestDynamicToolServiceInvokeContract:
         svc.id = "test-svc"
         svc.producer = AsyncMock()
 
-        async def failing_invoke(user, config, arguments):
+        async def failing_invoke(config, arguments):
             raise ValueError("bad input")
 
         svc.invoke = failing_invoke
 
         msg = MagicMock()
-        msg.value.return_value = ToolServiceRequest(user="u", config="{}", arguments="{}")
+        msg.value.return_value = ToolServiceRequest(config="{}", arguments="{}")
         msg.properties.return_value = {"id": "r3"}
 
         await svc.on_request(msg, MagicMock(), None)
@@ -188,13 +157,13 @@ class TestDynamicToolServiceInvokeContract:
         svc.id = "test-svc"
         svc.producer = AsyncMock()
 
-        async def rate_limited_invoke(user, config, arguments):
+        async def rate_limited_invoke(config, arguments):
             raise TooManyRequests("rate limited")
 
         svc.invoke = rate_limited_invoke
 
         msg = MagicMock()
-        msg.value.return_value = ToolServiceRequest(user="u", config="{}", arguments="{}")
+        msg.value.return_value = ToolServiceRequest(config="{}", arguments="{}")
         msg.properties.return_value = {"id": "r4"}
 
         with pytest.raises(TooManyRequests):
@@ -209,7 +178,7 @@ class TestDynamicToolServiceInvokeContract:
         svc.id = "test-svc"
         svc.producer = AsyncMock()
 
-        async def ok_invoke(user, config, arguments):
+        async def ok_invoke(config, arguments):
             return "ok"
 
         svc.invoke = ok_invoke
@@ -218,7 +187,7 @@ class TestDynamicToolServiceInvokeContract:
             DynamicToolService.tool_service_metric = MagicMock()
 
         msg = MagicMock()
-        msg.value.return_value = ToolServiceRequest(user="u", config="{}", arguments="{}")
+        msg.value.return_value = ToolServiceRequest(config="{}", arguments="{}")
         msg.properties.return_value = {"id": "unique-42"}
 
         await svc.on_request(msg, MagicMock(), None)
@@ -241,7 +210,7 @@ class TestToolServiceOnRequest:
         svc = ToolService.__new__(ToolService)
         svc.id = "test-tool"
 
-        async def mock_invoke(name, params):
+        async def mock_invoke(workspace, name, params):
             return "tool result"
 
         svc.invoke_tool = mock_invoke
@@ -260,6 +229,7 @@ class TestToolServiceOnRequest:
 
         flow_callable.producer = {"response": mock_response_pub}
         flow_callable.name = "test-flow"
+        flow_callable.workspace = "default"
 
         msg = MagicMock()
         msg.value.return_value = ToolRequest(name="my-tool", parameters='{"key": "val"}')
@@ -280,7 +250,7 @@ class TestToolServiceOnRequest:
         svc = ToolService.__new__(ToolService)
         svc.id = "test-tool"
 
-        async def mock_invoke(name, params):
+        async def mock_invoke(workspace, name, params):
             return {"data": [1, 2, 3]}
 
         svc.invoke_tool = mock_invoke
@@ -298,6 +268,7 @@ class TestToolServiceOnRequest:
 
         flow_callable.producer = {"response": mock_response_pub}
         flow_callable.name = "test-flow"
+        flow_callable.workspace = "default"
 
         msg = MagicMock()
         msg.value.return_value = ToolRequest(name="my-tool", parameters="{}")
@@ -317,7 +288,7 @@ class TestToolServiceOnRequest:
         svc = ToolService.__new__(ToolService)
         svc.id = "test-tool"
 
-        async def failing_invoke(name, params):
+        async def failing_invoke(workspace, name, params):
             raise RuntimeError("tool broke")
 
         svc.invoke_tool = failing_invoke
@@ -330,6 +301,7 @@ class TestToolServiceOnRequest:
 
         flow_callable.producer = {"response": mock_response_pub}
         flow_callable.name = "test-flow"
+        flow_callable.workspace = "default"
 
         msg = MagicMock()
         msg.value.return_value = ToolRequest(name="my-tool", parameters="{}")
@@ -350,7 +322,7 @@ class TestToolServiceOnRequest:
         svc = ToolService.__new__(ToolService)
         svc.id = "test-tool"
 
-        async def rate_limited(name, params):
+        async def rate_limited(workspace, name, params):
             raise TooManyRequests("slow down")
 
         svc.invoke_tool = rate_limited
@@ -362,6 +334,7 @@ class TestToolServiceOnRequest:
         flow = MagicMock()
         flow.producer = {"response": AsyncMock()}
         flow.name = "test-flow"
+        flow.workspace = "default"
 
         with pytest.raises(TooManyRequests):
             await svc.on_request(msg, MagicMock(), flow)
@@ -376,7 +349,8 @@ class TestToolServiceOnRequest:
 
         received = {}
 
-        async def capture_invoke(name, params):
+        async def capture_invoke(workspace, name, params):
+            received["workspace"] = workspace
             received["name"] = name
             received["params"] = params
             return "ok"
@@ -390,6 +364,7 @@ class TestToolServiceOnRequest:
         flow = lambda name: mock_pub
         flow.producer = {"response": mock_pub}
         flow.name = "f"
+        flow.workspace = "default"
 
         msg = MagicMock()
         msg.value.return_value = ToolRequest(
@@ -421,7 +396,6 @@ class TestToolServiceClientCall:
         ))
 
         result = await client.call(
-            user="alice",
             config={"style": "pun"},
             arguments={"topic": "cats"},
         )
@@ -430,7 +404,6 @@ class TestToolServiceClientCall:
 
         req = client.request.call_args[0][0]
         assert isinstance(req, ToolServiceRequest)
-        assert req.user == "alice"
         assert json.loads(req.config) == {"style": "pun"}
         assert json.loads(req.arguments) == {"topic": "cats"}
 
@@ -446,7 +419,7 @@ class TestToolServiceClientCall:
         ))
 
         with pytest.raises(RuntimeError, match="service down"):
-            await client.call(user="u", config={}, arguments={})
+            await client.call(config={}, arguments={})
 
     @pytest.mark.asyncio
     async def test_call_empty_config_sends_empty_json(self):
@@ -458,7 +431,7 @@ class TestToolServiceClientCall:
             error=None, response="ok",
         ))
 
-        await client.call(user="u", config=None, arguments=None)
+        await client.call(config=None, arguments=None)
 
         req = client.request.call_args[0][0]
         assert req.config == "{}"
@@ -474,7 +447,7 @@ class TestToolServiceClientCall:
             error=None, response="ok",
         ))
 
-        await client.call(user="u", config={}, arguments={}, timeout=30)
+        await client.call(config={}, arguments={}, timeout=30)
 
         _, kwargs = client.request.call_args
         assert kwargs["timeout"] == 30
@@ -509,7 +482,7 @@ class TestToolServiceClientStreaming:
             received.append(text)
 
         result = await client.call_streaming(
-            user="u", config={}, arguments={}, callback=callback,
+            config={}, arguments={}, callback=callback,
         )
 
         assert result == "chunk1chunk2"
@@ -534,7 +507,7 @@ class TestToolServiceClientStreaming:
 
         with pytest.raises(RuntimeError, match="stream failed"):
             await client.call_streaming(
-                user="u", config={}, arguments={},
+                config={}, arguments={},
                 callback=AsyncMock(),
             )
 
@@ -564,61 +537,9 @@ class TestToolServiceClientStreaming:
             received.append(text)
 
         result = await client.call_streaming(
-            user="u", config={}, arguments={}, callback=callback,
+            config={}, arguments={}, callback=callback,
         )
 
         # Empty response is falsy, so callback shouldn't be called for it
         assert result == "data"
         assert received == ["data"]
-
-
-# ---------------------------------------------------------------------------
-# Multi-tenancy
-# ---------------------------------------------------------------------------
-
-class TestMultiTenancy:
-
-    @pytest.mark.asyncio
-    async def test_user_propagated_to_invoke(self):
-        """User from request should reach the invoke method."""
-        from trustgraph.base.dynamic_tool_service import DynamicToolService
-
-        svc = DynamicToolService.__new__(DynamicToolService)
-        svc.id = "test"
-        svc.producer = AsyncMock()
-
-        users_seen = []
-
-        async def tracking(user, config, arguments):
-            users_seen.append(user)
-            return "ok"
-
-        svc.invoke = tracking
-
-        if not hasattr(DynamicToolService, "tool_service_metric"):
-            DynamicToolService.tool_service_metric = MagicMock()
-
-        for u in ["tenant-a", "tenant-b", "tenant-c"]:
-            msg = MagicMock()
-            msg.value.return_value = ToolServiceRequest(
-                user=u, config="{}", arguments="{}",
-            )
-            msg.properties.return_value = {"id": f"req-{u}"}
-            await svc.on_request(msg, MagicMock(), None)
-
-        assert users_seen == ["tenant-a", "tenant-b", "tenant-c"]
-
-    @pytest.mark.asyncio
-    async def test_client_sends_user_in_request(self):
-        """ToolServiceClient.call should include user in request."""
-        from trustgraph.base.tool_service_client import ToolServiceClient
-
-        client = ToolServiceClient.__new__(ToolServiceClient)
-        client.request = AsyncMock(return_value=ToolServiceResponse(
-            error=None, response="ok",
-        ))
-
-        await client.call(user="isolated-tenant", config={}, arguments={})
-
-        req = client.request.call_args[0][0]
-        assert req.user == "isolated-tenant"

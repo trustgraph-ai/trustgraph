@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Vector Store Lifecycle Management"
+parent: "Tech Specs"
+---
+
 # Vector Store Lifecycle Management
 
 ## Overview

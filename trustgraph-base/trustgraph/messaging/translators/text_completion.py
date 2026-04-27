@@ -29,11 +29,11 @@ class TextCompletionResponseTranslator(MessageTranslator):
     def encode(self, obj: TextCompletionResponse) -> Dict[str, Any]:
         result = {"response": obj.response}
 
-        if obj.in_token:
+        if obj.in_token is not None:
             result["in_token"] = obj.in_token
-        if obj.out_token:
+        if obj.out_token is not None:
             result["out_token"] = obj.out_token
-        if obj.model:
+        if obj.model is not None:
             result["model"] = obj.model
 
         # Always include end_of_stream flag for streaming support

@@ -21,14 +21,16 @@ class Config:
     and list operations.
     """
 
-    def __init__(self, api):
+    def __init__(self, api, workspace="default"):
         """
         Initialize Config client.
 
         Args:
             api: Parent Api instance for making requests
+            workspace: Workspace to scope all config operations to
         """
         self.api = api
+        self.workspace = workspace
 
     def request(self, request):
         """
@@ -75,9 +77,9 @@ class Config:
             ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "get",
+            "workspace": self.workspace,
             "keys": [
                 { "type": k.type, "key": k.key }
                 for k in keys
@@ -123,9 +125,9 @@ class Config:
             ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "put",
+            "workspace": self.workspace,
             "values": [
                 { "type": v.type, "key": v.key, "value": v.value }
                 for v in values
@@ -157,9 +159,9 @@ class Config:
             ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "delete",
+            "workspace": self.workspace,
             "keys": [
                 { "type": v.type, "key": v.key }
                 for v in keys
@@ -195,9 +197,9 @@ class Config:
             ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "list",
+            "workspace": self.workspace,
             "type": type,
         }
 
@@ -235,9 +237,9 @@ class Config:
             ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "getvalues",
+            "workspace": self.workspace,
             "type": type,
         }
 
@@ -254,6 +256,46 @@ class Config:
             ]
         except:
             raise ProtocolException(f"Response not formatted correctly")
+
+    def get_values_all_workspaces(self, type):
+        """
+        Get all configuration values of a given type across all workspaces.
+
+        Unlike get_values(), this is not scoped to a single workspace —
+        it returns every entry of the given type in the system. Each
+        returned ConfigValue includes its workspace field. Used by
+        shared processors to load type-scoped config at startup.
+
+        Args:
+            type: Configuration type (e.g. "prompt", "schema")
+
+        Returns:
+            list[ConfigValue]: Values across all workspaces; each has
+            its workspace field populated.
+
+        Raises:
+            ProtocolException: If response format is invalid
+        """
+
+        input = {
+            "operation": "getvalues-all-ws",
+            "type": type,
+        }
+
+        object = self.request(input)
+
+        try:
+            return [
+                ConfigValue(
+                    type = v["type"],
+                    key = v["key"],
+                    value = v["value"],
+                    workspace = v.get("workspace", ""),
+                )
+                for v in object["values"]
+            ]
+        except Exception:
+            raise ProtocolException("Response not formatted correctly")
 
     def all(self):
         """
@@ -279,9 +321,9 @@ class Config:
             ```
         """
 
-        # The input consists of system and prompt strings
         input = {
-            "operation": "config"
+            "operation": "config",
+            "workspace": self.workspace,
         }
 
         object = self.request(input)

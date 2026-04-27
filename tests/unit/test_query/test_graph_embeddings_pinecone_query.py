@@ -145,7 +145,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
         
         # Verify index was accessed correctly (with dimension suffix)
         expected_index_name = "t-test_user-test_collection-3"  # 3 dimensions
@@ -185,7 +185,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
 
         mock_index.query.return_value = mock_results
 
-        entities = await processor.query_graph_embeddings(mock_query_message)
+        entities = await processor.query_graph_embeddings('default', mock_query_message)
 
         # Verify query was made once
         assert mock_index.query.call_count == 1
@@ -216,7 +216,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
         
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
         
         # Verify limit is respected
         assert len(entities) == 2
@@ -233,7 +233,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
         
         # Verify no query was made and empty result returned
         mock_index.query.assert_not_called()
@@ -251,7 +251,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
         
         # Verify no query was made and empty result returned
         mock_index.query.assert_not_called()
@@ -276,7 +276,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
 
         mock_index.query.return_value = mock_results
 
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
 
         # Verify correct index used for 2D vector
         processor.pinecone.Index.assert_called_with("t-test_user-test_collection-2")
@@ -300,7 +300,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
         
         # Verify no queries were made and empty result returned
         processor.pinecone.Index.assert_not_called()
@@ -323,7 +323,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         mock_results.matches = []
         mock_index.query.return_value = mock_results
         
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
         
         # Verify empty results
         assert entities == []
@@ -352,7 +352,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
 
         mock_index.query.return_value = mock_results
 
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
 
         # Should get exactly 3 unique entities (respecting limit)
         assert len(entities) == 3
@@ -380,7 +380,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         ]
         mock_index.query.return_value = mock_results
 
-        entities = await processor.query_graph_embeddings(message)
+        entities = await processor.query_graph_embeddings('test_user', message)
 
         # Should only return 2 entities (respecting limit)
         mock_index.query.assert_called_once()
@@ -400,7 +400,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         mock_index.query.side_effect = Exception("Query failed")
         
         with pytest.raises(Exception, match="Query failed"):
-            await processor.query_graph_embeddings(message)
+            await processor.query_graph_embeddings('test_user', message)
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""

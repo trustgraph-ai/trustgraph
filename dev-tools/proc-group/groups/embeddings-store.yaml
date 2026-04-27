@@ -1,0 +1,45 @@
+# Embeddings store.  All Qdrant-backed vector query/write processors.
+# One process owns the Qdrant driver pool for the whole group.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.query.doc_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: doc-embeddings-query
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.storage.doc_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: doc-embeddings-write
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.query.graph_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: graph-embeddings-query
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.storage.graph_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: graph-embeddings-write
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.query.row_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: row-embeddings-query
+      store_uri: http://localhost:6333
+
+  - class: trustgraph.storage.row_embeddings.qdrant.Processor
+    params:
+      <<: *defaults
+      id: row-embeddings-write
+      store_uri: http://localhost:6333

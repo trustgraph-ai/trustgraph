@@ -418,55 +418,55 @@ def sample_streaming_agent_response():
     """Sample streaming agent response chunks"""
     return [
         {
-            "chunk_type": "thought",
+            "message_type": "thought",
             "content": "I need to search",
             "end_of_message": False,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "thought",
+            "message_type": "thought",
             "content": " for information",
             "end_of_message": False,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "thought",
+            "message_type": "thought",
             "content": " about machine learning.",
             "end_of_message": True,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "action",
+            "message_type": "action",
             "content": "knowledge_query",
             "end_of_message": True,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "observation",
+            "message_type": "observation",
             "content": "Machine learning is",
             "end_of_message": False,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "observation",
+            "message_type": "observation",
             "content": " a subset of AI.",
             "end_of_message": True,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "final-answer",
+            "message_type": "final-answer",
             "content": "Machine learning",
             "end_of_message": False,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "final-answer",
+            "message_type": "final-answer",
             "content": " is a subset",
             "end_of_message": False,
             "end_of_dialog": False
         },
         {
-            "chunk_type": "final-answer",
+            "message_type": "final-answer",
             "content": " of artificial intelligence.",
             "end_of_message": True,
             "end_of_dialog": True
@@ -494,10 +494,10 @@ def streaming_chunk_collector():
             """Concatenate all chunk content"""
             return "".join(self.chunks)
 
-        def get_chunk_types(self):
+        def get_message_types(self):
             """Get list of chunk types if chunks are dicts"""
             if self.chunks and isinstance(self.chunks[0], dict):
-                return [c.get("chunk_type") for c in self.chunks]
+                return [c.get("message_type") for c in self.chunks]
             return []
 
         def verify_streaming_protocol(self):

@@ -11,12 +11,12 @@ import os
 import tempfile
 import base64
 import logging
-from langchain_community.document_loaders import PyPDFLoader
-
 from ... schema import Document, TextDocument, Metadata
 from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianClient
+
+PyPDFLoader = None
 
 from ... provenance import (
     document_uri, page_uri as make_page_uri, derived_entity_triples,
@@ -93,7 +93,7 @@ class Processor(FlowProcessor):
         if v.document_id:
             doc_meta = await self.librarian.fetch_document_metadata(
                 document_id=v.document_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
             )
             if doc_meta and doc_meta.kind and doc_meta.kind != "application/pdf":
                 logger.error(
@@ -114,7 +114,7 @@ class Processor(FlowProcessor):
 
                 content = await self.librarian.fetch_document_content(
                     document_id=v.document_id,
-                    user=v.metadata.user,
+                    workspace=flow.workspace,
                 )
 
                 # Content is base64 encoded
@@ -131,6 +131,12 @@ class Processor(FlowProcessor):
                 fp.write(base64.b64decode(v.data))
                 fp.close()
 
+            global PyPDFLoader
+            if PyPDFLoader is None:
+                from langchain_community.document_loaders import (
+                    PyPDFLoader as _cls,
+                )
+                PyPDFLoader = _cls
             loader = PyPDFLoader(temp_path)
             pages = loader.load()
 
@@ -151,7 +157,7 @@ class Processor(FlowProcessor):
                 await self.librarian.save_child_document(
                     doc_id=page_doc_id,
                     parent_id=source_doc_id,
-                    user=v.metadata.user,
+                    workspace=flow.workspace,
                     content=page_content,
                     document_type="page",
                     title=f"Page {page_num}",
@@ -173,7 +179,6 @@ class Processor(FlowProcessor):
                     metadata=Metadata(
                         id=pg_uri,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     triples=set_graph(prov_triples, GRAPH_SOURCE),
@@ -185,7 +190,6 @@ class Processor(FlowProcessor):
                     metadata=Metadata(
                         id=pg_uri,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     document_id=page_doc_id,

@@ -49,26 +49,26 @@ async def app_lifespan(server: FastMCP, websocket_url: str = "ws://api-gateway:8
 
         logging.info("Shutdown complete")
 
-async def get_socket_manager(ctx, user):
+async def get_socket_manager(ctx):
 
     lifespan_context = ctx.request_context.lifespan_context
     sockets = lifespan_context.sockets
     websocket_url = lifespan_context.websocket_url
     gateway_token = lifespan_context.gateway_token
 
-    if user in sockets:
+    if "default" in sockets:
         logging.info("Return existing socket manager")
-        return sockets[user]
+        return sockets["default"]
 
     logging.info(f"Opening socket to {websocket_url}...")
 
     # Create manager with empty pending requests
     manager = WebSocketManager(websocket_url, token=gateway_token)
-    
+
     # Start reader task with the proper manager
     await manager.start()
-    
-    sockets[user] = manager
+
+    sockets["default"] = manager
 
     logging.info("Return new socket manager")
     return manager
@@ -372,7 +372,6 @@ class McpServer:
     async def graph_rag(
             self,
             question: str,
-            user: str | None = None,
             collection: str | None = None,
             entity_limit: int | None = None,
             triple_limit: int | None = None,
@@ -391,7 +390,6 @@ class McpServer:
         Args:
             question: The question or query to answer using the knowledge graph.
                       The system will find relevant entities and relationships to inform the response.
-            user: User identifier for access control and personalization (default: "trustgraph").
             collection: Knowledge collection to query (default: "default").
                         Different collections may contain domain-specific knowledge.
             entity_limit: Maximum number of entities to retrieve during graph traversal.
@@ -414,7 +412,6 @@ class McpServer:
             - Perform research queries across connected information
         """
 
-        if user is None: user = "trustgraph"
         if collection is None: collection = "default"
         if flow_id is None: flow_id = "default"
 
@@ -423,7 +420,7 @@ class McpServer:
 
         logging.info("GraphRAG request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -437,7 +434,6 @@ class McpServer:
             "query": question
         }
 
-        if user: request_data["user"] = user
         if collection: request_data["collection"] = collection
         if entity_limit: request_data["entity_limit"] = entity_limit
         if triple_limit: request_data["triple_limit"] = triple_limit
@@ -466,7 +462,6 @@ class McpServer:
     async def agent(
             self,
             question: str,
-            user: str | None = None,
             collection: str | None = None,
             flow_id: str | None = None,
             ctx: Context = None,
@@ -481,7 +476,6 @@ class McpServer:
         Args:
             question: The question or task for the agent to solve. Can be complex
                       queries requiring multiple steps, analysis, or tool usage.
-            user: User identifier for personalization and access control (default: "trustgraph").
             collection: Knowledge collection the agent can access (default: "default").
                         Determines what information and tools are available.
             flow_id: Agent workflow to use (default: "default"). Different flows
@@ -501,7 +495,6 @@ class McpServer:
         through log messages, so you can follow its reasoning steps.
         """
 
-        if user is None: user = "trustgraph"
         if collection is None: collection = "default"
         if flow_id is None: flow_id = "default"
 
@@ -510,7 +503,7 @@ class McpServer:
 
         logging.info("Agent request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -524,7 +517,6 @@ class McpServer:
             "question": question
         }
 
-        if user: request_data["user"] = user
         if collection: request_data["collection"] = collection
 
         gen = manager.request("agent", request_data, flow_id)
@@ -1143,23 +1135,18 @@ class McpServer:
 
     async def get_knowledge_cores(
             self,
-            user: str | None = None,
             ctx: Context = None,
     ) -> KnowledgeCoresResponse:
         """
-        List all available knowledge graph cores for a user.
-        
+        List all available knowledge graph cores in the current workspace.
+
         Knowledge cores are packaged collections of structured knowledge that can
         be loaded into the system for querying and reasoning. They contain entities,
         relationships, and facts organized as knowledge graphs.
-        
-        Args:
-            user: User identifier to list cores for (default: "trustgraph").
-                  Different users may have access to different knowledge cores.
-        
+
         Returns:
             KnowledgeCoresResponse containing a list of available knowledge core IDs.
-        
+
         Use this for:
             - Discovering available knowledge collections
             - Understanding what knowledge domains are accessible
@@ -1167,14 +1154,12 @@ class McpServer:
             - Managing knowledge resources
         """
 
-        if user is None: user = "trustgraph"
-
         if ctx is None:
             raise RuntimeError("No context provided")
 
         logging.info("Get knowledge cores request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1185,7 +1170,6 @@ class McpServer:
 
         request_data = {
             "operation": "list-kg-cores",
-            "user": user
         }
 
         gen = manager.request("knowledge", request_data, None)
@@ -1199,40 +1183,35 @@ class McpServer:
     async def delete_kg_core(
             self,
             core_id: str,
-            user: str | None = None,
             ctx: Context = None,
     ) -> DeleteKgCoreResponse:
         """
         Permanently delete a knowledge graph core.
-        
+
         This operation removes a knowledge core from storage. Use with caution
         as this action cannot be undone.
-        
+
         Args:
             core_id: Unique identifier of the knowledge core to delete.
-            user: User identifier (default: "trustgraph"). Only cores owned
-                  by this user can be deleted.
-        
+
         Returns:
             DeleteKgCoreResponse confirming the deletion.
-        
+
         Use this for:
             - Cleaning up obsolete knowledge cores
             - Removing test or experimental data
             - Managing storage space
             - Maintaining organized knowledge collections
-        
+
         Warning: This permanently deletes the knowledge core and all its data.
         """
-
-        if user is None: user = "trustgraph"
 
         if ctx is None:
             raise RuntimeError("No context provided")
 
         logging.info("Delete KG core request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1244,7 +1223,6 @@ class McpServer:
         request_data = {
             "operation": "delete-kg-core",
             "id": core_id,
-            "user": user
         }
 
         gen = manager.request("knowledge", request_data, None)
@@ -1258,27 +1236,25 @@ class McpServer:
             self,
             core_id: str,
             flow: str,
-            user: str | None = None,
             collection: str | None = None,
             ctx: Context = None,
     ) -> LoadKgCoreResponse:
         """
         Load a knowledge graph core into the active system for querying.
-        
+
         This operation makes a knowledge core available for GraphRAG queries,
         triple searches, and other knowledge-based operations.
-        
+
         Args:
             core_id: Unique identifier of the knowledge core to load.
             flow: Processing flow to use for loading the core. Different flows
                   may apply different processing, indexing, or optimization steps.
-            user: User identifier (default: "trustgraph").
             collection: Target collection name (default: "default"). The loaded
                         knowledge will be available under this collection name.
-        
+
         Returns:
             LoadKgCoreResponse confirming the core has been loaded.
-        
+
         Use this for:
             - Making knowledge cores available for queries
             - Switching between different knowledge domains
@@ -1286,7 +1262,6 @@ class McpServer:
             - Preparing knowledge for GraphRAG operations
         """
 
-        if user is None: user = "trustgraph"
         if collection is None: collection = "default"
 
         if ctx is None:
@@ -1294,7 +1269,7 @@ class McpServer:
 
         logging.info("Load KG core request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1307,7 +1282,6 @@ class McpServer:
             "operation": "load-kg-core",
             "id": core_id,
             "flow": flow,
-            "user": user,
             "collection": collection
         }
 
@@ -1321,42 +1295,38 @@ class McpServer:
     async def get_kg_core(
             self,
             core_id: str,
-            user: str | None = None,
             ctx: Context = None,
     ) -> GetKgCoreResponse:
         """
         Download and retrieve the complete content of a knowledge graph core.
-        
+
         This tool streams the entire content of a knowledge core, returning all
         entities, relationships, and metadata. Due to potentially large data sizes,
         the content is streamed in chunks.
-        
+
         Args:
             core_id: Unique identifier of the knowledge core to retrieve.
-            user: User identifier (default: "trustgraph").
-        
+
         Returns:
             GetKgCoreResponse containing all chunks of the knowledge core data.
             Each chunk contains part of the knowledge graph structure.
-        
+
         Use this for:
             - Examining knowledge core content and structure
             - Debugging knowledge graph data
             - Exporting knowledge for backup or analysis
             - Understanding the scope and quality of knowledge
-        
+
         Note: Large knowledge cores may take significant time to download.
         Progress updates are provided through log messages during streaming.
         """
-
-        if user is None: user = "trustgraph"
 
         if ctx is None:
             raise RuntimeError("No context provided")
 
         logging.info("Get KG core request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1368,7 +1338,6 @@ class McpServer:
         request_data = {
             "operation": "get-kg-core",
             "id": core_id,
-            "user": user
         }
 
         # Collect all streaming responses
@@ -1713,27 +1682,22 @@ class McpServer:
 
     async def get_documents(
             self,
-            user: str | None = None,
             ctx: Context = None,
     ) -> DocumentsResponse:
         """
         List all documents stored in the TrustGraph document library.
-        
+
         This tool returns metadata for all documents that have been uploaded
         to the system, including their processing status and properties.
-        
-        Args:
-            user: User identifier to list documents for (default: "trustgraph").
-                  Only documents owned by this user will be returned.
-        
+
         Returns:
             DocumentsResponse containing metadata for each document including:
             - Document ID and title
-            - Upload timestamp and user
+            - Upload timestamp
             - MIME type and size information
             - Tags and custom metadata
             - Processing status
-        
+
         Use this for:
             - Browsing available documents
             - Managing document collections
@@ -1741,14 +1705,12 @@ class McpServer:
             - Auditing document storage
         """
 
-        if user is None: user = "trustgraph"
-
         if ctx is None:
             raise RuntimeError("No context provided")
 
         logging.info("Get documents request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1759,7 +1721,6 @@ class McpServer:
 
         request_data = {
             "operation": "list-documents",
-            "user": user
         }
 
         gen = manager.request("librarian", request_data, None)
@@ -1772,26 +1733,21 @@ class McpServer:
 
     async def get_processing(
             self,
-            user: str | None = None,
             ctx: Context = None,
     ) -> ProcessingResponse:
         """
         List all documents currently in the processing queue.
-        
+
         This tool shows documents that are being processed or waiting to be
         processed, along with their processing status and configuration.
-        
-        Args:
-            user: User identifier (default: "trustgraph"). Only processing
-                  jobs for this user will be returned.
-        
+
         Returns:
             ProcessingResponse containing processing metadata including:
             - Processing job ID and document ID
             - Processing flow and status
-            - Target collection and user
+            - Target collection
             - Timestamp and progress information
-        
+
         Use this for:
             - Monitoring document processing progress
             - Debugging processing issues
@@ -1799,14 +1755,12 @@ class McpServer:
             - Understanding system workload
         """
 
-        if user is None: user = "trustgraph"
-
         if ctx is None:
             raise RuntimeError("No context provided")
 
         logging.info("Get processing request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1817,7 +1771,6 @@ class McpServer:
 
         request_data = {
             "operation": "list-processing",
-            "user": user
         }
 
         gen = manager.request("librarian", request_data, None)
@@ -1837,16 +1790,15 @@ class McpServer:
             title: str = "",
             comments: str = "",
             tags: List[str] | None = None,
-            user: str | None = None,
             ctx: Context = None,
     ) -> LoadDocumentResponse:
         """
         Upload a document to the TrustGraph document library.
-        
+
         This tool stores documents with rich metadata for later processing,
         search, and knowledge extraction. Documents can be text files, PDFs,
         or other supported formats.
-        
+
         Args:
             document: The document content as a string. For binary files,
                       this should be base64-encoded content.
@@ -1856,11 +1808,10 @@ class McpServer:
             title: Human-readable title for the document.
             comments: Optional description or notes about the document.
             tags: List of tags for categorizing and finding the document.
-            user: User identifier (default: "trustgraph").
-        
+
         Returns:
             LoadDocumentResponse confirming the document has been stored.
-        
+
         Use this for:
             - Adding new documents to the knowledge base
             - Storing reference materials and data sources
@@ -1868,7 +1819,6 @@ class McpServer:
             - Importing external content for analysis
         """
 
-        if user is None: user = "trustgraph"
         if tags is None: tags = []
 
         if ctx is None:
@@ -1876,7 +1826,7 @@ class McpServer:
 
         logging.info("Load document request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1897,7 +1847,6 @@ class McpServer:
                 "title": title,
                 "comments": comments,
                 "metadata": metadata,
-                "user": user,
                 "tags": tags
             },
             "content": document
@@ -1913,40 +1862,35 @@ class McpServer:
     async def remove_document(
             self,
             document_id: str,
-            user: str | None = None,
             ctx: Context = None,
     ) -> RemoveDocumentResponse:
         """
         Permanently remove a document from the library.
-        
+
         This operation deletes a document and all its associated metadata.
         Use with caution as this action cannot be undone.
-        
+
         Args:
             document_id: Unique identifier of the document to remove.
-            user: User identifier (default: "trustgraph"). Only documents
-                  owned by this user can be removed.
-        
+
         Returns:
             RemoveDocumentResponse confirming the document has been deleted.
-        
+
         Use this for:
             - Cleaning up obsolete or incorrect documents
             - Managing storage space
             - Removing sensitive or inappropriate content
             - Maintaining organized document collections
-        
+
         Warning: This permanently deletes the document and all its metadata.
         """
-
-        if user is None: user = "trustgraph"
 
         if ctx is None:
             raise RuntimeError("No context provided")
 
         logging.info("Remove document request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -1958,7 +1902,6 @@ class McpServer:
         request_data = {
             "operation": "remove-document",
             "document-id": document_id,
-            "user": user
         }
 
         gen = manager.request("librarian", request_data, None)
@@ -1973,42 +1916,39 @@ class McpServer:
             processing_id: str,
             document_id: str,
             flow: str,
-            user: str | None = None,
             collection: str | None = None,
             tags: List[str] | None = None,
             ctx: Context = None,
     ) -> AddProcessingResponse:
         """
         Queue a document for processing through a specific workflow.
-        
+
         This tool adds a document to the processing queue where it will be
         processed by the specified flow to extract knowledge, create embeddings,
         or perform other analysis operations.
-        
+
         Args:
             processing_id: Unique identifier for this processing job.
             document_id: ID of the document to process (must exist in library).
             flow: Processing flow to use. Different flows perform different
                   types of analysis (e.g., knowledge extraction, summarization).
-            user: User identifier (default: "trustgraph").
             collection: Target collection for processed knowledge (default: "default").
                         Results will be stored under this collection name.
             tags: Optional tags for categorizing this processing job.
-        
+
         Returns:
             AddProcessingResponse confirming the document has been queued.
-        
+
         Use this for:
             - Processing uploaded documents into knowledge
             - Extracting entities and relationships from text
             - Creating searchable embeddings
             - Converting documents into structured knowledge
-        
+
         Note: Processing may take time depending on document size and flow complexity.
         Use get_processing to monitor progress.
         """
 
-        if user is None: user = "trustgraph"
         if collection is None: collection = "default"
         if tags is None: tags = []
 
@@ -2017,7 +1957,7 @@ class McpServer:
 
         logging.info("Add processing request made via websocket")
 
-        manager = await get_socket_manager(ctx, user)
+        manager = await get_socket_manager(ctx)
 
         await ctx.session.send_log_message(
             level="info",
@@ -2036,7 +1976,6 @@ class McpServer:
                 "document-id": document_id,
                 "time": timestamp,
                 "flow": flow,
-                "user": user,
                 "collection": collection,
                 "tags": tags
             }

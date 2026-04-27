@@ -188,7 +188,7 @@ class TestAgentTranslatorCompletionFlags:
         # Arrange
         translator = TranslatorRegistry.get_response_translator("agent")
         response = AgentResponse(
-            chunk_type="answer",
+            message_type="answer",
             content="4",
             end_of_message=True,
             end_of_dialog=True,
@@ -210,7 +210,7 @@ class TestAgentTranslatorCompletionFlags:
         # Arrange
         translator = TranslatorRegistry.get_response_translator("agent")
         response = AgentResponse(
-            chunk_type="thought",
+            message_type="thought",
             content="I need to solve this.",
             end_of_message=True,
             end_of_dialog=False,
@@ -233,7 +233,7 @@ class TestAgentTranslatorCompletionFlags:
 
         # Test thought message
         thought_response = AgentResponse(
-            chunk_type="thought",
+            message_type="thought",
             content="Processing...",
             end_of_message=True,
             end_of_dialog=False,
@@ -247,7 +247,7 @@ class TestAgentTranslatorCompletionFlags:
 
         # Test observation message
         observation_response = AgentResponse(
-            chunk_type="observation",
+            message_type="observation",
             content="Result found",
             end_of_message=True,
             end_of_dialog=False,
@@ -268,7 +268,7 @@ class TestAgentTranslatorCompletionFlags:
 
         # Streaming format with end_of_dialog=True
         response = AgentResponse(
-            chunk_type="answer",
+            message_type="answer",
             content="",
             end_of_message=True,
             end_of_dialog=True,

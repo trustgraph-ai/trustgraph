@@ -4,14 +4,14 @@ Simple LLM service, performs text prompt completion using Mistral.
 Input is prompt, output is response.
 """
 
-from mistralai import Mistral
+from mistralai import Mistral, models
 import os
 import logging
 
 # Module logger
 logger = logging.getLogger(__name__)
 
-from .... exceptions import TooManyRequests
+from .... exceptions import TooManyRequests, LlmError
 from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
@@ -100,18 +100,14 @@ class Processor(LlmService):
 
             return resp
 
-        # FIXME: Wrong exception.  The MistralAI library has retry logic
-        # so retry-able errors are retried transparently.  It means we
-        # don't get rate limit events.
-
-        # We could choose to turn off retry and handle all that here
-        # or subclass BackoffStrategy to keep the retry logic, but
-        # get the events out.
-
-#        except Mistral.RateLimitError:
-
-#            # Leave rate limit retries to the base handler
-#            raise TooManyRequests()
+        except models.SDKError as e:
+            if e.status_code == 429:
+                # Leave rate limit retries to the base handler
+                raise TooManyRequests()
+            elif e.status_code == 503:
+                # Treat 503 as a retryable LlmError
+                raise LlmError()
+            raise e
 
         except Exception as e:
 
@@ -185,8 +181,13 @@ class Processor(LlmService):
 
             logger.debug("Streaming complete")
 
-        except Exception as e:
-            logger.error(f"Mistral streaming exception ({type(e).__name__}): {e}", exc_info=True)
+        except models.SDKError as e:
+            if e.status_code == 429:
+                logger.warning("Hit rate limit during streaming")
+                raise TooManyRequests()
+            elif e.status_code == 503:
+                logger.warning("Hit internal server error during streaming")
+                raise LlmError()
             raise e
 
     @staticmethod

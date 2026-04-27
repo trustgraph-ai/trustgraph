@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Document Embeddings Chunk ID"
+parent: "Tech Specs"
+---
+
 # Document Embeddings Chunk ID
 
 ## Overview

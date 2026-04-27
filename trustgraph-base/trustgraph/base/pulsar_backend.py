@@ -72,6 +72,16 @@ class PulsarBackendConsumer:
         self._consumer = pulsar_consumer
         self._schema_cls = schema_cls
 
+    def ensure_connected(self) -> None:
+        """No-op for Pulsar.
+
+        PulsarBackend.create_consumer() calls client.subscribe() which is
+        synchronous and returns a fully-subscribed consumer, so the
+        consumer is already ready by the time this object is constructed.
+        Defined for parity with the BackendConsumer protocol used by
+        Subscriber.start()'s readiness barrier."""
+        pass
+
     def receive(self, timeout_millis: int = 2000) -> Message:
         """Receive a message. Raises TimeoutError if no message available."""
         try:
@@ -255,6 +265,26 @@ class PulsarBackend:
         logger.debug(f"Created consumer for topic: {pulsar_topic}, subscription: {subscription}")
 
         return PulsarBackendConsumer(pulsar_consumer, schema)
+
+    async def create_topic(self, topic: str) -> None:
+        """No-op — Pulsar auto-creates topics on first use.
+        TODO: Use admin REST API for explicit persistent topic creation."""
+        pass
+
+    async def delete_topic(self, topic: str) -> None:
+        """No-op — to be replaced with admin REST API calls.
+        TODO: Delete persistent topic via admin API."""
+        pass
+
+    async def topic_exists(self, topic: str) -> bool:
+        """Returns True — Pulsar auto-creates on subscribe.
+        TODO: Use admin REST API for actual existence check."""
+        return True
+
+    async def ensure_topic(self, topic: str) -> None:
+        """No-op — Pulsar auto-creates topics on first use.
+        TODO: Use admin REST API for explicit creation."""
+        pass
 
     def close(self) -> None:
         """Close the Pulsar client."""

@@ -311,8 +311,7 @@ class TestObjectExtractionBusinessLogic:
         """Test ExtractedObject creation and properties"""
         # Arrange
         metadata = Metadata(
-            id="test-extraction-001",
-            user="test_user", 
+            id="test-extraction-001", 
             collection="test_collection",
         )
         
@@ -337,7 +336,6 @@ class TestObjectExtractionBusinessLogic:
         assert extracted_obj.values[0]["customer_id"] == "CUST001"
         assert extracted_obj.confidence == 0.95
         assert "John Doe" in extracted_obj.source_span
-        assert extracted_obj.metadata.user == "test_user"
 
     def test_config_parsing_error_handling(self):
         """Test configuration parsing with invalid JSON"""

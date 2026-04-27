@@ -1,7 +1,10 @@
-
 """
 Tool invocation base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import json
 import logging
@@ -61,6 +64,7 @@ class ToolService(FlowProcessor):
             id = msg.properties()["id"]
 
             response = await self.invoke_tool(
+                flow.workspace,
                 request.name,
                 json.loads(request.parameters) if request.parameters else {},
             )
@@ -112,7 +116,7 @@ class ToolService(FlowProcessor):
             )
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         parser.add_argument(
             '-c', '--concurrency',

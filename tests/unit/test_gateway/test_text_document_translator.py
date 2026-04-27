@@ -23,7 +23,6 @@ class TestTextDocumentTranslator:
         )
 
         assert msg.metadata.id == "doc-1"
-        assert msg.metadata.user == "alice"
         assert msg.metadata.collection == "research"
         assert msg.text == payload.encode("utf-8")
 

@@ -7,8 +7,6 @@ Input is text, output is embeddings vector.
 import logging
 from ... base import EmbeddingsService
 
-from langchain_huggingface import HuggingFaceEmbeddings
-
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -38,6 +36,7 @@ class Processor(EmbeddingsService):
     def _load_model(self, model_name):
         """Load a model, caching it for reuse"""
         if self.cached_model_name != model_name:
+            from langchain_huggingface import HuggingFaceEmbeddings
             logger.info(f"Loading HuggingFace embeddings model: {model_name}")
             self.embeddings = HuggingFaceEmbeddings(model_name=model_name)
             self.cached_model_name = model_name

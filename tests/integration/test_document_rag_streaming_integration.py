@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import AsyncMock
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
 from trustgraph.schema import ChunkMatch
+from trustgraph.base import PromptResult
 from tests.utils.streaming_assertions import (
     assert_streaming_chunks_valid,
     assert_callback_invoked,
@@ -74,12 +75,14 @@ class TestDocumentRagStreaming:
                     is_final = (i == len(chunks) - 1)
                     await chunk_callback(chunk, is_final)
 
-                return full_text
+                return PromptResult(response_type="text", text=full_text)
             else:
                 # Non-streaming response - same text
-                return full_text
+                return PromptResult(response_type="text", text=full_text)
 
         client.document_prompt.side_effect = document_prompt_side_effect
+        # Mock prompt() for extract-concepts call in DocumentRag
+        client.prompt.return_value = PromptResult(response_type="text", text="")
         return client
 
     @pytest.fixture
@@ -104,7 +107,6 @@ class TestDocumentRagStreaming:
         # Act
         result = await document_rag_streaming.query(
             query=query,
-            user="test_user",
             collection="test_collection",
             doc_limit=10,
             streaming=True,
@@ -119,11 +121,12 @@ class TestDocumentRagStreaming:
         collector.verify_streaming_protocol()
 
         # Verify full response matches concatenated chunks
+        result_text, usage = result
         full_from_chunks = collector.get_full_text()
-        assert result == full_from_chunks
+        assert result_text == full_from_chunks
 
         # Verify content is reasonable
-        assert len(result) > 0
+        assert len(result_text) > 0
 
     @pytest.mark.asyncio
     async def test_document_rag_streaming_vs_non_streaming(self, document_rag_streaming):
@@ -137,7 +140,6 @@ class TestDocumentRagStreaming:
         # Act - Non-streaming
         non_streaming_result = await document_rag_streaming.query(
             query=query,
-            user=user,
             collection=collection,
             doc_limit=doc_limit,
             streaming=False
@@ -151,7 +153,6 @@ class TestDocumentRagStreaming:
 
         streaming_result = await document_rag_streaming.query(
             query=query,
-            user=user,
             collection=collection,
             doc_limit=doc_limit,
             streaming=True,
@@ -159,9 +160,11 @@ class TestDocumentRagStreaming:
         )
 
         # Assert - Results should be equivalent
-        assert streaming_result == non_streaming_result
+        non_streaming_text, _ = non_streaming_result
+        streaming_text, _ = streaming_result
+        assert streaming_text == non_streaming_text
         assert len(streaming_chunks) > 0
-        assert "".join(streaming_chunks) == streaming_result
+        assert "".join(streaming_chunks) == streaming_text
 
     @pytest.mark.asyncio
     async def test_document_rag_streaming_callback_invocation(self, document_rag_streaming):
@@ -172,7 +175,6 @@ class TestDocumentRagStreaming:
         # Act
         result = await document_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             doc_limit=5,
             streaming=True,
@@ -180,8 +182,9 @@ class TestDocumentRagStreaming:
         )
 
         # Assert
+        result_text, usage = result
         assert callback.call_count > 0
-        assert result is not None
+        assert result_text is not None
 
         # Verify all callback invocations had string arguments
         for call in callback.call_args_list:
@@ -193,7 +196,6 @@ class TestDocumentRagStreaming:
         # Arrange & Act
         result = await document_rag_streaming.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             doc_limit=5,
             streaming=True,
@@ -202,7 +204,8 @@ class TestDocumentRagStreaming:
 
         # Assert - Should complete without error
         assert result is not None
-        assert isinstance(result, str)
+        result_text, usage = result
+        assert isinstance(result_text, str)
 
     @pytest.mark.asyncio
     async def test_document_rag_streaming_with_no_documents(self, document_rag_streaming,
@@ -215,7 +218,6 @@ class TestDocumentRagStreaming:
         # Act
         result = await document_rag_streaming.query(
             query="unknown topic",
-            user="test_user",
             collection="test_collection",
             doc_limit=10,
             streaming=True,
@@ -223,7 +225,8 @@ class TestDocumentRagStreaming:
         )
 
         # Assert - Should still produce streamed response
-        assert result is not None
+        result_text, usage = result
+        assert result_text is not None
         assert callback.call_count > 0
 
     @pytest.mark.asyncio
@@ -238,7 +241,6 @@ class TestDocumentRagStreaming:
         with pytest.raises(Exception) as exc_info:
             await document_rag_streaming.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection",
                 doc_limit=5,
                 streaming=True,
@@ -263,7 +265,6 @@ class TestDocumentRagStreaming:
             # Act
             result = await document_rag_streaming.query(
                 query="test query",
-                user="test_user",
                 collection="test_collection",
                 doc_limit=limit,
                 streaming=True,
@@ -271,7 +272,8 @@ class TestDocumentRagStreaming:
             )
 
             # Assert
-            assert result is not None
+            result_text, usage = result
+            assert result_text is not None
             assert callback.call_count > 0
 
             # Verify doc_limit was passed correctly
@@ -290,7 +292,6 @@ class TestDocumentRagStreaming:
         # Act
         await document_rag_streaming.query(
             query="test query",
-            user=user,
             collection=collection,
             doc_limit=10,
             streaming=True,
@@ -299,5 +300,4 @@ class TestDocumentRagStreaming:
 
         # Assert - Verify user/collection were passed to document embeddings client
         call_args = mock_doc_embeddings_client.query.call_args
-        assert call_args.kwargs['user'] == user
         assert call_args.kwargs['collection'] == collection

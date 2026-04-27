@@ -1,3 +1,9 @@
+---
+layout: default
+title: "TrustGraph Agent Orchestration — Technical Specification"
+parent: "Tech Specs"
+---
+
 # TrustGraph Agent Orchestration — Technical Specification
 
 ## Overview
@@ -862,7 +868,7 @@ independently.
 Response chunk fields:
     message_id          UUID for this message (groups chunks)
     session_id          Which agent session produced this chunk
-    chunk_type          "thought" | "observation" | "answer" | ...
+    message_type          "thought" | "observation" | "answer" | ...
     content             The chunk text
     end_of_message      True on the final chunk of this message
     end_of_dialog       True on the final message of the entire execution

@@ -73,7 +73,6 @@ class TestSyncDocumentEmbeddingsClient:
         # Act
         result = client.request(
             vector=vector,
-            user="test_user",
             collection="test_collection",
             limit=10,
             timeout=300
@@ -82,7 +81,6 @@ class TestSyncDocumentEmbeddingsClient:
         # Assert
         assert result == ["chunk1", "chunk2", "chunk3"]
         client.call.assert_called_once_with(
-            user="test_user",
             collection="test_collection",
             vector=vector,
             limit=10,
@@ -108,7 +106,6 @@ class TestSyncDocumentEmbeddingsClient:
         # Assert
         assert result == ["test_chunk"]
         client.call.assert_called_once_with(
-            user="trustgraph",
             collection="default",
             vector=vector,
             limit=10,

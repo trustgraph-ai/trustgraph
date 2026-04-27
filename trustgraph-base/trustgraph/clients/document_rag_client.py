@@ -33,14 +33,13 @@ class DocumentRagClient(BaseClient):
             output_schema=DocumentRagResponse,
         )
 
-    def request(self, query, user="trustgraph", collection="default",
+    def request(self, query, collection="default",
                 chunk_callback=None, explain_callback=None, timeout=300):
         """
         Request a document RAG query with optional streaming callbacks.
 
         Args:
             query: The question to ask
-            user: User identifier
             collection: Collection identifier
             chunk_callback: Optional callback(text, end_of_stream) for text chunks
             explain_callback: Optional callback(explain_id, explain_graph, explain_triples) for explain notifications
@@ -71,7 +70,7 @@ class DocumentRagClient(BaseClient):
             return False  # Continue receiving
 
         self.call(
-            query=query, user=user, collection=collection,
+            query=query, collection=collection,
             inspect=inspect, timeout=timeout
         )
 

@@ -11,13 +11,12 @@ from trustgraph.schema import AgentRequest, AgentStep
 from trustgraph.agent.orchestrator.aggregator import Aggregator
 
 
-def _make_request(question="Test question", user="testuser",
+def _make_request(question="Test question",
                   collection="default", streaming=False,
                   session_id="parent-session", task_type="research",
                   framing="test framing", conversation_id="conv-1"):
     return AgentRequest(
         question=question,
-        user=user,
         collection=collection,
         streaming=streaming,
         session_id=session_id,
@@ -127,7 +126,6 @@ class TestBuildSynthesisRequest:
         req = agg.build_synthesis_request(
             "corr-1",
             original_question="Original question",
-            user="testuser",
             collection="default",
         )
 
@@ -148,7 +146,7 @@ class TestBuildSynthesisRequest:
         agg.record_completion("corr-1", "goal-b", "answer-b")
 
         req = agg.build_synthesis_request(
-            "corr-1", "question", "user", "default",
+            "corr-1", "question", "default",
         )
 
         # Last history step should be the synthesis step
@@ -168,7 +166,7 @@ class TestBuildSynthesisRequest:
         agg.record_completion("corr-1", "goal-a", "answer-a")
 
         agg.build_synthesis_request(
-            "corr-1", "question", "user", "default",
+            "corr-1", "question", "default",
         )
 
         # Entry should be removed
@@ -178,7 +176,7 @@ class TestBuildSynthesisRequest:
         agg = Aggregator()
         with pytest.raises(RuntimeError, match="No results"):
             agg.build_synthesis_request(
-                "unknown", "question", "user", "default",
+                "unknown", "question", "default",
             )
 
 

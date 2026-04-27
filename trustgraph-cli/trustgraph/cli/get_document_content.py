@@ -9,21 +9,19 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = "trustgraph"
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def get_content(url, user, document_id, output_file, token=None):
+def get_content(url, document_id, output_file, token=None, workspace="default"):
 
-    api = Api(url, token=token).library()
+    api = Api(url, token=token, workspace=workspace).library()
 
-    content = api.get_document_content(user=user, id=document_id)
+    content = api.get_document_content(id=document_id)
 
     if output_file:
         with open(output_file, 'wb') as f:
             f.write(content)
         print(f"Written {len(content)} bytes to {output_file}")
     else:
-        # Write to stdout
-        # Try to decode as text, fall back to binary info
         try:
             text = content.decode('utf-8')
             print(text)
@@ -51,9 +49,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -73,10 +71,10 @@ def main():
 
         get_content(
             url=args.api_url,
-            user=args.user,
             document_id=args.document_id,
             output_file=args.output,
             token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
 from trustgraph.schema import EntityMatch, ChunkMatch, Term, IRI
+from trustgraph.base import PromptResult
 
 
 class TestGraphRagStreamingProtocol:
@@ -46,8 +47,7 @@ class TestGraphRagStreamingProtocol:
 
         async def prompt_side_effect(prompt_name, variables=None, streaming=False, chunk_callback=None):
             if prompt_name == "kg-edge-selection":
-                # Edge selection returns empty (no edges selected)
-                return ""
+                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-synthesis":
                 if streaming and chunk_callback:
                     # Simulate realistic streaming: chunks with end_of_stream=False, then final with end_of_stream=True
@@ -55,10 +55,10 @@ class TestGraphRagStreamingProtocol:
                     await chunk_callback(" answer", False)
                     await chunk_callback(" is here.", False)
                     await chunk_callback("", True)  # Empty final chunk with end_of_stream=True
-                    return ""  # Return value not used since callback handles everything
+                    return PromptResult(response_type="text", text="")
                 else:
-                    return "The answer is here."
-            return ""
+                    return PromptResult(response_type="text", text="The answer is here.")
+            return PromptResult(response_type="text", text="")
 
         client.prompt.side_effect = prompt_side_effect
         return client
@@ -84,7 +84,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=callback
@@ -108,7 +107,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -137,7 +135,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -162,7 +159,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -188,7 +184,6 @@ class TestGraphRagStreamingProtocol:
         # Act
         await graph_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -237,11 +232,13 @@ class TestDocumentRagStreamingProtocol:
                 await chunk_callback("Document", False)
                 await chunk_callback(" summary", False)
                 await chunk_callback(".", True)  # Non-empty final chunk
-                return ""
+                return PromptResult(response_type="text", text="")
             else:
-                return "Document summary."
+                return PromptResult(response_type="text", text="Document summary.")
 
         client.document_prompt.side_effect = document_prompt_side_effect
+        # Mock prompt() for extract-concepts call in DocumentRag
+        client.prompt.return_value = PromptResult(response_type="text", text="")
         return client
 
     @pytest.fixture
@@ -265,7 +262,6 @@ class TestDocumentRagStreamingProtocol:
         # Act
         await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=callback
@@ -288,7 +284,6 @@ class TestDocumentRagStreamingProtocol:
         # Act
         await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -312,7 +307,6 @@ class TestDocumentRagStreamingProtocol:
         # Act
         await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             streaming=True,
             chunk_callback=collect
@@ -334,17 +328,17 @@ class TestStreamingProtocolEdgeCases:
 
         async def prompt_with_empties(prompt_name, variables=None, streaming=False, chunk_callback=None):
             if prompt_name == "kg-edge-selection":
-                return ""
+                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-synthesis":
                 if streaming and chunk_callback:
                     await chunk_callback("text", False)
                     await chunk_callback("", False)  # Empty but not final
                     await chunk_callback("more", False)
                     await chunk_callback("", True)  # Empty and final
-                    return ""
+                    return PromptResult(response_type="text", text="")
                 else:
-                    return "textmore"
-            return ""
+                    return PromptResult(response_type="text", text="textmore")
+            return PromptResult(response_type="text", text="")
 
         client.prompt.side_effect = prompt_with_empties
 

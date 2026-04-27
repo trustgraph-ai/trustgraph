@@ -1,0 +1,16 @@
+---
+layout: default
+title: "Договор лицензии для вкладчиков"
+parent: "Russian (Beta)"
+---
+
+# Договор лицензии для вкладчиков
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
+
+Мы требуем, чтобы каждый вкладчик подписал Договор лицензии для вкладчиков, прежде чем мы сможем принять ваш запрос на слияние. Договор лицензии **не** передаёт авторские права — вы сохраняете полное право собственности на свою работу. Он просто предоставляет проекту TrustGraph пожизненную, без роялти лицензию на распространение вашего вклада в соответствии с лицензией [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0), а также подтверждает, что у вас есть право внести вклад. Это защищает как проект, так и его пользователей, обеспечивая, чтобы каждый вклад имел четкое юридическое обоснование.
+
+Когда вы создаёте запрос на слияние, бот CLA опубликует комментарий, в котором попросит вас ознакомиться и подписать соответствующий договор — это занимает всего несколько минут, и вам нужно сделать это только один раз для всех репозиториев TrustGraph.
+
+- Вклад в качестве **индивидуального** участника? Подпишите [Индивидуальный договор лицензии](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Fiduciary-Contributor-License-Agreement.md)
+- Вклад от имени **компании или организации**? Подпишите [Организационный договор лицензии](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Entity-Fiduciary-Contributor-License-Agreement.md)

@@ -11,6 +11,7 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def format_parameters(params_metadata, param_type_defs):
     """
@@ -44,12 +45,13 @@ def format_parameters(params_metadata, param_type_defs):
 
     return "\n".join(param_list)
 
-async def fetch_data(client):
+async def fetch_data(client, workspace):
     """Fetch all data needed for show_flow_blueprints concurrently."""
 
     # Round 1: list blueprints
     resp = await client._send_request("flow", None, {
         "operation": "list-blueprints",
+        "workspace": workspace,
     })
     blueprint_names = resp.get("blueprint-names", [])
 
@@ -60,6 +62,7 @@ async def fetch_data(client):
     blueprint_tasks = [
         client._send_request("flow", None, {
             "operation": "get-blueprint",
+            "workspace": workspace,
             "blueprint-name": name,
         })
         for name in blueprint_names
@@ -84,6 +87,7 @@ async def fetch_data(client):
         param_type_tasks = [
             client._send_request("config", None, {
                 "operation": "get",
+                "workspace": workspace,
                 "keys": [{"type": "parameter-type", "key": pt}],
             })
             for pt in param_types_needed
@@ -100,14 +104,16 @@ async def fetch_data(client):
 
     return blueprint_names, blueprints, param_type_defs
 
-async def _show_flow_blueprints_async(url, token=None):
+async def _show_flow_blueprints_async(url, token=None, workspace="default"):
     async with AsyncSocketClient(url, timeout=60, token=token) as client:
-        return await fetch_data(client)
+        return await fetch_data(client, workspace)
 
-def show_flow_blueprints(url, token=None):
+def show_flow_blueprints(url, token=None, workspace="default"):
 
     blueprint_names, blueprints, param_type_defs = asyncio.run(
-        _show_flow_blueprints_async(url, token=token)
+        _show_flow_blueprints_async(
+            url, token=token, workspace=workspace,
+        )
     )
 
     if not blueprint_names:
@@ -156,6 +162,12 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -163,6 +175,7 @@ def main():
         show_flow_blueprints(
             url=args.api_url,
             token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

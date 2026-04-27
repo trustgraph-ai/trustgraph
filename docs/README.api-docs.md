@@ -1,3 +1,8 @@
+---
+layout: default
+title: "Auto-generating docs"
+nav_order: 2
+---
 
 # Auto-generating docs
 
@@ -45,4 +50,3 @@ All docstrings follow Google-style format:
 - Example code blocks with proper syntax highlighting
 
 The generated documentation shows the public API exactly as users import it from `trustgraph.api`, without exposing internal module structure.
-

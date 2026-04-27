@@ -42,7 +42,7 @@ class KnowledgeQueryImpl:
             async def explain_callback(explain_id, explain_graph, explain_triples=None):
                 self.context.last_sub_explain_uri = explain_id
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=explain_id,
                     explain_graph=explain_graph,
@@ -78,9 +78,10 @@ class TextCompletionImpl:
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
         logger.debug("Prompt question...")
-        return await client.question(
+        result = await client.question(
             arguments.get("question")
         )
+        return result.text
 
 # This tool implementation knows how to do MCP tool invocation.  This uses
 # the mcp-tool service.
@@ -115,31 +116,26 @@ class McpToolImpl:
 
 # This tool implementation knows how to query structured data using natural language
 class StructuredQueryImpl:
-    def __init__(self, context, collection=None, user=None):
+    def __init__(self, context, collection=None):
         self.context = context
-        self.collection = collection  # For multi-tenant scenarios
-        self.user = user              # User context for multi-tenancy
-    
+        self.collection = collection
+
     @staticmethod
     def get_arguments():
         return [
             Argument(
                 name="question",
-                type="string", 
+                type="string",
                 description="Natural language question about structured data (tables, databases, etc.)"
             )
         ]
-    
+
     async def invoke(self, **arguments):
         client = self.context("structured-query-request")
         logger.debug("Structured query question...")
-        
-        # Get user from client context if available, otherwise use instance user or default
-        user = getattr(client, '_current_user', self.user or "trustgraph")
-        
+
         result = await client.structured_query(
             question=arguments.get("question"),
-            user=user,
             collection=self.collection or "default"
         )
         
@@ -158,11 +154,10 @@ class StructuredQueryImpl:
 
 # This tool implementation knows how to query row embeddings for semantic search
 class RowEmbeddingsQueryImpl:
-    def __init__(self, context, schema_name, collection=None, user=None, index_name=None, limit=10):
+    def __init__(self, context, schema_name, collection=None, index_name=None, limit=10):
         self.context = context
         self.schema_name = schema_name
         self.collection = collection
-        self.user = user
         self.index_name = index_name  # Optional: filter to specific index
         self.limit = limit  # Max results to return
 
@@ -189,13 +184,9 @@ class RowEmbeddingsQueryImpl:
         client = self.context("row-embeddings-query-request")
         logger.debug("Row embeddings query...")
 
-        # Get user from client context if available
-        user = getattr(client, '_current_user', self.user or "trustgraph")
-
         matches = await client.row_embeddings_query(
             vector=vector,
             schema_name=self.schema_name,
-            user=user,
             collection=self.collection or "default",
             index_name=self.index_name,
             limit=self.limit
@@ -227,10 +218,11 @@ class PromptImpl:
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
         logger.debug(f"Prompt template invocation: {self.template_id}...")
-        return await client.prompt(
+        result = await client.prompt(
             id=self.template_id,
             variables=arguments
         )
+        return result.text
 
 
 # This tool implementation invokes a dynamically configured tool service
@@ -248,7 +240,7 @@ class ToolServiceImpl:
         Initialize a tool service implementation.
 
         Args:
-            context: The context function (provides user info)
+            context: Flow context (callable resolving service names to clients)
             request_queue: Full Pulsar topic for requests
             response_queue: Full Pulsar topic for responses
             config_values: Dict of config values (e.g., {"collection": "customers"})
@@ -323,17 +315,10 @@ class ToolServiceImpl:
         logger.debug(f"Config: {self.config_values}")
         logger.debug(f"Arguments: {arguments}")
 
-        # Get user from context if available
-        user = "trustgraph"
-        if hasattr(self.context, '_user'):
-            user = self.context._user
-
         # Get or create the client
         client = await self._get_or_create_client()
 
-        # Call the tool service
         response = await client.call(
-            user=user,
             config=self.config_values,
             arguments=arguments,
         )

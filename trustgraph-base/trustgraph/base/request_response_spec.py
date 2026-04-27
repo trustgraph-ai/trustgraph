@@ -1,7 +1,9 @@
+from __future__ import annotations
 
 import uuid
 import asyncio
 import logging
+from typing import Any
 
 from . subscriber import Subscriber
 from . producer import Producer
@@ -115,7 +117,7 @@ class RequestResponseSpec(Spec):
         self.response_schema = response_schema
         self.impl = impl
 
-    def add(self, flow, processor, definition):
+    def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
 
         request_metrics = ProducerMetrics(
             processor = flow.id, flow = flow.name, name = self.request_name
@@ -131,14 +133,15 @@ class RequestResponseSpec(Spec):
             # Make subscription names unique, so that all subscribers get
             # to see all response messages
             subscription = (
-                processor.id + "--" + flow.name + "--" + self.request_name +
-                "--" + str(uuid.uuid4())
+                processor.id + "--" + flow.workspace + "--" +
+                flow.name + "--" + self.request_name + "--" +
+                str(uuid.uuid4())
             ),
             consumer_name = flow.id,
-            request_topic = definition[self.request_name],
+            request_topic = definition["topics"][self.request_name],
             request_schema = self.request_schema,
             request_metrics = request_metrics,
-            response_topic = definition[self.response_name],
+            response_topic = definition["topics"][self.response_name],
             response_schema = self.response_schema,
             response_metrics = response_metrics,
         )

@@ -62,11 +62,6 @@ properties:
     description: Collection identifier
     default: default
     example: default
-  user:
-    type: string
-    description: User identifier
-    default: trustgraph
-    example: alice
   document-id:
     type: string
     description: Document identifier

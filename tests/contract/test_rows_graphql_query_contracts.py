@@ -21,29 +21,25 @@ class TestRowsGraphQLQueryContracts:
         """Test RowsQueryRequest schema structure and required fields"""
         # Create test request with all required fields
         test_request = RowsQueryRequest(
-            user="test_user",
             collection="test_collection",
             query='{ customers { id name email } }',
             variables={"status": "active", "limit": "10"},
             operation_name="GetCustomers"
         )
-        
+
         # Verify all required fields are present
-        assert hasattr(test_request, 'user')
-        assert hasattr(test_request, 'collection') 
+        assert hasattr(test_request, 'collection')
         assert hasattr(test_request, 'query')
         assert hasattr(test_request, 'variables')
         assert hasattr(test_request, 'operation_name')
-        
+
         # Verify field types
-        assert isinstance(test_request.user, str)
         assert isinstance(test_request.collection, str)
         assert isinstance(test_request.query, str)
         assert isinstance(test_request.variables, dict)
         assert isinstance(test_request.operation_name, str)
-        
+
         # Verify content
-        assert test_request.user == "test_user"
         assert test_request.collection == "test_collection"
         assert "customers" in test_request.query
         assert test_request.variables["status"] == "active"
@@ -53,15 +49,13 @@ class TestRowsGraphQLQueryContracts:
         """Test RowsQueryRequest with minimal required fields"""
         # Create request with only essential fields
         minimal_request = RowsQueryRequest(
-            user="user",
             collection="collection",
             query='{ test }',
             variables={},
             operation_name=""
         )
-        
+
         # Verify minimal request is valid
-        assert minimal_request.user == "user"
         assert minimal_request.collection == "collection"
         assert minimal_request.query == '{ test }'
         assert minimal_request.variables == {}
@@ -187,22 +181,20 @@ class TestRowsGraphQLQueryContracts:
         """Test that request/response can be serialized/deserialized correctly"""
         # Create original request
         original_request = RowsQueryRequest(
-            user="serialization_test",
             collection="test_data",
             query='{ orders(limit: 5) { id total customer { name } } }',
             variables={"limit": "5", "status": "active"},
             operation_name="GetRecentOrders"
         )
-        
+
         # Test request serialization using Pulsar schema
         request_schema = AvroSchema(RowsQueryRequest)
-        
+
         # Encode and decode request
         encoded_request = request_schema.encode(original_request)
         decoded_request = request_schema.decode(encoded_request)
-        
+
         # Verify request round-trip
-        assert decoded_request.user == original_request.user
         assert decoded_request.collection == original_request.collection
         assert decoded_request.query == original_request.query
         assert decoded_request.variables == original_request.variables
@@ -245,7 +237,7 @@ class TestRowsGraphQLQueryContracts:
         """Test supported GraphQL query formats"""
         # Test basic query
         basic_query = RowsQueryRequest(
-            user="test", collection="test", query='{ customers { id } }',
+            collection="test", query='{ customers { id } }',
             variables={}, operation_name=""
         )
         assert "customers" in basic_query.query
@@ -254,7 +246,7 @@ class TestRowsGraphQLQueryContracts:
         
         # Test query with variables
         parameterized_query = RowsQueryRequest(
-            user="test", collection="test", 
+            collection="test", 
             query='query GetCustomers($status: String, $limit: Int) { customers(status: $status, limit: $limit) { id name } }',
             variables={"status": "active", "limit": "10"}, 
             operation_name="GetCustomers"
@@ -266,7 +258,7 @@ class TestRowsGraphQLQueryContracts:
         
         # Test complex nested query
         nested_query = RowsQueryRequest(
-            user="test", collection="test",
+            collection="test",
             query='''
             {
                 customers(limit: 10) {
@@ -297,7 +289,7 @@ class TestRowsGraphQLQueryContracts:
         # This test verifies the current contract, though ideally we'd support all JSON types
         
         variables_test = RowsQueryRequest(
-            user="test", collection="test", query='{ test }',
+            collection="test", query='{ test }',
             variables={
                 "string_var": "test_value",
                 "numeric_var": "123",  # Numbers as strings due to Map(String()) limitation
@@ -318,22 +310,18 @@ class TestRowsGraphQLQueryContracts:
 
     def test_cassandra_context_fields_contract(self):
         """Test that request contains necessary fields for Cassandra operations"""
-        # Verify request has fields needed for Cassandra keyspace/table targeting
+        # Verify request has fields needed for partition key targeting
         request = RowsQueryRequest(
-            user="keyspace_name",  # Maps to Cassandra keyspace
             collection="partition_collection",  # Used in partition key
             query='{ objects { id } }',
             variables={}, operation_name=""
         )
-        
-        # These fields are required for proper Cassandra operations
-        assert request.user  # Required for keyspace identification
-        assert request.collection  # Required for partition key
-        
+
+        # Required for partition key
+        assert request.collection
+
         # Verify field naming follows TrustGraph patterns (matching other query services)
-        # This matches TriplesQueryRequest, DocumentEmbeddingsRequest patterns
-        assert hasattr(request, 'user')  # Same as TriplesQueryRequest.user
-        assert hasattr(request, 'collection')  # Same as TriplesQueryRequest.collection
+        assert hasattr(request, 'collection')
 
     def test_graphql_extensions_contract(self):
         """Test GraphQL extensions field format and usage"""
@@ -405,7 +393,7 @@ class TestRowsGraphQLQueryContracts:
         
         # Request to execute specific operation
         multi_op_request = RowsQueryRequest(
-            user="test", collection="test",
+            collection="test",
             query=multi_op_query,
             variables={}, 
             operation_name="GetCustomers"
@@ -418,7 +406,7 @@ class TestRowsGraphQLQueryContracts:
         
         # Test single operation (operation_name optional)
         single_op_request = RowsQueryRequest(
-            user="test", collection="test",
+            collection="test",
             query='{ customers { id } }',
             variables={}, operation_name=""
         )

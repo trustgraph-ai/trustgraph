@@ -15,6 +15,7 @@ from trustgraph.agent.react.agent_manager import AgentManager
 from trustgraph.agent.react.tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl
 from trustgraph.agent.react.types import Action, Final, Tool, Argument
 from trustgraph.schema import AgentRequest, AgentResponse, AgentStep, Error
+from trustgraph.base import PromptResult
 
 
 @pytest.mark.integration
@@ -28,19 +29,25 @@ class TestAgentManagerIntegration:
         
         # Mock prompt client
         prompt_client = AsyncMock()
-        prompt_client.agent_react.return_value = """Thought: I need to search for information about machine learning
+        prompt_client.agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to search for information about machine learning
 Action: knowledge_query
 Args: {
     "question": "What is machine learning?"
 }"""
-        
+        )
+
         # Mock graph RAG client
         graph_rag_client = AsyncMock()
         graph_rag_client.rag.return_value = "Machine learning is a subset of AI that enables computers to learn from data."
-        
+
         # Mock text completion client
         text_completion_client = AsyncMock()
-        text_completion_client.question.return_value = "Machine learning involves algorithms that improve through experience."
+        text_completion_client.question.return_value = PromptResult(
+            response_type="text",
+            text="Machine learning involves algorithms that improve through experience."
+        )
         
         # Mock MCP tool client
         mcp_tool_client = AsyncMock()
@@ -147,8 +154,11 @@ Args: {
     async def test_agent_manager_final_answer(self, agent_manager, mock_flow_context):
         """Test agent manager returning final answer"""
         # Arrange
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I have enough information to answer the question
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I have enough information to answer the question
 Final Answer: Machine learning is a field of AI that enables computers to learn from data."""
+        )
         
         question = "What is machine learning?"
         history = []
@@ -193,8 +203,11 @@ Final Answer: Machine learning is a field of AI that enables computers to learn 
     async def test_agent_manager_react_with_final_answer(self, agent_manager, mock_flow_context):
         """Test ReAct cycle ending with final answer"""
         # Arrange
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I can provide a direct answer
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I can provide a direct answer
 Final Answer: Machine learning is a branch of artificial intelligence."""
+        )
         
         question = "What is machine learning?"
         history = []
@@ -254,11 +267,14 @@ Final Answer: Machine learning is a branch of artificial intelligence."""
 
         for tool_name, expected_service in tool_scenarios:
             # Arrange
-            mock_flow_context("prompt-request").agent_react.return_value = f"""Thought: I need to use {tool_name}
+            mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+                response_type="text",
+                text=f"""Thought: I need to use {tool_name}
 Action: {tool_name}
 Args: {{
     "question": "test question"
 }}"""
+            )
             
             think_callback = AsyncMock()
             observe_callback = AsyncMock()
@@ -284,11 +300,14 @@ Args: {{
     async def test_agent_manager_unknown_tool_error(self, agent_manager, mock_flow_context):
         """Test agent manager error handling for unknown tool"""
         # Arrange
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I need to use an unknown tool
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to use an unknown tool
 Action: unknown_tool
 Args: {
     "param": "value"
 }"""
+        )
         
         think_callback = AsyncMock()
         observe_callback = AsyncMock()
@@ -308,11 +327,13 @@ Args: {
         think_callback = AsyncMock()
         observe_callback = AsyncMock()
 
-        # Act & Assert
-        with pytest.raises(Exception) as exc_info:
-            await agent_manager.react("test question", [], think_callback, observe_callback, mock_flow_context)
-        
-        assert "Tool execution failed" in str(exc_info.value)
+        # Act - tool errors are now caught and returned as observations
+        result = await agent_manager.react("test question", [], think_callback, observe_callback, mock_flow_context)
+
+        # Assert - error captured on the action, not raised
+        assert result.tool_error is not None
+        assert "Tool execution failed" in result.tool_error
+        assert "Error:" in result.observation
 
     @pytest.mark.asyncio
     async def test_agent_manager_multiple_tools_coordination(self, agent_manager, mock_flow_context):
@@ -321,11 +342,14 @@ Args: {
         question = "Find information about AI and summarize it"
         
         # Mock multi-step reasoning
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I need to search for AI information first
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to search for AI information first
 Action: knowledge_query
 Args: {
     "question": "What is artificial intelligence?"
 }"""
+        )
 
         # Act
         action = await agent_manager.reason(question, [], mock_flow_context)
@@ -372,9 +396,12 @@ Args: {
             # Format arguments as JSON
             import json
             args_json = json.dumps(test_case['arguments'], indent=4)
-            mock_flow_context("prompt-request").agent_react.return_value = f"""Thought: Using {test_case['action']}
+            mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+                response_type="text",
+                text=f"""Thought: Using {test_case['action']}
 Action: {test_case['action']}
 Args: {args_json}"""
+            )
             
             think_callback = AsyncMock()
             observe_callback = AsyncMock()
@@ -507,15 +534,17 @@ Args: {
         ]
         
         for test_case in test_cases:
-            mock_flow_context("prompt-request").agent_react.return_value = test_case["response"]
+            mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+                response_type="text",
+                text=test_case["response"]
+            )
             
             if test_case["error_contains"]:
-                # Should raise an error
-                with pytest.raises(RuntimeError) as exc_info:
-                    await agent_manager.reason("test question", [], mock_flow_context)
-                
-                assert "Failed to parse agent response" in str(exc_info.value)
-                assert test_case["error_contains"] in str(exc_info.value)
+                # Parse errors now return an Action with tool_error
+                result = await agent_manager.reason("test question", [], mock_flow_context)
+                assert isinstance(result, Action)
+                assert result.name == "__parse_error__"
+                assert result.tool_error is not None
             else:
                 # Should succeed
                 action = await agent_manager.reason("test question", [], mock_flow_context)
@@ -527,13 +556,16 @@ Args: {
     async def test_agent_manager_text_parsing_edge_cases(self, agent_manager, mock_flow_context):
         """Test edge cases in text parsing"""
         # Test response with markdown code blocks
-        mock_flow_context("prompt-request").agent_react.return_value = """```
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""```
 Thought: I need to search for information
 Action: knowledge_query
 Args: {
     "question": "What is AI?"
 }
 ```"""
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Action)
@@ -541,15 +573,18 @@ Args: {
         assert action.name == "knowledge_query"
         
         # Test response with extra whitespace
-        mock_flow_context("prompt-request").agent_react.return_value = """
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""
 
-Thought:    I need to think about this    
-Action:   knowledge_query   
+Thought:    I need to think about this
+Action:   knowledge_query
 Args:    {
     "question": "test"
 }
 
 """
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Action)
@@ -560,7 +595,9 @@ Args:    {
     async def test_agent_manager_multiline_content(self, agent_manager, mock_flow_context):
         """Test handling of multi-line thoughts and final answers"""
         # Multi-line thought
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I need to consider multiple factors:
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to consider multiple factors:
 1. The user's question is complex
 2. I should search for comprehensive information
 3. This requires using the knowledge query tool
@@ -568,6 +605,7 @@ Action: knowledge_query
 Args: {
     "question": "complex query"
 }"""
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Action)
@@ -575,13 +613,16 @@ Args: {
         assert "knowledge query tool" in action.thought
         
         # Multi-line final answer
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I have gathered enough information
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I have gathered enough information
 Final Answer: Here is a comprehensive answer:
 1. First point about the topic
 2. Second point with details
 3. Final conclusion
 
 This covers all aspects of the question."""
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Final)
@@ -593,13 +634,16 @@ This covers all aspects of the question."""
     async def test_agent_manager_json_args_special_characters(self, agent_manager, mock_flow_context):
         """Test JSON arguments with special characters and edge cases"""
         # Test with special characters in JSON (properly escaped)
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: Processing special characters
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: Processing special characters
 Action: knowledge_query
 Args: {
     "question": "What about \\"quotes\\" and 'apostrophes'?",
     "context": "Line 1\\nLine 2\\tTabbed",
     "special": "Symbols: @#$%^&*()_+-=[]{}|;':,.<>?"
 }"""
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Action)
@@ -608,7 +652,9 @@ Args: {
         assert "@#$%^&*" in action.arguments["special"]
         
         # Test with nested JSON
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: Complex arguments
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: Complex arguments
 Action: web_search
 Args: {
     "query": "test",
@@ -621,6 +667,7 @@ Args: {
         }
     }
 }"""
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Action)
@@ -632,7 +679,9 @@ Args: {
     async def test_agent_manager_final_answer_json_format(self, agent_manager, mock_flow_context):
         """Test final answers that contain JSON-like content"""
         # Final answer with JSON content
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I can provide the data in JSON format
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I can provide the data in JSON format
 Final Answer: {
     "result": "success",
     "data": {
@@ -642,6 +691,7 @@ Final Answer: {
     },
     "confidence": 0.95
 }"""
+        )
         
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Final)
@@ -792,11 +842,14 @@ Final Answer: {
         agent = AgentManager(tools=custom_tools, additional_context="")
         
         # Mock response for custom collection query
-        mock_flow_context("prompt-request").agent_react.return_value = """Thought: I need to search in the research papers
+        mock_flow_context("prompt-request").agent_react.return_value = PromptResult(
+            response_type="text",
+            text="""Thought: I need to search in the research papers
 Action: knowledge_query_custom
 Args: {
     "question": "Latest AI research?"
 }"""
+        )
         
         think_callback = AsyncMock()
         observe_callback = AsyncMock()

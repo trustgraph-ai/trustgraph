@@ -18,17 +18,12 @@ properties:
       - unload-kg-core
     description: |
       Knowledge core operation:
-      - `list-kg-cores`: List knowledge cores for user
+      - `list-kg-cores`: List knowledge cores in workspace
       - `get-kg-core`: Get knowledge core by ID
       - `put-kg-core`: Store triples and/or embeddings
       - `delete-kg-core`: Delete knowledge core by ID
       - `load-kg-core`: Load knowledge core into flow
       - `unload-kg-core`: Unload knowledge core from flow
-  user:
-    type: string
-    description: User identifier (for list-kg-cores, put-kg-core, delete-kg-core)
-    default: trustgraph
-    example: alice
   id:
     type: string
     description: Knowledge core ID (for get, put, delete, load, unload)
@@ -53,17 +48,12 @@ properties:
         type: object
         required:
           - id
-          - user
           - collection
         properties:
           id:
             type: string
             description: Knowledge core ID
             example: core-123
-          user:
-            type: string
-            description: User identifier
-            example: alice
           collection:
             type: string
             description: Collection identifier
@@ -89,17 +79,12 @@ properties:
         type: object
         required:
           - id
-          - user
           - collection
         properties:
           id:
             type: string
             description: Knowledge core ID
             example: core-123
-          user:
-            type: string
-            description: User identifier
-            example: alice
           collection:
             type: string
             description: Collection identifier

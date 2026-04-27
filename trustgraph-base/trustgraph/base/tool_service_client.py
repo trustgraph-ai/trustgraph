@@ -11,12 +11,11 @@ logger = logging.getLogger(__name__)
 class ToolServiceClient(RequestResponse):
     """Client for invoking dynamically configured tool services."""
 
-    async def call(self, user, config, arguments, timeout=600):
+    async def call(self, config, arguments, timeout=600):
         """
         Call a tool service.
 
         Args:
-            user: User context for multi-tenancy
             config: Dict of config values (e.g., {"collection": "customers"})
             arguments: Dict of arguments from LLM
             timeout: Request timeout in seconds
@@ -26,7 +25,6 @@ class ToolServiceClient(RequestResponse):
         """
         resp = await self.request(
             ToolServiceRequest(
-                user=user,
                 config=json.dumps(config) if config else "{}",
                 arguments=json.dumps(arguments) if arguments else "{}",
             ),
@@ -38,12 +36,11 @@ class ToolServiceClient(RequestResponse):
 
         return resp.response
 
-    async def call_streaming(self, user, config, arguments, callback, timeout=600):
+    async def call_streaming(self, config, arguments, callback, timeout=600):
         """
         Call a tool service with streaming response.
 
         Args:
-            user: User context for multi-tenancy
             config: Dict of config values
             arguments: Dict of arguments from LLM
             callback: Async function called with each response chunk
@@ -66,7 +63,6 @@ class ToolServiceClient(RequestResponse):
 
         await self.request(
             ToolServiceRequest(
-                user=user,
                 config=json.dumps(config) if config else "{}",
                 arguments=json.dumps(arguments) if arguments else "{}",
             ),

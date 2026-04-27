@@ -40,10 +40,9 @@ jobs:
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-  deploy-container-image:
+  build-platform-image:
 
-    name: Release container images
-    runs-on: ubuntu-24.04
+    name: Build ${{ matrix.container }} (${{ matrix.platform }})
     permissions:
       contents: write
       id-token: write
@@ -52,14 +51,24 @@ jobs:
     strategy:
       matrix:
         container:
-          - trustgraph-base
-          - trustgraph-flow
-          - trustgraph-bedrock
-          - trustgraph-vertexai
-          - trustgraph-hf
-          - trustgraph-ocr
-          - trustgraph-unstructured
-          - trustgraph-mcp
+          - base
+          - flow
+          - bedrock
+          - vertexai
+          - hf
+          - ocr
+          - unstructured
+          - mcp
+        platform:
+          - amd64
+          - arm64
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
 
@@ -76,12 +85,48 @@ jobs:
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
-      - name: Put version into package manifests
-        run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Build container
+        run: make platform-${{ matrix.container }}-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
 
-      - name: Build container - ${{ matrix.container }}
-        run: make container-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-${{ matrix.container }}-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
 
-      - name: Push container - ${{ matrix.container }}
-        run: make push-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}
+  combine-manifests:
 
+    name: Combine manifest ${{ matrix.container }}
+    runs-on: ubuntu-24.04
+    needs: build-platform-image
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        container:
+          - base
+          - flow
+          - bedrock
+          - vertexai
+          - hf
+          - ocr
+          - unstructured
+          - mcp
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+
+      - name: Combine and push manifest
+        run: make combine-manifest-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}

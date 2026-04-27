@@ -18,24 +18,18 @@ class TestDocumentEmbeddingsRequestContract:
 
     def test_request_schema_fields(self):
         """Test that DocumentEmbeddingsRequest has expected fields"""
-        # Create a request
         request = DocumentEmbeddingsRequest(
             vector=[0.1, 0.2, 0.3],
             limit=10,
-            user="test_user",
             collection="test_collection"
         )
 
-        # Verify all expected fields exist
         assert hasattr(request, 'vector')
         assert hasattr(request, 'limit')
-        assert hasattr(request, 'user')
         assert hasattr(request, 'collection')
 
-        # Verify field values
         assert request.vector == [0.1, 0.2, 0.3]
         assert request.limit == 10
-        assert request.user == "test_user"
         assert request.collection == "test_collection"
 
     def test_request_translator_decode(self):
@@ -45,7 +39,6 @@ class TestDocumentEmbeddingsRequestContract:
         data = {
             "vector": [0.1, 0.2, 0.3, 0.4],
             "limit": 5,
-            "user": "custom_user",
             "collection": "custom_collection"
         }
 
@@ -54,7 +47,6 @@ class TestDocumentEmbeddingsRequestContract:
         assert isinstance(result, DocumentEmbeddingsRequest)
         assert result.vector == [0.1, 0.2, 0.3, 0.4]
         assert result.limit == 5
-        assert result.user == "custom_user"
         assert result.collection == "custom_collection"
 
     def test_request_translator_decode_with_defaults(self):
@@ -63,7 +55,7 @@ class TestDocumentEmbeddingsRequestContract:
 
         data = {
             "vector": [0.1, 0.2]
-            # No limit, user, or collection provided
+            # No limit or collection provided
         }
 
         result = translator.decode(data)
@@ -71,7 +63,6 @@ class TestDocumentEmbeddingsRequestContract:
         assert isinstance(result, DocumentEmbeddingsRequest)
         assert result.vector == [0.1, 0.2]
         assert result.limit == 10  # Default
-        assert result.user == "trustgraph"  # Default
         assert result.collection == "default"  # Default
 
     def test_request_translator_encode(self):
@@ -81,7 +72,6 @@ class TestDocumentEmbeddingsRequestContract:
         request = DocumentEmbeddingsRequest(
             vector=[0.5, 0.6],
             limit=20,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -90,7 +80,6 @@ class TestDocumentEmbeddingsRequestContract:
         assert isinstance(result, dict)
         assert result["vector"] == [0.5, 0.6]
         assert result["limit"] == 20
-        assert result["user"] == "test_user"
         assert result["collection"] == "test_collection"
 
 
@@ -219,7 +208,6 @@ class TestDocumentEmbeddingsMessageCompatibility:
         request_data = {
             "vector": [0.1, 0.2, 0.3],
             "limit": 5,
-            "user": "test_user",
             "collection": "test_collection"
         }
 

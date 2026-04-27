@@ -37,7 +37,7 @@ class Processor(GraphEmbeddingsQueryService):
         else:
             return Term(type=LITERAL, value=ent)
         
-    async def query_graph_embeddings(self, msg):
+    async def query_graph_embeddings(self, workspace, msg):
 
         try:
 
@@ -51,7 +51,7 @@ class Processor(GraphEmbeddingsQueryService):
 
             resp = self.vecstore.search(
                 vec,
-                msg.user,
+                workspace,
                 msg.collection,
                 limit=msg.limit * 2
             )

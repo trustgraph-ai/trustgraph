@@ -55,7 +55,7 @@ class Processor(GraphEmbeddingsQueryService):
         else:
             return Term(type=LITERAL, value=ent)
         
-    async def query_graph_embeddings(self, msg):
+    async def query_graph_embeddings(self, workspace, msg):
 
         try:
 
@@ -70,7 +70,7 @@ class Processor(GraphEmbeddingsQueryService):
             dim = len(vec)
 
             # Use dimension suffix in index name
-            index_name = f"t-{msg.user}-{msg.collection}-{dim}"
+            index_name = f"t-{workspace}-{msg.collection}-{dim}"
 
             # Check if index exists - return empty if not
             if not self.pinecone.has_index(index_name):

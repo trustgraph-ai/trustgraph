@@ -2,7 +2,6 @@
 Joke Tool Service - An example dynamic tool service.
 
 This service demonstrates the tool service integration by:
-- Using the 'user' field to personalize responses
 - Using config params (style) to customize joke style
 - Using arguments (topic) to generate topic-specific jokes
 
@@ -143,17 +142,16 @@ class Processor(DynamicToolService):
         super(Processor, self).__init__(**params)
         logger.info("Joke service initialized")
 
-    async def invoke(self, user, config, arguments):
+    async def invoke(self, config, arguments):
         """
         Generate a joke based on the topic and style.
 
         Args:
-            user: The user requesting the joke
             config: Config values including 'style' (pun, dad-joke, one-liner)
             arguments: Arguments including 'topic' (programming, animals, food)
 
         Returns:
-            A personalized joke string
+            A joke string
         """
         # Get style from config (default: random)
         style = config.get("style", random.choice(["pun", "dad-joke", "one-liner"]))
@@ -183,10 +181,9 @@ class Processor(DynamicToolService):
         # Pick a random joke
         joke = random.choice(jokes)
 
-        # Personalize the response
-        response = f"Hey {user}! Here's a {style} for you:\n\n{joke}"
+        response = f"Here's a {style} for you:\n\n{joke}"
 
-        logger.debug(f"Generated joke for user={user}, style={style}, topic={topic}")
+        logger.debug(f"Generated joke: style={style}, topic={topic}")
 
         return response
 

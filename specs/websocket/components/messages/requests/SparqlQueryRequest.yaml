@@ -24,10 +24,6 @@ properties:
       query:
         type: string
         description: SPARQL 1.1 query string
-      user:
-        type: string
-        default: trustgraph
-        description: User/keyspace identifier
       collection:
         type: string
         default: default
@@ -42,5 +38,4 @@ examples:
     flow: my-flow
     request:
       query: "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
-      user: trustgraph
       collection: default

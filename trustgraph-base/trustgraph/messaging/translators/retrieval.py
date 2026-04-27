@@ -10,7 +10,6 @@ class DocumentRagRequestTranslator(MessageTranslator):
     def decode(self, data: Dict[str, Any]) -> DocumentRagQuery:
         return DocumentRagQuery(
             query=data["query"],
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             doc_limit=int(data.get("doc-limit", 20)),
             streaming=data.get("streaming", False)
@@ -19,7 +18,6 @@ class DocumentRagRequestTranslator(MessageTranslator):
     def encode(self, obj: DocumentRagQuery) -> Dict[str, Any]:
         return {
             "query": obj.query,
-            "user": obj.user,
             "collection": obj.collection,
             "doc-limit": obj.doc_limit,
             "streaming": getattr(obj, "streaming", False)
@@ -74,6 +72,13 @@ class DocumentRagResponseTranslator(MessageTranslator):
         if hasattr(obj, 'error') and obj.error and obj.error.message:
             result["error"] = {"message": obj.error.message, "type": obj.error.type}
 
+        if obj.in_token is not None:
+            result["in_token"] = obj.in_token
+        if obj.out_token is not None:
+            result["out_token"] = obj.out_token
+        if obj.model is not None:
+            result["model"] = obj.model
+
         return result
 
     def encode_with_completion(self, obj: DocumentRagResponse) -> Tuple[Dict[str, Any], bool]:
@@ -89,7 +94,6 @@ class GraphRagRequestTranslator(MessageTranslator):
     def decode(self, data: Dict[str, Any]) -> GraphRagQuery:
         return GraphRagQuery(
             query=data["query"],
-            user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
             entity_limit=int(data.get("entity-limit", 50)),
             triple_limit=int(data.get("triple-limit", 30)),
@@ -103,7 +107,6 @@ class GraphRagRequestTranslator(MessageTranslator):
     def encode(self, obj: GraphRagQuery) -> Dict[str, Any]:
         return {
             "query": obj.query,
-            "user": obj.user,
             "collection": obj.collection,
             "entity-limit": obj.entity_limit,
             "triple-limit": obj.triple_limit,
@@ -162,6 +165,13 @@ class GraphRagResponseTranslator(MessageTranslator):
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
             result["error"] = {"message": obj.error.message, "type": obj.error.type}
+
+        if obj.in_token is not None:
+            result["in_token"] = obj.in_token
+        if obj.out_token is not None:
+            result["out_token"] = obj.out_token
+        if obj.model is not None:
+            result["model"] = obj.model
 
         return result
 

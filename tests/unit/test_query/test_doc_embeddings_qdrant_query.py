@@ -101,7 +101,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'test_collection'
         
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('test_user', mock_message)
 
         # Assert
         # Verify query was called with correct parameters (with dimension suffix)
@@ -158,7 +158,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'multi_collection'
 
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('multi_user', mock_message)
 
         # Assert
         # Verify query was called once
@@ -212,7 +212,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'limit_collection'
         
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('limit_user', mock_message)
 
         # Assert
         # Verify query was called with exact limit (no multiplication)
@@ -252,7 +252,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'empty_collection'
         
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('empty_user', mock_message)
 
         # Assert
         assert result == []
@@ -291,7 +291,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'dim_collection'
 
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('dim_user', mock_message)
 
         # Assert
         # Verify query was called once with correct collection
@@ -342,7 +342,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'utf8_collection'
         
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('utf8_user', mock_message)
 
         # Assert
         assert len(result) == 2
@@ -380,7 +380,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Act & Assert
         with pytest.raises(Exception, match="Qdrant connection failed"):
-            await processor.query_document_embeddings(mock_message)
+            await processor.query_document_embeddings('error_user', mock_message)
 
     @patch('trustgraph.query.doc_embeddings.qdrant.service.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsQueryService.__init__')
@@ -413,7 +413,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'zero_collection'
         
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('zero_user', mock_message)
 
         # Assert
         # Should still query (with limit 0)
@@ -460,7 +460,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'large_collection'
         
         # Act
-        result = await processor.query_document_embeddings(mock_message)
+        result = await processor.query_document_embeddings('large_user', mock_message)
 
         # Assert
         # Should query with full limit
@@ -512,7 +512,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         # Act & Assert
         # This should raise a KeyError when trying to access payload['chunk_id']
         with pytest.raises(KeyError):
-            await processor.query_document_embeddings(mock_message)
+            await processor.query_document_embeddings('payload_user', mock_message)
 
     @patch('trustgraph.query.doc_embeddings.qdrant.service.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsQueryService.__init__')

@@ -486,7 +486,6 @@ class ExplainabilityClient:
         self,
         uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None
     ) -> Optional[ExplainEntity]:
         """
@@ -502,7 +501,6 @@ class ExplainabilityClient:
         Args:
             uri: The entity URI to fetch
             graph: Named graph to query (e.g., "urn:graph:retrieval")
-            user: User/keyspace identifier
             collection: Collection identifier
 
         Returns:
@@ -515,7 +513,6 @@ class ExplainabilityClient:
             wire_triples = self.flow.triples_query(
                 s=uri,
                 g=graph,
-                user=user,
                 collection=collection,
                 limit=100
             )
@@ -548,7 +545,7 @@ class ExplainabilityClient:
         if prev_triples:
             # Re-fetch and parse
             wire_triples = self.flow.triples_query(
-                s=uri, g=graph, user=user, collection=collection, limit=100
+                s=uri, g=graph, collection=collection, limit=100
             )
             if wire_triples:
                 triples = wire_triples_to_tuples(wire_triples)
@@ -560,7 +557,6 @@ class ExplainabilityClient:
         self,
         uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None
     ) -> Optional[EdgeSelection]:
         """
@@ -569,7 +565,6 @@ class ExplainabilityClient:
         Args:
             uri: The edge selection URI
             graph: Named graph to query
-            user: User/keyspace identifier
             collection: Collection identifier
 
         Returns:
@@ -578,7 +573,6 @@ class ExplainabilityClient:
         wire_triples = self.flow.triples_query(
             s=uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=100
         )
@@ -593,7 +587,6 @@ class ExplainabilityClient:
         self,
         uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None
     ) -> Optional[Focus]:
         """
@@ -602,20 +595,19 @@ class ExplainabilityClient:
         Args:
             uri: The Focus entity URI
             graph: Named graph to query
-            user: User/keyspace identifier
             collection: Collection identifier
 
         Returns:
             Focus with populated edge_selections, or None
         """
-        entity = self.fetch_entity(uri, graph, user, collection)
+        entity = self.fetch_entity(uri, graph, collection)
 
         if not isinstance(entity, Focus):
             return None
 
         # Fetch each edge selection
         for edge_uri in entity.selected_edge_uris:
-            edge_sel = self.fetch_edge_selection(edge_uri, graph, user, collection)
+            edge_sel = self.fetch_edge_selection(edge_uri, graph, collection)
             if edge_sel:
                 entity.edge_selections.append(edge_sel)
 
@@ -624,7 +616,6 @@ class ExplainabilityClient:
     def resolve_label(
         self,
         uri: str,
-        user: Optional[str] = None,
         collection: Optional[str] = None
     ) -> str:
         """
@@ -632,7 +623,6 @@ class ExplainabilityClient:
 
         Args:
             uri: The URI to get label for
-            user: User/keyspace identifier
             collection: Collection identifier
 
         Returns:
@@ -647,7 +637,6 @@ class ExplainabilityClient:
         wire_triples = self.flow.triples_query(
             s=uri,
             p=RDFS_LABEL,
-            user=user,
             collection=collection,
             limit=1
         )
@@ -665,7 +654,6 @@ class ExplainabilityClient:
     def resolve_edge_labels(
         self,
         edge: Dict[str, str],
-        user: Optional[str] = None,
         collection: Optional[str] = None
     ) -> Tuple[str, str, str]:
         """
@@ -673,22 +661,20 @@ class ExplainabilityClient:
 
         Args:
             edge: Dict with "s", "p", "o" keys
-            user: User/keyspace identifier
             collection: Collection identifier
 
         Returns:
             Tuple of (s_label, p_label, o_label)
         """
-        s_label = self.resolve_label(edge.get("s", ""), user, collection)
-        p_label = self.resolve_label(edge.get("p", ""), user, collection)
-        o_label = self.resolve_label(edge.get("o", ""), user, collection)
+        s_label = self.resolve_label(edge.get("s", ""), collection)
+        p_label = self.resolve_label(edge.get("p", ""), collection)
+        o_label = self.resolve_label(edge.get("o", ""), collection)
         return (s_label, p_label, o_label)
 
     def fetch_document_content(
         self,
         document_uri: str,
         api: Any,
-        user: Optional[str] = None,
         max_content: int = 10000
     ) -> str:
         """
@@ -697,7 +683,6 @@ class ExplainabilityClient:
         Args:
             document_uri: The document URI in the librarian
             api: TrustGraph Api instance for librarian access
-            user: User identifier for librarian
             max_content: Maximum content length to return
 
         Returns:
@@ -712,7 +697,7 @@ class ExplainabilityClient:
         for attempt in range(self.max_retries):
             try:
                 library = api.library()
-                content_bytes = library.get_document_content(user=user, id=doc_id)
+                content_bytes = library.get_document_content(id=doc_id)
 
                 # Decode as text
                 try:
@@ -736,7 +721,6 @@ class ExplainabilityClient:
         self,
         question_uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None,
         api: Any = None,
         max_content: int = 10000
@@ -749,7 +733,6 @@ class ExplainabilityClient:
         Args:
             question_uri: The question entity URI
             graph: Named graph (default: urn:graph:retrieval)
-            user: User/keyspace identifier
             collection: Collection identifier
             api: TrustGraph Api instance for librarian access (optional)
             max_content: Maximum content length for synthesis
@@ -769,7 +752,7 @@ class ExplainabilityClient:
         }
 
         # Fetch question
-        question = self.fetch_entity(question_uri, graph, user, collection)
+        question = self.fetch_entity(question_uri, graph, collection)
         if not isinstance(question, Question):
             return trace
         trace["question"] = question
@@ -779,7 +762,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=question_uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -790,7 +772,7 @@ class ExplainabilityClient:
                 for t in grounding_triples
             ]
             for gnd_uri in grounding_uris:
-                grounding = self.fetch_entity(gnd_uri, graph, user, collection)
+                grounding = self.fetch_entity(gnd_uri, graph, collection)
                 if isinstance(grounding, Grounding):
                     trace["grounding"] = grounding
                     break
@@ -803,7 +785,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=trace["grounding"].uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -814,7 +795,7 @@ class ExplainabilityClient:
                 for t in exploration_triples
             ]
             for exp_uri in exploration_uris:
-                exploration = self.fetch_entity(exp_uri, graph, user, collection)
+                exploration = self.fetch_entity(exp_uri, graph, collection)
                 if isinstance(exploration, Exploration):
                     trace["exploration"] = exploration
                     break
@@ -827,7 +808,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=trace["exploration"].uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -838,7 +818,7 @@ class ExplainabilityClient:
                 for t in focus_triples
             ]
             for focus_uri in focus_uris:
-                focus = self.fetch_focus_with_edges(focus_uri, graph, user, collection)
+                focus = self.fetch_focus_with_edges(focus_uri, graph, collection)
                 if focus:
                     trace["focus"] = focus
                     break
@@ -851,7 +831,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=trace["focus"].uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -862,7 +841,7 @@ class ExplainabilityClient:
                 for t in synthesis_triples
             ]
             for synth_uri in synthesis_uris:
-                synthesis = self.fetch_entity(synth_uri, graph, user, collection)
+                synthesis = self.fetch_entity(synth_uri, graph, collection)
                 if isinstance(synthesis, Synthesis):
                     trace["synthesis"] = synthesis
                     break
@@ -873,7 +852,6 @@ class ExplainabilityClient:
         self,
         question_uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None,
         api: Any = None,
         max_content: int = 10000
@@ -887,7 +865,6 @@ class ExplainabilityClient:
         Args:
             question_uri: The question entity URI
             graph: Named graph (default: urn:graph:retrieval)
-            user: User/keyspace identifier
             collection: Collection identifier
             api: TrustGraph Api instance for librarian access (optional)
             max_content: Maximum content length for synthesis
@@ -906,7 +883,7 @@ class ExplainabilityClient:
         }
 
         # Fetch question
-        question = self.fetch_entity(question_uri, graph, user, collection)
+        question = self.fetch_entity(question_uri, graph, collection)
         if not isinstance(question, Question):
             return trace
         trace["question"] = question
@@ -916,7 +893,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=question_uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -927,7 +903,7 @@ class ExplainabilityClient:
                 for t in grounding_triples
             ]
             for gnd_uri in grounding_uris:
-                grounding = self.fetch_entity(gnd_uri, graph, user, collection)
+                grounding = self.fetch_entity(gnd_uri, graph, collection)
                 if isinstance(grounding, Grounding):
                     trace["grounding"] = grounding
                     break
@@ -940,7 +916,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=trace["grounding"].uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -951,7 +926,7 @@ class ExplainabilityClient:
                 for t in exploration_triples
             ]
             for exp_uri in exploration_uris:
-                exploration = self.fetch_entity(exp_uri, graph, user, collection)
+                exploration = self.fetch_entity(exp_uri, graph, collection)
                 if isinstance(exploration, Exploration):
                     trace["exploration"] = exploration
                     break
@@ -964,7 +939,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=trace["exploration"].uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=10
         )
@@ -975,7 +949,7 @@ class ExplainabilityClient:
                 for t in synthesis_triples
             ]
             for synth_uri in synthesis_uris:
-                synthesis = self.fetch_entity(synth_uri, graph, user, collection)
+                synthesis = self.fetch_entity(synth_uri, graph, collection)
                 if isinstance(synthesis, Synthesis):
                     trace["synthesis"] = synthesis
                     break
@@ -986,7 +960,6 @@ class ExplainabilityClient:
         self,
         session_uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None,
         api: Any = None,
         max_content: int = 10000
@@ -1002,7 +975,6 @@ class ExplainabilityClient:
         Args:
             session_uri: The agent session/question URI
             graph: Named graph (default: urn:graph:retrieval)
-            user: User/keyspace identifier
             collection: Collection identifier
             api: TrustGraph Api instance for librarian access (optional)
             max_content: Maximum content length for conclusion
@@ -1019,21 +991,21 @@ class ExplainabilityClient:
         }
 
         # Fetch question/session
-        question = self.fetch_entity(session_uri, graph, user, collection)
+        question = self.fetch_entity(session_uri, graph, collection)
         if not isinstance(question, Question):
             return trace
         trace["question"] = question
 
         # Follow the provenance chain from the question
         self._follow_provenance_chain(
-            session_uri, trace, graph, user, collection,
+            session_uri, trace, graph, collection,
             max_depth=50,
         )
 
         return trace
 
     def _follow_provenance_chain(
-        self, current_uri, trace, graph, user, collection,
+        self, current_uri, trace, graph, collection,
         max_depth=50,
     ):
         """Recursively follow the provenance chain, handling branches."""
@@ -1044,7 +1016,7 @@ class ExplainabilityClient:
         derived_triples = self.flow.triples_query(
             p=PROV_WAS_DERIVED_FROM,
             o=current_uri,
-            g=graph, user=user, collection=collection,
+            g=graph, collection=collection,
             limit=20
         )
 
@@ -1060,7 +1032,7 @@ class ExplainabilityClient:
             if not derived_uri:
                 continue
 
-            entity = self.fetch_entity(derived_uri, graph, user, collection)
+            entity = self.fetch_entity(derived_uri, graph, collection)
             if entity is None:
                 continue
 
@@ -1070,7 +1042,7 @@ class ExplainabilityClient:
 
                 # Continue following from this entity
                 self._follow_provenance_chain(
-                    derived_uri, trace, graph, user, collection,
+                    derived_uri, trace, graph, collection,
                     max_depth=max_depth - 1,
                 )
 
@@ -1079,11 +1051,11 @@ class ExplainabilityClient:
                 # Fetch the full sub-trace and embed it.
                 if entity.question_type == "graph-rag":
                     sub_trace = self.fetch_graphrag_trace(
-                        derived_uri, graph, user, collection,
+                        derived_uri, graph, collection,
                     )
                 elif entity.question_type == "document-rag":
                     sub_trace = self.fetch_docrag_trace(
-                        derived_uri, graph, user, collection,
+                        derived_uri, graph, collection,
                     )
                 else:
                     sub_trace = None
@@ -1100,7 +1072,7 @@ class ExplainabilityClient:
                     terminal = sub_trace.get("synthesis")
                     if terminal:
                         self._follow_provenance_chain(
-                            terminal.uri, trace, graph, user, collection,
+                            terminal.uri, trace, graph, collection,
                             max_depth=max_depth - 1,
                         )
 
@@ -1110,7 +1082,6 @@ class ExplainabilityClient:
     def list_sessions(
         self,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None,
         limit: int = 50
     ) -> List[Question]:
@@ -1119,7 +1090,6 @@ class ExplainabilityClient:
 
         Args:
             graph: Named graph (default: urn:graph:retrieval)
-            user: User/keyspace identifier
             collection: Collection identifier
             limit: Maximum number of sessions to return
 
@@ -1133,7 +1103,6 @@ class ExplainabilityClient:
         query_triples = self.flow.triples_query(
             p=TG_QUERY,
             g=graph,
-            user=user,
             collection=collection,
             limit=limit
         )
@@ -1142,7 +1111,7 @@ class ExplainabilityClient:
         for t in query_triples:
             question_uri = extract_term_value(t.get("s", {}))
             if question_uri:
-                entity = self.fetch_entity(question_uri, graph, user, collection)
+                entity = self.fetch_entity(question_uri, graph, collection)
                 if isinstance(entity, Question):
                     questions.append(entity)
 
@@ -1154,7 +1123,6 @@ class ExplainabilityClient:
                 s=q.uri,
                 p=PROV_WAS_DERIVED_FROM,
                 g=graph,
-                user=user,
                 collection=collection,
                 limit=1
             )
@@ -1170,7 +1138,6 @@ class ExplainabilityClient:
         self,
         session_uri: str,
         graph: Optional[str] = None,
-        user: Optional[str] = None,
         collection: Optional[str] = None
     ) -> str:
         """
@@ -1179,7 +1146,6 @@ class ExplainabilityClient:
         Args:
             session_uri: The session/question URI
             graph: Named graph
-            user: User/keyspace identifier
             collection: Collection identifier
 
         Returns:
@@ -1201,7 +1167,6 @@ class ExplainabilityClient:
             p=PROV_WAS_DERIVED_FROM,
             o=session_uri,
             g=graph,
-            user=user,
             collection=collection,
             limit=5
         )
@@ -1212,7 +1177,7 @@ class ExplainabilityClient:
         ]
 
         for child_uri in all_child_uris:
-            entity = self.fetch_entity(child_uri, graph, user, collection)
+            entity = self.fetch_entity(child_uri, graph, collection)
             if isinstance(entity, (Analysis, Decomposition, Plan)):
                 return "agent"
             if isinstance(entity, Exploration):

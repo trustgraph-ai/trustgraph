@@ -1,7 +1,10 @@
-
 """
 Embeddings resolution base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import time
 import logging
@@ -100,7 +103,7 @@ class EmbeddingsService(FlowProcessor):
             )
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         parser.add_argument(
             '-c', '--concurrency',
@@ -110,6 +113,5 @@ class EmbeddingsService(FlowProcessor):
         )
 
         FlowProcessor.add_args(parser)
-
 
 

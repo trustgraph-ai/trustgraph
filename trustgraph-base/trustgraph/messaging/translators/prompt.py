@@ -53,6 +53,13 @@ class PromptResponseTranslator(MessageTranslator):
         # Always include end_of_stream flag for streaming support
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 
+        if obj.in_token is not None:
+            result["in_token"] = obj.in_token
+        if obj.out_token is not None:
+            result["out_token"] = obj.out_token
+        if obj.model is not None:
+            result["model"] = obj.model
+
         return result
     
     def encode_with_completion(self, obj: PromptResponse) -> Tuple[Dict[str, Any], bool]:

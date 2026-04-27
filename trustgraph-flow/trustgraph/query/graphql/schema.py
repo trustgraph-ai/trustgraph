@@ -70,7 +70,7 @@ class GraphQLSchemaBuilder:
         Build the GraphQL schema with the provided query callback.
 
         The query callback will be invoked when resolving queries, with:
-            - user: str
+            - workspace: str
             - collection: str
             - schema_name: str
             - row_schema: RowSchema
@@ -228,7 +228,7 @@ class GraphQLSchemaBuilder:
             limit: Optional[int] = 100
         ) -> List[graphql_type]:
             # Get context values
-            user = info.context["user"]
+            workspace = info.context["workspace"]
             collection = info.context["collection"]
 
             # Parse the where clause
@@ -236,7 +236,7 @@ class GraphQLSchemaBuilder:
 
             # Call the query backend
             results = await query_callback(
-                user, collection, schema_name, row_schema,
+                workspace, collection, schema_name, row_schema,
                 filters, limit, order_by, direction
             )
 

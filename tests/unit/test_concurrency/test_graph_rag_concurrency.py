@@ -31,7 +31,6 @@ def _make_query(
 
     query = Query(
         rag=rag,
-        user="test-user",
         collection="test-collection",
         verbose=False,
         entity_limit=entity_limit,
@@ -208,7 +207,6 @@ class TestBatchTripleQueries:
         assert calls[0].kwargs["p"] is None
         assert calls[0].kwargs["o"] is None
         assert calls[0].kwargs["limit"] == 15
-        assert calls[0].kwargs["user"] == "test-user"
         assert calls[0].kwargs["collection"] == "test-collection"
         assert calls[0].kwargs["batch_size"] == 20
 

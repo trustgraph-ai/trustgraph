@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Extraction Flows"
+parent: "Tech Specs"
+---
+
 # Extraction Flows
 
 This document describes how data flows through the TrustGraph extraction pipeline, from document submission through to storage in knowledge stores.

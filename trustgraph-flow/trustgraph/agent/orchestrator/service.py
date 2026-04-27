@@ -23,6 +23,7 @@ from ... base import Consumer, Producer
 from ... base import ConsumerMetrics, ProducerMetrics
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
+from ..orchestrator.pattern_base import UsageTracker, PatternBase
 from ... schema import Triples, Metadata
 from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
@@ -41,7 +42,7 @@ from ..tool_filter import validate_tool_config
 from ..react.types import Final, Action, Tool, Argument
 
 from . meta_router import MetaRouter
-from . pattern_base import PatternBase, UserAwareContext
+from . pattern_base import PatternBase, FlowContext
 from . react_pattern import ReactPattern
 from . plan_pattern import PlanThenExecutePattern
 from . supervisor_pattern import SupervisorPattern
@@ -75,10 +76,9 @@ class Processor(AgentService):
             }
         )
 
-        self.agent = AgentManager(
-            tools={},
-            additional_context="",
-        )
+        # Per-workspace agent managers and meta-routers
+        self.agents = {}
+        self.meta_routers = {}
 
         self.tool_service_clients = {}
 
@@ -89,9 +89,6 @@ class Processor(AgentService):
 
         # Aggregator for supervisor fan-in
         self.aggregator = Aggregator()
-
-        # Meta-router (initialised on first config load)
-        self.meta_router = None
 
         self.register_config_handler(
             self.on_tools_config, types=["tool", "tool-service"]
@@ -203,13 +200,13 @@ class Processor(AgentService):
             future = self.pending_librarian_requests.pop(request_id)
             future.set_result(response)
 
-    async def save_answer_content(self, doc_id, user, content, title=None,
+    async def save_answer_content(self, doc_id, workspace, content, title=None,
                                   timeout=120):
         request_id = str(uuid.uuid4())
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            user=user,
+            workspace=workspace,
             kind="text/plain",
             title=title or "Agent Answer",
             document_type="answer",
@@ -220,7 +217,7 @@ class Processor(AgentService):
             document_id=doc_id,
             document_metadata=doc_metadata,
             content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            user=user,
+            workspace=workspace,
         )
 
         future = asyncio.get_event_loop().create_future()
@@ -246,9 +243,12 @@ class Processor(AgentService):
     def provenance_session_uri(self, session_id):
         return agent_session_uri(session_id)
 
-    async def on_tools_config(self, config, version):
+    async def on_tools_config(self, workspace, config, version):
 
-        logger.info(f"Loading configuration version {version}")
+        logger.info(
+            f"Loading configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
         try:
             tools = {}
@@ -315,7 +315,6 @@ class Processor(AgentService):
                         impl = functools.partial(
                             StructuredQueryImpl,
                             collection=data.get("collection"),
-                            user=None,
                         )
                         arguments = StructuredQueryImpl.get_arguments()
                     elif impl_id == "row-embeddings-query":
@@ -323,7 +322,6 @@ class Processor(AgentService):
                             RowEmbeddingsQueryImpl,
                             schema_name=data.get("schema-name"),
                             collection=data.get("collection"),
-                            user=None,
                             index_name=data.get("index-name"),
                             limit=int(data.get("limit", 10)),
                         )
@@ -407,15 +405,17 @@ class Processor(AgentService):
                 agent_config = config[self.config_key]
                 additional = agent_config.get("additional-context", None)
 
-            self.agent = AgentManager(
+            self.agents[workspace] = AgentManager(
                 tools=tools,
                 additional_context=additional,
             )
 
-            # Re-initialise meta-router with config
-            self.meta_router = MetaRouter(config=config)
+            # Re-initialise meta-router with config for this workspace
+            self.meta_routers[workspace] = MetaRouter(config=config)
 
-            logger.info(f"Loaded {len(tools)} tools")
+            logger.info(
+                f"Loaded {len(tools)} tools for workspace {workspace}"
+            )
 
         except Exception as e:
             logger.error(
@@ -465,7 +465,7 @@ class Processor(AgentService):
             await self.supervisor_pattern.emit_finding_triples(
                 flow, parent_session_id, finding_index,
                 subagent_goal, answer_text,
-                template.user, collection,
+                collection,
                 respond, template.streaming,
                 subagent_session_id=subagent_session_id,
             )
@@ -485,13 +485,14 @@ class Processor(AgentService):
             synthesis_request = self.aggregator.build_synthesis_request(
                 correlation_id,
                 original_question=template.question,
-                user=template.user,
                 collection=getattr(template, 'collection', 'default'),
             )
 
             await next(synthesis_request)
 
     async def agent_request(self, request, respond, next, flow):
+
+        usage = UsageTracker()
 
         try:
 
@@ -512,11 +513,12 @@ class Processor(AgentService):
 
             # If no pattern set and this is the first iteration, route
             if not pattern and not request.history:
-                context = UserAwareContext(flow, request.user)
+                context = FlowContext(flow)
 
-                if self.meta_router:
-                    pattern, task_type, framing = await self.meta_router.route(
-                        request.question, context,
+                meta_router = self.meta_routers.get(flow.workspace)
+                if meta_router:
+                    pattern, task_type, framing = await meta_router.route(
+                        request.question, context, usage=usage,
                     )
                 else:
                     pattern = "react"
@@ -534,19 +536,30 @@ class Processor(AgentService):
                 )
 
             # Dispatch to the selected pattern
+            selected = self.react_pattern
             if pattern == "plan-then-execute":
-                await self.plan_pattern.iterate(
-                    request, respond, next, flow,
-                )
+                selected = self.plan_pattern
             elif pattern == "supervisor":
-                await self.supervisor_pattern.iterate(
-                    request, respond, next, flow,
-                )
-            else:
-                # Default to react
-                await self.react_pattern.iterate(
-                    request, respond, next, flow,
-                )
+                selected = self.supervisor_pattern
+
+            # Emit pattern decision provenance on first iteration
+            pattern_decision_uri = None
+            if not request.history and pattern:
+                session_id = getattr(request, 'session_id', '')
+                if session_id:
+                    session_uri = self.provenance_session_uri(session_id)
+                    pattern_decision_uri = \
+                        await selected.emit_pattern_decision_triples(
+                            flow, session_id, session_uri,
+                            pattern, getattr(request, 'task_type', ''),
+                            getattr(request, 'collection', 'default'),
+                            respond,
+                        )
+
+            await selected.iterate(
+                request, respond, next, flow, usage=usage,
+                pattern_decision_uri=pattern_decision_uri,
+            )
 
         except Exception as e:
 
@@ -562,7 +575,7 @@ class Processor(AgentService):
             )
 
             r = AgentResponse(
-                chunk_type="error",
+                message_type="error",
                 content=str(e),
                 end_of_message=True,
                 end_of_dialog=True,

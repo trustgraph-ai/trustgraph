@@ -17,7 +17,7 @@ class CoreImport:
     async def process(self, data, error, ok, request):
 
         id = request.query["id"]
-        user = request.query["user"]
+        workspace = request.query.get("workspace", "default")
 
         kr = KnowledgeRequestor(
             backend = self.backend,
@@ -43,13 +43,11 @@ class CoreImport:
                         msg = unpacked[1]
                         msg = {
                             "operation": "put-kg-core",
-                            "user": user,
+                            "workspace": workspace,
                             "id": id,
                             "triples": {
                                 "metadata": {
                                     "id": id,
-                                    "metadata": msg["m"]["m"],
-                                    "user": user,
                                     "collection": "default", # Not used?
                                 },
                                 "triples": msg["t"],
@@ -57,24 +55,22 @@ class CoreImport:
                         }
 
                         await kr.process(msg)
-                        
+
                     elif unpacked[0] == "ge":
                         msg = unpacked[1]
                         msg = {
                             "operation": "put-kg-core",
-                            "user": user,
+                            "workspace": workspace,
                             "id": id,
                             "graph-embeddings": {
                                 "metadata": {
                                     "id": id,
-                                    "metadata": msg["m"]["m"],
-                                    "user": user,
                                     "collection": "default", # Not used?
                                 },
                                 "entities": [
                                     {
                                         "entity": ent["e"],
-                                        "vectors": ent["v"],
+                                        "vector": ent["v"],
                                     }
                                     for ent in msg["e"]
                                 ]

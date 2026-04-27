@@ -173,7 +173,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'test_collection'
         
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('test_user', mock_message)
 
         # Assert
         # Verify query was called with correct parameters (with dimension suffix)
@@ -230,7 +230,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'multi_collection'
 
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('multi_user', mock_message)
 
         # Assert
         # Verify query was called once
@@ -283,7 +283,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'limit_collection'
         
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('limit_user', mock_message)
 
         # Assert
         # Verify query was called with limit * 2
@@ -323,7 +323,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'empty_collection'
         
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('empty_user', mock_message)
 
         # Assert
         assert result == []
@@ -364,7 +364,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'dim_collection'
 
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('dim_user', mock_message)
 
         # Assert
         # Verify query was called once
@@ -415,7 +415,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'uri_collection'
         
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('uri_user', mock_message)
 
         # Assert
         assert len(result) == 3
@@ -460,7 +460,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Act & Assert
         with pytest.raises(Exception, match="Qdrant connection failed"):
-            await processor.query_graph_embeddings(mock_message)
+            await processor.query_graph_embeddings('error_user', mock_message)
 
     @patch('trustgraph.query.graph_embeddings.qdrant.service.QdrantClient')
     @patch('trustgraph.base.GraphEmbeddingsQueryService.__init__')
@@ -493,7 +493,7 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'zero_collection'
         
         # Act
-        result = await processor.query_graph_embeddings(mock_message)
+        result = await processor.query_graph_embeddings('zero_user', mock_message)
 
         # Assert
         # Should still query (with limit 0)

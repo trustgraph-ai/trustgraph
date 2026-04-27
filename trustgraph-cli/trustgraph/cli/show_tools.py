@@ -19,10 +19,11 @@ import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def show_config(url, token=None):
+def show_config(url, token=None, workspace="default"):
 
-    api = Api(url, token=token).config()
+    api = Api(url, token=token, workspace=workspace).config()
 
     values = api.get_values(type="tool")
 
@@ -116,6 +117,12 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -123,6 +130,8 @@ def main():
         show_config(
             url=args.api_url,
             token=args.token,
+
+            workspace=args.workspace,
         )
 
     except Exception as e:

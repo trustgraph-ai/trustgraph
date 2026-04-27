@@ -11,7 +11,6 @@ from ..core.topic import queue
 class GraphEmbeddingsRequest:
     vector: list[float] = field(default_factory=list)
     limit: int = 0
-    user: str = ""
     collection: str = ""
 
 @dataclass
@@ -31,7 +30,6 @@ class GraphEmbeddingsResponse:
 
 @dataclass
 class TriplesQueryRequest:
-    user: str = ""
     collection: str = ""
     s: Term | None = None
     p: Term | None = None
@@ -55,7 +53,6 @@ class TriplesQueryResponse:
 class DocumentEmbeddingsRequest:
     vector: list[float] = field(default_factory=list)
     limit: int = 0
-    user: str = ""
     collection: str = ""
 
 @dataclass
@@ -89,7 +86,6 @@ class RowEmbeddingsRequest:
     """Request for row embeddings semantic search"""
     vector: list[float] = field(default_factory=list)  # Query vector
     limit: int = 10                         # Max results to return
-    user: str = ""                          # User/keyspace
     collection: str = ""                    # Collection name
     schema_name: str = ""                   # Schema name to search within
     index_name: str | None = None           # Optional: filter to specific index

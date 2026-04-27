@@ -17,7 +17,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Create a mock message for testing"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         # Create test document embeddings
@@ -80,7 +79,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings for a single chunk"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         chunk = ChunkEmbeddings(
@@ -89,7 +87,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
 
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
 
         # Verify insert was called once for the single chunk with its vector
         processor.vecstore.insert.assert_called_once_with(
@@ -99,14 +97,14 @@ class TestMilvusDocEmbeddingsStorageProcessor:
     @pytest.mark.asyncio
     async def test_store_document_embeddings_multiple_chunks(self, processor, mock_message):
         """Test storing document embeddings for multiple chunks"""
-        await processor.store_document_embeddings(mock_message)
+        await processor.store_document_embeddings('test_workspace', mock_message)
 
-        # Verify insert was called once per chunk with user/collection parameters
+        # Verify insert was called once per chunk with workspace/collection parameters
         expected_calls = [
             # Chunk 1 - single vector
-            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], "This is the first document chunk", 'test_user', 'test_collection'),
+            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], "This is the first document chunk", 'test_workspace', 'test_collection'),
             # Chunk 2 - single vector
-            ([0.7, 0.8, 0.9], "This is the second document chunk", 'test_user', 'test_collection'),
+            ([0.7, 0.8, 0.9], "This is the second document chunk", 'test_workspace', 'test_collection'),
         ]
 
         assert processor.vecstore.insert.call_count == 2
@@ -122,7 +120,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with empty chunk (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -131,7 +128,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no insert was called for empty chunk
         processor.vecstore.insert.assert_not_called()
@@ -141,7 +138,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with None chunk_id"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         chunk = ChunkEmbeddings(
@@ -150,7 +146,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
 
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
 
         # Note: Implementation passes through None chunk_ids (only skips empty string "")
         processor.vecstore.insert.assert_called_once_with(
@@ -162,7 +158,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with mix of valid and empty chunks"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         valid_chunk = ChunkEmbeddings(
@@ -179,7 +174,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [valid_chunk, empty_chunk, another_valid]
 
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
 
         # Verify valid chunks were inserted, empty string chunk was skipped
         expected_calls = [
@@ -200,11 +195,10 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with empty chunks list"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         message.chunks = []
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no insert was called
         processor.vecstore.insert.assert_not_called()
@@ -214,7 +208,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings for chunk with no vectors"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -223,7 +216,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify no insert was called (no vectors to insert)
         processor.vecstore.insert.assert_not_called()
@@ -233,7 +226,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with different vector dimensions"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         # Each chunk has a single vector of different dimensions
@@ -251,7 +243,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk1, chunk2, chunk3]
 
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
 
         # Verify all vectors were inserted regardless of dimension with user/collection parameters
         expected_calls = [
@@ -273,7 +265,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with Unicode content in chunk_id"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         chunk = ChunkEmbeddings(
@@ -282,7 +273,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
 
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
 
         # Verify Unicode chunk_id was stored correctly with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
@@ -294,7 +285,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with long chunk_id"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
         # Create a long chunk_id
@@ -305,7 +295,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
 
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
 
         # Verify long chunk_id was inserted with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
@@ -317,7 +307,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with whitespace-only chunk"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
@@ -326,7 +315,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message.chunks = [chunk]
         
-        await processor.store_document_embeddings(message)
+        await processor.store_document_embeddings('test_user', message)
         
         # Verify whitespace content was inserted (not filtered out) with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
@@ -343,25 +332,24 @@ class TestMilvusDocEmbeddingsStorageProcessor:
             ('test@domain.com', 'test-collection.v1'),
         ]
         
-        for user, collection in test_cases:
+        for workspace, collection in test_cases:
             processor.vecstore.reset_mock()  # Reset mock for each test case
-            
+
             message = MagicMock()
             message.metadata = MagicMock()
-            message.metadata.user = user
             message.metadata.collection = collection
-            
+
             chunk = ChunkEmbeddings(
                 chunk_id="Test content",
                 vector=[0.1, 0.2, 0.3]
             )
             message.chunks = [chunk]
-            
-            await processor.store_document_embeddings(message)
-            
-            # Verify insert was called with the correct user/collection
+
+            await processor.store_document_embeddings(workspace, message)
+
+            # Verify insert was called with the correct workspace/collection
             processor.vecstore.insert.assert_called_once_with(
-                [0.1, 0.2, 0.3], "Test content", user, collection
+                [0.1, 0.2, 0.3], "Test content", workspace, collection
             )
 
     @pytest.mark.asyncio
@@ -370,7 +358,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         # Store embeddings for user1/collection1
         message1 = MagicMock()
         message1.metadata = MagicMock()
-        message1.metadata.user = 'user1'
         message1.metadata.collection = 'collection1'
         chunk1 = ChunkEmbeddings(
             chunk_id="User1 content",
@@ -381,7 +368,6 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         # Store embeddings for user2/collection2
         message2 = MagicMock()
         message2.metadata = MagicMock() 
-        message2.metadata.user = 'user2'
         message2.metadata.collection = 'collection2'
         chunk2 = ChunkEmbeddings(
             chunk_id="User2 content",
@@ -389,8 +375,8 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         )
         message2.chunks = [chunk2]
         
-        await processor.store_document_embeddings(message1)
-        await processor.store_document_embeddings(message2)
+        await processor.store_document_embeddings('user1', message1)
+        await processor.store_document_embeddings('user2', message2)
         
         # Verify both calls were made with correct parameters
         expected_calls = [
@@ -411,18 +397,17 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         """Test storing document embeddings with special characters in user/collection names"""
         message = MagicMock()
         message.metadata = MagicMock()
-        message.metadata.user = 'user@domain.com'  # Email-like user
         message.metadata.collection = 'test-collection.v1'  # Collection with special chars
-        
+
         chunk = ChunkEmbeddings(
             chunk_id="Special chars test",
             vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
-        
-        await processor.store_document_embeddings(message)
-        
-        # Verify the exact user/collection strings are passed (sanitization happens in DocVectors)
+
+        await processor.store_document_embeddings('user@domain.com', message)
+
+        # Verify the exact workspace/collection strings are passed (sanitization happens in DocVectors)
         processor.vecstore.insert.assert_called_once_with(
             [0.1, 0.2, 0.3], "Special chars test", 'user@domain.com', 'test-collection.v1'
         )

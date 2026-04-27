@@ -5,11 +5,12 @@ as text as separate output objects.
 """
 
 import logging
-from langchain_text_splitters import TokenTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
+
+TokenTextSplitter = None
 
 from ... provenance import (
     chunk_uri as make_chunk_uri, derived_entity_triples,
@@ -42,6 +43,11 @@ class Processor(ChunkingService):
         self.default_chunk_size = chunk_size
         self.default_chunk_overlap = chunk_overlap
 
+        global TokenTextSplitter
+        if TokenTextSplitter is None:
+            from langchain_text_splitters import TokenTextSplitter as _cls
+            TokenTextSplitter = _cls
+
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
                 'chunk_size', 'Chunk size',
@@ -50,7 +56,7 @@ class Processor(ChunkingService):
                          2500, 4000, 6400, 10000, 16000]
             )
 
-        self.text_splitter = TokenTextSplitter(
+        self.text_splitter = self.TokenTextSplitter(
             encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -86,7 +92,7 @@ class Processor(ChunkingService):
         logger.info(f"Chunking document {v.metadata.id}...")
 
         # Get text content (fetches from librarian if needed)
-        text = await self.get_document_text(v)
+        text = await self.get_document_text(v, flow.workspace)
 
         # Extract chunk parameters from flow (allows runtime override)
         chunk_size, chunk_overlap = await self.chunk_document(
@@ -102,7 +108,7 @@ class Processor(ChunkingService):
             chunk_overlap = int(chunk_overlap)
 
         # Create text splitter with effective parameters
-        text_splitter = TokenTextSplitter(
+        text_splitter = self.TokenTextSplitter(
             encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -134,7 +140,7 @@ class Processor(ChunkingService):
             await self.librarian.save_child_document(
                 doc_id=chunk_doc_id,
                 parent_id=parent_doc_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
                 content=chunk_content,
                 document_type="chunk",
                 title=f"Chunk {chunk_index}",
@@ -158,7 +164,6 @@ class Processor(ChunkingService):
                 metadata=Metadata(
                     id=c_uri,
                     root=v.metadata.root,
-                    user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),
                 triples=set_graph(prov_triples, GRAPH_SOURCE),
@@ -169,7 +174,6 @@ class Processor(ChunkingService):
                 metadata=Metadata(
                     id=c_uri,
                     root=v.metadata.root,
-                    user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),
                 chunk=chunk_content,

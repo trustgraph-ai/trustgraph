@@ -1,0 +1,47 @@
+# Control plane.  Stateful "always on" services that every flow depends on.
+# Cassandra-heavy, low traffic.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.config.service.Processor
+    params:
+      <<: *defaults
+      id: config-svc
+      cassandra_host: localhost
+
+  - class: trustgraph.librarian.Processor
+    params:
+      <<: *defaults
+      id: librarian
+      cassandra_host: localhost
+      object_store_endpoint: localhost:3900
+      object_store_access_key: GK000000000000000000000001
+      object_store_secret_key: b171f00be9be4c32c734f4c05fe64c527a8ab5eb823b376cfa8c2531f70fc427
+      object_store_region: garage
+
+  - class: trustgraph.cores.service.Processor
+    params:
+      <<: *defaults
+      id: knowledge
+      cassandra_host: localhost
+
+  - class: trustgraph.storage.knowledge.store.Processor
+    params:
+      <<: *defaults
+      id: kg-store
+      cassandra_host: localhost
+
+  - class: trustgraph.metering.Processor
+    params:
+      <<: *defaults
+      id: metering
+
+  - class: trustgraph.metering.Processor
+    params:
+      <<: *defaults
+      id: metering-rag

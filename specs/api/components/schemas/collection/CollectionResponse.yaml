@@ -12,13 +12,8 @@ properties:
     items:
       type: object
       required:
-        - user
         - collection
       properties:
-        user:
-          type: string
-          description: User identifier
-          example: alice
         collection:
           type: string
           description: Collection identifier

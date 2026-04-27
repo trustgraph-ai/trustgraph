@@ -1,7 +1,10 @@
-
 """
 Agent manager service completion base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import time
 import logging
@@ -97,7 +100,7 @@ class AgentService(FlowProcessor):
             )
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

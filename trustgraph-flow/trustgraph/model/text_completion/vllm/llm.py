@@ -11,7 +11,7 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
-from .... exceptions import TooManyRequests
+from .... exceptions import TooManyRequests, LlmError
 from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
@@ -83,6 +83,10 @@ class Processor(LlmService):
                     json=request,
             ) as response:
 
+                if response.status == 429:
+                    raise TooManyRequests()
+                if response.status == 503:
+                    raise LlmError()
                 if response.status != 200:
                     raise RuntimeError("Bad status: " + str(response.status))
 
@@ -104,7 +108,13 @@ class Processor(LlmService):
 
             return resp
 
-        # FIXME: Assuming vLLM won't produce rate limits?
+        except TooManyRequests:
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
+
+        except LlmError:
+            # Treat 503 as a retryable LlmError
+            raise LlmError()
 
         except Exception as e:
 
@@ -150,6 +160,10 @@ class Processor(LlmService):
                     json=request,
             ) as response:
 
+                if response.status == 429:
+                    raise TooManyRequests()
+                if response.status == 503:
+                    raise LlmError()
                 if response.status != 200:
                     raise RuntimeError("Bad status: " + str(response.status))
 

@@ -59,15 +59,15 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-    def create_node(self, uri, user, collection):
+    def create_node(self, uri, workspace, collection):
 
-        logger.debug(f"Create node {uri} for user={user}, collection={collection}")
+        logger.debug(f"Create node {uri} for workspace={workspace}, collection={collection}")
 
         res = self.io.query(
-            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            "MERGE (n:Node {uri: $uri, workspace: $workspace, collection: $collection})",
             params={
                 "uri": uri,
-                "user": user,
+                "workspace": workspace,
                 "collection": collection,
             },
         )
@@ -77,15 +77,15 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             time=res.run_time_ms
         ))
 
-    def create_literal(self, value, user, collection):
+    def create_literal(self, value, workspace, collection):
 
-        logger.debug(f"Create literal {value} for user={user}, collection={collection}")
+        logger.debug(f"Create literal {value} for workspace={workspace}, collection={collection}")
 
         res = self.io.query(
-            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            "MERGE (n:Literal {value: $value, workspace: $workspace, collection: $collection})",
             params={
                 "value": value,
-                "user": user,
+                "workspace": workspace,
                 "collection": collection,
             },
         )
@@ -95,19 +95,19 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             time=res.run_time_ms
         ))
 
-    def relate_node(self, src, uri, dest, user, collection):
+    def relate_node(self, src, uri, dest, workspace, collection):
 
-        logger.debug(f"Create node rel {src} {uri} {dest} for user={user}, collection={collection}")
+        logger.debug(f"Create node rel {src} {uri} {dest} for workspace={workspace}, collection={collection}")
 
         res = self.io.query(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             params={
                 "src": src,
                 "dest": dest,
                 "uri": uri,
-                "user": user,
+                "workspace": workspace,
                 "collection": collection,
             },
         )
@@ -117,19 +117,19 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             time=res.run_time_ms
         ))
 
-    def relate_literal(self, src, uri, dest, user, collection):
+    def relate_literal(self, src, uri, dest, workspace, collection):
 
-        logger.debug(f"Create literal rel {src} {uri} {dest} for user={user}, collection={collection}")
+        logger.debug(f"Create literal rel {src} {uri} {dest} for workspace={workspace}, collection={collection}")
 
         res = self.io.query(
-            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
-            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
-            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            "MATCH (src:Node {uri: $src, workspace: $workspace, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, workspace: $workspace, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, workspace: $workspace, collection: $collection}]->(dest)",
             params={
                 "src": src,
                 "dest": dest,
                 "uri": uri,
-                "user": user,
+                "workspace": workspace,
                 "collection": collection,
             },
         )
@@ -139,36 +139,34 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             time=res.run_time_ms
         ))
 
-    def collection_exists(self, user, collection):
+    def collection_exists(self, workspace, collection):
         """Check if collection metadata node exists"""
         result = self.io.query(
-            "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) "
+            "MATCH (c:CollectionMetadata {workspace: $workspace, collection: $collection}) "
             "RETURN c LIMIT 1",
-            params={"user": user, "collection": collection}
+            params={"workspace": workspace, "collection": collection}
         )
         return result.result_set is not None and len(result.result_set) > 0
 
-    def create_collection(self, user, collection):
+    def create_collection(self, workspace, collection):
         """Create collection metadata node"""
         import datetime
         self.io.query(
-            "MERGE (c:CollectionMetadata {user: $user, collection: $collection}) "
+            "MERGE (c:CollectionMetadata {workspace: $workspace, collection: $collection}) "
             "SET c.created_at = $created_at",
             params={
-                "user": user,
+                "workspace": workspace,
                 "collection": collection,
                 "created_at": datetime.datetime.now().isoformat()
             }
         )
-        logger.info(f"Created collection metadata node for {user}/{collection}")
+        logger.info(f"Created collection metadata node for {workspace}/{collection}")
 
-    async def store_triples(self, message):
-        # Extract user and collection from metadata
-        user = message.metadata.user if message.metadata.user else "default"
+    async def store_triples(self, workspace, message):
         collection = message.metadata.collection if message.metadata.collection else "default"
 
         # Validate collection exists before accepting writes
-        if not self.collection_exists(user, collection):
+        if not self.collection_exists(workspace, collection):
             error_msg = (
                 f"Collection {collection} does not exist. "
                 f"Create it first via collection management API."
@@ -182,14 +180,14 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             p_val = get_term_value(t.p)
             o_val = get_term_value(t.o)
 
-            self.create_node(s_val, user, collection)
+            self.create_node(s_val, workspace, collection)
 
             if t.o.type == IRI:
-                self.create_node(o_val, user, collection)
-                self.relate_node(s_val, p_val, o_val, user, collection)
+                self.create_node(o_val, workspace, collection)
+                self.relate_node(s_val, p_val, o_val, workspace, collection)
             else:
-                self.create_literal(o_val, user, collection)
-                self.relate_literal(s_val, p_val, o_val, user, collection)
+                self.create_literal(o_val, workspace, collection)
+                self.relate_literal(s_val, p_val, o_val, workspace, collection)
 
     @staticmethod
     def add_args(parser):
@@ -208,58 +206,58 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             help=f'FalkorDB database (default: {default_database})'
         )
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Create collection metadata in FalkorDB via config push"""
         try:
             # Check if collection exists
             result = self.io.query(
-                "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) RETURN c LIMIT 1",
-                params={"user": user, "collection": collection}
+                "MATCH (c:CollectionMetadata {workspace: $workspace, collection: $collection}) RETURN c LIMIT 1",
+                params={"workspace": workspace, "collection": collection}
             )
             if result.result_set:
-                logger.info(f"Collection {user}/{collection} already exists")
+                logger.info(f"Collection {workspace}/{collection} already exists")
             else:
                 # Create collection metadata node
                 import datetime
                 self.io.query(
-                    "MERGE (c:CollectionMetadata {user: $user, collection: $collection}) "
+                    "MERGE (c:CollectionMetadata {workspace: $workspace, collection: $collection}) "
                     "SET c.created_at = $created_at",
                     params={
-                        "user": user,
+                        "workspace": workspace,
                         "collection": collection,
                         "created_at": datetime.datetime.now().isoformat()
                     }
                 )
-                logger.info(f"Created collection {user}/{collection}")
+                logger.info(f"Created collection {workspace}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to create collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Delete the collection for FalkorDB triples via config push"""
         try:
-            # Delete all nodes and literals for this user/collection
+            # Delete all nodes and literals for this workspace/collection
             node_result = self.io.query(
-                "MATCH (n:Node {user: $user, collection: $collection}) DETACH DELETE n",
-                params={"user": user, "collection": collection}
+                "MATCH (n:Node {workspace: $workspace, collection: $collection}) DETACH DELETE n",
+                params={"workspace": workspace, "collection": collection}
             )
 
             literal_result = self.io.query(
-                "MATCH (n:Literal {user: $user, collection: $collection}) DETACH DELETE n",
-                params={"user": user, "collection": collection}
+                "MATCH (n:Literal {workspace: $workspace, collection: $collection}) DETACH DELETE n",
+                params={"workspace": workspace, "collection": collection}
             )
 
             # Delete collection metadata node
             metadata_result = self.io.query(
-                "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) DELETE c",
-                params={"user": user, "collection": collection}
+                "MATCH (c:CollectionMetadata {workspace: $workspace, collection: $collection}) DELETE c",
+                params={"workspace": workspace, "collection": collection}
             )
 
-            logger.info(f"Deleted {node_result.nodes_deleted} nodes, {literal_result.nodes_deleted} literals, and {metadata_result.nodes_deleted} metadata nodes for collection {user}/{collection}")
+            logger.info(f"Deleted {node_result.nodes_deleted} nodes, {literal_result.nodes_deleted} literals, and {metadata_result.nodes_deleted} metadata nodes for collection {workspace}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to delete collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
 def run():

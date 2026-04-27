@@ -63,105 +63,50 @@ class Knowledge:
         """
         return self.api.request(f"knowledge", request)
 
-    def list_kg_cores(self, user="trustgraph"):
+    def list_kg_cores(self):
         """
-        List all available knowledge graph cores.
-
-        Retrieves the IDs of all KG cores available for the specified user.
-
-        Args:
-            user: User identifier (default: "trustgraph")
+        List all available knowledge graph cores in this workspace.
 
         Returns:
             list[str]: List of KG core identifiers
-
-        Example:
-            ```python
-            knowledge = api.knowledge()
-
-            # List available KG cores
-            cores = knowledge.list_kg_cores(user="trustgraph")
-            print(f"Available KG cores: {cores}")
-            ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "list-kg-cores",
-            "user": user,
+            "workspace": self.api.workspace,
         }
 
         return self.request(request = input)["ids"]
 
-    def delete_kg_core(self, id, user="trustgraph"):
+    def delete_kg_core(self, id):
         """
-        Delete a knowledge graph core.
-
-        Removes a KG core from storage. This does not affect currently loaded
-        cores in flows.
+        Delete a knowledge graph core in this workspace.
 
         Args:
             id: KG core identifier to delete
-            user: User identifier (default: "trustgraph")
-
-        Example:
-            ```python
-            knowledge = api.knowledge()
-
-            # Delete a KG core
-            knowledge.delete_kg_core(id="medical-kb-v1", user="trustgraph")
-            ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "delete-kg-core",
-            "user": user,
+            "workspace": self.api.workspace,
             "id": id,
         }
 
         self.request(request = input)
 
-    def load_kg_core(self, id, user="trustgraph", flow="default",
-                     collection="default"):
+    def load_kg_core(self, id, flow="default", collection="default"):
         """
         Load a knowledge graph core into a flow.
 
-        Makes a KG core available for use in queries and RAG operations within
-        the specified flow and collection.
-
         Args:
             id: KG core identifier to load
-            user: User identifier (default: "trustgraph")
             flow: Flow instance to load into (default: "default")
             collection: Collection to associate with (default: "default")
-
-        Example:
-            ```python
-            knowledge = api.knowledge()
-
-            # Load a medical knowledge base into the default flow
-            knowledge.load_kg_core(
-                id="medical-kb-v1",
-                user="trustgraph",
-                flow="default",
-                collection="medical"
-            )
-
-            # Now the flow can use this KG core for RAG queries
-            flow = api.flow().id("default")
-            response = flow.graph_rag(
-                query="What are the symptoms of diabetes?",
-                user="trustgraph",
-                collection="medical"
-            )
-            ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "load-kg-core",
-            "user": user,
+            "workspace": self.api.workspace,
             "id": id,
             "flow": flow,
             "collection": collection,
@@ -169,35 +114,18 @@ class Knowledge:
 
         self.request(request = input)
 
-    def unload_kg_core(self, id, user="trustgraph", flow="default"):
+    def unload_kg_core(self, id, flow="default"):
         """
         Unload a knowledge graph core from a flow.
 
-        Removes a KG core from active use in the specified flow, freeing
-        resources while keeping the core available in storage.
-
         Args:
             id: KG core identifier to unload
-            user: User identifier (default: "trustgraph")
             flow: Flow instance to unload from (default: "default")
-
-        Example:
-            ```python
-            knowledge = api.knowledge()
-
-            # Unload a KG core when no longer needed
-            knowledge.unload_kg_core(
-                id="medical-kb-v1",
-                user="trustgraph",
-                flow="default"
-            )
-            ```
         """
 
-        # The input consists of system and prompt strings
         input = {
             "operation": "unload-kg-core",
-            "user": user,
+            "workspace": self.api.workspace,
             "id": id,
             "flow": flow,
         }

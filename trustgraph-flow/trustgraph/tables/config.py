@@ -11,6 +11,8 @@ import time
 import asyncio
 import logging
 
+from . cassandra_async import async_execute
+
 logger = logging.getLogger(__name__)
 
 class ConfigTableStore:
@@ -70,10 +72,11 @@ class ConfigTableStore:
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS config (
+                workspace text,
                 class text,
                 key text,
                 value text,
-                PRIMARY KEY (class, key)
+                PRIMARY KEY ((workspace, class), key)
             );
         """);
 
@@ -102,201 +105,167 @@ class ConfigTableStore:
 
     async def inc_version(self):
 
-        self.cassandra.execute("""
+        await async_execute(self.cassandra, """
             UPDATE version set version = version + 1
             WHERE id = 'version'
         """)
 
     async def get_version(self):
 
-        resp = self.cassandra.execute("""
+        rows = await async_execute(self.cassandra, """
             SELECT version FROM version
             WHERE id = 'version'
         """)
 
-        row = resp.one()
-
-        if row: return row[0]
+        if rows:
+            return rows[0][0]
 
         return None
 
     def prepare_statements(self):
 
         self.put_config_stmt = self.cassandra.prepare("""
-            INSERT INTO config ( class, key, value )
-            VALUES (?, ?, ?)
-        """)
-
-        self.get_classes_stmt = self.cassandra.prepare("""
-            SELECT DISTINCT class FROM config;
+            INSERT INTO config ( workspace, class, key, value )
+            VALUES (?, ?, ?, ?)
         """)
 
         self.get_keys_stmt = self.cassandra.prepare("""
-            SELECT key FROM config WHERE class = ?;
+            SELECT key FROM config
+            WHERE workspace = ? AND class = ?;
         """)
 
         self.get_value_stmt = self.cassandra.prepare("""
-            SELECT value FROM config WHERE class = ? AND key = ?;
+            SELECT value FROM config
+            WHERE workspace = ? AND class = ? AND key = ?;
         """)
 
         self.delete_key_stmt = self.cassandra.prepare("""
             DELETE FROM config
-            WHERE class = ? AND key = ?;
+            WHERE workspace = ? AND class = ? AND key = ?;
         """)
 
         self.get_all_stmt = self.cassandra.prepare("""
-            SELECT class AS cls, key, value FROM config;
+            SELECT workspace, class AS cls, key, value FROM config;
+        """)
+
+        self.get_all_for_workspace_stmt = self.cassandra.prepare("""
+            SELECT class AS cls, key, value FROM config
+            WHERE workspace = ?
+            ALLOW FILTERING;
         """)
 
         self.get_values_stmt = self.cassandra.prepare("""
-            SELECT key, value FROM config WHERE class = ?;
+            SELECT key, value FROM config
+            WHERE workspace = ? AND class = ?;
         """)
 
-    async def put_config(self, cls, key, value):
+        self.get_values_all_ws_stmt = self.cassandra.prepare("""
+            SELECT workspace, key, value FROM config
+            WHERE class = ?
+            ALLOW FILTERING;
+        """)
 
-        while True:
+    async def put_config(self, workspace, cls, key, value):
+        try:
+            await async_execute(
+                self.cassandra,
+                self.put_config_stmt,
+                (workspace, cls, key, value),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
+    async def get_value(self, workspace, cls, key):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_value_stmt,
+                (workspace, cls, key),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-                resp = self.cassandra.execute(
-                    self.put_config_stmt,
-                    ( cls, key, value )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-    async def get_value(self, cls, key):
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_value_stmt,
-                    ( cls, key )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        for row in resp:
+        for row in rows:
             return row[0]
-
         return None
 
-    async def get_values(self, cls):
+    async def get_values(self, workspace, cls):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_values_stmt,
+                (workspace, cls),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
+        return [[row[0], row[1]] for row in rows]
 
-            try:
+    async def get_values_all_ws(self, cls):
+        """Return (workspace, key, value) tuples for all workspaces
+        with entries of the given class."""
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_values_all_ws_stmt,
+                (cls,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-                resp = self.cassandra.execute(
-                    self.get_values_stmt,
-                    ( cls, )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            [row[0], row[1]]
-            for row in resp
-        ]
-
-    async def get_classes(self):
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_classes_stmt,
-                    ()
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            row[0] for row in resp
-        ]
+        return [(row[0], row[1], row[2]) for row in rows]
 
     async def get_all(self):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_all_stmt,
+                (),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-        while True:
+        return [(row[0], row[1], row[2], row[3]) for row in rows]
 
-            try:
+    async def get_all_for_workspace(self, workspace):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_all_for_workspace_stmt,
+                (workspace,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-                resp = self.cassandra.execute(
-                    self.get_all_stmt,
-                    ()
-                )
+        return [(row[0], row[1], row[2]) for row in rows]
 
-                break
+    async def get_keys(self, workspace, cls):
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_keys_stmt,
+                (workspace, cls),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            except Exception as e:
+        return [row[0] for row in rows]
 
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            (row[0], row[1], row[2])
-            for row in resp
-        ]
-
-    async def get_keys(self, cls):
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_keys_stmt,
-                    ( cls, )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        return [
-            row[0] for row in resp
-        ]
-
-    async def delete_key(self, cls, key):
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_key_stmt,
-                    (cls, key)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
+    async def delete_key(self, workspace, cls, key):
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_key_stmt,
+                (workspace, cls, key),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 

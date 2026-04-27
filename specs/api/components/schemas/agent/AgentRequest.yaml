@@ -43,15 +43,6 @@ properties:
           type: string
           description: Result of the action
           example: "Paris is the capital of France"
-        user:
-          type: string
-          description: User context for this step
-          example: alice
-  user:
-    type: string
-    description: User identifier for multi-tenancy
-    default: trustgraph
-    example: alice
   streaming:
     type: boolean
     description: Enable streaming response delivery

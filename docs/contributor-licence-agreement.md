@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Contributor Licence Agreement (CLA)"
+nav_order: 4
+---
+
 # Contributor Licence Agreement (CLA)
 
 We ask every contributor to sign a Contributor Licence Agreement before
@@ -16,4 +22,3 @@ and you only need to do it once across all TrustGraph repositories.
 
 - Contributing as an **individual**? Sign the [Individual CLA](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Fiduciary-Contributor-License-Agreement.md)
 - Contributing on behalf of a **company or organisation**? Sign the [Entity CLA](https://github.com/trustgraph-ai/contributor-license-agreement/blob/main/Entity-Fiduciary-Contributor-License-Agreement.md)
-

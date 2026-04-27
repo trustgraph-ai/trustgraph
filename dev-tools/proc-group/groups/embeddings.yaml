@@ -1,0 +1,31 @@
+# Embeddings.  Memory-hungry — fastembed loads an ML model at startup.
+# Keep isolated from other groups so its memory footprint and restart
+# latency don't affect siblings.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.embeddings.fastembed.Processor
+    params:
+      <<: *defaults
+      id: embeddings
+      concurrency: 1
+
+  - class: trustgraph.embeddings.document_embeddings.Processor
+    params:
+      <<: *defaults
+      id: document-embeddings
+
+  - class: trustgraph.embeddings.graph_embeddings.Processor
+    params:
+      <<: *defaults
+      id: graph-embeddings
+
+  - class: trustgraph.embeddings.row_embeddings.Processor
+    params:
+      <<: *defaults
+      id: row-embeddings

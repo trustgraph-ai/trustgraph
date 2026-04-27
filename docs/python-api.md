@@ -1,3 +1,9 @@
+---
+layout: default
+title: "TrustGraph Python API Reference"
+nav_order: 5
+---
+
 # TrustGraph Python API Reference
 
 ## Installation
@@ -3569,4 +3575,3 @@ Base class for all TrustGraph service errors
 
 
 ---
-

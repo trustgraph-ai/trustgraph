@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag, edge_id
 from trustgraph.schema import Triple as SchemaTriple, Term, IRI, LITERAL
+from trustgraph.base import PromptResult
 
 from trustgraph.provenance.namespaces import (
     RDF_TYPE, PROV_ENTITY, PROV_WAS_DERIVED_FROM,
@@ -136,24 +137,36 @@ def build_mock_clients():
 
     async def mock_prompt(template_id, variables=None, **kwargs):
         if template_id == "extract-concepts":
-            return prompt_responses["extract-concepts"]
+            return PromptResult(
+                response_type="text",
+                text=prompt_responses["extract-concepts"],
+            )
         elif template_id == "kg-edge-scoring":
             # Score all edges highly, using the IDs that GraphRag computed
             edges = variables.get("knowledge", [])
-            return [
-                {"id": e["id"], "score": 10 - i}
-                for i, e in enumerate(edges)
-            ]
+            return PromptResult(
+                response_type="jsonl",
+                objects=[
+                    {"id": e["id"], "score": 10 - i}
+                    for i, e in enumerate(edges)
+                ],
+            )
         elif template_id == "kg-edge-reasoning":
             # Provide reasoning for each edge
             edges = variables.get("knowledge", [])
-            return [
-                {"id": e["id"], "reasoning": f"Relevant edge {i}"}
-                for i, e in enumerate(edges)
-            ]
+            return PromptResult(
+                response_type="jsonl",
+                objects=[
+                    {"id": e["id"], "reasoning": f"Relevant edge {i}"}
+                    for i, e in enumerate(edges)
+                ],
+            )
         elif template_id == "kg-synthesis":
-            return synthesis_answer
-        return ""
+            return PromptResult(
+                response_type="text",
+                text=synthesis_answer,
+            )
+        return PromptResult(response_type="text", text="")
 
     prompt_client.prompt.side_effect = mock_prompt
 
@@ -413,13 +426,13 @@ class TestGraphRagQueryProvenance:
         async def explain_callback(triples, explain_id):
             events.append({"triples": triples, "explain_id": explain_id})
 
-        result = await rag.query(
+        result_text, usage = await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
             edge_score_limit=0,
         )
 
-        assert result == "Quantum computing applies physics principles to computation."
+        assert result_text == "Quantum computing applies physics principles to computation."
 
     @pytest.mark.asyncio
     async def test_parent_uri_links_question_to_parent(self):
@@ -450,12 +463,12 @@ class TestGraphRagQueryProvenance:
         clients = build_mock_clients()
         rag = GraphRag(*clients)
 
-        result = await rag.query(
+        result_text, usage = await rag.query(
             query="What is quantum computing?",
             edge_score_limit=0,
         )
 
-        assert result == "Quantum computing applies physics principles to computation."
+        assert result_text == "Quantum computing applies physics principles to computation."
 
     @pytest.mark.asyncio
     async def test_all_triples_in_retrieval_graph(self):

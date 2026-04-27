@@ -48,7 +48,7 @@ class Processor(DocumentEmbeddingsQueryService):
             }
         )
 
-    async def query_document_embeddings(self, msg):
+    async def query_document_embeddings(self, workspace, msg):
 
         try:
 
@@ -63,7 +63,7 @@ class Processor(DocumentEmbeddingsQueryService):
             dim = len(vec)
 
             # Use dimension suffix in index name
-            index_name = f"d-{msg.user}-{msg.collection}-{dim}"
+            index_name = f"d-{workspace}-{msg.collection}-{dim}"
 
             # Check if index exists - return empty if not
             if not self.pinecone.has_index(index_name):

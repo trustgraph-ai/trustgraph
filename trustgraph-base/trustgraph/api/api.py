@@ -50,7 +50,7 @@ class Api:
         token: Optional bearer token for authentication
     """
 
-    def __init__(self, url="http://localhost:8088/", timeout=60, token: Optional[str] = None):
+    def __init__(self, url="http://localhost:8088/", timeout=60, token: Optional[str] = None, workspace: str = "default"):
         """
         Initialize the TrustGraph API client.
 
@@ -82,6 +82,7 @@ class Api:
 
         self.timeout = timeout
         self.token = token
+        self.workspace = workspace
 
         # Lazy initialization for new clients
         self._socket_client = None
@@ -137,7 +138,7 @@ class Api:
             config.put([ConfigValue(type="llm", key="model", value="gpt-4")])
             ```
         """
-        return Config(api=self)
+        return Config(api=self, workspace=self.workspace)
 
     def knowledge(self):
         """
@@ -151,10 +152,10 @@ class Api:
             knowledge = api.knowledge()
 
             # List available KG cores
-            cores = knowledge.list_kg_cores(user="trustgraph")
+            cores = knowledge.list_kg_cores()
 
             # Load a KG core
-            knowledge.load_kg_core(id="core-123", user="trustgraph")
+            knowledge.load_kg_core(id="core-123")
             ```
         """
         return Knowledge(api=self)
@@ -190,6 +191,12 @@ class Api:
         headers = {}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
+
+        # Ensure every REST request carries the workspace so services can
+        # scope their behaviour. Callers that already set workspace in the
+        # payload (e.g. Library client) take precedence.
+        if isinstance(request, dict) and "workspace" not in request:
+            request = {**request, "workspace": self.workspace}
 
         # Invoke the API, input is passed as JSON
         resp = requests.post(url, json=request, timeout=self.timeout, headers=headers)
@@ -227,13 +234,12 @@ class Api:
                 document=b"Document content",
                 id="doc-123",
                 metadata=[],
-                user="trustgraph",
                 title="My Document",
                 comments="Test document"
             )
 
             # List documents
-            docs = library.get_documents(user="trustgraph")
+            docs = library.get_documents()
             ```
         """
         return Library(self)
@@ -253,11 +259,10 @@ class Api:
             collection = api.collection()
 
             # List collections
-            colls = collection.list_collections(user="trustgraph")
+            colls = collection.list_collections()
 
             # Update collection metadata
             collection.update_collection(
-                user="trustgraph",
                 collection="default",
                 name="Default Collection",
                 description="Main data collection"
@@ -286,7 +291,6 @@ class Api:
             # Stream agent responses
             for chunk in flow.agent(
                 question="Explain quantum computing",
-                user="trustgraph",
                 streaming=True
             ):
                 if hasattr(chunk, 'content'):
@@ -297,7 +301,10 @@ class Api:
             from . socket_client import SocketClient
             # Extract base URL (remove api/v1/ suffix)
             base_url = self.url.rsplit("api/v1/", 1)[0].rstrip("/")
-            self._socket_client = SocketClient(base_url, self.timeout, self.token)
+            self._socket_client = SocketClient(
+                base_url, self.timeout, self.token,
+                workspace=self.workspace,
+            )
         return self._socket_client
 
     def bulk(self):
@@ -406,7 +413,6 @@ class Api:
             # Stream agent responses
             async for chunk in flow.agent(
                 question="Explain quantum computing",
-                user="trustgraph",
                 streaming=True
             ):
                 if hasattr(chunk, 'content'):
@@ -417,7 +423,10 @@ class Api:
             from . async_socket_client import AsyncSocketClient
             # Extract base URL (remove api/v1/ suffix)
             base_url = self.url.rsplit("api/v1/", 1)[0].rstrip("/")
-            self._async_socket_client = AsyncSocketClient(base_url, self.timeout, self.token)
+            self._async_socket_client = AsyncSocketClient(
+                base_url, self.timeout, self.token,
+                workspace=self.workspace,
+            )
         return self._async_socket_client
 
     def async_bulk(self):

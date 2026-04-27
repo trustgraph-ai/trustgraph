@@ -1,7 +1,10 @@
-
 """
 LLM text completion base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import time
 import logging
@@ -42,6 +45,12 @@ class LlmChunk:
     __slots__ = ["text", "in_token", "out_token", "model", "is_final"]
 
 class LlmService(FlowProcessor):
+    """
+    Extensible service processing requests to Large Language Models (LLMs).
+    
+    This class handles the core logic of dispatching text completion or chat requests
+    to integrated underlying LLM providers (e.g. OpenAI, vertex ai).
+    """
 
     def __init__(self, **params):
 
@@ -199,7 +208,7 @@ class LlmService(FlowProcessor):
                 properties={"id": id}
             )
 
-    def supports_streaming(self):
+    def supports_streaming(self) -> bool:
         """
         Override in subclass to indicate streaming support.
         Returns False by default.
@@ -215,7 +224,7 @@ class LlmService(FlowProcessor):
         raise NotImplementedError("Streaming not implemented for this provider")
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         parser.add_argument(
             '-c', '--concurrency',

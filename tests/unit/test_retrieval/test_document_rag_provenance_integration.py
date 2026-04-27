@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock
 from dataclasses import dataclass
 
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
+from trustgraph.base import PromptResult
 
 from trustgraph.provenance.namespaces import (
     RDF_TYPE, PROV_ENTITY, PROV_WAS_DERIVED_FROM,
@@ -89,8 +90,8 @@ def build_mock_clients():
     # 1. Concept extraction
     async def mock_prompt(template_id, variables=None, **kwargs):
         if template_id == "extract-concepts":
-            return "return policy\nrefund"
-        return ""
+            return PromptResult(response_type="text", text="return policy\nrefund")
+        return PromptResult(response_type="text", text="")
 
     prompt_client.prompt.side_effect = mock_prompt
 
@@ -113,8 +114,9 @@ def build_mock_clients():
     fetch_chunk.side_effect = mock_fetch
 
     # 5. Synthesis
-    prompt_client.document_prompt.return_value = (
-        "Items can be returned within 30 days for a full refund."
+    prompt_client.document_prompt.return_value = PromptResult(
+        response_type="text",
+        text="Items can be returned within 30 days for a full refund.",
     )
 
     return prompt_client, embeddings_client, doc_embeddings_client, fetch_chunk
@@ -340,12 +342,12 @@ class TestDocumentRagQueryProvenance:
         clients = build_mock_clients()
         rag = DocumentRag(*clients)
 
-        result = await rag.query(
+        result_text, usage = await rag.query(
             query="What is the return policy?",
             explain_callback=AsyncMock(),
         )
 
-        assert result == "Items can be returned within 30 days for a full refund."
+        assert result_text == "Items can be returned within 30 days for a full refund."
 
     @pytest.mark.asyncio
     async def test_no_explain_callback_still_works(self):
@@ -353,8 +355,8 @@ class TestDocumentRagQueryProvenance:
         clients = build_mock_clients()
         rag = DocumentRag(*clients)
 
-        result = await rag.query(query="What is the return policy?")
-        assert result == "Items can be returned within 30 days for a full refund."
+        result_text, usage = await rag.query(query="What is the return policy?")
+        assert result_text == "Items can be returned within 30 days for a full refund."
 
     @pytest.mark.asyncio
     async def test_all_triples_in_retrieval_graph(self):

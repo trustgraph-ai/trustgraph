@@ -1,0 +1,53 @@
+---
+layout: default
+title: "יצירת תיעוד אוטומטית"
+parent: "Hebrew (Beta)"
+---
+
+# יצירת תיעוד אוטומטית
+
+> **Beta Translation:** This document was translated via Machine Learning and as such may not be 100% accurate. All non-English languages are currently classified as Beta.
+
+## תיעוד REST ו-WebSocket API
+
+- `specs/build-docs.sh` - יוצר את תיעוד ה-REST וה-WebSocket מהמפרטים של OpenAPI ו-AsyncAPI.
+
+## תיעוד API בפייתון
+
+תיעוד ה-API בפייתון נוצר מתוך מחרוזות תיאור (docstrings) באמצעות סקריפט פייתון מותאם, אשר סוקר את החבילה `trustgraph.api`.
+
+### תנאים מוקדמים
+
+חבילת `trustgraph` חייבת להיות ניתנת לייבוא. אם אתם עובדים בסביבת פיתוח:
+
+```bash
+cd trustgraph-base
+pip install -e .
+```
+
+### יצירת תיעוד
+
+מתוך תיקיית התיעוד:
+
+```bash
+cd docs
+python3 generate-api-docs.py > python-api.md
+```
+
+זה יוצר קובץ Markdown אחד עם תיעוד API מלא, המציג:
+- מדריך התקנה והתחלה מהירה
+- הצהרות ייבוא עבור כל מחלקה/סוג
+- מחרוזות תיאור מלאות עם דוגמאות
+- תוכן עזר מאורגן לפי קטגוריות
+
+### סגנון התיעוד
+
+כל מחרוזות התיאור עוקבות אחר פורמט Google:
+- סיכום קצר בשורה אחת
+- תיאור מפורט
+- סעיף "Args" עם תיאורי פרמטרים
+- סעיף "Returns"
+- סעיף "Raises" (במידת הצורך)
+- בלוקי קוד לדוגמה עם הדגשת תחביר מתאימה
+
+התיעוד שנוצר מציג את ה-API הציבורי בדיוק כפי שהמשתמשים מייבאים אותו מ-`trustgraph.api`, מבלי לחשוף את המבנה הפנימי של המודול.

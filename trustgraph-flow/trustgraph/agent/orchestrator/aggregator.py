@@ -108,7 +108,7 @@ class Aggregator:
         )
 
     def build_synthesis_request(self, correlation_id, original_question,
-                                user, collection):
+                                collection):
         """
         Build the AgentRequest that triggers the synthesis phase.
         """
@@ -139,7 +139,6 @@ class Aggregator:
             state="",
             group=template.group if template else [],
             history=history,
-            user=user,
             collection=collection,
             streaming=template.streaming if template else False,
             session_id=parent_session_id,

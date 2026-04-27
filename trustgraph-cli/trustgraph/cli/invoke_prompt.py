@@ -14,11 +14,13 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def query(url, flow_id, template_id, variables, streaming=True, token=None):
+def query(url, flow_id, template_id, variables, streaming=True, token=None,
+          show_usage=False, workspace="default"):
 
     # Create API client
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
 
@@ -31,16 +33,30 @@ def query(url, flow_id, template_id, variables, streaming=True, token=None):
         )
 
         if streaming:
-            # Stream output (prompt yields strings directly)
+            last_chunk = None
             for chunk in response:
-                if chunk:
-                    print(chunk, end="", flush=True)
-            # Add final newline after streaming
+                if chunk.content:
+                    print(chunk.content, end="", flush=True)
+                last_chunk = chunk
             print()
 
+            if show_usage and last_chunk:
+                print(
+                    f"Input tokens: {last_chunk.in_token}  "
+                    f"Output tokens: {last_chunk.out_token}  "
+                    f"Model: {last_chunk.model}",
+                    file=__import__('sys').stderr,
+                )
         else:
-            # Non-streaming: print complete response
-            print(response)
+            print(response.text)
+
+            if show_usage:
+                print(
+                    f"Input tokens: {response.in_token}  "
+                    f"Output tokens: {response.out_token}  "
+                    f"Model: {response.model}",
+                    file=__import__('sys').stderr,
+                )
 
     finally:
         # Clean up socket connection
@@ -63,6 +79,12 @@ def main():
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -92,6 +114,12 @@ specified multiple times''',
         help='Disable streaming (default: streaming enabled for text responses)'
     )
 
+    parser.add_argument(
+        '--show-usage',
+        action='store_true',
+        help='Show token usage and model on stderr'
+    )
+
     args = parser.parse_args()
 
     variables = {}
@@ -113,6 +141,8 @@ specified multiple times''',
             variables=variables,
             streaming=not args.no_streaming,
             token=args.token,
+            show_usage=args.show_usage,
+            workspace=args.workspace,
         )
 
     except Exception as e:

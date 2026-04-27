@@ -3,6 +3,7 @@ Collection management for the librarian - uses config service for storage
 """
 
 import asyncio
+import dataclasses
 import logging
 import json
 import uuid
@@ -20,7 +21,6 @@ logger = logging.getLogger(__name__)
 def metadata_to_dict(metadata: CollectionMetadata) -> dict:
     """Convert CollectionMetadata to dictionary for JSON serialization"""
     return {
-        'user': metadata.user,
         'collection': metadata.collection,
         'name': metadata.name,
         'description': metadata.description,
@@ -92,38 +92,38 @@ class CollectionManager:
             self.pending_config_requests[response_id + "_response"] = response
             self.pending_config_requests[response_id].set()
 
-    async def ensure_collection_exists(self, user: str, collection: str):
+    async def ensure_collection_exists(self, workspace: str, collection: str):
         """
         Ensure a collection exists, creating it if necessary
 
         Args:
-            user: User ID
+            workspace: Workspace ID
             collection: Collection ID
         """
         try:
             # Check if collection exists via config service
             request = ConfigRequest(
                 operation='get',
-                keys=[ConfigKey(type='collection', key=f'{user}:{collection}')]
+                workspace=workspace,
+                keys=[ConfigKey(type='collection', key=collection)]
             )
 
             response = await self.send_config_request(request)
 
             # Validate response
             if not response.values or len(response.values) == 0:
-                raise Exception(f"Invalid response from config service when checking collection {user}/{collection}")
+                raise Exception(f"Invalid response from config service when checking collection {workspace}/{collection}")
 
             # Check if collection exists (value not None means it exists)
             if response.values[0].value is not None:
-                logger.debug(f"Collection {user}/{collection} already exists")
+                logger.debug(f"Collection {workspace}/{collection} already exists")
                 return
 
             # Collection doesn't exist (value is None), proceed to create
             # Create new collection with default metadata
-            logger.info(f"Auto-creating collection {user}/{collection}")
+            logger.info(f"Auto-creating collection {workspace}/{collection}")
 
             metadata = CollectionMetadata(
-                user=user,
                 collection=collection,
                 name=collection,  # Default name to collection ID
                 description="",
@@ -132,9 +132,10 @@ class CollectionManager:
 
             request = ConfigRequest(
                 operation='put',
+                workspace=workspace,
                 values=[ConfigValue(
                     type='collection',
-                    key=f'{user}:{collection}',
+                    key=collection,
                     value=json.dumps(metadata_to_dict(metadata))
                 )]
             )
@@ -144,7 +145,7 @@ class CollectionManager:
             if response.error:
                 raise RuntimeError(f"Config update failed: {response.error.message}")
 
-            logger.info(f"Collection {user}/{collection} auto-created in config service")
+            logger.info(f"Collection {workspace}/{collection} auto-created in config service")
 
         except Exception as e:
             logger.error(f"Error ensuring collection exists: {e}")
@@ -161,9 +162,10 @@ class CollectionManager:
             CollectionManagementResponse with list of collections
         """
         try:
-            # Get all collections from config service
+            # Get all collections in this workspace from config service
             config_request = ConfigRequest(
                 operation='getvalues',
+                workspace=request.workspace,
                 type='collection'
             )
 
@@ -172,15 +174,19 @@ class CollectionManager:
             if response.error:
                 raise RuntimeError(f"Config query failed: {response.error.message}")
 
-            # Parse collections and filter by user
+            # Every value in this workspace is a collection.
+            # Filter to fields the current schema knows about — older
+            # persisted values may carry fields that have since been
+            # dropped (e.g. `user` from the pre-workspace-refactor era).
+            known_fields = {f.name for f in dataclasses.fields(CollectionMetadata)}
             collections = []
             for config_value in response.values:
-                if ":" in config_value.key:
-                    coll_user, coll_name = config_value.key.split(":", 1)
-                    if coll_user == request.user:
-                        metadata_dict = json.loads(config_value.value)
-                        metadata = CollectionMetadata(**metadata_dict)
-                        collections.append(metadata)
+                metadata_dict = json.loads(config_value.value)
+                metadata_dict = {
+                    k: v for k, v in metadata_dict.items() if k in known_fields
+                }
+                metadata = CollectionMetadata(**metadata_dict)
+                collections.append(metadata)
 
             # Apply tag filtering if specified
             if request.tag_filter:
@@ -221,7 +227,6 @@ class CollectionManager:
             tags = list(request.tags) if request.tags else []
 
             metadata = CollectionMetadata(
-                user=request.user,
                 collection=request.collection,
                 name=name,
                 description=description,
@@ -231,9 +236,10 @@ class CollectionManager:
             # Send put request to config service
             config_request = ConfigRequest(
                 operation='put',
+                workspace=request.workspace,
                 values=[ConfigValue(
                     type='collection',
-                    key=f'{request.user}:{request.collection}',
+                    key=request.collection,
                     value=json.dumps(metadata_to_dict(metadata))
                 )]
             )
@@ -243,7 +249,7 @@ class CollectionManager:
             if response.error:
                 raise RuntimeError(f"Config update failed: {response.error.message}")
 
-            logger.info(f"Collection {request.user}/{request.collection} updated in config service")
+            logger.info(f"Collection {request.workspace}/{request.collection} updated in config service")
 
             # Config service will trigger config push automatically
             # Storage services will receive update and create/update collections
@@ -269,12 +275,13 @@ class CollectionManager:
             CollectionManagementResponse indicating success or failure
         """
         try:
-            logger.info(f"Deleting collection {request.user}/{request.collection}")
+            logger.info(f"Deleting collection {request.workspace}/{request.collection}")
 
             # Send delete request to config service
             config_request = ConfigRequest(
                 operation='delete',
-                keys=[ConfigKey(type='collection', key=f'{request.user}:{request.collection}')]
+                workspace=request.workspace,
+                keys=[ConfigKey(type='collection', key=request.collection)]
             )
 
             response = await self.send_config_request(config_request)
@@ -282,7 +289,7 @@ class CollectionManager:
             if response.error:
                 raise RuntimeError(f"Config delete failed: {response.error.message}")
 
-            logger.info(f"Collection {request.user}/{request.collection} deleted from config service")
+            logger.info(f"Collection {request.workspace}/{request.collection} deleted from config service")
 
             # Config service will trigger config push automatically
             # Storage services will receive update and delete collections

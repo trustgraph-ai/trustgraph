@@ -4,6 +4,8 @@ from .. schema import Metadata, Term, IRI, LITERAL, GraphEmbeddings
 
 from cassandra.cluster import Cluster
 
+from . cassandra_async import async_execute
+
 
 def term_to_tuple(term):
     """Convert Term to (value, is_uri) tuple for database storage."""
@@ -86,7 +88,7 @@ class KnowledgeTableStore:
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS triples (
-                user text,
+                workspace text,
                 document_id text,
                 id uuid,
                 time timestamp,
@@ -96,7 +98,7 @@ class KnowledgeTableStore:
                 triples list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
-                PRIMARY KEY ((user, document_id), id)
+                PRIMARY KEY ((workspace, document_id), id)
             );
         """);
 
@@ -104,7 +106,7 @@ class KnowledgeTableStore:
 
         self.cassandra.execute("""
             create table if not exists graph_embeddings (
-                user text,
+                workspace text,
                 document_id text,
                 id uuid,
                 time timestamp,
@@ -117,20 +119,20 @@ class KnowledgeTableStore:
                         list<double>
                     >
                 >,
-                PRIMARY KEY ((user, document_id), id)
+                PRIMARY KEY ((workspace, document_id), id)
             );
         """);
 
         self.cassandra.execute("""
-            CREATE INDEX IF NOT EXISTS graph_embeddings_user ON
-            graph_embeddings ( user );
+            CREATE INDEX IF NOT EXISTS graph_embeddings_workspace ON
+            graph_embeddings ( workspace );
         """);
 
         logger.debug("document_embeddings table...")
 
         self.cassandra.execute("""
             create table if not exists document_embeddings (
-                user text,
+                workspace text,
                 document_id text,
                 id uuid,
                 time timestamp,
@@ -143,13 +145,13 @@ class KnowledgeTableStore:
                         list<double>
                     >
                 >,
-                PRIMARY KEY ((user, document_id), id)
+                PRIMARY KEY ((workspace, document_id), id)
             );
         """);
 
         self.cassandra.execute("""
-            CREATE INDEX IF NOT EXISTS document_embeddings_user ON
-            document_embeddings ( user );
+            CREATE INDEX IF NOT EXISTS document_embeddings_workspace ON
+            document_embeddings ( workspace );
         """);
 
         logger.info("Cassandra schema OK.")
@@ -159,7 +161,7 @@ class KnowledgeTableStore:
         self.insert_triples_stmt = self.cassandra.prepare("""
             INSERT INTO triples
             (
-                id, user, document_id,
+                id, workspace, document_id,
                 time, metadata, triples
             )
             VALUES (?, ?, ?, ?, ?, ?)
@@ -168,7 +170,7 @@ class KnowledgeTableStore:
         self.insert_graph_embeddings_stmt = self.cassandra.prepare("""
             INSERT INTO graph_embeddings
             (
-                id, user, document_id, time, metadata, entity_embeddings
+                id, workspace, document_id, time, metadata, entity_embeddings
             )
             VALUES (?, ?, ?, ?, ?, ?)
         """)
@@ -176,45 +178,45 @@ class KnowledgeTableStore:
         self.insert_document_embeddings_stmt = self.cassandra.prepare("""
             INSERT INTO document_embeddings
             (
-                id, user, document_id, time, metadata, chunks
+                id, workspace, document_id, time, metadata, chunks
             )
             VALUES (?, ?, ?, ?, ?, ?)
         """)
 
         self.list_cores_stmt = self.cassandra.prepare("""
-            SELECT DISTINCT user, document_id FROM graph_embeddings
-            WHERE user = ?
+            SELECT DISTINCT workspace, document_id FROM graph_embeddings
+            WHERE workspace = ?
         """)
 
         self.get_triples_stmt = self.cassandra.prepare("""
             SELECT id, time, metadata, triples
             FROM triples
-            WHERE user = ? AND document_id = ?
+            WHERE workspace = ? AND document_id = ?
         """)
 
         self.get_graph_embeddings_stmt = self.cassandra.prepare("""
             SELECT id, time, metadata, entity_embeddings
             FROM graph_embeddings
-            WHERE user = ? AND document_id = ?
+            WHERE workspace = ? AND document_id = ?
         """)
 
         self.get_document_embeddings_stmt = self.cassandra.prepare("""
             SELECT id, time, metadata, chunks
             FROM document_embeddings
-            WHERE user = ? AND document_id = ?
+            WHERE workspace = ? AND document_id = ?
         """)
 
         self.delete_triples_stmt = self.cassandra.prepare("""
             DELETE FROM triples
-            WHERE user = ? AND document_id = ?
+            WHERE workspace = ? AND document_id = ?
         """)
 
         self.delete_graph_embeddings_stmt = self.cassandra.prepare("""
             DELETE FROM graph_embeddings
-            WHERE user = ? AND document_id = ?
+            WHERE workspace = ? AND document_id = ?
         """)
 
-    async def add_triples(self, m):
+    async def add_triples(self, workspace, m):
 
         when = int(time.time() * 1000)
 
@@ -225,27 +227,21 @@ class KnowledgeTableStore:
             for v in m.triples
         ]
 
-        while True:
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_triples_stmt,
+                (
+                    uuid.uuid4(), workspace,
+                    m.metadata.root or m.metadata.id, when,
+                    [], triples,
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_triples_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.root or m.metadata.id, when,
-                        [], triples,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-    async def add_graph_embeddings(self, m):
+    async def add_graph_embeddings(self, workspace, m):
 
         when = int(time.time() * 1000)
 
@@ -257,27 +253,21 @@ class KnowledgeTableStore:
             for v in m.entities
         ]
 
-        while True:
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_graph_embeddings_stmt,
+                (
+                    uuid.uuid4(), workspace,
+                    m.metadata.root or m.metadata.id, when,
+                    [], entities,
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_graph_embeddings_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.root or m.metadata.id, when,
-                        [], entities,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-    async def add_document_embeddings(self, m):
+    async def add_document_embeddings(self, workspace, m):
 
         when = int(time.time() * 1000)
 
@@ -289,109 +279,79 @@ class KnowledgeTableStore:
             for v in m.chunks
         ]
 
-        while True:
+        try:
+            await async_execute(
+                self.cassandra,
+                self.insert_document_embeddings_stmt,
+                (
+                    uuid.uuid4(), workspace,
+                    m.metadata.root or m.metadata.id, when,
+                    [], chunks,
+                ),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_document_embeddings_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.root or m.metadata.id, when,
-                        [], chunks,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-    async def list_kg_cores(self, user):
+    async def list_kg_cores(self, workspace):
 
         logger.debug("List kg cores...")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_cores_stmt,
+                (workspace,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.list_cores_stmt,
-                    (user,)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-
-        lst = [
-            row[1]
-            for row in resp
-        ]
+        lst = [row[1] for row in rows]
 
         logger.debug("Done")
 
         return lst
 
-    async def delete_kg_core(self, user, document_id):
+    async def delete_kg_core(self, workspace, document_id):
 
         logger.debug("Delete kg cores...")
 
-        while True:
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_triples_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_graph_embeddings_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-                resp = self.cassandra.execute(
-                    self.delete_triples_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.delete_graph_embeddings_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-    async def get_triples(self, user, document_id, receiver):
+    async def get_triples(self, workspace, document_id, receiver):
 
         logger.debug("Get triples...")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_triples_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_triples_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        for row in resp:
+        for row in rows:
 
             if row[3]:
                 triples = [
@@ -409,7 +369,6 @@ class KnowledgeTableStore:
                 Triples(
                     metadata = Metadata(
                         id = document_id,
-                        user = user,
                         collection = "default",  # FIXME: What to put here?
                     ),
                     triples = triples
@@ -418,32 +377,27 @@ class KnowledgeTableStore:
 
         logger.debug("Done")
 
-    async def get_graph_embeddings(self, user, document_id, receiver):
+    async def get_graph_embeddings(self, workspace, document_id, receiver):
 
         logger.debug("Get GE...")
 
-        while True:
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_graph_embeddings_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
 
-            try:
-
-                resp = self.cassandra.execute(
-                    self.get_graph_embeddings_stmt,
-                    (user, document_id)
-                )
-
-                break
-
-            except Exception as e:
-                logger.error("Exception occurred", exc_info=True)
-                raise e
-
-        for row in resp:
+        for row in rows:
 
             if row[3]:
                 entities = [
                     EntityEmbeddings(
                         entity = tuple_to_term(ent[0][0], ent[0][1]),
-                        vectors = ent[1]
+                        vector = ent[1]
                     )
                     for ent in row[3]
                 ]
@@ -454,12 +408,11 @@ class KnowledgeTableStore:
                 GraphEmbeddings(
                     metadata = Metadata(
                         id = document_id,
-                        user = user,
                         collection = "default",   # FIXME: What to put here?
                     ),
                     entities = entities
                 )
-            )                    
+            )
 
         logger.debug("Done")
 

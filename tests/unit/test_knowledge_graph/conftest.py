@@ -29,10 +29,9 @@ class Triple:
         self.o = o
 
 class Metadata:
-    def __init__(self, id, user, collection, root=""):
+    def __init__(self, id, collection, root=""):
         self.id = id
         self.root = root
-        self.user = user
         self.collection = collection
 
 class Triples:
@@ -108,7 +107,6 @@ def sample_triples(sample_triple):
     """Sample Triples batch object"""
     metadata = Metadata(
         id="test-doc-123",
-        user="test_user",
         collection="test_collection",
     )
     
@@ -123,7 +121,6 @@ def sample_chunk():
     """Sample text chunk for processing"""
     metadata = Metadata(
         id="test-chunk-456",
-        user="test_user",
         collection="test_collection",
     )
     

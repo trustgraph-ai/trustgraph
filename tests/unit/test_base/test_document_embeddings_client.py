@@ -33,7 +33,6 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         result = await client.query(
             vector=vector,
             limit=10,
-            user="test_user",
             collection="test_collection",
             timeout=30
         )
@@ -45,7 +44,6 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         assert isinstance(call_args, DocumentEmbeddingsRequest)
         assert call_args.vector == vector
         assert call_args.limit == 10
-        assert call_args.user == "test_user"
         assert call_args.collection == "test_collection"
 
     @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
@@ -104,7 +102,6 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client.request.assert_called_once()
         call_args = client.request.call_args[0][0]
         assert call_args.limit == 20  # Default limit
-        assert call_args.user == "trustgraph"  # Default user
         assert call_args.collection == "default"  # Default collection
 
     @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')

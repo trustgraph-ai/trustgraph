@@ -9,41 +9,7 @@ from ... tables.config import ConfigTableStore
 # Module logger
 logger = logging.getLogger(__name__)
 
-class ConfigurationClass:
-    
-    async def keys(self):
-        return await self.table_store.get_keys(self.type)
-    
-    async def values(self):
-        vals = await self.table_store.get_values(self.type)
-        return {
-            v[0]: v[1]
-            for v in vals
-        }
-
-    async def get(self, key):
-        return await self.table_store.get_value(self.type, key)        
-
-    async def put(self, key, value):
-        return await self.table_store.put_config(self.type, key, value)
-
-    async def delete(self, key):
-        return await self.table_store.delete_key(self.type, key)
-
-    async def has(self, key):
-        val = await self.table_store.get_value(self.type, key)
-        return val is not None
-
 class Configuration:
-
-    # FIXME: The state is held internally. This only works if there's
-    # one config service.  Should be more than one, and use a
-    # back-end state store.
-
-    # FIXME: This has state now, but does it address all of the above?
-    # REVIEW: Above
-
-    # FIXME: Some version vs config race conditions
 
     def __init__(self, push, host, username, password, keyspace):
 
@@ -60,34 +26,17 @@ class Configuration:
     async def get_version(self):
         return await self.table_store.get_version()
 
-    def get(self, type):
-
-        c = ConfigurationClass()
-        c.table_store = self.table_store
-        c.type = type
-
-        return c
-
     async def handle_get(self, v):
 
-        # for k in v.keys:
-        #     if k.type not in self or k.key not in self[k.type]:
-        #         return ConfigResponse(
-        #             version = None,
-        #             values = None,
-        #             directory = None,
-        #             config = None,
-        #             error = Error(
-        #                 type = "key-error",
-        #                 message = f"Key error"
-        #             )
-        #         )
+        workspace = v.workspace
 
         values = [
             ConfigValue(
                 type = k.type,
                 key = k.key,
-                value = await self.table_store.get_value(k.type, k.key)
+                value = await self.table_store.get_value(
+                    workspace, k.type, k.key
+                )
             )
             for k in v.keys
         ]
@@ -96,43 +45,19 @@ class Configuration:
             version = await self.get_version(),
             values = values,
         )
-    
+
     async def handle_list(self, v):
-
-        # if v.type not in self:
-
-        #     return ConfigResponse(
-        #         version = None,
-        #         values = None,
-        #         directory = None,
-        #         config = None,
-        #         error = Error(
-        #             type = "key-error",
-        #             message = "No such type",
-        #         ),
-        #     )
 
         return ConfigResponse(
             version = await self.get_version(),
-            directory = await self.table_store.get_keys(v.type),
+            directory = await self.table_store.get_keys(
+                v.workspace, v.type
+            ),
         )
 
     async def handle_getvalues(self, v):
 
-        # if v.type not in self:
-
-        #     return ConfigResponse(
-        #         version = None,
-        #         values = None,
-        #         directory = None,
-        #         config = None,
-        #         error = Error(
-        #             type = "key-error",
-        #             message = f"Key error"
-        #         )
-        #     )
-
-        vals = await self.table_store.get_values(v.type)
+        vals = await self.table_store.get_values(v.workspace, v.type)
 
         values = map(
             lambda x: ConfigValue(
@@ -146,39 +71,63 @@ class Configuration:
             values = list(values),
         )
 
+    async def handle_getvalues_all_ws(self, v):
+        """Fetch all values of a given type across all workspaces.
+        Used by shared processors to load type-scoped config at
+        startup without enumerating workspaces separately."""
+
+        vals = await self.table_store.get_values_all_ws(v.type)
+
+        values = [
+            ConfigValue(
+                workspace = row[0],
+                type = v.type,
+                key = row[1],
+                value = row[2],
+            )
+            for row in vals
+        ]
+
+        return ConfigResponse(
+            version = await self.get_version(),
+            values = values,
+        )
+
     async def handle_delete(self, v):
 
+        workspace = v.workspace
         types = list(set(k.type for k in v.keys))
 
         for k in v.keys:
-
-            await self.table_store.delete_key(k.type, k.key)
+            await self.table_store.delete_key(workspace, k.type, k.key)
 
         await self.inc_version()
 
-        await self.push(types=types)
+        await self.push(changes={t: [workspace] for t in types})
 
         return ConfigResponse(
         )
 
     async def handle_put(self, v):
 
+        workspace = v.workspace
         types = list(set(k.type for k in v.values))
 
         for k in v.values:
-
-            await self.table_store.put_config(k.type, k.key, k.value)
+            await self.table_store.put_config(
+                workspace, k.type, k.key, k.value
+            )
 
         await self.inc_version()
 
-        await self.push(types=types)
+        await self.push(changes={t: [workspace] for t in types})
 
         return ConfigResponse(
         )
 
-    async def get_config(self):
+    async def get_config(self, workspace):
 
-        table = await self.table_store.get_all()
+        table = await self.table_store.get_all_for_workspace(workspace)
 
         config = {}
 
@@ -191,7 +140,7 @@ class Configuration:
 
     async def handle_config(self, v):
 
-        config = await self.get_config()
+        config = await self.get_config(v.workspace)
 
         return ConfigResponse(
             version = await self.get_version(),
@@ -200,7 +149,20 @@ class Configuration:
 
     async def handle(self, msg):
 
-        logger.debug(f"Handling config message: {msg.operation}")
+        logger.debug(
+            f"Handling config message: {msg.operation} "
+            f"workspace={msg.workspace}"
+        )
+
+        # getvalues-all-ws spans all workspaces, so no workspace
+        # required; everything else is workspace-scoped.
+        if msg.operation != "getvalues-all-ws" and not msg.workspace:
+            return ConfigResponse(
+                error=Error(
+                    type = "bad-request",
+                    message = "Workspace is required"
+                )
+            )
 
         if msg.operation == "get":
 
@@ -213,6 +175,10 @@ class Configuration:
         elif msg.operation == "getvalues":
 
             resp = await self.handle_getvalues(msg)
+
+        elif msg.operation == "getvalues-all-ws":
+
+            resp = await self.handle_getvalues_all_ws(msg)
 
         elif msg.operation == "delete":
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "TrustGraph Logging Strategy"
+parent: "Tech Specs"
+---
+
 # TrustGraph Logging Strategy
 
 ## Overview

@@ -91,7 +91,7 @@ class Processor(FlowProcessor):
         if v.document_id:
             doc_meta = await self.librarian.fetch_document_metadata(
                 document_id=v.document_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
             )
             if doc_meta and doc_meta.kind and doc_meta.kind != "application/pdf":
                 logger.error(
@@ -106,7 +106,7 @@ class Processor(FlowProcessor):
             logger.info(f"Fetching document {v.document_id} from librarian...")
             content = await self.librarian.fetch_document_content(
                 document_id=v.document_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
             )
             if isinstance(content, str):
                 content = content.encode('utf-8')
@@ -141,7 +141,7 @@ class Processor(FlowProcessor):
             await self.librarian.save_child_document(
                 doc_id=page_doc_id,
                 parent_id=source_doc_id,
-                user=v.metadata.user,
+                workspace=flow.workspace,
                 content=page_content,
                 document_type="page",
                 title=f"Page {page_num}",
@@ -163,7 +163,6 @@ class Processor(FlowProcessor):
                 metadata=Metadata(
                     id=pg_uri,
                     root=v.metadata.root,
-                    user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),
                 triples=set_graph(prov_triples, GRAPH_SOURCE),
@@ -175,7 +174,6 @@ class Processor(FlowProcessor):
                 metadata=Metadata(
                     id=pg_uri,
                     root=v.metadata.root,
-                    user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),
                 document_id=page_doc_id,

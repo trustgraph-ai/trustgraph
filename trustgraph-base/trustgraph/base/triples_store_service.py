@@ -1,7 +1,10 @@
-
 """
 Triples store base class
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 
@@ -15,6 +18,12 @@ logger = logging.getLogger(__name__)
 default_ident = "triples-write"
 
 class TriplesStoreService(FlowProcessor):
+    """
+    Component for maintaining the triples store.
+    
+    This service acts as a processor in the flow that receives knowledge triples 
+    and writes them persistently into an overarching graph database or equivalent backend.
+    """
 
     def __init__(self, **params):
 
@@ -36,7 +45,10 @@ class TriplesStoreService(FlowProcessor):
 
             request = msg.value()
 
-            await self.store_triples(request)
+            # Workspace is derived from the flow the message arrived on,
+            # not from fields in the message payload. Topic routing is
+            # the isolation boundary.
+            await self.store_triples(flow.workspace, request)
 
         except TooManyRequests as e:
             raise e
@@ -47,7 +59,7 @@ class TriplesStoreService(FlowProcessor):
             raise e
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 

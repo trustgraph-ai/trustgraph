@@ -1,25 +1,21 @@
 """
-Starts a load operation on a knowledge core which is already stored by
-the knowledge manager.  You could load a core with tg-put-kg-core and then
-run this utility.
+Unloads a knowledge core from a flow.
 """
 
 import argparse
 import os
-import tabulate
 from trustgraph.api import Api
-import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_flow = "default"
-default_collection = "default"
 
-def unload_kg_core(url, user, id, flow, token=None):
+def unload_kg_core(url, id, flow, token=None, workspace="default"):
 
-    api = Api(url, token=token).knowledge()
+    api = Api(url, token=token, workspace=workspace).knowledge()
 
-    class_names = api.unload_kg_core(user = user, id = id, flow=flow)
+    api.unload_kg_core(id=id, flow=flow)
 
 def main():
 
@@ -41,9 +37,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default="trustgraph",
-        help='API URL (default: trustgraph)',
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -55,7 +51,7 @@ def main():
     parser.add_argument(
         '-f', '--flow-id',
         default=default_flow,
-        help=f'Flow ID (default: {default_flow}',
+        help=f'Flow ID (default: {default_flow})',
     )
 
     args = parser.parse_args()
@@ -64,10 +60,10 @@ def main():
 
         unload_kg_core(
             url=args.api_url,
-            user=args.user,
             id=args.id,
             flow=args.flow_id,
             token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

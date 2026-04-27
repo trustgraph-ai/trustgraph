@@ -5,6 +5,13 @@ from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import ToolRequest, ToolResponse
 
 class ToolClient(RequestResponse):
+    """
+    Client for invoking tools over the flow messaging fabric.
+    
+    This class provides an interface to abstract away the messaging mechanics
+    and provides a direct awaitable mechanism for invoking tools and
+    getting their responses.
+    """
 
     async def invoke(self, name, parameters={}, timeout=600):
 

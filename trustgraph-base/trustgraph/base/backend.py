@@ -58,6 +58,18 @@ class BackendProducer(Protocol):
 class BackendConsumer(Protocol):
     """Protocol for backend-specific consumer."""
 
+    def ensure_connected(self) -> None:
+        """
+        Eagerly establish the underlying connection and bind the queue.
+
+        Backends that lazily connect on first receive() must implement this
+        so that callers can guarantee the consumer is fully bound — and
+        therefore able to receive responses — before any related request is
+        published. Backends that connect at construction time may make this
+        a no-op.
+        """
+        ...
+
     def receive(self, timeout_millis: int = 2000) -> Message:
         """
         Receive a message from the topic.
@@ -109,7 +121,7 @@ class PubSubBackend(Protocol):
         Create a producer for a topic.
 
         Args:
-            topic: Generic topic format (qos/tenant/namespace/queue)
+            topic: Queue identifier in class:topicspace:topic format
             schema: Dataclass type for messages
             **options: Backend-specific options (e.g., chunking_enabled)
 
@@ -144,6 +156,58 @@ class PubSubBackend(Protocol):
 
         Returns:
             Backend-specific consumer instance
+        """
+        ...
+
+    async def create_topic(self, topic: str) -> None:
+        """
+        Create the broker-side resources for a logical topic.
+
+        For RabbitMQ this creates a fanout exchange.  For Pulsar this is
+        a no-op (topics auto-create on first use).
+
+        Idempotent — creating an already-existing topic succeeds silently.
+
+        Args:
+            topic: Topic identifier in class:topicspace:topic format
+        """
+        ...
+
+    async def delete_topic(self, topic: str) -> None:
+        """
+        Delete a topic and discard any in-flight messages.
+
+        For RabbitMQ this deletes the fanout exchange; consumer queues
+        lose their binding and drain naturally.
+
+        Idempotent — deleting a non-existent topic succeeds silently.
+
+        Args:
+            topic: Topic identifier in class:topicspace:topic format
+        """
+        ...
+
+    async def topic_exists(self, topic: str) -> bool:
+        """
+        Check whether a topic exists.
+
+        Args:
+            topic: Topic identifier in class:topicspace:topic format
+
+        Returns:
+            True if the topic exists, False otherwise.
+        """
+        ...
+
+    async def ensure_topic(self, topic: str) -> None:
+        """
+        Ensure a topic exists, creating it if necessary.
+
+        Convenience wrapper — checks existence, creates if missing.
+        Used by the flow service and system services on startup.
+
+        Args:
+            topic: Topic identifier in class:topicspace:topic format
         """
         ...
 

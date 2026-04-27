@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Collection Management Technical Specification"
+parent: "Tech Specs"
+---
+
 # Collection Management Technical Specification
 
 ## Overview
@@ -400,4 +406,3 @@ Legacy queue-based infrastructure removed:
 - ✅ Removed storage management queue topic definitions
 - ✅ Removed storage management consumer/producer from all backends
 - ✅ Removed `on_storage_management` handlers from all backends
-

@@ -72,21 +72,28 @@ class Processor(FlowProcessor):
         # Register config handler for schema updates
         self.register_config_handler(self.on_schema_config, types=["schema"])
 
-        # Schema storage: name -> RowSchema
-        self.schemas: Dict[str, RowSchema] = {}
+        # Per-workspace schema storage: {workspace: {name: RowSchema}}
+        self.schemas: Dict[str, Dict[str, RowSchema]] = {}
 
         logger.info("Structured Data Diagnosis service initialized")
 
-    async def on_schema_config(self, config, version):
+    async def on_schema_config(self, workspace, config, version):
         """Handle schema configuration updates"""
-        logger.info(f"Loading schema configuration version {version}")
+        logger.info(
+            f"Loading schema configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
-        # Clear existing schemas
-        self.schemas = {}
+        # Replace existing schemas for this workspace
+        ws_schemas: Dict[str, RowSchema] = {}
+        self.schemas[workspace] = ws_schemas
 
         # Check if our config type exists
         if self.config_key not in config:
-            logger.warning(f"No '{self.config_key}' type in configuration")
+            logger.warning(
+                f"No '{self.config_key}' type in configuration "
+                f"for {workspace}"
+            )
             return
 
         # Get the schemas dictionary for our type
@@ -120,13 +127,19 @@ class Processor(FlowProcessor):
                     fields=fields
                 )
 
-                self.schemas[schema_name] = row_schema
-                logger.info(f"Loaded schema: {schema_name} with {len(fields)} fields")
+                ws_schemas[schema_name] = row_schema
+                logger.info(
+                    f"Loaded schema: {schema_name} with "
+                    f"{len(fields)} fields for {workspace}"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to parse schema {schema_name}: {e}", exc_info=True)
 
-        logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
+        logger.info(
+            f"Schema configuration loaded for {workspace}: "
+            f"{len(ws_schemas)} schemas"
+        )
 
     async def on_message(self, msg, consumer, flow):
         """Handle incoming structured data diagnosis request"""
@@ -216,15 +229,19 @@ class Processor(FlowProcessor):
             )
             return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
-        # Get target schema
-        if request.schema_name not in self.schemas:
+        # Get target schema from this workspace's schemas
+        ws_schemas = self.schemas.get(flow.workspace, {})
+        if request.schema_name not in ws_schemas:
             error = Error(
                 type="SchemaNotFound",
-                message=f"Schema '{request.schema_name}' not found in configuration"
+                message=(
+                    f"Schema '{request.schema_name}' not found "
+                    f"in configuration for workspace {flow.workspace}"
+                )
             )
             return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
-        target_schema = self.schemas[request.schema_name]
+        target_schema = ws_schemas[request.schema_name]
 
         # Generate descriptor using prompt service
         descriptor = await self.generate_descriptor_with_prompt(
@@ -260,26 +277,33 @@ class Processor(FlowProcessor):
             return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
         # Step 2: Use provided schema name or auto-select first available
+        ws_schemas = self.schemas.get(flow.workspace, {})
         schema_name = request.schema_name
-        if not schema_name and self.schemas:
-            schema_name = list(self.schemas.keys())[0]
+        if not schema_name and ws_schemas:
+            schema_name = list(ws_schemas.keys())[0]
             logger.info(f"Auto-selected schema: {schema_name}")
 
         if not schema_name:
             error = Error(
                 type="NoSchemaAvailable",
-                message="No schema specified and no schemas available in configuration"
+                message=(
+                    f"No schema specified and no schemas available "
+                    f"in configuration for workspace {flow.workspace}"
+                )
             )
             return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
-        if schema_name not in self.schemas:
+        if schema_name not in ws_schemas:
             error = Error(
                 type="SchemaNotFound",
-                message=f"Schema '{schema_name}' not found in configuration"
+                message=(
+                    f"Schema '{schema_name}' not found in "
+                    f"configuration for workspace {flow.workspace}"
+                )
             )
             return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
-        target_schema = self.schemas[schema_name]
+        target_schema = ws_schemas[schema_name]
 
         # Step 3: Generate descriptor
         descriptor = await self.generate_descriptor_with_prompt(
@@ -316,8 +340,9 @@ class Processor(FlowProcessor):
         logger.info("Processing schema-selection operation")
 
         # Prepare all schemas for the prompt - match the original config format
+        ws_schemas = self.schemas.get(flow.workspace, {})
         all_schemas = []
-        for schema_name, row_schema in self.schemas.items():
+        for schema_name, row_schema in ws_schemas.items():
             schema_info = {
                 "name": row_schema.name,
                 "description": row_schema.description,

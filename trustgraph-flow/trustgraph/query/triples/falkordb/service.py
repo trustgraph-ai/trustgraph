@@ -58,7 +58,7 @@ class Processor(TriplesQueryService):
         else:
             return Term(type=LITERAL, value=ent)
 
-    async def query_triples(self, query):
+    async def query_triples(self, workspace, query):
 
         try:
 

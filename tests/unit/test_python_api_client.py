@@ -304,14 +304,14 @@ class TestStreamingTypes:
 
         assert chunk.content == "thinking..."
         assert chunk.end_of_message is False
-        assert chunk.chunk_type == "thought"
+        assert chunk.message_type == "thought"
 
     def test_agent_observation_creation(self):
         """Test creating AgentObservation chunk"""
         chunk = AgentObservation(content="observing...", end_of_message=False)
 
         assert chunk.content == "observing..."
-        assert chunk.chunk_type == "observation"
+        assert chunk.message_type == "observation"
 
     def test_agent_answer_creation(self):
         """Test creating AgentAnswer chunk"""
@@ -324,7 +324,7 @@ class TestStreamingTypes:
         assert chunk.content == "answer"
         assert chunk.end_of_message is True
         assert chunk.end_of_dialog is True
-        assert chunk.chunk_type == "final-answer"
+        assert chunk.message_type == "final-answer"
 
     def test_rag_chunk_creation(self):
         """Test creating RAGChunk"""

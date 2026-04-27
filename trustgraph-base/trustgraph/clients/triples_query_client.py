@@ -45,16 +45,15 @@ class TriplesQueryClient(BaseClient):
         return Term(type=LITERAL, value=ent)
 
     def request(
-            self, 
+            self,
             s, p, o,
-            user="trustgraph", collection="default",
+            collection="default",
             limit=10, timeout=120,
     ):
         return self.call(
             s=self.create_value(s),
             p=self.create_value(p),
             o=self.create_value(o),
-            user=user,
             collection=collection,
             limit=limit,
             timeout=timeout,

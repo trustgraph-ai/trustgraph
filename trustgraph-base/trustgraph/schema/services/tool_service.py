@@ -7,8 +7,6 @@ from ..core.primitives import Error
 @dataclass
 class ToolServiceRequest:
     """Request to a dynamically configured tool service."""
-    # User context for multi-tenancy
-    user: str = ""
     # Config values (collection, etc.) as JSON
     config: str = ""
     # Arguments from LLM as JSON

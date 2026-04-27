@@ -1,7 +1,7 @@
 """
 Row embeddings query service for Qdrant.
 
-Input is query vectors plus user/collection/schema context.
+Input is query vectors plus workspace/collection/schema context.
 Output is matching row index information (index_name, index_value) for
 use in subsequent Cassandra lookups.
 """
@@ -70,10 +70,10 @@ class Processor(FlowProcessor):
             safe_name = 'r_' + safe_name
         return safe_name.lower()
 
-    def find_collection(self, user: str, collection: str, schema_name: str) -> Optional[str]:
-        """Find the Qdrant collection for a given user/collection/schema"""
+    def find_collection(self, workspace: str, collection: str, schema_name: str) -> Optional[str]:
+        """Find the Qdrant collection for a given workspace/collection/schema"""
         prefix = (
-            f"rows_{self.sanitize_name(user)}_"
+            f"rows_{self.sanitize_name(workspace)}_"
             f"{self.sanitize_name(collection)}_{self.sanitize_name(schema_name)}_"
         )
 
@@ -93,22 +93,22 @@ class Processor(FlowProcessor):
 
         return None
 
-    async def query_row_embeddings(self, request: RowEmbeddingsRequest):
+    async def query_row_embeddings(self, workspace, request: RowEmbeddingsRequest):
         """Execute row embeddings query"""
 
         vec = request.vector
         if not vec:
             return []
 
-        # Find the collection for this user/collection/schema
+        # Find the collection for this workspace/collection/schema
         qdrant_collection = self.find_collection(
-            request.user, request.collection, request.schema_name
+            workspace, request.collection, request.schema_name
         )
 
         if not qdrant_collection:
             logger.info(
                 f"No Qdrant collection found for "
-                f"{request.user}/{request.collection}/{request.schema_name}"
+                f"{workspace}/{request.collection}/{request.schema_name}"
             )
             return []
 
@@ -163,11 +163,11 @@ class Processor(FlowProcessor):
 
             logger.debug(
                 f"Handling row embeddings query for "
-                f"{request.user}/{request.collection}/{request.schema_name}..."
+                f"{flow.workspace}/{request.collection}/{request.schema_name}..."
             )
 
             # Execute query
-            matches = await self.query_row_embeddings(request)
+            matches = await self.query_row_embeddings(flow.workspace, request)
 
             response = RowEmbeddingsResponse(
                 error=None,

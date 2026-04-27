@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=2.2,<2.3",
+    "trustgraph-base>=2.4,<2.5",
     "aiohttp",
     "anthropic",
     "scylla-driver",
@@ -61,6 +61,7 @@ api-gateway = "trustgraph.gateway:run"
 chunker-recursive = "trustgraph.chunking.recursive:run"
 chunker-token = "trustgraph.chunking.token:run"
 config-svc = "trustgraph.config.service:run"
+flow-svc = "trustgraph.flow.service:run"
 doc-embeddings-query-milvus = "trustgraph.query.doc_embeddings.milvus:run"
 doc-embeddings-query-pinecone = "trustgraph.query.doc_embeddings.pinecone:run"
 doc-embeddings-query-qdrant = "trustgraph.query.doc_embeddings.qdrant:run"

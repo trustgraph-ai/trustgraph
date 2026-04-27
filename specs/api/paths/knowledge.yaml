@@ -12,12 +12,12 @@ post:
     - **Graph Embeddings**: Vector embeddings for entities
     - **Metadata**: Descriptive information about the knowledge
 
-    Each core has an ID, user, and collection for organization.
+    Each core has an ID and collection for organization (within the workspace).
 
     ## Operations
 
     ### list-kg-cores
-    List all knowledge cores for a user. Returns array of core IDs.
+    List all knowledge cores in the workspace. Returns array of core IDs.
 
     ### get-kg-core
     Retrieve a knowledge core by ID. Returns triples and/or graph embeddings.
@@ -58,7 +58,6 @@ post:
             summary: List knowledge cores
             value:
               operation: list-kg-cores
-              user: alice
           getKnowledgeCore:
             summary: Get knowledge core
             value:
@@ -71,7 +70,6 @@ post:
               triples:
                 metadata:
                   id: core-123
-                  user: alice
                   collection: default
                   metadata:
                     - s: {v: "https://example.com/core-123", e: true}
@@ -91,7 +89,6 @@ post:
               graph-embeddings:
                 metadata:
                   id: core-123
-                  user: alice
                   collection: default
                   metadata: []
                 entities:
@@ -106,7 +103,6 @@ post:
               triples:
                 metadata:
                   id: core-456
-                  user: bob
                   collection: research
                   metadata: []
                 triples:
@@ -116,7 +112,6 @@ post:
               graph-embeddings:
                 metadata:
                   id: core-456
-                  user: bob
                   collection: research
                   metadata: []
                 entities:
@@ -127,7 +122,6 @@ post:
             value:
               operation: delete-kg-core
               id: core-123
-              user: alice
           loadKnowledgeCore:
             summary: Load core into flow
             value:
@@ -161,7 +155,6 @@ post:
                 triples:
                   metadata:
                     id: core-123
-                    user: alice
                     collection: default
                     metadata:
                       - s: {v: "https://example.com/core-123", e: true}
@@ -177,7 +170,6 @@ post:
                 graph-embeddings:
                   metadata:
                     id: core-123
-                    user: alice
                     collection: default
                     metadata: []
                   entities:

@@ -102,12 +102,12 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                 "Gave up waiting for index creation"
             )
 
-    async def store_graph_embeddings(self, message):
+    async def store_graph_embeddings(self, workspace, message):
 
         # Validate collection exists in config before processing
-        if not self.collection_exists(message.metadata.user, message.metadata.collection):
+        if not self.collection_exists(workspace, message.metadata.collection):
             logger.warning(
-                f"Collection {message.metadata.collection} for user {message.metadata.user} "
+                f"Collection {message.metadata.collection} for workspace {workspace} "
                 f"does not exist in config (likely deleted while data was in-flight). "
                 f"Dropping message."
             )
@@ -126,7 +126,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             # Create index name with dimension suffix for lazy creation
             dim = len(vec)
             index_name = (
-                f"t-{message.metadata.user}-{message.metadata.collection}-{dim}"
+                f"t-{workspace}-{message.metadata.collection}-{dim}"
             )
 
             # Lazily create index if it doesn't exist (but only if authorized in config)
@@ -183,22 +183,22 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             help=f'Pinecone region, (default: {default_region}'
         )
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """
         Create collection via config push - indexes are created lazily on first write
         with the correct dimension determined from the actual embeddings.
         """
         try:
-            logger.info(f"Collection create request for {user}/{collection} - will be created lazily on first write")
+            logger.info(f"Collection create request for {workspace}/{collection} - will be created lazily on first write")
 
         except Exception as e:
-            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to create collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Delete the collection for graph embeddings via config push"""
         try:
-            prefix = f"t-{user}-{collection}-"
+            prefix = f"t-{workspace}-{collection}-"
 
             # Get all indexes and filter for matches
             all_indexes = self.pinecone.list_indexes()
@@ -213,10 +213,10 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                 for index_name in matching_indexes:
                     self.pinecone.delete_index(index_name)
                     logger.info(f"Deleted Pinecone index: {index_name}")
-                logger.info(f"Deleted {len(matching_indexes)} index(es) for {user}/{collection}")
+                logger.info(f"Deleted {len(matching_indexes)} index(es) for {workspace}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to delete collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
 def run():

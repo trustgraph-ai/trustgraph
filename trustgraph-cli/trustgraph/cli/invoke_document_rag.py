@@ -18,16 +18,17 @@ from trustgraph.api import (
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 default_doc_limit = 10
 
 
 def question_explainable(
-    url, flow_id, question_text, user, collection, doc_limit, token=None, debug=False
+    url, flow_id, question_text, collection, doc_limit, token=None, debug=False,
+    workspace="default",
 ):
     """Execute document RAG with explainability - shows provenance events inline."""
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
     socket = api.socket()
     flow = socket.flow(flow_id)
     explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
@@ -36,8 +37,7 @@ def question_explainable(
         # Stream DocumentRAG with explainability - process events as they arrive
         for item in flow.document_rag_explain(
             query=question_text,
-            user=user,
-            collection=collection,
+                        collection=collection,
             doc_limit=doc_limit,
         ):
             if isinstance(item, RAGChunk):
@@ -54,8 +54,7 @@ def question_explainable(
                     entity = explain_client.fetch_entity(
                         prov_id,
                         graph=explain_graph,
-                        user=user,
-                        collection=collection
+                                                collection=collection
                     )
 
                 if entity is None:
@@ -98,8 +97,9 @@ def question_explainable(
 
 
 def question(
-    url, flow_id, question_text, user, collection, doc_limit,
-    streaming=True, token=None, explainable=False, debug=False
+    url, flow_id, question_text, collection, doc_limit,
+    streaming=True, token=None, explainable=False, debug=False,
+    show_usage=False, workspace="default",
 ):
     # Explainable mode uses the API to capture and process provenance events
     if explainable:
@@ -107,16 +107,16 @@ def question(
             url=url,
             flow_id=flow_id,
             question_text=question_text,
-            user=user,
-            collection=collection,
+                        collection=collection,
             doc_limit=doc_limit,
             token=token,
-            debug=debug
+            debug=debug,
+            workspace=workspace,
         )
         return
 
     # Create API client
-    api = Api(url=url, token=token)
+    api = Api(url=url, token=token, workspace=workspace)
 
     if streaming:
         # Use socket client for streaming
@@ -126,29 +126,45 @@ def question(
         try:
             response = flow.document_rag(
                 query=question_text,
-                user=user,
-                collection=collection,
+                                collection=collection,
                 doc_limit=doc_limit,
                 streaming=True
             )
 
             # Stream output
+            last_chunk = None
             for chunk in response:
-                print(chunk, end="", flush=True)
+                print(chunk.content, end="", flush=True)
+                last_chunk = chunk
             print()  # Final newline
+
+            if show_usage and last_chunk:
+                print(
+                    f"Input tokens: {last_chunk.in_token}  "
+                    f"Output tokens: {last_chunk.out_token}  "
+                    f"Model: {last_chunk.model}",
+                    file=sys.stderr,
+                )
 
         finally:
             socket.close()
     else:
         # Use REST API for non-streaming
         flow = api.flow().id(flow_id)
-        resp = flow.document_rag(
+        result = flow.document_rag(
             query=question_text,
-            user=user,
-            collection=collection,
+                        collection=collection,
             doc_limit=doc_limit,
         )
-        print(resp)
+        print(result.text)
+
+        if show_usage:
+            print(
+                f"Input tokens: {result.in_token}  "
+                f"Output tokens: {result.out_token}  "
+                f"Model: {result.model}",
+                file=sys.stderr,
+            )
 
 
 def main():
@@ -171,6 +187,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-f', '--flow-id',
         default="default",
         help=f'Flow ID (default: default)'
@@ -180,12 +202,6 @@ def main():
         '-q', '--question',
         required=True,
         help=f'Question to answer',
-    )
-
-    parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
@@ -219,6 +235,12 @@ def main():
         help='Show debug output for troubleshooting'
     )
 
+    parser.add_argument(
+        '--show-usage',
+        action='store_true',
+        help='Show token usage and model on stderr'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -227,13 +249,14 @@ def main():
             url=args.url,
             flow_id=args.flow_id,
             question_text=args.question,
-            user=args.user,
             collection=args.collection,
             doc_limit=args.doc_limit,
             streaming=not args.no_streaming,
             token=args.token,
             explainable=args.explainable,
             debug=args.debug,
+            show_usage=args.show_usage,
+            workspace=args.workspace,
         )
 
     except Exception as e:

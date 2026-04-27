@@ -8,7 +8,6 @@ from ..core.primitives import Error, Term, Triple
 @dataclass
 class GraphRagQuery:
     query: str = ""
-    user: str = ""
     collection: str = ""
     entity_limit: int = 0
     triple_limit: int = 0
@@ -29,6 +28,9 @@ class GraphRagResponse:
     explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
     message_type: str = ""            # "chunk" or "explain"
     end_of_session: bool = False      # Entire session complete
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None
 
 ############################################################################
 
@@ -37,7 +39,6 @@ class GraphRagResponse:
 @dataclass
 class DocumentRagQuery:
     query: str = ""
-    user: str = ""
     collection: str = ""
     doc_limit: int = 0
     streaming: bool = False
@@ -52,3 +53,6 @@ class DocumentRagResponse:
     explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
     message_type: str = ""            # "chunk" or "explain"
     end_of_session: bool = False      # Entire session complete
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None

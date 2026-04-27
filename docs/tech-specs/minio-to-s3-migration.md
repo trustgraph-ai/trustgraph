@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Tech Spec: S3-Compatible Storage Backend Support"
+parent: "Tech Specs"
+---
+
 # Tech Spec: S3-Compatible Storage Backend Support
 
 ## Overview

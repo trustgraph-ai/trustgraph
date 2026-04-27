@@ -17,11 +17,13 @@ from ..core.primitives import Error
 #   start_flow(flowid, blueprintname) -> ()
 #   stop_flow(flowid) -> ()
 
-# Prompt services, abstract the prompt generation
 @dataclass
 class FlowRequest:
     operation: str = ""  # list-blueprints, get-blueprint, put-blueprint, delete-blueprint
                          # list-flows, get-flow, start-flow, stop-flow
+
+    # Workspace scope — all operations act within this workspace
+    workspace: str = ""
 
     # get_blueprint, put_blueprint, delete_blueprint, start_flow
     blueprint_name: str = ""

@@ -27,7 +27,6 @@ Quick Start:
     # Execute a graph RAG query
     response = flow.graph_rag(
         query="What are the main topics?",
-        user="trustgraph",
         collection="default"
     )
     ```
@@ -38,7 +37,7 @@ For streaming and async operations:
     socket = api.socket()
     flow = socket.flow("default")
 
-    for chunk in flow.agent(question="Hello", user="trustgraph"):
+    for chunk in flow.agent(question="Hello"):
         print(chunk.content)
 
     # Async operations
@@ -107,6 +106,7 @@ from .types import (
     AgentObservation,
     AgentAnswer,
     RAGChunk,
+    TextCompletionResult,
     ProvenanceEvent,
 )
 
@@ -185,6 +185,7 @@ __all__ = [
     "AgentObservation",
     "AgentAnswer",
     "RAGChunk",
+    "TextCompletionResult",
     "ProvenanceEvent",
 
     # Exceptions

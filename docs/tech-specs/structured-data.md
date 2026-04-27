@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Structured Data Technical Specification"
+parent: "Tech Specs"
+---
+
 # Structured Data Technical Specification
 
 ## Overview
@@ -250,4 +256,3 @@ Not specified.
 ## References
 
 n/a.
-

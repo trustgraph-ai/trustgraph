@@ -6,6 +6,7 @@ Provides comprehensive error handling, retry logic, and graceful degradation.
 import logging
 import time
 import asyncio
+import inspect
 from typing import Dict, Any, List, Optional, Callable, Union, Type
 from dataclasses import dataclass
 from enum import Enum
@@ -244,7 +245,7 @@ class ErrorRecoveryStrategy:
         await asyncio.sleep(delay)
 
         try:
-            if asyncio.iscoroutinefunction(operation):
+            if inspect.iscoroutinefunction(operation):
                 return await operation(*args, **kwargs)
             else:
                 return operation(*args, **kwargs)
@@ -260,7 +261,7 @@ class ErrorRecoveryStrategy:
         if fallback_func:
             logger.info(f"Executing fallback for {context.category.value}")
             try:
-                if asyncio.iscoroutinefunction(fallback_func):
+                if inspect.iscoroutinefunction(fallback_func):
                     return await fallback_func(context, *args, **kwargs)
                 else:
                     return fallback_func(context, *args, **kwargs)
@@ -420,7 +421,7 @@ def with_error_handling(category: ErrorCategory,
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             try:
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     return await func(*args, **kwargs)
                 else:
                     return func(*args, **kwargs)
@@ -469,7 +470,7 @@ def with_error_handling(category: ErrorCategory,
                     cause=e
                 )
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper

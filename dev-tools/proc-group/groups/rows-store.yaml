@@ -1,0 +1,20 @@
+# Rows store.  Cassandra-backed structured row query/write.
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.query.rows.cassandra.Processor
+    params:
+      <<: *defaults
+      id: rows-query
+      cassandra_host: localhost
+
+  - class: trustgraph.storage.rows.cassandra.Processor
+    params:
+      <<: *defaults
+      id: rows-write
+      cassandra_host: localhost

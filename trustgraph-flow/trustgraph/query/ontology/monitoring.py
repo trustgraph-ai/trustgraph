@@ -6,6 +6,7 @@ Provides comprehensive monitoring of system performance, query patterns, and res
 import logging
 import time
 import asyncio
+import inspect
 import threading
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field
@@ -579,7 +580,7 @@ def monitor_performance(component: str,
 
         async def async_wrapper(*args, **kwargs):
             if not monitor or not monitor.monitoring_enabled:
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     return await func(*args, **kwargs)
                 else:
                     return func(*args, **kwargs)
@@ -591,7 +592,7 @@ def monitor_performance(component: str,
 
             success = True
             try:
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     result = await func(*args, **kwargs)
                 else:
                     result = func(*args, **kwargs)
@@ -603,7 +604,7 @@ def monitor_performance(component: str,
                 duration = monitor.metrics_collector.stop_timer(timer)
                 monitor.record_request(component, operation, duration, success)
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
             return wrapper

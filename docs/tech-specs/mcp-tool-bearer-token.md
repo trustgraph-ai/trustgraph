@@ -1,3 +1,9 @@
+---
+layout: default
+title: "MCP Tool Bearer Token Authentication Specification"
+parent: "Tech Specs"
+---
+
 # MCP Tool Bearer Token Authentication Specification
 
 > **⚠️ IMPORTANT: SINGLE-TENANT ONLY**

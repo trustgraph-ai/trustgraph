@@ -36,7 +36,6 @@ def processor(mock_pulsar_client):
     return proc
 
 
-@pytest.mark.asyncio
 class TestStructuredQueryProcessor:
     """Test Structured Query service processor"""
 
@@ -45,7 +44,6 @@ class TestStructuredQueryProcessor:
         # Arrange
         request = StructuredQueryRequest(
             question="Show me all customers from New York",
-            user="trustgraph", 
             collection="default"
         )
         
@@ -111,7 +109,6 @@ class TestStructuredQueryProcessor:
         assert isinstance(objects_call_args, RowsQueryRequest)
         assert objects_call_args.query == 'query { customers(where: {state: {eq: "NY"}}) { id name email } }'
         assert objects_call_args.variables == {"state": "NY"}
-        assert objects_call_args.user == "trustgraph"
         assert objects_call_args.collection == "default"
         
         # Verify response

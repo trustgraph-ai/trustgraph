@@ -4,7 +4,7 @@ import asyncio
 import websockets
 from typing import Optional, Dict, Any, AsyncIterator, Union
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, TextCompletionResult
 from . exceptions import ProtocolException, ApplicationException
 
 
@@ -22,10 +22,14 @@ class AsyncSocketClient:
     Or call connect()/aclose() manually.
     """
 
-    def __init__(self, url: str, timeout: int, token: Optional[str]):
+    def __init__(
+        self, url: str, timeout: int, token: Optional[str],
+        workspace: str = "default",
+    ):
         self.url = self._convert_to_ws_url(url)
         self.timeout = timeout
         self.token = token
+        self.workspace = workspace
         self._request_counter = 0
         self._socket = None
         self._connect_cm = None
@@ -117,6 +121,7 @@ class AsyncSocketClient:
         try:
             message = {
                 "id": request_id,
+                "workspace": self.workspace,
                 "service": service,
                 "request": request
             }
@@ -149,6 +154,7 @@ class AsyncSocketClient:
         try:
             message = {
                 "id": request_id,
+                "workspace": self.workspace,
                 "service": service,
                 "request": request
             }
@@ -178,30 +184,32 @@ class AsyncSocketClient:
 
     def _parse_chunk(self, resp: Dict[str, Any]):
         """Parse response chunk into appropriate type. Returns None for non-content messages."""
-        chunk_type = resp.get("chunk_type")
         message_type = resp.get("message_type")
 
         # Handle new GraphRAG message format with message_type
         if message_type == "provenance":
             return None
 
-        if chunk_type == "thought":
+        if message_type == "thought":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        elif chunk_type == "observation":
+        elif message_type == "observation":
             return AgentObservation(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        elif chunk_type == "answer" or chunk_type == "final-answer":
+        elif message_type == "answer" or message_type == "final-answer":
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
-                end_of_dialog=resp.get("end_of_dialog", False)
+                end_of_dialog=resp.get("end_of_dialog", False),
+                in_token=resp.get("in_token"),
+                out_token=resp.get("out_token"),
+                model=resp.get("model"),
             )
-        elif chunk_type == "action":
+        elif message_type == "action":
             return AgentThought(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
@@ -211,7 +219,10 @@ class AsyncSocketClient:
             return RAGChunk(
                 content=content,
                 end_of_stream=resp.get("end_of_stream", False),
-                error=None
+                error=None,
+                in_token=resp.get("in_token"),
+                out_token=resp.get("out_token"),
+                model=resp.get("model"),
             )
 
     async def aclose(self):
@@ -246,13 +257,12 @@ class AsyncSocketFlowInstance:
         self.client = client
         self.flow_id = flow_id
 
-    async def agent(self, question: str, user: str, state: Optional[Dict[str, Any]] = None,
+    async def agent(self, question: str, state: Optional[Dict[str, Any]] = None,
                     group: Optional[str] = None, history: Optional[list] = None,
                     streaming: bool = False, **kwargs) -> Union[Dict[str, Any], AsyncIterator]:
         """Agent with optional streaming"""
         request = {
             "question": question,
-            "user": user,
             "streaming": streaming
         }
         if state is not None:
@@ -269,7 +279,11 @@ class AsyncSocketFlowInstance:
             return await self.client._send_request("agent", self.flow_id, request)
 
     async def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs):
-        """Text completion with optional streaming"""
+        """Text completion with optional streaming.
+
+        Non-streaming: returns a TextCompletionResult with text and token counts.
+        Streaming: returns an async iterator of RAGChunk (with token counts on the final chunk).
+        """
         request = {
             "system": system,
             "prompt": prompt,
@@ -281,21 +295,25 @@ class AsyncSocketFlowInstance:
             return self._text_completion_streaming(request)
         else:
             result = await self.client._send_request("text-completion", self.flow_id, request)
-            return result.get("response", "")
+            return TextCompletionResult(
+                text=result.get("response", ""),
+                in_token=result.get("in_token"),
+                out_token=result.get("out_token"),
+                model=result.get("model"),
+            )
 
     async def _text_completion_streaming(self, request):
-        """Helper for streaming text completion"""
+        """Helper for streaming text completion. Yields RAGChunk objects."""
         async for chunk in self.client._send_request_streaming("text-completion", self.flow_id, request):
-            if hasattr(chunk, 'content'):
-                yield chunk.content
+            if isinstance(chunk, RAGChunk):
+                yield chunk
 
-    async def graph_rag(self, query: str, user: str, collection: str,
+    async def graph_rag(self, query: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
                         max_entity_distance: int = 3, streaming: bool = False, **kwargs):
         """Graph RAG with optional streaming"""
         request = {
             "query": query,
-            "user": user,
             "collection": collection,
             "max-subgraph-size": max_subgraph_size,
             "max-subgraph-count": max_subgraph_count,
@@ -316,12 +334,11 @@ class AsyncSocketFlowInstance:
             if hasattr(chunk, 'content'):
                 yield chunk.content
 
-    async def document_rag(self, query: str, user: str, collection: str,
+    async def document_rag(self, query: str, collection: str,
                            doc_limit: int = 10, streaming: bool = False, **kwargs):
         """Document RAG with optional streaming"""
         request = {
             "query": query,
-            "user": user,
             "collection": collection,
             "doc-limit": doc_limit,
             "streaming": streaming
@@ -361,14 +378,13 @@ class AsyncSocketFlowInstance:
             if hasattr(chunk, 'content'):
                 yield chunk.content
 
-    async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
+    async def graph_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs):
         """Query graph embeddings for semantic search"""
         emb_result = await self.embeddings(texts=[text])
         vector = emb_result.get("vectors", [[]])[0]
 
         request = {
             "vector": vector,
-            "user": user,
             "collection": collection,
             "limit": limit
         }
@@ -383,7 +399,7 @@ class AsyncSocketFlowInstance:
 
         return await self.client._send_request("embeddings", self.flow_id, request)
 
-    async def triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs):
+    async def triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs):
         """Triple pattern query"""
         request = {"limit": limit}
         if s is not None:
@@ -392,20 +408,17 @@ class AsyncSocketFlowInstance:
             request["p"] = str(p)
         if o is not None:
             request["o"] = str(o)
-        if user is not None:
-            request["user"] = user
         if collection is not None:
             request["collection"] = collection
         request.update(kwargs)
 
         return await self.client._send_request("triples", self.flow_id, request)
 
-    async def rows_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
+    async def rows_query(self, query: str, collection: str, variables: Optional[Dict] = None,
                          operation_name: Optional[str] = None, **kwargs):
         """GraphQL query against structured rows"""
         request = {
             "query": query,
-            "user": user,
             "collection": collection
         }
         if variables:
@@ -427,7 +440,7 @@ class AsyncSocketFlowInstance:
         return await self.client._send_request("mcp-tool", self.flow_id, request)
 
     async def row_embeddings_query(
-        self, text: str, schema_name: str, user: str = "trustgraph",
+        self, text: str, schema_name: str,
         collection: str = "default", index_name: Optional[str] = None,
         limit: int = 10, **kwargs
     ):
@@ -438,7 +451,6 @@ class AsyncSocketFlowInstance:
         request = {
             "vector": vector,
             "schema_name": schema_name,
-            "user": user,
             "collection": collection,
             "limit": limit
         }

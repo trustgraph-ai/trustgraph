@@ -65,7 +65,7 @@ class Processor(DocumentEmbeddingsQueryService):
         """Check if collection exists (no implicit creation)"""
         return self.qdrant.collection_exists(collection)
 
-    async def query_document_embeddings(self, msg):
+    async def query_document_embeddings(self, workspace, msg):
 
         try:
 
@@ -75,7 +75,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
             # Use dimension suffix in collection name
             dim = len(vec)
-            collection = f"d_{msg.user}_{msg.collection}_{dim}"
+            collection = f"d_{workspace}_{msg.collection}_{dim}"
 
             # Check if collection exists - return empty if not
             if not self.collection_exists(collection):

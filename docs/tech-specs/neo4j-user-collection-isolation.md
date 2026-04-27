@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Neo4j User/Collection Isolation Support"
+parent: "Tech Specs"
+---
+
 # Neo4j User/Collection Isolation Support
 
 ## Problem Statement

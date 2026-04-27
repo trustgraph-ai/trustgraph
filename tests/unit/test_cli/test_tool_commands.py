@@ -145,7 +145,8 @@ class TestSetToolStructuredQuery:
                 group=None,
                 state=None,
                 applicable_states=None,
-                token=None
+                token=None,
+                workspace='default'
             )
 
     def test_set_main_structured_query_no_arguments_needed(self):
@@ -326,7 +327,8 @@ class TestSetToolRowEmbeddingsQuery:
                 group=None,
                 state=None,
                 applicable_states=None,
-                token=None
+                token=None,
+                workspace='default'
             )
 
     def test_valid_types_includes_row_embeddings_query(self):
@@ -471,7 +473,7 @@ class TestShowToolsStructuredQuery:
             
             show_main()
             
-            mock_show.assert_called_once_with(url='http://custom.com', token=None)
+            mock_show.assert_called_once_with(url='http://custom.com', token=None, workspace='default')
 
 
 class TestShowToolsRowEmbeddingsQuery:

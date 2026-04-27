@@ -9,7 +9,7 @@ class CollectionManagementRequestTranslator(MessageTranslator):
     def decode(self, data: Dict[str, Any]) -> CollectionManagementRequest:
         return CollectionManagementRequest(
             operation=data.get("operation"),
-            user=data.get("user"),
+            workspace=data.get("workspace", ""),
             collection=data.get("collection"),
             timestamp=data.get("timestamp"),
             name=data.get("name"),
@@ -24,8 +24,8 @@ class CollectionManagementRequestTranslator(MessageTranslator):
 
         if obj.operation is not None:
             result["operation"] = obj.operation
-        if obj.user is not None:
-            result["user"] = obj.user
+        if obj.workspace:
+            result["workspace"] = obj.workspace
         if obj.collection is not None:
             result["collection"] = obj.collection
         if obj.timestamp is not None:
@@ -63,7 +63,6 @@ class CollectionManagementResponseTranslator(MessageTranslator):
         if "collections" in data:
             for coll_data in data["collections"]:
                 collections.append(CollectionMetadata(
-                    user=coll_data.get("user"),
                     collection=coll_data.get("collection"),
                     name=coll_data.get("name"),
                     description=coll_data.get("description"),
@@ -91,7 +90,6 @@ class CollectionManagementResponseTranslator(MessageTranslator):
             result["collections"] = []
             for coll in obj.collections:
                 result["collections"].append({
-                    "user": coll.user,
                     "collection": coll.collection,
                     "name": coll.name,
                     "description": coll.description,

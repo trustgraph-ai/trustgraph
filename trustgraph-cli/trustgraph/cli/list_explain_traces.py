@@ -18,7 +18,7 @@ from trustgraph.api import Api, ExplainabilityClient
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = 'trustgraph'
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 
 # Retrieval graph
@@ -86,9 +86,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})',
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -120,7 +120,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        api = Api(args.api_url, token=args.token)
+        api = Api(args.api_url, token=args.token, workspace=args.workspace)
         socket = api.socket()
         flow = socket.flow(args.flow_id)
         explain_client = ExplainabilityClient(flow)
@@ -129,7 +129,6 @@ def main():
             # List all sessions — uses persistent websocket via SocketClient
             questions = explain_client.list_sessions(
                 graph=RETRIEVAL_GRAPH,
-                user=args.user,
                 collection=args.collection,
                 limit=args.limit,
             )
@@ -141,7 +140,6 @@ def main():
                 session_type = explain_client.detect_session_type(
                     q.uri,
                     graph=RETRIEVAL_GRAPH,
-                    user=args.user,
                     collection=args.collection
                 )
 

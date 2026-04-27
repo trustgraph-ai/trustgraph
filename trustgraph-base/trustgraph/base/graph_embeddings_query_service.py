@@ -1,8 +1,11 @@
-
 """
 Graph embeddings query service.  Input is vectors.  Output is list of
 embeddings.
 """
+
+from __future__ import annotations
+
+from argparse import ArgumentParser
 
 import logging
 
@@ -57,7 +60,9 @@ class GraphEmbeddingsQueryService(FlowProcessor):
 
             logger.debug(f"Handling graph embeddings query request {id}...")
 
-            entities = await self.query_graph_embeddings(request)
+            entities = await self.query_graph_embeddings(
+                flow.workspace, request,
+            )
 
             logger.debug("Sending graph embeddings query response...")
             r = GraphEmbeddingsResponse(entities=entities, error=None)
@@ -82,7 +87,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             await flow("response").send(r, properties={"id": id})
 
     @staticmethod
-    def add_args(parser):
+    def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
 
@@ -93,7 +98,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
-def run():
+def run() -> None:
 
     Processor.launch(default_ident, __doc__)
 

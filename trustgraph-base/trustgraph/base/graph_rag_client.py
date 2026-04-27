@@ -3,7 +3,7 @@ from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import GraphRagQuery, GraphRagResponse
 
 class GraphRagClient(RequestResponse):
-    async def rag(self, query, user="trustgraph", collection="default",
+    async def rag(self, query, collection="default",
                   chunk_callback=None, explain_callback=None,
                   parent_uri="",
                   timeout=600):
@@ -12,7 +12,6 @@ class GraphRagClient(RequestResponse):
 
         Args:
             query: The question to ask
-            user: User identifier
             collection: Collection identifier
             chunk_callback: Optional async callback(text, end_of_stream) for text chunks
             explain_callback: Optional async callback(explain_id, explain_graph, explain_triples) for explain notifications
@@ -49,7 +48,6 @@ class GraphRagClient(RequestResponse):
         await self.request(
             GraphRagQuery(
                 query = query,
-                user = user,
                 collection = collection,
                 parent_uri = parent_uri,
             ),

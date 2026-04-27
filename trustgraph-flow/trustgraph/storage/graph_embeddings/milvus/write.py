@@ -47,7 +47,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-    async def store_graph_embeddings(self, message):
+    async def store_graph_embeddings(self, workspace, message):
 
         for entity in message.entities:
             entity_value = get_term_value(entity.entity)
@@ -57,7 +57,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                 if vec:
                     self.vecstore.insert(
                         vec, entity_value,
-                        message.metadata.user,
+                        workspace,
                         message.metadata.collection,
                         chunk_id=entity.chunk_id or "",
                     )
@@ -73,27 +73,27 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             help=f'Milvus store URI (default: {default_store_uri})'
         )
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
+    async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """
         Create collection via config push - collections are created lazily on first write
         with the correct dimension determined from the actual embeddings.
         """
         try:
-            logger.info(f"Collection create request for {user}/{collection} - will be created lazily on first write")
-            self.vecstore.create_collection(user, collection)
+            logger.info(f"Collection create request for {workspace}/{collection} - will be created lazily on first write")
+            self.vecstore.create_collection(workspace, collection)
 
         except Exception as e:
-            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to create collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
-    async def delete_collection(self, user: str, collection: str):
+    async def delete_collection(self, workspace: str, collection: str):
         """Delete the collection for graph embeddings via config push"""
         try:
-            self.vecstore.delete_collection(user, collection)
-            logger.info(f"Successfully deleted collection {user}/{collection}")
+            self.vecstore.delete_collection(workspace, collection)
+            logger.info(f"Successfully deleted collection {workspace}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
+            logger.error(f"Failed to delete collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
 def run():

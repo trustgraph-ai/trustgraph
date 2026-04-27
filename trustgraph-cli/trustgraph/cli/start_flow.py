@@ -18,10 +18,12 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def start_flow(url, blueprint_name, flow_id, description, parameters=None, token=None):
+def start_flow(url, blueprint_name, flow_id, description, parameters=None,
+               token=None, workspace="default"):
 
-    api = Api(url, token=token).flow()
+    api = Api(url, token=token, workspace=workspace).flow()
 
     api.start(
         blueprint_name = blueprint_name,
@@ -47,6 +49,12 @@ def main():
         '-t', '--token',
         default=default_token,
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -120,6 +128,7 @@ def main():
             description = args.description,
             parameters = parameters,
             token = args.token,
+            workspace = args.workspace,
         )
 
     except Exception as e:

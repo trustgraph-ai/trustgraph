@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag, Query
+from trustgraph.base import PromptResult
 
 
 # Sample chunk content mapping for tests
@@ -91,14 +92,13 @@ class TestQuery:
         # Initialize Query with defaults
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
 
         # Verify initialization
         assert query.rag == mock_rag
-        assert query.user == "test_user"
         assert query.collection == "test_collection"
         assert query.verbose is False
         assert query.doc_limit == 20  # Default value
@@ -111,7 +111,7 @@ class TestQuery:
         # Initialize Query with custom doc_limit
         query = Query(
             rag=mock_rag,
-            user="custom_user",
+            workspace="test_workspace",
             collection="custom_collection",
             verbose=True,
             doc_limit=50
@@ -119,7 +119,6 @@ class TestQuery:
 
         # Verify initialization
         assert query.rag == mock_rag
-        assert query.user == "custom_user"
         assert query.collection == "custom_collection"
         assert query.verbose is True
         assert query.doc_limit == 50
@@ -132,11 +131,11 @@ class TestQuery:
         mock_rag.prompt_client = mock_prompt_client
 
         # Mock the prompt response with concept lines
-        mock_prompt_client.prompt.return_value = "machine learning\nartificial intelligence\ndata patterns"
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="machine learning\nartificial intelligence\ndata patterns")
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -157,11 +156,11 @@ class TestQuery:
         mock_rag.prompt_client = mock_prompt_client
 
         # Mock empty response
-        mock_prompt_client.prompt.return_value = ""
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="")
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -183,7 +182,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -222,7 +221,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False,
             doc_limit=15
@@ -239,7 +238,6 @@ class TestQuery:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[0.1, 0.2, 0.3],
             limit=15,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -258,7 +256,7 @@ class TestQuery:
         mock_doc_embeddings_client = AsyncMock()
 
         # Mock concept extraction
-        mock_prompt_client.prompt.return_value = "test concept"
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="test concept")
 
         # Mock embeddings - one vector per concept
         test_vectors = [[0.1, 0.2, 0.3]]
@@ -273,7 +271,7 @@ class TestQuery:
         expected_response = "This is the document RAG response"
 
         mock_doc_embeddings_client.query.return_value = [mock_match1, mock_match2]
-        mock_prompt_client.document_prompt.return_value = expected_response
+        mock_prompt_client.document_prompt.return_value = PromptResult(response_type="text", text=expected_response)
 
         document_rag = DocumentRag(
             prompt_client=mock_prompt_client,
@@ -285,7 +283,6 @@ class TestQuery:
 
         result = await document_rag.query(
             query="test query",
-            user="test_user",
             collection="test_collection",
             doc_limit=10
         )
@@ -303,7 +300,6 @@ class TestQuery:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[0.1, 0.2, 0.3],
             limit=10,
-            user="test_user",
             collection="test_collection"
         )
 
@@ -315,7 +311,8 @@ class TestQuery:
         assert "Relevant document content" in docs
         assert "Another document" in docs
 
-        assert result == expected_response
+        result_text, usage = result
+        assert result_text == expected_response
 
     @pytest.mark.asyncio
     async def test_document_rag_query_with_defaults(self, mock_fetch_chunk):
@@ -325,7 +322,7 @@ class TestQuery:
         mock_doc_embeddings_client = AsyncMock()
 
         # Mock concept extraction fallback (empty → raw query)
-        mock_prompt_client.prompt.return_value = ""
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="")
 
         # Mock responses
         mock_embeddings_client.embed.return_value = [[[0.1, 0.2]]]
@@ -333,7 +330,7 @@ class TestQuery:
         mock_match.chunk_id = "doc/c5"
         mock_match.score = 0.9
         mock_doc_embeddings_client.query.return_value = [mock_match]
-        mock_prompt_client.document_prompt.return_value = "Default response"
+        mock_prompt_client.document_prompt.return_value = PromptResult(response_type="text", text="Default response")
 
         document_rag = DocumentRag(
             prompt_client=mock_prompt_client,
@@ -348,11 +345,11 @@ class TestQuery:
         mock_doc_embeddings_client.query.assert_called_once_with(
             vector=[[0.1, 0.2]],
             limit=20,  # Default doc_limit
-            user="trustgraph",  # Default user
             collection="default"  # Default collection
         )
 
-        assert result == "Default response"
+        result_text, usage = result
+        assert result_text == "Default response"
 
     @pytest.mark.asyncio
     async def test_get_docs_with_verbose_output(self):
@@ -377,7 +374,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=True,
             doc_limit=5
@@ -401,7 +398,7 @@ class TestQuery:
         mock_doc_embeddings_client = AsyncMock()
 
         # Mock concept extraction
-        mock_prompt_client.prompt.return_value = "verbose query test"
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="verbose query test")
 
         # Mock responses
         mock_embeddings_client.embed.return_value = [[[0.3, 0.4]]]
@@ -409,7 +406,7 @@ class TestQuery:
         mock_match.chunk_id = "doc/c7"
         mock_match.score = 0.92
         mock_doc_embeddings_client.query.return_value = [mock_match]
-        mock_prompt_client.document_prompt.return_value = "Verbose RAG response"
+        mock_prompt_client.document_prompt.return_value = PromptResult(response_type="text", text="Verbose RAG response")
 
         document_rag = DocumentRag(
             prompt_client=mock_prompt_client,
@@ -428,7 +425,8 @@ class TestQuery:
         assert call_args.kwargs["query"] == "verbose query test"
         assert "Verbose doc content" in call_args.kwargs["documents"]
 
-        assert result == "Verbose RAG response"
+        result_text, usage = result
+        assert result_text == "Verbose RAG response"
 
     @pytest.mark.asyncio
     async def test_get_docs_with_empty_results(self):
@@ -449,7 +447,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False
         )
@@ -469,11 +467,11 @@ class TestQuery:
         mock_doc_embeddings_client = AsyncMock()
 
         # Mock concept extraction
-        mock_prompt_client.prompt.return_value = "query with no matching docs"
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="query with no matching docs")
 
         mock_embeddings_client.embed.return_value = [[[0.5, 0.6]]]
         mock_doc_embeddings_client.query.return_value = []
-        mock_prompt_client.document_prompt.return_value = "No documents found response"
+        mock_prompt_client.document_prompt.return_value = PromptResult(response_type="text", text="No documents found response")
 
         document_rag = DocumentRag(
             prompt_client=mock_prompt_client,
@@ -490,7 +488,8 @@ class TestQuery:
             documents=[]
         )
 
-        assert result == "No documents found response"
+        result_text, usage = result
+        assert result_text == "No documents found response"
 
     @pytest.mark.asyncio
     async def test_get_vectors_with_verbose(self):
@@ -504,7 +503,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=True
         )
@@ -525,7 +524,7 @@ class TestQuery:
         final_response = "Machine learning is a field of AI that enables computers to learn and improve from experience without being explicitly programmed."
 
         # Mock concept extraction
-        mock_prompt_client.prompt.return_value = "machine learning\nartificial intelligence"
+        mock_prompt_client.prompt.return_value = PromptResult(response_type="text", text="machine learning\nartificial intelligence")
 
         # Mock embeddings - one vector per concept
         query_vectors = [[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]]
@@ -541,7 +540,7 @@ class TestQuery:
             MagicMock(chunk_id="doc/ml3", score=0.82),
         ]
         mock_doc_embeddings_client.query.side_effect = [mock_matches_1, mock_matches_2]
-        mock_prompt_client.document_prompt.return_value = final_response
+        mock_prompt_client.document_prompt.return_value = PromptResult(response_type="text", text=final_response)
 
         document_rag = DocumentRag(
             prompt_client=mock_prompt_client,
@@ -553,7 +552,6 @@ class TestQuery:
 
         result = await document_rag.query(
             query=query_text,
-            user="research_user",
             collection="ml_knowledge",
             doc_limit=25
         )
@@ -584,7 +582,8 @@ class TestQuery:
         assert "Common ML techniques include supervised and unsupervised learning..." in docs
         assert len(docs) == 3  # doc/ml2 deduplicated
 
-        assert result == final_response
+        result_text, usage = result
+        assert result_text == final_response
 
     @pytest.mark.asyncio
     async def test_get_docs_deduplicates_across_concepts(self):
@@ -613,7 +612,7 @@ class TestQuery:
 
         query = Query(
             rag=mock_rag,
-            user="test_user",
+            workspace="test_workspace",
             collection="test_collection",
             verbose=False,
             doc_limit=10

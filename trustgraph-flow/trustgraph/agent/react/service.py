@@ -10,7 +10,8 @@ import sys
 import functools
 import logging
 import uuid
-from datetime import datetime
+from typing import Dict
+from datetime import datetime, timezone
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -73,10 +74,8 @@ class Processor(AgentService):
             }
         )
 
-        self.agent = AgentManager(
-            tools={},
-            additional_context="",
-        )
+        # Per-workspace agent managers
+        self.agents: Dict[str, AgentManager] = {}
 
         # Track active tool service clients for cleanup
         self.tool_service_clients = {}
@@ -193,13 +192,13 @@ class Processor(AgentService):
             future = self.pending_librarian_requests.pop(request_id)
             future.set_result(response)
 
-    async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
+    async def save_answer_content(self, doc_id, workspace, content, title=None, timeout=120):
         """
         Save answer content to the librarian.
 
         Args:
             doc_id: ID for the answer document
-            user: User ID
+            workspace: Workspace for isolation
             content: Answer text content
             title: Optional title
             timeout: Request timeout in seconds
@@ -211,7 +210,7 @@ class Processor(AgentService):
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            user=user,
+            workspace=workspace,
             kind="text/plain",
             title=title or "Agent Answer",
             document_type="answer",
@@ -222,7 +221,7 @@ class Processor(AgentService):
             document_id=doc_id,
             document_metadata=doc_metadata,
             content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            user=user,
+            workspace=workspace,
         )
 
         # Create future for response
@@ -249,9 +248,12 @@ class Processor(AgentService):
             self.pending_librarian_requests.pop(request_id, None)
             raise RuntimeError(f"Timeout saving answer document {doc_id}")
 
-    async def on_tools_config(self, config, version):
+    async def on_tools_config(self, workspace, config, version):
 
-        logger.info(f"Loading configuration version {version}")
+        logger.info(
+            f"Loading configuration version {version} "
+            f"for workspace {workspace}"
+        )
 
         try:
 
@@ -321,7 +323,6 @@ class Processor(AgentService):
                         impl = functools.partial(
                             StructuredQueryImpl,
                             collection=data.get("collection"),
-                            user=None  # User will be provided dynamically via context
                         )
                         arguments = StructuredQueryImpl.get_arguments()
                     elif impl_id == "row-embeddings-query":
@@ -329,7 +330,6 @@ class Processor(AgentService):
                             RowEmbeddingsQueryImpl,
                             schema_name=data.get("schema-name"),
                             collection=data.get("collection"),
-                            user=None,  # User will be provided dynamically via context
                             index_name=data.get("index-name"),  # Optional filter
                             limit=int(data.get("limit", 10))  # Max results
                         )
@@ -409,13 +409,17 @@ class Processor(AgentService):
                 agent_config = config[self.config_key]
                 additional = agent_config.get("additional-context", None)
             
-            self.agent = AgentManager(
+            self.agents[workspace] = AgentManager(
                 tools=tools,
                 additional_context=additional
             )
 
-            logger.info(f"Loaded {len(tools)} tools")
-            logger.info("Tool configuration reloaded.")
+            logger.info(
+                f"Loaded {len(tools)} tools for workspace {workspace}"
+            )
+            logger.info(
+                f"Tool configuration reloaded for workspace {workspace}."
+            )
 
         except Exception as e:
 
@@ -452,7 +456,7 @@ class Processor(AgentService):
 
             # On first iteration, emit session triples
             if iteration_num == 1:
-                timestamp = datetime.utcnow().isoformat() + "Z"
+                timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
                 triples = set_graph(
                     agent_session_triples(session_uri, request.question, timestamp),
                     GRAPH_RETRIEVAL
@@ -460,7 +464,6 @@ class Processor(AgentService):
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=session_uri,
-                        user=request.user,
                         collection=collection,
                     ),
                     triples=triples,
@@ -469,7 +472,7 @@ class Processor(AgentService):
 
                 # Send explain event for session
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=session_uri,
                     explain_graph=GRAPH_RETRIEVAL,
@@ -492,7 +495,7 @@ class Processor(AgentService):
 
                 if streaming:
                     r = AgentResponse(
-                        chunk_type="thought",
+                        message_type="thought",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
@@ -500,7 +503,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="thought",
+                        message_type="thought",
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
@@ -515,7 +518,7 @@ class Processor(AgentService):
 
                 if streaming:
                     r = AgentResponse(
-                        chunk_type="observation",
+                        message_type="observation",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
@@ -523,7 +526,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="observation",
+                        message_type="observation",
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
@@ -540,7 +543,7 @@ class Processor(AgentService):
 
                 if streaming:
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=x,
                         end_of_message=False,
                         end_of_dialog=False,
@@ -548,7 +551,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
@@ -557,35 +560,41 @@ class Processor(AgentService):
 
                 await respond(r)
 
+            # Look up the agent for this workspace
+            workspace = flow.workspace
+            agent = self.agents.get(workspace)
+            if agent is None:
+                logger.error(
+                    f"No agent configuration loaded for workspace "
+                    f"{workspace}"
+                )
+                raise RuntimeError(
+                    f"No agent configuration for workspace {workspace}"
+                )
+
             # Apply tool filtering based on request groups and state
             filtered_tools = filter_tools_by_group_and_state(
-                tools=self.agent.tools,
+                tools=agent.tools,
                 requested_groups=getattr(request, 'group', None),
                 current_state=getattr(request, 'state', None)
             )
-            
+
             # Create temporary agent with filtered tools
             temp_agent = AgentManager(
                 tools=filtered_tools,
-                additional_context=self.agent.additional_context
+                additional_context=agent.additional_context
             )
             
             logger.debug("Call React")
 
-            # Create user-aware context wrapper that preserves the flow interface
-            # but adds user information for tools that need it
-            class UserAwareContext:
-                def __init__(self, flow, user):
+            # Thin wrapper around flow — carries only explain URI state.
+            class _Context:
+                def __init__(self, flow):
                     self._flow = flow
-                    self._user = user
                     self.last_sub_explain_uri = None
 
                 def __call__(self, service_name):
-                    client = self._flow(service_name)
-                    # For query clients that need user context, store it
-                    if service_name in ("structured-query-request", "row-embeddings-query-request"):
-                        client._current_user = self._user
-                    return client
+                    return self._flow(service_name)
 
             # Callback: emit Analysis+ToolUse triples before tool executes
             async def on_action(act_decision):
@@ -604,7 +613,7 @@ class Processor(AgentService):
                     try:
                         await self.save_answer_content(
                             doc_id=t_doc_id,
-                            user=request.user,
+                            workspace=flow.workspace,
                             content=act_decision.thought,
                             title=f"Agent Thought: {act_decision.name}",
                         )
@@ -629,7 +638,6 @@ class Processor(AgentService):
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=iter_uri,
-                        user=request.user,
                         collection=collection,
                     ),
                     triples=iter_triples,
@@ -637,14 +645,14 @@ class Processor(AgentService):
                 logger.debug(f"Emitted iteration triples for {iter_uri}")
 
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=iter_uri,
                     explain_graph=GRAPH_RETRIEVAL,
                     explain_triples=iter_triples,
                 ))
 
-            user_context = UserAwareContext(flow, request.user)
+            user_context = _Context(flow)
 
             act = await temp_agent.react(
                 question = request.question,
@@ -685,7 +693,7 @@ class Processor(AgentService):
                     try:
                         await self.save_answer_content(
                             doc_id=answer_doc_id,
-                            user=request.user,
+                            workspace=flow.workspace,
                             content=f,
                             title=f"Agent Answer: {request.question[:50]}...",
                         )
@@ -706,7 +714,6 @@ class Processor(AgentService):
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=final_uri,
-                        user=request.user,
                         collection=collection,
                     ),
                     triples=final_triples,
@@ -715,7 +722,7 @@ class Processor(AgentService):
 
                 # Send explain event for conclusion
                 await respond(AgentResponse(
-                    chunk_type="explain",
+                    message_type="explain",
                     content="",
                     explain_id=final_uri,
                     explain_graph=GRAPH_RETRIEVAL,
@@ -725,7 +732,7 @@ class Processor(AgentService):
                 if streaming:
                     # End-of-dialog marker — answer chunks already sent via callback
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content="",
                         end_of_message=True,
                         end_of_dialog=True,
@@ -733,7 +740,7 @@ class Processor(AgentService):
                     )
                 else:
                     r = AgentResponse(
-                        chunk_type="answer",
+                        message_type="answer",
                         content=f,
                         end_of_message=True,
                         end_of_dialog=True,
@@ -763,7 +770,7 @@ class Processor(AgentService):
                 try:
                     await self.save_answer_content(
                         doc_id=observation_doc_id,
-                        user=request.user,
+                        workspace=flow.workspace,
                         content=act.observation,
                         title=f"Agent Observation",
                     )
@@ -783,7 +790,6 @@ class Processor(AgentService):
             await flow("explainability").send(Triples(
                 metadata=Metadata(
                     id=observation_entity_uri,
-                    user=request.user,
                     collection=collection,
                 ),
                 triples=obs_triples,
@@ -792,7 +798,7 @@ class Processor(AgentService):
 
             # Send explain event for observation
             await respond(AgentResponse(
-                chunk_type="explain",
+                message_type="explain",
                 content="",
                 explain_id=observation_entity_uri,
                 explain_graph=GRAPH_RETRIEVAL,
@@ -820,7 +826,6 @@ class Processor(AgentService):
                     )
                     for h in history
                 ],
-                user=request.user,
                 collection=collection,
                 streaming=streaming,
                 session_id=session_id,  # Pass session_id for provenance continuity
@@ -847,7 +852,7 @@ class Processor(AgentService):
             streaming = getattr(request, 'streaming', False) if 'request' in locals() else False
 
             r = AgentResponse(
-                chunk_type="error",
+                message_type="error",
                 content=str(e),
                 end_of_message=True,
                 end_of_dialog=True,

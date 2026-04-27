@@ -7,12 +7,19 @@ from ..core.primitives import Error
 ############################################################################
 
 # Config service:
-#   get(keys) -> (version, values)
-#   list(type) -> (version, values)
-#   getvalues(type) -> (version, values)
-#   put(values) -> ()
-#   delete(keys) -> ()
-#   config() -> (version, config)
+#   get(workspace, keys) -> (version, values)
+#   list(workspace, type) -> (version, directory)
+#   getvalues(workspace, type) -> (version, values)
+#   getvalues-all-ws(type) -> (version, values with workspace field)
+#   put(workspace, values) -> ()
+#   delete(workspace, keys) -> ()
+#   config(workspace) -> (version, config)
+#
+# Most operations are scoped to a workspace. The workspace field on the
+# request identifies which workspace's config to read or modify.
+# getvalues-all-ws returns values across all workspaces for a single
+# type — used by shared processors to load type-scoped config at startup.
+
 @dataclass
 class ConfigKey:
     type: str = ""
@@ -23,16 +30,24 @@ class ConfigValue:
     type: str = ""
     key: str = ""
     value: str = ""
+    # Populated by getvalues-all-ws responses so callers can identify
+    # which workspace each value belongs to. Empty otherwise.
+    workspace: str = ""
 
-# Prompt services, abstract the prompt generation
 @dataclass
 class ConfigRequest:
-    operation: str = ""  # get, list, getvalues, delete, put, config
+    # Operations: get, list, getvalues, getvalues-all-ws, delete, put,
+    # config
+    operation: str = ""
+
+    # Workspace scope — required on all operations except
+    # getvalues-all-ws which spans all workspaces.
+    workspace: str = ""
 
     # get, delete
     keys: list[ConfigKey] = field(default_factory=list)
 
-    # list, getvalues
+    # list, getvalues, getvalues-all-ws
     type: str = ""
 
     # put
@@ -58,7 +73,12 @@ class ConfigResponse:
 @dataclass
 class ConfigPush:
     version: int = 0
-    types: list[str] = field(default_factory=list)
+
+    # Dict of config type -> list of affected workspaces.
+    # Handlers look up their registered type and get the list of
+    # workspaces that need refreshing.
+    # e.g. {"prompt": ["workspace-a", "workspace-b"], "schema": ["workspace-a"]}
+    changes: dict[str, list[str]] = field(default_factory=dict)
 
 config_request_queue = queue('config', cls='request')
 config_response_queue = queue('config', cls='response')

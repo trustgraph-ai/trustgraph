@@ -21,7 +21,6 @@ class MockProcessor:
 def _make_request(**kwargs):
     defaults = dict(
         question="Test question",
-        user="testuser",
         collection="default",
     )
     defaults.update(kwargs)

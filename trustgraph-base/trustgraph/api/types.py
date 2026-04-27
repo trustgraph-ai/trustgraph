@@ -45,10 +45,13 @@ class ConfigValue:
         type: Configuration type/category
         key: Specific configuration key
         value: Configuration value as string
+        workspace: Workspace the value belongs to. Only populated for
+            responses to getvalues-all-ws; empty otherwise.
     """
     type : str
     key : str
     value : str
+    workspace : str = ""
 
 @dataclasses.dataclass
 class DocumentMetadata:
@@ -62,7 +65,7 @@ class DocumentMetadata:
         title: Document title
         comments: Additional comments or description
         metadata: List of RDF triples providing structured metadata
-        user: User/owner identifier
+        workspace: Workspace the document belongs to
         tags: List of tags for categorization
         parent_id: Parent document ID for child documents (empty for top-level docs)
         document_type: "source" for uploaded documents, "extracted" for derived content
@@ -73,7 +76,7 @@ class DocumentMetadata:
     title : str
     comments : str
     metadata : List[Triple]
-    user : str
+    workspace : str
     tags : List[str]
     parent_id : str = ""
     document_type : str = "source"
@@ -88,7 +91,7 @@ class ProcessingMetadata:
         document_id: ID of the document being processed
         time: Processing start timestamp
         flow: Flow instance handling the processing
-        user: User identifier
+        workspace: Workspace the processing job belongs to
         collection: Target collection for processed data
         tags: List of tags for categorization
     """
@@ -96,7 +99,7 @@ class ProcessingMetadata:
     document_id : str
     time : datetime.datetime
     flow : str
-    user : str
+    workspace : str
     collection : str
     tags : List[str]
 
@@ -105,17 +108,15 @@ class CollectionMetadata:
     """
     Metadata for a data collection.
 
-    Collections provide logical grouping and isolation for documents and
-    knowledge graph data.
+    Collections provide logical grouping within a workspace for documents
+    and knowledge graph data.
 
     Attributes:
-        user: User/owner identifier
         collection: Collection identifier
         name: Human-readable collection name
         description: Collection description
         tags: List of tags for categorization
     """
-    user : str
     collection : str
     name : str
     description : str
@@ -149,10 +150,10 @@ class AgentThought(StreamingChunk):
     Attributes:
         content: Agent's thought text
         end_of_message: True if this completes the current thought
-        chunk_type: Always "thought"
+        message_type: Always "thought"
         message_id: Provenance URI of the entity being built
     """
-    chunk_type: str = "thought"
+    message_type: str = "thought"
     message_id: str = ""
 
 @dataclasses.dataclass
@@ -166,10 +167,10 @@ class AgentObservation(StreamingChunk):
     Attributes:
         content: Observation text describing tool results
         end_of_message: True if this completes the current observation
-        chunk_type: Always "observation"
+        message_type: Always "observation"
         message_id: Provenance URI of the entity being built
     """
-    chunk_type: str = "observation"
+    message_type: str = "observation"
     message_id: str = ""
 
 @dataclasses.dataclass
@@ -184,11 +185,14 @@ class AgentAnswer(StreamingChunk):
         content: Answer text
         end_of_message: True if this completes the current answer segment
         end_of_dialog: True if this completes the entire agent interaction
-        chunk_type: Always "final-answer"
+        message_type: Always "final-answer"
     """
-    chunk_type: str = "final-answer"
+    message_type: str = "final-answer"
     end_of_dialog: bool = False
     message_id: str = ""
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 @dataclasses.dataclass
 class RAGChunk(StreamingChunk):
@@ -202,11 +206,37 @@ class RAGChunk(StreamingChunk):
         content: Generated text content
         end_of_stream: True if this is the final chunk of the stream
         error: Optional error information if an error occurred
-        chunk_type: Always "rag"
+        in_token: Input token count (populated on the final chunk, 0 otherwise)
+        out_token: Output token count (populated on the final chunk, 0 otherwise)
+        model: Model identifier (populated on the final chunk, empty otherwise)
+        message_type: Always "rag"
     """
-    chunk_type: str = "rag"
+    message_type: str = "rag"
     end_of_stream: bool = False
     error: Optional[Dict[str, str]] = None
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
+
+@dataclasses.dataclass
+class TextCompletionResult:
+    """
+    Result from a text completion request.
+
+    Returned by text_completion() in both streaming and non-streaming modes.
+    In streaming mode, text is None (chunks are delivered via the iterator).
+    In non-streaming mode, text contains the complete response.
+
+    Attributes:
+        text: Complete response text (None in streaming mode)
+        in_token: Input token count (None if not available)
+        out_token: Output token count (None if not available)
+        model: Model identifier (None if not available)
+    """
+    text: Optional[str]
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
 @dataclasses.dataclass
 class ProvenanceEvent:

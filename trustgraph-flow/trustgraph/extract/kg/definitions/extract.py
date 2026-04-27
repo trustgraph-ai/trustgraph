@@ -117,10 +117,11 @@ class Processor(FlowProcessor):
 
             try:
 
-                defs = await flow("prompt-request").extract_definitions(
+                result = await flow("prompt-request").extract_definitions(
                     text = chunk
                 )
 
+                defs = result.objects
                 logger.debug(f"Definitions response: {defs}")
 
                 if type(defs) != list:
@@ -212,7 +213,6 @@ class Processor(FlowProcessor):
                     Metadata(
                         id=v.metadata.id,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     batch
@@ -226,7 +226,6 @@ class Processor(FlowProcessor):
                     Metadata(
                         id=v.metadata.id,
                         root=v.metadata.root,
-                        user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
                     batch

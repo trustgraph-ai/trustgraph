@@ -5,21 +5,17 @@ procesing, it doesn't stop in-flight processing at the moment.
 
 import argparse
 import os
-import tabulate
-from trustgraph.api import Api, ConfigKey
-import json
+from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
-default_user = "trustgraph"
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def stop_processing(
-        url, user, id, token=None
-):
+def stop_processing(url, id, token=None, workspace="default"):
 
-    api = Api(url, token=token).library()
+    api = Api(url, token=token, workspace=workspace).library()
 
-    api.stop_processing(user = user, id = id)
+    api.stop_processing(id=id)
 
 def main():
 
@@ -41,9 +37,9 @@ def main():
     )
 
     parser.add_argument(
-        '-U', '--user',
-        default=default_user,
-        help=f'User ID (default: {default_user})'
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
     )
 
     parser.add_argument(
@@ -57,10 +53,10 @@ def main():
     try:
 
         stop_processing(
-            url = args.api_url,
-            user = args.user,
-            id = args.id,
-            token = args.token,
+            url=args.api_url,
+            id=args.id,
+            token=args.token,
+            workspace=args.workspace,
         )
 
     except Exception as e:

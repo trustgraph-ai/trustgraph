@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Import/Export Graceful Shutdown Technical Specification"
+parent: "Tech Specs"
+---
+
 # Import/Export Graceful Shutdown Technical Specification
 
 ## Problem Statement

@@ -64,7 +64,6 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with entities and vectors
         mock_message = MagicMock()
-        mock_message.metadata.user = 'test_user'
         mock_message.metadata.collection = 'test_collection'
         
         mock_entity = MagicMock()
@@ -75,7 +74,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.entities = [mock_entity]
         
         # Act
-        await processor.store_graph_embeddings(mock_message)
+        await processor.store_graph_embeddings('test_user', mock_message)
 
         # Assert
         # Verify collection existence was checked (with dimension suffix)
@@ -118,7 +117,6 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with multiple entities
         mock_message = MagicMock()
-        mock_message.metadata.user = 'multi_user'
         mock_message.metadata.collection = 'multi_collection'
         
         mock_entity1 = MagicMock()
@@ -134,7 +132,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.entities = [mock_entity1, mock_entity2]
         
         # Act
-        await processor.store_graph_embeddings(mock_message)
+        await processor.store_graph_embeddings('multi_user', mock_message)
 
         # Assert
         # Should be called twice (once per entity)
@@ -179,7 +177,6 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Create mock message with three entities
         mock_message = MagicMock()
-        mock_message.metadata.user = 'vector_user'
         mock_message.metadata.collection = 'vector_collection'
 
         mock_entity1 = MagicMock()
@@ -200,7 +197,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.entities = [mock_entity1, mock_entity2, mock_entity3]
 
         # Act
-        await processor.store_graph_embeddings(mock_message)
+        await processor.store_graph_embeddings('vector_user', mock_message)
 
         # Assert
         # Should be called 3 times (once per entity)
@@ -238,7 +235,6 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         
         # Create mock message with empty entity value
         mock_message = MagicMock()
-        mock_message.metadata.user = 'empty_user'
         mock_message.metadata.collection = 'empty_collection'
         
         mock_entity_empty = MagicMock()
@@ -253,7 +249,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.entities = [mock_entity_empty, mock_entity_none]
         
         # Act
-        await processor.store_graph_embeddings(mock_message)
+        await processor.store_graph_embeddings('empty_user', mock_message)
 
         # Assert
         # Should not call upsert for empty entities

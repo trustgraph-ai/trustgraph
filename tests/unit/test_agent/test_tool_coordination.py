@@ -9,6 +9,7 @@ tool usage patterns.
 import pytest
 from unittest.mock import Mock, AsyncMock
 import asyncio
+import inspect
 from collections import defaultdict
 
 
@@ -133,7 +134,7 @@ class TestToolCoordinationLogic:
                             resolved_params[key] = value
                     
                     # Execute tool
-                    if asyncio.iscoroutinefunction(tool_function):
+                    if inspect.iscoroutinefunction(tool_function):
                         result = await tool_function(**resolved_params)
                     else:
                         result = tool_function(**resolved_params)
@@ -227,7 +228,7 @@ class TestToolCoordinationLogic:
                         # Simulate async execution with delay
                         await asyncio.sleep(0.001)  # Small delay to simulate work
                         
-                        if asyncio.iscoroutinefunction(tool_function):
+                        if inspect.iscoroutinefunction(tool_function):
                             result = await tool_function(**parameters)
                         else:
                             result = tool_function(**parameters)
@@ -337,7 +338,7 @@ class TestToolCoordinationLogic:
                         if attempt > 0:
                             await asyncio.sleep(0.001 * (self.backoff_factor ** attempt))
                         
-                        if asyncio.iscoroutinefunction(tool_function):
+                        if inspect.iscoroutinefunction(tool_function):
                             result = await tool_function(**parameters)
                         else:
                             result = tool_function(**parameters)

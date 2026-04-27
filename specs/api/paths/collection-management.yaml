@@ -10,11 +10,10 @@ post:
     Collections are organizational units for grouping:
     - Documents in the librarian
     - Knowledge cores
-    - User data
+    - Workspace data
 
     Each collection has:
-    - **user**: Owner identifier
-    - **collection**: Unique collection ID
+    - **collection**: Unique collection ID (within the workspace)
     - **name**: Human-readable display name
     - **description**: Purpose and contents
     - **tags**: Labels for filtering and organization
@@ -22,7 +21,7 @@ post:
     ## Operations
 
     ### list-collections
-    List all collections for a user. Optionally filter by tags and limit results.
+    List all collections in the workspace. Optionally filter by tags and limit results.
     Returns array of collection metadata.
 
     ### update-collection
@@ -30,7 +29,7 @@ post:
     If it exists, metadata is updated. Allows setting name, description, and tags.
 
     ### delete-collection
-    Delete a collection by user and collection ID. This removes the metadata but
+    Delete a collection by collection ID. This removes the metadata but
     typically does not delete the associated data (documents, knowledge cores).
 
   operationId: collectionManagementService
@@ -44,22 +43,19 @@ post:
           $ref: '../components/schemas/collection/CollectionRequest.yaml'
         examples:
           listCollections:
-            summary: List all collections for user
+            summary: List all collections in workspace
             value:
               operation: list-collections
-              user: alice
           listCollectionsFiltered:
             summary: List collections filtered by tags
             value:
               operation: list-collections
-              user: alice
               tag-filter: ["research", "AI"]
               limit: 50
           updateCollection:
             summary: Create/update collection
             value:
               operation: update-collection
-              user: alice
               collection: research
               name: Research Papers
               description: Academic research papers on AI and ML
@@ -69,7 +65,6 @@ post:
             summary: Delete collection
             value:
               operation: delete-collection
-              user: alice
               collection: research
   responses:
     '200':
@@ -84,13 +79,11 @@ post:
               value:
                 timestamp: "2024-01-15T10:30:00Z"
                 collections:
-                  - user: alice
-                    collection: research
+                  - collection: research
                     name: Research Papers
                     description: Academic research papers on AI and ML
                     tags: ["research", "AI", "academic"]
-                  - user: alice
-                    collection: personal
+                  - collection: personal
                     name: Personal Documents
                     description: Personal notes and documents
                     tags: ["personal"]

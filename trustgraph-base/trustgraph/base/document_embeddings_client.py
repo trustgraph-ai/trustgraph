@@ -9,14 +9,12 @@ from .. knowledge import Uri, Literal
 logger = logging.getLogger(__name__)
 
 class DocumentEmbeddingsClient(RequestResponse):
-    async def query(self, vector, limit=20, user="trustgraph",
-                    collection="default", timeout=30):
+    async def query(self, vector, limit=20, collection="default", timeout=30):
 
         resp = await self.request(
             DocumentEmbeddingsRequest(
                 vector = vector,
                 limit = limit,
-                user = user,
                 collection = collection
             ),
             timeout=timeout

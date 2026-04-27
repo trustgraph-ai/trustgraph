@@ -8,6 +8,7 @@ import pytest
 # import asyncio
 # import tracemalloc
 # import warnings
+import logging
 from unittest.mock import MagicMock
 
 # Uncomment the lines below to enable asyncio debug mode and tracemalloc
@@ -33,19 +34,14 @@ def mock_loki_handler(session_mocker=None):
         # Create a mock LokiHandler that does nothing
         original_loki_handler = logging_loki.LokiHandler
 
-        class MockLokiHandler:
+        class MockLokiHandler(logging.Handler):
             """Mock LokiHandler that doesn't make network calls."""
+
             def __init__(self, *args, **kwargs):
-                pass
+                super().__init__()
 
             def emit(self, record):
-                pass
-
-            def flush(self):
-                pass
-
-            def close(self):
-                pass
+                return
 
         # Replace the real LokiHandler with our mock
         logging_loki.LokiHandler = MockLokiHandler

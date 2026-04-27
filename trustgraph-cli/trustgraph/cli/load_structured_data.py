@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 
 def load_structured_data(
@@ -39,11 +40,11 @@ def load_structured_data(
     sample_chars: int = 500,
     schema_name: str = None,
     flow: str = 'default',
-    user: str = 'trustgraph',
     collection: str = 'default',
     dry_run: bool = False,
     verbose: bool = False,
-    token: str = None
+    token: str = None,
+    workspace: str = "default",
 ):
     """
     Load structured data using a descriptor configuration.
@@ -62,7 +63,6 @@ def load_structured_data(
         sample_chars: Maximum characters to read for sampling
         schema_name: Target schema name for generation
         flow: TrustGraph flow name to use for prompts
-        user: User name for metadata (default: trustgraph)
         collection: Collection name for metadata (default: default)
         dry_run: If True, validate but don't import data
         verbose: Enable verbose logging
@@ -78,7 +78,7 @@ def load_structured_data(
         logger.info("Step 1: Analyzing data to discover best matching schema...")
         
         # Step 1: Auto-discover schema (reuse discover_schema logic)
-        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger)
+        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, workspace=workspace)
         if not discovered_schema:
             logger.error("Failed to discover suitable schema automatically")
             print("❌ Could not automatically determine the best schema for your data.")
@@ -90,7 +90,7 @@ def load_structured_data(
         
         # Step 2: Auto-generate descriptor
         logger.info("Step 2: Generating descriptor configuration...")
-        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, flow, logger)
+        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, flow, logger, workspace=workspace)
         if not auto_descriptor:
             logger.error("Failed to generate descriptor automatically")
             print("❌ Could not automatically generate descriptor configuration.")
@@ -110,7 +110,7 @@ def load_structured_data(
         
         try:
             # Use shared pipeline for preview (small sample)
-            preview_objects, _ = _process_data_pipeline(input_file, temp_descriptor.name, user, collection, sample_size=5)
+            preview_objects, _ = _process_data_pipeline(input_file, temp_descriptor.name, collection, sample_size=5)
             
             # Show preview
             print("📊 Data Preview (first few records):")
@@ -131,13 +131,13 @@ def load_structured_data(
                 print("🚀 Importing data to TrustGraph...")
                 
                 # Use shared pipeline for full processing (no sample limit)
-                output_objects, descriptor = _process_data_pipeline(input_file, temp_descriptor.name, user, collection)
+                output_objects, descriptor = _process_data_pipeline(input_file, temp_descriptor.name, collection)
                 
                 # Get batch size from descriptor
                 batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
 
                 # Send to TrustGraph using shared function
-                imported_count = _send_to_trustgraph(output_objects, api_url, flow, batch_size, token=token)
+                imported_count = _send_to_trustgraph(output_objects, api_url, flow, batch_size, token=token, workspace=workspace)
                 
                 # Summary
                 format_info = descriptor.get('format', {})
@@ -172,7 +172,7 @@ def load_structured_data(
         logger.info(f"Sample chars: {sample_chars} characters")
         
         # Use the helper function to discover schema (get raw response for display)
-        response = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=True)
+        response = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=True, workspace=workspace)
         
         if response:
             # Debug: print response type and content 
@@ -203,7 +203,7 @@ def load_structured_data(
         # If no schema specified, discover it first
         if not schema_name:
             logger.info("No schema specified, auto-discovering...")
-            schema_name = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger)
+            schema_name = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, workspace=workspace)
             if not schema_name:
                 print("Error: Could not determine schema automatically.")
                 print("Please specify a schema using --schema-name or run --discover-schema first.")
@@ -213,7 +213,7 @@ def load_structured_data(
             logger.info(f"Target schema: {schema_name}")
         
         # Generate descriptor using helper function
-        descriptor = _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger)
+        descriptor = _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger, workspace=workspace)
         
         if descriptor:
             # Output the generated descriptor
@@ -242,7 +242,7 @@ def load_structured_data(
         logger.info(f"Parsing {input_file} with descriptor {descriptor_file}...")
         
         # Use shared pipeline
-        output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, user, collection, sample_size)
+        output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, collection, sample_size)
         
         # Output results
         if output_file:
@@ -286,7 +286,7 @@ def load_structured_data(
         logger.info(f"Loading {input_file} to TrustGraph using descriptor {descriptor_file}...")
         
         # Use shared pipeline (no sample_size limit for full load)
-        output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, user, collection)
+        output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, collection)
         
         # Get batch size from descriptor or use default
         batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
@@ -527,18 +527,17 @@ def _apply_transformations(records, mappings):
     return processed_records
 
 
-def _format_extracted_objects(processed_records, descriptor, user, collection):
+def _format_extracted_objects(processed_records, descriptor, collection):
     """Convert to TrustGraph ExtractedObject format"""
     output_records = []
     schema_name = descriptor.get('output', {}).get('schema_name', 'default')
     confidence = descriptor.get('output', {}).get('options', {}).get('confidence', 0.9)
-    
+
     for record in processed_records:
         output_record = {
             "metadata": {
                 "id": f"parsed-{len(output_records)+1}",
                 "metadata": [],  # Empty metadata triples
-                "user": user,
                 "collection": collection
             },
             "schema_name": schema_name,
@@ -551,7 +550,7 @@ def _format_extracted_objects(processed_records, descriptor, user, collection):
     return output_records
 
 
-def _process_data_pipeline(input_file, descriptor_file, user, collection, sample_size=None):
+def _process_data_pipeline(input_file, descriptor_file, collection, sample_size=None):
     """Shared pipeline: load descriptor → read → parse → transform → format"""
     # Load descriptor configuration
     descriptor = _load_descriptor(descriptor_file)
@@ -568,12 +567,12 @@ def _process_data_pipeline(input_file, descriptor_file, user, collection, sample
     processed_records = _apply_transformations(parsed_records, mappings)
     
     # Format output for TrustGraph ExtractedObject structure
-    output_records = _format_extracted_objects(processed_records, descriptor, user, collection)
+    output_records = _format_extracted_objects(processed_records, descriptor, collection)
     
     return output_records, descriptor
 
 
-def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None):
+def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None, workspace="default"):
     """Send ExtractedObject records to TrustGraph using Python API"""
     from trustgraph.api import Api
 
@@ -582,7 +581,7 @@ def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None):
         logger.info(f"Importing {total_records} records to TrustGraph...")
 
         # Use Python API bulk import
-        api = Api(api_url, token=token)
+        api = Api(api_url, token=token, workspace=workspace)
         bulk = api.bulk()
 
         bulk.import_rows(flow=flow, rows=iter(rows))
@@ -604,7 +603,7 @@ def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None):
 
 
 # Helper functions for auto mode
-def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=False):
+def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=False, workspace="default"):
     """Auto-discover the best matching schema for the input data
     
     Args:
@@ -627,7 +626,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, retur
         # Import API modules
         from trustgraph.api import Api
         from trustgraph.api.types import ConfigKey
-        api = Api(api_url)
+        api = Api(api_url, workspace=workspace)
         config_api = api.config()
         
         # Get available schemas
@@ -708,7 +707,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, retur
         return None
 
 
-def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger):
+def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger, workspace="default"):
     """Auto-generate descriptor configuration for the discovered schema"""
     try:
         # Read sample data
@@ -718,7 +717,7 @@ def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, fl
         # Import API modules
         from trustgraph.api import Api
         from trustgraph.api.types import ConfigKey
-        api = Api(api_url)
+        api = Api(api_url, workspace=workspace)
         config_api = api.config()
         
         # Get schema definition
@@ -886,12 +885,6 @@ For more information on the descriptor format, see:
     )
     
     parser.add_argument(
-        '--user',
-        default='trustgraph',
-        help='User name for metadata (default: trustgraph)'
-    )
-    
-    parser.add_argument(
         '--collection',
         default='default',
         help='Collection name for metadata (default: default)'
@@ -997,6 +990,12 @@ For more information on the descriptor format, see:
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
     args = parser.parse_args()
     
     # Input validation
@@ -1046,11 +1045,11 @@ For more information on the descriptor format, see:
             sample_chars=args.sample_chars,
             schema_name=args.schema_name,
             flow=args.flow,
-            user=args.user,
             collection=args.collection,
             dry_run=args.dry_run,
             verbose=args.verbose,
-            token=args.token
+            token=args.token,
+            workspace=args.workspace,
         )
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}", file=sys.stderr)

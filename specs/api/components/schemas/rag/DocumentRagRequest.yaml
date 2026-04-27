@@ -9,11 +9,6 @@ properties:
     type: string
     description: User query or question
     example: What are the key findings in the research papers?
-  user:
-    type: string
-    description: User identifier for multi-tenancy
-    default: trustgraph
-    example: alice
   collection:
     type: string
     description: Collection to search within

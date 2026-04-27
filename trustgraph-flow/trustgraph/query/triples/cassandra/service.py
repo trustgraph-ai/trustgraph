@@ -4,6 +4,7 @@ Triples query service.  Input is a (s, p, o, g) quad pattern, some values may be
 null.  Output is a list of quads.
 """
 
+import asyncio
 import logging
 
 import json
@@ -177,30 +178,34 @@ class Processor(TriplesQueryService):
         self.cassandra_password = password
         self.table = None
 
-    def ensure_connection(self, user):
+    def ensure_connection(self, workspace):
         """Ensure we have a connection to the correct keyspace."""
-        if user != self.table:
+        if workspace != self.table:
             KGClass = EntityCentricKnowledgeGraph
 
             if self.cassandra_username and self.cassandra_password:
                 self.tg = KGClass(
                     hosts=self.cassandra_host,
-                    keyspace=user,
+                    keyspace=workspace,
                     username=self.cassandra_username,
                     password=self.cassandra_password
                 )
             else:
                 self.tg = KGClass(
                     hosts=self.cassandra_host,
-                    keyspace=user,
+                    keyspace=workspace,
                 )
-            self.table = user
+            self.table = workspace
 
-    async def query_triples(self, query):
+    async def query_triples(self, workspace, query):
 
         try:
 
-            self.ensure_connection(query.user)
+            # ensure_connection may construct a fresh
+            # EntityCentricKnowledgeGraph which does sync schema
+            # setup against Cassandra.  Push it to a worker thread
+            # so the event loop doesn't block on first-use per workspace.
+            await asyncio.to_thread(self.ensure_connection, workspace)
 
             # Extract values from query
             s_val = get_term_value(query.s)
@@ -218,14 +223,21 @@ class Processor(TriplesQueryService):
 
             quads = []
 
+            # All self.tg.get_* calls below are sync wrappers around
+            # cassandra session.execute.  Materialise inside a worker
+            # thread so iteration never triggers sync paging back on
+            # the event loop.
+
             # Route to appropriate query method based on which fields are specified
             if s_val is not None:
                 if p_val is not None:
                     if o_val is not None:
                         # SPO specified - find matching graphs
-                        resp = self.tg.get_spo(
-                            query.collection, s_val, p_val, o_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_spo(
+                                query.collection, s_val, p_val, o_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -233,9 +245,11 @@ class Processor(TriplesQueryService):
                             quads.append((s_val, p_val, o_val, g, term_type, datatype, language))
                     else:
                         # SP specified
-                        resp = self.tg.get_sp(
-                            query.collection, s_val, p_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_sp(
+                                query.collection, s_val, p_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -244,9 +258,11 @@ class Processor(TriplesQueryService):
                 else:
                     if o_val is not None:
                         # SO specified
-                        resp = self.tg.get_os(
-                            query.collection, o_val, s_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_os(
+                                query.collection, o_val, s_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -254,9 +270,11 @@ class Processor(TriplesQueryService):
                             quads.append((s_val, t.p, o_val, g, term_type, datatype, language))
                     else:
                         # S only
-                        resp = self.tg.get_s(
-                            query.collection, s_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_s(
+                                query.collection, s_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -266,9 +284,11 @@ class Processor(TriplesQueryService):
                 if p_val is not None:
                     if o_val is not None:
                         # PO specified
-                        resp = self.tg.get_po(
-                            query.collection, p_val, o_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_po(
+                                query.collection, p_val, o_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -276,9 +296,11 @@ class Processor(TriplesQueryService):
                             quads.append((t.s, p_val, o_val, g, term_type, datatype, language))
                     else:
                         # P only
-                        resp = self.tg.get_p(
-                            query.collection, p_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_p(
+                                query.collection, p_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -287,9 +309,11 @@ class Processor(TriplesQueryService):
                 else:
                     if o_val is not None:
                         # O only
-                        resp = self.tg.get_o(
-                            query.collection, o_val, g=g_val,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_o(
+                                query.collection, o_val,
+                                g=g_val, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -297,9 +321,10 @@ class Processor(TriplesQueryService):
                             quads.append((t.s, t.p, o_val, g, term_type, datatype, language))
                     else:
                         # Nothing specified - get all
-                        resp = self.tg.get_all(
-                            query.collection,
-                            limit=query.limit
+                        resp = await asyncio.to_thread(
+                            lambda: list(self.tg.get_all(
+                                query.collection, limit=query.limit,
+                            ))
                         )
                         for t in resp:
                             # Note: quads_by_collection uses 'd' for graph field
@@ -334,13 +359,13 @@ class Processor(TriplesQueryService):
             logger.error(f"Exception querying triples: {e}", exc_info=True)
             raise e
 
-    async def query_triples_stream(self, query):
+    async def query_triples_stream(self, workspace, query):
         """
         Streaming query - yields (batch, is_final) tuples.
         Uses Cassandra's paging to fetch results incrementally.
         """
         try:
-            self.ensure_connection(query.user)
+            await asyncio.to_thread(self.ensure_connection, workspace)
 
             batch_size = query.batch_size if query.batch_size > 0 else 20
             limit = query.limit if query.limit > 0 else 10000
@@ -370,13 +395,20 @@ class Processor(TriplesQueryService):
             else:
                 # For specific patterns, fall back to non-streaming
                 # (these typically return small result sets anyway)
-                async for batch, is_final in self._fallback_stream(query, batch_size):
+                async for batch, is_final in self._fallback_stream(workspace, query, batch_size):
                     yield batch, is_final
                 return
 
-            # Create statement with fetch_size for true streaming
+            # Materialise in a worker thread.  We lose true streaming
+            # paging (the driver fetches all pages eagerly inside the
+            # thread) but the event loop stays responsive, and result
+            # sets at this layer are typically small enough that this
+            # is acceptable.  If true async paging is needed later,
+            # revisit using ResponseFuture page callbacks.
             statement = SimpleStatement(cql, fetch_size=batch_size)
-            result_set = self.tg.session.execute(statement, params)
+            result_set = await asyncio.to_thread(
+                lambda: list(self.tg.session.execute(statement, params))
+            )
 
             batch = []
             count = 0
@@ -420,9 +452,9 @@ class Processor(TriplesQueryService):
             logger.error(f"Exception in streaming query: {e}", exc_info=True)
             raise e
 
-    async def _fallback_stream(self, query, batch_size):
+    async def _fallback_stream(self, workspace, query, batch_size):
         """Fallback to non-streaming query with post-hoc batching."""
-        triples = await self.query_triples(query)
+        triples = await self.query_triples(workspace, query)
 
         for i in range(0, len(triples), batch_size):
             batch = triples[i:i + batch_size]

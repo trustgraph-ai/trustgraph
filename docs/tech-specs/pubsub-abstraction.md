@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Pub/Sub Abstraction: Broker-Independent Messaging"
+parent: "Tech Specs"
+---
+
 # Pub/Sub Abstraction: Broker-Independent Messaging
 
 ## Problem
@@ -548,4 +554,3 @@ The `state` queue class needs "start from earliest" semantics — a newly starte
 RabbitMQ Streams (available since 3.9) solve this directly. Streams are persistent, append-only logs that support consumer offset positioning. The RabbitMQ backend maps the `state` class to a stream, and consumers attach with offset `first` to read from the beginning, or `last` to read the most recent entry plus future updates.
 
 Since config pushes are full state snapshots (not deltas), a consumer only needs the most recent entry. The RabbitMQ backend can use `last` offset positioning for `state` class consumers, which delivers the last message in the stream followed by any new messages. This matches the current behaviour where processors read config on startup and then react to updates.
-
