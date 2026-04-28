@@ -8,21 +8,41 @@ parent: "Tech Specs"
 
 ## Overview
 
-The IAM service is a backend processor, reached over the standard
-request/response pub/sub pattern. It is the authority for users,
-workspaces, API keys, and login credentials. The API gateway
-delegates to it for authentication resolution and for all user /
-workspace / key management.
+This document specifies the wire protocol of the **open-source IAM
+regime** — one implementation of the abstract IAM contract defined
+in [`iam-contract.md`](iam-contract.md).  Other regimes (OIDC / SSO,
+ABAC, ReBAC, external policy engines) implement the same contract
+with different transports, data models, and policy semantics; the
+gateway is unaware of which regime it's wired against.
 
-This document defines the wire protocol: the `IamRequest` and
-`IamResponse` dataclasses, the operation set, the per-operation
-input and output fields, the error taxonomy, and the initial HTTP
-forwarding endpoint used while IAM is being integrated into the
-gateway.
+The OSS regime is a backend processor (`iam-svc`) reached over the
+standard request/response pub/sub pattern.  It owns users,
+workspaces, API keys, login credentials, and JWT signing keys, all
+backed by Cassandra.  The API gateway is its only caller.
 
-Architectural context — roles, capabilities, workspace scoping,
-enforcement boundary — lives in [`iam.md`](iam.md) and
-[`capabilities.md`](capabilities.md).
+This document defines:
+
+- the `IamRequest` and `IamResponse` dataclasses on the bus,
+- the operation set the OSS regime implements,
+- per-operation input and output fields,
+- the error taxonomy,
+- the bootstrap modes,
+- the initial HTTP forwarding endpoint used while the protocol is
+  being exercised.
+
+The mapping from this regime onto the abstract contract is direct:
+
+| Contract operation | OSS regime operation |
+|---|---|
+| `authenticate(credential)` | `resolve-api-key` (for API keys); local JWT validation against `get-signing-key-public` (for JWTs) |
+| `authorise(identity, capability, resource, parameters)` | Role-table lookup against the OSS role bundles defined in [`capabilities.md`](capabilities.md), gated by workspace scope.  Workspace can come from the resource address (workspace- and flow-level resources) or from a parameter (system-level resources whose parameters reference a workspace, e.g. `create-user with workspace association W`). |
+| `authorise_many` | Loop over `authorise` |
+| Identity / credential / workspace management | `create-user`, `create-api-key`, etc. as listed below.  These are operations on system-level resources (the user / workspace / credential registries); workspace, where it appears in the body, is a parameter. |
+
+Architectural context — roles, capabilities, workspace as resource
+scope, enforcement boundary — lives in [`iam.md`](iam.md) and
+[`capabilities.md`](capabilities.md).  The contract abstraction
+lives in [`iam-contract.md`](iam-contract.md).
 
 ## Transport
 
@@ -345,5 +365,7 @@ lands in the subsequent middleware work.
 
 ## References
 
+- [IAM Contract Specification](iam-contract.md) — the abstract
+  gateway↔IAM regime contract this protocol implements.
 - [Identity and Access Management Specification](iam.md)
 - [Capability Vocabulary Specification](capabilities.md)

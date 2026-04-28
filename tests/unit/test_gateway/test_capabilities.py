@@ -1,15 +1,22 @@
 """
-Tests for gateway/capabilities.py — the capability + role + workspace
-model that underpins all gateway authorisation.
+Tests for gateway/capabilities.py — the thin authorisation surface
+under the IAM contract.
+
+The gateway no longer holds policy state (roles, capability sets,
+workspace scopes); those live in iam-svc.  These tests cover only
+what the gateway shim does itself: PUBLIC / AUTHENTICATED short-
+circuiting, default-fill of workspace, and forwarding of capability
+checks to ``auth.authorise``.
 """
 
 import pytest
 from aiohttp import web
+from unittest.mock import AsyncMock, MagicMock
 
 from trustgraph.gateway.capabilities import (
     PUBLIC, AUTHENTICATED,
-    KNOWN_CAPABILITIES, ROLE_DEFINITIONS,
-    check, enforce_workspace, access_denied, auth_failure,
+    enforce, enforce_workspace,
+    access_denied, auth_failure,
 )
 
 
@@ -17,109 +24,74 @@ from trustgraph.gateway.capabilities import (
 
 
 class _Identity:
-    """Minimal stand-in for auth.Identity — the capability module
-    accesses ``.workspace`` and ``.roles``."""
-    def __init__(self, workspace, roles):
-        self.user_id = "user-1"
+    """Stand-in for auth.Identity — under the IAM contract it has
+    just ``handle``, ``workspace``, ``principal_id``, ``source``."""
+
+    def __init__(self, handle="user-1", workspace="default"):
+        self.handle = handle
         self.workspace = workspace
-        self.roles = list(roles)
+        self.principal_id = handle
+        self.source = "api-key"
 
 
-def reader_in(ws):
-    return _Identity(ws, ["reader"])
+def _allow_auth(identity=None):
+    """Build an Auth double that authenticates to ``identity`` and
+    allows every authorise() call."""
+    auth = MagicMock()
+    auth.authenticate = AsyncMock(
+        return_value=identity or _Identity(),
+    )
+    auth.authorise = AsyncMock(return_value=None)
+    return auth
 
 
-def writer_in(ws):
-    return _Identity(ws, ["writer"])
+def _deny_auth(identity=None):
+    """Build an Auth double that authenticates but denies authorise."""
+    auth = MagicMock()
+    auth.authenticate = AsyncMock(
+        return_value=identity or _Identity(),
+    )
+    auth.authorise = AsyncMock(side_effect=access_denied())
+    return auth
 
 
-def admin_in(ws):
-    return _Identity(ws, ["admin"])
+# -- enforce() -------------------------------------------------------------
 
 
-# -- role table sanity -----------------------------------------------------
+class TestEnforce:
 
+    @pytest.mark.asyncio
+    async def test_public_returns_none_no_auth(self):
+        auth = _allow_auth()
+        result = await enforce(MagicMock(), auth, PUBLIC)
+        assert result is None
+        auth.authenticate.assert_not_called()
+        auth.authorise.assert_not_called()
 
-class TestRoleTable:
+    @pytest.mark.asyncio
+    async def test_authenticated_skips_authorise(self):
+        identity = _Identity()
+        auth = _allow_auth(identity)
+        result = await enforce(MagicMock(), auth, AUTHENTICATED)
+        assert result is identity
+        auth.authenticate.assert_awaited_once()
+        auth.authorise.assert_not_called()
 
-    def test_oss_roles_present(self):
-        assert set(ROLE_DEFINITIONS.keys()) == {"reader", "writer", "admin"}
+    @pytest.mark.asyncio
+    async def test_capability_calls_authorise_system_level(self):
+        identity = _Identity()
+        auth = _allow_auth(identity)
+        result = await enforce(MagicMock(), auth, "graph:read")
+        assert result is identity
+        auth.authorise.assert_awaited_once_with(
+            identity, "graph:read", {}, {},
+        )
 
-    def test_admin_is_cross_workspace(self):
-        assert ROLE_DEFINITIONS["admin"]["workspace_scope"] == "*"
-
-    def test_reader_writer_are_assigned_scope(self):
-        assert ROLE_DEFINITIONS["reader"]["workspace_scope"] == "assigned"
-        assert ROLE_DEFINITIONS["writer"]["workspace_scope"] == "assigned"
-
-    def test_admin_superset_of_writer(self):
-        admin = ROLE_DEFINITIONS["admin"]["capabilities"]
-        writer = ROLE_DEFINITIONS["writer"]["capabilities"]
-        assert writer.issubset(admin)
-
-    def test_writer_superset_of_reader(self):
-        writer = ROLE_DEFINITIONS["writer"]["capabilities"]
-        reader = ROLE_DEFINITIONS["reader"]["capabilities"]
-        assert reader.issubset(writer)
-
-    def test_admin_has_users_admin(self):
-        assert "users:admin" in ROLE_DEFINITIONS["admin"]["capabilities"]
-
-    def test_writer_does_not_have_users_admin(self):
-        assert "users:admin" not in ROLE_DEFINITIONS["writer"]["capabilities"]
-
-    def test_every_bundled_capability_is_known(self):
-        for role in ROLE_DEFINITIONS.values():
-            for cap in role["capabilities"]:
-                assert cap in KNOWN_CAPABILITIES
-
-
-# -- check() ---------------------------------------------------------------
-
-
-class TestCheck:
-
-    def test_reader_has_reader_cap_in_own_workspace(self):
-        assert check(reader_in("default"), "graph:read", "default")
-
-    def test_reader_does_not_have_writer_cap(self):
-        assert not check(reader_in("default"), "graph:write", "default")
-
-    def test_reader_cannot_act_in_other_workspace(self):
-        assert not check(reader_in("default"), "graph:read", "acme")
-
-    def test_writer_has_write_in_own_workspace(self):
-        assert check(writer_in("default"), "graph:write", "default")
-
-    def test_writer_cannot_act_in_other_workspace(self):
-        assert not check(writer_in("default"), "graph:write", "acme")
-
-    def test_admin_has_everything_everywhere(self):
-        for cap in ("graph:read", "graph:write", "config:write",
-                    "users:admin", "metrics:read"):
-            assert check(admin_in("default"), cap, "acme"), (
-                f"admin should have {cap} in acme"
-            )
-
-    def test_admin_has_caps_without_explicit_workspace(self):
-        assert check(admin_in("default"), "users:admin")
-
-    def test_default_target_is_identity_workspace(self):
-        # Reader with no target workspace → should check against own
-        assert check(reader_in("default"), "graph:read")
-
-    def test_unknown_capability_returns_false(self):
-        assert not check(admin_in("default"), "nonsense:cap", "default")
-
-    def test_unknown_role_contributes_nothing(self):
-        ident = _Identity("default", ["made-up-role"])
-        assert not check(ident, "graph:read", "default")
-
-    def test_multi_role_union(self):
-        # If a user is both reader and admin, they inherit admin's
-        # cross-workspace powers.
-        ident = _Identity("default", ["reader", "admin"])
-        assert check(ident, "users:admin", "acme")
+    @pytest.mark.asyncio
+    async def test_capability_denied_raises_forbidden(self):
+        auth = _deny_auth()
+        with pytest.raises(web.HTTPForbidden):
+            await enforce(MagicMock(), auth, "users:admin")
 
 
 # -- enforce_workspace() ---------------------------------------------------
@@ -127,56 +99,54 @@ class TestCheck:
 
 class TestEnforceWorkspace:
 
-    def test_reader_in_own_workspace_allowed(self):
-        data = {"workspace": "default", "operation": "x"}
-        enforce_workspace(data, reader_in("default"))
-        assert data["workspace"] == "default"
-
-    def test_reader_no_workspace_injects_assigned(self):
+    @pytest.mark.asyncio
+    async def test_default_fills_from_identity(self):
         data = {"operation": "x"}
-        enforce_workspace(data, reader_in("default"))
+        auth = _allow_auth()
+        await enforce_workspace(data, _Identity(workspace="default"), auth)
         assert data["workspace"] == "default"
 
-    def test_reader_mismatched_workspace_denied(self):
+    @pytest.mark.asyncio
+    async def test_caller_supplied_workspace_kept(self):
         data = {"workspace": "acme", "operation": "x"}
-        with pytest.raises(web.HTTPForbidden):
-            enforce_workspace(data, reader_in("default"))
-
-    def test_admin_can_target_any_workspace(self):
-        data = {"workspace": "acme", "operation": "x"}
-        enforce_workspace(data, admin_in("default"))
+        auth = _allow_auth()
+        await enforce_workspace(data, _Identity(workspace="default"), auth)
         assert data["workspace"] == "acme"
 
-    def test_admin_no_workspace_defaults_to_assigned(self):
-        data = {"operation": "x"}
-        enforce_workspace(data, admin_in("default"))
-        assert data["workspace"] == "default"
-
-    def test_writer_same_workspace_specified_allowed(self):
+    @pytest.mark.asyncio
+    async def test_no_capability_skips_authorise(self):
         data = {"workspace": "default"}
-        enforce_workspace(data, writer_in("default"))
-        assert data["workspace"] == "default"
+        auth = _allow_auth()
+        await enforce_workspace(data, _Identity(), auth)
+        auth.authorise.assert_not_called()
 
-    def test_non_dict_passthrough(self):
-        # Non-dict bodies are returned unchanged (e.g. streaming).
-        result = enforce_workspace("not-a-dict", reader_in("default"))
-        assert result == "not-a-dict"
+    @pytest.mark.asyncio
+    async def test_capability_calls_authorise_with_resource(self):
+        data = {"workspace": "acme"}
+        identity = _Identity()
+        auth = _allow_auth(identity)
+        await enforce_workspace(
+            data, identity, auth, capability="graph:read",
+        )
+        auth.authorise.assert_awaited_once_with(
+            identity, "graph:read", {"workspace": "acme"}, {},
+        )
 
-    def test_with_capability_tightens_check(self):
-        # Reader lacks graph:write; workspace-only check would pass
-        # (scope is fine), but combined check must reject.
-        data = {"workspace": "default"}
+    @pytest.mark.asyncio
+    async def test_capability_denied_propagates(self):
+        data = {"workspace": "acme"}
+        auth = _deny_auth()
         with pytest.raises(web.HTTPForbidden):
-            enforce_workspace(
-                data, reader_in("default"), capability="graph:write",
+            await enforce_workspace(
+                data, _Identity(), auth, capability="users:admin",
             )
 
-    def test_with_capability_passes_when_granted(self):
-        data = {"workspace": "default"}
-        enforce_workspace(
-            data, reader_in("default"), capability="graph:read",
-        )
-        assert data["workspace"] == "default"
+    @pytest.mark.asyncio
+    async def test_non_dict_passthrough(self):
+        auth = _allow_auth()
+        result = await enforce_workspace("not-a-dict", _Identity(), auth)
+        assert result == "not-a-dict"
+        auth.authorise.assert_not_called()
 
 
 # -- helpers ---------------------------------------------------------------
@@ -199,5 +169,3 @@ class TestSentinels:
 
     def test_public_and_authenticated_are_distinct(self):
         assert PUBLIC != AUTHENTICATED
-        assert PUBLIC not in KNOWN_CAPABILITIES
-        assert AUTHENTICATED not in KNOWN_CAPABILITIES

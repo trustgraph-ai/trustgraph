@@ -9,90 +9,44 @@ from . socket import SocketEndpoint
 from . metrics import MetricsEndpoint
 from . i18n import I18nPackEndpoint
 from . auth_endpoints import AuthEndpoints
+from . iam_endpoint import IamEndpoint
+from . registry_endpoint import RegistryRoutedVariableEndpoint
 
-from .. capabilities import PUBLIC, AUTHENTICATED
+from .. capabilities import PUBLIC, AUTHENTICATED, auth_failure
+from .. registry import lookup as _registry_lookup, RequestContext
 
 from .. dispatch.manager import DispatcherManager
 
 
-# Capability required for each kind on the /api/v1/{kind} generic
-# endpoint (global services).  Coarse gating — the IAM bundle split
-# of "read vs write" per admin subsystem is not applied here because
-# this endpoint forwards an opaque operation in the body.  Writes
-# are the upper bound on what the endpoint can do, so we gate on
-# the write/admin capability.
-GLOBAL_KIND_CAPABILITY = {
-    "config": "config:write",
-    "flow": "flows:write",
-    "librarian": "documents:write",
-    "knowledge": "knowledge:write",
-    "collection-management": "collections:write",
-    # IAM endpoints land on /api/v1/iam and require the admin bundle.
-    # Login / bootstrap / change-password are served by
-    # AuthEndpoints, which handle their own gating (PUBLIC /
-    # AUTHENTICATED).
-    "iam": "users:admin",
-}
+# /api/v1/{kind} (config / flow / librarian / knowledge /
+# collection-management), /api/v1/iam, and /api/v1/flow/{flow}/...
+# routes are all gated per-operation by the registry, not by a
+# per-kind capability map.  Login / bootstrap / change-password are
+# served by AuthEndpoints with their own PUBLIC / AUTHENTICATED
+# sentinels.
 
 
-# Capability required for each kind on the
-# /api/v1/flow/{flow}/service/{kind} endpoint (per-flow data-plane).
-FLOW_KIND_CAPABILITY = {
-    "agent": "agent",
-    "text-completion": "llm",
-    "prompt": "llm",
-    "mcp-tool": "mcp",
-    "graph-rag": "graph:read",
-    "document-rag": "documents:read",
-    "embeddings": "embeddings",
-    "graph-embeddings": "graph:read",
-    "document-embeddings": "documents:read",
-    "triples": "graph:read",
-    "rows": "rows:read",
-    "nlp-query": "rows:read",
-    "structured-query": "rows:read",
-    "structured-diag": "rows:read",
-    "row-embeddings": "rows:read",
-    "sparql": "graph:read",
-}
-
-
-# Capability for the streaming flow import/export endpoints,
-# keyed by the "kind" URL segment.
-FLOW_IMPORT_CAPABILITY = {
-    "triples": "graph:write",
-    "graph-embeddings": "graph:write",
-    "document-embeddings": "documents:write",
-    "entity-contexts": "documents:write",
-    "rows": "rows:write",
-}
-
-FLOW_EXPORT_CAPABILITY = {
-    "triples": "graph:read",
-    "graph-embeddings": "graph:read",
-    "document-embeddings": "documents:read",
-    "entity-contexts": "documents:read",
-}
-
-
-from .. capabilities import enforce, enforce_workspace
 import logging as _mgr_logging
 _mgr_logger = _mgr_logging.getLogger("endpoint")
 
 
 class _RoutedVariableEndpoint:
-    """HTTP endpoint whose required capability is looked up per
-    request from the URL's ``kind`` parameter.  Used for the two
-    generic dispatch paths (``/api/v1/{kind}`` and
-    ``/api/v1/flow/{flow}/service/{kind}``).  Self-contained rather
-    than subclassing ``VariableEndpoint`` to avoid mutating shared
-    state across concurrent requests."""
+    """HTTP endpoint that gates per request via the operation
+    registry.  The URL's ``kind`` parameter combined with a fixed
+    ``registry_prefix`` yields the registry key — e.g. prefix
+    ``flow-service`` and kind ``agent`` looks up
+    ``flow-service:agent``.
 
-    def __init__(self, endpoint_path, auth, dispatcher, capability_map):
+    Used for ``/api/v1/flow/{flow}/service/{kind}`` (per-flow
+    data-plane services).  ``/api/v1/{kind}`` (workspace-level
+    global services) goes through ``RegistryRoutedVariableEndpoint``
+    which discriminates on body operation as well as URL kind."""
+
+    def __init__(self, endpoint_path, auth, dispatcher, registry_prefix):
         self.path = endpoint_path
         self.auth = auth
         self.dispatcher = dispatcher
-        self._capability_map = capability_map
+        self._registry_prefix = registry_prefix
 
     async def start(self):
         pass
@@ -102,18 +56,26 @@ class _RoutedVariableEndpoint:
 
     async def handle(self, request):
         kind = request.match_info.get("kind", "")
-        cap = self._capability_map.get(kind)
-        if cap is None:
+        op = _registry_lookup(f"{self._registry_prefix}:{kind}")
+        if op is None:
             return web.json_response(
                 {"error": "unknown kind"}, status=404,
             )
 
-        identity = await enforce(request, self.auth, cap)
+        identity = await self.auth.authenticate(request)
 
         try:
             data = await request.json()
-            if identity is not None:
-                enforce_workspace(data, identity)
+            ctx = RequestContext(
+                body=data if isinstance(data, dict) else {},
+                match_info=dict(request.match_info),
+                identity=identity,
+            )
+            resource = op.extract_resource(ctx)
+            parameters = op.extract_parameters(ctx)
+            await self.auth.authorise(
+                identity, op.capability, resource, parameters,
+            )
 
             async def responder(x, fin):
                 pass
@@ -131,15 +93,15 @@ class _RoutedVariableEndpoint:
 
 
 class _RoutedSocketEndpoint:
-    """WebSocket endpoint whose required capability is looked up per
-    request from the URL's ``kind`` parameter.  Used for the flow
-    import/export streaming endpoints."""
+    """WebSocket endpoint gated per request via the operation
+    registry.  Like ``_RoutedVariableEndpoint`` but for the
+    streaming flow import / export socket paths."""
 
-    def __init__(self, endpoint_path, auth, dispatcher, capability_map):
+    def __init__(self, endpoint_path, auth, dispatcher, registry_prefix):
         self.path = endpoint_path
         self.auth = auth
         self.dispatcher = dispatcher
-        self._capability_map = capability_map
+        self._registry_prefix = registry_prefix
 
     async def start(self):
         pass
@@ -148,11 +110,9 @@ class _RoutedSocketEndpoint:
         app.add_routes([web.get(self.path, self.handle)])
 
     async def handle(self, request):
-        from .. capabilities import check, auth_failure, access_denied
-
         kind = request.match_info.get("kind", "")
-        cap = self._capability_map.get(kind)
-        if cap is None:
+        op = _registry_lookup(f"{self._registry_prefix}:{kind}")
+        if op is None:
             return web.json_response(
                 {"error": "unknown kind"}, status=404,
             )
@@ -168,8 +128,20 @@ class _RoutedSocketEndpoint:
             )
         except web.HTTPException as e:
             return e
-        if not check(identity, cap):
-            return access_denied()
+
+        ctx = RequestContext(
+            body={},
+            match_info=dict(request.match_info),
+            identity=identity,
+        )
+        try:
+            resource = op.extract_resource(ctx)
+            parameters = op.extract_parameters(ctx)
+            await self.auth.authorise(
+                identity, op.capability, resource, parameters,
+            )
+        except web.HTTPException as e:
+            return e
 
         # Delegate the websocket handling to a standalone SocketEndpoint
         # with the resolved capability, bypassing the per-request mutation
@@ -178,7 +150,7 @@ class _RoutedSocketEndpoint:
             endpoint_path=self.path,
             auth=self.auth,
             dispatcher=self.dispatcher,
-            capability=cap,
+            capability=op.capability,
         )
         return await ws_ep.handle(request)
 
@@ -203,6 +175,18 @@ class EndpointManager:
                 auth=auth,
             ),
 
+            # /api/v1/iam — registry-driven IAM management.  Per
+            # operation gating happens inside IamEndpoint via the
+            # operation registry; the dispatcher forwards verbatim
+            # to iam-svc once authorisation has succeeded.  Listed
+            # before the generic /api/v1/{kind} route so it wins
+            # the match for "iam".
+            IamEndpoint(
+                endpoint_path="/api/v1/iam",
+                auth=auth,
+                dispatcher=dispatcher_manager.dispatch_auth_iam(),
+            ),
+
             I18nPackEndpoint(
                 endpoint_path="/api/v1/i18n/packs/{lang}",
                 auth=auth,
@@ -215,12 +199,16 @@ class EndpointManager:
                 capability="metrics:read",
             ),
 
-            # Global services: capability chosen per-kind.
-            _RoutedVariableEndpoint(
+            # Global services: registry-driven per-operation gating.
+            # Each kind+op combination has a registry entry that
+            # declares its capability and resource shape.  Listed
+            # after the IAM and auth-surface routes; aiohttp's
+            # path matcher prefers the more-specific path so this
+            # variable route doesn't shadow them.
+            RegistryRoutedVariableEndpoint(
                 endpoint_path="/api/v1/{kind}",
                 auth=auth,
                 dispatcher=dispatcher_manager.dispatch_global_service(),
-                capability_map=GLOBAL_KIND_CAPABILITY,
             ),
 
             # /api/v1/socket: WebSocket handshake accepts
@@ -236,26 +224,29 @@ class EndpointManager:
                 in_band_auth=True,
             ),
 
-            # Per-flow request/response services — capability per kind.
+            # Per-flow request/response services — gated per
+            # ``flow-service:<kind>`` registry entry.
             _RoutedVariableEndpoint(
                 endpoint_path="/api/v1/flow/{flow}/service/{kind}",
                 auth=auth,
                 dispatcher=dispatcher_manager.dispatch_flow_service(),
-                capability_map=FLOW_KIND_CAPABILITY,
+                registry_prefix="flow-service",
             ),
 
-            # Per-flow streaming import/export — capability per kind.
+            # Per-flow streaming import/export — gated per
+            # ``flow-import:<kind>`` / ``flow-export:<kind>`` registry
+            # entry.
             _RoutedSocketEndpoint(
                 endpoint_path="/api/v1/flow/{flow}/import/{kind}",
                 auth=auth,
                 dispatcher=dispatcher_manager.dispatch_flow_import(),
-                capability_map=FLOW_IMPORT_CAPABILITY,
+                registry_prefix="flow-import",
             ),
             _RoutedSocketEndpoint(
                 endpoint_path="/api/v1/flow/{flow}/export/{kind}",
                 auth=auth,
                 dispatcher=dispatcher_manager.dispatch_flow_export(),
-                capability_map=FLOW_EXPORT_CAPABILITY,
+                registry_prefix="flow-export",
             ),
 
             StreamEndpoint(

@@ -36,7 +36,7 @@ class VariableEndpoint:
             data = await request.json()
 
             if identity is not None:
-                enforce_workspace(data, identity)
+                await enforce_workspace(data, identity, self.auth)
 
             async def responder(x, fin):
                 pass

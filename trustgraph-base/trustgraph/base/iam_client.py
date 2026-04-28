@@ -1,4 +1,6 @@
 
+import json
+
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import (
     IamRequest, IamResponse,
@@ -44,7 +46,13 @@ class IamClient(RequestResponse):
 
         Returns ``(user_id, workspace, roles)`` or raises
         ``RuntimeError`` with error type ``auth-failed`` if the key is
-        unknown / expired / revoked."""
+        unknown / expired / revoked.
+
+        Note: the ``roles`` value is a regime-internal hint and is
+        not used by the gateway directly under the IAM contract;
+        all authorisation decisions go through ``authorise()``.
+        Returned here only for backward compatibility with callers
+        that haven't migrated."""
         resp = await self._request(
             operation="resolve-api-key",
             api_key=api_key,
@@ -55,6 +63,40 @@ class IamClient(RequestResponse):
             resp.resolved_workspace,
             list(resp.resolved_roles),
         )
+
+    async def authorise(self, identity_handle, capability,
+                        resource, parameters, timeout=IAM_TIMEOUT):
+        """Ask the IAM regime whether ``identity_handle`` may perform
+        ``capability`` on ``resource`` given ``parameters``.
+
+        Implements the contract ``authorise(identity, capability,
+        resource, parameters) → (decision, ttl)``.  Returns a tuple
+        ``(allow: bool, ttl_seconds: int)``.  The TTL is the
+        regime's suggested cache lifetime for this decision; the
+        gateway honours it (clamped above by gateway-side policy)."""
+        resp = await self._request(
+            operation="authorise",
+            user_id=identity_handle,
+            capability=capability,
+            resource_json=json.dumps(resource or {}, sort_keys=True),
+            parameters_json=json.dumps(parameters or {}, sort_keys=True),
+            timeout=timeout,
+        )
+        return resp.decision_allow, resp.decision_ttl_seconds
+
+    async def authorise_many(self, identity_handle, checks,
+                             timeout=IAM_TIMEOUT):
+        """Bulk authorise.  ``checks`` is a list of dicts each
+        carrying ``capability``, ``resource``, and ``parameters``.
+        Returns a list of ``(allow, ttl)`` tuples in the same order."""
+        resp = await self._request(
+            operation="authorise-many",
+            user_id=identity_handle,
+            authorise_checks=json.dumps(list(checks), sort_keys=True),
+            timeout=timeout,
+        )
+        decisions = json.loads(resp.decisions_json or "[]")
+        return [(d.get("allow", False), d.get("ttl", 0)) for d in decisions]
 
     async def create_user(self, workspace, user, actor="",
                           timeout=IAM_TIMEOUT):

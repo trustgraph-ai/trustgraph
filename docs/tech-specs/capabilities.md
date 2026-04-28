@@ -8,22 +8,41 @@ parent: "Tech Specs"
 
 ## Overview
 
-Authorisation in TrustGraph is **capability-based**. Every gateway
-endpoint maps to exactly one *capability*; a user's roles each grant
-a set of capabilities; an authenticated request is permitted when
-the required capability is a member of the union of the caller's
-role capability sets.
+Every gateway endpoint maps to exactly one *capability* — a string
+from a closed vocabulary defined in this document.  When the
+gateway authorises a request, it hands the IAM regime four things:
+the authenticated identity, the required capability, the
+operation's resource (the structured identifier of what's being
+operated on), and the operation's parameters.  The IAM regime
+decides allow or deny; see the [IAM contract](iam-contract.md) for
+the full abstraction.
 
-This document defines the capability vocabulary — the closed list
-of capability strings that the gateway recognises — and the
-open-source edition's role bundles.
+A capability is a **permission**, not a structural classification.
+`graph:read` says "the caller may read graphs"; it does not say
+where graphs live or how they are addressed.  The shape of a
+request — whether workspace appears in the URL, the envelope, or
+the body, and whether it is a resource address component or an
+operation parameter — is determined by what the operation operates
+on, not by what permission it requires.  Permission and structure
+are orthogonal; the contract takes both.
 
-The capability mechanism is shared between open-source and potential
-3rd party enterprise capability. The open-source edition ships a
-fixed three-role bundle (`reader`, `writer`, `admin`). Enterprise
-capability may define additional roles by composing their own
-capability bundles from the same vocabulary; no protocol, gateway,
-or backend-service change is required.
+This document defines:
+
+- The **capability vocabulary** — the closed list of capability
+  strings the gateway uses as input to `authorise`.  All IAM
+  regimes share this vocabulary; that's the only schema the
+  gateway and the IAM regime have to agree on.
+- The **open-source role bundles** — the role-and-scope table the
+  OSS IAM regime uses to answer `authorise` calls.  Other regimes
+  answer the same call differently; the bundles below are an
+  OSS-specific implementation detail, not a contract assertion.
+
+A regime may evaluate `authorise` using role bundles (OSS), IdP
+group memberships, attribute-based policies, relationship tuples,
+or any other mechanism.  The gateway is unaware of which.  The
+capability strings — and the resource component vocabulary the
+gateway populates alongside them — are the only thing both sides
+have to agree on.
 
 ## Motivation
 
@@ -113,19 +132,50 @@ granting `llm` expresses exactly that. An administrator granting
 `agent` should treat it as a grant of everything the agent
 composes at deployment time.
 
-### Authorisation evaluation
+### Authorisation evaluation (OSS regime)
+
+This section describes how the OSS IAM regime answers
+`authorise(identity, capability, resource, parameters)`.  Other
+regimes answer the same contract differently; only the inputs (the
+capability vocabulary, the resource components, the parameter
+shape) are shared.
 
 For a request bearing a resolved set of roles
-`R = {r1, r2, ...}` against an endpoint that requires capability
-`c`:
+`R = {r1, r2, ...}`, a required capability `c`, a resource, and
+parameters:
 
 ```
-allow if c IN union(bundle(r) for r in R)
+let target_workspace =
+        resource.workspace                  (workspace-/flow-level resources)
+        or parameters.workspace             (system-level resources whose
+                                             parameters reference a workspace)
+        or unset                            (system-level operations with no
+                                             workspace context)
+
+allow if some role r in R has c in its capability bundle
+        and (target_workspace is unset
+             or r's workspace_scope permits target_workspace)
 ```
 
-No hierarchy, no precedence, no role-order sensitivity. A user
+The OSS regime considers workspace from whichever role it plays in
+the operation:
+
+- For workspace-level and flow-level resources, the workspace lives
+  in `resource.workspace` and that is what the role's scope is
+  checked against.
+- For system-level resources whose operation parameters reference a
+  workspace (e.g. `create-user with workspace association W`),
+  workspace lives in `parameters.workspace` and that is what the
+  role's scope is checked against.  The resource is system-level
+  (`resource = {}`) but the workspace constraint still bites.
+- For system-level operations with no workspace context (e.g.
+  `bootstrap`, `rotate-signing-key`), the workspace-scope check
+  collapses — only capability-bundle membership matters.
+
+No hierarchy, no precedence, no role-order sensitivity.  A user
 with a single role is the common case; a user with multiple roles
-gets the union of their bundles.
+is allowed if any role independently grants both the capability
+and the relevant workspace scope.
 
 ### Enforcement boundary
 
@@ -214,5 +264,10 @@ ships that feature.
 
 ## References
 
+- [IAM Contract Specification](iam-contract.md) — the abstract
+  gateway↔IAM regime contract; capability strings are inputs to
+  `authorise`.
 - [Identity and Access Management Specification](iam.md)
+- [IAM Service Protocol Specification](iam-protocol.md) — the OSS
+  regime's wire-level protocol.
 - [Architecture Principles](architecture-principles.md)
