@@ -92,6 +92,14 @@ class IamEndpoint:
                 identity, op.capability, resource, parameters,
             )
 
+        # Plumb the authenticated caller's handle through as ``actor``
+        # so iam-svc handlers (e.g. whoami, future actor-scoped
+        # checks) know who is making the request.  The gateway is
+        # the only authority for this — body-supplied ``actor``
+        # values are overwritten so callers can't impersonate.
+        if identity is not None:
+            body["actor"] = identity.handle
+
         async def responder(x, fin):
             pass
 

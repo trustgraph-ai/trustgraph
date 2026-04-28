@@ -167,6 +167,11 @@ class IamTableStore:
                    roles, enabled, must_change_password, created
             FROM iam_users WHERE workspace = ? ALLOW FILTERING
         """)
+        self.list_users_stmt = c.prepare("""
+            SELECT id, workspace, username, name, email, password_hash,
+                   roles, enabled, must_change_password, created
+            FROM iam_users
+        """)
 
         self.put_username_lookup_stmt = c.prepare("""
             INSERT INTO iam_users_by_username (workspace, username, user_id)
@@ -302,6 +307,15 @@ class IamTableStore:
     async def list_users_by_workspace(self, workspace):
         return await async_execute(
             self.cassandra, self.list_users_by_workspace_stmt, (workspace,),
+        )
+
+    async def list_users(self):
+        """List every user across the deployment.  Used by the
+        system-level list-users handler when no workspace filter is
+        supplied; the gateway has already authorised the call against
+        the caller's authority."""
+        return await async_execute(
+            self.cassandra, self.list_users_stmt, (),
         )
 
     async def delete_user(self, id):

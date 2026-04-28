@@ -83,17 +83,16 @@ The four arguments separate concerns:
   identifier.  See *The Resource model* below.
 - **`parameters`** — operation-specific data that the regime may
   need to consider beyond the resource identifier.  Used when a
-  decision depends on attributes the request supplies — e.g. an
-  admin scoped to one workspace creating a user *with workspace
-  association W*: the resource is the system-level user registry,
-  and W is a parameter the regime checks against the admin's
-  scope.
+  decision depends on attributes the request supplies — e.g.
+  creating a user *with workspace association W*: the resource is
+  the system-level user registry, and W is a parameter the regime
+  checks against the caller's permissions for `users:write`.
 
-Different regimes use the four arguments differently — the OSS
-regime checks role bundles against the capability and the role's
-workspace scope against parameters; an SSO regime might consult an
-upstream IdP's group memberships; an ABAC regime evaluates a
-policy with all four as inputs.  The contract is unchanged.
+Different regimes use the four arguments differently — one regime
+might evaluate role bundles whose grants carry workspace scope;
+another might consult upstream IdP group memberships; an ABAC
+regime evaluates a policy with all four as inputs.  The contract
+is unchanged.
 
 ### `authorise_many`
 
@@ -129,13 +128,48 @@ most of them) but the operation set the gateway can forward is:
   `revoke-api-key`, `change-password`, `reset-password`
 - Workspace management: `create-workspace`, `list-workspaces`,
   `get-workspace`, `update-workspace`, `disable-workspace`
-- Session management: `login`
+- Session management: `login`, `whoami`
 - Key management: `get-signing-key-public`, `rotate-signing-key`
-- Bootstrap: `bootstrap`
+- Bootstrap: `bootstrap`, `bootstrap-status`
+
+`whoami` is the self-read counterpart to `get-user`: any
+authenticated caller can read their own identity record without
+holding a user-management capability.  It is the gating-free probe
+a UI uses to render affordances appropriate to the caller's role.
+
+`bootstrap-status` is a side-effect-free probe of whether an
+unconsumed `bootstrap` call would currently succeed.  It exists so
+a first-run UI can decide whether to render setup without invoking
+the consuming `bootstrap` op.  Public — no authentication.
 
 A regime that does not support one of these (e.g. an SSO regime
 where users are managed in the IdP) returns a defined "not
 supported" error; the gateway surfaces it as a 501.
+
+### Actor injection
+
+For any management operation forwarded by the gateway after
+authentication, the gateway injects the authenticated caller's
+`handle` as an `actor` field on the request.  Regimes use `actor`
+to identify *who is making the request* — distinct from the
+operation's target (which lives in `user_id` / `key_id` /
+`workspace_record` / etc.) — for purposes such as:
+
+- Self-service operations (`whoami`, `change-password`) that
+  resolve "the caller" without taking a target argument.
+- Audit logging, where the actor is recorded against the change.
+- Decisions that depend on the resolved resource state.  The
+  gateway authorises against the parameters on the request, but it
+  cannot know the resolved resource's actual properties (e.g. the
+  workspace association of a target user) before the regime loads
+  it.  When that matters, the regime can re-decide using the
+  actor's permissions and the resolved record — closing a class
+  of cases the gateway-side check can't see.
+
+Caller-supplied `actor` values on the request body are overwritten
+by the gateway — the gateway is the only authority for actor
+identity, and a regime that consults `actor` can rely on it being
+authentic.
 
 ## The `Identity` surface
 
@@ -327,13 +361,16 @@ contract via:
 - Credentials are API keys (opaque) or JWTs (Ed25519, locally
   validated by the gateway against the regime's published public
   key).
-- `authorise` reduces to a role-and-workspace-scope check against
-  the role table defined in [`capabilities.md`](capabilities.md).
+- `authorise` reduces to a lookup against the role bundles in
+  [`capabilities.md`](capabilities.md), with each grant's workspace
+  scope checked against the operation's workspace component.
 - Identity, user, and workspace records live in Cassandra.
 
-The OSS regime is deliberately simple — three roles, single
-home-workspace per user (a regime data-model decision, not a
-contract assertion), no policy language.
+The OSS regime is deliberately simple — three roles, a single
+workspace association per user (a regime data-model decision, not
+a contract assertion), no policy language.  Other regimes can
+grant the same user different permissions in different workspaces
+without changing anything outside the regime.
 
 ### Future regimes
 

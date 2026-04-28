@@ -271,27 +271,31 @@ register(Operation(
 ))
 
 
-# API keys: workspace-level resource — keys live within a workspace.
+# API keys: SYSTEM-level resource — like users, a key record exists
+# in the deployment-wide keys registry.  The workspace the key
+# authenticates to is a property of the record, not a containment;
+# it appears as a parameter so the regime can scope the admin's
+# authority to issue / list / revoke against it.
 register(Operation(
     name="create-api-key",
     capability="keys:admin",
-    resource_level=ResourceLevel.WORKSPACE,
-    extract_resource=_workspace_from_body,
-    extract_parameters=_no_parameters,
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_workspace_param_only,
 ))
 register(Operation(
     name="list-api-keys",
     capability="keys:admin",
-    resource_level=ResourceLevel.WORKSPACE,
-    extract_resource=_workspace_from_body,
-    extract_parameters=_no_parameters,
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_workspace_param_only,
 ))
 register(Operation(
     name="revoke-api-key",
     capability="keys:admin",
-    resource_level=ResourceLevel.WORKSPACE,
-    extract_resource=_workspace_from_body,
-    extract_parameters=_no_parameters,
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_workspace_param_only,
 ))
 
 
@@ -371,7 +375,21 @@ register(Operation(
     extract_parameters=_no_parameters,
 ))
 register(Operation(
+    name="bootstrap-status",
+    capability=PUBLIC,
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_no_parameters,
+))
+register(Operation(
     name="change-password",
+    capability=AUTHENTICATED,
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_no_parameters,
+))
+register(Operation(
+    name="whoami",
     capability=AUTHENTICATED,
     resource_level=ResourceLevel.SYSTEM,
     extract_resource=_empty_resource,

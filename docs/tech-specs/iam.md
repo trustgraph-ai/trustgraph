@@ -268,6 +268,26 @@ The gateway forwards this to the IAM service, which validates
 credentials and returns a signed JWT. The gateway returns the JWT to
 the caller.
 
+#### Self-service: `whoami` and `bootstrap-status`
+
+Two side-effect-free probes that exist to support UI affordances
+without giving the caller broad read access:
+
+- `POST /api/v1/iam` with `{"operation": "whoami"}` — authenticated
+  only.  Returns the caller's own user record (id, username, name,
+  email, workspace, roles, enabled, must_change_password,
+  created).  No `users:read` capability is required, because every
+  authenticated caller can read themselves.  The gateway populates
+  `actor` on the request from the authenticated identity, so the
+  regime resolves "the caller" without taking a target argument.
+
+- `POST /api/v1/auth/bootstrap-status` — public, side-effect-free.
+  Returns `{"bootstrap_available": true|false}`.  `true` iff
+  iam-svc is in `bootstrap` mode and its tables are empty (i.e. an
+  unconsumed `bootstrap` call would currently succeed).  Exists so
+  a first-run UI can decide whether to render the setup flow
+  without invoking the consuming `bootstrap` op.
+
 #### IAM service delegation
 
 The gateway stays thin. Its authentication logic is:
@@ -387,9 +407,10 @@ workspace; every `authorise` call sees a concrete value.
 Whether the resolved workspace is permitted to be operated on by
 this caller is an **IAM decision**, not a gateway one.  The gateway
 calls `authorise(identity, capability, {workspace: ..., ...})` and
-relays the answer.  In the OSS regime, the answer comes from the
-caller's role × workspace-scope — see [`capabilities.md`](capabilities.md).
-In other regimes it could come from group mappings, policies,
+relays the answer.  In the OSS regime, the regime checks whether
+the caller's permission grants for `<capability>` include this
+workspace — see [`capabilities.md`](capabilities.md).  In other
+regimes the decision could come from group mappings, policies,
 relationship tuples, or anything else the regime models.
 
 ### Request anatomy
@@ -500,8 +521,19 @@ The OSS regime ships three roles:
 | `writer` | All reader capabilities, plus `graph:write`, `documents:write`, `rows:write`, `knowledge:write`, `collections:write`. |
 | `admin` | All writer capabilities, plus `config:write`, `flows:write`, `users:read`, `users:write`, `users:admin`, `keys:admin`, `workspaces:admin`, `iam:admin`, `metrics:read`. |
 
-Workspace scope: `reader` and `writer` are active only in the
-caller's bound workspace; `admin` is active across all workspaces.
+Workspace scope is a property of the *grant*, not of the user or
+role.  In the OSS regime each capability granted by `reader` /
+`writer` is scoped to the workspace the user record is associated
+with; capabilities granted by `admin` are scoped to `*` (every
+workspace).  A user is a system-level object — they don't "live
+in" a workspace, they hold permissions whose scope happens to
+reference one.
+
+The OSS regime is deliberately limited to one workspace association
+per user; future regimes are free to grant the same user different
+permissions in different workspaces, or use a non-workspace scope
+entirely.  This is regime-internal — neither the contract nor the
+gateway carries an assumption either way.
 
 The gateway gates each endpoint by *capability*, not by role.
 Capabilities are declared per operation in the gateway's operation
@@ -647,6 +679,9 @@ For HTTP requests:
    error, fail closed (401 / 503 per deployment).
 8. Cache the decision per the contract's caching rules (clamped
    above by a deployment-set ceiling).
+9. For requests forwarded to iam-svc, set `actor` on the body
+   from `identity.handle`, overwriting any caller-supplied value.
+   See [`iam-contract.md`](iam-contract.md#actor-injection).
 
 For WebSocket connections:
 
