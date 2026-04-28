@@ -7,6 +7,7 @@ Shape mirrors trustgraph.config.service.
 """
 
 import logging
+import os
 
 from trustgraph.schema import Error
 from trustgraph.schema import IamRequest, IamResponse
@@ -27,6 +28,13 @@ default_ident = "iam-svc"
 default_iam_request_queue = iam_request_queue
 default_iam_response_queue = iam_response_queue
 
+# Environment variables consulted as a fallback when the
+# corresponding params field is not set in the processor-group YAML
+# or via CLI.  Intended for K8s Secret / env-var injection so the
+# bootstrap token never has to live in the YAML (and thus in git).
+ENV_BOOTSTRAP_MODE = "IAM_BOOTSTRAP_MODE"
+ENV_BOOTSTRAP_TOKEN = "IAM_BOOTSTRAP_TOKEN"
+
 
 class Processor(AsyncProcessor):
 
@@ -39,26 +47,41 @@ class Processor(AsyncProcessor):
             "iam_response_queue", default_iam_response_queue,
         )
 
-        bootstrap_mode = params.get("bootstrap_mode")
-        bootstrap_token = params.get("bootstrap_token")
+        # Resolve bootstrap mode + token.  Precedence: explicit
+        # params (CLI / processor-group YAML) → environment variable
+        # → unset (fail-closed).  The env-var path is the K8s-native
+        # injection point: an `IAM_BOOTSTRAP_TOKEN` from a Secret
+        # never has to land in the YAML, and therefore never enters
+        # git history.
+        bootstrap_mode = (
+            params.get("bootstrap_mode")
+            or os.environ.get(ENV_BOOTSTRAP_MODE)
+        )
+        bootstrap_token = (
+            params.get("bootstrap_token")
+            or os.environ.get(ENV_BOOTSTRAP_TOKEN)
+        )
 
         if bootstrap_mode not in ("token", "bootstrap"):
             raise RuntimeError(
-                "iam-svc: --bootstrap-mode is required.  Set to 'token' "
-                "(with --bootstrap-token) for production, or 'bootstrap' "
+                "iam-svc: bootstrap-mode is required.  Set to 'token' "
+                "(with bootstrap-token) for production, or 'bootstrap' "
                 "to enable the explicit bootstrap operation over the "
                 "pub/sub bus (dev / quick-start only, not safe under "
-                "public exposure).  Refusing to start."
+                "public exposure).  Configurable via processor-group "
+                f"params or the {ENV_BOOTSTRAP_MODE} environment "
+                "variable.  Refusing to start."
             )
         if bootstrap_mode == "token" and not bootstrap_token:
             raise RuntimeError(
-                "iam-svc: --bootstrap-mode=token requires "
-                "--bootstrap-token.  Refusing to start."
+                "iam-svc: bootstrap-mode=token requires bootstrap-token "
+                f"(or the {ENV_BOOTSTRAP_TOKEN} environment "
+                "variable).  Refusing to start."
             )
         if bootstrap_mode == "bootstrap" and bootstrap_token:
             raise RuntimeError(
-                "iam-svc: --bootstrap-token is not accepted when "
-                "--bootstrap-mode=bootstrap.  Ambiguous intent.  "
+                "iam-svc: bootstrap-token is not accepted when "
+                "bootstrap-mode=bootstrap.  Ambiguous intent.  "
                 "Refusing to start."
             )
 

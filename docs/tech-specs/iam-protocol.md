@@ -273,6 +273,25 @@ cannot distinguish:
 This matches the general IAM error-policy stance (see `iam.md`) and
 prevents externally enumerating IAM's state.
 
+### Configuration sources
+
+The mode and token can be supplied two ways.  Resolution order is
+fixed; there is no permissive fallback.
+
+| Source | Field |
+|---|---|
+| Processor-group YAML / CLI argument | `bootstrap_mode`, `bootstrap_token` |
+| Environment variable | `IAM_BOOTSTRAP_MODE`, `IAM_BOOTSTRAP_TOKEN` |
+
+For each setting the service uses the explicit param value if
+present; otherwise the environment variable; otherwise the service
+refuses to start.  The env-var path is intended for the K8s
+deployment pattern where the token is injected from a `Secret` via
+`secretKeyRef`, so the plaintext never has to live in YAML or git.
+A typical production manifest holds `bootstrap_mode: "token"` in
+the YAML and pulls `IAM_BOOTSTRAP_TOKEN` from the Secret; the YAML
+is then safe to version-control.
+
 ### Bootstrap-token lifecycle
 
 The bootstrap token — whether operator-supplied (`token` mode) or
@@ -283,7 +302,8 @@ operator's first admin action after bootstrap should be:
 1. Create a durable admin user and API key (or issue a durable API
    key to the bootstrap admin).
 2. Revoke the bootstrap key via `revoke-api-key`.
-3. Remove the bootstrap token from any deployment configuration.
+3. Remove the bootstrap token from any deployment configuration
+   (Secret, env var, or YAML field — wherever it was sourced).
 
 The `name="bootstrap"` marker makes bootstrap keys easy to detect in
 tooling (e.g. a `tg-list-api-keys` filter).
