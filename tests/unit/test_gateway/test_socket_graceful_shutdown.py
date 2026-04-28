@@ -25,11 +25,11 @@ from trustgraph.gateway.auth import Identity
 TEST_CAP = "graph:write"
 
 
-def _valid_identity(roles=("admin",)):
+def _valid_identity():
     return Identity(
-        user_id="test-user",
+        handle="test-user",
         workspace="default",
-        roles=list(roles),
+        principal_id="test-user",
         source="api-key",
     )
 
@@ -37,11 +37,12 @@ def _valid_identity(roles=("admin",)):
 @pytest.fixture
 def mock_auth():
     """Mock IAM-backed authenticator.  Successful by default —
-    ``authenticate`` returns a valid admin identity.  Tests that
-    need the auth failure path override the ``authenticate``
-    attribute locally."""
+    ``authenticate`` returns a valid identity and ``authorise``
+    allows everything.  Tests that need the failure paths override
+    the relevant attribute locally."""
     auth = MagicMock()
     auth.authenticate = AsyncMock(return_value=_valid_identity())
+    auth.authorise = AsyncMock(return_value=None)
     return auth
 
 
@@ -135,6 +136,7 @@ async def test_handle_normal_flow():
     """Valid bearer → handshake accepted, dispatcher created."""
     mock_auth = MagicMock()
     mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
+    mock_auth.authorise = AsyncMock(return_value=None)
 
     dispatcher_created = False
     async def mock_dispatcher_factory(ws, running, match_info):
@@ -192,6 +194,7 @@ async def test_handle_exception_group_cleanup():
     """Test exception group triggers dispatcher cleanup."""
     mock_auth = MagicMock()
     mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
+    mock_auth.authorise = AsyncMock(return_value=None)
 
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()
@@ -262,6 +265,7 @@ async def test_handle_dispatcher_cleanup_timeout():
     """Test dispatcher cleanup with timeout."""
     mock_auth = MagicMock()
     mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
+    mock_auth.authorise = AsyncMock(return_value=None)
 
     # Mock dispatcher that takes long to destroy
     mock_dispatcher = AsyncMock()
@@ -388,6 +392,7 @@ async def test_handle_websocket_already_closed():
     """Test handling when websocket is already closed."""
     mock_auth = MagicMock()
     mock_auth.authenticate = AsyncMock(return_value=_valid_identity())
+    mock_auth.authorise = AsyncMock(return_value=None)
 
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()

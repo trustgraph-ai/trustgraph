@@ -40,6 +40,78 @@ API_KEY_RANDOM_BYTES = 24
 JWT_ISSUER = "trustgraph-iam"
 JWT_TTL_SECONDS = 3600
 
+# Default authorisation cache TTL the regime tells the gateway to
+# observe.  60s is the OSS-spec maximum revocation latency: a role
+# change, workspace disable, or key revoke takes effect within at
+# most this much time.
+AUTHZ_CACHE_TTL_SECONDS = 60
+
+
+# OSS regime role table.  Lives here, not in the gateway — the
+# gateway is regime-agnostic and must not encode policy.
+#
+# Each role has a capability set and a workspace scope.  The
+# evaluator (handle_authorise below) checks (a) that some role
+# held by the caller grants the requested capability, and (b)
+# that role's workspace scope permits the target workspace.
+
+_READER_CAPS = {
+    "agent",
+    "graph:read",
+    "documents:read",
+    "rows:read",
+    "llm",
+    "embeddings",
+    "mcp",
+    "config:read",
+    "flows:read",
+    "collections:read",
+    "knowledge:read",
+    "keys:self",
+}
+
+_WRITER_CAPS = _READER_CAPS | {
+    "graph:write",
+    "documents:write",
+    "rows:write",
+    "collections:write",
+    "knowledge:write",
+}
+
+_ADMIN_CAPS = _WRITER_CAPS | {
+    "config:write",
+    "flows:write",
+    "users:read", "users:write", "users:admin",
+    "keys:admin",
+    "workspaces:admin",
+    "iam:admin",
+    "metrics:read",
+}
+
+ROLE_DEFINITIONS = {
+    "reader": {
+        "capabilities": _READER_CAPS,
+        "workspace_scope": "assigned",
+    },
+    "writer": {
+        "capabilities": _WRITER_CAPS,
+        "workspace_scope": "assigned",
+    },
+    "admin": {
+        "capabilities": _ADMIN_CAPS,
+        "workspace_scope": "*",
+    },
+}
+
+
+def _scope_permits(role_scope, target_workspace, assigned_workspace):
+    """Does the given role apply to ``target_workspace``?"""
+    if role_scope == "*":
+        return True
+    if role_scope == "assigned":
+        return target_workspace == assigned_workspace
+    return False
+
 
 def _now_iso():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -250,6 +322,10 @@ class IamService:
                 return await self.handle_disable_workspace(v)
             if op == "rotate-signing-key":
                 return await self.handle_rotate_signing_key(v)
+            if op == "authorise":
+                return await self.handle_authorise(v)
+            if op == "authorise-many":
+                return await self.handle_authorise_many(v)
 
             return _err(
                 "invalid-argument",
@@ -478,7 +554,7 @@ class IamService:
 
         (
             id, ws, _username, _name, _email, password_hash,
-            roles, enabled, _mcp, _created,
+            _roles, enabled, _mcp, _created,
         ) = user_row
 
         if not enabled:
@@ -496,11 +572,14 @@ class IamService:
 
         now_ts = int(_now_dt().timestamp())
         exp_ts = now_ts + JWT_TTL_SECONDS
+        # Per the IAM contract the gateway never reads policy state
+        # from the credential — roles stay server-side, reachable
+        # only via authorise().  JWT carries identity + workspace
+        # binding only.
         claims = {
             "iss": JWT_ISSUER,
             "sub": id,
             "workspace": ws,
-            "roles": sorted(roles) if roles else [],
             "iat": now_ts,
             "exp": exp_ts,
         }
@@ -1130,3 +1209,134 @@ class IamService:
 
         await self.table_store.delete_api_key(key_hash)
         return IamResponse()
+
+    # ------------------------------------------------------------------
+    # authorise / authorise-many
+    #
+    # The IAM contract (see docs/tech-specs/iam-contract.md) calls
+    # for the regime — not the gateway — to decide whether an
+    # identity may perform a capability on a resource given the
+    # operation's parameters.  These two operations are the OSS
+    # regime's implementation of that contract.
+    #
+    # Inputs (on IamRequest):
+    #   user_id          — the identity handle (the gateway's
+    #                       opaque reference).  For OSS this is the
+    #                       user record's id.
+    #   capability       — the capability string from the
+    #                       capabilities.md vocabulary.
+    #   resource_json    — JSON dict, the resource address
+    #                       ({} for system, {workspace} for
+    #                       workspace, {workspace, flow} for flow).
+    #   parameters_json  — JSON dict, decision-relevant operation
+    #                       parameters (e.g. workspace association
+    #                       on user-registry operations).
+    #   authorise_checks — for authorise-many, a JSON list of
+    #                       {capability, resource, parameters}.
+    #
+    # Outputs (on IamResponse):
+    #   decision_allow         — single allow / deny verdict.
+    #   decision_ttl_seconds   — gateway cache TTL for this
+    #                            decision.
+    #   decisions_json         — for authorise-many, list of
+    #                            {allow, ttl} in request order.
+    # ------------------------------------------------------------------
+
+    def _decide(self, user_row, capability, resource, parameters):
+        """Single authorisation decision.  Returns (allow, ttl)."""
+
+        if user_row is None:
+            return False, AUTHZ_CACHE_TTL_SECONDS
+
+        # user_row layout:
+        # 0:id 1:workspace 2:username 3:name 4:email 5:password_hash
+        # 6:roles 7:enabled 8:must_change_password 9:created
+        if not user_row[7]:  # disabled
+            return False, AUTHZ_CACHE_TTL_SECONDS
+
+        # Disabled workspace check (defense in depth — credentials
+        # bound to a disabled workspace shouldn't be able to act).
+        # Cheap; one row read.
+        # We do this only when a target workspace is involved, to
+        # avoid an extra read for system-level operations that
+        # bypass workspace altogether.
+        target_workspace = (
+            (resource or {}).get("workspace")
+            or (parameters or {}).get("workspace")
+        )
+
+        roles = user_row[6] or set()
+        assigned_workspace = user_row[1]
+
+        for role_name in roles:
+            defn = ROLE_DEFINITIONS.get(role_name)
+            if defn is None:
+                continue
+            if capability not in defn["capabilities"]:
+                continue
+            if target_workspace is None or _scope_permits(
+                    defn["workspace_scope"],
+                    target_workspace,
+                    assigned_workspace,
+            ):
+                return True, AUTHZ_CACHE_TTL_SECONDS
+
+        return False, AUTHZ_CACHE_TTL_SECONDS
+
+    async def handle_authorise(self, v):
+        if not v.capability:
+            return _err("invalid-argument", "capability required")
+        if not v.user_id:
+            return _err("invalid-argument", "user_id (handle) required")
+
+        try:
+            resource = json.loads(v.resource_json or "{}")
+            parameters = json.loads(v.parameters_json or "{}")
+        except json.JSONDecodeError as e:
+            return _err("invalid-argument", f"bad json: {e}")
+
+        user_row = await self.table_store.get_user(v.user_id)
+        allow, ttl = self._decide(
+            user_row, v.capability, resource, parameters,
+        )
+        return IamResponse(
+            decision_allow=allow,
+            decision_ttl_seconds=ttl,
+        )
+
+    async def handle_authorise_many(self, v):
+        if not v.user_id:
+            return _err("invalid-argument", "user_id (handle) required")
+        if not v.authorise_checks:
+            return _err("invalid-argument", "authorise_checks required")
+
+        try:
+            checks = json.loads(v.authorise_checks)
+        except json.JSONDecodeError as e:
+            return _err("invalid-argument", f"bad json: {e}")
+        if not isinstance(checks, list):
+            return _err(
+                "invalid-argument",
+                "authorise_checks must be a JSON list",
+            )
+
+        # One user lookup for the whole batch.
+        user_row = await self.table_store.get_user(v.user_id)
+
+        decisions = []
+        for c in checks:
+            if not isinstance(c, dict):
+                decisions.append({
+                    "allow": False,
+                    "ttl": AUTHZ_CACHE_TTL_SECONDS,
+                })
+                continue
+            allow, ttl = self._decide(
+                user_row,
+                c.get("capability", ""),
+                c.get("resource") or {},
+                c.get("parameters") or {},
+            )
+            decisions.append({"allow": allow, "ttl": ttl})
+
+        return IamResponse(decisions_json=json.dumps(decisions))

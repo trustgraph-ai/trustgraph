@@ -199,9 +199,9 @@ The server rejects all non-auth messages until authentication succeeds.
 The socket remains open on auth failure, allowing the client to retry
 with a different token without reconnecting. The client can also send
 a new auth message at any time to re-authenticate — for example, to
-refresh an expiring JWT or to switch workspace. The
-resolved identity (user, workspace, roles) is updated on each
-successful auth.
+refresh an expiring JWT or to switch workspace. The resolved
+identity (handle, workspace, principal_id, source) is updated on
+each successful auth.
 
 #### API keys
 
@@ -219,7 +219,7 @@ For programmatic access: CLI tools, scripts, and integrations.
 On each request, the gateway resolves an API key by:
 
 1. Hashing the token.
-2. Checking a local cache (hash → user/workspace/roles).
+2. Checking a local cache (hash → identity).
 3. On cache miss, calling the IAM service to resolve.
 4. Caching the result with a short TTL (e.g. 60 seconds).
 
@@ -233,9 +233,15 @@ For interactive access via the UI or WebSocket connections.
 - A user logs in with username and password. The gateway forwards the
   request to the IAM service, which validates the credentials and
   returns a signed JWT.
-- The JWT carries the user ID, workspace, and roles as claims.
+- The JWT carries identity-binding claims only — user id (`sub`)
+  and the workspace this credential authenticates to.  No roles,
+  no policy state.  Per the IAM contract, all policy decisions go
+  through `authorise`; the gateway never reads roles or other
+  regime-internal state from the credential.
 - The gateway validates JWTs locally using the IAM service's public
-  signing key — no service call needed on subsequent requests.
+  signing key — no service call needed for the authentication step;
+  authorisation calls remain per-request (cached per the contract's
+  caching rules).
 - Token expiry is enforced by standard JWT validation at the time the
   request (or WebSocket connection) is made.
 - For long-lived WebSocket connections, the JWT is validated at connect
@@ -285,35 +291,82 @@ authentication uses API keys or JWTs. On first start, the bootstrap
 process creates a default workspace and admin user with an initial API
 key.
 
-### User identity
+### Identity, credentials, and workspace binding
 
-A user belongs to exactly one workspace. The design supports extending
-this to multi-workspace access in the future (see
-[Extension points](#extension-points)).
+The gateway never asks "which workspace does *this user* belong to?".
+That question forces every IAM regime to expose a user-to-workspace
+mapping, which prevents regimes where the relationship is many-to-many
+or doesn't exist (e.g. SSO with IdP-driven workspace selection).
+Instead, the gateway asks "which workspace does *this credential*
+authenticate to?" — a question every regime can answer in its own
+terms.
 
-A user record contains:
+A credential (API key, JWT, OIDC token, etc.) is **bound to a
+workspace at issue time**.  The IAM regime decides what binding
+means:
+
+- **OSS regime** — each user has a home workspace; credentials
+  issued to that user are bound to that workspace.  A 1:1
+  user-to-workspace constraint is an internal data-model decision,
+  not a contract assertion.
+- **Multi-workspace regime** (future / enterprise) — a user with
+  access to several workspaces gets a different credential per
+  workspace.  Each credential authenticates to exactly one
+  workspace; the relationship between user and workspace is a
+  regime-internal detail the gateway does not see.
+
+When the gateway authenticates a credential, the IAM regime returns
+an `Identity` whose `workspace` is the workspace this credential is
+for.  That value — not "the user's workspace" — is what the gateway
+uses for default-fill-in and as input to the IAM `authorise` call.
+
+#### Identity surface
+
+What the gateway holds after `authenticate`:
+
+| Field | Purpose |
+|-------|---------|
+| `handle` | Opaque token quoted back when calling `authorise`.  Regime-defined. |
+| `workspace` | The workspace this credential authenticates to.  Used as the default if a request omits workspace. |
+| `principal_id` | Stable identifier for audit logging (a user id, sub claim, service account id).  Never used for authorisation. |
+| `source` | How the credential was presented (`api-key`, `jwt`).  Logged with audit events; not policy input. |
+
+Anything else — roles, claims, group memberships, policy attributes
+— stays inside the regime and is reachable only via `authorise`.
+See [`iam-contract.md`](iam-contract.md) for the full contract.
+
+#### OSS user record
+
+The OSS regime stores the following per user.  These fields are
+**OSS-implementation specifics**, not part of the contract.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique user identifier (UUID) |
 | `name` | string | Display name |
 | `email` | string | Email address (optional) |
-| `workspace` | string | Workspace the user belongs to |
+| `workspace` | string | Home workspace; default binding for issued credentials |
 | `roles` | list[string] | Assigned roles (e.g. `["reader"]`) |
 | `enabled` | bool | Whether the user can authenticate |
 | `created` | datetime | Account creation timestamp |
 
-The `workspace` field maps to the existing `user` field in `Metadata`.
-This means the storage-layer isolation (Cassandra, Neo4j, Qdrant
-filtering by `user` + `collection`) works without changes — the gateway
-sets the `user` metadata field to the authenticated user's workspace.
+The `workspace` field on a user record is the **default binding**
+used when issuing credentials, not a constraint visible to the
+gateway.  An enterprise regime may have no user records at all
+(authentication delegated to an IdP).
 
 ### Workspaces
 
-A workspace is an isolated data boundary. Users belong to a workspace,
-and all data operations are scoped to it. Workspaces map to the existing
-`user` field in `Metadata` and the corresponding Cassandra keyspace,
-Qdrant collection prefix, and Neo4j property filters.
+A workspace is an isolated data boundary — a tenancy scope in which
+users, flows, configuration, documents, and knowledge graphs live.
+Workspaces map to storage-layer isolation: the `user` field in
+`Metadata`, the corresponding Cassandra keyspace, the Qdrant
+collection prefix, the Neo4j property filter.
+
+Workspace is the most prominent component of an operation's
+**resource scope**: when a request says "do X to Y", workspace is
+part of "Y".  Listing users, creating flows, querying the graph —
+all of these target a specific workspace.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -322,57 +375,164 @@ Qdrant collection prefix, and Neo4j property filters.
 | `enabled` | bool | Whether the workspace is active |
 | `created` | datetime | Creation timestamp |
 
-All data operations are scoped to a workspace. The gateway determines
-the effective workspace for each request as follows:
+#### Default-fill-in
 
-1. If the request includes a `workspace` parameter, validate it against
-   the user's assigned workspace.
-   - If it matches, use it.
-   - If it does not match, return 403. (This could be extended to
-     check a workspace access grant list.)
-2. If no `workspace` parameter is provided, use the user's assigned
-   workspace.
+If a request omits workspace, the gateway fills it in from the
+authenticated identity's bound workspace (`identity.workspace`)
+before any IAM check runs.  IAM never receives an unresolved
+workspace; every `authorise` call sees a concrete value.
 
-The gateway sets the `user` field in `Metadata` to the effective
-workspace ID, replacing the caller-supplied `?user=` query parameter.
+#### Authorisation
 
-This design ensures forward compatibility. Clients that pass a
-workspace parameter will work unchanged if multi-workspace support is
-added later. Requests for an unassigned workspace get a clear 403
-rather than silent misbehaviour.
+Whether the resolved workspace is permitted to be operated on by
+this caller is an **IAM decision**, not a gateway one.  The gateway
+calls `authorise(identity, capability, {workspace: ..., ...})` and
+relays the answer.  In the OSS regime, the answer comes from the
+caller's role × workspace-scope — see [`capabilities.md`](capabilities.md).
+In other regimes it could come from group mappings, policies,
+relationship tuples, or anything else the regime models.
+
+### Request anatomy
+
+The shape of a request — where workspace appears, where flow
+appears, where parameters live — follows from **the level of the
+resource being operated on**, not from any single property of the
+request like its URL or its required capability.
+
+Resources live at one of three levels (see also the resource model
+in [`iam-contract.md`](iam-contract.md)):
+
+| Resource level | Examples | Resource address |
+|---|---|---|
+| **System** | The user registry, the workspace registry, the IAM signing key, the audit log | empty `{}` |
+| **Workspace** | A workspace's config, flow definitions, library, knowledge cores, collections | `{workspace: ...}` |
+| **Flow** | A flow's knowledge graph, agent state, LLM context, embeddings, MCP context | `{workspace: ..., flow: ...}` |
+
+For the gateway-to-bus mapping this dictates **where workspace
+lives in the message**, but only when workspace is part of the
+*resource address*.  Workspace can also appear as an *operation
+parameter* on system-level resources (see below).
+
+#### Workspace as address vs. parameter
+
+Two distinct roles, two distinct locations:
+
+- **Workspace as address component.** Workspace identifies the
+  thing being operated on.  Used for workspace-level and flow-level
+  resources.  Lives in the addressing layer of the message — the
+  URL path for HTTP, or the WebSocket envelope alongside `flow` for
+  flow-scoped operations sent through the Mux.
+- **Workspace as operation parameter.** Workspace is data the
+  operation acts on, while the resource itself is system-level.
+  Used for operations on the user registry (`create-user with
+  workspace association W`), the workspace registry (`create-
+  workspace W`), and other system-level operations that happen to
+  reference a workspace.  Lives in the request body or inner WS
+  payload alongside the operation's other parameters.
+
+The two roles never coexist on the same operation.  Either the
+operation addresses something within a workspace (workspace is in
+the address) or it operates on a system-level resource with
+workspace as a parameter (workspace is in the body) or workspace
+is irrelevant (system-level operations like `bootstrap`,
+`rotate-signing-key`, `login` itself).
+
+#### Where workspace lives, by request type
+
+| Request type | Resource level | Workspace lives in |
+|---|---|---|
+| Flow-scoped data plane (`agent`, `graph-rag`, `llm`, `embeddings`, `mcp`, etc.) | Flow | Envelope alongside `flow` (WS) or URL path (HTTP) — part of the address |
+| Workspace-scoped control plane (`config`, `library`, `knowledge`, `collection-management`, flow lifecycle) | Workspace | Body / inner request — part of the address |
+| User registry ops (`create-user`, `list-users`, `disable-user`, etc.) | System | Body — as a *parameter* (the user's workspace association or a list filter) |
+| Workspace registry ops (`create-workspace`, `list-workspaces`, etc.) | System | Body — as a *parameter* (the workspace identifier in `workspace_record`) |
+| Credential ops (`create-api-key`, `revoke-api-key`, `change-password`, `reset-password`) | System | Body — as a *parameter* on ops that have one; absent on `change-password` (target is the caller's identity) |
+| System ops (`bootstrap`, `login`, `rotate-signing-key`, `get-signing-key-public`) | System | Not present at all |
+
+The classification is deliberate.  Users are a global concept that
+*have* a workspace; they don't *live* in one.  An OSS regime has
+1:1 user-to-workspace; a multi-workspace regime maps a user to many
+workspaces; an SSO regime might delegate workspace membership to an
+IdP entirely.  The gateway treats user-registry operations as
+system-level so the contract is the same across regimes — the
+workspace association is a parameter the regime interprets in its
+own terms.
+
+#### HTTP
+
+HTTP routes by URL path, so the address lives in the URL.
+Per-operation REST shape:
+
+- Flow-level: `POST /api/v1/workspaces/{w}/flows/{f}/services/{kind}`
+  — `workspace` and `flow` are URL components.
+- Workspace-level: `POST /api/v1/workspaces/{w}/config`,
+  `/api/v1/workspaces/{w}/library`, etc. — `workspace` is a URL
+  component.
+- System-level: `POST /api/v1/users`, `/api/v1/workspaces`, etc. —
+  no workspace in URL; if the operation references one, it's a
+  field in the body.
+
+`/api/v1/iam` is itself registry-driven: the body's `operation`
+field is looked up against the registry to obtain the capability,
+resource shape, and parameter shape per operation, rather than
+gating the whole endpoint with a single coarse capability.
+
+#### WebSocket Mux
+
+The Mux envelope is the addressing layer for flow-scoped
+operations.  For workspace-level and system-level operations the
+envelope routes by `service` only, and the inner request payload
+carries the address components or parameters as appropriate.  See
+[`iam-contract.md`](iam-contract.md) for the operation-registry
+mechanism the Mux uses to know which fields to read.
 
 ### Roles and access control
 
-Three roles with fixed permissions:
+Roles are an OSS-regime concept and live entirely in the IAM
+service.  The gateway does not enumerate or check them — it asks
+`authorise(identity, capability, resource, parameters)` per
+request and the regime maps the caller's roles to a decision.
 
-| Role | Data operations | Admin operations | System |
-|------|----------------|-----------------|--------|
-| `reader` | Query knowledge graph, embeddings, RAG | None | None |
-| `writer` | All reader operations + load documents, manage collections | None | None |
-| `admin` | All writer operations | Config, flows, collection management, user management | Metrics |
+The OSS regime ships three roles:
 
-Role checks happen at the gateway before dispatching to backend
-services. Each endpoint declares the minimum role required:
+| Role | Capabilities granted |
+|------|----------------------|
+| `reader` | Read capabilities on data and config (`graph:read`, `documents:read`, `rows:read`, `config:read`, `flows:read`, `knowledge:read`, `collections:read`, `keys:self`, plus the per-service caps `agent`, `llm`, `embeddings`, `mcp`). |
+| `writer` | All reader capabilities, plus `graph:write`, `documents:write`, `rows:write`, `knowledge:write`, `collections:write`. |
+| `admin` | All writer capabilities, plus `config:write`, `flows:write`, `users:read`, `users:write`, `users:admin`, `keys:admin`, `workspaces:admin`, `iam:admin`, `metrics:read`. |
 
-| Endpoint pattern | Minimum role |
-|-----------------|--------------|
-| `GET /api/v1/socket` (queries) | `reader` |
-| `POST /api/v1/librarian` | `writer` |
-| `POST /api/v1/flow/*/import/*` | `writer` |
-| `POST /api/v1/config` | `admin` |
-| `GET /api/v1/flow/*` | `admin` |
-| `GET /api/metrics` | `admin` |
+Workspace scope: `reader` and `writer` are active only in the
+caller's bound workspace; `admin` is active across all workspaces.
 
-Roles are hierarchical: `admin` implies `writer`, which implies
-`reader`.
+The gateway gates each endpoint by *capability*, not by role.
+Capabilities are declared per operation in the gateway's operation
+registry; see [`iam-contract.md`](iam-contract.md) for the
+registry mechanism and [`capabilities.md`](capabilities.md) for
+the capability vocabulary.
 
 ### IAM service
 
-The IAM service is a new backend service that manages all identity and
-access data. It is the authority for users, workspaces, API keys, and
-credentials. The gateway delegates to it.
+The IAM service is a backend service that implements the
+[IAM contract](iam-contract.md) — `authenticate`, `authorise`, and
+the management operations the gateway forwards.  It is the
+authority for identity, credential validation, and access decisions.
+The gateway treats it as a black box behind the contract; nothing
+in the gateway is regime-specific.
 
-#### Data model
+The OSS distribution ships one IAM regime: a role-based service
+backed by Cassandra, described in
+[`iam-protocol.md`](iam-protocol.md).  Enterprise / future regimes
+can replace this implementation without changing the gateway, the
+wire protocol between gateway and backends, or the capability
+vocabulary — see the contract spec for the abstraction the gateway
+is wired against and the implementation notes for what other
+regimes look like.
+
+#### OSS data model
+
+The OSS regime stores users, workspaces, API keys, and signing
+keys in Cassandra.  This is an **OSS regime implementation
+detail**; it is not part of the contract.  Other regimes will have
+different (or no) data models.
 
 ```
 iam_workspaces (
@@ -456,42 +616,53 @@ surface — e.g. `"missing required field 'workspace'"` or
 
 ### Gateway changes
 
-The current `Authenticator` class is replaced with a thin authentication
-middleware that delegates to the IAM service:
+The current `Authenticator` class is replaced with a thin
+authentication+authorisation middleware that delegates to the IAM
+service per the IAM contract.  The gateway performs no role check
+itself — authorisation is asked of the regime via `authorise`.
 
 For HTTP requests:
 
 1. Extract Bearer token from the `Authorization` header.
 2. If the token has JWT format (dotted structure):
    - Validate signature locally using the cached public key.
-   - Extract user ID, workspace, and roles from claims.
+   - Build an `Identity` from `sub` and `workspace` claims (no
+     other claims are consulted).
 3. Otherwise, treat as an API key:
    - Hash the token and check the local cache.
-   - On cache miss, call the IAM service to resolve.
-   - Cache the result (user/workspace/roles) with a short TTL.
+   - On cache miss, call the IAM service to resolve to an
+     `Identity` (handle, workspace, principal_id, source).
+   - Cache the result with a short TTL.
 4. If neither succeeds, return 401.
-5. If the user or workspace is disabled, return 403.
-6. Check the user's role against the endpoint's minimum role. If
-   insufficient, return 403.
-7. Resolve the effective workspace:
-   - If the request includes a `workspace` parameter, validate it
-     against the user's assigned workspace. Return 403 on mismatch.
-   - If no `workspace` parameter, use the user's assigned workspace.
-8. Set the `user` field in the request context to the effective
-   workspace ID. This propagates through `Metadata` to all downstream
-   services.
+5. Look up the operation in the gateway's operation registry to get
+   `(capability, resource_level, extractors)`.  Build the resource
+   address (system / workspace / flow level) and parameters from
+   the request.
+6. Default-fill the workspace into the body when the operation is
+   workspace- or flow-level (so downstream code sees a single
+   canonical address); the resource address keeps its supplied
+   value.
+7. Call `authorise(identity, capability, resource, parameters)`.
+   On allow, forward the request; on deny, return 403.  On regime
+   error, fail closed (401 / 503 per deployment).
+8. Cache the decision per the contract's caching rules (clamped
+   above by a deployment-set ceiling).
 
 For WebSocket connections:
 
 1. Accept the connection in an unauthenticated state.
 2. Wait for an auth message (`{"type": "auth", "token": "..."}`).
-3. Validate the token using the same logic as steps 2-7 above.
+3. Validate the token using the same logic as steps 1-3 above.
 4. On success, attach the resolved identity to the connection and
    send `{"type": "auth-ok", ...}`.
 5. On failure, send `{"type": "auth-failed", ...}` but keep the
    socket open.
 6. Reject all non-auth messages until authentication succeeds.
 7. Accept new auth messages at any time to re-authenticate.
+8. For each subsequent request frame, look up
+   `flow-service:<service>` in the registry and call `authorise`
+   against the `{workspace, flow}` resource — same authority
+   gateway HTTP callers see, evaluated per-frame.
 
 ### CLI changes
 
@@ -892,6 +1063,12 @@ service, not in the config service. Reasons:
 
 ## References
 
+- [IAM Contract Specification](iam-contract.md) — the gateway↔IAM
+  regime abstraction this design is wired against.
+- [IAM Service Protocol Specification](iam-protocol.md) — the OSS
+  regime's wire-level protocol.
+- [Capability Vocabulary Specification](capabilities.md) — the
+  capability strings the gateway uses as `authorise` input.
 - [Data Ownership and Information Separation](data-ownership-model.md)
 - [MCP Tool Bearer Token Specification](mcp-tool-bearer-token.md)
 - [Multi-Tenant Support Specification](multi-tenant-support.md)

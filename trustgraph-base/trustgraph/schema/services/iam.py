@@ -99,6 +99,21 @@ class IamRequest:
     workspace_record: WorkspaceInput | None = None
     key: ApiKeyInput | None = None
 
+    # ---- authorise / authorise-many inputs ----
+    # Capability string from the vocabulary in capabilities.md.
+    capability: str = ""
+    # Resource identifier as JSON.  See the IAM contract spec for
+    # the resource-component vocabulary.  An empty dict denotes a
+    # system-level resource.
+    resource_json: str = ""
+    # Operation parameters as JSON.  Decision-relevant fields the
+    # operation supplied that are not part of the resource address
+    # (e.g. workspace association on create-user).
+    parameters_json: str = ""
+    # For authorise-many: a JSON-serialised list of
+    # {"capability": str, "resource": dict, "parameters": dict}.
+    authorise_checks: str = ""
+
 
 @dataclass
 class IamResponse:
@@ -132,6 +147,18 @@ class IamResponse:
     # bootstrap
     bootstrap_admin_user_id: str = ""
     bootstrap_admin_api_key: str = ""
+
+    # ---- authorise / authorise-many outputs ----
+    # authorise: the regime's allow / deny verdict.
+    decision_allow: bool = False
+    # Cache TTL the regime suggests, in seconds.  Gateway respects
+    # this for both allow and deny decisions; bounded above by
+    # gateway-side policy (typically <= 60s).
+    decision_ttl_seconds: int = 0
+    # authorise-many: a JSON-serialised list of {"allow": bool,
+    # "ttl": int} in the same order as the request's
+    # authorise_checks.
+    decisions_json: str = ""
 
     error: Error | None = None
 

@@ -1,15 +1,16 @@
 """
-IAM-backed authentication for the API gateway.
+IAM-backed authentication and authorisation for the API gateway.
 
-Replaces the legacy GATEWAY_SECRET shared-token Authenticator.  The
-gateway is now stateless with respect to credentials: it either
-verifies a JWT locally using the active IAM signing public key, or
-resolves an API key by hash with a short local cache backed by the
-IAM service.
+The gateway delegates both authentication ("who is this caller?")
+and authorisation ("may they do this?") to the IAM regime via the
+contract specified in docs/tech-specs/iam-contract.md.  No regime-
+specific policy (roles, scopes, claims) lives in the gateway.
 
-Identity returned by authenticate() is the (user_id, workspace,
-roles) triple the rest of the gateway — capability checks, workspace
-resolver, audit logging — needs.
+- Authentication: API keys are resolved by IAM; JWTs are validated
+  locally against the cached signing public key.
+- Authorisation: every per-request decision is asked of IAM via
+  ``authorise(identity, capability, resource, parameters)``, with
+  results cached for the TTL the regime returns.
 """
 
 import asyncio
@@ -19,7 +20,7 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aiohttp import web
 
@@ -37,12 +38,34 @@ logger = logging.getLogger("auth")
 
 API_KEY_CACHE_TTL = 60  # seconds
 
+# Upper bound on cache TTL the gateway honours for an authorisation
+# decision, regardless of what the regime suggested.  Caps the
+# revocation latency window.
+AUTHZ_CACHE_TTL_MAX = 60  # seconds
+
 
 @dataclass
 class Identity:
-    user_id: str
+    """The gateway-side surface of an authenticated caller.
+
+    Per the IAM contract this is a small fixed shape; regime-internal
+    state (roles, claims, group memberships) is reachable only via
+    the regime's ``authorise`` operation.  The gateway itself never
+    reads policy from this object.
+    """
+    # Opaque handle, quoted back when calling ``authorise``.  For
+    # the OSS regime this is the user record's id; the gateway
+    # treats it as a string with no semantic content.
+    handle: str
+    # The workspace this credential authenticates to.  Used by the
+    # gateway as the default-fill-in for operations that omit a
+    # workspace.  Never used as policy input.
     workspace: str
-    roles: list
+    # Stable identifier for audit logs.  In OSS this is the same
+    # value as ``handle``; not assumed equal in the contract.
+    principal_id: str
+    # How the credential was presented.  Non-policy; useful for
+    # logs / metrics only.
     source: str   # "api-key" | "jwt"
 
 
@@ -110,6 +133,13 @@ class IamAuth:
         # API-key cache: plaintext_sha256_hex -> (Identity, expires_ts)
         self._key_cache = {}
         self._key_cache_lock = asyncio.Lock()
+
+        # Authorisation decision cache: hash(handle, capability,
+        # resource, parameters) -> (allow_bool, expires_ts).  Holds
+        # both allows and denies — denies cached briefly to avoid
+        # hammering iam-svc with repeated rejected attempts.
+        self._authz_cache: dict[str, tuple[bool, float]] = {}
+        self._authz_cache_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
     # Short-lived client helper.  Mirrors the pattern used by the
@@ -221,12 +251,13 @@ class IamAuth:
 
         sub = claims.get("sub", "")
         ws = claims.get("workspace", "")
-        roles = list(claims.get("roles", []))
         if not sub or not ws:
             raise _auth_failure()
 
+        # JWT carries no policy state under the IAM contract;
+        # any roles / claims field is ignored here.
         return Identity(
-            user_id=sub, workspace=ws, roles=roles, source="jwt",
+            handle=sub, workspace=ws, principal_id=sub, source="jwt",
         )
 
     async def _resolve_api_key(self, plaintext):
@@ -245,7 +276,10 @@ class IamAuth:
             try:
                 async def _call(client):
                     return await client.resolve_api_key(plaintext)
-                user_id, workspace, roles = await self._with_client(_call)
+                # ``roles`` is returned by the OSS regime as a hint
+                # but is not consulted by the gateway; all policy
+                # decisions go through ``authorise``.
+                user_id, workspace, _roles = await self._with_client(_call)
             except Exception as e:
                 logger.debug(
                     f"API key resolution failed: "
@@ -257,8 +291,81 @@ class IamAuth:
                 raise _auth_failure()
 
             identity = Identity(
-                user_id=user_id, workspace=workspace,
-                roles=list(roles), source="api-key",
+                handle=user_id, workspace=workspace,
+                principal_id=user_id, source="api-key",
             )
             self._key_cache[h] = (identity, now + API_KEY_CACHE_TTL)
             return identity
+
+    # ------------------------------------------------------------------
+    # Authorisation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _authz_cache_key(handle, capability, resource, parameters):
+        payload = json.dumps(
+            {
+                "h": handle,
+                "c": capability,
+                "r": resource or {},
+                "p": parameters or {},
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    async def authorise(self, identity, capability, resource, parameters):
+        """Ask the IAM regime whether ``identity`` may perform
+        ``capability`` on ``resource`` given ``parameters``.
+
+        Caches the decision for the regime's suggested TTL, clamped
+        above by ``AUTHZ_CACHE_TTL_MAX``.  Both allow and deny
+        decisions are cached (denies briefly, to avoid hammering
+        iam-svc with repeated rejected attempts).
+
+        Raises ``HTTPForbidden`` (403 / "access denied") on a deny
+        decision.  Raises ``HTTPUnauthorized`` (401 / "auth failure")
+        if the IAM service errors out — failing closed."""
+
+        key = self._authz_cache_key(
+            identity.handle, capability, resource, parameters,
+        )
+        now = time.time()
+
+        cached = self._authz_cache.get(key)
+        if cached and cached[1] > now:
+            allow, _ = cached
+            if not allow:
+                raise _access_denied()
+            return
+
+        async with self._authz_cache_lock:
+            cached = self._authz_cache.get(key)
+            if cached and cached[1] > now:
+                allow, _ = cached
+                if not allow:
+                    raise _access_denied()
+                return
+
+            try:
+                async def _call(client):
+                    return await client.authorise(
+                        identity.handle, capability,
+                        resource or {}, parameters or {},
+                    )
+                allow, ttl = await self._with_client(_call)
+            except Exception as e:
+                logger.warning(
+                    f"authorise failed: {type(e).__name__}: {e}; "
+                    f"failing closed for "
+                    f"{identity.principal_id!r} cap={capability!r}"
+                )
+                raise _auth_failure()
+
+            ttl = max(0, min(int(ttl or 0), AUTHZ_CACHE_TTL_MAX))
+            self._authz_cache[key] = (bool(allow), now + ttl)
+
+            if not allow:
+                raise _access_denied()
+            return

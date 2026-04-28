@@ -5,7 +5,7 @@ import logging
 
 from .. running import Running
 from .. capabilities import (
-    PUBLIC, AUTHENTICATED, check, auth_failure, access_denied,
+    PUBLIC, AUTHENTICATED, auth_failure,
 )
 
 logger = logging.getLogger("socket")
@@ -97,8 +97,12 @@ class SocketEndpoint:
             except web.HTTPException as e:
                 return e
             if self.capability != AUTHENTICATED:
-                if not check(identity, self.capability):
-                    return access_denied()
+                try:
+                    await self.auth.authorise(
+                        identity, self.capability, {}, {},
+                    )
+                except web.HTTPException as e:
+                    return e
 
         # 50MB max message size
         ws = web.WebSocketResponse(max_msg_size=52428800)

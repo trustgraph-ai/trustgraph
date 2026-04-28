@@ -121,26 +121,61 @@ class Mux:
                 })
                 return
 
-            # Workspace resolution.  Role workspace scope determines
-            # which target workspaces are permitted.  The resolved
-            # value is written to both the envelope and the inner
-            # request payload so clients don't have to repeat it
-            # per-message (same convenience HTTP callers get via
-            # enforce_workspace).
+            # Per-service capability gating.  Resolved through the
+            # operation registry so the WS path matches what HTTP
+            # callers see — same authority, same caps.  Service
+            # kinds that aren't registered are refused.
+            from ..registry import lookup as _registry_lookup
             from ..capabilities import enforce_workspace
             from aiohttp import web as _web
 
+            service = data.get("service", "")
+            op = _registry_lookup(f"flow-service:{service}")
+            if op is None:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "unknown service",
+                        "type": "unknown-service",
+                    },
+                    "complete": True,
+                })
+                return
+
+            # Workspace + flow form the resource address for a
+            # flow-level service call.  Resolve workspace first
+            # (default-fill from the caller's bound workspace),
+            # then ask the regime to authorise the service-level
+            # capability against that {workspace, flow} resource.
             try:
-                enforce_workspace(data, self.identity)
+                await enforce_workspace(data, self.identity, self.auth)
                 inner = data.get("request")
                 if isinstance(inner, dict):
-                    enforce_workspace(inner, self.identity)
+                    await enforce_workspace(inner, self.identity, self.auth)
+
+                resource = {
+                    "workspace": data.get("workspace", ""),
+                    "flow": data.get("flow", ""),
+                }
+                await self.auth.authorise(
+                    self.identity, op.capability, resource, {},
+                )
             except _web.HTTPForbidden:
                 await self.ws.send_json({
                     "id": request_id,
                     "error": {
                         "message": "access denied",
                         "type": "access-denied",
+                    },
+                    "complete": True,
+                })
+                return
+            except _web.HTTPUnauthorized:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "auth failure",
+                        "type": "auth-required",
                     },
                     "complete": True,
                 })

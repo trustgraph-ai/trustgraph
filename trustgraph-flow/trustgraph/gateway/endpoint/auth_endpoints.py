@@ -97,7 +97,7 @@ class AuthEndpoints:
             )
         req = {
             "operation": "change-password",
-            "user_id": identity.user_id,
+            "user_id": identity.handle,
             "password": body.get("current_password", ""),
             "new_password": body.get("new_password", ""),
         }

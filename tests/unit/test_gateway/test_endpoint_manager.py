@@ -73,14 +73,16 @@ class TestEndpointManager:
             prometheus_url="http://test:9090"
         )
         
-        # Each dispatcher factory is invoked exactly once during
-        # construction — one per endpoint that needs a dedicated
-        # wire.  dispatch_auth_iam is the dedicated factory for the
-        # AuthEndpoints forwarder (login / bootstrap /
-        # change-password), distinct from dispatch_global_service
-        # (the generic /api/v1/{kind} route).
+        # Each dispatcher factory is invoked once per endpoint that
+        # needs a dedicated wire.  dispatch_auth_iam is shared by
+        # two endpoints — AuthEndpoints (login / bootstrap /
+        # change-password) and IamEndpoint (registry-driven
+        # /api/v1/iam) — so it's expected to be called twice.
+        # Both forwarders pin the dispatcher to kind=iam and reuse
+        # the same factory; they're distinct from
+        # dispatch_global_service (the generic /api/v1/{kind} route).
         mock_dispatcher_manager.dispatch_global_service.assert_called_once()
-        mock_dispatcher_manager.dispatch_auth_iam.assert_called_once()
+        assert mock_dispatcher_manager.dispatch_auth_iam.call_count == 2
         mock_dispatcher_manager.dispatch_socket.assert_called_once()
         mock_dispatcher_manager.dispatch_flow_service.assert_called_once()
         mock_dispatcher_manager.dispatch_flow_import.assert_called_once()

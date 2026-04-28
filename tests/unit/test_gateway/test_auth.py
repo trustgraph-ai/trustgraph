@@ -87,7 +87,6 @@ class TestVerifyJwtEddsa:
         priv, pub = make_keypair()
         claims = {
             "sub": "user-1", "workspace": "default",
-            "roles": ["reader"],
             "iat": int(time.time()),
             "exp": int(time.time()) + 60,
         }
@@ -99,7 +98,7 @@ class TestVerifyJwtEddsa:
     def test_expired_jwt_rejected(self):
         priv, pub = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default", "roles": [],
+            "sub": "user-1", "workspace": "default",
             "iat": int(time.time()) - 3600,
             "exp": int(time.time()) - 1,
         }
@@ -111,7 +110,7 @@ class TestVerifyJwtEddsa:
         priv_a, _ = make_keypair()
         _, pub_b = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default", "roles": [],
+            "sub": "user-1", "workspace": "default",
             "iat": int(time.time()),
             "exp": int(time.time()) + 60,
         }
@@ -131,7 +130,7 @@ class TestVerifyJwtEddsa:
         # since we expect it to bail before verifying.
         header = {"alg": "HS256", "typ": "JWT", "kid": "x"}
         payload = {
-            "sub": "user-1", "workspace": "default", "roles": [],
+            "sub": "user-1", "workspace": "default",
             "iat": int(time.time()), "exp": int(time.time()) + 60,
         }
         h = _b64url(json.dumps(header, separators=(",", ":")).encode())
@@ -149,11 +148,12 @@ class TestIdentity:
 
     def test_fields(self):
         i = Identity(
-            user_id="u", workspace="w", roles=["reader"], source="api-key",
+            handle="u", workspace="w",
+            principal_id="u", source="api-key",
         )
-        assert i.user_id == "u"
+        assert i.handle == "u"
         assert i.workspace == "w"
-        assert i.roles == ["reader"]
+        assert i.principal_id == "u"
         assert i.source == "api-key"
 
 
@@ -194,7 +194,6 @@ class TestIamAuthDispatch:
         priv, pub = make_keypair()
         claims = {
             "sub": "user-1", "workspace": "default",
-            "roles": ["writer"],
             "iat": int(time.time()),
             "exp": int(time.time()) + 60,
         }
@@ -206,9 +205,9 @@ class TestIamAuthDispatch:
         ident = await auth.authenticate(
             make_request(f"Bearer {token}")
         )
-        assert ident.user_id == "user-1"
+        assert ident.handle == "user-1"
         assert ident.workspace == "default"
-        assert ident.roles == ["writer"]
+        assert ident.principal_id == "user-1"
         assert ident.source == "jwt"
 
     @pytest.mark.asyncio
@@ -217,7 +216,7 @@ class TestIamAuthDispatch:
         # must not validate — even ones that would otherwise pass.
         priv, _ = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default", "roles": [],
+            "sub": "user-1", "workspace": "default",
             "iat": int(time.time()), "exp": int(time.time()) + 60,
         }
         token = sign_jwt(priv, claims)
@@ -232,6 +231,9 @@ class TestIamAuthDispatch:
 
         async def fake_resolve(api_key):
             assert api_key == "tg_testkey"
+            # Roles are returned by the regime as a hint but the
+            # gateway ignores them — kept here so the resolve
+            # protocol shape is exercised.
             return ("user-xyz", "default", ["admin"])
 
         async def fake_with_client(op):
@@ -241,9 +243,9 @@ class TestIamAuthDispatch:
             ident = await auth.authenticate(
                 make_request("Bearer tg_testkey")
             )
-        assert ident.user_id == "user-xyz"
+        assert ident.handle == "user-xyz"
         assert ident.workspace == "default"
-        assert ident.roles == ["admin"]
+        assert ident.principal_id == "user-xyz"
         assert ident.source == "api-key"
 
     @pytest.mark.asyncio
@@ -301,8 +303,8 @@ class TestApiKeyCache:
             a = await auth.authenticate(make_request("Bearer tg_a"))
             b = await auth.authenticate(make_request("Bearer tg_b"))
 
-        assert a.user_id == "u-tg_a"
-        assert b.user_id == "u-tg_b"
+        assert a.handle == "u-tg_a"
+        assert b.handle == "u-tg_b"
         assert seen == ["tg_a", "tg_b"]
 
     @pytest.mark.asyncio
@@ -310,3 +312,136 @@ class TestApiKeyCache:
         # Not a behaviour test — just ensures we don't accidentally
         # set TTL to 0 (which would defeat the cache) or to a week.
         assert 10 <= API_KEY_CACHE_TTL <= 3600
+
+
+# -- IamAuth.authorise -----------------------------------------------------
+
+
+class TestAuthorise:
+    """``authorise()`` is the gateway's only authorisation entry
+    point under the IAM contract.  It calls iam-svc, caches the
+    decision for the regime's TTL (clamped above), and raises 403
+    on deny / 401 on regime error (fail closed)."""
+
+    def _make_identity(self, handle="u-1", workspace="default"):
+        return Identity(
+            handle=handle, workspace=workspace,
+            principal_id=handle, source="api-key",
+        )
+
+    @pytest.mark.asyncio
+    async def test_allow_returns_no_exception(self):
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            return await op(Mock(
+                authorise=AsyncMock(return_value=(True, 30)),
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            await auth.authorise(
+                self._make_identity(),
+                "graph:read",
+                {"workspace": "default"},
+                {},
+            )
+
+    @pytest.mark.asyncio
+    async def test_deny_raises_403(self):
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            return await op(Mock(
+                authorise=AsyncMock(return_value=(False, 30)),
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPForbidden):
+                await auth.authorise(
+                    self._make_identity(),
+                    "users:admin",
+                    {},
+                    {"workspace": "acme"},
+                )
+
+    @pytest.mark.asyncio
+    async def test_regime_error_fails_closed_as_401(self):
+        # If iam-svc errors, the gateway must NOT silently allow.
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            raise RuntimeError("iam-svc down")
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authorise(
+                    self._make_identity(),
+                    "graph:read",
+                    {"workspace": "default"},
+                    {},
+                )
+
+    @pytest.mark.asyncio
+    async def test_allow_decision_is_cached(self):
+        auth = IamAuth(backend=Mock())
+        calls = {"n": 0}
+
+        async def fake_with_client(op):
+            calls["n"] += 1
+            return await op(Mock(
+                authorise=AsyncMock(return_value=(True, 30)),
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            ident = self._make_identity()
+            for _ in range(5):
+                await auth.authorise(
+                    ident, "graph:read", {"workspace": "default"}, {},
+                )
+
+        assert calls["n"] == 1
+
+    @pytest.mark.asyncio
+    async def test_deny_decision_is_cached(self):
+        auth = IamAuth(backend=Mock())
+        calls = {"n": 0}
+
+        async def fake_with_client(op):
+            calls["n"] += 1
+            return await op(Mock(
+                authorise=AsyncMock(return_value=(False, 30)),
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            ident = self._make_identity()
+            for _ in range(5):
+                with pytest.raises(web.HTTPForbidden):
+                    await auth.authorise(
+                        ident, "users:admin", {}, {"workspace": "acme"},
+                    )
+
+        # Denies are cached too — repeated attempts don't re-hit IAM.
+        assert calls["n"] == 1
+
+    @pytest.mark.asyncio
+    async def test_different_resources_cached_separately(self):
+        auth = IamAuth(backend=Mock())
+        calls = {"n": 0}
+
+        async def fake_with_client(op):
+            calls["n"] += 1
+            return await op(Mock(
+                authorise=AsyncMock(return_value=(True, 30)),
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            ident = self._make_identity()
+            await auth.authorise(
+                ident, "graph:read", {"workspace": "a"}, {},
+            )
+            await auth.authorise(
+                ident, "graph:read", {"workspace": "b"}, {},
+            )
+
+        # Different resource → different cache key → two IAM calls.
+        assert calls["n"] == 2
