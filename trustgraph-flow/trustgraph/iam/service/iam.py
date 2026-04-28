@@ -280,6 +280,10 @@ class IamService:
         try:
             if op == "bootstrap":
                 return await self.handle_bootstrap(v)
+            if op == "bootstrap-status":
+                return await self.handle_bootstrap_status(v)
+            if op == "whoami":
+                return await self.handle_whoami(v)
             if op == "resolve-api-key":
                 return await self.handle_resolve_api_key(v)
             if op == "create-user":
@@ -483,6 +487,39 @@ class IamService:
             bootstrap_admin_api_key=plaintext,
         )
 
+    async def handle_whoami(self, v):
+        """Return the caller's own user record.  ``v.actor`` is the
+        authenticated identity's handle (the gateway populates it
+        from ``identity.handle``).  No ``users:read`` capability
+        required — every authenticated user can read themselves."""
+        if not v.actor:
+            return _err(
+                "invalid-argument",
+                "actor required (gateway should populate this)",
+            )
+        user_row = await self.table_store.get_user(v.actor)
+        if user_row is None:
+            return _err("not-found", "user not found")
+        return IamResponse(user=self._row_to_user_record(user_row))
+
+    async def handle_bootstrap_status(self, v):
+        """Probe op: returns whether the deployment is currently in
+        the unconsumed-bootstrap state (i.e. ``bootstrap`` mode with
+        empty tables, where an explicit ``bootstrap`` call would
+        succeed).  PUBLIC so a UI can decide whether to render the
+        first-run setup flow without invoking the side-effectful
+        ``bootstrap`` op.
+
+        The information leaked is intentionally narrow: an empty
+        deployment in bootstrap mode is already inferable (no users,
+        no logins succeed); this just makes the answer explicit
+        instead of forcing callers to probe the masked-failure path."""
+        available = (
+            self.bootstrap_mode == "bootstrap"
+            and not await self.table_store.any_workspace_exists()
+        )
+        return IamResponse(bootstrap_available=available)
+
     # ------------------------------------------------------------------
     # Signing key helpers
     # ------------------------------------------------------------------
@@ -612,15 +649,22 @@ class IamService:
             created=_iso(created),
         )
 
-    async def _user_in_workspace(self, user_id, workspace):
+    async def _resolve_user(self, user_id, workspace=None):
         """Return (user_row, error_response_or_None).  Loads the user
-        record, verifies it exists, is enabled, and belongs to
-        ``workspace``.  The workspace scope check rejects cross-
-        workspace admin attempts."""
+        record by id and (when ``workspace`` is supplied) verifies the
+        record's home workspace matches.
+
+        Workspace is an *optional integrity check* — the user record
+        is system-level, identified by id alone.  If the caller asserts
+        a workspace, we verify; if they omit it, we just return the
+        record.  Authorisation (whether the caller is permitted to
+        operate on this user) is the gateway's responsibility via the
+        contract's ``authorise`` call before the handler is reached.
+        """
         user_row = await self.table_store.get_user(user_id)
         if user_row is None:
             return None, _err("not-found", "user not found")
-        if user_row[1] != workspace:
+        if workspace and user_row[1] != workspace:
             return None, _err(
                 "operation-not-permitted",
                 "user is in a different workspace",
@@ -665,15 +709,10 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_reset_password(self, v):
-        if not v.workspace:
-            return _err(
-                "invalid-argument",
-                "workspace required for reset-password",
-            )
         if not v.user_id:
             return _err("invalid-argument", "user_id required")
 
-        _, err = await self._user_in_workspace(v.user_id, v.workspace)
+        _, err = await self._resolve_user(v.user_id, v.workspace or None)
         if err is not None:
             return err
 
@@ -690,13 +729,11 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_get_user(self, v):
-        if not v.workspace:
-            return _err("invalid-argument", "workspace required")
         if not v.user_id:
             return _err("invalid-argument", "user_id required")
 
-        user_row, err = await self._user_in_workspace(
-            v.user_id, v.workspace,
+        user_row, err = await self._resolve_user(
+            v.user_id, v.workspace or None,
         )
         if err is not None:
             return err
@@ -707,8 +744,6 @@ class IamService:
         must_change_password.  Username is immutable — change it by
         creating a new user and disabling the old one.  Password
         changes go through change-password / reset-password."""
-        if not v.workspace:
-            return _err("invalid-argument", "workspace required")
         if not v.user_id:
             return _err("invalid-argument", "user_id required")
         if v.user is None:
@@ -719,25 +754,17 @@ class IamService:
                 "password cannot be changed via update-user; "
                 "use change-password or reset-password",
             )
-        if v.user.username and v.user.username != "":
-            # Compare to existing.  Username-change not allowed.
-            existing, err = await self._user_in_workspace(
-                v.user_id, v.workspace,
+
+        existing, err = await self._resolve_user(
+            v.user_id, v.workspace or None,
+        )
+        if err is not None:
+            return err
+        if v.user.username and v.user.username != existing[2]:
+            return _err(
+                "invalid-argument",
+                "username is immutable; create a new user instead",
             )
-            if err is not None:
-                return err
-            if v.user.username != existing[2]:
-                return _err(
-                    "invalid-argument",
-                    "username is immutable; create a new user "
-                    "instead",
-                )
-        else:
-            existing, err = await self._user_in_workspace(
-                v.user_id, v.workspace,
-            )
-            if err is not None:
-                return err
 
         # Carry forward fields the caller didn't provide.
         (
@@ -774,12 +801,10 @@ class IamService:
     async def handle_disable_user(self, v):
         """Soft-delete: set enabled=false and revoke every API key
         belonging to the user."""
-        if not v.workspace:
-            return _err("invalid-argument", "workspace required")
         if not v.user_id:
             return _err("invalid-argument", "user_id required")
 
-        _, err = await self._user_in_workspace(v.user_id, v.workspace)
+        _, err = await self._resolve_user(v.user_id, v.workspace or None)
         if err is not None:
             return err
 
@@ -797,12 +822,10 @@ class IamService:
     async def handle_enable_user(self, v):
         """Re-enable a previously disabled user.  Does not restore
         API keys — those have to be re-issued by the admin."""
-        if not v.workspace:
-            return _err("invalid-argument", "workspace required")
         if not v.user_id:
             return _err("invalid-argument", "user_id required")
 
-        _, err = await self._user_in_workspace(v.user_id, v.workspace)
+        _, err = await self._resolve_user(v.user_id, v.workspace or None)
         if err is not None:
             return err
 
@@ -821,29 +844,30 @@ class IamService:
         cover GDPR erasure-style requirements).  When audit logging
         lands, the decision to delete vs. anonymise referenced audit
         rows will need to be revisited."""
-        if not v.workspace:
-            return _err("invalid-argument", "workspace required")
         if not v.user_id:
             return _err("invalid-argument", "user_id required")
 
-        user_row, err = await self._user_in_workspace(
-            v.user_id, v.workspace,
+        user_row, err = await self._resolve_user(
+            v.user_id, v.workspace or None,
         )
         if err is not None:
             return err
 
         # user_row indices match get_user columns.  Username is [2].
         username = user_row[2]
+        record_workspace = user_row[1]
 
         # Revoke all API keys.
         key_rows = await self.table_store.list_api_keys_by_user(v.user_id)
         for kr in key_rows:
             await self.table_store.delete_api_key(kr[0])
 
-        # Remove username lookup.
+        # Remove username lookup — keyed on (workspace, username),
+        # so use the resolved workspace from the user record rather
+        # than relying on the caller-supplied filter.
         if username:
             await self.table_store.delete_username_lookup(
-                v.workspace, username,
+                record_workspace, username,
             )
 
         # Remove user record.
@@ -1098,12 +1122,15 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_list_users(self, v):
-        if not v.workspace:
-            return _err(
-                "invalid-argument", "workspace required for list-users",
-            )
-
-        rows = await self.table_store.list_users_by_workspace(v.workspace)
+        # System-level operation: workspace, when supplied, is a
+        # filter on the user record's home-workspace association.
+        # Empty workspace returns the deployment-wide list — the
+        # gateway has already authorised the caller's authority to
+        # see that scope.
+        if v.workspace:
+            rows = await self.table_store.list_users_by_workspace(v.workspace)
+        else:
+            rows = await self.table_store.list_users()
         return IamResponse(
             users=[self._row_to_user_record(r) for r in rows],
         )
@@ -1113,24 +1140,21 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_create_api_key(self, v):
-        if not v.workspace:
-            return _err(
-                "invalid-argument", "workspace required for create-api-key",
-            )
         if v.key is None or not v.key.user_id:
             return _err("invalid-argument", "key.user_id required")
         if not v.key.name:
             return _err("invalid-argument", "key.name required")
 
-        # Target user must exist and belong to the caller's workspace.
-        user_row = await self.table_store.get_user(v.key.user_id)
-        if user_row is None:
-            return _err("not-found", "user not found")
-        if user_row[1] != v.workspace:
-            return _err(
-                "operation-not-permitted",
-                "target user is in a different workspace",
-            )
+        # API keys are system-level records with a workspace
+        # association (the user's home workspace).  Workspace is an
+        # optional integrity check on the caller's request — when
+        # supplied it must match the target user's home workspace;
+        # when omitted, the user's home workspace is used.
+        user_row, err = await self._resolve_user(
+            v.key.user_id, v.workspace or None,
+        )
+        if err is not None:
+            return err
 
         plaintext = _generate_api_key()
         key_id = str(uuid.uuid4())
@@ -1161,20 +1185,15 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_list_api_keys(self, v):
-        if not v.workspace:
-            return _err(
-                "invalid-argument",
-                "workspace required for list-api-keys",
-            )
         if not v.user_id:
             return _err(
                 "invalid-argument", "user_id required for list-api-keys",
             )
 
-        # Workspace-scope check: user must live in this workspace.
-        user_row = await self.table_store.get_user(v.user_id)
-        if user_row is None or user_row[1] != v.workspace:
-            return _err("not-found", "user not found in workspace")
+        # Workspace is an optional integrity check.
+        _, err = await self._resolve_user(v.user_id, v.workspace or None)
+        if err is not None:
+            return err
 
         rows = await self.table_store.list_api_keys_by_user(v.user_id)
         return IamResponse(
@@ -1186,11 +1205,6 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_revoke_api_key(self, v):
-        if not v.workspace:
-            return _err(
-                "invalid-argument",
-                "workspace required for revoke-api-key",
-            )
         if not v.key_id:
             return _err("invalid-argument", "key_id required")
 
@@ -1199,13 +1213,15 @@ class IamService:
             return _err("not-found", "api key not found")
 
         key_hash, _id, user_id, _name, _prefix, _expires, _c, _lu = row
-        # Workspace-scope check via the owning user.
-        user_row = await self.table_store.get_user(user_id)
-        if user_row is None or user_row[1] != v.workspace:
-            return _err(
-                "operation-not-permitted",
-                "key belongs to a different workspace",
-            )
+
+        # Workspace is an optional integrity check via the owning user.
+        if v.workspace:
+            user_row = await self.table_store.get_user(user_id)
+            if user_row is None or user_row[1] != v.workspace:
+                return _err(
+                    "operation-not-permitted",
+                    "key belongs to a different workspace",
+                )
 
         await self.table_store.delete_api_key(key_hash)
         return IamResponse()

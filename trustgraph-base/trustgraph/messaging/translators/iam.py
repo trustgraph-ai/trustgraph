@@ -185,6 +185,10 @@ class IamResponseTranslator(MessageTranslator):
             result["bootstrap_admin_user_id"] = obj.bootstrap_admin_user_id
         if obj.bootstrap_admin_api_key:
             result["bootstrap_admin_api_key"] = obj.bootstrap_admin_api_key
+        # bootstrap-status: emit unconditionally — the false case is
+        # meaningful for UIs deciding whether to render first-run
+        # setup, so it can't be dropped by a truthy-only filter.
+        result["bootstrap_available"] = bool(obj.bootstrap_available)
 
         return result
 

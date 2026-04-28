@@ -72,10 +72,16 @@ class IamRequest:
     # login).
     workspace: str = ""
 
-    # Acting user id, for audit.  Set by the gateway to the
-    # authenticated caller's id on user-initiated operations.
-    # Empty for internal-origin (bootstrap, reconcilers) and for
-    # resolve-api-key / login (no actor yet).
+    # Acting user id.  Set by the gateway to the authenticated
+    # caller's identity handle for every authenticated request
+    # (overwrites any caller-supplied value — the gateway is the
+    # only authority for actor identity, so handlers can rely on it
+    # being authentic).  Used for audit logging, self-service ops
+    # like ``whoami`` that resolve "the caller", and future actor-
+    # scoped policy checks.  Empty for unauthenticated ops
+    # (``login``, ``bootstrap``, ``bootstrap-status``,
+    # ``get-signing-key-public``, ``resolve-api-key``).  See the
+    # actor-injection rule in the IAM contract spec.
     actor: str = ""
 
     # --- identity selectors ---
@@ -134,6 +140,11 @@ class IamResponse:
     # is returned for the operator to capture.
     bootstrap_admin_user_id: str = ""
     bootstrap_admin_api_key: str = ""
+
+    # bootstrap-status: true iff an unconsumed ``bootstrap`` call
+    # would currently succeed.  Always emitted by the response
+    # translator (the false case is meaningful for first-run UIs).
+    bootstrap_available: bool = False
 
     # Present on any failed operation.
     error: Error | None = None
@@ -201,25 +212,29 @@ class ApiKeyRecord:
 | Operation | Request fields | Response fields | Notes |
 |---|---|---|---|
 | `login` | `username`, `password`, `workspace` (optional) | `jwt`, `jwt_expires` | If `workspace` omitted, IAM resolves to the user's assigned workspace. |
+| `whoami` | `actor` (gateway-injected) | `user` | Returns the calling user's own record. AUTHENTICATED-only; no `users:read` capability required. |
 | `resolve-api-key` | `api_key` (plaintext) | `resolved_user_id`, `resolved_workspace`, `resolved_roles` | Gateway-internal. Service returns `auth-failed` for unknown / expired / revoked keys. |
 | `change-password` | `user_id`, `password` (current), `new_password` | — | Self-service. IAM validates `password` against stored hash. |
-| `reset-password` | `user_id` | `temporary_password` | Admin-initiated. IAM generates a random password, sets `must_change_password=true` on the user, returns the plaintext once. |
-| `create-user` | `workspace`, `user` | `user` | Admin-only. `user.password` is hashed and stored; `user.roles` must be subset of known roles. |
-| `list-users` | `workspace` | `users` | |
-| `get-user` | `workspace`, `user_id` | `user` | |
-| `update-user` | `workspace`, `user_id`, `user` | `user` | `password` field on `user` is rejected; use `change-password` / `reset-password`. |
-| `disable-user` | `workspace`, `user_id` | — | Soft-delete; sets `enabled=false`. Revokes all the user's API keys. |
+| `reset-password` | `user_id`, `workspace` (optional integrity check) | `temporary_password` | Admin-initiated. IAM generates a random password, sets `must_change_password=true` on the user, returns the plaintext once. |
+| `create-user` | `workspace`, `user` | `user` | `user.password` is hashed and stored; `user.roles` must be subset of known roles. `workspace` is the new user's home-workspace binding (a required *parameter*, not an address). |
+| `list-users` | `workspace` (optional filter) | `users` | If `workspace` omitted, returns the deployment-wide list. |
+| `get-user` | `user_id`, `workspace` (optional integrity check) | `user` | |
+| `update-user` | `user_id`, `user`, `workspace` (optional integrity check) | `user` | `password` field on `user` is rejected; use `change-password` / `reset-password`. Username is immutable. |
+| `disable-user` | `user_id`, `workspace` (optional integrity check) | — | Soft-delete; sets `enabled=false`. Revokes all the user's API keys. |
+| `enable-user` | `user_id`, `workspace` (optional integrity check) | — | Re-enables a previously disabled user; does not restore API keys. |
+| `delete-user` | `user_id`, `workspace` (optional integrity check) | — | Hard-delete; removes user record, username lookup, and all the user's API keys. |
 | `create-workspace` | `workspace_record` | `workspace` | System-level. |
 | `list-workspaces` | — | `workspaces` | System-level. |
 | `get-workspace` | `workspace_record` (id only) | `workspace` | System-level. |
 | `update-workspace` | `workspace_record` | `workspace` | System-level. |
 | `disable-workspace` | `workspace_record` (id only) | — | System-level. Sets `enabled=false`; revokes all workspace API keys; disables all users in the workspace. |
-| `create-api-key` | `workspace`, `key` | `api_key_plaintext`, `api_key` | Plaintext returned **once**; only hash stored. `key.name` required. |
-| `list-api-keys` | `workspace`, `user_id` | `api_keys` | |
-| `revoke-api-key` | `workspace`, `key_id` | — | Deletes the key record. |
+| `create-api-key` | `key`, `workspace` (optional integrity check) | `api_key_plaintext`, `api_key` | Plaintext returned **once**; only hash stored. `key.name` required. |
+| `list-api-keys` | `user_id`, `workspace` (optional integrity check) | `api_keys` | |
+| `revoke-api-key` | `key_id`, `workspace` (optional integrity check) | — | Deletes the key record. |
 | `get-signing-key-public` | — | `signing_key_public` | Gateway fetches this at startup. |
 | `rotate-signing-key` | — | — | System-level. Introduces a new signing key; old key continues to validate JWTs for a grace period (implementation-defined, minimum 1h). |
-| `bootstrap` | — | `bootstrap_admin_user_id`, `bootstrap_admin_api_key` | If IAM tables are empty, creates the initial `default` workspace, an `admin` user, an initial API key, and an initial signing key; returns them once. No-op on subsequent calls (returns empty fields). |
+| `bootstrap` | — | `bootstrap_admin_user_id`, `bootstrap_admin_api_key` | If IAM tables are empty and the service is in `bootstrap` mode, creates the initial `default` workspace, an `admin` user, an initial API key, and an initial signing key; returns them once.  Otherwise returns a masked auth failure. |
+| `bootstrap-status` | — | `bootstrap_available` | Side-effect-free probe; `true` iff iam-svc is in `bootstrap` mode and tables are empty.  Intended for first-run UX. |
 
 ## Error taxonomy
 

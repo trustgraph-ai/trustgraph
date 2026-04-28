@@ -148,6 +148,10 @@ class IamResponse:
     bootstrap_admin_user_id: str = ""
     bootstrap_admin_api_key: str = ""
 
+    # bootstrap-status — true iff iam-svc is in 'bootstrap' mode with
+    # empty tables, i.e. an unconsumed bootstrap call would succeed.
+    bootstrap_available: bool = False
+
     # ---- authorise / authorise-many outputs ----
     # authorise: the regime's allow / deny verdict.
     decision_allow: bool = False

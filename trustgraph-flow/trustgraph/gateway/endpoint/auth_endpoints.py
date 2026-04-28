@@ -37,6 +37,10 @@ class AuthEndpoints:
             web.post("/api/v1/auth/login", self.login),
             web.post("/api/v1/auth/bootstrap", self.bootstrap),
             web.post(
+                "/api/v1/auth/bootstrap-status",
+                self.bootstrap_status,
+            ),
+            web.post(
                 "/api/v1/auth/change-password",
                 self.change_password,
             ),
@@ -77,6 +81,18 @@ class AuthEndpoints:
         returns a masked auth-failure."""
         await enforce(request, self.auth, PUBLIC)
         resp = await self._forward({"operation": "bootstrap"})
+        if "error" in resp:
+            return web.json_response(
+                {"error": "auth failure"}, status=401,
+            )
+        return web.json_response(resp)
+
+    async def bootstrap_status(self, request):
+        """Public, side-effect-free.  Returns ``{"bootstrap_available":
+        bool}`` so a UI can decide whether to render first-run setup
+        without invoking the consuming ``bootstrap`` op."""
+        await enforce(request, self.auth, PUBLIC)
+        resp = await self._forward({"operation": "bootstrap-status"})
         if "error" in resp:
             return web.json_response(
                 {"error": "auth failure"}, status=401,

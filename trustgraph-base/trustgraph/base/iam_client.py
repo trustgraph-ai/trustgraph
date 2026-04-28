@@ -41,6 +41,27 @@ class IamClient(RequestResponse):
         )
         return resp.bootstrap_admin_user_id, resp.bootstrap_admin_api_key
 
+    async def bootstrap_status(self, timeout=IAM_TIMEOUT):
+        """Returns whether an unconsumed ``bootstrap`` call would
+        currently succeed (i.e. iam-svc is in ``bootstrap`` mode and
+        its tables are empty).  Side-effect-free; intended for first-
+        run UX so a UI can decide whether to render setup."""
+        resp = await self._request(
+            operation="bootstrap-status", timeout=timeout,
+        )
+        return resp.bootstrap_available
+
+    async def whoami(self, actor, timeout=IAM_TIMEOUT):
+        """Return the user record for ``actor`` (the authenticated
+        caller's handle).  AUTHENTICATED-only; no capability check —
+        every authenticated user can read themselves."""
+        resp = await self._request(
+            operation="whoami",
+            actor=actor,
+            timeout=timeout,
+        )
+        return resp.user
+
     async def resolve_api_key(self, api_key, timeout=IAM_TIMEOUT):
         """Resolve a plaintext API key to its identity triple.
 
