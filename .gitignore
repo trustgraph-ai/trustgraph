@@ -16,3 +16,6 @@ trustgraph-vertexai/trustgraph/vertexai_version.py
 trustgraph-unstructured/trustgraph/unstructured_version.py
 trustgraph-mcp/trustgraph/mcp_version.py
 vertexai/
+venv/
+.venv/
+.env
