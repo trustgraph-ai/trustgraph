@@ -17,7 +17,7 @@ def dump_status(url):
 
     tbl = [
         [
-            m["metric"]["job"],
+            m["metric"].get("processor", m["metric"]["job"]),
             "\U0001f49a"
         ]
         for m in obj["data"]["result"]

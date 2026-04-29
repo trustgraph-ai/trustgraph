@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 from . config import ConfigRequestor
 from . flow import FlowRequestor
+from . iam import IamRequestor
 from . librarian import LibrarianRequestor
 from . knowledge import KnowledgeRequestor
 from . collection_management import CollectionManagementRequestor
@@ -72,6 +73,7 @@ request_response_dispatchers = {
 global_dispatchers = {
     "config": ConfigRequestor,
     "flow": FlowRequestor,
+    "iam": IamRequestor,
     "librarian": LibrarianRequestor,
     "knowledge": KnowledgeRequestor,
     "collection-management": CollectionManagementRequestor,
@@ -105,12 +107,30 @@ class DispatcherWrapper:
 
 class DispatcherManager:
 
-    def __init__(self, backend, config_receiver, prefix="api-gateway",
-                 queue_overrides=None):
+    def __init__(self, backend, config_receiver, auth,
+                 prefix="api-gateway", queue_overrides=None):
+        """
+        ``auth`` is required.  It flows into the Mux for first-frame
+        WebSocket authentication and into downstream dispatcher
+        construction.  There is no permissive default — constructing
+        a DispatcherManager without an authenticator would be a
+        silent downgrade to no-auth on the socket path.
+        """
+        if auth is None:
+            raise ValueError(
+                "DispatcherManager requires an 'auth' argument — there "
+                "is no no-auth mode"
+            )
+
         self.backend = backend
         self.config_receiver = config_receiver
         self.config_receiver.add_handler(self)
         self.prefix = prefix
+
+        # Gateway IamAuth — used by the socket Mux for first-frame
+        # auth and by any dispatcher that needs to resolve caller
+        # identity out-of-band.
+        self.auth = auth
 
         # Store queue overrides for global services
         # Format: {"config": {"request": "...", "response": "..."}, ...}
@@ -162,6 +182,15 @@ class DispatcherManager:
 
     def dispatch_global_service(self):
         return DispatcherWrapper(self.process_global_service)
+
+    def dispatch_auth_iam(self):
+        """Pre-configured IAM dispatcher for the gateway's auth
+        endpoints (login, bootstrap, change-password).  Pins the
+        kind to ``iam`` so these handlers don't have to supply URL
+        params the global dispatcher would expect."""
+        async def _process(data, responder):
+            return await self.invoke_global_service(data, responder, "iam")
+        return DispatcherWrapper(_process)
 
     def dispatch_core_export(self):
         return DispatcherWrapper(self.process_core_export)
@@ -314,7 +343,10 @@ class DispatcherManager:
 
     async def process_socket(self, ws, running, params):
 
-        dispatcher = Mux(self, ws, running)
+        # The mux self-authenticates via the first-frame protocol;
+        # pass the gateway's IamAuth so it can validate tokens
+        # without reaching back into the endpoint layer.
+        dispatcher = Mux(self, ws, running, auth=self.auth)
 
         return dispatcher
 

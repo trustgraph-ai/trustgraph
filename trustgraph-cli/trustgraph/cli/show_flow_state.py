@@ -44,16 +44,18 @@ def show_processors(metrics_url, flow_label):
 
     obj = resp.json()
 
-    tbl = [
-        [
-            m["metric"]["job"],
-            "\U0001f49a" if int(m["value"][1]) > 0 else "\U0000274c"
-        ]
-        for m in obj["data"]["result"]
-    ]
+    # consumer_state is one sample per consumer (queue); a processor
+    # with N subscriptions shows up N times.  Aggregate to one row per
+    # processor: green only if every consumer is running.
+    by_proc = {}
+    for m in obj["data"]["result"]:
+        name = m["metric"].get("processor", m["metric"]["job"])
+        running = int(m["value"][1]) > 0
+        by_proc[name] = by_proc.get(name, True) and running
 
-    for row in tbl:
-        print(f"- {row[0]:30} {row[1]}")
+    for name in sorted(by_proc):
+        icon = "\U0001f49a" if by_proc[name] else "\U0000274c"
+        print(f"- {name:30} {icon}")
 
 def main():
 

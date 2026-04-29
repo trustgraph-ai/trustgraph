@@ -5,7 +5,7 @@ Input is text, output is embeddings vector.
 """
 from ... base import EmbeddingsService
 
-from ollama import Client
+from ollama import AsyncClient
 import os
 import logging
 
@@ -30,24 +30,24 @@ class Processor(EmbeddingsService):
             }
         )
 
-        self.client = Client(host=ollama)
+        self.client = AsyncClient(host=ollama)
         self.default_model = model
         self._checked_models = set()
 
-    def _ensure_model(self, model_name):
+    async def _ensure_model(self, model_name):
         """Check if model exists locally, pull it if not."""
         if model_name in self._checked_models:
             return
 
         try:
-            self.client.show(model_name)
+            await self.client.show(model_name)
             self._checked_models.add(model_name)
         except Exception as e:
             status_code = getattr(e, 'status_code', None)
             if status_code == 404 or "not found" in str(e).lower():
                 logger.info(f"Ollama model '{model_name}' not found locally. Pulling, this may take a while...")
                 try:
-                    self.client.pull(model_name)
+                    await self.client.pull(model_name)
                     self._checked_models.add(model_name)
                     logger.info(f"Successfully pulled Ollama model '{model_name}'.")
                 except Exception as pull_e:
@@ -63,10 +63,10 @@ class Processor(EmbeddingsService):
         use_model = model or self.default_model
 
         # Ensure the model exists/is pulled
-        self._ensure_model(use_model)
+        await self._ensure_model(use_model)
 
         # Ollama handles batch input efficiently
-        embeds = self.client.embed(
+        embeds = await self.client.embed(
             model = use_model,
             input = texts
         )

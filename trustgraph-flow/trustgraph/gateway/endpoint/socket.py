@@ -4,6 +4,9 @@ from aiohttp import web, WSMsgType
 import logging
 
 from .. running import Running
+from .. capabilities import (
+    PUBLIC, AUTHENTICATED, auth_failure,
+)
 
 logger = logging.getLogger("socket")
 logger.setLevel(logging.INFO)
@@ -11,12 +14,25 @@ logger.setLevel(logging.INFO)
 class SocketEndpoint:
 
     def __init__(
-            self, endpoint_path, auth, dispatcher,
+            self, endpoint_path, auth, dispatcher, capability,
+            in_band_auth=False,
     ):
+        """
+        ``in_band_auth=True`` skips the handshake-time auth check.
+        The WebSocket handshake always succeeds; the dispatcher is
+        expected to gate itself via the first-frame auth protocol
+        (see ``Mux``).
+
+        This avoids the browser problem where a 401 on the handshake
+        is treated as permanent and prevents reconnection, and lets
+        long-lived sockets refresh their credential mid-session by
+        sending a new auth frame.
+        """
 
         self.path = endpoint_path
         self.auth = auth
-        self.operation = "socket"
+        self.capability = capability
+        self.in_band_auth = in_band_auth
 
         self.dispatcher = dispatcher
 
@@ -61,15 +77,33 @@ class SocketEndpoint:
             raise
         
     async def handle(self, request):
-        """Enhanced handler with better cleanup"""
-        try:
-            token = request.query['token']
-        except:
-            token = ""
+        """Enhanced handler with better cleanup.
 
-        if not self.auth.permitted(token, self.operation):
-            return web.HTTPUnauthorized()
-        
+        Auth: WebSocket clients pass the bearer token on the
+        ``?token=...`` query string; we wrap it into a synthetic
+        Authorization header before delegating to the standard auth
+        path so the IAM-backed flow (JWT / API key) applies uniformly.
+        The first-frame auth protocol described in the IAM spec is
+        a future upgrade."""
+
+        if not self.in_band_auth and self.capability != PUBLIC:
+            token = request.query.get("token", "")
+            if not token:
+                return auth_failure()
+            try:
+                identity = await self.auth.authenticate(
+                    _QueryTokenRequest(token)
+                )
+            except web.HTTPException as e:
+                return e
+            if self.capability != AUTHENTICATED:
+                try:
+                    await self.auth.authorise(
+                        identity, self.capability, {}, {},
+                    )
+                except web.HTTPException as e:
+                    return e
+
         # 50MB max message size
         ws = web.WebSocketResponse(max_msg_size=52428800)
 
@@ -149,4 +183,12 @@ class SocketEndpoint:
         app.add_routes([
             web.get(self.path, self.handle),
         ])
+
+
+class _QueryTokenRequest:
+    """Minimal shim that exposes headers["Authorization"] to
+    IamAuth.authenticate(), derived from a query-string token."""
+
+    def __init__(self, token):
+        self.headers = {"Authorization": f"Bearer {token}"}
 
