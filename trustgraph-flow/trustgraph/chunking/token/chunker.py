@@ -56,7 +56,7 @@ class Processor(ChunkingService):
                          2500, 4000, 6400, 10000, 16000]
             )
 
-        self.text_splitter = self.TokenTextSplitter(
+        self.text_splitter = TokenTextSplitter(
             encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -108,7 +108,7 @@ class Processor(ChunkingService):
             chunk_overlap = int(chunk_overlap)
 
         # Create text splitter with effective parameters
-        text_splitter = self.TokenTextSplitter(
+        text_splitter = TokenTextSplitter(
             encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
