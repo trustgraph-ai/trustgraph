@@ -11,18 +11,19 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN dnf install -y python3.13 && \
   alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
   python -m ensurepip --upgrade && \
+  pip3 install --no-cache-dir --upgrade 'pip>=26.0' 'setuptools>=78.1.1' && \
   pip3 install --no-cache-dir build wheel aiohttp rdflib && \
-  pip3 install --no-cache-dir pulsar-client==3.7.0 && \
+  pip3 install --no-cache-dir pulsar-client==3.11.0 && \
   dnf clean all
 
 RUN pip3 install --no-cache-dir \
     anthropic cohere mistralai openai \
     ollama \
-    langchain==0.3.25 langchain-core==0.3.60 \
-    langchain-text-splitters==0.3.8 \
-    langchain-community==0.3.24 \
+    langchain==1.2.16 langchain-core==1.3.2 \
+    langchain-text-splitters==1.1.2 \
+    langchain-community==0.4.1 \
     pymilvus \
-    pulsar-client==3.7.0 scylla-driver pyyaml \
+    pulsar-client==3.11.0 scylla-driver pyyaml \
     neo4j tiktoken falkordb && \
     pip3 cache purge
 
