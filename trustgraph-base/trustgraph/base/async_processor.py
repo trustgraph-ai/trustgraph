@@ -209,6 +209,8 @@ class AsyncProcessor:
 
                         # Call the handler once per workspace
                         for ws, config in per_ws.items():
+                            if ws.startswith("_"):
+                                continue
                             await entry["handler"](ws, config, version)
 
                     logger.info(
@@ -310,6 +312,8 @@ class AsyncProcessor:
                             per_ws.setdefault(ws, {})[t] = kv
 
                     for ws, config in per_ws.items():
+                        if ws.startswith("_"):
+                            continue
                         await entry["handler"](
                             ws, config, notify_version,
                         )
