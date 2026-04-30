@@ -15,6 +15,7 @@ dependencies = [
     "trustgraph-cli>=2.4,<2.5",
     "trustgraph-embeddings-hf>=2.4,<2.5",
     "trustgraph-flow>=2.4,<2.5",
+    "trustgraph-unstructured>=2.4,<2.5",
     "trustgraph-vertexai>=2.4,<2.5",
 ]
 classifiers = [
