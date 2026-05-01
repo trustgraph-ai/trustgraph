@@ -49,7 +49,6 @@ class LibraryRequestTranslator(MessageTranslator):
             document_metadata=doc_metadata,
             processing_metadata=proc_metadata,
             content=content,
-            workspace=data.get("workspace", ""),
             collection=data.get("collection", ""),
             criteria=criteria,
             # Chunked upload fields
@@ -76,8 +75,6 @@ class LibraryRequestTranslator(MessageTranslator):
             result["processing-metadata"] = self.proc_metadata_translator.encode(obj.processing_metadata)
         if obj.content:
             result["content"] = obj.content.decode("utf-8") if isinstance(obj.content, bytes) else obj.content
-        if obj.workspace:
-            result["workspace"] = obj.workspace
         if obj.collection:
             result["collection"] = obj.collection
         if obj.criteria is not None:

@@ -217,7 +217,6 @@ class Library:
                 "title": title,
                 "comments": comments,
                 "metadata": triples,
-                "workspace": self.api.workspace,
                 "tags": tags
             },
             "content": base64.b64encode(document).decode("utf-8"),
@@ -249,7 +248,6 @@ class Library:
                 "kind": kind,
                 "title": title,
                 "comments": comments,
-                "workspace": self.api.workspace,
                 "tags": tags,
             },
             "total-size": total_size,
@@ -377,7 +375,6 @@ class Library:
                         )
                         for w in v["metadata"]
                     ],
-                    workspace = v.get("workspace", ""),
                     tags = v["tags"],
                     parent_id = v.get("parent-id", ""),
                     document_type = v.get("document-type", "source"),
@@ -436,7 +433,6 @@ class Library:
                     )
                     for w in doc["metadata"]
                 ],
-                workspace = doc.get("workspace", ""),
                 tags = doc["tags"],
                 parent_id = doc.get("parent-id", ""),
                 document_type = doc.get("document-type", "source"),
@@ -485,7 +481,6 @@ class Library:
             "operation": "update-document",
             "workspace": self.api.workspace,
             "document-metadata": {
-                "workspace": self.api.workspace,
                 "document-id": id,
                 "time": metadata.time,
                 "title": metadata.title,
@@ -599,7 +594,6 @@ class Library:
                 "document-id": document_id,
                 "time": int(time.time()),
                 "flow": flow,
-                "workspace": self.api.workspace,
                 "collection": collection,
                 "tags": tags,
             }
@@ -681,7 +675,6 @@ class Library:
                     document_id = v["document-id"],
                     time = datetime.datetime.fromtimestamp(v["time"]),
                     flow = v["flow"],
-                    workspace = v.get("workspace", ""),
                     collection = v["collection"],
                     tags = v["tags"],
                 )
@@ -945,7 +938,6 @@ class Library:
                 "title": title,
                 "comments": comments,
                 "metadata": triples,
-                "workspace": self.api.workspace,
                 "tags": tags,
                 "parent-id": parent_id,
                 "document-type": "extracted",

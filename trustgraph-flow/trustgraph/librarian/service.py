@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime
 
-from .. base import AsyncProcessor, Consumer, Producer, Publisher, Subscriber
+from .. base import WorkspaceProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
 from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -46,6 +46,9 @@ default_collection_response_queue = collection_response_queue
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 
+def workspace_queue(base_queue, workspace):
+    return f"{base_queue}:{workspace}"
+
 default_object_store_endpoint = "ceph-rgw:7480"
 default_object_store_access_key = "object-user"
 default_object_store_secret_key = "object-password"
@@ -56,15 +59,13 @@ default_min_chunk_size = 1  # No minimum by default (for Garage)
 
 bucket_name = "library"
 
-class Processor(AsyncProcessor):
+class Processor(WorkspaceProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
 
-#        self.running = True
-
-        librarian_request_queue = params.get(
+        self.librarian_request_queue_base = params.get(
             "librarian_request_queue", default_librarian_request_queue
         )
 
@@ -72,7 +73,7 @@ class Processor(AsyncProcessor):
             "librarian_response_queue", default_librarian_response_queue
         )
 
-        collection_request_queue = params.get(
+        self.collection_request_queue_base = params.get(
             "collection_request_queue", default_collection_request_queue
         )
 
@@ -130,9 +131,9 @@ class Processor(AsyncProcessor):
 
         super(Processor, self).__init__(
             **params | {
-                "librarian_request_queue": librarian_request_queue,
+                "librarian_request_queue": self.librarian_request_queue_base,
                 "librarian_response_queue": librarian_response_queue,
-                "collection_request_queue": collection_request_queue,
+                "collection_request_queue": self.collection_request_queue_base,
                 "collection_response_queue": collection_response_queue,
                 "object_store_endpoint": object_store_endpoint,
                 "object_store_access_key": object_store_access_key,
@@ -142,38 +143,12 @@ class Processor(AsyncProcessor):
             }
         )
 
-        librarian_request_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "librarian-request"
-        )
-
         librarian_response_metrics = ProducerMetrics(
             processor = self.id, flow = None, name = "librarian-response"
         )
 
-        collection_request_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "collection-request"
-        )
-
         collection_response_metrics = ProducerMetrics(
             processor = self.id, flow = None, name = "collection-response"
-        )
-
-        storage_response_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "storage-response"
-        )
-
-        self.librarian_request_topic = librarian_request_queue
-        self.librarian_request_subscriber = id
-
-        self.librarian_request_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = librarian_request_queue,
-            subscriber = id,
-            schema = LibrarianRequest,
-            handler = self.on_librarian_request,
-            metrics = librarian_request_metrics,
         )
 
         self.librarian_response_producer = Producer(
@@ -181,20 +156,6 @@ class Processor(AsyncProcessor):
             topic = librarian_response_queue,
             schema = LibrarianResponse,
             metrics = librarian_response_metrics,
-        )
-
-        self.collection_request_topic = collection_request_queue
-        self.collection_request_subscriber = id
-
-        self.collection_request_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = collection_request_queue,
-            subscriber = id,
-            schema = CollectionManagementRequest,
-            handler = self.on_collection_request,
-            metrics = collection_request_metrics,
         )
 
         self.collection_response_producer = Producer(
@@ -259,16 +220,80 @@ class Processor(AsyncProcessor):
 
         self.flows = {}
 
+        # Per-workspace consumers, keyed by workspace id
+        self.workspace_consumers = {}
+
         logger.info("Librarian service initialized")
+
+    async def on_workspace_created(self, workspace):
+
+        if workspace in self.workspace_consumers:
+            return
+
+        lib_queue = workspace_queue(
+            self.librarian_request_queue_base, workspace,
+        )
+        col_queue = workspace_queue(
+            self.collection_request_queue_base, workspace,
+        )
+
+        await self.pubsub.ensure_topic(lib_queue)
+        await self.pubsub.ensure_topic(col_queue)
+
+        lib_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            backend=self.pubsub,
+            flow=None,
+            topic=lib_queue,
+            subscriber=self.id,
+            schema=LibrarianRequest,
+            handler=partial(
+                self.on_librarian_request, workspace=workspace,
+            ),
+            metrics=ConsumerMetrics(
+                processor=self.id, flow=None,
+                name=f"librarian-request-{workspace}",
+            ),
+        )
+
+        col_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            backend=self.pubsub,
+            flow=None,
+            topic=col_queue,
+            subscriber=self.id,
+            schema=CollectionManagementRequest,
+            handler=partial(
+                self.on_collection_request, workspace=workspace,
+            ),
+            metrics=ConsumerMetrics(
+                processor=self.id, flow=None,
+                name=f"collection-request-{workspace}",
+            ),
+        )
+
+        await lib_consumer.start()
+        await col_consumer.start()
+
+        self.workspace_consumers[workspace] = {
+            "librarian": lib_consumer,
+            "collection": col_consumer,
+        }
+
+        logger.info(f"Subscribed to workspace queues: {workspace}")
+
+    async def on_workspace_deleted(self, workspace):
+
+        consumers = self.workspace_consumers.pop(workspace, None)
+        if consumers:
+            for consumer in consumers.values():
+                await consumer.stop()
+            logger.info(f"Unsubscribed from workspace queues: {workspace}")
 
     async def start(self):
 
-        await self.pubsub.ensure_topic(self.librarian_request_topic)
-        await self.pubsub.ensure_topic(self.collection_request_topic)
         await super(Processor, self).start()
-        await self.librarian_request_consumer.start()
         await self.librarian_response_producer.start()
-        await self.collection_request_consumer.start()
         await self.collection_response_producer.start()
         await self.config_request_producer.start()
         await self.config_response_consumer.start()
@@ -360,13 +385,12 @@ class Processor(AsyncProcessor):
         finally:
             await triples_pub.stop()
 
-    async def load_document(self, document, processing, content):
+    async def load_document(self, document, processing, content, workspace):
 
         logger.debug("Ready for document processing...")
 
         logger.debug(f"Document: {document}, processing: {processing}, content length: {len(content)}")
 
-        workspace = processing.workspace
         ws_flows = self.flows.get(workspace, {})
         if processing.flow not in ws_flows:
             raise RuntimeError(
@@ -429,20 +453,14 @@ class Processor(AsyncProcessor):
 
         logger.debug("Document submitted")
 
-    async def add_processing_with_collection(self, request):
-        """
-        Wrapper for add_processing that ensures collection exists
-        """
-        # Ensure collection exists when processing is added
+    async def add_processing_with_collection(self, request, workspace):
         if hasattr(request, 'processing_metadata') and request.processing_metadata:
-            workspace = request.processing_metadata.workspace
             collection = request.processing_metadata.collection
             await self.collection_manager.ensure_collection_exists(workspace, collection)
 
-        # Call the original add_processing method
-        return await self.librarian.add_processing(request)
+        return await self.librarian.add_processing(request, workspace)
 
-    async def process_request(self, v):
+    async def process_request(self, v, workspace):
 
         if v.operation is None:
             raise RequestError("Null operation")
@@ -475,9 +493,9 @@ class Processor(AsyncProcessor):
         if v.operation not in impls:
             raise RequestError(f"Invalid operation: {v.operation}")
 
-        return await impls[v.operation](v)
+        return await impls[v.operation](v, workspace)
 
-    async def on_librarian_request(self, msg, consumer, flow):
+    async def on_librarian_request(self, msg, consumer, flow, *, workspace):
 
         v = msg.value()
 
@@ -491,14 +509,14 @@ class Processor(AsyncProcessor):
 
             # Handle streaming operations specially
             if v.operation == "stream-document":
-                async for resp in self.librarian.stream_document(v):
+                async for resp in self.librarian.stream_document(v, workspace):
                     await self.librarian_response_producer.send(
                         resp, properties={"id": id}
                     )
                 return
 
             # Non-streaming operations
-            resp = await self.process_request(v)
+            resp = await self.process_request(v, workspace)
 
             await self.librarian_response_producer.send(
                 resp, properties={"id": id}
@@ -535,10 +553,7 @@ class Processor(AsyncProcessor):
 
         logger.debug("Librarian input processing complete")
 
-    async def process_collection_request(self, v):
-        """
-        Process collection management requests
-        """
+    async def process_collection_request(self, v, workspace):
         if v.operation is None:
             raise RequestError("Null operation")
 
@@ -553,19 +568,16 @@ class Processor(AsyncProcessor):
         if v.operation not in impls:
             raise RequestError(f"Invalid collection operation: {v.operation}")
 
-        return await impls[v.operation](v)
+        return await impls[v.operation](v, workspace)
 
-    async def on_collection_request(self, msg, consumer, flow):
-        """
-        Handle collection management request messages
-        """
+    async def on_collection_request(self, msg, consumer, flow, *, workspace):
         v = msg.value()
         id = msg.properties().get("id", "unknown")
 
         logger.info(f"Handling collection request {id}...")
 
         try:
-            resp = await self.process_collection_request(v)
+            resp = await self.process_collection_request(v, workspace)
             await self.collection_response_producer.send(
                 resp, properties={"id": id}
             )
@@ -597,7 +609,7 @@ class Processor(AsyncProcessor):
     @staticmethod
     def add_args(parser):
 
-        AsyncProcessor.add_args(parser)
+        WorkspaceProcessor.add_args(parser)
 
         parser.add_argument(
             '--librarian-request-queue',

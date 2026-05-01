@@ -202,7 +202,6 @@ class LibrarianClient:
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            workspace=workspace,
             kind=kind,
             title=title or doc_id,
             parent_id=parent_id,
@@ -227,7 +226,6 @@ class LibrarianClient:
 
         doc_metadata = DocumentMetadata(
             id=doc_id,
-            workspace=workspace,
             kind=kind,
             title=title or doc_id,
             document_type=document_type,

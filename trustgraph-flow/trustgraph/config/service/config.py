@@ -2,12 +2,16 @@
 import logging
 
 from trustgraph.schema import ConfigResponse
-from trustgraph.schema import ConfigValue, Error
+from trustgraph.schema import ConfigValue, WorkspaceChanges, Error
 
 from ... tables.config import ConfigTableStore
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+WORKSPACES_NAMESPACE = "__workspaces__"
+WORKSPACE_TYPE = "workspace"
+TEMPLATE_WORKSPACE = "__template__"
 
 class Configuration:
 
@@ -26,9 +30,7 @@ class Configuration:
     async def get_version(self):
         return await self.table_store.get_version()
 
-    async def handle_get(self, v):
-
-        workspace = v.workspace
+    async def handle_get(self, v, workspace):
 
         values = [
             ConfigValue(
@@ -46,18 +48,18 @@ class Configuration:
             values = values,
         )
 
-    async def handle_list(self, v):
+    async def handle_list(self, v, workspace):
 
         return ConfigResponse(
             version = await self.get_version(),
             directory = await self.table_store.get_keys(
-                v.workspace, v.type
+                workspace, v.type
             ),
         )
 
-    async def handle_getvalues(self, v):
+    async def handle_getvalues(self, v, workspace):
 
-        vals = await self.table_store.get_values(v.workspace, v.type)
+        vals = await self.table_store.get_values(workspace, v.type)
 
         values = map(
             lambda x: ConfigValue(
@@ -93,9 +95,8 @@ class Configuration:
             values = values,
         )
 
-    async def handle_delete(self, v):
+    async def handle_delete(self, v, workspace):
 
-        workspace = v.workspace
         types = list(set(k.type for k in v.keys))
 
         for k in v.keys:
@@ -103,14 +104,22 @@ class Configuration:
 
         await self.inc_version()
 
-        await self.push(changes={t: [workspace] for t in types})
+        workspace_changes = None
+        if workspace == WORKSPACES_NAMESPACE and WORKSPACE_TYPE in types:
+            deleted = [k.key for k in v.keys if k.type == WORKSPACE_TYPE]
+            if deleted:
+                workspace_changes = WorkspaceChanges(deleted=deleted)
+
+        await self.push(
+            changes={t: [workspace] for t in types},
+            workspace_changes=workspace_changes,
+        )
 
         return ConfigResponse(
         )
 
-    async def handle_put(self, v):
+    async def handle_put(self, v, workspace):
 
-        workspace = v.workspace
         types = list(set(k.type for k in v.values))
 
         for k in v.values:
@@ -120,10 +129,48 @@ class Configuration:
 
         await self.inc_version()
 
-        await self.push(changes={t: [workspace] for t in types})
+        workspace_changes = None
+        if workspace == WORKSPACES_NAMESPACE and WORKSPACE_TYPE in types:
+            created = [k.key for k in v.values if k.type == WORKSPACE_TYPE]
+            if created:
+                workspace_changes = WorkspaceChanges(created=created)
+
+        await self.push(
+            changes={t: [workspace] for t in types},
+            workspace_changes=workspace_changes,
+        )
 
         return ConfigResponse(
         )
+
+    async def provision_from_template(self, workspace):
+        """Copy all config from __template__ into a new workspace,
+        skipping keys that already exist (upsert-missing)."""
+
+        template = await self.get_config(TEMPLATE_WORKSPACE)
+
+        if not template:
+            logger.info(
+                f"No template config to provision for {workspace}"
+            )
+            return 0
+
+        existing_types = await self.get_config(workspace)
+
+        written = 0
+        for type_name, entries in template.items():
+            existing_keys = set(existing_types.get(type_name, {}).keys())
+            for key, value in entries.items():
+                if key not in existing_keys:
+                    await self.table_store.put_config(
+                        workspace, type_name, key, value
+                    )
+                    written += 1
+
+        if written > 0:
+            await self.inc_version()
+
+        return written
 
     async def get_config(self, workspace):
 
@@ -138,62 +185,87 @@ class Configuration:
 
         return config
 
-    async def handle_config(self, v):
+    async def handle_config(self, v, workspace):
 
-        config = await self.get_config(v.workspace)
+        config = await self.get_config(workspace)
 
         return ConfigResponse(
             version = await self.get_version(),
             config = config,
         )
 
-    async def handle(self, msg):
+    async def handle_workspace(self, msg, workspace):
+        """Handle workspace-scoped config operations.
+        Workspace is provided by queue infrastructure."""
 
         logger.debug(
-            f"Handling config message: {msg.operation} "
-            f"workspace={msg.workspace}"
+            f"Handling workspace config message: {msg.operation} "
+            f"workspace={workspace}"
         )
 
-        # getvalues-all-ws spans all workspaces, so no workspace
-        # required; everything else is workspace-scoped.
-        if msg.operation != "getvalues-all-ws" and not msg.workspace:
-            return ConfigResponse(
+        if msg.operation == "get":
+            resp = await self.handle_get(msg, workspace)
+
+        elif msg.operation == "list":
+            resp = await self.handle_list(msg, workspace)
+
+        elif msg.operation == "getvalues":
+            resp = await self.handle_getvalues(msg, workspace)
+
+        elif msg.operation == "delete":
+            resp = await self.handle_delete(msg, workspace)
+
+        elif msg.operation == "put":
+            resp = await self.handle_put(msg, workspace)
+
+        elif msg.operation == "config":
+            resp = await self.handle_config(msg, workspace)
+
+        else:
+            resp = ConfigResponse(
                 error=Error(
-                    type = "bad-request",
-                    message = "Workspace is required"
+                    type = "bad-operation",
+                    message = "Bad operation"
                 )
             )
 
-        if msg.operation == "get":
+        return resp
 
-            resp = await self.handle_get(msg)
+    async def handle_system(self, msg):
+        """Handle system-level config operations.
+        Workspace, when needed, comes from message body."""
 
-        elif msg.operation == "list":
+        logger.debug(
+            f"Handling system config message: {msg.operation} "
+            f"workspace={msg.workspace}"
+        )
 
-            resp = await self.handle_list(msg)
-
-        elif msg.operation == "getvalues":
-
-            resp = await self.handle_getvalues(msg)
-
-        elif msg.operation == "getvalues-all-ws":
-
+        if msg.operation == "getvalues-all-ws":
             resp = await self.handle_getvalues_all_ws(msg)
 
-        elif msg.operation == "delete":
+        elif msg.operation in ("get", "list", "getvalues", "delete",
+                               "put", "config"):
 
-            resp = await self.handle_delete(msg)
+            if not msg.workspace:
+                return ConfigResponse(
+                    error=Error(
+                        type = "bad-request",
+                        message = "Workspace is required"
+                    )
+                )
 
-        elif msg.operation == "put":
+            handler = {
+                "get": self.handle_get,
+                "list": self.handle_list,
+                "getvalues": self.handle_getvalues,
+                "delete": self.handle_delete,
+                "put": self.handle_put,
+                "config": self.handle_config,
+            }[msg.operation]
 
-            resp = await self.handle_put(msg)
-
-        elif msg.operation == "config":
-
-            resp = await self.handle_config(msg)
+            resp = await handler(msg, msg.workspace)
 
         else:
-
             resp = ConfigResponse(
                 error=Error(
                     type = "bad-operation",

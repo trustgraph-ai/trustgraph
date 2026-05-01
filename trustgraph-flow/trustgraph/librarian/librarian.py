@@ -42,13 +42,13 @@ class Librarian:
         self.load_document = load_document
         self.min_chunk_size = min_chunk_size
 
-    async def add_document(self, request):
+    async def add_document(self, request, workspace):
 
         if not request.document_metadata.kind:
             raise RequestError("Document kind (MIME type) is required")
 
         if await self.table_store.document_exists(
-                request.document_metadata.workspace,
+                workspace,
                 request.document_metadata.id
         ):
             raise RuntimeError("Document already exists")
@@ -66,19 +66,19 @@ class Librarian:
         logger.debug("Adding to table...")
 
         await self.table_store.add_document(
-            request.document_metadata, object_id
+            workspace, request.document_metadata, object_id
         )
 
         logger.debug("Add complete")
 
         return LibrarianResponse()
 
-    async def remove_document(self, request):
+    async def remove_document(self, request, workspace):
 
         logger.debug("Removing document...")
 
         if not await self.table_store.document_exists(
-                request.workspace,
+                workspace,
                 request.document_id,
         ):
             raise RuntimeError("Document does not exist")
@@ -89,17 +89,17 @@ class Librarian:
             logger.debug(f"Cascade deleting child document {child.id}")
             try:
                 child_object_id = await self.table_store.get_document_object_id(
-                    child.workspace,
+                    workspace,
                     child.id
                 )
                 await self.blob_store.remove(child_object_id)
-                await self.table_store.remove_document(child.workspace, child.id)
+                await self.table_store.remove_document(workspace, child.id)
             except Exception as e:
                 logger.warning(f"Failed to delete child document {child.id}: {e}")
 
         # Now remove the parent document
         object_id = await self.table_store.get_document_object_id(
-            request.workspace,
+            workspace,
             request.document_id
         )
 
@@ -108,7 +108,7 @@ class Librarian:
 
         # Remove doc table row
         await self.table_store.remove_document(
-            request.workspace,
+            workspace,
             request.document_id
         )
 
@@ -116,30 +116,30 @@ class Librarian:
 
         return LibrarianResponse()
 
-    async def update_document(self, request):
+    async def update_document(self, request, workspace):
 
         logger.debug("Updating document...")
 
         # You can't update the document ID, workspace or kind.
 
         if not await self.table_store.document_exists(
-                request.document_metadata.workspace,
+                workspace,
                 request.document_metadata.id
         ):
             raise RuntimeError("Document does not exist")
 
-        await self.table_store.update_document(request.document_metadata)
+        await self.table_store.update_document(workspace, request.document_metadata)
 
         logger.debug("Update complete")
 
         return LibrarianResponse()
 
-    async def get_document_metadata(self, request):
+    async def get_document_metadata(self, request, workspace):
 
         logger.debug("Getting document metadata...")
 
         doc = await self.table_store.get_document(
-            request.workspace,
+            workspace,
             request.document_id
         )
 
@@ -151,12 +151,12 @@ class Librarian:
             content = None,
         )
 
-    async def get_document_content(self, request):
+    async def get_document_content(self, request, workspace):
 
         logger.debug("Getting document content...")
 
         object_id = await self.table_store.get_document_object_id(
-            request.workspace,
+            workspace,
             request.document_id
         )
 
@@ -172,7 +172,7 @@ class Librarian:
             content = base64.b64encode(content),
         )
 
-    async def add_processing(self, request):
+    async def add_processing(self, request, workspace):
 
         logger.debug("Adding processing metadata...")
 
@@ -180,18 +180,18 @@ class Librarian:
             raise RuntimeError("Collection parameter is required")
 
         if await self.table_store.processing_exists(
-                request.processing_metadata.workspace,
+                workspace,
                 request.processing_metadata.id
         ):
             raise RuntimeError("Processing already exists")
 
         doc = await self.table_store.get_document(
-            request.processing_metadata.workspace,
+            workspace,
             request.processing_metadata.document_id
         )
 
         object_id = await self.table_store.get_document_object_id(
-            request.processing_metadata.workspace,
+            workspace,
             request.processing_metadata.document_id
         )
 
@@ -203,7 +203,7 @@ class Librarian:
 
         logger.debug("Adding processing to table...")
 
-        await self.table_store.add_processing(request.processing_metadata)
+        await self.table_store.add_processing(workspace, request.processing_metadata)
 
         logger.debug("Invoking document processing...")
 
@@ -211,25 +211,26 @@ class Librarian:
             document = doc,
             processing = request.processing_metadata,
             content = content,
+            workspace = workspace,
         )
 
         logger.debug("Add complete")
 
         return LibrarianResponse()
 
-    async def remove_processing(self, request):
+    async def remove_processing(self, request, workspace):
 
         logger.debug("Removing processing metadata...")
 
         if not await self.table_store.processing_exists(
-                request.workspace,
+                workspace,
                 request.processing_id,
         ):
             raise RuntimeError("Processing object does not exist")
 
         # Remove doc table row
         await self.table_store.remove_processing(
-            request.workspace,
+            workspace,
             request.processing_id
         )
 
@@ -237,9 +238,9 @@ class Librarian:
 
         return LibrarianResponse()
 
-    async def list_documents(self, request):
+    async def list_documents(self, request, workspace):
 
-        docs = await self.table_store.list_documents(request.workspace)
+        docs = await self.table_store.list_documents(workspace)
 
         # Filter out child documents and answer documents by default
         include_children = getattr(request, 'include_children', False)
@@ -254,9 +255,9 @@ class Librarian:
             document_metadatas = docs,
         )
 
-    async def list_processing(self, request):
+    async def list_processing(self, request, workspace):
 
-        procs = await self.table_store.list_processing(request.workspace)
+        procs = await self.table_store.list_processing(workspace)
 
         return LibrarianResponse(
             processing_metadatas = procs,
@@ -264,7 +265,7 @@ class Librarian:
 
     # Chunked upload operations
 
-    async def begin_upload(self, request):
+    async def begin_upload(self, request, workspace):
         """
         Initialize a chunked upload session.
 
@@ -276,7 +277,7 @@ class Librarian:
             raise RequestError("Document kind (MIME type) is required")
 
         if await self.table_store.document_exists(
-                request.document_metadata.workspace,
+                workspace,
                 request.document_metadata.id
         ):
             raise RequestError("Document already exists")
@@ -312,14 +313,13 @@ class Librarian:
             "kind": request.document_metadata.kind,
             "title": request.document_metadata.title,
             "comments": request.document_metadata.comments,
-            "workspace": request.document_metadata.workspace,
             "tags": request.document_metadata.tags,
         })
 
         # Store session in Cassandra
         await self.table_store.create_upload_session(
             upload_id=upload_id,
-            workspace=request.document_metadata.workspace,
+            workspace=workspace,
             document_id=request.document_metadata.id,
             document_metadata=doc_meta_json,
             s3_upload_id=s3_upload_id,
@@ -338,7 +338,7 @@ class Librarian:
             total_chunks=total_chunks,
         )
 
-    async def upload_chunk(self, request):
+    async def upload_chunk(self, request, workspace):
         """
         Upload a single chunk of a document.
 
@@ -352,7 +352,7 @@ class Librarian:
             raise RequestError("Upload session not found or expired")
 
         # Validate ownership
-        if session["workspace"] != request.workspace:
+        if session["workspace"] != workspace:
             raise RequestError("Not authorized to upload to this session")
 
         # Validate chunk index
@@ -405,7 +405,7 @@ class Librarian:
             total_bytes=session["total_size"],
         )
 
-    async def complete_upload(self, request):
+    async def complete_upload(self, request, workspace):
         """
         Finalize a chunked upload and create the document.
 
@@ -419,7 +419,7 @@ class Librarian:
             raise RequestError("Upload session not found or expired")
 
         # Validate ownership
-        if session["workspace"] != request.workspace:
+        if session["workspace"] != workspace:
             raise RequestError("Not authorized to complete this upload")
 
         # Verify all chunks received
@@ -457,13 +457,13 @@ class Librarian:
             kind=doc_meta_dict["kind"],
             title=doc_meta_dict.get("title", ""),
             comments=doc_meta_dict.get("comments", ""),
-            workspace=doc_meta_dict["workspace"],
             tags=doc_meta_dict.get("tags", []),
             metadata=[],  # Triples not supported in chunked upload yet
         )
 
         # Add document to table
-        await self.table_store.add_document(doc_metadata, session["object_id"])
+        workspace = session["workspace"]
+        await self.table_store.add_document(workspace, doc_metadata, session["object_id"])
 
         # Delete upload session
         await self.table_store.delete_upload_session(request.upload_id)
@@ -476,7 +476,7 @@ class Librarian:
             object_id=str(session["object_id"]),
         )
 
-    async def abort_upload(self, request):
+    async def abort_upload(self, request, workspace):
         """
         Cancel a chunked upload and clean up resources.
         """
@@ -488,7 +488,7 @@ class Librarian:
             raise RequestError("Upload session not found or expired")
 
         # Validate ownership
-        if session["workspace"] != request.workspace:
+        if session["workspace"] != workspace:
             raise RequestError("Not authorized to abort this upload")
 
         # Abort S3 multipart upload
@@ -504,7 +504,7 @@ class Librarian:
 
         return LibrarianResponse(error=None)
 
-    async def get_upload_status(self, request):
+    async def get_upload_status(self, request, workspace):
         """
         Get the status of an in-progress upload.
         """
@@ -520,7 +520,7 @@ class Librarian:
             )
 
         # Validate ownership
-        if session["workspace"] != request.workspace:
+        if session["workspace"] != workspace:
             raise RequestError("Not authorized to view this upload")
 
         chunks_received = session["chunks_received"]
@@ -546,13 +546,13 @@ class Librarian:
             total_bytes=session["total_size"],
         )
 
-    async def list_uploads(self, request):
+    async def list_uploads(self, request, workspace):
         """
         List all in-progress uploads for a workspace.
         """
-        logger.debug(f"Listing uploads for workspace {request.workspace}")
+        logger.debug(f"Listing uploads for workspace {workspace}")
 
-        sessions = await self.table_store.list_upload_sessions(request.workspace)
+        sessions = await self.table_store.list_upload_sessions(workspace)
 
         upload_sessions = [
             UploadSession(
@@ -575,7 +575,7 @@ class Librarian:
 
     # Child document operations
 
-    async def add_child_document(self, request):
+    async def add_child_document(self, request, workspace):
         """
         Add a child document linked to a parent document.
 
@@ -591,7 +591,7 @@ class Librarian:
 
         # Verify parent exists
         if not await self.table_store.document_exists(
-                request.document_metadata.workspace,
+                workspace,
                 request.document_metadata.parent_id
         ):
             raise RequestError(
@@ -599,7 +599,7 @@ class Librarian:
             )
 
         if await self.table_store.document_exists(
-                request.document_metadata.workspace,
+                workspace,
                 request.document_metadata.id
         ):
             raise RequestError("Document already exists")
@@ -622,7 +622,7 @@ class Librarian:
         logger.debug("Adding to table...")
 
         await self.table_store.add_document(
-            request.document_metadata, object_id
+            workspace, request.document_metadata, object_id
         )
 
         logger.debug("Add child document complete")
@@ -632,7 +632,7 @@ class Librarian:
             document_id=request.document_metadata.id,
         )
 
-    async def list_children(self, request):
+    async def list_children(self, request, workspace):
         """
         List all child documents for a given parent document.
         """
@@ -645,7 +645,7 @@ class Librarian:
             document_metadatas=children,
         )
 
-    async def stream_document(self, request):
+    async def stream_document(self, request, workspace):
         """
         Stream document content in chunks.
 
@@ -665,7 +665,7 @@ class Librarian:
             )
 
         object_id = await self.table_store.get_document_object_id(
-            request.workspace,
+            workspace,
             request.document_id
         )
 
@@ -697,4 +697,3 @@ class Librarian:
                 total_bytes=total_size,
                 is_final=is_last,
             )
-

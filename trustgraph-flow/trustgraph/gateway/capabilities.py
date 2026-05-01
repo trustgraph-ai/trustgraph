@@ -67,12 +67,22 @@ async def enforce(request, auth, capability):
     return identity
 
 
+def workspace_not_found():
+    return web.HTTPNotFound(
+        text='{"error":"workspace not found"}',
+        content_type="application/json",
+    )
+
+
 async def enforce_workspace(data, identity, auth, capability=None):
     """Default-fill the workspace on a request body and (optionally)
     authorise the caller for ``capability`` against that workspace.
 
     - Target workspace = ``data["workspace"]`` if supplied, else the
       caller's bound workspace.
+    - Rejects the request if the resolved workspace is not in
+      ``auth.known_workspaces`` (prevents routing to a queue with
+      no consumer).
     - On success, ``data["workspace"]`` is overwritten with the
       resolved value so downstream code sees a single canonical
       address.
@@ -91,6 +101,9 @@ async def enforce_workspace(data, identity, auth, capability=None):
     requested = data.get("workspace", "")
     target = requested or identity.workspace
     data["workspace"] = target
+
+    if target not in auth.known_workspaces:
+        raise workspace_not_found()
 
     if capability is not None:
         await auth.authorise(

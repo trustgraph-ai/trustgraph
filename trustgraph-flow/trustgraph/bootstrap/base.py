@@ -21,7 +21,7 @@ class InitContext:
 
     logger: logging.Logger
     config: Any    # ConfigClient
-    flow: Any      # RequestResponse client for flow-svc
+    make_flow_client: Any  # callable(workspace) -> RequestResponse
 
 
 class Initialiser:

@@ -2,16 +2,22 @@
 Dump out TrustGraph processor states.
 """
 
+import os
 import requests
 import argparse
 
 default_metrics_url = "http://localhost:8088/api/metrics"
+DEFAULT_TOKEN = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def dump_status(url):
+def dump_status(metrics_url, token=None):
 
-    url = f"{url}/query?query=processor_info"
+    url = f"{metrics_url}/query?query=processor_info"
 
-    resp = requests.get(url)
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    resp = requests.get(url, headers=headers)
 
     obj = resp.json()
 
@@ -39,11 +45,17 @@ def main():
         help=f'Metrics URL (default: {default_metrics_url})',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=DEFAULT_TOKEN,
+        help=f'Bearer token for authentication (default: TRUSTGRAPH_TOKEN env var)',
+    )
+
     args = parser.parse_args()
 
     try:
 
-        dump_status(args.metrics_url)
+        dump_status(args.metrics_url, args.token)
 
     except Exception as e:
 

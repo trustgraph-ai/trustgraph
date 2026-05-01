@@ -9,7 +9,6 @@ class FlowRequestTranslator(MessageTranslator):
     def decode(self, data: Dict[str, Any]) -> FlowRequest:
         return FlowRequest(
             operation=data.get("operation"),
-            workspace=data.get("workspace", ""),
             blueprint_name=data.get("blueprint-name"),
             blueprint_definition=data.get("blueprint-definition"),
             description=data.get("description"),
@@ -22,8 +21,6 @@ class FlowRequestTranslator(MessageTranslator):
 
         if obj.operation is not None:
             result["operation"] = obj.operation
-        if obj.workspace is not None:
-            result["workspace"] = obj.workspace
         if obj.blueprint_name is not None:
             result["blueprint-name"] = obj.blueprint_name
         if obj.blueprint_definition is not None:
