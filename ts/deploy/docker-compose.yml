@@ -298,6 +298,18 @@ services:
       - trustgraph
     restart: unless-stopped
 
+  mcp-tool:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/mcp-tool.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
   librarian:
     image: trustgraph-ts:local
     command: ["node", "entrypoints/librarian.mjs"]

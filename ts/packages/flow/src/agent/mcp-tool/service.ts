@@ -36,9 +36,9 @@ export class McpToolService extends FlowProcessor {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<ToolRequest>("request", this.onRequest.bind(this)),
+      new ConsumerSpec<ToolRequest>("mcp-tool-request", this.onRequest.bind(this)),
     );
-    this.registerSpecification(new ProducerSpec<ToolResponse>("response"));
+    this.registerSpecification(new ProducerSpec<ToolResponse>("mcp-tool-response"));
 
     this.registerConfigHandler(this.onMcpConfig.bind(this));
   }
@@ -79,7 +79,7 @@ export class McpToolService extends FlowProcessor {
     const requestId = properties.id;
     if (!requestId) return;
 
-    const responseProducer = flowCtx.flow.producer<ToolResponse>("response");
+    const responseProducer = flowCtx.flow.producer<ToolResponse>("mcp-tool-response");
 
     try {
       const result = await this.invokeTool(
