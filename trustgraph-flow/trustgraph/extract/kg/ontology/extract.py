@@ -540,6 +540,32 @@ class Processor(FlowProcessor):
             return True
         return False
 
+    def _is_subclass_of(self, cls, target, ontology_subset, max_depth=100):
+        """Return True if cls is a subclass of target via subclass_of chain.
+
+        Defends against cycles in ontology data (LLM-generated ontologies may
+        emit A subclass_of B, B subclass_of A) with a visited set. A depth cap
+        acts as a second line of defense against unbounded chains.
+        """
+        if cls == target:
+            return True
+        visited = set()
+        curr = cls
+        depth = 0
+        while curr in ontology_subset.classes and depth < max_depth:
+            if curr in visited:
+                return False  # cycle detected
+            visited.add(curr)
+            cls_def = ontology_subset.classes[curr]
+            parent = cls_def.get('subclass_of') if isinstance(cls_def, dict) else None
+            if parent is None:
+                return False
+            if parent == target:
+                return True
+            curr = parent
+            depth += 1
+        return False
+
     def is_valid_triple(self, subject: str, predicate: str, object_val: str,
                        ontology_subset: OntologySubset, entity_types: dict = None) -> bool:
         """Validate triple against ontology constraints."""
@@ -570,36 +596,20 @@ class Processor(FlowProcessor):
         expected_domain = prop_def.get('domain')
         if expected_domain and subject in entity_types:
             actual_domain = entity_types[subject]
-            if actual_domain != expected_domain:
-                is_subclass = False
-                curr_class = actual_domain
-                while curr_class in ontology_subset.classes:
-                    cls_def = ontology_subset.classes[curr_class]
-                    parent = cls_def.get('subclass_of') if isinstance(cls_def, dict) else None
-                    if parent == expected_domain:
-                        is_subclass = True
-                        break
-                    curr_class = parent
-                if not is_subclass:
-                    return False
+            if actual_domain != expected_domain and not self._is_subclass_of(
+                actual_domain, expected_domain, ontology_subset
+            ):
+                return False
 
         # Range validation
         if is_obj_prop:
             expected_range = prop_def.get('range')
             if expected_range and object_val in entity_types:
                 actual_range = entity_types[object_val]
-                if actual_range != expected_range:
-                    is_subclass = False
-                    curr_class = actual_range
-                    while curr_class in ontology_subset.classes:
-                        cls_def = ontology_subset.classes[curr_class]
-                        parent = cls_def.get('subclass_of') if isinstance(cls_def, dict) else None
-                        if parent == expected_range:
-                            is_subclass = True
-                            break
-                        curr_class = parent
-                    if not is_subclass:
-                        return False
+                if actual_range != expected_range and not self._is_subclass_of(
+                    actual_range, expected_range, ontology_subset
+                ):
+                    return False
 
         return True
 

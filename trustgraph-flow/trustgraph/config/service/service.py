@@ -24,6 +24,21 @@ logger = logging.getLogger(__name__)
 
 default_ident = "config-svc"
 
+
+def is_reserved_workspace(workspace):
+    """Reserved workspaces are storage-only.
+
+    Any workspace id beginning with ``_`` is reserved for internal use
+    (e.g. ``__template__`` holding factory-default seed config).
+    Reads and writes work normally so bootstrap and provisioning code
+    can use the standard config API, but **change notifications for
+    reserved workspaces are suppressed**.  Services subscribed to the
+    config push therefore never see reserved-workspace events and
+    cannot accidentally act on template content as if it were live
+    state.
+    """
+    return workspace.startswith("_")
+
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 default_config_push_queue = config_push_queue
@@ -129,6 +144,21 @@ class Processor(AsyncProcessor):
         await self.config_request_consumer.start()
 
     async def push(self, changes=None):
+
+        # Suppress notifications from reserved workspaces (ids starting
+        # with "_", e.g. "__template__").  Stored config is preserved;
+        # only the broadcast is filtered.  Keeps services oblivious to
+        # template / bootstrap state.
+        if changes:
+            filtered = {}
+            for type_name, workspaces in changes.items():
+                visible = [
+                    w for w in workspaces
+                    if not is_reserved_workspace(w)
+                ]
+                if visible:
+                    filtered[type_name] = visible
+            changes = filtered
 
         version = await self.config.get_version()
 

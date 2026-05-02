@@ -277,6 +277,60 @@ class TestTripleValidation:
         is_invalid = extractor.is_valid_triple(subject, predicate, object_val, sample_ontology_subset, entity_types_invalid)
         assert not is_invalid, "Invalid range should be rejected"
 
+    def test_is_valid_triple_subclass_is_accepted(self, extractor, sample_ontology_subset):
+        """Domain check passes when actual type is a subclass of expected."""
+        sample_ontology_subset.classes["Cake"] = {
+            "uri": "http://purl.org/ontology/fo/Cake",
+            "type": "owl:Class",
+            "subclass_of": "Recipe",
+        }
+        sample_ontology_subset.object_properties["has_ingredient"] = {
+            "domain": "Recipe",
+            "range": "Ingredient",
+        }
+
+        result = extractor.is_valid_triple(
+            subject="cake:lemon-drizzle",
+            predicate="has_ingredient",
+            object_val="ingredient:lemon",
+            ontology_subset=sample_ontology_subset,
+            entity_types={"cake:lemon-drizzle": "Cake", "ingredient:lemon": "Ingredient"},
+        )
+
+        assert result is True
+
+    def test_is_valid_triple_handles_subclass_cycle_without_infinite_loop(self, extractor, sample_ontology_subset):
+        """A cycle in subclass_of must return False instead of hanging."""
+        sample_ontology_subset.classes["A"] = {"subclass_of": "B"}
+        sample_ontology_subset.classes["B"] = {"subclass_of": "A"}
+        sample_ontology_subset.object_properties["p"] = {"domain": "Recipe", "range": "Ingredient"}
+
+        result = extractor.is_valid_triple(
+            subject="entity:x",
+            predicate="p",
+            object_val="ingredient:y",
+            ontology_subset=sample_ontology_subset,
+            entity_types={"entity:x": "A", "ingredient:y": "Ingredient"},
+        )
+
+        assert result is False
+
+    def test_is_valid_triple_entity_types_none_default(self, extractor, sample_ontology_subset):
+        """entity_types=None should not raise; domain/range checks skip if type unknown."""
+        sample_ontology_subset.object_properties["has_ingredient"] = {
+            "domain": "Recipe",
+            "range": "Ingredient",
+        }
+
+        result = extractor.is_valid_triple(
+            subject="recipe:x",
+            predicate="has_ingredient",
+            object_val="ingredient:y",
+            ontology_subset=sample_ontology_subset,
+        )
+
+        assert result is True
+
 
 class TestTripleParsing:
     """Test suite for parsing triples from LLM responses."""
@@ -376,6 +430,24 @@ class TestTripleParsing:
         assert triple.s.type == IRI, "Subject should be IRI type"
         assert triple.p.type == IRI, "Predicate should be IRI type"
         assert triple.o.type == LITERAL, "Object literal should be LITERAL type"
+
+    def test_parse_and_validate_triples_collects_entity_types_from_rdf_type(self, extractor, sample_ontology_subset):
+        """entity_types should be built from rdf:type triples in the same batch."""
+        sample_ontology_subset.object_properties["has_ingredient"] = {
+            "domain": "Recipe",
+            "range": "Ingredient",
+        }
+        triples_response = [
+            {"subject": "recipe:cornish-pasty", "predicate": "rdf:type", "object": "Recipe"},
+            {"subject": "ingredient:beef", "predicate": "rdf:type", "object": "Ingredient"},
+            {"subject": "recipe:cornish-pasty", "predicate": "has_ingredient", "object": "ingredient:beef"},
+        ]
+
+        valid_triples = extractor.parse_and_validate_triples(
+            triples_response, sample_ontology_subset
+        )
+
+        assert len(valid_triples) == 3
 
 
 class TestURIExpansionInExtraction:

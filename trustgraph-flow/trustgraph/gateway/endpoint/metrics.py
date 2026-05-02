@@ -10,17 +10,19 @@ import asyncio
 import uuid
 import logging
 
+from .. capabilities import enforce
+
 logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)
 
 class MetricsEndpoint:
 
-    def __init__(self, prometheus_url, endpoint_path, auth):
+    def __init__(self, prometheus_url, endpoint_path, auth, capability):
 
         self.prometheus_url = prometheus_url
         self.path = endpoint_path
         self.auth = auth
-        self.operation = "service"
+        self.capability = capability
 
     async def start(self):
         pass
@@ -35,38 +37,39 @@ class MetricsEndpoint:
 
         logger.debug(f"Processing metrics request: {request.path}")
 
-        try:
-            ht = request.headers["Authorization"]
-            tokens = ht.split(" ", 2)
-            if tokens[0] != "Bearer":
-                return web.HTTPUnauthorized()
-            token = tokens[1]
-        except:
-            token = ""
+        await enforce(request, self.auth, self.capability)
 
-        if not self.auth.permitted(token, self.operation):
-            return web.HTTPUnauthorized()
+        path = request.match_info["path"]
+        url = (
+            self.prometheus_url + "/api/v1/" + path + "?" +
+            request.query_string
+        )
 
         try:
-
-            path = request.match_info["path"]
 
             async with aiohttp.ClientSession() as session:
-
-                url = (
-                    self.prometheus_url + "/api/v1/" + path + "?" +
-                    request.query_string
-                )
-
                 async with session.get(url) as resp:
                     return web.Response(
                         status=resp.status,
                         text=await resp.text()
                     )
 
+        except aiohttp.ClientConnectionError as e:
+
+            # Upstream unreachable (connect refused, DNS failure,
+            # server disconnect).  Distinguish from our own errors so
+            # callers know where the fault is.
+            logger.error(f"Metrics upstream {url} unreachable: {e}")
+            return web.Response(
+                status=502,
+                text=f"Bad Gateway: metrics upstream unreachable: {e}",
+            )
+
         except Exception as e:
 
-            logging.error(f"Exception: {e}")
-
-            raise web.HTTPInternalServerError()
+            logger.error(f"Metrics proxy exception: {e}", exc_info=True)
+            return web.Response(
+                status=500,
+                text=f"Internal Server Error: {e}",
+            )
 

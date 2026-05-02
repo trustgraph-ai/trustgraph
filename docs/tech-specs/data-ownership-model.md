@@ -22,8 +22,16 @@ are the boundaries around data, and who owns what?
 
 A workspace is the primary isolation boundary. It represents an
 organisation, team, or independent operating unit. All data belongs to
-exactly one workspace. Cross-workspace access is never permitted through
-the API.
+exactly one workspace.
+
+Cross-workspace access through the API is gated by the IAM regime
+(see [`iam-contract.md`](iam-contract.md)). In the OSS distribution,
+the role table defined in [`capabilities.md`](capabilities.md)
+permits cross-workspace operation only to the `admin` role; the
+`reader` and `writer` roles are constrained to a single assigned
+workspace per credential. Other regimes can model the relationship
+between identity and workspace differently — the gateway makes no
+assumption.
 
 A workspace owns:
 - Source documents
@@ -279,9 +287,18 @@ A typical workflow:
 
 The current codebase uses a `user` field in message metadata and storage
 partition keys to identify the workspace. The `collection` field
-identifies the collection within that workspace. The IAM spec describes
-how the gateway maps authenticated credentials to a workspace identity
-and sets these fields.
+identifies the collection within that workspace.
+
+The gateway is the single point at which workspace gets stamped onto
+outbound pub/sub messages.  An incoming credential authenticates to a
+workspace (the credential's binding, not a user-to-workspace lookup —
+see [`iam-contract.md`](iam-contract.md) and the *Identity surface*
+section of [`iam.md`](iam.md)); any caller-supplied workspace on the
+request is reconciled against the authenticated identity by the IAM
+regime; the resolved value is what the gateway writes into outgoing
+messages and the storage layers' partition keys.  Backend services
+trust the workspace they receive — defense-in-depth happens at the
+gateway, not at the bus.
 
 For details on how each storage backend implements this scoping, see:
 
@@ -302,7 +319,10 @@ For details on how each storage backend implements this scoping, see:
 
 ## References
 
-- [Identity and Access Management](iam.md)
+- [IAM Contract](iam-contract.md) — gateway↔IAM regime abstraction.
+- [Identity and Access Management](iam.md) — gateway-side framing.
+- [Capability Vocabulary](capabilities.md) — capability strings and
+  the OSS role bundles that decide cross-workspace eligibility.
 - [Collection Management](collection-management.md)
 - [Entity-Centric Graph](entity-centric-graph.md)
 - [Neo4j User Collection Isolation](neo4j-user-collection-isolation.md)

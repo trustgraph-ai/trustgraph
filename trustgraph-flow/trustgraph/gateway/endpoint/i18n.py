@@ -4,16 +4,18 @@ from aiohttp import web
 
 from trustgraph.i18n import get_language_pack
 
+from .. capabilities import enforce
+
 logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)
 
 
 class I18nPackEndpoint:
 
-    def __init__(self, endpoint_path: str, auth):
+    def __init__(self, endpoint_path: str, auth, capability):
         self.path = endpoint_path
         self.auth = auth
-        self.operation = "service"
+        self.capability = capability
 
     async def start(self):
         pass
@@ -26,26 +28,13 @@ class I18nPackEndpoint:
     async def handle(self, request):
         logger.debug(f"Processing i18n pack request: {request.path}")
 
-        token = ""
-        try:
-            ht = request.headers["Authorization"]
-            tokens = ht.split(" ", 2)
-            if tokens[0] != "Bearer":
-                return web.HTTPUnauthorized()
-            token = tokens[1]
-        except Exception:
-            token = ""
-
-        if not self.auth.permitted(token, self.operation):
-            return web.HTTPUnauthorized()
+        await enforce(request, self.auth, self.capability)
 
         lang = request.match_info.get("lang") or "en"
 
-        # This is a path traversal defense, and is a critical sec defense.
-        # Do not remove!
+        # Path-traversal defense — critical, do not remove.
         if "/" in lang or ".." in lang:
             return web.HTTPBadRequest(reason="Invalid language code")
 
         pack = get_language_pack(lang)
-
         return web.json_response(pack)

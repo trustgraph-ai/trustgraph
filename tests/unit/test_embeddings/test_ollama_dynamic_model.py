@@ -14,13 +14,13 @@ from trustgraph.embeddings.ollama.processor import Processor
 class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
     """Test Ollama dynamic model selection"""
 
-    @patch('trustgraph.embeddings.ollama.processor.Client')
+    @patch('trustgraph.embeddings.ollama.processor.AsyncClient')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_client_initialized_with_host(self, mock_embeddings_init, mock_async_init, mock_client_class):
         """Test that Ollama client is initialized with correct host"""
         # Arrange
-        mock_ollama_client = Mock()
+        mock_ollama_client = AsyncMock()
         mock_response = Mock()
         mock_response.embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]
         mock_ollama_client.embed.return_value = mock_response
@@ -36,13 +36,13 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         mock_client_class.assert_called_once_with(host="http://localhost:11434")
         assert processor.default_model == "test-model"
 
-    @patch('trustgraph.embeddings.ollama.processor.Client')
+    @patch('trustgraph.embeddings.ollama.processor.AsyncClient')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_on_embeddings_uses_default_model(self, mock_embeddings_init, mock_async_init, mock_client_class):
         """Test that on_embeddings uses default model when no model specified"""
         # Arrange
-        mock_ollama_client = Mock()
+        mock_ollama_client = AsyncMock()
         mock_response = Mock()
         mock_response.embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]
         mock_ollama_client.embed.return_value = mock_response
@@ -62,13 +62,13 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         )
         assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
 
-    @patch('trustgraph.embeddings.ollama.processor.Client')
+    @patch('trustgraph.embeddings.ollama.processor.AsyncClient')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_on_embeddings_uses_specified_model(self, mock_embeddings_init, mock_async_init, mock_client_class):
         """Test that on_embeddings uses specified model when provided"""
         # Arrange
-        mock_ollama_client = Mock()
+        mock_ollama_client = AsyncMock()
         mock_response = Mock()
         mock_response.embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]
         mock_ollama_client.embed.return_value = mock_response
@@ -88,13 +88,13 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         )
         assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
 
-    @patch('trustgraph.embeddings.ollama.processor.Client')
+    @patch('trustgraph.embeddings.ollama.processor.AsyncClient')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_multiple_model_switches(self, mock_embeddings_init, mock_async_init, mock_client_class):
         """Test switching between multiple models"""
         # Arrange
-        mock_ollama_client = Mock()
+        mock_ollama_client = AsyncMock()
         mock_response = Mock()
         mock_response.embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]
         mock_ollama_client.embed.return_value = mock_response
@@ -118,13 +118,13 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         assert calls[2][1]['model'] == "model-a"
         assert calls[3][1]['model'] == "test-model"  # Default
 
-    @patch('trustgraph.embeddings.ollama.processor.Client')
+    @patch('trustgraph.embeddings.ollama.processor.AsyncClient')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_none_model_uses_default(self, mock_embeddings_init, mock_async_init, mock_client_class):
         """Test that None model parameter falls back to default"""
         # Arrange
-        mock_ollama_client = Mock()
+        mock_ollama_client = AsyncMock()
         mock_response = Mock()
         mock_response.embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]
         mock_ollama_client.embed.return_value = mock_response
@@ -143,13 +143,13 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
             input=["test text"]
         )
 
-    @patch('trustgraph.embeddings.ollama.processor.Client')
+    @patch('trustgraph.embeddings.ollama.processor.AsyncClient')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_initialization_without_model_uses_default(self, mock_embeddings_init, mock_async_init, mock_client_class):
         """Test initialization without model parameter uses module default"""
         # Arrange
-        mock_ollama_client = Mock()
+        mock_ollama_client = AsyncMock()
         mock_client_class.return_value = mock_ollama_client
         mock_async_init.return_value = None
         mock_embeddings_init.return_value = None

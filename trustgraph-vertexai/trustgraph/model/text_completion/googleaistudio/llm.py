@@ -43,18 +43,6 @@ class Processor(LlmService):
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
-        from google import genai                                               
-        from google.genai import types                                          
-        from google.genai.types import HarmCategory, HarmBlockThreshold        
-        from google.genai.errors import ClientError                             
-        from google.api_core.exceptions import ResourceExhausted               
-        self.genai = genai                                                      
-        self.types = types                                                      
-        self.HarmCategory = HarmCategory                                        
-        self.HarmBlockThreshold = HarmBlockThreshold                           
-        self.ClientError = ClientError                                          
-        self.ResourceExhausted = ResourceExhausted                             
-
         if api_key is None:
             raise RuntimeError("Google AI Studio API key not specified")
 
@@ -66,7 +54,7 @@ class Processor(LlmService):
             }
         )
 
-        self.client = self.genai.Client(api_key=api_key, vertexai=False)
+        self.client = genai.Client(api_key=api_key, vertexai=False)
         self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
@@ -74,7 +62,7 @@ class Processor(LlmService):
         # Cache for generation configs per model
         self.generation_configs = {}
 
-        block_level = self.HarmBlockThreshold.BLOCK_ONLY_HIGH
+        block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
 
         self.safety_settings = [
             types.SafetySetting(                           
@@ -159,7 +147,7 @@ class Processor(LlmService):
 
             return resp
 
-        except self.ResourceExhausted as e:
+        except ResourceExhausted as e:
 
             logger.warning("Rate limit exceeded")
 

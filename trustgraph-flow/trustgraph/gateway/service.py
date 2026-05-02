@@ -12,7 +12,7 @@ import os
 from trustgraph.base.logging import setup_logging, add_logging_args
 from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
 
-from . auth import Authenticator
+from . auth import IamAuth
 from . config.receiver import ConfigReceiver
 from . dispatch.manager import DispatcherManager
 
@@ -35,7 +35,6 @@ default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 default_timeout = 600
 default_port = 8088
-default_api_token = os.getenv("GATEWAY_SECRET", "")
 
 class Api:
 
@@ -60,13 +59,14 @@ class Api:
         if not self.prometheus_url.endswith("/"):
             self.prometheus_url += "/"
 
-        api_token = config.get("api_token", default_api_token)
-
-        # Token not set, or token equal empty string means no auth
-        if api_token:
-            self.auth = Authenticator(token=api_token)
-        else:
-            self.auth = Authenticator(allow_all=True)
+        # IAM-backed authentication.  The legacy GATEWAY_SECRET
+        # shared-token path has been removed — there is no
+        # "open for everyone" fallback.  The gateway cannot
+        # authenticate any request until IAM is reachable.
+        self.auth = IamAuth(
+            backend=self.pubsub_backend,
+            id=config.get("id", "api-gateway"),
+        )
 
         self.config_receiver = ConfigReceiver(self.pubsub_backend)
 
@@ -118,6 +118,7 @@ class Api:
             config_receiver = self.config_receiver,
             prefix = "gateway",
             queue_overrides = queue_overrides,
+            auth = self.auth,
         )
 
         self.endpoint_manager = EndpointManager(
@@ -132,11 +133,17 @@ class Api:
         ]
 
     async def app_factory(self):
-        
+
         self.app = web.Application(
             middlewares=[],
             client_max_size=256 * 1024 * 1024
         )
+
+        # Fetch IAM signing public key before accepting traffic.
+        # Blocks for a bounded retry window; the gateway starts even
+        # if IAM is still unreachable (JWT validation will 401 until
+        # the key is available).
+        await self.auth.start()
 
         await self.config_receiver.start()
 
@@ -187,12 +194,6 @@ def run():
         type=int,
         default=default_timeout,
         help=f'API request timeout in seconds (default: {default_timeout})',
-    )
-
-    parser.add_argument(
-        '--api-token',
-        default=default_api_token,
-        help=f'Secret API token (default: no auth)',
     )
 
     add_logging_args(parser)

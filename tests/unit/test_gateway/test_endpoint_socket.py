@@ -1,5 +1,12 @@
 """
-Tests for Gateway Socket Endpoint
+Tests for Gateway Socket Endpoint.
+
+In production the only SocketEndpoint registered with HTTP-layer
+auth is ``/api/v1/socket`` using ``capability=AUTHENTICATED`` with
+``in_band_auth=True`` (first-frame auth over the websocket frames,
+not at the handshake).  The tests below use AUTHENTICATED as the
+representative capability; construction / worker / listener
+behaviour is independent of which capability is configured.
 """
 
 import pytest
@@ -7,41 +14,47 @@ from unittest.mock import MagicMock, AsyncMock
 from aiohttp import WSMsgType
 
 from trustgraph.gateway.endpoint.socket import SocketEndpoint
+from trustgraph.gateway.capabilities import AUTHENTICATED
 
 
 class TestSocketEndpoint:
     """Test cases for SocketEndpoint class"""
 
     def test_socket_endpoint_initialization(self):
-        """Test SocketEndpoint initialization"""
+        """Construction records the configured capability on the
+        instance.  No permissive default is applied."""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
+
         endpoint = SocketEndpoint(
             endpoint_path="/api/socket",
             auth=mock_auth,
-            dispatcher=mock_dispatcher
+            dispatcher=mock_dispatcher,
+            capability=AUTHENTICATED,
         )
-        
+
         assert endpoint.path == "/api/socket"
         assert endpoint.auth == mock_auth
         assert endpoint.dispatcher == mock_dispatcher
-        assert endpoint.operation == "socket"
+        assert endpoint.capability == AUTHENTICATED
 
     @pytest.mark.asyncio
     async def test_worker_method(self):
         """Test SocketEndpoint worker method"""
         mock_auth = MagicMock()
         mock_dispatcher = AsyncMock()
-        
-        endpoint = SocketEndpoint("/api/socket", mock_auth, mock_dispatcher)
-        
+
+        endpoint = SocketEndpoint(
+            "/api/socket", mock_auth, mock_dispatcher,
+            capability=AUTHENTICATED,
+        )
+
         mock_ws = MagicMock()
         mock_running = MagicMock()
-        
+
         # Call worker method
         await endpoint.worker(mock_ws, mock_dispatcher, mock_running)
-        
+
         # Verify dispatcher.run was called
         mock_dispatcher.run.assert_called_once()
 
@@ -50,8 +63,11 @@ class TestSocketEndpoint:
         """Test SocketEndpoint listener method with text message"""
         mock_auth = MagicMock()
         mock_dispatcher = AsyncMock()
-        
-        endpoint = SocketEndpoint("/api/socket", mock_auth, mock_dispatcher)
+
+        endpoint = SocketEndpoint(
+            "/api/socket", mock_auth, mock_dispatcher,
+            capability=AUTHENTICATED,
+        )
         
         # Mock websocket with text message
         mock_msg = MagicMock()
@@ -80,8 +96,11 @@ class TestSocketEndpoint:
         """Test SocketEndpoint listener method with binary message"""
         mock_auth = MagicMock()
         mock_dispatcher = AsyncMock()
-        
-        endpoint = SocketEndpoint("/api/socket", mock_auth, mock_dispatcher)
+
+        endpoint = SocketEndpoint(
+            "/api/socket", mock_auth, mock_dispatcher,
+            capability=AUTHENTICATED,
+        )
         
         # Mock websocket with binary message
         mock_msg = MagicMock()
@@ -110,8 +129,11 @@ class TestSocketEndpoint:
         """Test SocketEndpoint listener method with close message"""
         mock_auth = MagicMock()
         mock_dispatcher = AsyncMock()
-        
-        endpoint = SocketEndpoint("/api/socket", mock_auth, mock_dispatcher)
+
+        endpoint = SocketEndpoint(
+            "/api/socket", mock_auth, mock_dispatcher,
+            capability=AUTHENTICATED,
+        )
         
         # Mock websocket with close message
         mock_msg = MagicMock()

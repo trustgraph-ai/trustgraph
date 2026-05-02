@@ -58,7 +58,7 @@ class Processor(ChunkingService):
                          2500, 4000, 6400, 10000, 16000]
             )
 
-        self.text_splitter = self.RecursiveCharacterTextSplitter(
+        self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
@@ -111,7 +111,7 @@ class Processor(ChunkingService):
             chunk_overlap = int(chunk_overlap)
 
         # Create text splitter with effective parameters
-        text_splitter = self.RecursiveCharacterTextSplitter(
+        text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,

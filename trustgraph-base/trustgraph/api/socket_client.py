@@ -112,10 +112,10 @@ class SocketClient:
             return f"ws://{url}"
 
     def _build_ws_url(self):
-        ws_url = f"{self.url.rstrip('/')}/api/v1/socket"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
-        return ws_url
+        # /api/v1/socket uses the first-frame auth protocol — the
+        # token is sent as the first frame after connecting rather
+        # than in the URL.
+        return f"{self.url.rstrip('/')}/api/v1/socket"
 
     def _get_loop(self):
         """Get or create the event loop, reusing across calls."""
@@ -132,15 +132,58 @@ class SocketClient:
         return self._loop
 
     async def _ensure_connected(self):
-        """Lazily establish the persistent websocket connection."""
+        """Lazily establish the persistent websocket connection and
+        run the first-frame auth handshake."""
         if self._connected:
             return
+
+        if not self.token:
+            raise ProtocolException(
+                "SocketClient requires a token for first-frame auth "
+                "against /api/v1/socket"
+            )
 
         ws_url = self._build_ws_url()
         self._connect_cm = websockets.connect(
             ws_url, ping_interval=20, ping_timeout=self.timeout
         )
         self._socket = await self._connect_cm.__aenter__()
+
+        # First-frame auth — run before starting the reader so the
+        # auth-ok / auth-failed response isn't consumed by the reader
+        # loop's id-based routing.
+        await self._socket.send(json.dumps({
+            "type": "auth", "token": self.token,
+        }))
+        try:
+            raw = await asyncio.wait_for(
+                self._socket.recv(), timeout=self.timeout,
+            )
+        except asyncio.TimeoutError:
+            await self._socket.close()
+            raise ProtocolException("Timeout waiting for auth response")
+
+        try:
+            resp = json.loads(raw)
+        except Exception:
+            await self._socket.close()
+            raise ProtocolException(
+                f"Unexpected non-JSON auth response: {raw!r}"
+            )
+
+        if resp.get("type") == "auth-ok":
+            self.workspace = resp.get("workspace", self.workspace)
+        elif resp.get("type") == "auth-failed":
+            await self._socket.close()
+            raise ProtocolException(
+                f"auth failure: {resp.get('error', 'unknown')}"
+            )
+        else:
+            await self._socket.close()
+            raise ProtocolException(
+                f"Unexpected auth response: {resp!r}"
+            )
+
         self._connected = True
         self._reader_task = asyncio.create_task(self._reader())
 

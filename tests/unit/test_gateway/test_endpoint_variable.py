@@ -12,29 +12,36 @@ class TestVariableEndpoint:
     """Test cases for VariableEndpoint class"""
 
     def test_variable_endpoint_initialization(self):
-        """Test VariableEndpoint initialization"""
+        """Construction records the configured capability on the
+        instance.  VariableEndpoint is used in production for the
+        /api/v1/{kind} admin-scoped global service routes, so a
+        write-side capability is a realistic value for the test."""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
+
         endpoint = VariableEndpoint(
             endpoint_path="/api/variable",
             auth=mock_auth,
-            dispatcher=mock_dispatcher
+            dispatcher=mock_dispatcher,
+            capability="config:write",
         )
-        
+
         assert endpoint.path == "/api/variable"
         assert endpoint.auth == mock_auth
         assert endpoint.dispatcher == mock_dispatcher
-        assert endpoint.operation == "service"
+        assert endpoint.capability == "config:write"
 
     @pytest.mark.asyncio
     async def test_variable_endpoint_start_method(self):
         """Test VariableEndpoint start method (should be no-op)"""
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
-        
-        endpoint = VariableEndpoint("/api/var", mock_auth, mock_dispatcher)
-        
+
+        endpoint = VariableEndpoint(
+            "/api/var", mock_auth, mock_dispatcher,
+            capability="config:write",
+        )
+
         # start() should complete without error
         await endpoint.start()
 
@@ -43,10 +50,13 @@ class TestVariableEndpoint:
         mock_auth = MagicMock()
         mock_dispatcher = MagicMock()
         mock_app = MagicMock()
-        
-        endpoint = VariableEndpoint("/api/variable", mock_auth, mock_dispatcher)
+
+        endpoint = VariableEndpoint(
+            "/api/variable", mock_auth, mock_dispatcher,
+            capability="config:write",
+        )
         endpoint.add_routes(mock_app)
-        
+
         # Verify add_routes was called with POST route
         mock_app.add_routes.assert_called_once()
         call_args = mock_app.add_routes.call_args[0][0]

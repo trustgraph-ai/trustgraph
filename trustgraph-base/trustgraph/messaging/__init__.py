@@ -15,6 +15,7 @@ from .translators.library import LibraryRequestTranslator, LibraryResponseTransl
 from .translators.document_loading import DocumentTranslator, TextDocumentTranslator
 from .translators.config import ConfigRequestTranslator, ConfigResponseTranslator
 from .translators.flow import FlowRequestTranslator, FlowResponseTranslator
+from .translators.iam import IamRequestTranslator, IamResponseTranslator
 from .translators.prompt import PromptRequestTranslator, PromptResponseTranslator
 from .translators.tool import ToolRequestTranslator, ToolResponseTranslator
 from .translators.embeddings_query import (
@@ -85,9 +86,15 @@ TranslatorRegistry.register_service(
 )
 
 TranslatorRegistry.register_service(
-    "flow", 
-    FlowRequestTranslator(), 
+    "flow",
+    FlowRequestTranslator(),
     FlowResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "iam",
+    IamRequestTranslator(),
+    IamResponseTranslator()
 )
 
 TranslatorRegistry.register_service(

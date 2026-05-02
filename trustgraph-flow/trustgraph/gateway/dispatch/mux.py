@@ -16,11 +16,28 @@ MAX_QUEUE_SIZE = 10
 
 class Mux:
 
-    def __init__(self, dispatcher_manager, ws, running):
+    def __init__(self, dispatcher_manager, ws, running, auth):
+        """
+        ``auth`` is required — the Mux implements the first-frame
+        auth protocol described in ``iam.md`` and will refuse any
+        non-auth frame until an ``auth-ok`` has been issued.  There
+        is no no-auth mode.
+        """
+        if auth is None:
+            raise ValueError(
+                "Mux requires an 'auth' argument — there is no "
+                "no-auth mode"
+            )
 
         self.dispatcher_manager = dispatcher_manager
         self.ws = ws
         self.running = running
+        self.auth = auth
+
+        # Authenticated identity, populated by the first-frame auth
+        # protocol.  ``None`` means the socket is not yet
+        # authenticated; any non-auth frame is refused.
+        self.identity = None
 
         self.q = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 
@@ -31,6 +48,41 @@ class Mux:
         if self.ws:
             await self.ws.close()
 
+    async def _handle_auth_frame(self, data):
+        """Process a ``{"type": "auth", "token": "..."}`` frame.
+        On success, updates ``self.identity`` and returns an
+        ``auth-ok`` response frame.  On failure, returns the masked
+        auth-failure frame.  Never raises — auth failures keep the
+        socket open so the client can retry without reconnecting
+        (important for browsers, which treat a handshake-time 401
+        as terminal)."""
+        token = data.get("token", "")
+        if not token:
+            await self.ws.send_json({
+                "type": "auth-failed",
+                "error": "auth failure",
+            })
+            return
+
+        class _Shim:
+            def __init__(self, tok):
+                self.headers = {"Authorization": f"Bearer {tok}"}
+
+        try:
+            identity = await self.auth.authenticate(_Shim(token))
+        except Exception:
+            await self.ws.send_json({
+                "type": "auth-failed",
+                "error": "auth failure",
+            })
+            return
+
+        self.identity = identity
+        await self.ws.send_json({
+            "type": "auth-ok",
+            "workspace": identity.workspace,
+        })
+
     async def receive(self, msg):
 
         request_id = None
@@ -38,6 +90,16 @@ class Mux:
         try:
 
             data = msg.json()
+
+            # In-band auth protocol: the client sends
+            # ``{"type": "auth", "token": "..."}`` as its first frame
+            # (and any time it wants to re-auth: JWT refresh, token
+            # rotation, etc).  Auth is always required on a Mux —
+            # there is no no-auth mode.
+            if isinstance(data, dict) and data.get("type") == "auth":
+                await self._handle_auth_frame(data)
+                return
+
             request_id = data.get("id")
 
             if "request" not in data:
@@ -46,9 +108,125 @@ class Mux:
             if "id" not in data:
                 raise RuntimeError("Bad message")
 
+            # Reject all non-auth frames until an ``auth-ok`` has
+            # been issued.
+            if self.identity is None:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "auth failure",
+                        "type": "auth-required",
+                    },
+                    "complete": True,
+                })
+                return
+
+            # Per-service capability gating.  Resolved through the
+            # operation registry so the WS path matches what HTTP
+            # callers see — same authority, same caps.
+            #
+            # Lookup mirrors the HTTP routing decision in
+            # ``request_task``: presence of ``flow`` on the envelope
+            # means a flow-level data-plane service (graph-rag,
+            # agent, …); absence means a workspace-level service
+            # (config, flow management, librarian, …) whose specific
+            # operation is in the inner request body.  ``iam`` is
+            # treated as workspace-level too — its operations are
+            # registered with bare names, no kind prefix.
+            from ..registry import lookup as _registry_lookup
+            from ..capabilities import enforce_workspace
+            from aiohttp import web as _web
+
+            service = data.get("service", "")
+            inner = data.get("request") or {}
+            inner_op = inner.get("operation", "") if isinstance(inner, dict) else ""
+
+            if data.get("flow"):
+                op = _registry_lookup(f"flow-service:{service}")
+            elif service == "iam":
+                op = _registry_lookup(inner_op) if inner_op else None
+            else:
+                op = _registry_lookup(f"{service}:{inner_op}") if inner_op else None
+
+            if op is None:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "unknown service",
+                        "type": "unknown-service",
+                    },
+                    "complete": True,
+                })
+                return
+
+            # Resolve workspace first (default-fill from the caller's
+            # bound workspace), then ask the regime to authorise the
+            # service-level capability against the matched
+            # operation's resource shape.
+            try:
+                await enforce_workspace(data, self.identity, self.auth)
+                if isinstance(inner, dict):
+                    await enforce_workspace(inner, self.identity, self.auth)
+
+                if data.get("flow"):
+                    resource = {
+                        "workspace": data.get("workspace", ""),
+                        "flow": data.get("flow", ""),
+                    }
+                    parameters = {}
+                else:
+                    # Build a minimal RequestContext so the matched
+                    # operation's own extractors decide resource and
+                    # parameters — same path the HTTP endpoints take.
+                    from ..registry import RequestContext
+                    ctx = RequestContext(
+                        body=inner if isinstance(inner, dict) else {},
+                        match_info={},
+                        identity=self.identity,
+                    )
+                    resource = op.extract_resource(ctx)
+                    parameters = op.extract_parameters(ctx)
+
+                await self.auth.authorise(
+                    self.identity, op.capability, resource, parameters,
+                )
+            except _web.HTTPForbidden:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "access denied",
+                        "type": "access-denied",
+                    },
+                    "complete": True,
+                })
+                return
+            except _web.HTTPUnauthorized:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "auth failure",
+                        "type": "auth-required",
+                    },
+                    "complete": True,
+                })
+                return
+
+            workspace = data["workspace"]
+
+            # Plumb authenticated caller's handle as ``actor`` so
+            # iam-svc handlers (whoami, future actor-scoped checks)
+            # know who is calling.  Overwrite any caller-supplied
+            # value so it can't be spoofed over the WS.
+            if (
+                service == "iam"
+                and isinstance(data.get("request"), dict)
+                and self.identity is not None
+            ):
+                data["request"]["actor"] = self.identity.handle
+
             await self.q.put((
                     data["id"],
-                    data.get("workspace", "default"),
+                    workspace,
                     data.get("flow"),
                     data["service"],
                     data["request"]

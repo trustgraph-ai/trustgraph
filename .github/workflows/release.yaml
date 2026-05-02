@@ -75,6 +75,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: "Free up some disk space"
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+
       - name: Docker Hub token
         run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
 

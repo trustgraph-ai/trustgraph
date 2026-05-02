@@ -12,6 +12,19 @@ from trustgraph.gateway.dispatch.mux import Mux, MAX_QUEUE_SIZE
 class TestMux:
     """Test cases for Mux class"""
 
+    def test_mux_requires_auth(self):
+        """Constructing a Mux without an ``auth`` argument must
+        fail.  The Mux implements the first-frame auth protocol and
+        there is no no-auth mode — a no-auth Mux would silently
+        accept every frame without authenticating it."""
+        with pytest.raises(ValueError, match="auth"):
+            Mux(
+                dispatcher_manager=MagicMock(),
+                ws=MagicMock(),
+                running=MagicMock(),
+                auth=None,
+            )
+
     def test_mux_initialization(self):
         """Test Mux initialization"""
         mock_dispatcher_manager = MagicMock()
@@ -21,7 +34,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
         
         assert mux.dispatcher_manager == mock_dispatcher_manager
@@ -40,7 +54,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
         
         # Call destroy
@@ -61,7 +76,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=None,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
         
         # Call destroy
@@ -81,7 +97,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
         
         # Mock message with valid JSON
@@ -108,7 +125,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
         
         # Mock message without request field
@@ -137,7 +155,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
 
         # Mock message without id field
@@ -164,7 +183,8 @@ class TestMux:
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
-            running=mock_running
+            running=mock_running,
+            auth=MagicMock(),
         )
 
         # Mock message with invalid JSON

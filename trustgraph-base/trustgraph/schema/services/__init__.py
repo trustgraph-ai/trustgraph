@@ -5,6 +5,7 @@ from .agent import *
 from .flow import *
 from .prompt import *
 from .config import *
+from .iam import *
 from .library import *
 from .lookup import *
 from .nlp_query import *
