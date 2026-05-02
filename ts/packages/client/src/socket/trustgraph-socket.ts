@@ -1138,28 +1138,43 @@ export class FlowsApi {
   }
 
   /**
-   * Updates configuration values
+   * Updates configuration values. Items are grouped by `type` (the namespace);
+   * one put request is issued per distinct type.
    */
-  putConfig(values: { type: string; key: string; value: string }[]) {
-    return this.api.makeRequest<ConfigRequest, ConfigResponse>(
-      "config",
-      {
-        operation: "put",
-        values: values,
-      },
-      60000,
-    );
+  putConfig(items: { type: string; key: string; value: string }[]) {
+    const byType = new Map<string, Record<string, unknown>>();
+    for (const item of items) {
+      let group = byType.get(item.type);
+      if (!group) {
+        group = {};
+        byType.set(item.type, group);
+      }
+      group[item.key] = item.value;
+    }
+    return Promise.all(
+      [...byType.entries()].map(([type, values]) =>
+        this.api.makeRequest<ConfigRequest, ConfigResponse>(
+          "config",
+          {
+            operation: "put",
+            keys: [type],
+            values,
+          },
+          60000,
+        ),
+      ),
+    ).then((responses) => responses[responses.length - 1]);
   }
 
   /**
-   * Deletes configuration entries
+   * Deletes a configuration entry
    */
-  deleteConfig(keys: { type: string; key: string }) {
+  deleteConfig(target: { type: string; key: string }) {
     return this.api.makeRequest<ConfigRequest, ConfigResponse>(
       "config",
       {
         operation: "delete",
-        keys: keys,
+        keys: [target.type, target.key],
       },
       30000,
     );
@@ -2031,28 +2046,43 @@ export class ConfigApi {
   }
 
   /**
-   * Updates configuration values
+   * Updates configuration values. Items are grouped by `type` (the namespace);
+   * one put request is issued per distinct type.
    */
-  putConfig(values: { type: string; key: string; value: string }[]) {
-    return this.api.makeRequest<ConfigRequest, ConfigResponse>(
-      "config",
-      {
-        operation: "put",
-        values: values,
-      },
-      60000,
-    );
+  putConfig(items: { type: string; key: string; value: string }[]) {
+    const byType = new Map<string, Record<string, unknown>>();
+    for (const item of items) {
+      let group = byType.get(item.type);
+      if (!group) {
+        group = {};
+        byType.set(item.type, group);
+      }
+      group[item.key] = item.value;
+    }
+    return Promise.all(
+      [...byType.entries()].map(([type, values]) =>
+        this.api.makeRequest<ConfigRequest, ConfigResponse>(
+          "config",
+          {
+            operation: "put",
+            keys: [type],
+            values,
+          },
+          60000,
+        ),
+      ),
+    ).then((responses) => responses[responses.length - 1]);
   }
 
   /**
-   * Deletes configuration entries
+   * Deletes a configuration entry
    */
-  deleteConfig(keys: { type: string; key: string }) {
+  deleteConfig(target: { type: string; key: string }) {
     return this.api.makeRequest<ConfigRequest, ConfigResponse>(
       "config",
       {
         operation: "delete",
-        keys: keys,
+        keys: [target.type, target.key],
       },
       30000,
     );
