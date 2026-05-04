@@ -4,6 +4,7 @@ Flow service.  Manages flow lifecycle — starting and stopping flows
 by coordinating with the config service via pub/sub.
 """
 
+from functools import partial
 import logging
 import uuid
 
@@ -14,7 +15,7 @@ from trustgraph.schema import flow_request_queue, flow_response_queue
 from trustgraph.schema import ConfigRequest, ConfigResponse
 from trustgraph.schema import config_request_queue, config_response_queue
 
-from trustgraph.base import AsyncProcessor, Consumer, Producer
+from trustgraph.base import WorkspaceProcessor, Consumer, Producer
 from trustgraph.base import ConsumerMetrics, ProducerMetrics, SubscriberMetrics
 from trustgraph.base import ConfigClient
 
@@ -29,11 +30,15 @@ default_flow_request_queue = flow_request_queue
 default_flow_response_queue = flow_response_queue
 
 
-class Processor(AsyncProcessor):
+def workspace_queue(base_queue, workspace):
+    return f"{base_queue}:{workspace}"
+
+
+class Processor(WorkspaceProcessor):
 
     def __init__(self, **params):
 
-        flow_request_queue = params.get(
+        self.flow_request_queue_base = params.get(
             "flow_request_queue", default_flow_request_queue
         )
         flow_response_queue = params.get(
@@ -49,25 +54,8 @@ class Processor(AsyncProcessor):
             }
         )
 
-        flow_request_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "flow-request"
-        )
         flow_response_metrics = ProducerMetrics(
             processor = self.id, flow = None, name = "flow-response"
-        )
-
-        self.flow_request_topic = flow_request_queue
-        self.flow_request_subscriber = id
-
-        self.flow_request_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = flow_request_queue,
-            subscriber = id,
-            schema = FlowRequest,
-            handler = self.on_flow_request,
-            metrics = flow_request_metrics,
         )
 
         self.flow_response_producer = Producer(
@@ -84,13 +72,6 @@ class Processor(AsyncProcessor):
             processor=self.id, flow=None, name="config-response",
         )
 
-        # Unique subscription suffix per process instance.  Pulsar's
-        # exclusive subscriptions reject a second consumer on the same
-        # (topic, subscription-name) — so a deterministic name here
-        # collides with its own ghost when the supervisor restarts the
-        # process before Pulsar has timed out the previous session
-        # (ConsumerBusy).  Matches the uuid convention used elsewhere
-        # (gateway/config/receiver.py, AsyncProcessor._create_config_client).
         config_rr_id = str(uuid.uuid4())
         self.config_client = ConfigClient(
             backend=self.pubsub,
@@ -106,21 +87,58 @@ class Processor(AsyncProcessor):
 
         self.flow = FlowConfig(self.config_client, self.pubsub)
 
+        self.workspace_consumers = {}
+
         logger.info("Flow service initialized")
+
+    async def on_workspace_created(self, workspace):
+
+        if workspace in self.workspace_consumers:
+            return
+
+        queue = workspace_queue(
+            self.flow_request_queue_base, workspace,
+        )
+
+        await self.pubsub.ensure_topic(queue)
+
+        consumer = Consumer(
+            taskgroup=self.taskgroup,
+            backend=self.pubsub,
+            flow=None,
+            topic=queue,
+            subscriber=self.id,
+            schema=FlowRequest,
+            handler=partial(
+                self.on_flow_request, workspace=workspace,
+            ),
+            metrics=ConsumerMetrics(
+                processor=self.id, flow=None,
+                name=f"flow-request-{workspace}",
+            ),
+        )
+
+        await consumer.start()
+        self.workspace_consumers[workspace] = consumer
+
+        logger.info(f"Subscribed to workspace queue: {workspace}")
+
+    async def on_workspace_deleted(self, workspace):
+
+        consumer = self.workspace_consumers.pop(workspace, None)
+        if consumer:
+            await consumer.stop()
+            logger.info(f"Unsubscribed from workspace queue: {workspace}")
 
     async def start(self):
 
-        await self.pubsub.ensure_topic(self.flow_request_topic)
+        await super(Processor, self).start()
         await self.config_client.start()
 
-        # Discover workspaces with existing flow config and ensure
-        # their topics exist before we start accepting requests.
         workspaces = await self.config_client.workspaces_for_type("flow")
         await self.flow.ensure_existing_flow_topics(workspaces)
 
-        await self.flow_request_consumer.start()
-
-    async def on_flow_request(self, msg, consumer, flow):
+    async def on_flow_request(self, msg, consumer, flow, *, workspace):
 
         try:
 
@@ -131,7 +149,7 @@ class Processor(AsyncProcessor):
 
             logger.debug(f"Handling flow request {id}...")
 
-            resp = await self.flow.handle(v)
+            resp = await self.flow.handle(v, workspace)
 
             await self.flow_response_producer.send(
                 resp, properties={"id": id}
@@ -155,7 +173,7 @@ class Processor(AsyncProcessor):
     @staticmethod
     def add_args(parser):
 
-        AsyncProcessor.add_args(parser)
+        WorkspaceProcessor.add_args(parser)
 
         parser.add_argument(
             '--flow-request-queue',

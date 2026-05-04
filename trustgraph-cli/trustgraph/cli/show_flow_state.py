@@ -22,15 +22,15 @@ def dump_status(metrics_url, api_url, flow_id, token=None,
 
     print()
     print(f"Flow {flow_id}")
-    show_processors(metrics_url, flow_id)
+    show_processors(metrics_url, flow_id, token=token)
 
     print()
     print(f"Blueprint {blueprint_name}")
-    show_processors(metrics_url, blueprint_name)
+    show_processors(metrics_url, blueprint_name, token=token)
 
     print()
 
-def show_processors(metrics_url, flow_label):
+def show_processors(metrics_url, flow_label, token=None):
 
     url = f"{metrics_url}/query"
 
@@ -40,7 +40,11 @@ def show_processors(metrics_url, flow_label):
         "query": "consumer_state{" + expr + "}"
     }
 
-    resp = requests.get(url, params=params)
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    resp = requests.get(url, params=params, headers=headers)
 
     obj = resp.json()
 

@@ -71,6 +71,11 @@ class AsyncProcessor:
         # { "handler": async_fn, "types": set_or_none }
         self.config_handlers = []
 
+        # Workspace lifecycle handlers, called when workspaces are
+        # created or deleted.  Each entry is an async callable:
+        # async def handler(workspace_changes: WorkspaceChanges)
+        self.workspace_handlers = []
+
         # Track the current config version for dedup
         self.config_version = 0
 
@@ -251,6 +256,10 @@ class AsyncProcessor:
             "types": set(types) if types else None,
         })
 
+    # Register a handler for workspace lifecycle events
+    def register_workspace_handler(self, handler: Callable[..., Any]) -> None:
+        self.workspace_handlers.append(handler)
+
     # Called when a config notify message arrives
     async def on_config_notify(self, message, consumer, flow):
 
@@ -265,6 +274,16 @@ class AsyncProcessor:
                 f"already at v{self.config_version}"
             )
             return
+
+        # Dispatch workspace lifecycle events before config handlers
+        if v.workspace_changes and self.workspace_handlers:
+            for handler in self.workspace_handlers:
+                try:
+                    await handler(v.workspace_changes)
+                except Exception as e:
+                    logger.error(
+                        f"Workspace handler failed: {e}", exc_info=True
+                    )
 
         notify_types = set(changes.keys())
 

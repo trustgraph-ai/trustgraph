@@ -116,9 +116,6 @@ def serialize_document_metadata(message):
     if message.metadata:
         ret["metadata"] = serialize_subgraph(message.metadata)
 
-    if message.workspace:
-        ret["workspace"] = message.workspace
-
     if message.tags is not None:
         ret["tags"] = message.tags
 
@@ -140,9 +137,6 @@ def serialize_processing_metadata(message):
     if message.flow:
         ret["flow"] = message.flow
 
-    if message.workspace:
-        ret["workspace"] = message.workspace
-
     if message.collection:
         ret["collection"] = message.collection
 
@@ -160,7 +154,6 @@ def to_document_metadata(x):
         title = x.get("title", None),
         comments = x.get("comments", None),
         metadata = to_subgraph(x["metadata"]),
-        workspace = x.get("workspace", None),
         tags = x.get("tags", None),
     )
 
@@ -171,7 +164,6 @@ def to_processing_metadata(x):
         document_id = x.get("document-id", None),
         time = x.get("time", None),
         flow = x.get("flow", None),
-        workspace = x.get("workspace", None),
         collection = x.get("collection", None),
         tags = x.get("tags", None),
     )

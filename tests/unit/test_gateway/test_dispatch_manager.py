@@ -176,7 +176,7 @@ class TestDispatcherManager:
         params = {"kind": "test_kind"}
         result = await manager.process_global_service("data", "responder", params)
         
-        manager.invoke_global_service.assert_called_once_with("data", "responder", "test_kind")
+        manager.invoke_global_service.assert_called_once_with("data", "responder", "test_kind", workspace=None)
         assert result == "global_result"
 
     @pytest.mark.asyncio
@@ -185,24 +185,24 @@ class TestDispatcherManager:
         mock_backend = Mock()
         mock_config_receiver = Mock()
         manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
-        
+
         # Pre-populate with existing dispatcher
         mock_dispatcher = Mock()
         mock_dispatcher.process = AsyncMock(return_value="cached_result")
-        manager.dispatchers[(None, "config")] = mock_dispatcher
-        
-        result = await manager.invoke_global_service("data", "responder", "config")
-        
+        manager.dispatchers[(None, "iam")] = mock_dispatcher
+
+        result = await manager.invoke_global_service("data", "responder", "iam")
+
         mock_dispatcher.process.assert_called_once_with("data", "responder")
         assert result == "cached_result"
 
     @pytest.mark.asyncio
     async def test_invoke_global_service_creates_new_dispatcher(self):
-        """Test invoke_global_service creates new dispatcher"""
+        """Test invoke_global_service creates new dispatcher for system service"""
         mock_backend = Mock()
         mock_config_receiver = Mock()
         manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
-        
+
         with patch('trustgraph.gateway.dispatch.manager.global_dispatchers') as mock_dispatchers:
             mock_dispatcher_class = Mock()
             mock_dispatcher = Mock()
@@ -210,24 +210,50 @@ class TestDispatcherManager:
             mock_dispatcher.process = AsyncMock(return_value="new_result")
             mock_dispatcher_class.return_value = mock_dispatcher
             mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
-            
-            result = await manager.invoke_global_service("data", "responder", "config")
-            
-            # Verify dispatcher was created with correct parameters
+
+            result = await manager.invoke_global_service("data", "responder", "iam")
+
             mock_dispatcher_class.assert_called_once_with(
                 backend=mock_backend,
                 timeout=120,
-                consumer="api-gateway-config-request",
-                subscriber="api-gateway-config-request",
+                consumer="api-gateway-iam-request",
+                subscriber="api-gateway-iam-request",
                 request_queue=None,
                 response_queue=None
             )
             mock_dispatcher.start.assert_called_once()
             mock_dispatcher.process.assert_called_once_with("data", "responder")
-            
-            # Verify dispatcher was cached
-            assert manager.dispatchers[(None, "config")] == mock_dispatcher
+
+            assert manager.dispatchers[(None, "iam")] == mock_dispatcher
             assert result == "new_result"
+
+    @pytest.mark.asyncio
+    async def test_invoke_global_service_workspace_required_for_workspace_dispatchers(self):
+        """Workspace dispatchers (config, flow, etc.) require a workspace"""
+        mock_backend = Mock()
+        mock_config_receiver = Mock()
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
+
+        with pytest.raises(RuntimeError, match="Workspace is required for config"):
+            await manager.invoke_global_service("data", "responder", "config")
+
+    @pytest.mark.asyncio
+    async def test_invoke_global_service_workspace_dispatcher_with_workspace(self):
+        """Workspace dispatchers work when workspace is provided"""
+        mock_backend = Mock()
+        mock_config_receiver = Mock()
+        manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
+
+        mock_dispatcher = Mock()
+        mock_dispatcher.process = AsyncMock(return_value="ws_result")
+        manager.dispatchers[("alice", "config")] = mock_dispatcher
+
+        result = await manager.invoke_global_service(
+            "data", "responder", "config", workspace="alice",
+        )
+
+        mock_dispatcher.process.assert_called_once_with("data", "responder")
+        assert result == "ws_result"
 
     def test_dispatch_flow_import_returns_method(self):
         """Test dispatch_flow_import returns correct method"""
@@ -610,7 +636,7 @@ class TestDispatcherManager:
             mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
 
             results = await asyncio.gather(*[
-                manager.invoke_global_service("data", "responder", "config")
+                manager.invoke_global_service("data", "responder", "iam")
                 for _ in range(5)
             ])
 
@@ -618,7 +644,7 @@ class TestDispatcherManager:
             "Dispatcher class instantiated more than once — duplicate consumer bug"
         )
         assert mock_dispatcher.start.call_count == 1
-        assert manager.dispatchers[(None, "config")] is mock_dispatcher
+        assert manager.dispatchers[(None, "iam")] is mock_dispatcher
         assert all(r == "result" for r in results)
 
     @pytest.mark.asyncio

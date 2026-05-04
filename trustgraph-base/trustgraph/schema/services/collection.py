@@ -22,16 +22,8 @@ class CollectionMetadata:
 
 @dataclass
 class CollectionManagementRequest:
-    """Request for collection management operations.
-
-    Collection-management is a global (non-flow-scoped) service, so the
-    workspace has to travel on the wire — it's the isolation boundary
-    for which workspace's collections the request operates on.
-    """
+    """Request for collection management operations."""
     operation: str = ""  # e.g., "delete-collection"
-
-    # Workspace the collection belongs to.
-    workspace: str = ""
 
     collection: str = ""
     timestamp: str = ""  # ISO timestamp

@@ -151,21 +151,11 @@ class CollectionManager:
             logger.error(f"Error ensuring collection exists: {e}")
             raise e
 
-    async def list_collections(self, request: CollectionManagementRequest) -> CollectionManagementResponse:
-        """
-        List collections for a user from config service
-
-        Args:
-            request: Collection management request
-
-        Returns:
-            CollectionManagementResponse with list of collections
-        """
+    async def list_collections(self, request, workspace):
         try:
-            # Get all collections in this workspace from config service
             config_request = ConfigRequest(
                 operation='getvalues',
-                workspace=request.workspace,
+                workspace=workspace,
                 type='collection'
             )
 
@@ -210,18 +200,8 @@ class CollectionManager:
             logger.error(f"Error listing collections: {e}")
             raise RequestError(f"Failed to list collections: {str(e)}")
 
-    async def update_collection(self, request: CollectionManagementRequest) -> CollectionManagementResponse:
-        """
-        Update collection metadata via config service (creates if doesn't exist)
-
-        Args:
-            request: Collection management request
-
-        Returns:
-            CollectionManagementResponse with updated collection
-        """
+    async def update_collection(self, request, workspace):
         try:
-            # Create metadata from request
             name = request.name if request.name else request.collection
             description = request.description if request.description else ""
             tags = list(request.tags) if request.tags else []
@@ -233,10 +213,9 @@ class CollectionManager:
                 tags=tags
             )
 
-            # Send put request to config service
             config_request = ConfigRequest(
                 operation='put',
-                workspace=request.workspace,
+                workspace=workspace,
                 values=[ConfigValue(
                     type='collection',
                     key=request.collection,
@@ -249,7 +228,7 @@ class CollectionManager:
             if response.error:
                 raise RuntimeError(f"Config update failed: {response.error.message}")
 
-            logger.info(f"Collection {request.workspace}/{request.collection} updated in config service")
+            logger.info(f"Collection {workspace}/{request.collection} updated in config service")
 
             # Config service will trigger config push automatically
             # Storage services will receive update and create/update collections
@@ -264,23 +243,13 @@ class CollectionManager:
             logger.error(f"Error updating collection: {e}")
             raise RequestError(f"Failed to update collection: {str(e)}")
 
-    async def delete_collection(self, request: CollectionManagementRequest) -> CollectionManagementResponse:
-        """
-        Delete collection via config service
-
-        Args:
-            request: Collection management request
-
-        Returns:
-            CollectionManagementResponse indicating success or failure
-        """
+    async def delete_collection(self, request, workspace):
         try:
-            logger.info(f"Deleting collection {request.workspace}/{request.collection}")
+            logger.info(f"Deleting collection {workspace}/{request.collection}")
 
-            # Send delete request to config service
             config_request = ConfigRequest(
                 operation='delete',
-                workspace=request.workspace,
+                workspace=workspace,
                 keys=[ConfigKey(type='collection', key=request.collection)]
             )
 
@@ -289,7 +258,7 @@ class CollectionManager:
             if response.error:
                 raise RuntimeError(f"Config delete failed: {response.error.message}")
 
-            logger.info(f"Collection {request.workspace}/{request.collection} deleted from config service")
+            logger.info(f"Collection {workspace}/{request.collection} deleted from config service")
 
             # Config service will trigger config push automatically
             # Storage services will receive update and delete collections

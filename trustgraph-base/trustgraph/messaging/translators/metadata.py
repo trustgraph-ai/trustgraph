@@ -19,7 +19,6 @@ class DocumentMetadataTranslator(Translator):
             title=data.get("title"),
             comments=data.get("comments"),
             metadata=self.subgraph_translator.decode(metadata) if metadata is not None else [],
-            workspace=data.get("workspace"),
             tags=data.get("tags"),
             parent_id=data.get("parent-id", ""),
             document_type=data.get("document-type", "source"),
@@ -40,8 +39,6 @@ class DocumentMetadataTranslator(Translator):
             result["comments"] = obj.comments
         if obj.metadata is not None:
             result["metadata"] = self.subgraph_translator.encode(obj.metadata)
-        if obj.workspace:
-            result["workspace"] = obj.workspace
         if obj.tags is not None:
             result["tags"] = obj.tags
         if obj.parent_id:
@@ -61,7 +58,6 @@ class ProcessingMetadataTranslator(Translator):
             document_id=data.get("document-id"),
             time=data.get("time"),
             flow=data.get("flow"),
-            workspace=data.get("workspace"),
             collection=data.get("collection"),
             tags=data.get("tags")
         )
@@ -77,8 +73,6 @@ class ProcessingMetadataTranslator(Translator):
             result["time"] = obj.time
         if obj.flow:
             result["flow"] = obj.flow
-        if obj.workspace:
-            result["workspace"] = obj.workspace
         if obj.collection:
             result["collection"] = obj.collection
         if obj.tags is not None:

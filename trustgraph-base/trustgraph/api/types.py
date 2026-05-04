@@ -65,7 +65,6 @@ class DocumentMetadata:
         title: Document title
         comments: Additional comments or description
         metadata: List of RDF triples providing structured metadata
-        workspace: Workspace the document belongs to
         tags: List of tags for categorization
         parent_id: Parent document ID for child documents (empty for top-level docs)
         document_type: "source" for uploaded documents, "extracted" for derived content
@@ -76,7 +75,6 @@ class DocumentMetadata:
     title : str
     comments : str
     metadata : List[Triple]
-    workspace : str
     tags : List[str]
     parent_id : str = ""
     document_type : str = "source"
@@ -91,7 +89,6 @@ class ProcessingMetadata:
         document_id: ID of the document being processed
         time: Processing start timestamp
         flow: Flow instance handling the processing
-        workspace: Workspace the processing job belongs to
         collection: Target collection for processed data
         tags: List of tags for categorization
     """
@@ -99,7 +96,6 @@ class ProcessingMetadata:
     document_id : str
     time : datetime.datetime
     flow : str
-    workspace : str
     collection : str
     tags : List[str]
 

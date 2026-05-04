@@ -7,6 +7,12 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
+from ... schema import flow_request_queue
+from ... schema import librarian_request_queue
+from ... schema import knowledge_request_queue
+from ... schema import collection_request_queue
+from ... schema import config_request_queue
+
 from . config import ConfigRequestor
 from . flow import FlowRequestor
 from . iam import IamRequestor
@@ -70,14 +76,27 @@ request_response_dispatchers = {
     "sparql": SparqlQueryRequestor,
 }
 
-global_dispatchers = {
+system_dispatchers = {
+    "iam": IamRequestor,
+}
+
+workspace_dispatchers = {
     "config": ConfigRequestor,
     "flow": FlowRequestor,
-    "iam": IamRequestor,
     "librarian": LibrarianRequestor,
     "knowledge": KnowledgeRequestor,
     "collection-management": CollectionManagementRequestor,
 }
+
+workspace_default_request_queues = {
+    "config": config_request_queue,
+    "flow": flow_request_queue,
+    "librarian": librarian_request_queue,
+    "knowledge": knowledge_request_queue,
+    "collection-management": collection_request_queue,
+}
+
+global_dispatchers = {**system_dispatchers, **workspace_dispatchers}
 
 sender_dispatchers = {
     "text-load": TextLoad,
@@ -219,11 +238,24 @@ class DispatcherManager:
     async def process_global_service(self, data, responder, params):
 
         kind = params.get("kind")
-        return await self.invoke_global_service(data, responder, kind)
+        workspace = params.get("workspace")
+        if not workspace and isinstance(data, dict):
+            workspace = data.get("workspace")
+        return await self.invoke_global_service(
+            data, responder, kind, workspace=workspace,
+        )
 
-    async def invoke_global_service(self, data, responder, kind):
+    async def invoke_global_service(self, data, responder, kind,
+                                    workspace=None):
 
-        key = (None, kind)
+        if kind in workspace_dispatchers:
+            if not workspace:
+                raise RuntimeError(
+                    f"Workspace is required for {kind}"
+                )
+            key = (workspace, kind)
+        else:
+            key = (None, kind)
 
         if key not in self.dispatchers:
             async with self.dispatcher_lock:
@@ -234,11 +266,21 @@ class DispatcherManager:
                         request_queue = self.queue_overrides[kind].get("request")
                         response_queue = self.queue_overrides[kind].get("response")
 
+                    if kind in workspace_dispatchers and workspace:
+                        base_queue = (
+                            request_queue
+                            or workspace_default_request_queues[kind]
+                        )
+                        request_queue = f"{base_queue}:{workspace}"
+                        consumer_name = f"{self.prefix}-{kind}-{workspace}"
+                    else:
+                        consumer_name = f"{self.prefix}-{kind}-request"
+
                     dispatcher = global_dispatchers[kind](
                         backend = self.backend,
                         timeout = 120,
-                        consumer = f"{self.prefix}-{kind}-request",
-                        subscriber = f"{self.prefix}-{kind}-request",
+                        consumer = consumer_name,
+                        subscriber = consumer_name,
                         request_queue = request_queue,
                         response_queue = response_queue,
                     )

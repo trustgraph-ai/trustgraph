@@ -245,7 +245,8 @@ def _sign_jwt(kid, private_pem, claims):
 class IamService:
 
     def __init__(self, host, username, password, keyspace,
-                 bootstrap_mode, bootstrap_token=None):
+                 bootstrap_mode, bootstrap_token=None,
+                 on_workspace_created=None, on_workspace_deleted=None):
         self.table_store = IamTableStore(
             host, username, password, keyspace,
         )
@@ -266,6 +267,12 @@ class IamService:
             )
         self.bootstrap_mode = bootstrap_mode
         self.bootstrap_token = bootstrap_token
+
+        # Callbacks for workspace lifecycle events.  Called after the
+        # workspace is created/deleted in IAM's own store so that the
+        # processor can announce it via the config service.
+        self._on_workspace_created = on_workspace_created
+        self._on_workspace_deleted = on_workspace_deleted
 
         self._signing_key = None
         self._signing_key_lock = asyncio.Lock()
@@ -423,6 +430,9 @@ class IamService:
             enabled=True,
             created=now,
         )
+
+        if self._on_workspace_created:
+            await self._on_workspace_created(DEFAULT_WORKSPACE)
 
         admin_user_id = str(uuid.uuid4())
         admin_password = secrets.token_urlsafe(32)
@@ -904,6 +914,10 @@ class IamService:
             enabled=v.workspace_record.enabled,
             created=now,
         )
+
+        if self._on_workspace_created:
+            await self._on_workspace_created(v.workspace_record.id)
+
         row = await self.table_store.get_workspace(v.workspace_record.id)
         return IamResponse(workspace=self._row_to_workspace_record(row))
 
@@ -981,6 +995,9 @@ class IamService:
             key_rows = await self.table_store.list_api_keys_by_user(user_id)
             for kr in key_rows:
                 await self.table_store.delete_api_key(kr[0])
+
+        if self._on_workspace_deleted:
+            await self._on_workspace_deleted(v.workspace_record.id)
 
         return IamResponse()
 

@@ -9,7 +9,7 @@ import base64
 import json
 import logging
 
-from .. base import AsyncProcessor, Consumer, Producer, Publisher, Subscriber
+from .. base import WorkspaceProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
 from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -33,13 +33,18 @@ default_knowledge_response_queue = knowledge_response_queue
 
 default_cassandra_host = "cassandra"
 
-class Processor(AsyncProcessor):
+
+def workspace_queue(base_queue, workspace):
+    return f"{base_queue}:{workspace}"
+
+
+class Processor(WorkspaceProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
 
-        knowledge_request_queue = params.get(
+        self.knowledge_request_queue_base = params.get(
             "knowledge_request_queue", default_knowledge_request_queue
         )
 
@@ -51,7 +56,6 @@ class Processor(AsyncProcessor):
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
 
-        # Resolve configuration with environment variable fallback
         hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
@@ -59,14 +63,13 @@ class Processor(AsyncProcessor):
             default_keyspace="knowledge"
         )
 
-        # Store resolved configuration
         self.cassandra_host = hosts
         self.cassandra_username = username
         self.cassandra_password = password
 
         super(Processor, self).__init__(
             **params | {
-                "knowledge_request_queue": knowledge_request_queue,
+                "knowledge_request_queue": self.knowledge_request_queue_base,
                 "knowledge_response_queue": knowledge_response_queue,
                 "cassandra_host": self.cassandra_host,
                 "cassandra_username": self.cassandra_username,
@@ -74,26 +77,8 @@ class Processor(AsyncProcessor):
             }
         )
 
-        knowledge_request_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "knowledge-request"
-        )
-
         knowledge_response_metrics = ProducerMetrics(
             processor = self.id, flow = None, name = "knowledge-response"
-        )
-
-        self.knowledge_request_topic = knowledge_request_queue
-        self.knowledge_request_subscriber = id
-
-        self.knowledge_request_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = knowledge_request_queue,
-            subscriber = id,
-            schema = KnowledgeRequest,
-            handler = self.on_knowledge_request,
-            metrics = knowledge_request_metrics,
         )
 
         self.knowledge_response_producer = Producer(
@@ -115,13 +100,52 @@ class Processor(AsyncProcessor):
 
         self.flows = {}
 
+        self.workspace_consumers = {}
+
         logger.info("Knowledge service initialized")
+
+    async def on_workspace_created(self, workspace):
+
+        if workspace in self.workspace_consumers:
+            return
+
+        queue = workspace_queue(
+            self.knowledge_request_queue_base, workspace,
+        )
+
+        await self.pubsub.ensure_topic(queue)
+
+        consumer = Consumer(
+            taskgroup=self.taskgroup,
+            backend=self.pubsub,
+            flow=None,
+            topic=queue,
+            subscriber=self.id,
+            schema=KnowledgeRequest,
+            handler=partial(
+                self.on_knowledge_request, workspace=workspace,
+            ),
+            metrics=ConsumerMetrics(
+                processor=self.id, flow=None,
+                name=f"knowledge-request-{workspace}",
+            ),
+        )
+
+        await consumer.start()
+        self.workspace_consumers[workspace] = consumer
+
+        logger.info(f"Subscribed to workspace queue: {workspace}")
+
+    async def on_workspace_deleted(self, workspace):
+
+        consumer = self.workspace_consumers.pop(workspace, None)
+        if consumer:
+            await consumer.stop()
+            logger.info(f"Unsubscribed from workspace queue: {workspace}")
 
     async def start(self):
 
-        await self.pubsub.ensure_topic(self.knowledge_request_topic)
         await super(Processor, self).start()
-        await self.knowledge_request_consumer.start()
         await self.knowledge_response_producer.start()
 
     async def on_knowledge_config(self, workspace, config, version):
@@ -140,7 +164,7 @@ class Processor(AsyncProcessor):
 
         logger.debug(f"Flows for {workspace}: {self.flows[workspace]}")
 
-    async def process_request(self, v, id):
+    async def process_request(self, v, id, workspace):
 
         if v.operation is None:
             raise RequestError("Null operation")
@@ -163,9 +187,9 @@ class Processor(AsyncProcessor):
             await self.knowledge_response_producer.send(
                 x, { "id": id }
             )
-        return await impls[v.operation](v, respond)
+        return await impls[v.operation](v, respond, workspace)
 
-    async def on_knowledge_request(self, msg, consumer, flow):
+    async def on_knowledge_request(self, msg, consumer, flow, *, workspace):
 
         v = msg.value()
 
@@ -179,7 +203,7 @@ class Processor(AsyncProcessor):
 
             # We don't send a response back here, the processing
             # implementation sends whatever it needs to send.
-            await self.process_request(v, id)
+            await self.process_request(v, id, workspace)
 
             return
 
@@ -215,7 +239,7 @@ class Processor(AsyncProcessor):
     @staticmethod
     def add_args(parser):
 
-        AsyncProcessor.add_args(parser)
+        WorkspaceProcessor.add_args(parser)
 
         parser.add_argument(
             '--knowledge-request-queue',

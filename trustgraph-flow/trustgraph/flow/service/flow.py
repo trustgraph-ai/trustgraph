@@ -118,10 +118,10 @@ class FlowConfig:
 
         return resolved
 
-    async def handle_list_blueprints(self, msg):
+    async def handle_list_blueprints(self, msg, workspace):
 
         names = list(await self.config.keys(
-            msg.workspace, "flow-blueprint"
+            workspace, "flow-blueprint"
         ))
 
         return FlowResponse(
@@ -129,19 +129,19 @@ class FlowConfig:
             blueprint_names = names,
         )
 
-    async def handle_get_blueprint(self, msg):
+    async def handle_get_blueprint(self, msg, workspace):
 
         return FlowResponse(
             error = None,
             blueprint_definition = await self.config.get(
-                msg.workspace, "flow-blueprint", msg.blueprint_name
+                workspace, "flow-blueprint", msg.blueprint_name
             ),
         )
 
-    async def handle_put_blueprint(self, msg):
+    async def handle_put_blueprint(self, msg, workspace):
 
         await self.config.put(
-            msg.workspace, "flow-blueprint",
+            workspace, "flow-blueprint",
             msg.blueprint_name, msg.blueprint_definition
         )
 
@@ -149,31 +149,31 @@ class FlowConfig:
             error = None,
         )
 
-    async def handle_delete_blueprint(self, msg):
+    async def handle_delete_blueprint(self, msg, workspace):
 
         logger.debug(f"Flow config message: {msg}")
 
         await self.config.delete(
-            msg.workspace, "flow-blueprint", msg.blueprint_name
+            workspace, "flow-blueprint", msg.blueprint_name
         )
 
         return FlowResponse(
             error = None,
         )
 
-    async def handle_list_flows(self, msg):
+    async def handle_list_flows(self, msg, workspace):
 
-        names = list(await self.config.keys(msg.workspace, "flow"))
+        names = list(await self.config.keys(workspace, "flow"))
 
         return FlowResponse(
             error = None,
             flow_ids = names,
         )
 
-    async def handle_get_flow(self, msg):
+    async def handle_get_flow(self, msg, workspace):
 
         flow_data = await self.config.get(
-            msg.workspace, "flow", msg.flow_id
+            workspace, "flow", msg.flow_id
         )
         flow = json.loads(flow_data)
 
@@ -184,9 +184,7 @@ class FlowConfig:
             parameters = flow.get("parameters", {}),
         )
 
-    async def handle_start_flow(self, msg):
-
-        workspace = msg.workspace
+    async def handle_start_flow(self, msg, workspace):
 
         if msg.blueprint_name is None:
             raise RuntimeError("No blueprint name")
@@ -222,7 +220,7 @@ class FlowConfig:
         logger.debug(f"Resolved parameters (with defaults): {parameters}")
 
         # Apply parameter substitution to template replacement function.
-        # {workspace} is substituted from msg.workspace to isolate
+        # {workspace} is substituted from workspace to isolate
         # queue names across workspaces.
         def repl_template_with_params(tmp):
 
@@ -548,9 +546,7 @@ class FlowConfig:
                 f"attempts: {topic}"
             )
 
-    async def handle_stop_flow(self, msg):
-
-        workspace = msg.workspace
+    async def handle_stop_flow(self, msg, workspace):
 
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
@@ -641,37 +637,29 @@ class FlowConfig:
             error = None,
         )
 
-    async def handle(self, msg):
+    async def handle(self, msg, workspace):
 
         logger.debug(
             f"Handling flow message: {msg.operation} "
-            f"workspace={msg.workspace}"
+            f"workspace={workspace}"
         )
 
-        if not msg.workspace:
-            return FlowResponse(
-                error=Error(
-                    type="bad-request",
-                    message="Workspace is required",
-                ),
-            )
-
         if msg.operation == "list-blueprints":
-            resp = await self.handle_list_blueprints(msg)
+            resp = await self.handle_list_blueprints(msg, workspace)
         elif msg.operation == "get-blueprint":
-            resp = await self.handle_get_blueprint(msg)
+            resp = await self.handle_get_blueprint(msg, workspace)
         elif msg.operation == "put-blueprint":
-            resp = await self.handle_put_blueprint(msg)
+            resp = await self.handle_put_blueprint(msg, workspace)
         elif msg.operation == "delete-blueprint":
-            resp = await self.handle_delete_blueprint(msg)
+            resp = await self.handle_delete_blueprint(msg, workspace)
         elif msg.operation == "list-flows":
-            resp = await self.handle_list_flows(msg)
+            resp = await self.handle_list_flows(msg, workspace)
         elif msg.operation == "get-flow":
-            resp = await self.handle_get_flow(msg)
+            resp = await self.handle_get_flow(msg, workspace)
         elif msg.operation == "start-flow":
-            resp = await self.handle_start_flow(msg)
+            resp = await self.handle_start_flow(msg, workspace)
         elif msg.operation == "stop-flow":
-            resp = await self.handle_stop_flow(msg)
+            resp = await self.handle_stop_flow(msg, workspace)
         else:
 
             resp = FlowResponse(

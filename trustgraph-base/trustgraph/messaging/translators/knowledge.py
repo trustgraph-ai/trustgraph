@@ -45,7 +45,6 @@ class KnowledgeRequestTranslator(MessageTranslator):
 
         return KnowledgeRequest(
             operation=data.get("operation"),
-            workspace=data.get("workspace", ""),
             id=data.get("id"),
             flow=data.get("flow"),
             collection=data.get("collection"),
@@ -58,8 +57,6 @@ class KnowledgeRequestTranslator(MessageTranslator):
 
         if obj.operation:
             result["operation"] = obj.operation
-        if obj.workspace:
-            result["workspace"] = obj.workspace
         if obj.id:
             result["id"] = obj.id
         if obj.flow:

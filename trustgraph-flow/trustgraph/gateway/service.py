@@ -68,7 +68,7 @@ class Api:
             id=config.get("id", "api-gateway"),
         )
 
-        self.config_receiver = ConfigReceiver(self.pubsub_backend)
+        self.config_receiver = ConfigReceiver(self.pubsub_backend, auth=self.auth)
 
         # Build queue overrides dictionary from CLI arguments
         queue_overrides = {}

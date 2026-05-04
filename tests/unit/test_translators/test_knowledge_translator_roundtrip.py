@@ -41,7 +41,6 @@ def translator():
 def graph_embeddings_request():
     return KnowledgeRequest(
         operation="put-kg-core",
-        workspace="alice",
         id="doc-1",
         flow="default",
         collection="testcoll",
@@ -110,7 +109,7 @@ class TestKnowledgeRequestTranslatorGraphEmbeddings:
 
         assert isinstance(decoded, KnowledgeRequest)
         assert decoded.operation == "put-kg-core"
-        assert decoded.workspace == "alice"
+        assert decoded.id == "doc-1"
         assert decoded.id == "doc-1"
         assert decoded.flow == "default"
         assert decoded.collection == "testcoll"

@@ -7,6 +7,7 @@ from . publisher import Publisher
 from . subscriber import Subscriber
 from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics, SubscriberMetrics
 from . logging import add_logging_args, setup_logging
+from . workspace_processor import WorkspaceProcessor
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . parameter_spec import ParameterSpec

@@ -12,9 +12,13 @@ import os
 from trustgraph.schema import Error
 from trustgraph.schema import IamRequest, IamResponse
 from trustgraph.schema import iam_request_queue, iam_response_queue
+from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigValue
+from trustgraph.schema import config_request_queue, config_response_queue
 
 from trustgraph.base import AsyncProcessor, Consumer, Producer
 from trustgraph.base import ConsumerMetrics, ProducerMetrics
+from trustgraph.base.metrics import SubscriberMetrics
+from trustgraph.base.request_response_spec import RequestResponse
 from trustgraph.base.cassandra_config import (
     add_cassandra_args, resolve_cassandra_config,
 )
@@ -147,6 +151,8 @@ class Processor(AsyncProcessor):
             keyspace=keyspace,
             bootstrap_mode=self.bootstrap_mode,
             bootstrap_token=self.bootstrap_token,
+            on_workspace_created=self._announce_workspace_created,
+            on_workspace_deleted=self._announce_workspace_deleted,
         )
 
         logger.info(
@@ -159,6 +165,87 @@ class Processor(AsyncProcessor):
         # the first inbound call always sees a populated table.
         await self.iam.auto_bootstrap_if_token_mode()
         await self.iam_request_consumer.start()
+
+    def _create_config_client(self):
+        import uuid
+        config_rr_id = str(uuid.uuid4())
+        config_req_metrics = ProducerMetrics(
+            processor=self.id, flow=None, name="config-request",
+        )
+        config_resp_metrics = SubscriberMetrics(
+            processor=self.id, flow=None, name="config-response",
+        )
+        return RequestResponse(
+            backend=self.pubsub,
+            subscription=f"{self.id}--config--{config_rr_id}",
+            consumer_name=self.id,
+            request_topic=config_request_queue,
+            request_schema=ConfigRequest,
+            request_metrics=config_req_metrics,
+            response_topic=config_response_queue,
+            response_schema=ConfigResponse,
+            response_metrics=config_resp_metrics,
+        )
+
+    async def _config_put(self, workspace, type, key, value):
+        client = self._create_config_client()
+        try:
+            await client.start()
+            await client.request(
+                ConfigRequest(
+                    operation="put",
+                    workspace=workspace,
+                    values=[ConfigValue(type=type, key=key, value=value)],
+                ),
+                timeout=10,
+            )
+        finally:
+            await client.stop()
+
+    async def _config_delete(self, workspace, type, key):
+        from trustgraph.schema import ConfigKey
+        client = self._create_config_client()
+        try:
+            await client.start()
+            await client.request(
+                ConfigRequest(
+                    operation="delete",
+                    workspace=workspace,
+                    keys=[ConfigKey(type=type, key=key)],
+                ),
+                timeout=10,
+            )
+        finally:
+            await client.stop()
+
+    async def _announce_workspace_created(self, workspace_id):
+        try:
+            await self._config_put(
+                "__workspaces__", "workspace", workspace_id,
+                '{"enabled": true}',
+            )
+            logger.info(
+                f"Announced workspace creation: {workspace_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to announce workspace creation "
+                f"{workspace_id}: {e}", exc_info=True,
+            )
+
+    async def _announce_workspace_deleted(self, workspace_id):
+        try:
+            await self._config_delete(
+                "__workspaces__", "workspace", workspace_id,
+            )
+            logger.info(
+                f"Announced workspace deletion: {workspace_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to announce workspace deletion "
+                f"{workspace_id}: {e}", exc_info=True,
+            )
 
     async def on_iam_request(self, msg, consumer, flow):
 
