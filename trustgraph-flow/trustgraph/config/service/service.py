@@ -67,7 +67,7 @@ class Processor(AsyncProcessor):
         config_request_queue = params.get(
             "config_request_queue", default_config_request_queue
         )
-        config_response_queue = params.get(
+        self.config_response_queue_base = params.get(
             "config_response_queue", default_config_response_queue
         )
         config_push_queue = params.get(
@@ -130,7 +130,7 @@ class Processor(AsyncProcessor):
 
         self.config_response_producer = Producer(
             backend = self.pubsub,
-            topic = config_response_queue,
+            topic = self.config_response_queue_base,
             schema = ConfigResponse,
             metrics = config_response_metrics,
         )
@@ -208,17 +208,31 @@ class Processor(AsyncProcessor):
             )
 
     async def _add_workspace_consumer(self, workspace_id):
-        queue = workspace_queue(
+        req_queue = workspace_queue(
             self.config_request_queue_base, workspace_id,
         )
+        resp_queue = workspace_queue(
+            self.config_response_queue_base, workspace_id,
+        )
 
-        await self.pubsub.ensure_topic(queue)
+        await self.pubsub.ensure_topic(req_queue)
+        await self.pubsub.ensure_topic(resp_queue)
+
+        response_producer = Producer(
+            backend=self.pubsub,
+            topic=resp_queue,
+            schema=ConfigResponse,
+            metrics=ProducerMetrics(
+                processor=self.id, flow=None,
+                name=f"config-response-{workspace_id}",
+            ),
+        )
 
         consumer = Consumer(
             taskgroup=self.taskgroup,
             backend=self.pubsub,
             flow=None,
-            topic=queue,
+            topic=req_queue,
             subscriber=self.id,
             schema=ConfigRequest,
             handler=partial(
@@ -231,17 +245,23 @@ class Processor(AsyncProcessor):
             ),
         )
 
+        await response_producer.start()
         await consumer.start()
-        self.workspace_consumers[workspace_id] = consumer
+
+        self.workspace_consumers[workspace_id] = {
+            "consumer": consumer,
+            "response": response_producer,
+        }
 
         logger.info(
             f"Subscribed to workspace config queue: {workspace_id}"
         )
 
     async def _remove_workspace_consumer(self, workspace_id):
-        consumer = self.workspace_consumers.pop(workspace_id, None)
-        if consumer:
-            await consumer.stop()
+        clients = self.workspace_consumers.pop(workspace_id, None)
+        if clients:
+            for client in clients.values():
+                await client.stop()
             logger.info(
                 f"Unsubscribed from workspace config queue: {workspace_id}"
             )
@@ -249,6 +269,7 @@ class Processor(AsyncProcessor):
     async def start(self):
 
         await self.pubsub.ensure_topic(self.config_request_queue_base)
+        await self.config_response_producer.start()
         await self.push()  # Startup poke: empty types = everything
         await self.system_consumer.start()
 
@@ -307,9 +328,11 @@ class Processor(AsyncProcessor):
                 f"workspace={workspace}..."
             )
 
+            producer = self.workspace_consumers[workspace]["response"]
+
             resp = await self.config.handle_workspace(v, workspace)
 
-            await self.config_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
@@ -322,7 +345,7 @@ class Processor(AsyncProcessor):
                 ),
             )
 
-            await self.config_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 

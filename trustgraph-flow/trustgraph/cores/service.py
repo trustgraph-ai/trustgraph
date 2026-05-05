@@ -48,7 +48,7 @@ class Processor(WorkspaceProcessor):
             "knowledge_request_queue", default_knowledge_request_queue
         )
 
-        knowledge_response_queue = params.get(
+        self.knowledge_response_queue_base = params.get(
             "knowledge_response_queue", default_knowledge_response_queue
         )
 
@@ -70,22 +70,11 @@ class Processor(WorkspaceProcessor):
         super(Processor, self).__init__(
             **params | {
                 "knowledge_request_queue": self.knowledge_request_queue_base,
-                "knowledge_response_queue": knowledge_response_queue,
+                "knowledge_response_queue": self.knowledge_response_queue_base,
                 "cassandra_host": self.cassandra_host,
                 "cassandra_username": self.cassandra_username,
                 "cassandra_password": self.cassandra_password,
             }
-        )
-
-        knowledge_response_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "knowledge-response"
-        )
-
-        self.knowledge_response_producer = Producer(
-            backend = self.pubsub,
-            topic = knowledge_response_queue,
-            schema = KnowledgeResponse,
-            metrics = knowledge_response_metrics,
         )
 
         self.knowledge = KnowledgeManager(
@@ -109,17 +98,31 @@ class Processor(WorkspaceProcessor):
         if workspace in self.workspace_consumers:
             return
 
-        queue = workspace_queue(
+        req_queue = workspace_queue(
             self.knowledge_request_queue_base, workspace,
         )
+        resp_queue = workspace_queue(
+            self.knowledge_response_queue_base, workspace,
+        )
 
-        await self.pubsub.ensure_topic(queue)
+        await self.pubsub.ensure_topic(req_queue)
+        await self.pubsub.ensure_topic(resp_queue)
+
+        response_producer = Producer(
+            backend=self.pubsub,
+            topic=resp_queue,
+            schema=KnowledgeResponse,
+            metrics=ProducerMetrics(
+                processor=self.id, flow=None,
+                name=f"knowledge-response-{workspace}",
+            ),
+        )
 
         consumer = Consumer(
             taskgroup=self.taskgroup,
             backend=self.pubsub,
             flow=None,
-            topic=queue,
+            topic=req_queue,
             subscriber=self.id,
             schema=KnowledgeRequest,
             handler=partial(
@@ -131,22 +134,27 @@ class Processor(WorkspaceProcessor):
             ),
         )
 
+        await response_producer.start()
         await consumer.start()
-        self.workspace_consumers[workspace] = consumer
+
+        self.workspace_consumers[workspace] = {
+            "consumer": consumer,
+            "response": response_producer,
+        }
 
         logger.info(f"Subscribed to workspace queue: {workspace}")
 
     async def on_workspace_deleted(self, workspace):
 
-        consumer = self.workspace_consumers.pop(workspace, None)
-        if consumer:
-            await consumer.stop()
+        clients = self.workspace_consumers.pop(workspace, None)
+        if clients:
+            for client in clients.values():
+                await client.stop()
             logger.info(f"Unsubscribed from workspace queue: {workspace}")
 
     async def start(self):
 
         await super(Processor, self).start()
-        await self.knowledge_response_producer.start()
 
     async def on_knowledge_config(self, workspace, config, version):
 
@@ -164,7 +172,7 @@ class Processor(WorkspaceProcessor):
 
         logger.debug(f"Flows for {workspace}: {self.flows[workspace]}")
 
-    async def process_request(self, v, id, workspace):
+    async def process_request(self, v, id, workspace, producer):
 
         if v.operation is None:
             raise RequestError("Null operation")
@@ -184,7 +192,7 @@ class Processor(WorkspaceProcessor):
             raise RequestError(f"Invalid operation: {v.operation}")
 
         async def respond(x):
-            await self.knowledge_response_producer.send(
+            await producer.send(
                 x, { "id": id }
             )
         return await impls[v.operation](v, respond, workspace)
@@ -199,11 +207,13 @@ class Processor(WorkspaceProcessor):
 
         logger.info(f"Handling knowledge input {id}...")
 
+        producer = self.workspace_consumers[workspace]["response"]
+
         try:
 
             # We don't send a response back here, the processing
             # implementation sends whatever it needs to send.
-            await self.process_request(v, id, workspace)
+            await self.process_request(v, id, workspace, producer)
 
             return
 
@@ -215,7 +225,7 @@ class Processor(WorkspaceProcessor):
                 )
             )
 
-            await self.knowledge_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
@@ -228,7 +238,7 @@ class Processor(WorkspaceProcessor):
                 )
             )
 
-            await self.knowledge_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 

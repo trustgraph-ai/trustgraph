@@ -23,9 +23,8 @@ import os
 from unstructured.partition.auto import partition
 
 from ... schema import Document, TextDocument, Metadata
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianClient
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianSpec
 
 from ... provenance import (
     document_uri, page_uri as make_page_uri,
@@ -43,9 +42,6 @@ COMPONENT_VERSION = "1.0.0"
 logger = logging.getLogger(__name__)
 
 default_ident = "document-decoder"
-
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 # Mime type to unstructured content_type mapping
 # unstructured auto-detects most formats, but we pass the hint when available
@@ -162,16 +158,11 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client
-        self.librarian = LibrarianClient(
-            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
+        self.register_specification(
+            LibrarianSpec()
         )
 
         logger.info("Universal decoder initialized")
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian.start()
 
     def extract_elements(self, blob, mime_type=None):
         """
@@ -272,10 +263,9 @@ class Processor(FlowProcessor):
         page_content = text.encode("utf-8")
 
         # Save to librarian
-        await self.librarian.save_child_document(
+        await flow.librarian.save_child_document(
             doc_id=doc_id,
             parent_id=parent_doc_id,
-            workspace=flow.workspace,
             content=page_content,
             document_type="page" if is_page else "section",
             title=label,
@@ -351,10 +341,9 @@ class Processor(FlowProcessor):
 
         # Save to librarian
         if img_content:
-            await self.librarian.save_child_document(
+            await flow.librarian.save_child_document(
                 doc_id=img_uri,
                 parent_id=parent_doc_id,
-                workspace=flow.workspace,
                 content=img_content,
                 document_type="image",
                 title=f"Image from page {page_number}" if page_number else "Image",
@@ -399,15 +388,13 @@ class Processor(FlowProcessor):
                 f"Fetching document {v.document_id} from librarian..."
             )
 
-            doc_meta = await self.librarian.fetch_document_metadata(
+            doc_meta = await flow.librarian.fetch_document_metadata(
                 document_id=v.document_id,
-                workspace=flow.workspace,
             )
             mime_type = doc_meta.kind if doc_meta else None
 
-            content = await self.librarian.fetch_document_content(
+            content = await flow.librarian.fetch_document_content(
                 document_id=v.document_id,
-                workspace=flow.workspace,
             )
 
             if isinstance(content, str):
@@ -571,19 +558,6 @@ class Processor(FlowProcessor):
             help='Apply section strategy within pages too (default: false)',
         )
 
-        parser.add_argument(
-            '--librarian-request-queue',
-            default=default_librarian_request_queue,
-            help=f'Librarian request queue '
-                 f'(default: {default_librarian_request_queue})',
-        )
-
-        parser.add_argument(
-            '--librarian-response-queue',
-            default=default_librarian_response_queue,
-            help=f'Librarian response queue '
-                 f'(default: {default_librarian_response_queue})',
-        )
 
 
 def run():

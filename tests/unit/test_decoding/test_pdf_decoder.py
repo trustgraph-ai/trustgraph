@@ -72,6 +72,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
             "output": mock_output_flow,
             "triples": mock_triples_flow,
         }.get(name))
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         config = {
             'id': 'test-pdf-decoder',
@@ -79,9 +80,6 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-
-        # Mock save_child_document to avoid waiting for librarian response
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         await processor.on_message(mock_msg, None, mock_flow)
 
@@ -148,6 +146,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
             "output": mock_output_flow,
             "triples": mock_triples_flow,
         }.get(name))
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         config = {
             'id': 'test-pdf-decoder',
@@ -155,9 +154,6 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-
-        # Mock save_child_document to avoid waiting for librarian response
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         await processor.on_message(mock_msg, None, mock_flow)
 

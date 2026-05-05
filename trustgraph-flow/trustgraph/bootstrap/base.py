@@ -22,6 +22,7 @@ class InitContext:
     logger: logging.Logger
     config: Any    # ConfigClient
     make_flow_client: Any  # callable(workspace) -> RequestResponse
+    make_iam_client: Any   # callable() -> RequestResponse
 
 
 class Initialiser:
@@ -35,7 +36,7 @@ class Initialiser:
 
     * ``wait_for_services`` (bool, default ``True``): when ``True`` the
       initialiser only runs after the bootstrapper's service gate has
-      passed (config-svc and flow-svc reachable).  Set ``False`` for
+      passed (config-svc reachable).  Set ``False`` for
       initialisers that bring up infrastructure the gate itself
       depends on — principally Pulsar topology, without which
       config-svc cannot come online.
