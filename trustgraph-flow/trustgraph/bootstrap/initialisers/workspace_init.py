@@ -33,6 +33,8 @@ TEMPLATE_WORKSPACE = "__template__"
 
 class WorkspaceInit(Initialiser):
 
+    wait_for_services = False
+
     def __init__(
             self,
             workspace="default",

@@ -39,6 +39,8 @@ TEMPLATE_WORKSPACE = "__template__"
 
 class TemplateSeed(Initialiser):
 
+    wait_for_services = False
+
     def __init__(self, config_file, overwrite=False, **kwargs):
         super().__init__(**kwargs)
         if not config_file:
