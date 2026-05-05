@@ -11,11 +11,11 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The context development platform
+# The agent runtime platform
 
 </div>
 
-Building applications that need to know things requires more than a database. [TrustGraph](https://trustgraph.ai) is the context development platform: graph-native infrastructure for storing, enriching, and retrieving structured knowledge at any scale. Think like [Supabase](https://github.com/supabase/supabase) but built around context graphs: multi-model storage, semantic retrieval pipelines, portable [context cores](#context-cores), and a full developer toolkit out of the box. Deploy locally or in the cloud. No unnecessary API keys. Just context, engineered.
+TrustGraph is an agent runtime platform for building production AI systems that require grounded and explainable outputs, private deployment, and sovereign control. The platform is the full stack for agentic systems: context graphs, memory, retrieval, orchestration, and inference for precision-critical agent workloads.
 
 The platform:
 - [x] Multi-model and multimodal database system
@@ -197,6 +197,8 @@ TrustGraph provides component flexibility to optimize agent workflows.
 <br>
 
 - Apache Pulsar<br>
+- RabbitMQ<br>
+- Apache Kafka<br>
 
 </details>
 <details>
