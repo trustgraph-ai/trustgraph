@@ -901,22 +901,20 @@ class IamService:
                 "workspace ids beginning with '_' are reserved",
             )
 
+        if self._on_workspace_created:
+            await self._on_workspace_created(v.workspace_record.id)
+
         existing = await self.table_store.get_workspace(
             v.workspace_record.id,
         )
-        if existing is not None:
-            return _err("duplicate", "workspace already exists")
-
-        now = _now_dt()
-        await self.table_store.put_workspace(
-            id=v.workspace_record.id,
-            name=v.workspace_record.name or v.workspace_record.id,
-            enabled=v.workspace_record.enabled,
-            created=now,
-        )
-
-        if self._on_workspace_created:
-            await self._on_workspace_created(v.workspace_record.id)
+        if existing is None:
+            now = _now_dt()
+            await self.table_store.put_workspace(
+                id=v.workspace_record.id,
+                name=v.workspace_record.name or v.workspace_record.id,
+                enabled=v.workspace_record.enabled,
+                created=now,
+            )
 
         row = await self.table_store.get_workspace(v.workspace_record.id)
         return IamResponse(workspace=self._row_to_workspace_record(row))
