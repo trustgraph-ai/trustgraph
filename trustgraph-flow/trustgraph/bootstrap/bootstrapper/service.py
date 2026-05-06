@@ -28,6 +28,10 @@ from trustgraph.schema import (
     FlowRequest, FlowResponse,
     flow_request_queue, flow_response_queue,
 )
+from trustgraph.schema import (
+    IamRequest, IamResponse,
+    iam_request_queue, iam_response_queue,
+)
 
 from .. base import Initialiser, InitContext
 
@@ -189,10 +193,28 @@ class Processor(AsyncProcessor):
             request_metrics=ProducerMetrics(
                 processor=self.id, flow=None, name="flow-request",
             ),
-            response_topic=flow_response_queue,
+            response_topic=f"{flow_response_queue}:{workspace}",
             response_schema=FlowResponse,
             response_metrics=SubscriberMetrics(
                 processor=self.id, flow=None, name="flow-response",
+            ),
+        )
+
+    def _make_iam_client(self):
+        rr_id = str(uuid.uuid4())
+        return RequestResponse(
+            backend=self.pubsub_backend,
+            subscription=f"{self.id}--iam--{rr_id}",
+            consumer_name=self.id,
+            request_topic=iam_request_queue,
+            request_schema=IamRequest,
+            request_metrics=ProducerMetrics(
+                processor=self.id, flow=None, name="iam-request",
+            ),
+            response_topic=iam_response_queue,
+            response_schema=IamResponse,
+            response_metrics=SubscriberMetrics(
+                processor=self.id, flow=None, name="iam-response",
             ),
         )
 
@@ -211,13 +233,6 @@ class Processor(AsyncProcessor):
     # Service gate.
     # ------------------------------------------------------------------
 
-    def _gate_workspace(self):
-        for spec in self.specs:
-            ws = getattr(spec.instance, "workspace", None)
-            if ws and not ws.startswith("_"):
-                return ws
-        return None
-
     async def _gate_ready(self, config):
         try:
             await config.keys(SYSTEM_WORKSPACE, INIT_STATE_TYPE)
@@ -226,33 +241,6 @@ class Processor(AsyncProcessor):
                 f"Gate: config-svc not ready ({type(e).__name__}: {e})"
             )
             return False
-
-        workspace = self._gate_workspace()
-        if workspace is None:
-            return True
-
-        flow = self._make_flow_client(workspace)
-        try:
-            await flow.start()
-            resp = await flow.request(
-                FlowRequest(
-                    operation="list-blueprints",
-                ),
-                timeout=5,
-            )
-            if resp.error:
-                logger.info(
-                    f"Gate: flow-svc error: "
-                    f"{resp.error.type}: {resp.error.message}"
-                )
-                return False
-        except Exception as e:
-            logger.info(
-                f"Gate: flow-svc not ready ({type(e).__name__}: {e})"
-            )
-            return False
-        finally:
-            await self._safe_stop(flow)
 
         return True
 
@@ -307,6 +295,7 @@ class Processor(AsyncProcessor):
             logger=child_logger,
             config=config,
             make_flow_client=self._make_flow_client,
+            make_iam_client=self._make_iam_client,
         )
 
         child_logger.info(

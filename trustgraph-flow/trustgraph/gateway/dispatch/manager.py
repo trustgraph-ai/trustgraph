@@ -7,11 +7,11 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
-from ... schema import flow_request_queue
-from ... schema import librarian_request_queue
-from ... schema import knowledge_request_queue
-from ... schema import collection_request_queue
-from ... schema import config_request_queue
+from ... schema import flow_request_queue, flow_response_queue
+from ... schema import librarian_request_queue, librarian_response_queue
+from ... schema import knowledge_request_queue, knowledge_response_queue
+from ... schema import collection_request_queue, collection_response_queue
+from ... schema import config_request_queue, config_response_queue
 
 from . config import ConfigRequestor
 from . flow import FlowRequestor
@@ -94,6 +94,14 @@ workspace_default_request_queues = {
     "librarian": librarian_request_queue,
     "knowledge": knowledge_request_queue,
     "collection-management": collection_request_queue,
+}
+
+workspace_default_response_queues = {
+    "config": config_response_queue,
+    "flow": flow_response_queue,
+    "librarian": librarian_response_queue,
+    "knowledge": knowledge_response_queue,
+    "collection-management": collection_response_queue,
 }
 
 global_dispatchers = {**system_dispatchers, **workspace_dispatchers}
@@ -267,11 +275,16 @@ class DispatcherManager:
                         response_queue = self.queue_overrides[kind].get("response")
 
                     if kind in workspace_dispatchers and workspace:
-                        base_queue = (
+                        base_req_queue = (
                             request_queue
                             or workspace_default_request_queues[kind]
                         )
-                        request_queue = f"{base_queue}:{workspace}"
+                        request_queue = f"{base_req_queue}:{workspace}"
+                        base_resp_queue = (
+                            response_queue
+                            or workspace_default_response_queues[kind]
+                        )
+                        response_queue = f"{base_resp_queue}:{workspace}"
                         consumer_name = f"{self.prefix}-{kind}-{workspace}"
                     else:
                         consumer_name = f"{self.prefix}-{kind}-request"

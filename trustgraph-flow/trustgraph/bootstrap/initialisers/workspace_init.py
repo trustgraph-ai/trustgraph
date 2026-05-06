@@ -26,14 +26,14 @@ the next cycle once the prerequisite is satisfied.
 
 import json
 
+from trustgraph.schema import IamRequest, WorkspaceInput
+
 from .. base import Initialiser
 
 TEMPLATE_WORKSPACE = "__template__"
 
 
 class WorkspaceInit(Initialiser):
-
-    wait_for_services = False
 
     def __init__(
             self,
@@ -61,6 +61,8 @@ class WorkspaceInit(Initialiser):
         self.overwrite = overwrite
 
     async def run(self, ctx, old_flag, new_flag):
+        await self._create_workspace(ctx)
+
         if self.source == "seed-file":
             tree = self._load_seed_file()
         else:
@@ -107,6 +109,39 @@ class WorkspaceInit(Initialiser):
         )
         return tree
 
+    async def _create_workspace(self, ctx):
+        """Register the workspace via the IAM create-workspace API."""
+        iam = ctx.make_iam_client()
+        await iam.start()
+        try:
+            resp = await iam.request(
+                IamRequest(
+                    operation="create-workspace",
+                    workspace_record=WorkspaceInput(
+                        id=self.workspace,
+                        name=self.workspace.title(),
+                        enabled=True,
+                    ),
+                ),
+                timeout=10,
+            )
+            if resp.error:
+                if resp.error.type == "duplicate":
+                    ctx.logger.info(
+                        f"Workspace {self.workspace!r} already exists in IAM"
+                    )
+                else:
+                    raise RuntimeError(
+                        f"IAM create-workspace failed: "
+                        f"{resp.error.type}: {resp.error.message}"
+                    )
+            else:
+                ctx.logger.info(
+                    f"Workspace {self.workspace!r} created via IAM"
+                )
+        finally:
+            await iam.stop()
+
     async def _write_all(self, ctx, tree):
         values = []
         for type_name, entries in tree.items():
@@ -114,6 +149,7 @@ class WorkspaceInit(Initialiser):
                 values.append((type_name, key, json.dumps(value)))
         if values:
             await ctx.config.put_many(self.workspace, values)
+
         ctx.logger.info(
             f"Workspace {self.workspace!r} populated with "
             f"{len(values)} entries"
@@ -134,6 +170,7 @@ class WorkspaceInit(Initialiser):
             if values:
                 await ctx.config.put_many(self.workspace, values)
                 written += len(values)
+
         ctx.logger.info(
             f"Workspace {self.workspace!r} upsert-missing: "
             f"{written} new entries"

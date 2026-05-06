@@ -7,26 +7,17 @@ to select between ReactPattern, PlanThenExecutePattern, and
 SupervisorPattern at runtime.
 """
 
-import asyncio
-import base64
 import json
 import functools
 import logging
-import uuid
-from datetime import datetime
-
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
 from ... base import RowEmbeddingsQueryClientSpec, EmbeddingsClientSpec
-from ... base import ProducerSpec
-from ... base import Consumer, Producer
-from ... base import ConsumerMetrics, ProducerMetrics
+from ... base import ProducerSpec, LibrarianSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 from ..orchestrator.pattern_base import UsageTracker, PatternBase
 from ... schema import Triples, Metadata
-from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
-from ... schema import librarian_request_queue, librarian_response_queue
 
 from trustgraph.provenance import (
     agent_session_uri,
@@ -52,8 +43,6 @@ logger = logging.getLogger(__name__)
 
 default_ident = "agent-manager"
 default_max_iterations = 10
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 
 class Processor(AgentService):
@@ -151,94 +140,9 @@ class Processor(AgentService):
             )
         )
 
-        # Librarian client
-        librarian_request_q = params.get(
-            "librarian_request_queue", default_librarian_request_queue
+        self.register_specification(
+            LibrarianSpec()
         )
-        librarian_response_q = params.get(
-            "librarian_response_queue", default_librarian_response_queue
-        )
-
-        librarian_request_metrics = ProducerMetrics(
-            processor=id, flow=None, name="librarian-request"
-        )
-
-        self.librarian_request_producer = Producer(
-            backend=self.pubsub,
-            topic=librarian_request_q,
-            schema=LibrarianRequest,
-            metrics=librarian_request_metrics,
-        )
-
-        librarian_response_metrics = ConsumerMetrics(
-            processor=id, flow=None, name="librarian-response"
-        )
-
-        self.librarian_response_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
-            topic=librarian_response_q,
-            subscriber=f"{id}-librarian",
-            schema=LibrarianResponse,
-            handler=self.on_librarian_response,
-            metrics=librarian_response_metrics,
-        )
-
-        self.pending_librarian_requests = {}
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian_request_producer.start()
-        await self.librarian_response_consumer.start()
-
-    async def on_librarian_response(self, msg, consumer, flow):
-        response = msg.value()
-        request_id = msg.properties().get("id")
-
-        if request_id in self.pending_librarian_requests:
-            future = self.pending_librarian_requests.pop(request_id)
-            future.set_result(response)
-
-    async def save_answer_content(self, doc_id, workspace, content, title=None,
-                                  timeout=120):
-        request_id = str(uuid.uuid4())
-
-        doc_metadata = DocumentMetadata(
-            id=doc_id,
-            workspace=workspace,
-            kind="text/plain",
-            title=title or "Agent Answer",
-            document_type="answer",
-        )
-
-        request = LibrarianRequest(
-            operation="add-document",
-            document_id=doc_id,
-            document_metadata=doc_metadata,
-            content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            workspace=workspace,
-        )
-
-        future = asyncio.get_event_loop().create_future()
-        self.pending_librarian_requests[request_id] = future
-
-        try:
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error saving answer: "
-                    f"{response.error.type}: {response.error.message}"
-                )
-            return doc_id
-
-        except asyncio.TimeoutError:
-            self.pending_librarian_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout saving answer document {doc_id}")
 
     def provenance_session_uri(self, session_id):
         return agent_session_uri(session_id)

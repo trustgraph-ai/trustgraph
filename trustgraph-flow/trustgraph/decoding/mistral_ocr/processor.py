@@ -16,9 +16,8 @@ import os
 from mistralai import Mistral
 
 from ... schema import Document, TextDocument, Metadata
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianClient
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianSpec
 
 from ... provenance import (
     document_uri, page_uri as make_page_uri, derived_entity_triples,
@@ -35,9 +34,6 @@ COMPONENT_VERSION = "1.0.0"
 
 default_ident = "document-decoder"
 default_api_key = os.getenv("MISTRAL_TOKEN")
-
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 pages_per_chunk = 5
 
@@ -98,9 +94,8 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client
-        self.librarian = LibrarianClient(
-            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
+        self.register_specification(
+            LibrarianSpec()
         )
 
         if api_key is None:
@@ -112,10 +107,6 @@ class Processor(FlowProcessor):
         self.unique_id = str(uuid.uuid4())
 
         logger.info("Mistral OCR processor initialized")
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian.start()
 
     def ocr(self, blob):
         """
@@ -198,9 +189,9 @@ class Processor(FlowProcessor):
 
         # Check MIME type if fetching from librarian
         if v.document_id:
-            doc_meta = await self.librarian.fetch_document_metadata(
+            doc_meta = await flow.librarian.fetch_document_metadata(
                 document_id=v.document_id,
-                workspace=flow.workspace,
+
             )
             if doc_meta and doc_meta.kind and doc_meta.kind != "application/pdf":
                 logger.error(
@@ -213,9 +204,9 @@ class Processor(FlowProcessor):
         # Get PDF content - fetch from librarian or use inline data
         if v.document_id:
             logger.info(f"Fetching document {v.document_id} from librarian...")
-            content = await self.librarian.fetch_document_content(
+            content = await flow.librarian.fetch_document_content(
                 document_id=v.document_id,
-                workspace=flow.workspace,
+
             )
             if isinstance(content, str):
                 content = content.encode('utf-8')
@@ -240,10 +231,10 @@ class Processor(FlowProcessor):
             page_content = markdown.encode("utf-8")
 
             # Save page as child document in librarian
-            await self.librarian.save_child_document(
+            await flow.librarian.save_child_document(
                 doc_id=page_doc_id,
                 parent_id=source_doc_id,
-                workspace=flow.workspace,
+
                 content=page_content,
                 document_type="page",
                 title=f"Page {page_num}",
@@ -295,18 +286,6 @@ class Processor(FlowProcessor):
             '-k', '--api-key',
             default=default_api_key,
             help=f'Mistral API Key'
-        )
-
-        parser.add_argument(
-            '--librarian-request-queue',
-            default=default_librarian_request_queue,
-            help=f'Librarian request queue (default: {default_librarian_request_queue})',
-        )
-
-        parser.add_argument(
-            '--librarian-response-queue',
-            default=default_librarian_response_queue,
-            help=f'Librarian response queue (default: {default_librarian_response_queue})',
         )
 
 def run():

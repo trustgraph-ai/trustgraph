@@ -41,7 +41,7 @@ class Processor(WorkspaceProcessor):
         self.flow_request_queue_base = params.get(
             "flow_request_queue", default_flow_request_queue
         )
-        flow_response_queue = params.get(
+        self.flow_response_queue_base = params.get(
             "flow_response_queue", default_flow_response_queue
         )
 
@@ -52,17 +52,6 @@ class Processor(WorkspaceProcessor):
                 "flow_request_schema": FlowRequest.__name__,
                 "flow_response_schema": FlowResponse.__name__,
             }
-        )
-
-        flow_response_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "flow-response"
-        )
-
-        self.flow_response_producer = Producer(
-            backend = self.pubsub,
-            topic = flow_response_queue,
-            schema = FlowResponse,
-            metrics = flow_response_metrics,
         )
 
         config_req_metrics = ProducerMetrics(
@@ -96,17 +85,31 @@ class Processor(WorkspaceProcessor):
         if workspace in self.workspace_consumers:
             return
 
-        queue = workspace_queue(
+        req_queue = workspace_queue(
             self.flow_request_queue_base, workspace,
         )
+        resp_queue = workspace_queue(
+            self.flow_response_queue_base, workspace,
+        )
 
-        await self.pubsub.ensure_topic(queue)
+        await self.pubsub.ensure_topic(req_queue)
+        await self.pubsub.ensure_topic(resp_queue)
+
+        response_producer = Producer(
+            backend=self.pubsub,
+            topic=resp_queue,
+            schema=FlowResponse,
+            metrics=ProducerMetrics(
+                processor=self.id, flow=None,
+                name=f"flow-response-{workspace}",
+            ),
+        )
 
         consumer = Consumer(
             taskgroup=self.taskgroup,
             backend=self.pubsub,
             flow=None,
-            topic=queue,
+            topic=req_queue,
             subscriber=self.id,
             schema=FlowRequest,
             handler=partial(
@@ -118,16 +121,22 @@ class Processor(WorkspaceProcessor):
             ),
         )
 
+        await response_producer.start()
         await consumer.start()
-        self.workspace_consumers[workspace] = consumer
+
+        self.workspace_consumers[workspace] = {
+            "consumer": consumer,
+            "response": response_producer,
+        }
 
         logger.info(f"Subscribed to workspace queue: {workspace}")
 
     async def on_workspace_deleted(self, workspace):
 
-        consumer = self.workspace_consumers.pop(workspace, None)
-        if consumer:
-            await consumer.stop()
+        clients = self.workspace_consumers.pop(workspace, None)
+        if clients:
+            for client in clients.values():
+                await client.stop()
             logger.info(f"Unsubscribed from workspace queue: {workspace}")
 
     async def start(self):
@@ -149,9 +158,11 @@ class Processor(WorkspaceProcessor):
 
             logger.debug(f"Handling flow request {id}...")
 
+            producer = self.workspace_consumers[workspace]["response"]
+
             resp = await self.flow.handle(v, workspace)
 
-            await self.flow_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
@@ -166,7 +177,7 @@ class Processor(WorkspaceProcessor):
                 ),
             )
 
-            await self.flow_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 

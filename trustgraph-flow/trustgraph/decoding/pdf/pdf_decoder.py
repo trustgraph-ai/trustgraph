@@ -12,9 +12,8 @@ import tempfile
 import base64
 import logging
 from ... schema import Document, TextDocument, Metadata
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianClient
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianSpec
 
 PyPDFLoader = None
 
@@ -31,9 +30,6 @@ COMPONENT_VERSION = "1.0.0"
 logger = logging.getLogger(__name__)
 
 default_ident = "document-decoder"
-
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 
 class Processor(FlowProcessor):
@@ -70,16 +66,11 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client
-        self.librarian = LibrarianClient(
-            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
+        self.register_specification(
+            LibrarianSpec()
         )
 
         logger.info("PDF decoder initialized")
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian.start()
 
     async def on_message(self, msg, consumer, flow):
 
@@ -91,9 +82,9 @@ class Processor(FlowProcessor):
 
         # Check MIME type if fetching from librarian
         if v.document_id:
-            doc_meta = await self.librarian.fetch_document_metadata(
+            doc_meta = await flow.librarian.fetch_document_metadata(
                 document_id=v.document_id,
-                workspace=flow.workspace,
+
             )
             if doc_meta and doc_meta.kind and doc_meta.kind != "application/pdf":
                 logger.error(
@@ -112,9 +103,9 @@ class Processor(FlowProcessor):
                 logger.info(f"Fetching document {v.document_id} from librarian...")
                 fp.close()
 
-                content = await self.librarian.fetch_document_content(
+                content = await flow.librarian.fetch_document_content(
                     document_id=v.document_id,
-                    workspace=flow.workspace,
+    
                 )
 
                 # Content is base64 encoded
@@ -154,10 +145,10 @@ class Processor(FlowProcessor):
                 page_content = page.page_content.encode("utf-8")
 
                 # Save page as child document in librarian
-                await self.librarian.save_child_document(
+                await flow.librarian.save_child_document(
                     doc_id=page_doc_id,
                     parent_id=source_doc_id,
-                    workspace=flow.workspace,
+    
                     content=page_content,
                     document_type="page",
                     title=f"Page {page_num}",
@@ -209,18 +200,6 @@ class Processor(FlowProcessor):
     @staticmethod
     def add_args(parser):
         FlowProcessor.add_args(parser)
-
-        parser.add_argument(
-            '--librarian-request-queue',
-            default=default_librarian_request_queue,
-            help=f'Librarian request queue (default: {default_librarian_request_queue})',
-        )
-
-        parser.add_argument(
-            '--librarian-response-queue',
-            default=default_librarian_response_queue,
-            help=f'Librarian response queue (default: {default_librarian_response_queue})',
-        )
 
 def run():
 

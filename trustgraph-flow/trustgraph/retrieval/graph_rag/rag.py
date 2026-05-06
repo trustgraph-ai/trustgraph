@@ -4,29 +4,22 @@ Simple RAG service, performs query using graph RAG an LLM.
 Input is query, output is response.
 """
 
-import asyncio
-import base64
 import logging
-import uuid
 
 from ... schema import GraphRagQuery, GraphRagResponse, Error
 from ... schema import Triples, Metadata
-from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... provenance import GRAPH_RETRIEVAL
 from . graph_rag import GraphRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import GraphEmbeddingsClientSpec, TriplesClientSpec
-from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
+from ... base import LibrarianSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "graph-rag"
 default_concurrency = 1
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 class Processor(FlowProcessor):
 
@@ -117,114 +110,11 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client for storing answer content
-        librarian_request_q = params.get(
-            "librarian_request_queue", default_librarian_request_queue
+        self.register_specification(
+            LibrarianSpec()
         )
-        librarian_response_q = params.get(
-            "librarian_response_queue", default_librarian_response_queue
-        )
-
-        librarian_request_metrics = ProducerMetrics(
-            processor=id, flow=None, name="librarian-request"
-        )
-
-        self.librarian_request_producer = Producer(
-            backend=self.pubsub,
-            topic=librarian_request_q,
-            schema=LibrarianRequest,
-            metrics=librarian_request_metrics,
-        )
-
-        librarian_response_metrics = ConsumerMetrics(
-            processor=id, flow=None, name="librarian-response"
-        )
-
-        self.librarian_response_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
-            topic=librarian_response_q,
-            subscriber=f"{id}-librarian",
-            schema=LibrarianResponse,
-            handler=self.on_librarian_response,
-            metrics=librarian_response_metrics,
-        )
-
-        # Pending librarian requests: request_id -> asyncio.Future
-        self.pending_librarian_requests = {}
 
         logger.info("Graph RAG service initialized")
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian_request_producer.start()
-        await self.librarian_response_consumer.start()
-
-    async def on_librarian_response(self, msg, consumer, flow):
-        """Handle responses from the librarian service."""
-        response = msg.value()
-        request_id = msg.properties().get("id")
-
-        if request_id and request_id in self.pending_librarian_requests:
-            future = self.pending_librarian_requests.pop(request_id)
-            future.set_result(response)
-
-    async def save_answer_content(self, doc_id, workspace, content, title=None, timeout=120):
-        """
-        Save answer content to the librarian.
-
-        Args:
-            doc_id: ID for the answer document
-            workspace: Workspace for isolation
-            content: Answer text content
-            title: Optional title
-            timeout: Request timeout in seconds
-
-        Returns:
-            The document ID on success
-        """
-        request_id = str(uuid.uuid4())
-
-        doc_metadata = DocumentMetadata(
-            id=doc_id,
-            workspace=workspace,
-            kind="text/plain",
-            title=title or "GraphRAG Answer",
-            document_type="answer",
-        )
-
-        request = LibrarianRequest(
-            operation="add-document",
-            document_id=doc_id,
-            document_metadata=doc_metadata,
-            content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            workspace=workspace,
-        )
-
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_librarian_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error saving answer: {response.error.type}: {response.error.message}"
-                )
-
-            return doc_id
-
-        except asyncio.TimeoutError:
-            self.pending_librarian_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout saving answer document {doc_id}")
 
     async def on_request(self, msg, consumer, flow):
 
@@ -306,13 +196,12 @@ class Processor(FlowProcessor):
             else:
                 edge_limit = self.default_edge_limit
 
-            # Callback to save answer content to librarian
             async def save_answer(doc_id, answer_text):
-                await self.save_answer_content(
+                await flow.librarian.save_document(
                     doc_id=doc_id,
-                    workspace=flow.workspace,
                     content=answer_text,
                     title=f"GraphRAG Answer: {v.query[:50]}...",
+                    document_type="answer",
                 )
 
             # Check if streaming is requested

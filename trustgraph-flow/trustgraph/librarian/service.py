@@ -69,7 +69,7 @@ class Processor(WorkspaceProcessor):
             "librarian_request_queue", default_librarian_request_queue
         )
 
-        librarian_response_queue = params.get(
+        self.librarian_response_queue_base = params.get(
             "librarian_response_queue", default_librarian_response_queue
         )
 
@@ -77,7 +77,7 @@ class Processor(WorkspaceProcessor):
             "collection_request_queue", default_collection_request_queue
         )
 
-        collection_response_queue = params.get(
+        self.collection_response_queue_base = params.get(
             "collection_response_queue", default_collection_response_queue
         )
 
@@ -132,37 +132,15 @@ class Processor(WorkspaceProcessor):
         super(Processor, self).__init__(
             **params | {
                 "librarian_request_queue": self.librarian_request_queue_base,
-                "librarian_response_queue": librarian_response_queue,
+                "librarian_response_queue": self.librarian_response_queue_base,
                 "collection_request_queue": self.collection_request_queue_base,
-                "collection_response_queue": collection_response_queue,
+                "collection_response_queue": self.collection_response_queue_base,
                 "object_store_endpoint": object_store_endpoint,
                 "object_store_access_key": object_store_access_key,
                 "cassandra_host": self.cassandra_host,
                 "cassandra_username": self.cassandra_username,
                 "cassandra_password": self.cassandra_password,
             }
-        )
-
-        librarian_response_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "librarian-response"
-        )
-
-        collection_response_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "collection-response"
-        )
-
-        self.librarian_response_producer = Producer(
-            backend = self.pubsub,
-            topic = librarian_response_queue,
-            schema = LibrarianResponse,
-            metrics = librarian_response_metrics,
-        )
-
-        self.collection_response_producer = Producer(
-            backend = self.pubsub,
-            topic = collection_response_queue,
-            schema = CollectionManagementResponse,
-            metrics = collection_response_metrics,
         )
 
         # Config service client for collection management
@@ -230,21 +208,49 @@ class Processor(WorkspaceProcessor):
         if workspace in self.workspace_consumers:
             return
 
-        lib_queue = workspace_queue(
+        lib_req_queue = workspace_queue(
             self.librarian_request_queue_base, workspace,
         )
-        col_queue = workspace_queue(
+        lib_resp_queue = workspace_queue(
+            self.librarian_response_queue_base, workspace,
+        )
+        col_req_queue = workspace_queue(
             self.collection_request_queue_base, workspace,
         )
+        col_resp_queue = workspace_queue(
+            self.collection_response_queue_base, workspace,
+        )
 
-        await self.pubsub.ensure_topic(lib_queue)
-        await self.pubsub.ensure_topic(col_queue)
+        await self.pubsub.ensure_topic(lib_req_queue)
+        await self.pubsub.ensure_topic(lib_resp_queue)
+        await self.pubsub.ensure_topic(col_req_queue)
+        await self.pubsub.ensure_topic(col_resp_queue)
+
+        lib_response_producer = Producer(
+            backend=self.pubsub,
+            topic=lib_resp_queue,
+            schema=LibrarianResponse,
+            metrics=ProducerMetrics(
+                processor=self.id, flow=None,
+                name=f"librarian-response-{workspace}",
+            ),
+        )
+
+        col_response_producer = Producer(
+            backend=self.pubsub,
+            topic=col_resp_queue,
+            schema=CollectionManagementResponse,
+            metrics=ProducerMetrics(
+                processor=self.id, flow=None,
+                name=f"collection-response-{workspace}",
+            ),
+        )
 
         lib_consumer = Consumer(
             taskgroup=self.taskgroup,
             backend=self.pubsub,
             flow=None,
-            topic=lib_queue,
+            topic=lib_req_queue,
             subscriber=self.id,
             schema=LibrarianRequest,
             handler=partial(
@@ -260,7 +266,7 @@ class Processor(WorkspaceProcessor):
             taskgroup=self.taskgroup,
             backend=self.pubsub,
             flow=None,
-            topic=col_queue,
+            topic=col_req_queue,
             subscriber=self.id,
             schema=CollectionManagementRequest,
             handler=partial(
@@ -272,29 +278,31 @@ class Processor(WorkspaceProcessor):
             ),
         )
 
+        await lib_response_producer.start()
+        await col_response_producer.start()
         await lib_consumer.start()
         await col_consumer.start()
 
         self.workspace_consumers[workspace] = {
             "librarian": lib_consumer,
+            "librarian-response": lib_response_producer,
             "collection": col_consumer,
+            "collection-response": col_response_producer,
         }
 
         logger.info(f"Subscribed to workspace queues: {workspace}")
 
     async def on_workspace_deleted(self, workspace):
 
-        consumers = self.workspace_consumers.pop(workspace, None)
-        if consumers:
-            for consumer in consumers.values():
-                await consumer.stop()
+        clients = self.workspace_consumers.pop(workspace, None)
+        if clients:
+            for client in clients.values():
+                await client.stop()
             logger.info(f"Unsubscribed from workspace queues: {workspace}")
 
     async def start(self):
 
         await super(Processor, self).start()
-        await self.librarian_response_producer.start()
-        await self.collection_response_producer.start()
         await self.config_request_producer.start()
         await self.config_response_consumer.start()
 
@@ -505,12 +513,14 @@ class Processor(WorkspaceProcessor):
 
         logger.info(f"Handling librarian input {id}...")
 
+        producer = self.workspace_consumers[workspace]["librarian-response"]
+
         try:
 
             # Handle streaming operations specially
             if v.operation == "stream-document":
                 async for resp in self.librarian.stream_document(v, workspace):
-                    await self.librarian_response_producer.send(
+                    await producer.send(
                         resp, properties={"id": id}
                     )
                 return
@@ -518,7 +528,7 @@ class Processor(WorkspaceProcessor):
             # Non-streaming operations
             resp = await self.process_request(v, workspace)
 
-            await self.librarian_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
@@ -532,7 +542,7 @@ class Processor(WorkspaceProcessor):
                 ),
             )
 
-            await self.librarian_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
@@ -545,7 +555,7 @@ class Processor(WorkspaceProcessor):
                 ),
             )
 
-            await self.librarian_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
@@ -576,9 +586,11 @@ class Processor(WorkspaceProcessor):
 
         logger.info(f"Handling collection request {id}...")
 
+        producer = self.workspace_consumers[workspace]["collection-response"]
+
         try:
             resp = await self.process_collection_request(v, workspace)
-            await self.collection_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
         except RequestError as e:
@@ -589,7 +601,7 @@ class Processor(WorkspaceProcessor):
                 ),
                 timestamp=datetime.now().isoformat()
             )
-            await self.collection_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
         except Exception as e:
@@ -600,7 +612,7 @@ class Processor(WorkspaceProcessor):
                 ),
                 timestamp=datetime.now().isoformat()
             )
-            await self.collection_response_producer.send(
+            await producer.send(
                 resp, properties={"id": id}
             )
 
