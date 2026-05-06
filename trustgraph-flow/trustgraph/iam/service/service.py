@@ -151,7 +151,7 @@ class Processor(AsyncProcessor):
             keyspace=keyspace,
             bootstrap_mode=self.bootstrap_mode,
             bootstrap_token=self.bootstrap_token,
-            on_workspace_created=self._announce_workspace_created,
+            on_workspace_created=self._ensure_workspace_registered,
             on_workspace_deleted=self._announce_workspace_deleted,
         )
 
@@ -218,20 +218,14 @@ class Processor(AsyncProcessor):
         finally:
             await client.stop()
 
-    async def _announce_workspace_created(self, workspace_id):
-        try:
-            await self._config_put(
-                "__workspaces__", "workspace", workspace_id,
-                '{"enabled": true}',
-            )
-            logger.info(
-                f"Announced workspace creation: {workspace_id}"
-            )
-        except Exception as e:
-            logger.error(
-                f"Failed to announce workspace creation "
-                f"{workspace_id}: {e}", exc_info=True,
-            )
+    async def _ensure_workspace_registered(self, workspace_id):
+        await self._config_put(
+            "__workspaces__", "workspace", workspace_id,
+            '{"enabled": true}',
+        )
+        logger.info(
+            f"Registered workspace in config: {workspace_id}"
+        )
 
     async def _announce_workspace_deleted(self, workspace_id):
         try:
