@@ -171,14 +171,16 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.llm_service.LlmService.__init__')
     async def test_processor_initialization_without_api_key(self, mock_llm_init, mock_async_init, mock_openai_class):
-        """Test processor initialization without API key (should fail)"""
+        """Test processor initialization without API key uses placeholder"""
         # Arrange
+        mock_openai_client = MagicMock()
+        mock_openai_class.return_value = mock_openai_client
         mock_async_init.return_value = None
         mock_llm_init.return_value = None
 
         config = {
             'model': 'gpt-3.5-turbo',
-            'api_key': None,  # No API key provided
+            'api_key': None,
             'url': 'https://api.openai.com/v1',
             'temperature': 0.0,
             'max_output': 4096,
@@ -187,9 +189,10 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
             'id': 'test-processor'
         }
 
-        # Act & Assert
-        with pytest.raises(RuntimeError, match="OpenAI API key not specified"):
-            processor = Processor(**config)
+        processor = Processor(**config)
+        mock_openai_class.assert_called_once_with(
+            base_url='https://api.openai.com/v1', api_key='not-set'
+        )
 
     @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')

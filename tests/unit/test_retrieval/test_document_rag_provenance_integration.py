@@ -105,7 +105,7 @@ def build_mock_clients():
     ]
 
     # 4. Chunk content
-    async def mock_fetch(chunk_id, user):
+    async def mock_fetch(chunk_id):
         return {
             CHUNK_A: CHUNK_A_CONTENT,
             CHUNK_B: CHUNK_B_CONTENT,

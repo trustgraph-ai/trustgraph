@@ -122,7 +122,7 @@ class Query:
         for match in chunk_matches:
             if match.chunk_id:
                 try:
-                    content = await self.rag.fetch_chunk(match.chunk_id, self.workspace)
+                    content = await self.rag.fetch_chunk(match.chunk_id)
                     docs.append(content)
                     chunk_ids.append(match.chunk_id)
                 except Exception as e:
