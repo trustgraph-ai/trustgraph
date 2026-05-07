@@ -418,14 +418,18 @@ class Processor(AsyncProcessor):
             self.pubsub, q, schema=schema
         )
 
-        await pub.start()
+        try:
+            await pub.start()
 
-        # FIXME: Time wait kludge?
-        await asyncio.sleep(1)
+            # FIXME: Time wait kludge?
+            # This sleep may be compensating for async startup timing in the
+            # underlying pubsub producer. Further investigation is needed to
+            # determine if it can be removed.
+            await asyncio.sleep(1)
 
-        await pub.send(None, doc)
-
-        await pub.stop()
+            await pub.send(None, doc)
+        finally:
+            await pub.stop()
 
         logger.debug("Document submitted")
 
