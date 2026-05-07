@@ -23,7 +23,7 @@ class Processor(FlowProcessor):
         id = params.get("id")
 
         # Use helper to resolve configuration
-        hosts, username, password, keyspace = resolve_cassandra_config(
+        hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=params.get("cassandra_host"),
             username=params.get("cassandra_username"),
             password=params.get("cassandra_password"),
@@ -59,6 +59,7 @@ class Processor(FlowProcessor):
             cassandra_username = username,
             cassandra_password = password,
             keyspace = keyspace,
+            replication_factor = replication_factor,
         )
 
     async def on_triples(self, msg, consumer, flow):

@@ -21,7 +21,8 @@ def get_cassandra_defaults() -> dict:
         'host': os.getenv('CASSANDRA_HOST', 'cassandra'),
         'username': os.getenv('CASSANDRA_USERNAME'),
         'password': os.getenv('CASSANDRA_PASSWORD'),
-        'keyspace': os.getenv('CASSANDRA_KEYSPACE')
+        'keyspace': os.getenv('CASSANDRA_KEYSPACE'),
+        'replication_factor': int(os.getenv('CASSANDRA_REPLICATION_FACTOR', '1'))
     }
 
 
@@ -85,6 +86,17 @@ def add_cassandra_args(parser: argparse.ArgumentParser) -> None:
         help=keyspace_help
     )
 
+    replication_factor_help = f"Cassandra keyspace replication factor (default: {defaults['replication_factor']})"
+    if 'CASSANDRA_REPLICATION_FACTOR' in os.environ:
+        replication_factor_help += " [from CASSANDRA_REPLICATION_FACTOR]"
+
+    parser.add_argument(
+        '--cassandra-replication-factor',
+        type=int,
+        default=defaults['replication_factor'],
+        help=replication_factor_help
+    )
+
 
 def resolve_cassandra_config(
     args: Optional[Any] = None,
@@ -92,7 +104,7 @@ def resolve_cassandra_config(
     username: Optional[str] = None,
     password: Optional[str] = None,
     default_keyspace: Optional[str] = None
-) -> Tuple[List[str], Optional[str], Optional[str], Optional[str]]:
+) -> Tuple[List[str], Optional[str], Optional[str], Optional[str], int]:
     """
     Resolve Cassandra configuration from various sources.
 
@@ -100,22 +112,24 @@ def resolve_cassandra_config(
     Converts host string to list format for Cassandra driver.
 
     Args:
-        args: Optional argparse namespace with cassandra_host, cassandra_username, cassandra_password, cassandra_keyspace
+        args: Optional argparse namespace with cassandra_host, cassandra_username, cassandra_password, cassandra_keyspace, cassandra_replication_factor
         host: Optional explicit host parameter (overrides args)
         username: Optional explicit username parameter (overrides args)
         password: Optional explicit password parameter (overrides args)
         default_keyspace: Optional default keyspace if not specified elsewhere
 
     Returns:
-        tuple: (hosts_list, username, password, keyspace)
+        tuple: (hosts_list, username, password, keyspace, replication_factor)
     """
     # If args provided, extract values
     keyspace = None
+    replication_factor = 1
     if args is not None:
         host = host or getattr(args, 'cassandra_host', None)
         username = username or getattr(args, 'cassandra_username', None)
         password = password or getattr(args, 'cassandra_password', None)
         keyspace = getattr(args, 'cassandra_keyspace', None)
+        replication_factor = getattr(args, 'cassandra_replication_factor', 1)
 
     # Apply defaults if still None
     defaults = get_cassandra_defaults()
@@ -123,6 +137,7 @@ def resolve_cassandra_config(
     username = username or defaults['username']
     password = password or defaults['password']
     keyspace = keyspace or defaults['keyspace'] or default_keyspace
+    replication_factor = replication_factor or defaults['replication_factor']
 
     # Convert host string to list
     if isinstance(host, str):
@@ -130,7 +145,7 @@ def resolve_cassandra_config(
     else:
         hosts = host
 
-    return hosts, username, password, keyspace
+    return hosts, username, password, keyspace, replication_factor
 
 
 def get_cassandra_config_from_params(

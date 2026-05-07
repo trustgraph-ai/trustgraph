@@ -245,9 +245,11 @@ def _sign_jwt(kid, private_pem, claims):
 class IamService:
 
     def __init__(self, host, username, password, keyspace,
-                 bootstrap_mode, bootstrap_token=None):
+                 bootstrap_mode, bootstrap_token=None,
+                 replication_factor=1):
         self.table_store = IamTableStore(
             host, username, password, keyspace,
+            replication_factor,
         )
         # bootstrap_mode: "token" or "bootstrap".  In "token" mode the
         # service auto-seeds on first start using the provided

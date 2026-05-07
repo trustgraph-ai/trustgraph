@@ -28,6 +28,7 @@ class Librarian:
             bucket_name, keyspace, load_document,
             object_store_use_ssl=False, object_store_region=None,
             min_chunk_size=1,  # Default: no minimum (for Garage)
+            replication_factor=1,
     ):
 
         self.blob_store = BlobStore(
@@ -36,7 +37,8 @@ class Librarian:
         )
 
         self.table_store = LibraryTableStore(
-            cassandra_host, cassandra_username, cassandra_password, keyspace
+            cassandra_host, cassandra_username, cassandra_password, keyspace,
+            replication_factor
         )
 
         self.load_document = load_document

@@ -36,9 +36,11 @@ class KnowledgeTableStore:
     def __init__(
             self,
             cassandra_host, cassandra_username, cassandra_password, keyspace,
+            replication_factor=1,
     ):
 
         self.keyspace = keyspace
+        self.replication_factor = replication_factor
 
         logger.info("Connecting to Cassandra...")
 
@@ -73,12 +75,11 @@ class KnowledgeTableStore:
 
         logger.debug("Keyspace...")
         
-        # FIXME: Replication factor should be configurable
         self.cassandra.execute(f"""
             create keyspace if not exists {self.keyspace}
                 with replication = {{ 
                    'class' : 'SimpleStrategy', 
-                   'replication_factor' : 1 
+                   'replication_factor' : {self.replication_factor} 
                 }};
         """);
 
