@@ -40,9 +40,8 @@ jobs:
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-  build-platform-image:
-
-    name: Build ${{ matrix.container }} (${{ matrix.platform }})
+  build-base:
+    name: Build base (${{ matrix.platform }})
     permissions:
       contents: write
       id-token: write
@@ -50,59 +49,58 @@ jobs:
       name: release
     strategy:
       matrix:
-        container:
-          - base
-          - flow
-          - bedrock
-          - vertexai
-          - hf
-          - ocr
-          - unstructured
-          - mcp
-        platform:
-          - amd64
-          - arm64
+        platform: [amd64, arm64]
         include:
           - platform: amd64
             runner: ubuntu-24.04
           - platform: arm64
             runner: ubuntu-24.04-arm
-
     runs-on: ${{ matrix.runner }}
-
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: "Free up some disk space"
+      - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           podman image prune --all --force
           podman builder prune -a -f
-
       - name: Docker Hub token
         run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
-
       - name: Authenticate with Docker hub
         run: make docker-hub-login
-
       - name: Get version
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
-
       - name: Build container
-        run: make platform-${{ matrix.container }}-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
-
+        run: make platform-base-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
       - name: Push container
-        run: make push-platform-${{ matrix.container }}-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+        run: make push-platform-base-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
 
-  combine-manifests:
-
-    name: Combine manifest ${{ matrix.container }}
+  combine-base:
+    name: Combine manifest base
     runs-on: ubuntu-24.04
-    needs: build-platform-image
+    needs: build-base
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-base VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-flow:
+    name: Build flow (${{ matrix.platform }})
     permissions:
       contents: write
       id-token: write
@@ -110,30 +108,406 @@ jobs:
       name: release
     strategy:
       matrix:
-        container:
-          - base
-          - flow
-          - bedrock
-          - vertexai
-          - hf
-          - ocr
-          - unstructured
-          - mcp
-
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
-
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
       - name: Docker Hub token
         run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
-
       - name: Authenticate with Docker hub
         run: make docker-hub-login
-
       - name: Get version
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-flow-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-flow-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
 
+  combine-flow:
+    name: Combine manifest flow
+    runs-on: ubuntu-24.04
+    needs: build-flow
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
       - name: Combine and push manifest
-        run: make combine-manifest-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}
+        run: make combine-manifest-flow VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-bedrock:
+    name: Build bedrock (${{ matrix.platform }})
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-bedrock-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-bedrock-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+
+  combine-bedrock:
+    name: Combine manifest bedrock
+    runs-on: ubuntu-24.04
+    needs: build-bedrock
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-bedrock VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-vertexai:
+    name: Build vertexai (${{ matrix.platform }})
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-vertexai-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-vertexai-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+
+  combine-vertexai:
+    name: Combine manifest vertexai
+    runs-on: ubuntu-24.04
+    needs: build-vertexai
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-vertexai VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-hf:
+    name: Build hf (${{ matrix.platform }})
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-hf-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-hf-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+
+  combine-hf:
+    name: Combine manifest hf
+    runs-on: ubuntu-24.04
+    needs: build-hf
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-hf VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-ocr:
+    name: Build ocr (${{ matrix.platform }})
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-ocr-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-ocr-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+
+  combine-ocr:
+    name: Combine manifest ocr
+    runs-on: ubuntu-24.04
+    needs: build-ocr
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-ocr VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-unstructured:
+    name: Build unstructured (${{ matrix.platform }})
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-unstructured-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-unstructured-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+
+  combine-unstructured:
+    name: Combine manifest unstructured
+    runs-on: ubuntu-24.04
+    needs: build-unstructured
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-unstructured VERSION=${{ steps.version.outputs.VERSION }}
+
+  build-mcp:
+    name: Build mcp (${{ matrix.platform }})
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-24.04
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          podman image prune --all --force
+          podman builder prune -a -f
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Build container
+        run: make platform-mcp-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container
+        run: make push-platform-mcp-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
+
+  combine-mcp:
+    name: Combine manifest mcp
+    runs-on: ubuntu-24.04
+    needs: build-mcp
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Combine and push manifest
+        run: make combine-manifest-mcp VERSION=${{ steps.version.outputs.VERSION }}
