@@ -151,7 +151,7 @@ def resolve_cassandra_config(
 def get_cassandra_config_from_params(
     params: dict,
     default_keyspace: Optional[str] = None
-) -> Tuple[List[str], Optional[str], Optional[str], Optional[str]]:
+) -> Tuple[List[str], Optional[str], Optional[str], Optional[str], int]:
     """
     Extract and resolve Cassandra configuration from a parameters dictionary.
 
@@ -160,14 +160,12 @@ def get_cassandra_config_from_params(
         default_keyspace: Optional default keyspace if not specified in params
 
     Returns:
-        tuple: (hosts_list, username, password, keyspace)
+        tuple: (hosts_list, username, password, keyspace, replication_factor)
     """
-    # Get Cassandra parameters
     host = params.get('cassandra_host')
     username = params.get('cassandra_username')
     password = params.get('cassandra_password')
 
-    # Use resolve function to handle defaults and list conversion
     return resolve_cassandra_config(
         host=host,
         username=username,

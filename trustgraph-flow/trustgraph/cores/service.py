@@ -56,7 +56,7 @@ class Processor(WorkspaceProcessor):
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
 
-        hosts, username, password, keyspace = resolve_cassandra_config(
+        hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
@@ -83,6 +83,7 @@ class Processor(WorkspaceProcessor):
             cassandra_password = self.cassandra_password,
             keyspace = keyspace,
             flow_config = self,
+            replication_factor = replication_factor,
         )
 
         self.register_config_handler(self.on_knowledge_config, types=["flow"])

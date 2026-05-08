@@ -79,7 +79,7 @@ class Processor(AsyncProcessor):
         cassandra_password = params.get("cassandra_password")
 
         # Resolve configuration with environment variable fallback
-        hosts, username, password, keyspace = resolve_cassandra_config(
+        hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
@@ -147,6 +147,7 @@ class Processor(AsyncProcessor):
             username = self.cassandra_username,
             password = self.cassandra_password,
             keyspace = keyspace,
+            replication_factor = replication_factor,
             push = self.push
         )
 

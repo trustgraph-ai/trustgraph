@@ -117,7 +117,7 @@ class Processor(WorkspaceProcessor):
         cassandra_password = params.get("cassandra_password")
 
         # Resolve configuration with environment variable fallback
-        hosts, username, password, keyspace = resolve_cassandra_config(
+        hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
@@ -179,6 +179,7 @@ class Processor(WorkspaceProcessor):
             object_store_secret_key = object_store_secret_key,
             bucket_name = bucket_name,
             keyspace = keyspace,
+            replication_factor = replication_factor,
             load_document = self.load_document,
             object_store_use_ssl = object_store_use_ssl,
             object_store_region = object_store_region,
