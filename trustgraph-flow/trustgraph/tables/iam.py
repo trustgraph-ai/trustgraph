@@ -28,8 +28,10 @@ class IamTableStore:
             self,
             cassandra_host, cassandra_username, cassandra_password,
             keyspace,
+            replication_factor=1,
     ):
         self.keyspace = keyspace
+        self.replication_factor = replication_factor
 
         logger.info("IAM: connecting to Cassandra...")
 
@@ -57,12 +59,11 @@ class IamTableStore:
         self._prepare_statements()
 
     def _ensure_schema(self):
-        # FIXME: Replication factor should be configurable.
         self.cassandra.execute(f"""
             create keyspace if not exists {self.keyspace}
                 with replication = {{
                     'class' : 'SimpleStrategy',
-                    'replication_factor' : 1
+                    'replication_factor' : {self.replication_factor}
                 }};
         """)
         self.cassandra.set_keyspace(self.keyspace)

@@ -47,7 +47,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         cassandra_password = params.get("cassandra_password")
 
         # Resolve configuration with environment variable fallback
-        hosts, username, password, keyspace = resolve_cassandra_config(
+        hosts, username, password, keyspace, _ = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password

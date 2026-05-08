@@ -96,7 +96,7 @@ class Processor(AsyncProcessor):
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
 
-        hosts, username, password, keyspace = resolve_cassandra_config(
+        hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
@@ -149,6 +149,7 @@ class Processor(AsyncProcessor):
             username=self.cassandra_username,
             password=self.cassandra_password,
             keyspace=keyspace,
+            replication_factor=replication_factor,
             bootstrap_mode=self.bootstrap_mode,
             bootstrap_token=self.bootstrap_token,
             on_workspace_created=self._ensure_workspace_registered,

@@ -218,7 +218,8 @@ class TestKgStoreConfiguration:
                 cassandra_host=['kg-env-host1', 'kg-env-host2', 'kg-env-host3'],
                 cassandra_username='kg-env-user',
                 cassandra_password='kg-env-pass',
-                keyspace='knowledge'
+                keyspace='knowledge',
+                replication_factor=1,
             )
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
@@ -239,7 +240,8 @@ class TestKgStoreConfiguration:
             cassandra_host=['explicit-host'],
             cassandra_username='explicit-user',
             cassandra_password='explicit-pass',
-            keyspace='knowledge'
+            keyspace='knowledge',
+            replication_factor=1,
         )
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
@@ -260,7 +262,8 @@ class TestKgStoreConfiguration:
             cassandra_host=['compat-host'],
             cassandra_username=None,  # Should be None since cassandra_user is ignored
             cassandra_password='compat-pass',
-            keyspace='knowledge'
+            keyspace='knowledge',
+            replication_factor=1,
         )
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
@@ -277,7 +280,8 @@ class TestKgStoreConfiguration:
                 cassandra_host=['cassandra'],
                 cassandra_username=None,
                 cassandra_password=None,
-                keyspace='knowledge'
+                keyspace='knowledge',
+                replication_factor=1,
             )
 
 
@@ -425,5 +429,6 @@ class TestConfigurationPriorityIntegration:
                 cassandra_host=['param-host'],  # From parameter
                 cassandra_username='env-user',      # From environment
                 cassandra_password='env-pass',  # From environment
-                keyspace='knowledge'
+                keyspace='knowledge',
+                replication_factor=1,
             )
