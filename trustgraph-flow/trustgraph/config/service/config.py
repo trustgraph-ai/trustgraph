@@ -15,13 +15,14 @@ TEMPLATE_WORKSPACE = "__template__"
 
 class Configuration:
 
-    def __init__(self, push, host, username, password, keyspace):
+    def __init__(self, push, host, username, password, keyspace,
+                 replication_factor=1):
 
         # External function to respond to update
         self.push = push
 
         self.table_store = ConfigTableStore(
-            host, username, password, keyspace
+            host, username, password, keyspace, replication_factor
         )
 
     async def inc_version(self):

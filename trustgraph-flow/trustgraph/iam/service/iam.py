@@ -246,9 +246,11 @@ class IamService:
 
     def __init__(self, host, username, password, keyspace,
                  bootstrap_mode, bootstrap_token=None,
-                 on_workspace_created=None, on_workspace_deleted=None):
+                 on_workspace_created=None, on_workspace_deleted=None,
+                 replication_factor=1):
         self.table_store = IamTableStore(
             host, username, password, keyspace,
+            replication_factor,
         )
         # bootstrap_mode: "token" or "bootstrap".  In "token" mode the
         # service auto-seeds on first start using the provided
