@@ -7,6 +7,7 @@ import logging
 import time
 import asyncio
 import inspect
+import re
 import threading
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field
@@ -275,6 +276,23 @@ class MetricsCollector:
         label_str = ','.join(f"{k}={v}" for k, v in sorted(labels.items()))
         return f"{name}{{{label_str}}}"
 
+    @staticmethod
+    def _extract_label(metric_key: str, label: str) -> Optional[str]:
+        """Extract a label value from a metric key built by _build_key.
+
+        Metric keys follow the format: name{key1=val1,key2=val2}
+        Returns None if the label is not found.
+        """
+        prefix = f"{label}="
+        if prefix not in metric_key:
+            return None
+        # Find the label= then get value until , or }
+        after_label = metric_key.split(prefix, 1)[1]
+        for delim in (',', '}'):
+            if delim in after_label:
+                return after_label.split(delim, 1)[0]
+        return after_label
+
 
 class PerformanceMonitor:
     """Monitors system performance and component health."""
@@ -474,8 +492,8 @@ class PerformanceMonitor:
         # Cache performance
         cache_types = set()
         for metric_name in self.metrics_collector.counters.keys():
-            if 'cache_type=' in metric_name:
-                cache_type = metric_name.split('cache_type=')[1].split(',')[0].split('}')[0]
+            cache_type = self.metrics_collector._extract_label(metric_name, 'cache_type')
+            if cache_type is not None:
                 cache_types.add(cache_type)
 
         for cache_type in cache_types:
