@@ -135,13 +135,19 @@ class DispatcherWrapper:
 class DispatcherManager:
 
     def __init__(self, backend, config_receiver, auth,
-                 prefix="api-gateway", queue_overrides=None):
+                 prefix="api-gateway", queue_overrides=None,
+                 timeout=120):
         """
         ``auth`` is required.  It flows into the Mux for first-frame
         WebSocket authentication and into downstream dispatcher
         construction.  There is no permissive default — constructing
         a DispatcherManager without an authenticator would be a
         silent downgrade to no-auth on the socket path.
+
+        ``timeout`` is the per-request timeout (seconds) applied to
+        every dispatcher this manager constructs (global services
+        and per-flow request/response paths).  The api-gateway CLI
+        flag ``--timeout`` (default 600s) is plumbed in here.
         """
         if auth is None:
             raise ValueError(
@@ -162,6 +168,10 @@ class DispatcherManager:
         # Store queue overrides for global services
         # Format: {"config": {"request": "...", "response": "..."}, ...}
         self.queue_overrides = queue_overrides or {}
+
+        # Per-request timeout applied to all dispatchers; sourced
+        # from the api-gateway --timeout flag.
+        self.timeout = timeout
 
         # Flows keyed by (workspace, flow_id)
         self.flows = {}
@@ -291,7 +301,7 @@ class DispatcherManager:
 
                     dispatcher = global_dispatchers[kind](
                         backend = self.backend,
-                        timeout = 120,
+                        timeout = self.timeout,
                         consumer = consumer_name,
                         subscriber = consumer_name,
                         request_queue = request_queue,
@@ -448,7 +458,7 @@ class DispatcherManager:
                             backend = self.backend,
                             request_queue = qconfig["request"],
                             response_queue = qconfig["response"],
-                            timeout = 120,
+                            timeout = self.timeout,
                             consumer = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                             subscriber = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                         )

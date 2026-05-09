@@ -119,6 +119,7 @@ class Api:
             prefix = "gateway",
             queue_overrides = queue_overrides,
             auth = self.auth,
+            timeout = self.timeout,
         )
 
         self.endpoint_manager = EndpointManager(
