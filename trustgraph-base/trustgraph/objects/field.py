@@ -29,8 +29,8 @@ class Field:
 
         parts = defn.split(":")
 
-        if len(parts) == 0:
-            raise RuntimeError("Field definition cannot be empty")
+        if len(parts) > 5:
+            raise RuntimeError("Too many fields in definition")
 
         if len(parts) == 1: parts.append("string")
         if len(parts) == 2: parts.append("0")
@@ -43,7 +43,7 @@ class Field:
 
         try:
             type = FieldType[type.upper()]
-        except:
+        except KeyError:
             raise RuntimeError(f"Field type {type} is not known")
 
         pri = True if pri == "pri" else False
