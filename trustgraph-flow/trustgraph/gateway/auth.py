@@ -141,6 +141,12 @@ class IamAuth:
         self._authz_cache: dict[str, tuple[bool, float]] = {}
         self._authz_cache_lock = asyncio.Lock()
 
+        # Known workspaces, maintained by the config receiver.
+        # enforce_workspace checks this set to reject requests for
+        # non-existent workspaces before routing to a queue that
+        # has no consumer.
+        self.known_workspaces: set[str] = set()
+
     # ------------------------------------------------------------------
     # Short-lived client helper.  Mirrors the pattern used by the
     # bootstrap framework and AsyncProcessor: a fresh uuid suffix per

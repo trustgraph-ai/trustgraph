@@ -95,7 +95,7 @@ class Processor(ChunkingService):
         logger.info(f"Chunking document {v.metadata.id}...")
 
         # Get text content (fetches from librarian if needed)
-        text = await self.get_document_text(v, flow.workspace)
+        text = await self.get_document_text(v, flow)
 
         # Extract chunk parameters from flow (allows runtime override)
         chunk_size, chunk_overlap = await self.chunk_document(
@@ -141,10 +141,9 @@ class Processor(ChunkingService):
             chunk_length = len(chunk.page_content)
 
             # Save chunk to librarian as child document
-            await self.librarian.save_child_document(
+            await flow.librarian.save_child_document(
                 doc_id=chunk_doc_id,
                 parent_id=parent_doc_id,
-                workspace=flow.workspace,
                 content=chunk_content,
                 document_type="chunk",
                 title=f"Chunk {chunk_index}",

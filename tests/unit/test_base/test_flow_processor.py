@@ -233,7 +233,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         mock_flow2.start.assert_called_once()
 
     @with_async_processor_patches
-    @patch('trustgraph.base.async_processor.AsyncProcessor.start')
+    @patch('trustgraph.base.workspace_processor.WorkspaceProcessor.start')
     async def test_start_calls_parent(self, mock_parent_start, *mocks):
         """Test that start() calls parent start method"""
         mock_parent_start.return_value = None

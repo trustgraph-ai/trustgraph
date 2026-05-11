@@ -17,6 +17,7 @@ dependencies = [
     "pika",
     "confluent-kafka",
     "pyyaml",
+    "websockets",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

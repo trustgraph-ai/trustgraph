@@ -177,8 +177,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
-        # Mock save_child_document to avoid librarian producer interactions
-        processor.librarian.save_child_document = AsyncMock(return_value="chunk-id")
+        # Mock save_child_document on flow to avoid librarian producer interactions
 
         # Mock message with TextDocument
         mock_message = MagicMock()
@@ -204,6 +203,7 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
             "output": mock_producer,
             "triples": mock_triples_producer,
         }.get(key)
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="chunk-id")
 
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)

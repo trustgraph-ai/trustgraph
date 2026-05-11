@@ -71,6 +71,11 @@ class ConfigResponse:
     error: Error | None = None
 
 @dataclass
+class WorkspaceChanges:
+    created: list[str] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+
+@dataclass
 class ConfigPush:
     version: int = 0
 
@@ -79,6 +84,10 @@ class ConfigPush:
     # workspaces that need refreshing.
     # e.g. {"prompt": ["workspace-a", "workspace-b"], "schema": ["workspace-a"]}
     changes: dict[str, list[str]] = field(default_factory=dict)
+
+    # Workspace lifecycle events. Populated when a workspace entry
+    # is created or deleted in the __workspaces__ config namespace.
+    workspace_changes: WorkspaceChanges | None = None
 
 config_request_queue = queue('config', cls='request')
 config_response_queue = queue('config', cls='response')

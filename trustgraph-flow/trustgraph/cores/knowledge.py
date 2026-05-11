@@ -29,12 +29,12 @@ class KnowledgeManager:
         self.background_task = None
         self.flow_config = flow_config
 
-    async def delete_kg_core(self, request, respond):
+    async def delete_kg_core(self, request, respond, workspace):
 
         logger.info("Deleting knowledge core...")
 
         await self.table_store.delete_kg_core(
-            request.workspace, request.id
+            workspace, request.id
         )
 
         await respond(
@@ -47,7 +47,7 @@ class KnowledgeManager:
             )
         )
 
-    async def get_kg_core(self, request, respond):
+    async def get_kg_core(self, request, respond, workspace):
 
         logger.info("Getting knowledge core...")
 
@@ -62,9 +62,8 @@ class KnowledgeManager:
                 )
             )
 
-        # Remove doc table row
         await self.table_store.get_triples(
-            request.workspace,
+            workspace,
             request.id,
             publish_triples,
         )
@@ -80,9 +79,8 @@ class KnowledgeManager:
                 )
             )
 
-        # Remove doc table row
         await self.table_store.get_graph_embeddings(
-            request.workspace,
+            workspace,
             request.id,
             publish_ge,
         )
@@ -99,9 +97,9 @@ class KnowledgeManager:
             )
         )
 
-    async def list_kg_cores(self, request, respond):
+    async def list_kg_cores(self, request, respond, workspace):
 
-        ids = await self.table_store.list_kg_cores(request.workspace)
+        ids = await self.table_store.list_kg_cores(workspace)
 
         await respond(
             KnowledgeResponse(
@@ -113,9 +111,7 @@ class KnowledgeManager:
             )
         )
 
-    async def put_kg_core(self, request, respond):
-
-        workspace = request.workspace
+    async def put_kg_core(self, request, respond, workspace):
 
         if request.triples:
             await self.table_store.add_triples(workspace, request.triples)
@@ -135,20 +131,18 @@ class KnowledgeManager:
             )
         )
 
-    async def load_kg_core(self, request, respond):
+    async def load_kg_core(self, request, respond, workspace):
 
         if self.background_task is None:
             self.background_task = asyncio.create_task(
                 self.core_loader()
             )
-            # Wait for it to start (yuck)
-#            await asyncio.sleep(0.5)
 
-        await self.loader_queue.put((request, respond))
+        await self.loader_queue.put((request, respond, workspace))
 
         # Not sending a response, the loader thread can do that
 
-    async def unload_kg_core(self, request, respond):
+    async def unload_kg_core(self, request, respond, workspace):
 
         await respond(
             KnowledgeResponse(
@@ -169,7 +163,7 @@ class KnowledgeManager:
         while True:
 
             logger.debug("Waiting for next load...")
-            request, respond = await self.loader_queue.get()
+            request, respond, workspace = await self.loader_queue.get()
 
             logger.info(f"Loading knowledge: {request.id}")
 
@@ -181,7 +175,6 @@ class KnowledgeManager:
                 if request.flow is None:
                     raise RuntimeError("Flow ID must be specified")
 
-                workspace = request.workspace
                 ws_flows = self.flow_config.flows.get(workspace, {})
                 if request.flow not in ws_flows:
                     raise RuntimeError(
@@ -263,9 +256,8 @@ class KnowledgeManager:
 
                 logger.debug("Publishing triples...")
 
-                # Remove doc table row
                 await self.table_store.get_triples(
-                    request.workspace,
+                    workspace,
                     request.id,
                     publish_triples,
                 )
@@ -278,9 +270,8 @@ class KnowledgeManager:
 
                 logger.debug("Publishing graph embeddings...")
 
-                # Remove doc table row
                 await self.table_store.get_graph_embeddings(
-                    request.workspace,
+                    workspace,
                     request.id,
                     publish_ge,
                 )

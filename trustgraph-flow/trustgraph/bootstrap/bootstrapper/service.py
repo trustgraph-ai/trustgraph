@@ -28,6 +28,10 @@ from trustgraph.schema import (
     FlowRequest, FlowResponse,
     flow_request_queue, flow_response_queue,
 )
+from trustgraph.schema import (
+    IamRequest, IamResponse,
+    iam_request_queue, iam_response_queue,
+)
 
 from .. base import Initialiser, InitContext
 
@@ -178,34 +182,46 @@ class Processor(AsyncProcessor):
             ),
         )
 
-    def _make_flow_client(self):
+    def _make_flow_client(self, workspace):
         rr_id = str(uuid.uuid4())
         return RequestResponse(
             backend=self.pubsub_backend,
             subscription=f"{self.id}--flow--{rr_id}",
             consumer_name=self.id,
-            request_topic=flow_request_queue,
+            request_topic=f"{flow_request_queue}:{workspace}",
             request_schema=FlowRequest,
             request_metrics=ProducerMetrics(
                 processor=self.id, flow=None, name="flow-request",
             ),
-            response_topic=flow_response_queue,
+            response_topic=f"{flow_response_queue}:{workspace}",
             response_schema=FlowResponse,
             response_metrics=SubscriberMetrics(
                 processor=self.id, flow=None, name="flow-response",
             ),
         )
 
+    def _make_iam_client(self):
+        rr_id = str(uuid.uuid4())
+        return RequestResponse(
+            backend=self.pubsub_backend,
+            subscription=f"{self.id}--iam--{rr_id}",
+            consumer_name=self.id,
+            request_topic=iam_request_queue,
+            request_schema=IamRequest,
+            request_metrics=ProducerMetrics(
+                processor=self.id, flow=None, name="iam-request",
+            ),
+            response_topic=iam_response_queue,
+            response_schema=IamResponse,
+            response_metrics=SubscriberMetrics(
+                processor=self.id, flow=None, name="iam-response",
+            ),
+        )
+
     async def _open_clients(self):
         config = self._make_config_client()
-        flow = self._make_flow_client()
         await config.start()
-        try:
-            await flow.start()
-        except Exception:
-            await self._safe_stop(config)
-            raise
-        return config, flow
+        return config
 
     async def _safe_stop(self, client):
         try:
@@ -217,32 +233,12 @@ class Processor(AsyncProcessor):
     # Service gate.
     # ------------------------------------------------------------------
 
-    async def _gate_ready(self, config, flow):
+    async def _gate_ready(self, config):
         try:
             await config.keys(SYSTEM_WORKSPACE, INIT_STATE_TYPE)
         except Exception as e:
             logger.info(
                 f"Gate: config-svc not ready ({type(e).__name__}: {e})"
-            )
-            return False
-
-        try:
-            resp = await flow.request(
-                FlowRequest(
-                    operation="list-blueprints",
-                    workspace=SYSTEM_WORKSPACE,
-                ),
-                timeout=5,
-            )
-            if resp.error:
-                logger.info(
-                    f"Gate: flow-svc error: "
-                    f"{resp.error.type}: {resp.error.message}"
-                )
-                return False
-        except Exception as e:
-            logger.info(
-                f"Gate: flow-svc not ready ({type(e).__name__}: {e})"
             )
             return False
 
@@ -271,7 +267,7 @@ class Processor(AsyncProcessor):
     # Per-spec execution.
     # ------------------------------------------------------------------
 
-    async def _run_spec(self, spec, config, flow):
+    async def _run_spec(self, spec, config):
         """Run a single initialiser spec.
 
         Returns one of:
@@ -298,7 +294,8 @@ class Processor(AsyncProcessor):
         child_ctx = InitContext(
             logger=child_logger,
             config=config,
-            flow=flow,
+            make_flow_client=self._make_flow_client,
+            make_iam_client=self._make_iam_client,
         )
 
         child_logger.info(
@@ -340,7 +337,7 @@ class Processor(AsyncProcessor):
             sleep_for = STEADY_INTERVAL
 
             try:
-                config, flow = await self._open_clients()
+                config = await self._open_clients()
             except Exception as e:
                 logger.info(
                     f"Failed to open clients "
@@ -358,11 +355,11 @@ class Processor(AsyncProcessor):
                 pre_results = {}
                 for spec in pre_specs:
                     pre_results[spec.name] = await self._run_spec(
-                        spec, config, flow,
+                        spec, config,
                     )
 
                 # Phase 2: gate.
-                gate_ok = await self._gate_ready(config, flow)
+                gate_ok = await self._gate_ready(config)
 
                 # Phase 3: post-service initialisers, if gate passed.
                 post_results = {}
@@ -373,7 +370,7 @@ class Processor(AsyncProcessor):
                     ]
                     for spec in post_specs:
                         post_results[spec.name] = await self._run_spec(
-                            spec, config, flow,
+                            spec, config,
                         )
 
                 # Cadence selection.
@@ -388,7 +385,6 @@ class Processor(AsyncProcessor):
 
             finally:
                 await self._safe_stop(config)
-                await self._safe_stop(flow)
 
             await asyncio.sleep(sleep_for)
 

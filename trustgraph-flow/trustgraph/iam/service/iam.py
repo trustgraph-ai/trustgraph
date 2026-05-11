@@ -246,6 +246,7 @@ class IamService:
 
     def __init__(self, host, username, password, keyspace,
                  bootstrap_mode, bootstrap_token=None,
+                 on_workspace_created=None, on_workspace_deleted=None,
                  replication_factor=1):
         self.table_store = IamTableStore(
             host, username, password, keyspace,
@@ -268,6 +269,12 @@ class IamService:
             )
         self.bootstrap_mode = bootstrap_mode
         self.bootstrap_token = bootstrap_token
+
+        # Callbacks for workspace lifecycle events.  Called after the
+        # workspace is created/deleted in IAM's own store so that the
+        # processor can announce it via the config service.
+        self._on_workspace_created = on_workspace_created
+        self._on_workspace_deleted = on_workspace_deleted
 
         self._signing_key = None
         self._signing_key_lock = asyncio.Lock()
@@ -425,6 +432,9 @@ class IamService:
             enabled=True,
             created=now,
         )
+
+        if self._on_workspace_created:
+            await self._on_workspace_created(DEFAULT_WORKSPACE)
 
         admin_user_id = str(uuid.uuid4())
         admin_password = secrets.token_urlsafe(32)
@@ -893,19 +903,21 @@ class IamService:
                 "workspace ids beginning with '_' are reserved",
             )
 
+        if self._on_workspace_created:
+            await self._on_workspace_created(v.workspace_record.id)
+
         existing = await self.table_store.get_workspace(
             v.workspace_record.id,
         )
-        if existing is not None:
-            return _err("duplicate", "workspace already exists")
+        if existing is None:
+            now = _now_dt()
+            await self.table_store.put_workspace(
+                id=v.workspace_record.id,
+                name=v.workspace_record.name or v.workspace_record.id,
+                enabled=v.workspace_record.enabled,
+                created=now,
+            )
 
-        now = _now_dt()
-        await self.table_store.put_workspace(
-            id=v.workspace_record.id,
-            name=v.workspace_record.name or v.workspace_record.id,
-            enabled=v.workspace_record.enabled,
-            created=now,
-        )
         row = await self.table_store.get_workspace(v.workspace_record.id)
         return IamResponse(workspace=self._row_to_workspace_record(row))
 
@@ -983,6 +995,9 @@ class IamService:
             key_rows = await self.table_store.list_api_keys_by_user(user_id)
             for kr in key_rows:
                 await self.table_store.delete_api_key(kr[0])
+
+        if self._on_workspace_deleted:
+            await self._on_workspace_deleted(v.workspace_record.id)
 
         return IamResponse()
 

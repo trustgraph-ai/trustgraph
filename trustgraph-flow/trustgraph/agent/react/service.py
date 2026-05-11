@@ -3,7 +3,6 @@ Simple agent infrastructure broadly implements the ReAct flow.
 """
 
 import asyncio
-import base64
 import json
 import re
 import sys
@@ -19,14 +18,10 @@ logger = logging.getLogger(__name__)
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
 from ... base import RowEmbeddingsQueryClientSpec, EmbeddingsClientSpec
-from ... base import ProducerSpec
-from ... base import Consumer, Producer
-from ... base import ConsumerMetrics, ProducerMetrics
+from ... base import ProducerSpec, LibrarianSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 from ... schema import Triples, Metadata
-from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
-from ... schema import librarian_request_queue, librarian_response_queue
 
 # Provenance imports for agent explainability
 from trustgraph.provenance import (
@@ -51,8 +46,6 @@ from . types import Final, Action, Tool, Argument
 
 default_ident = "agent-manager"
 default_max_iterations = 10
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 class Processor(AgentService):
 
@@ -141,112 +134,9 @@ class Processor(AgentService):
             )
         )
 
-        # Librarian client for storing answer content
-        librarian_request_q = params.get(
-            "librarian_request_queue", default_librarian_request_queue
+        self.register_specification(
+            LibrarianSpec()
         )
-        librarian_response_q = params.get(
-            "librarian_response_queue", default_librarian_response_queue
-        )
-
-        librarian_request_metrics = ProducerMetrics(
-            processor=id, flow=None, name="librarian-request"
-        )
-
-        self.librarian_request_producer = Producer(
-            backend=self.pubsub,
-            topic=librarian_request_q,
-            schema=LibrarianRequest,
-            metrics=librarian_request_metrics,
-        )
-
-        librarian_response_metrics = ConsumerMetrics(
-            processor=id, flow=None, name="librarian-response"
-        )
-
-        self.librarian_response_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
-            topic=librarian_response_q,
-            subscriber=f"{id}-librarian",
-            schema=LibrarianResponse,
-            handler=self.on_librarian_response,
-            metrics=librarian_response_metrics,
-        )
-
-        # Pending librarian requests: request_id -> asyncio.Future
-        self.pending_librarian_requests = {}
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian_request_producer.start()
-        await self.librarian_response_consumer.start()
-
-    async def on_librarian_response(self, msg, consumer, flow):
-        """Handle responses from the librarian service."""
-        response = msg.value()
-        request_id = msg.properties().get("id")
-
-        if request_id in self.pending_librarian_requests:
-            future = self.pending_librarian_requests.pop(request_id)
-            future.set_result(response)
-
-    async def save_answer_content(self, doc_id, workspace, content, title=None, timeout=120):
-        """
-        Save answer content to the librarian.
-
-        Args:
-            doc_id: ID for the answer document
-            workspace: Workspace for isolation
-            content: Answer text content
-            title: Optional title
-            timeout: Request timeout in seconds
-
-        Returns:
-            The document ID on success
-        """
-        request_id = str(uuid.uuid4())
-
-        doc_metadata = DocumentMetadata(
-            id=doc_id,
-            workspace=workspace,
-            kind="text/plain",
-            title=title or "Agent Answer",
-            document_type="answer",
-        )
-
-        request = LibrarianRequest(
-            operation="add-document",
-            document_id=doc_id,
-            document_metadata=doc_metadata,
-            content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            workspace=workspace,
-        )
-
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_librarian_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error saving answer: {response.error.type}: {response.error.message}"
-                )
-
-            return doc_id
-
-        except asyncio.TimeoutError:
-            self.pending_librarian_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout saving answer document {doc_id}")
 
     async def on_tools_config(self, workspace, config, version):
 
@@ -611,9 +501,9 @@ class Processor(AgentService):
                 if act_decision.thought:
                     t_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
                     try:
-                        await self.save_answer_content(
+                        await flow.librarian.save_document(
                             doc_id=t_doc_id,
-                            workspace=flow.workspace,
+
                             content=act_decision.thought,
                             title=f"Agent Thought: {act_decision.name}",
                         )
@@ -691,9 +581,9 @@ class Processor(AgentService):
                 if f:
                     answer_doc_id = f"urn:trustgraph:agent:{session_id}/answer"
                     try:
-                        await self.save_answer_content(
+                        await flow.librarian.save_document(
                             doc_id=answer_doc_id,
-                            workspace=flow.workspace,
+
                             content=f,
                             title=f"Agent Answer: {request.question[:50]}...",
                         )
@@ -768,9 +658,8 @@ class Processor(AgentService):
             if act.observation:
                 observation_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
                 try:
-                    await self.save_answer_content(
+                    await flow.librarian.save_document(
                         doc_id=observation_doc_id,
-                        workspace=flow.workspace,
                         content=act.observation,
                         title=f"Agent Observation",
                     )

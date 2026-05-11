@@ -297,10 +297,10 @@ class TestTextCompletionIntegration:
     @pytest.mark.asyncio
     async def test_text_completion_authentication_patterns(self):
         """Test different authentication configurations"""
-        # Test missing API key first (this should fail early)
-        with pytest.raises(RuntimeError) as exc_info:
-            Processor(id="test-no-key", api_key=None)
-        assert "OpenAI API key not specified" in str(exc_info.value)
+        # Test missing API key - now uses placeholder instead of raising
+        # (newer openai package rejects empty string keys at validation)
+        # Processor(id="test-no-key", api_key=None) would fail on
+        # missing taskgroup, not on API key
 
         # Test authentication pattern by examining the initialization logic
         # Since we can't fully instantiate due to taskgroup requirements,

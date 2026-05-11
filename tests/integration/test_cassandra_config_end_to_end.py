@@ -110,7 +110,8 @@ class TestEndToEndConfigurationFlow:
                 cassandra_host=['kg-host1', 'kg-host2', 'kg-host3', 'kg-host4'],
                 cassandra_username='kg-user',
                 cassandra_password='kg-pass',
-                keyspace='knowledge'
+                keyspace='knowledge',
+                replication_factor=1,
             )
 
 
@@ -182,7 +183,8 @@ class TestConfigurationPriorityEndToEnd:
                 cassandra_host=['partial-host'],         # From parameter
                 cassandra_username='fallback-user',      # From environment
                 cassandra_password='fallback-pass',      # From environment
-                keyspace='knowledge'
+                keyspace='knowledge',
+                replication_factor=1,
             )
     
     @pytest.mark.asyncio
@@ -273,7 +275,8 @@ class TestNoBackwardCompatibilityEndToEnd:
             cassandra_host=['legacy-kg-host'],
             cassandra_username=None,  # Should be None since cassandra_user is not recognized
             cassandra_password='legacy-kg-pass',
-            keyspace='knowledge'
+            keyspace='knowledge',
+            replication_factor=1,
         )
     
     @pytest.mark.asyncio
@@ -367,13 +370,13 @@ class TestMultipleHostsHandling:
         from trustgraph.base.cassandra_config import resolve_cassandra_config
         
         # Test various whitespace scenarios
-        hosts1, _, _, _ = resolve_cassandra_config(host='host1, host2 ,  host3')
+        hosts1, _, _, _, _ = resolve_cassandra_config(host='host1, host2 ,  host3')
         assert hosts1 == ['host1', 'host2', 'host3']
         
-        hosts2, _, _, _ = resolve_cassandra_config(host='host1,host2,host3,')
+        hosts2, _, _, _, _ = resolve_cassandra_config(host='host1,host2,host3,')
         assert hosts2 == ['host1', 'host2', 'host3']
         
-        hosts3, _, _, _ = resolve_cassandra_config(host='  host1  ,  host2  ')
+        hosts3, _, _, _, _ = resolve_cassandra_config(host='  host1  ,  host2  ')
         assert hosts3 == ['host1', 'host2']
 
 

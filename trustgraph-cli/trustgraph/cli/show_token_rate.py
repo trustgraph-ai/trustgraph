@@ -3,12 +3,14 @@ Dump out a stream of token rates, input, output and total.  This is averaged
 across the time since tg-show-token-rate is started.
 """
 
+import os
 import requests
 import argparse
 import json
 import time
 
 default_metrics_url = "http://localhost:8088/api/metrics"
+DEFAULT_TOKEN = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 class Collate:
 
@@ -36,16 +38,20 @@ class Collate:
 
         return delta/time, self.total/self.time
 
-def dump_status(metrics_url, number_samples, period):
+def dump_status(metrics_url, number_samples, period, token=None):
 
     input_url = f"{metrics_url}/query?query=input_tokens_total"
     output_url = f"{metrics_url}/query?query=output_tokens_total"
 
-    resp = requests.get(input_url)
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    resp = requests.get(input_url, headers=headers)
     obj = resp.json()
     input = Collate(obj)
 
-    resp = requests.get(output_url)
+    resp = requests.get(output_url, headers=headers)
     obj = resp.json()
     output = Collate(obj)
 
@@ -56,20 +62,20 @@ def dump_status(metrics_url, number_samples, period):
 
         time.sleep(period)
 
-        resp = requests.get(input_url)
+        resp = requests.get(input_url, headers=headers)
         obj = resp.json()
         inr, inl = input.record(obj, period)
 
-        resp = requests.get(output_url)
+        resp = requests.get(output_url, headers=headers)
         obj = resp.json()
         outr, outl = output.record(obj, period)
-        
+
         print(f"{inl:10.1f} {outl:10.1f} {inl+outl:10.1f}")
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-processor-state',
+        prog='tg-show-token-rate',
         description=__doc__,
     )
 
@@ -91,6 +97,12 @@ def main():
         type=int,
         default=100,
         help=f'Metrics period (default: 100)',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=DEFAULT_TOKEN,
+        help=f'Bearer token for authentication (default: TRUSTGRAPH_TOKEN env var)',
     )
 
     args = parser.parse_args()

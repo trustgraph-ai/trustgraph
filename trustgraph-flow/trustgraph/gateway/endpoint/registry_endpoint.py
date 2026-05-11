@@ -20,9 +20,9 @@ import logging
 from aiohttp import web
 
 from .. capabilities import (
-    PUBLIC, AUTHENTICATED, auth_failure,
+    PUBLIC, AUTHENTICATED, auth_failure, workspace_not_found,
 )
-from .. registry import lookup, RequestContext
+from .. registry import lookup, RequestContext, ResourceLevel
 
 logger = logging.getLogger("registry-endpoint")
 logger.setLevel(logging.INFO)
@@ -106,6 +106,15 @@ class RegistryRoutedVariableEndpoint:
             # mirror it back to the body for the verbatim forward.
             if "workspace" in resource:
                 body["workspace"] = resource["workspace"]
+
+            if (
+                op.resource_level in (
+                    ResourceLevel.WORKSPACE, ResourceLevel.FLOW,
+                )
+                and resource.get("workspace")
+                    not in self.auth.known_workspaces
+            ):
+                raise workspace_not_found()
 
         async def responder(x, fin):
             pass

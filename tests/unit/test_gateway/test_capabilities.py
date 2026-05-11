@@ -34,7 +34,7 @@ class _Identity:
         self.source = "api-key"
 
 
-def _allow_auth(identity=None):
+def _allow_auth(identity=None, workspaces=None):
     """Build an Auth double that authenticates to ``identity`` and
     allows every authorise() call."""
     auth = MagicMock()
@@ -42,16 +42,18 @@ def _allow_auth(identity=None):
         return_value=identity or _Identity(),
     )
     auth.authorise = AsyncMock(return_value=None)
+    auth.known_workspaces = workspaces or {"default", "acme"}
     return auth
 
 
-def _deny_auth(identity=None):
+def _deny_auth(identity=None, workspaces=None):
     """Build an Auth double that authenticates but denies authorise."""
     auth = MagicMock()
     auth.authenticate = AsyncMock(
         return_value=identity or _Identity(),
     )
     auth.authorise = AsyncMock(side_effect=access_denied())
+    auth.known_workspaces = workspaces or {"default", "acme"}
     return auth
 
 

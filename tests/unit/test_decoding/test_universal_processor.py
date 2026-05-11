@@ -254,8 +254,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
             "triples": mock_triples_flow,
         }.get(name))
 
-        # Mock save_child_document and magic
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-id")
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-id")
 
         with patch('trustgraph.decoding.universal.processor.magic') as mock_magic:
             mock_magic.from_buffer.return_value = "text/markdown"
@@ -310,7 +309,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
             "triples": mock_triples_flow,
         }.get(name))
 
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-id")
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-id")
 
         with patch('trustgraph.decoding.universal.processor.magic') as mock_magic:
             mock_magic.from_buffer.return_value = "application/pdf"
@@ -361,7 +360,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
             "triples": mock_triples_flow,
         }.get(name))
 
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-id")
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-id")
 
         with patch('trustgraph.decoding.universal.processor.magic') as mock_magic:
             mock_magic.from_buffer.return_value = "application/pdf"
@@ -374,7 +373,7 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert mock_triples_flow.send.call_count == 2
 
         # save_child_document called twice (page + image)
-        assert processor.librarian.save_child_document.call_count == 2
+        assert mock_flow.librarian.save_child_document.call_count == 2
 
     @patch('trustgraph.base.flow_processor.FlowProcessor.add_args')
     def test_add_args(self, mock_parent_add_args):

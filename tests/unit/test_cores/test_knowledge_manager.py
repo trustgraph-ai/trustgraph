@@ -45,7 +45,6 @@ def mock_flow_config():
 def mock_request():
     """Mock knowledge load request."""
     request = Mock()
-    request.workspace = "test-user"
     request.id = "test-doc-id"
     request.collection = "test-collection"
     request.flow = "test-flow"
@@ -131,17 +130,17 @@ class TestKnowledgeManagerLoadCore:
             
             # Start the core loader background task
             knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond)
-            
+            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
             # Wait for background processing
             import asyncio
             await asyncio.sleep(0.1)
-            
+
             # Verify publishers were created and started
             assert mock_publisher_class.call_count == 2
             mock_triples_pub.start.assert_called_once()
             mock_ge_pub.start.assert_called_once()
-            
+
             # Verify triples were sent with correct collection
             mock_triples_pub.send.assert_called_once()
             sent_triples = mock_triples_pub.send.call_args[0][1]
@@ -174,12 +173,12 @@ class TestKnowledgeManagerLoadCore:
             
             # Start the core loader background task
             knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond)
-            
+            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
             # Wait for background processing
             import asyncio
             await asyncio.sleep(0.1)
-            
+
             # Verify graph embeddings were sent with correct collection
             mock_ge_pub.send.assert_called_once()
             sent_ge = mock_ge_pub.send.call_args[0][1] 
@@ -191,7 +190,6 @@ class TestKnowledgeManagerLoadCore:
         """Test that load_kg_core falls back to 'default' when request.collection is None."""
         # Create request with None collection
         mock_request = Mock()
-        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
         mock_request.collection = None  # Should fall back to "default"
         mock_request.flow = "test-flow"
@@ -213,12 +211,12 @@ class TestKnowledgeManagerLoadCore:
             
             # Start the core loader background task
             knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond)
-            
+            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
             # Wait for background processing
             import asyncio
             await asyncio.sleep(0.1)
-            
+
             # Verify triples were sent with default collection
             mock_triples_pub.send.assert_called_once()
             sent_triples = mock_triples_pub.send.call_args[0][1]
@@ -246,13 +244,13 @@ class TestKnowledgeManagerLoadCore:
             mock_publisher_class.side_effect = [mock_triples_pub, mock_ge_pub]
             
             # Start the core loader background task
-            knowledge_manager.background_task = None 
-            await knowledge_manager.load_kg_core(mock_request, mock_respond)
-            
+            knowledge_manager.background_task = None
+            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
             # Wait for background processing
             import asyncio
             await asyncio.sleep(0.1)
-            
+
             # Verify both publishers were used with correct collection
             mock_triples_pub.send.assert_called_once()
             sent_triples = mock_triples_pub.send.call_args[0][1]
@@ -267,7 +265,6 @@ class TestKnowledgeManagerLoadCore:
         """Test that load_kg_core validates flow configuration before processing."""
         # Request with invalid flow
         mock_request = Mock()
-        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
         mock_request.collection = "test-collection"
         mock_request.flow = "invalid-flow"  # Not in mock_flow_config.flows
@@ -276,12 +273,12 @@ class TestKnowledgeManagerLoadCore:
         
         # Start the core loader background task
         knowledge_manager.background_task = None
-        await knowledge_manager.load_kg_core(mock_request, mock_respond)
-        
+        await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
         # Wait for background processing
         import asyncio
         await asyncio.sleep(0.1)
-        
+
         # Should have responded with error
         mock_respond.assert_called()
         response = mock_respond.call_args[0][0]
@@ -295,18 +292,17 @@ class TestKnowledgeManagerLoadCore:
         
         # Test missing ID
         mock_request = Mock()
-        mock_request.workspace = "test-user"
         mock_request.id = None  # Missing
         mock_request.collection = "test-collection"
         mock_request.flow = "test-flow"
         
         knowledge_manager.background_task = None
-        await knowledge_manager.load_kg_core(mock_request, mock_respond)
-        
+        await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
         # Wait for background processing
         import asyncio
         await asyncio.sleep(0.1)
-        
+
         # Should respond with error
         mock_respond.assert_called()
         response = mock_respond.call_args[0][0]
@@ -321,18 +317,17 @@ class TestKnowledgeManagerOtherMethods:
     async def test_get_kg_core_preserves_collection_from_store(self, knowledge_manager, sample_triples):
         """Test that get_kg_core preserves collection field from stored data."""
         mock_request = Mock()
-        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
-        
+
         mock_respond = AsyncMock()
-        
+
         async def mock_get_triples(user, doc_id, receiver):
             await receiver(sample_triples)
-        
+
         knowledge_manager.table_store.get_triples = mock_get_triples
         knowledge_manager.table_store.get_graph_embeddings = AsyncMock()
-        
-        await knowledge_manager.get_kg_core(mock_request, mock_respond)
+
+        await knowledge_manager.get_kg_core(mock_request, mock_respond, "test-user")
         
         # Should have called respond for triples and final EOS
         assert mock_respond.call_count >= 2
@@ -352,14 +347,13 @@ class TestKnowledgeManagerOtherMethods:
     async def test_list_kg_cores(self, knowledge_manager):
         """Test listing knowledge cores."""
         mock_request = Mock()
-        mock_request.workspace = "test-user"
-        
+
         mock_respond = AsyncMock()
-        
+
         # Mock return value
         knowledge_manager.table_store.list_kg_cores.return_value = ["doc1", "doc2", "doc3"]
-        
-        await knowledge_manager.list_kg_cores(mock_request, mock_respond)
+
+        await knowledge_manager.list_kg_cores(mock_request, mock_respond, "test-user")
         
         # Verify table store was called correctly
         knowledge_manager.table_store.list_kg_cores.assert_called_once_with("test-user")
@@ -374,12 +368,11 @@ class TestKnowledgeManagerOtherMethods:
     async def test_delete_kg_core(self, knowledge_manager):
         """Test deleting knowledge cores."""
         mock_request = Mock()
-        mock_request.workspace = "test-user"
         mock_request.id = "test-doc-id"
-        
+
         mock_respond = AsyncMock()
-        
-        await knowledge_manager.delete_kg_core(mock_request, mock_respond)
+
+        await knowledge_manager.delete_kg_core(mock_request, mock_respond, "test-user")
         
         # Verify table store was called correctly
         knowledge_manager.table_store.delete_kg_core.assert_called_once_with("test-user", "test-doc-id")

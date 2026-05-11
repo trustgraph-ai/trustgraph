@@ -7,6 +7,7 @@ from . publisher import Publisher
 from . subscriber import Subscriber
 from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics, SubscriberMetrics
 from . logging import add_logging_args, setup_logging
+from . workspace_processor import WorkspaceProcessor
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . parameter_spec import ParameterSpec
@@ -15,6 +16,7 @@ from . subscriber_spec import SubscriberSpec
 from . request_response_spec import RequestResponseSpec
 from . llm_service import LlmService, LlmResult, LlmChunk
 from . librarian_client import LibrarianClient
+from . librarian_spec import LibrarianSpec
 from . chunking_service import ChunkingService
 from . embeddings_service import EmbeddingsService
 from . embeddings_client import EmbeddingsClientSpec

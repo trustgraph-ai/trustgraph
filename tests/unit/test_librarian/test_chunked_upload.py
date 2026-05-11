@@ -33,12 +33,11 @@ def _make_librarian(min_chunk_size=1):
 
 
 def _make_doc_metadata(
-    doc_id="doc-1", kind="application/pdf", workspace="alice", title="Test Doc"
+    doc_id="doc-1", kind="application/pdf", title="Test Doc"
 ):
     meta = MagicMock()
     meta.id = doc_id
     meta.kind = kind
-    meta.workspace = workspace
     meta.title = title
     meta.time = 1700000000
     meta.comments = ""
@@ -47,21 +46,20 @@ def _make_doc_metadata(
 
 
 def _make_begin_request(
-    doc_id="doc-1", kind="application/pdf", workspace="alice",
+    doc_id="doc-1", kind="application/pdf",
     total_size=10_000_000, chunk_size=0
 ):
     req = MagicMock()
-    req.document_metadata = _make_doc_metadata(doc_id=doc_id, kind=kind, workspace=workspace)
+    req.document_metadata = _make_doc_metadata(doc_id=doc_id, kind=kind)
     req.total_size = total_size
     req.chunk_size = chunk_size
     return req
 
 
-def _make_upload_chunk_request(upload_id="up-1", chunk_index=0, workspace="alice", content=b"data"):
+def _make_upload_chunk_request(upload_id="up-1", chunk_index=0, content=b"data"):
     req = MagicMock()
     req.upload_id = upload_id
     req.chunk_index = chunk_index
-    req.workspace = workspace
     req.content = base64.b64encode(content)
     return req
 
@@ -76,7 +74,7 @@ def _make_session(
     if document_metadata is None:
         document_metadata = json.dumps({
             "id": document_id, "kind": "application/pdf",
-            "workspace": workspace, "title": "Test", "time": 1700000000,
+            "title": "Test", "time": 1700000000,
             "comments": "", "tags": [],
         })
     return {
@@ -105,7 +103,7 @@ class TestBeginUpload:
         lib.blob_store.create_multipart_upload.return_value = "s3-upload-id"
 
         req = _make_begin_request(total_size=10_000_000)
-        resp = await lib.begin_upload(req)
+        resp = await lib.begin_upload(req, "alice")
 
         assert resp.error is None
         assert resp.upload_id is not None
@@ -119,7 +117,7 @@ class TestBeginUpload:
         lib.blob_store.create_multipart_upload.return_value = "s3-id"
 
         req = _make_begin_request(total_size=10_000, chunk_size=3000)
-        resp = await lib.begin_upload(req)
+        resp = await lib.begin_upload(req, "alice")
 
         assert resp.chunk_size == 3000
         assert resp.total_chunks == math.ceil(10_000 / 3000)
@@ -130,7 +128,7 @@ class TestBeginUpload:
         req = _make_begin_request(kind="")
 
         with pytest.raises(RequestError, match="MIME type.*required"):
-            await lib.begin_upload(req)
+            await lib.begin_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_duplicate_document(self):
@@ -139,7 +137,7 @@ class TestBeginUpload:
 
         req = _make_begin_request()
         with pytest.raises(RequestError, match="already exists"):
-            await lib.begin_upload(req)
+            await lib.begin_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_zero_size(self):
@@ -148,7 +146,7 @@ class TestBeginUpload:
 
         req = _make_begin_request(total_size=0)
         with pytest.raises(RequestError, match="positive"):
-            await lib.begin_upload(req)
+            await lib.begin_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_chunk_below_minimum(self):
@@ -157,7 +155,7 @@ class TestBeginUpload:
 
         req = _make_begin_request(total_size=10_000, chunk_size=512)
         with pytest.raises(RequestError, match="below minimum"):
-            await lib.begin_upload(req)
+            await lib.begin_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_calls_s3_create_multipart(self):
@@ -166,7 +164,7 @@ class TestBeginUpload:
         lib.blob_store.create_multipart_upload.return_value = "s3-id"
 
         req = _make_begin_request(kind="application/pdf")
-        await lib.begin_upload(req)
+        await lib.begin_upload(req, "alice")
 
         lib.blob_store.create_multipart_upload.assert_called_once()
         # create_multipart_upload(object_id, kind) — positional args
@@ -180,7 +178,7 @@ class TestBeginUpload:
         lib.blob_store.create_multipart_upload.return_value = "s3-id"
 
         req = _make_begin_request(total_size=5_000_000)
-        resp = await lib.begin_upload(req)
+        resp = await lib.begin_upload(req, "alice")
 
         lib.table_store.create_upload_session.assert_called_once()
         kwargs = lib.table_store.create_upload_session.call_args[1]
@@ -195,7 +193,7 @@ class TestBeginUpload:
         lib.blob_store.create_multipart_upload.return_value = "s3-id"
 
         req = _make_begin_request(kind="text/plain", total_size=1000)
-        resp = await lib.begin_upload(req)
+        resp = await lib.begin_upload(req, "alice")
         assert resp.error is None
 
 
@@ -213,7 +211,7 @@ class TestUploadChunk:
         lib.blob_store.upload_part.return_value = "etag-1"
 
         req = _make_upload_chunk_request(chunk_index=0, content=b"chunk data")
-        resp = await lib.upload_chunk(req)
+        resp = await lib.upload_chunk(req, "alice")
 
         assert resp.error is None
         assert resp.chunk_index == 0
@@ -229,7 +227,7 @@ class TestUploadChunk:
         lib.blob_store.upload_part.return_value = "etag"
 
         req = _make_upload_chunk_request(chunk_index=0)
-        await lib.upload_chunk(req)
+        await lib.upload_chunk(req, "alice")
 
         kwargs = lib.blob_store.upload_part.call_args[1]
         assert kwargs["part_number"] == 1  # 0-indexed chunk → 1-indexed part
@@ -242,7 +240,7 @@ class TestUploadChunk:
         lib.blob_store.upload_part.return_value = "etag"
 
         req = _make_upload_chunk_request(chunk_index=3)
-        await lib.upload_chunk(req)
+        await lib.upload_chunk(req, "alice")
 
         kwargs = lib.blob_store.upload_part.call_args[1]
         assert kwargs["part_number"] == 4
@@ -254,7 +252,7 @@ class TestUploadChunk:
 
         req = _make_upload_chunk_request()
         with pytest.raises(RequestError, match="not found"):
-            await lib.upload_chunk(req)
+            await lib.upload_chunk(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
@@ -262,9 +260,9 @@ class TestUploadChunk:
         session = _make_session(workspace="alice")
         lib.table_store.get_upload_session.return_value = session
 
-        req = _make_upload_chunk_request(workspace="bob")
+        req = _make_upload_chunk_request()
         with pytest.raises(RequestError, match="Not authorized"):
-            await lib.upload_chunk(req)
+            await lib.upload_chunk(req, "bob")
 
     @pytest.mark.asyncio
     async def test_rejects_negative_chunk_index(self):
@@ -274,7 +272,7 @@ class TestUploadChunk:
 
         req = _make_upload_chunk_request(chunk_index=-1)
         with pytest.raises(RequestError, match="Invalid chunk index"):
-            await lib.upload_chunk(req)
+            await lib.upload_chunk(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_out_of_range_chunk_index(self):
@@ -284,7 +282,7 @@ class TestUploadChunk:
 
         req = _make_upload_chunk_request(chunk_index=5)
         with pytest.raises(RequestError, match="Invalid chunk index"):
-            await lib.upload_chunk(req)
+            await lib.upload_chunk(req, "alice")
 
     @pytest.mark.asyncio
     async def test_progress_tracking(self):
@@ -297,7 +295,7 @@ class TestUploadChunk:
         lib.blob_store.upload_part.return_value = "e3"
 
         req = _make_upload_chunk_request(chunk_index=2)
-        resp = await lib.upload_chunk(req)
+        resp = await lib.upload_chunk(req, "alice")
 
         # Dict gets chunk 2 added (len=3), then +1 => 4
         assert resp.chunks_received == 4
@@ -316,7 +314,7 @@ class TestUploadChunk:
         lib.blob_store.upload_part.return_value = "e2"
 
         req = _make_upload_chunk_request(chunk_index=1)
-        resp = await lib.upload_chunk(req)
+        resp = await lib.upload_chunk(req, "alice")
 
         # 3 chunks × 3000 = 9000 > 5000, so capped
         assert resp.bytes_received <= 5000
@@ -330,7 +328,7 @@ class TestUploadChunk:
 
         raw = b"hello world binary data"
         req = _make_upload_chunk_request(content=raw)
-        await lib.upload_chunk(req)
+        await lib.upload_chunk(req, "alice")
 
         kwargs = lib.blob_store.upload_part.call_args[1]
         assert kwargs["data"] == raw
@@ -353,9 +351,8 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "alice"
 
-        resp = await lib.complete_upload(req)
+        resp = await lib.complete_upload(req, "alice")
 
         assert resp.error is None
         assert resp.document_id == "doc-1"
@@ -375,9 +372,8 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "alice"
 
-        await lib.complete_upload(req)
+        await lib.complete_upload(req, "alice")
 
         parts = lib.blob_store.complete_multipart_upload.call_args[1]["parts"]
         part_numbers = [p[0] for p in parts]
@@ -394,10 +390,9 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "alice"
 
         with pytest.raises(RequestError, match="Missing chunks"):
-            await lib.complete_upload(req)
+            await lib.complete_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_expired_session(self):
@@ -406,10 +401,9 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-gone"
-        req.workspace = "alice"
 
         with pytest.raises(RequestError, match="not found"):
-            await lib.complete_upload(req)
+            await lib.complete_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
@@ -419,10 +413,9 @@ class TestCompleteUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "bob"
 
         with pytest.raises(RequestError, match="Not authorized"):
-            await lib.complete_upload(req)
+            await lib.complete_upload(req, "bob")
 
 
 # ---------------------------------------------------------------------------
@@ -439,9 +432,8 @@ class TestAbortUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "alice"
 
-        resp = await lib.abort_upload(req)
+        resp = await lib.abort_upload(req, "alice")
 
         assert resp.error is None
         lib.blob_store.abort_multipart_upload.assert_called_once_with(
@@ -456,10 +448,9 @@ class TestAbortUpload:
 
         req = MagicMock()
         req.upload_id = "up-gone"
-        req.workspace = "alice"
 
         with pytest.raises(RequestError, match="not found"):
-            await lib.abort_upload(req)
+            await lib.abort_upload(req, "alice")
 
     @pytest.mark.asyncio
     async def test_rejects_wrong_user(self):
@@ -469,10 +460,9 @@ class TestAbortUpload:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "bob"
 
         with pytest.raises(RequestError, match="Not authorized"):
-            await lib.abort_upload(req)
+            await lib.abort_upload(req, "bob")
 
 
 # ---------------------------------------------------------------------------
@@ -492,9 +482,8 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "alice"
 
-        resp = await lib.get_upload_status(req)
+        resp = await lib.get_upload_status(req, "alice")
 
         assert resp.upload_state == "in-progress"
         assert resp.chunks_received == 3
@@ -510,9 +499,8 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-expired"
-        req.workspace = "alice"
 
-        resp = await lib.get_upload_status(req)
+        resp = await lib.get_upload_status(req, "alice")
 
         assert resp.upload_state == "expired"
 
@@ -527,9 +515,8 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "alice"
 
-        resp = await lib.get_upload_status(req)
+        resp = await lib.get_upload_status(req, "alice")
 
         assert resp.missing_chunks == []
         assert resp.chunks_received == 3
@@ -544,10 +531,9 @@ class TestGetUploadStatus:
 
         req = MagicMock()
         req.upload_id = "up-1"
-        req.workspace = "bob"
 
         with pytest.raises(RequestError, match="Not authorized"):
-            await lib.get_upload_status(req)
+            await lib.get_upload_status(req, "bob")
 
 
 # ---------------------------------------------------------------------------
@@ -564,12 +550,11 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x" * 2000)
 
         req = MagicMock()
-        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 2000
 
         chunks = []
-        async for resp in lib.stream_document(req):
+        async for resp in lib.stream_document(req, "alice"):
             chunks.append(resp)
 
         assert len(chunks) == 3  # ceil(5000/2000)
@@ -587,12 +572,11 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x" * 500)
 
         req = MagicMock()
-        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 2000
 
         chunks = []
-        async for resp in lib.stream_document(req):
+        async for resp in lib.stream_document(req, "alice"):
             chunks.append(resp)
 
         assert len(chunks) == 1
@@ -608,12 +592,11 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x" * 100)
 
         req = MagicMock()
-        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 2000
 
         chunks = []
-        async for resp in lib.stream_document(req):
+        async for resp in lib.stream_document(req, "alice"):
             chunks.append(resp)
 
         # Verify the byte ranges passed to get_range
@@ -630,12 +613,11 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=b"x")
 
         req = MagicMock()
-        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 0  # Should use default 1MB
 
         chunks = []
-        async for resp in lib.stream_document(req):
+        async for resp in lib.stream_document(req, "alice"):
             chunks.append(resp)
 
         assert len(chunks) == 2  # ceil(2MB / 1MB)
@@ -649,12 +631,11 @@ class TestStreamDocument:
         lib.blob_store.get_range = AsyncMock(return_value=raw)
 
         req = MagicMock()
-        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 1000
 
         chunks = []
-        async for resp in lib.stream_document(req):
+        async for resp in lib.stream_document(req, "alice"):
             chunks.append(resp)
 
         assert chunks[0].content == base64.b64encode(raw)
@@ -666,12 +647,11 @@ class TestStreamDocument:
         lib.blob_store.get_size = AsyncMock(return_value=5000)
 
         req = MagicMock()
-        req.workspace = "alice"
         req.document_id = "doc-1"
         req.chunk_size = 512
 
         with pytest.raises(RequestError, match="below minimum"):
-            async for _ in lib.stream_document(req):
+            async for _ in lib.stream_document(req, "alice"):
                 pass
 
 
@@ -698,9 +678,8 @@ class TestListUploads:
         ]
 
         req = MagicMock()
-        req.workspace = "alice"
 
-        resp = await lib.list_uploads(req)
+        resp = await lib.list_uploads(req, "alice")
 
         assert resp.error is None
         assert len(resp.upload_sessions) == 1
@@ -713,8 +692,7 @@ class TestListUploads:
         lib.table_store.list_upload_sessions.return_value = []
 
         req = MagicMock()
-        req.workspace = "alice"
 
-        resp = await lib.list_uploads(req)
+        resp = await lib.list_uploads(req, "alice")
 
         assert resp.upload_sessions == []
