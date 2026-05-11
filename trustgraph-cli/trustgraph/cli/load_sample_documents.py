@@ -28,10 +28,7 @@ session = requests.session()
 
 session.mount('file://', FileAdapter())
 
-try:
-    os.mkdir("doc-cache")
-except:
-    pass
+os.makedirs("doc-cache", exist_ok=True)
 
 documents = [
 
