@@ -474,9 +474,11 @@ class PerformanceMonitor:
         # Cache performance
         cache_types = set()
         for metric_name in self.metrics_collector.counters.keys():
-            if 'cache_type=' in metric_name:
-                cache_type = metric_name.split('cache_type=')[1].split(',')[0].split('}')[0]
-                cache_types.add(cache_type)
+            parts = metric_name.split('cache_type=')
+            if len(parts) < 2:
+                continue
+            cache_type = parts[1].split(',')[0].split('}')[0]
+            cache_types.add(cache_type)
 
         for cache_type in cache_types:
             labels = {'cache_type': cache_type}
