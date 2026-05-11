@@ -18,24 +18,26 @@ try:
 except LookupError:
     try:
         nltk.download('punkt_tab', quiet=True)
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to download punkt_tab: {e}. Attempting fallback to punkt.")
         # Fallback to older punkt if punkt_tab not available
         try:
             nltk.download('punkt', quiet=True)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to download fallback punkt: {e}. NLTK data is missing.")
 
 try:
     nltk.data.find('taggers/averaged_perceptron_tagger_eng')
 except LookupError:
     try:
         nltk.download('averaged_perceptron_tagger_eng', quiet=True)
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to download averaged_perceptron_tagger_eng: {e}. Attempting fallback.")
         # Fallback to older name
         try:
             nltk.download('averaged_perceptron_tagger', quiet=True)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to download fallback averaged_perceptron_tagger: {e}. NLTK data is missing.")
 
 try:
     nltk.data.find('corpora/stopwords')
