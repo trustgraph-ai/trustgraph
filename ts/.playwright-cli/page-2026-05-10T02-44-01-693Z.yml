@@ -1,0 +1,191 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - banner [ref=e165]:
+    - button "Connections" [ref=e166]:
+      - generic [ref=e167]: Connections
+      - img [ref=e168]
+    - generic [ref=e170]:
+      - generic [ref=e171]: "FalkorDB:"
+      - heading "v4.18.04" [level=2] [ref=e172]
+    - generic [ref=e173]:
+      - button "Memory:" [ref=e174]
+      - heading "4.92M" [level=2] [ref=e175]
+    - 'status "Deployment type: Standalone, Status: online" [ref=e177]': Single
+    - generic [ref=e179]:
+      - generic [ref=e180]: "User:"
+      - heading "default" [level=2] [ref=e181]
+    - generic [ref=e182]:
+      - button "Copy deployment info" [ref=e183]:
+        - img [ref=e184]
+      - paragraph [ref=e187]: localhost:6379
+  - generic [ref=e14]:
+    - generic [ref=e188]:
+      - generic [ref=e189]:
+        - link "FalkorDB" [ref=e190] [cursor=pointer]:
+          - /url: https://www.falkordb.com
+          - img "FalkorDB Logo" [ref=e191]
+        - generic [ref=e192]:
+          - button "View and manage your graphs" [ref=e193]:
+            - img [ref=e194]
+          - 'button "User Defined Functions: View and manage your UDFs" [ref=e199]':
+            - img [ref=e200]
+      - generic [ref=e203]:
+        - button "Adjust application settings" [ref=e204]:
+          - img [ref=e205]
+        - button "Help" [ref=e209]:
+          - img [ref=e210]
+        - 'button "Toggle theme current theme: system" [ref=e216]':
+          - img [ref=e217]
+        - button "Log Out" [ref=e220]:
+          - img [ref=e221]
+    - generic [ref=e51]:
+      - generic [ref=e226]:
+        - button "Close" [ref=e227]:
+          - img [ref=e228]
+        - generic [ref=e231]:
+          - heading "Graph Info" [level=1] [ref=e232]
+          - img [ref=e233]
+        - generic [ref=e238]:
+          - button "Select Graph" [ref=e239]:
+            - img [ref=e240]
+            - paragraph [ref=e242]: Select Graph
+          - button "Create New Graph" [ref=e243]:
+            - img [ref=e244]
+        - generic [ref=e245]:
+          - heading "Memory" [level=2] [ref=e246]
+          - paragraph [ref=e247]: "0"
+        - generic [ref=e248]:
+          - generic [ref=e249]:
+            - heading "Nodes" [level=2] [ref=e250]
+            - paragraph [ref=e251]: "237"
+          - list [ref=e252]:
+            - listitem [ref=e253]:
+              - button "All labels" [ref=e254]:
+                - paragraph [ref=e255]: "*"
+            - listitem [ref=e256]:
+              - 'button "Literal #: 166" [ref=e257] [cursor=pointer]':
+                - generic [ref=e259]: Literal
+            - listitem [ref=e260]:
+              - 'button "Node #: 71" [ref=e261] [cursor=pointer]':
+                - generic [ref=e263]: Node
+        - generic [ref=e264]:
+          - generic [ref=e265]:
+            - heading "Edges" [level=2] [ref=e266]
+            - paragraph [ref=e267]: "316"
+          - list [ref=e268]:
+            - listitem [ref=e269]:
+              - button "All relationships" [ref=e270]:
+                - paragraph [ref=e271]: "*"
+            - listitem [ref=e272]:
+              - 'button "MATCH p=()-[:`Rel`]-() RETURN p #: 316" [ref=e273]':
+                - generic [ref=e275]: Rel
+        - generic [ref=e276]:
+          - generic [ref=e277]:
+            - heading "Property Keys" [level=2] [ref=e278]
+            - paragraph [ref=e279]: "4"
+          - list [ref=e281]:
+            - listitem [ref=e282]:
+              - 'button "MATCH (e) WHERE e.`collection` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`collection` IS NOT NULL RETURN e" [ref=e283]':
+                - paragraph [ref=e284]: collection,
+            - listitem [ref=e285]:
+              - 'button "MATCH (e) WHERE e.`uri` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`uri` IS NOT NULL RETURN e" [ref=e286]':
+                - paragraph [ref=e287]: uri,
+            - listitem [ref=e288]:
+              - 'button "MATCH (e) WHERE e.`user` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`user` IS NOT NULL RETURN e" [ref=e289]':
+                - paragraph [ref=e290]: user,
+            - listitem [ref=e291]:
+              - 'button "MATCH (e) WHERE e.`value` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`value` IS NOT NULL RETURN e" [ref=e292]':
+                - paragraph [ref=e293]: value
+      - separator [ref=e294]:
+        - img [ref=e296]
+      - generic [ref=e303]:
+        - generic [ref=e304]:
+          - generic [ref=e305]:
+            - button "Graph info panel" [pressed] [ref=e306]:
+              - img [ref=e307]
+            - generic [ref=e314]:
+              - generic [ref=e315]:
+                - code [ref=e317]:
+                  - generic [ref=e318]:
+                    - textbox "Editor content"
+                    - textbox [ref=e319]
+                - generic: Type your query here to start
+              - generic [ref=e328]:
+                - button "Maximize" [ref=e329]:
+                  - img [ref=e330]
+                - generic "Keyboard shortcuts" [ref=e335]:
+                  - img [ref=e336]
+                - button "Select a graph first" [disabled] [ref=e338]:
+                  - paragraph [ref=e339]: RUN
+            - generic [ref=e340]:
+              - button "Query history panel" [ref=e341]:
+                - img [ref=e342]
+              - button [ref=e347]:
+                - img [ref=e348]
+            - button "Chat panel" [disabled] [ref=e350]:
+              - img [ref=e351]
+          - generic [ref=e357]:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - button "Close Search & Filter" [ref=e358]:
+                      - img [ref=e359]
+                    - textbox "Search for element" [ref=e363]
+                - generic:
+                  - generic:
+                    - heading "Labels" [level=1]
+                    - list [ref=e364]:
+                      - listitem [ref=e365]:
+                        - button "Literal" [pressed] [ref=e366]:
+                          - paragraph [ref=e368]: Literal
+                      - listitem [ref=e369]:
+                        - button "Node" [pressed] [ref=e370]:
+                          - paragraph [ref=e372]: Node
+                  - generic:
+                    - heading "Relationships" [level=1]
+                    - list [ref=e373]:
+                      - listitem [ref=e374]:
+                        - button "Rel" [pressed] [ref=e375]:
+                          - paragraph [ref=e377]: Rel
+              - generic:
+                - generic:
+                  - tablist [ref=e378]:
+                    - tab "Graph" [selected] [ref=e379]:
+                      - img [ref=e380]
+                    - tab "Table" [ref=e385]:
+                      - img [ref=e386]
+                    - tab "Metadata" [ref=e388]:
+                      - img [ref=e389]
+                  - generic:
+                    - generic:
+                      - img
+                      - switch "Resume animation" [ref=e392] [cursor=pointer]
+                    - generic:
+                      - button "Zoom in" [ref=e393]:
+                        - img [ref=e394]
+                      - button "Zoom out" [ref=e397]:
+                        - img [ref=e398]
+                      - button "Fit graph to screen" [ref=e401]:
+                        - img [ref=e402]
+            - tabpanel "Graph" [ref=e407]
+        - region "Notifications (F8)":
+          - list
+  - generic [ref=e414]:
+    - generic [ref=e415]:
+      - generic [ref=e416]: Step 1 of 28
+      - heading "Welcome to FalkorDB Browser" [level=3] [ref=e417]
+    - generic [ref=e418]: Let's take a quick tour to help you get started with the graph database interface. This tour will guide you through the main features.
+    - generic [ref=e419]:
+      - paragraph [ref=e420]: shows where you need to look and click
+      - img [ref=e422]
+    - generic [ref=e425]:
+      - paragraph [ref=e426]: shows where you need to look
+      - img [ref=e428]
+    - generic [ref=e431]:
+      - button "Skip Tutorial" [ref=e432]
+      - button "Next" [ref=e434]:
+        - paragraph [ref=e435]: Next
+  - generic [ref=e436]:
+    - alert
+    - alert

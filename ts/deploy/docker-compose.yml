@@ -44,8 +44,12 @@ services:
     image: falkordb/falkordb:latest
     ports:
       - "6380:6379"
+      - "${FALKORDB_BROWSER_PORT:-6381}:3000"
+    environment:
+      - ENCRYPTION_KEY=${FALKORDB_BROWSER_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      - NEXTAUTH_SECRET=${FALKORDB_BROWSER_NEXTAUTH_SECRET:-trustgraph-falkordb-browser-local-demo}
     volumes:
-      - falkordb-data:/data
+      - falkordb-data:/var/lib/falkordb/data
     networks:
       - trustgraph
     healthcheck:

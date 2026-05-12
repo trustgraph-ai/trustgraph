@@ -1,0 +1,104 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - complementary "Sidebar" [ref=e7]:
+    - generic [ref=e8]:
+      - img [ref=e9]
+      - generic [ref=e16]: Beep Graph
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - img [ref=e22]
+          - text: Flow
+        - generic [ref=e26]:
+          - combobox "Flow" [ref=e27]:
+            - option "default" [selected]
+          - img
+      - generic [ref=e28]:
+        - img [ref=e29]
+        - generic [ref=e33]: default
+    - navigation "Main navigation" [ref=e35]:
+      - link "Chat" [ref=e36] [cursor=pointer]:
+        - /url: /chat
+        - generic [ref=e37]:
+          - img [ref=e38]
+          - generic [ref=e40]: Chat
+      - link "Library" [ref=e41] [cursor=pointer]:
+        - /url: /library
+        - generic [ref=e42]:
+          - img [ref=e43]
+          - generic [ref=e46]: Library
+      - link "Graph" [ref=e47] [cursor=pointer]:
+        - /url: /graph
+        - generic [ref=e48]:
+          - img [ref=e49]
+          - generic [ref=e53]: Graph
+      - link "Prompts" [ref=e54] [cursor=pointer]:
+        - /url: /prompts
+        - generic [ref=e55]:
+          - img [ref=e56]
+          - generic [ref=e60]: Prompts
+      - link "Token Cost" [ref=e61] [cursor=pointer]:
+        - /url: /token-cost
+        - generic [ref=e62]:
+          - img [ref=e63]
+          - generic [ref=e68]: Token Cost
+      - link "Knowledge Cores" [ref=e69] [cursor=pointer]:
+        - /url: /knowledge-cores
+        - generic [ref=e70]:
+          - img [ref=e71]
+          - generic [ref=e83]: Knowledge Cores
+      - link "Flows" [ref=e84] [cursor=pointer]:
+        - /url: /flows
+        - generic [ref=e85]:
+          - img [ref=e86]
+          - generic [ref=e90]: Flows
+      - link "Settings" [ref=e91] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - generic [ref=e96]: Settings
+    - generic [ref=e98]:
+      - img [ref=e100]
+      - generic [ref=e104]: Connected (no auth)
+  - generic [ref=e105]:
+    - banner [ref=e106]:
+      - generic [ref=e107]:
+        - generic [ref=e108]:
+          - img [ref=e109]
+          - text: default
+        - generic [ref=e113]:
+          - img [ref=e114]
+          - text: default
+    - main [ref=e118]:
+      - generic [ref=e119]:
+        - generic [ref=e120]:
+          - generic [ref=e121]:
+            - img [ref=e122]
+            - heading "Chat" [level=1] [ref=e124]
+            - generic [ref=e125]: default
+          - generic [ref=e126]:
+            - group "Chat mode" [ref=e127]:
+              - button "Graph RAG" [pressed] [ref=e128]
+              - button "Doc RAG" [ref=e129]
+              - button "Agent" [ref=e130]
+            - button "Clear messages" [ref=e131]:
+              - img [ref=e132]
+        - generic [ref=e157]:
+          - generic:
+            - button "Copy message":
+              - img
+            - button "Delete message":
+              - img
+          - paragraph [ref=e159]: Who founded OpenAI?
+        - generic [ref=e163]:
+          - img [ref=e164]
+          - generic [ref=e166]: Processing... 1s
+          - button "Cancel" [ref=e167]:
+            - img [ref=e168]
+            - text: Cancel
+        - generic [ref=e149]:
+          - textbox "Chat message" [ref=e150]:
+            - /placeholder: Type your message... (Enter to send, Shift+Enter for new line)
+          - button "Send message" [disabled] [ref=e151]:
+            - img [ref=e152]

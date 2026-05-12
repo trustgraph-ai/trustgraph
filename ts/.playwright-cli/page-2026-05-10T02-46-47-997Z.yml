@@ -1,0 +1,194 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - button "Connections" [ref=e136]:
+      - generic [ref=e137]: Connections
+      - img [ref=e138]
+    - generic [ref=e140]:
+      - generic [ref=e141]: "FalkorDB:"
+      - heading "v4.18.04" [level=2] [ref=e142]
+    - generic [ref=e3]:
+      - button "Memory:" [ref=e4]
+      - heading "4.90M" [level=2] [ref=e143]
+    - 'status "Deployment type: Standalone, Status: online" [ref=e8]': Single
+    - generic [ref=e10]:
+      - generic [ref=e11]: "User:"
+      - heading "default" [level=2] [ref=e12]
+    - generic [ref=e144]:
+      - button "Copy deployment info" [ref=e145]:
+        - img [ref=e146]
+      - paragraph [ref=e149]: localhost:6379
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - link "FalkorDB" [ref=e16] [cursor=pointer]:
+          - /url: https://www.falkordb.com
+          - img "FalkorDB Logo" [ref=e17]
+        - generic [ref=e18]:
+          - button "View and manage your graphs" [ref=e19]:
+            - img [ref=e20]
+          - 'button "User Defined Functions: View and manage your UDFs" [ref=e25]':
+            - img [ref=e26]
+      - generic [ref=e29]:
+        - button "Adjust application settings" [ref=e30]:
+          - img [ref=e31]
+        - button "Help" [ref=e35]:
+          - img [ref=e36]
+        - 'button "Toggle theme current theme: system" [ref=e42]':
+          - img [ref=e43]
+        - button "Log Out" [ref=e46]:
+          - img [ref=e47]
+    - generic [ref=e50]:
+      - generic [ref=e53]:
+        - button "Close" [ref=e54]:
+          - img [ref=e55]
+        - generic [ref=e58]:
+          - heading "Graph Info" [level=1] [ref=e59]
+          - img [ref=e60]
+        - generic [ref=e65]:
+          - button "falkordb" [ref=e223]:
+            - img [ref=e67]
+            - paragraph [ref=e69]: falkordb
+          - button "Create New Graph" [ref=e70]:
+            - img [ref=e71]
+        - generic [ref=e151]:
+          - heading "Memory" [level=2] [ref=e152]
+          - paragraph [ref=e224]: <1 MB
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - heading "Nodes" [level=2] [ref=e74]
+            - paragraph [ref=e225]: "237"
+          - list [ref=e76]:
+            - listitem [ref=e77]:
+              - button "All labels" [ref=e78]:
+                - paragraph [ref=e79]: "*"
+            - listitem [ref=e226]:
+              - 'button "Literal #: 166" [ref=e227] [cursor=pointer]':
+                - generic [ref=e229]: Literal
+            - listitem [ref=e230]:
+              - 'button "Node #: 71" [ref=e231] [cursor=pointer]':
+                - generic [ref=e233]: Node
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - heading "Edges" [level=2] [ref=e82]
+            - paragraph [ref=e234]: "316"
+          - list [ref=e84]:
+            - listitem [ref=e85]:
+              - button "All relationships" [ref=e86]:
+                - paragraph [ref=e87]: "*"
+            - listitem [ref=e235]:
+              - 'button "MATCH p=()-[:`Rel`]-() RETURN p #: 316" [ref=e236]':
+                - generic [ref=e238]: Rel
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - heading "Property Keys" [level=2] [ref=e90]
+            - paragraph [ref=e91]: "4"
+          - list [ref=e239]:
+            - listitem [ref=e240]:
+              - 'button "MATCH (e) WHERE e.`collection` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`collection` IS NOT NULL RETURN e" [ref=e241]':
+                - paragraph [ref=e242]: collection,
+            - listitem [ref=e243]:
+              - 'button "MATCH (e) WHERE e.`uri` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`uri` IS NOT NULL RETURN e" [ref=e244]':
+                - paragraph [ref=e245]: uri,
+            - listitem [ref=e246]:
+              - 'button "MATCH (e) WHERE e.`user` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`user` IS NOT NULL RETURN e" [ref=e247]':
+                - paragraph [ref=e248]: user,
+            - listitem [ref=e249]:
+              - 'button "MATCH (e) WHERE e.`value` IS NOT NULL RETURN e UNION MATCH ()-[e]-() WHERE e.`value` IS NOT NULL RETURN e" [ref=e250]':
+                - paragraph [ref=e251]: value
+      - separator [ref=e93]:
+        - img [ref=e95]
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - generic [ref=e154]:
+            - button "Graph info panel" [pressed] [ref=e155]:
+              - img [ref=e156]
+            - generic [ref=e163]:
+              - code [ref=e166]:
+                - generic [ref=e167]:
+                  - textbox "Editor content"
+                  - textbox [ref=e168]
+                  - generic [ref=e256]: MATCH (n) OPTIONAL MATCH (n)-[e]-(m) RETURN * LIMIT 100
+              - generic [ref=e177]:
+                - button "Clear" [ref=e257]:
+                  - img [ref=e258]
+                - button "Maximize" [ref=e178]:
+                  - img [ref=e179]
+                - generic "Keyboard shortcuts" [ref=e184]:
+                  - img [ref=e185]
+                - button "Press Enter to run the query" [ref=e261]:
+                  - paragraph [ref=e262]: RUN
+            - generic [ref=e189]:
+              - button "Query history panel" [ref=e190]:
+                - img [ref=e191]
+              - button [ref=e264]:
+                - img [ref=e265]
+            - button "Chat panel" [active] [pressed] [ref=e195]:
+              - img [ref=e196]
+          - generic [ref=e110]:
+            - generic [ref=e113]:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - button "Close Search & Filter" [ref=e275]:
+                        - img [ref=e276]
+                      - textbox "Search for element" [ref=e280]
+                    - button "Add Node" [ref=e282]:
+                      - img [ref=e283]
+                  - generic:
+                    - generic:
+                      - heading "Labels" [level=1]
+                      - list [ref=e285]:
+                        - listitem [ref=e286]:
+                          - button "Literal" [pressed] [ref=e287]:
+                            - paragraph [ref=e289]: Literal
+                        - listitem [ref=e290]:
+                          - button "Node" [pressed] [ref=e291]:
+                            - paragraph [ref=e293]: Node
+                    - generic:
+                      - heading "Relationships" [level=1]
+                      - list [ref=e294]:
+                        - listitem [ref=e295]:
+                          - button "Rel" [pressed] [ref=e296]:
+                            - paragraph [ref=e298]: Rel
+                - generic:
+                  - generic:
+                    - tablist [ref=e114]:
+                      - tab "Graph" [selected] [ref=e115]:
+                        - img [ref=e116]
+                      - tab "Table" [ref=e267]:
+                        - img [ref=e122]
+                      - tab "Metadata" [ref=e268]:
+                        - img [ref=e125]
+                    - generic:
+                      - generic:
+                        - img
+                        - switch "Resume animation" [ref=e299] [cursor=pointer]
+                      - generic:
+                        - button "Zoom in" [ref=e300]:
+                          - img [ref=e301]
+                        - button "Zoom out" [ref=e304]:
+                          - img [ref=e305]
+                        - button "Fit graph to screen" [ref=e308]:
+                          - img [ref=e309]
+              - tabpanel "Graph" [ref=e128]
+            - generic [ref=e316]:
+              - button "Close" [ref=e317]:
+                - img [ref=e318]
+              - generic [ref=e321]:
+                - heading "Chat" [level=1] [ref=e322]
+                - img [ref=e323]
+              - generic [ref=e326]: Use English to query the graph. The feature requires LLM model and API key. Update local user parameters in Settings.
+              - list [ref=e327]
+              - generic [ref=e328]:
+                - button "Cypher only mode" [ref=e329]:
+                  - img [ref=e330]
+                - button "Please enter a message" [disabled] [ref=e336]:
+                  - img [ref=e337]
+                - textbox "What would you like to know?" [ref=e341]
+        - region "Notifications (F8)":
+          - list
+  - alert [ref=e134]
+  - generic [ref=e222]:
+    - alert
+    - alert

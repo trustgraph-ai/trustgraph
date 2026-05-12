@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - button "Memory:" [ref=e4]
+      - img [ref=e5]
+    - 'status "Deployment type: Standalone, Status: online" [ref=e8]': Single
+    - generic [ref=e10]:
+      - generic [ref=e11]: "User:"
+      - heading "default" [level=2] [ref=e12]
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - link "FalkorDB" [ref=e16] [cursor=pointer]:
+          - /url: https://www.falkordb.com
+          - img "FalkorDB Logo" [ref=e17]
+        - generic [ref=e18]:
+          - button "View and manage your graphs" [ref=e19]:
+            - img [ref=e20]
+          - 'button "User Defined Functions: View and manage your UDFs" [ref=e25]':
+            - img [ref=e26]
+      - generic [ref=e29]:
+        - button "Adjust application settings" [ref=e30]:
+          - img [ref=e31]
+        - button "Help" [ref=e35]:
+          - img [ref=e36]
+        - 'button "Toggle theme current theme: system" [ref=e42]':
+          - img [ref=e43]
+        - button "Log Out" [ref=e46]:
+          - img [ref=e47]
+    - generic [ref=e55]:
+      - region "Notifications (F8)":
+        - list
+  - alert [ref=e71]

@@ -1,0 +1,144 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - banner [ref=e3]:
+    - button "Connections" [ref=e104]:
+      - generic [ref=e105]: Connections
+      - img [ref=e106]
+    - generic [ref=e108]:
+      - generic [ref=e109]: "FalkorDB:"
+      - heading "v4.18.04" [level=2] [ref=e110]
+    - generic [ref=e4]:
+      - button "Memory:" [ref=e5]
+      - heading "3.94M" [level=2] [ref=e111]
+    - 'status "Deployment type: Standalone, Status: online" [ref=e9]': Single
+    - generic [ref=e11]:
+      - generic [ref=e12]: "User:"
+      - heading "default" [level=2] [ref=e13]
+    - generic [ref=e112]:
+      - button "Copy deployment info" [ref=e113]:
+        - img [ref=e114]
+      - paragraph [ref=e117]: localhost:6379
+  - generic [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - link "FalkorDB" [ref=e17] [cursor=pointer]:
+          - /url: https://www.falkordb.com
+          - img "FalkorDB Logo" [ref=e18]
+        - generic [ref=e19]:
+          - button "View and manage your graphs" [ref=e20]:
+            - img [ref=e21]
+          - 'button "User Defined Functions: View and manage your UDFs" [ref=e26]':
+            - img [ref=e27]
+      - generic [ref=e30]:
+        - button "Adjust application settings" [ref=e31]:
+          - img [ref=e32]
+        - button "Help" [ref=e36]:
+          - img [ref=e37]
+        - 'button "Toggle theme current theme: system" [ref=e43]':
+          - img [ref=e44]
+        - button "Log Out" [ref=e47]:
+          - img [ref=e48]
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - paragraph [ref=e55]: Settings > Browser
+        - generic [ref=e56]:
+          - button "Manage browser settings" [ref=e57]:
+            - paragraph [ref=e58]: Browser Settings
+          - button "Configure database settings" [ref=e118]:
+            - paragraph [ref=e119]: DB Configurations
+          - button "Manage users accounts" [ref=e120]:
+            - paragraph [ref=e121]: Users
+          - button "Manage personal access tokens" [ref=e59]:
+            - paragraph [ref=e60]: Personal Access Tokens
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]:
+              - heading "Browser Settings" [level=1] [ref=e64]
+              - paragraph [ref=e65]: Customize your browser experience and manage configurations
+            - button "Replay Tutorial" [ref=e66]:
+              - img [ref=e67]
+              - paragraph [ref=e70]: Replay Tutorial
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - button "Chat Chat Panel Settings" [expanded] [active] [ref=e73] [cursor=pointer]:
+                - generic [ref=e74]:
+                  - generic [ref=e75]:
+                    - heading "Chat" [level=3] [ref=e76]
+                    - paragraph [ref=e77]: Chat Panel Settings
+                  - img [ref=e78]
+              - generic [ref=e123]:
+                - generic [ref=e124]:
+                  - generic [ref=e125]: Store latest interactions (per graph) [5..10]
+                  - textbox "Store latest interactions (per graph) [5..10]" [ref=e126]: "5"
+                - generic [ref=e127]:
+                  - heading "Configure LLM access for chat functionality" [level=2] [ref=e128]
+                  - generic [ref=e129]: Model
+                  - generic [ref=e130]:
+                    - generic [ref=e132]:
+                      - img [ref=e133]
+                      - textbox "Search models" [ref=e136]:
+                        - /placeholder: Search models...
+                    - generic [ref=e138]:
+                      - button "Anthropic 3 models" [ref=e140] [cursor=pointer]:
+                        - img [ref=e141]
+                        - img [ref=e143]
+                        - heading "Anthropic" [level=3] [ref=e151]
+                        - generic [ref=e152]: 3 models
+                      - button "Cohere 6 models" [ref=e154] [cursor=pointer]:
+                        - img [ref=e155]
+                        - img [ref=e157]
+                        - heading "Cohere" [level=3] [ref=e159]
+                        - generic [ref=e160]: 6 models
+                      - button "Google 4 models" [ref=e162] [cursor=pointer]:
+                        - img [ref=e163]
+                        - img [ref=e165]
+                        - heading "Google" [level=3] [ref=e168]
+                        - generic [ref=e169]: 4 models
+                      - button "Groq 19 models" [ref=e171] [cursor=pointer]:
+                        - img [ref=e172]
+                        - img [ref=e174]
+                        - heading "Groq" [level=3] [ref=e177]
+                        - generic [ref=e178]: 19 models
+                      - generic [ref=e179]:
+                        - button "OpenAI 6 models" [expanded] [ref=e180] [cursor=pointer]:
+                          - img [ref=e181]
+                          - img [ref=e183]
+                          - heading "OpenAI" [level=3] [ref=e185]
+                          - generic [ref=e186]: 6 models
+                        - generic [ref=e187]:
+                          - button "gpt-5-mini" [ref=e188]:
+                            - generic [ref=e189]: gpt-5-mini
+                            - img [ref=e190]
+                          - button "gpt-5-nano" [ref=e192]:
+                            - generic [ref=e193]: gpt-5-nano
+                          - button "gpt-5.2" [ref=e194]:
+                            - generic [ref=e195]: gpt-5.2
+                          - button "gpt-5.2-pro" [ref=e196]:
+                            - generic [ref=e197]: gpt-5.2-pro
+                          - button "gpt-audio" [ref=e198]:
+                            - generic [ref=e199]: gpt-audio
+                          - button "gpt-audio-mini" [ref=e200]:
+                            - generic [ref=e201]: gpt-audio-mini
+                  - generic [ref=e202]: Secret Key
+                  - textbox "Secret Key" [ref=e203]:
+                    - /placeholder: Enter your API secret key...
+            - button "Graph Info Configure graph visualization and data refresh settings" [ref=e81] [cursor=pointer]:
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - heading "Graph Info" [level=3] [ref=e84]
+                  - paragraph [ref=e85]: Configure graph visualization and data refresh settings
+                - img [ref=e86]
+            - button "Query Execution Control query execution behavior and performance limits" [ref=e89] [cursor=pointer]:
+              - generic [ref=e90]:
+                - generic [ref=e91]:
+                  - heading "Query Execution" [level=3] [ref=e92]
+                  - paragraph [ref=e93]: Control query execution behavior and performance limits
+                - img [ref=e94]
+            - button "User Experience Customize browser behavior and visual preferences" [ref=e97] [cursor=pointer]:
+              - generic [ref=e98]:
+                - generic [ref=e99]:
+                  - heading "User Experience" [level=3] [ref=e100]
+                  - paragraph [ref=e101]: Customize browser behavior and visual preferences
+                - img [ref=e102]
+      - region "Notifications (F8)":
+        - list

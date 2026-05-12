@@ -1,0 +1,5 @@
+[      68ms] [LOG] SOCKET: opening socket... without auth user: default @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[      68ms] [LOG] SOCKET: connecting to /api/socket @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[      68ms] [LOG] SOCKET: socket opened @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[     131ms] [LOG] [socket open] @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[   69578ms] [LOG] Request 4fote1kgb1qwricl-2 timed out @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344

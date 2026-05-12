@@ -1,0 +1,104 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - complementary "Sidebar" [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]
+      - generic [ref=e14]: Beep Graph
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - img [ref=e20]
+          - text: Flow
+        - generic [ref=e24]:
+          - combobox "Flow" [ref=e25]:
+            - option "default" [selected]
+          - img
+      - generic [ref=e26]:
+        - img [ref=e27]
+        - generic [ref=e31]: default
+    - navigation "Main navigation" [ref=e33]:
+      - link "Chat" [ref=e34] [cursor=pointer]:
+        - /url: /chat
+        - generic [ref=e35]:
+          - img [ref=e36]
+          - generic [ref=e38]: Chat
+      - link "Library" [ref=e39] [cursor=pointer]:
+        - /url: /library
+        - generic [ref=e40]:
+          - img [ref=e41]
+          - generic [ref=e44]: Library
+      - link "Graph" [ref=e45] [cursor=pointer]:
+        - /url: /graph
+        - generic [ref=e46]:
+          - img [ref=e47]
+          - generic [ref=e51]: Graph
+      - link "Prompts" [ref=e52] [cursor=pointer]:
+        - /url: /prompts
+        - generic [ref=e53]:
+          - img [ref=e54]
+          - generic [ref=e58]: Prompts
+      - link "Token Cost" [ref=e59] [cursor=pointer]:
+        - /url: /token-cost
+        - generic [ref=e60]:
+          - img [ref=e61]
+          - generic [ref=e66]: Token Cost
+      - link "Knowledge Cores" [ref=e67] [cursor=pointer]:
+        - /url: /knowledge-cores
+        - generic [ref=e68]:
+          - img [ref=e69]
+          - generic [ref=e81]: Knowledge Cores
+      - link "Flows" [ref=e82] [cursor=pointer]:
+        - /url: /flows
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - generic [ref=e88]: Flows
+      - link "Settings" [ref=e89] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=e90]:
+          - img [ref=e91]
+          - generic [ref=e94]: Settings
+    - generic [ref=e96]:
+      - img [ref=e98]
+      - generic [ref=e102]: Connected (no auth)
+  - generic [ref=e103]:
+    - banner [ref=e104]:
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - img [ref=e107]
+          - text: default
+        - generic [ref=e111]:
+          - img [ref=e112]
+          - text: default
+    - main [ref=e116]:
+      - generic [ref=e117]:
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - img [ref=e120]
+            - heading "Chat" [level=1] [ref=e122]
+            - generic [ref=e123]: default
+          - generic [ref=e124]:
+            - group "Chat mode" [ref=e125]:
+              - button "Graph RAG" [pressed] [ref=e126]
+              - button "Doc RAG" [ref=e127]
+              - button "Agent" [ref=e128]
+            - button "Clear messages" [ref=e129]:
+              - img [ref=e130]
+        - generic [ref=e147]:
+          - generic:
+            - button "Copy message":
+              - img
+            - button "Delete message":
+              - img
+          - paragraph [ref=e149]: Who is Sam Altman?
+        - generic [ref=e153]:
+          - img [ref=e154]
+          - generic [ref=e156]: Processing... 1s
+          - button "Cancel" [ref=e157]:
+            - img [ref=e158]
+            - text: Cancel
+        - generic [ref=e139]:
+          - textbox "Chat message" [ref=e140]:
+            - /placeholder: Type your message... (Enter to send, Shift+Enter for new line)
+          - button "Send message" [disabled] [ref=e141]:
+            - img [ref=e142]

@@ -1,0 +1,73 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - button "Memory:" [ref=e5]
+      - img [ref=e6]
+    - 'status "Deployment type: Standalone, Status: online" [ref=e9]': Single
+    - generic [ref=e11]:
+      - generic [ref=e12]: "User:"
+      - heading "default" [level=2] [ref=e13]
+  - generic [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - link "FalkorDB" [ref=e17] [cursor=pointer]:
+          - /url: https://www.falkordb.com
+          - img "FalkorDB Logo" [ref=e18]
+        - generic [ref=e19]:
+          - button "View and manage your graphs" [ref=e20]:
+            - img [ref=e21]
+          - 'button "User Defined Functions: View and manage your UDFs" [ref=e26]':
+            - img [ref=e27]
+      - generic [ref=e30]:
+        - button "Adjust application settings" [ref=e31]:
+          - img [ref=e32]
+        - button "Help" [ref=e36]:
+          - img [ref=e37]
+        - 'button "Toggle theme current theme: system" [ref=e43]':
+          - img [ref=e44]
+        - button "Log Out" [ref=e47]:
+          - img [ref=e48]
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - paragraph [ref=e55]: Settings > Browser
+        - generic [ref=e56]:
+          - button "Manage browser settings" [ref=e57]:
+            - paragraph [ref=e58]: Browser Settings
+          - button "Manage personal access tokens" [ref=e59]:
+            - paragraph [ref=e60]: Personal Access Tokens
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]:
+              - heading "Browser Settings" [level=1] [ref=e64]
+              - paragraph [ref=e65]: Customize your browser experience and manage configurations
+            - button "Replay Tutorial" [ref=e66]:
+              - img [ref=e67]
+              - paragraph [ref=e70]: Replay Tutorial
+          - generic [ref=e71]:
+            - button "Chat Chat Panel Settings" [ref=e73] [cursor=pointer]:
+              - generic [ref=e74]:
+                - generic [ref=e75]:
+                  - heading "Chat" [level=3] [ref=e76]
+                  - paragraph [ref=e77]: Chat Panel Settings
+                - img [ref=e78]
+            - button "Graph Info Configure graph visualization and data refresh settings" [ref=e81] [cursor=pointer]:
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - heading "Graph Info" [level=3] [ref=e84]
+                  - paragraph [ref=e85]: Configure graph visualization and data refresh settings
+                - img [ref=e86]
+            - button "Query Execution Control query execution behavior and performance limits" [ref=e89] [cursor=pointer]:
+              - generic [ref=e90]:
+                - generic [ref=e91]:
+                  - heading "Query Execution" [level=3] [ref=e92]
+                  - paragraph [ref=e93]: Control query execution behavior and performance limits
+                - img [ref=e94]
+            - button "User Experience Customize browser behavior and visual preferences" [ref=e97] [cursor=pointer]:
+              - generic [ref=e98]:
+                - generic [ref=e99]:
+                  - heading "User Experience" [level=3] [ref=e100]
+                  - paragraph [ref=e101]: Customize browser behavior and visual preferences
+                - img [ref=e102]
+      - region "Notifications (F8)":
+        - list

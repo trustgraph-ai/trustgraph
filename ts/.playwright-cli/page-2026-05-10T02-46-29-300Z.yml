@@ -1,0 +1,79 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - button "Memory:" [ref=e4]
+      - img [ref=e5]
+    - 'status "Deployment type: Standalone, Status: online" [ref=e8]': Single
+    - generic [ref=e10]:
+      - generic [ref=e11]: "User:"
+      - heading "default" [level=2] [ref=e12]
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - link "FalkorDB" [ref=e16] [cursor=pointer]:
+          - /url: https://www.falkordb.com
+          - img "FalkorDB Logo" [ref=e17]
+        - generic [ref=e18]:
+          - button "View and manage your graphs" [ref=e19]:
+            - img [ref=e20]
+          - 'button "User Defined Functions: View and manage your UDFs" [ref=e25]':
+            - img [ref=e26]
+      - generic [ref=e29]:
+        - button "Adjust application settings" [ref=e30]:
+          - img [ref=e31]
+        - button "Help" [ref=e35]:
+          - img [ref=e36]
+        - 'button "Toggle theme current theme: system" [ref=e42]':
+          - img [ref=e43]
+        - button "Log Out" [ref=e46]:
+          - img [ref=e47]
+    - generic [ref=e50]:
+      - generic [ref=e53]:
+        - button "Close" [ref=e54]:
+          - img [ref=e55]
+        - generic [ref=e58]:
+          - heading "Graph Info" [level=1] [ref=e59]
+          - img [ref=e60]
+        - generic [ref=e65]:
+          - button "There are no Graph" [disabled] [ref=e66]:
+            - img [ref=e67]
+            - paragraph [ref=e69]: Select Graph
+          - button "Create New Graph" [ref=e70]:
+            - img [ref=e71]
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - heading "Nodes" [level=2] [ref=e74]
+            - paragraph [ref=e75]: "0"
+          - list [ref=e76]:
+            - listitem [ref=e77]:
+              - button "All labels" [ref=e78]:
+                - paragraph [ref=e79]: "*"
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - heading "Edges" [level=2] [ref=e82]
+            - paragraph [ref=e83]: "0"
+          - list [ref=e84]:
+            - listitem [ref=e85]:
+              - button "All relationships" [ref=e86]:
+                - paragraph [ref=e87]: "*"
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - heading "Property Keys" [level=2] [ref=e90]
+            - paragraph [ref=e91]: "0"
+          - generic [ref=e92]:
+            - list
+      - separator [ref=e93]:
+        - img [ref=e95]
+      - generic [ref=e104]:
+        - generic [ref=e113]:
+          - tablist [ref=e114]:
+            - tab "Graph" [selected] [ref=e115]:
+              - img [ref=e116]
+            - tab "No Data" [disabled] [ref=e121]:
+              - img [ref=e122]
+            - tab "No Metadata" [disabled] [ref=e124]:
+              - img [ref=e125]
+          - tabpanel "Graph" [ref=e128]
+        - region "Notifications (F8)":
+          - list
+  - alert [ref=e134]

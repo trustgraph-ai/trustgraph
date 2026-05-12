@@ -1,0 +1,4 @@
+[      84ms] [LOG] SOCKET: opening socket... without auth user: default @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[      84ms] [LOG] SOCKET: connecting to /api/socket @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[      84ms] [LOG] SOCKET: socket opened @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344
+[     155ms] [LOG] [socket open] @ https://dankputer.tailc7c348.ts.net:8448/assets/index-BhdavMbi.js:344

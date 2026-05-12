@@ -1,0 +1,211 @@
+- generic:
+  - banner:
+    - button:
+      - generic: Connections
+      - img
+    - generic:
+      - generic: "FalkorDB:"
+      - heading [level=2]: v4.18.04
+    - generic:
+      - button: "Memory:"
+      - heading [level=2]: 3.94M
+    - generic:
+      - status: Single
+    - generic:
+      - generic: "User:"
+      - heading [level=2]: default
+    - generic:
+      - button:
+        - img
+      - paragraph: localhost:6379
+  - generic:
+    - generic:
+      - generic:
+        - link:
+          - /url: https://www.falkordb.com
+          - img
+        - generic:
+          - button:
+            - img
+          - button:
+            - img
+      - generic:
+        - button:
+          - img
+        - button:
+          - img
+        - button:
+          - img
+        - button:
+          - img
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - button:
+              - img
+            - generic:
+              - heading [level=1]: Graph Info
+              - img
+            - generic:
+              - button:
+                - img
+                - paragraph: falkordb
+              - button:
+                - img
+            - generic:
+              - heading [level=2]: Memory
+              - paragraph [ref=e107]: <1 MB
+            - generic:
+              - generic:
+                - heading [level=2]: Nodes
+                - paragraph [ref=e111]: "237"
+              - list:
+                - listitem:
+                  - button:
+                    - paragraph: "*"
+                - listitem:
+                  - button:
+                    - generic: Literal
+                - listitem:
+                  - button:
+                    - generic: Node
+            - generic:
+              - generic:
+                - heading [level=2]: Edges
+                - paragraph [ref=e127]: "316"
+              - list:
+                - listitem:
+                  - button:
+                    - paragraph: "*"
+                - listitem:
+                  - button:
+                    - generic: Rel
+            - generic:
+              - generic:
+                - heading [level=2]: Property Keys
+                - paragraph [ref=e139]: "4"
+              - generic:
+                - list:
+                  - listitem:
+                    - button:
+                      - paragraph: collection,
+                  - listitem:
+                    - button:
+                      - paragraph: uri,
+                  - listitem:
+                    - button:
+                      - paragraph: user,
+                  - listitem:
+                    - button:
+                      - paragraph: value
+      - separator:
+        - generic:
+          - img
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - button [pressed]:
+                  - img
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - code:
+                            - generic:
+                              - textbox
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic: MATCH (n) OPTIONAL MATCH (n)-[e]-(m) RETURN * LIMIT 100
+                      - generic:
+                        - button:
+                          - img
+                        - button:
+                          - img
+                        - generic:
+                          - img
+                        - button:
+                          - paragraph: RUN
+                - generic:
+                  - button:
+                    - img
+                  - button:
+                    - img
+                - button:
+                  - img
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - button [ref=e244]:
+                                - img [ref=e245]
+                              - textbox [ref=e249]:
+                                - /placeholder: Search for element
+                            - button [ref=e251]:
+                              - img [ref=e252]
+                          - generic:
+                            - generic:
+                              - heading [level=1]: Labels
+                              - list [ref=e254]:
+                                - listitem [ref=e255]:
+                                  - button [pressed] [ref=e256]:
+                                    - paragraph [ref=e258]: Literal
+                                - listitem [ref=e259]:
+                                  - button [pressed] [ref=e260]:
+                                    - paragraph [ref=e262]: Node
+                            - generic:
+                              - heading [level=1]: Relationships
+                              - list [ref=e263]:
+                                - listitem [ref=e264]:
+                                  - button [pressed] [ref=e265]:
+                                    - paragraph [ref=e267]: Rel
+                        - generic:
+                          - generic:
+                            - tablist [ref=e218]:
+                              - tab [selected] [ref=e268]:
+                                - img [ref=e220]
+                              - tab [ref=e269]:
+                                - img [ref=e226]
+                              - tab [ref=e270]:
+                                - img [ref=e229]
+                            - generic:
+                              - generic:
+                                - img
+                                - switch [ref=e271] [cursor=pointer]
+                              - generic:
+                                - button [ref=e272]:
+                                  - img [ref=e273]
+                                - button [ref=e276]:
+                                  - img [ref=e277]
+                                - button [ref=e280]:
+                                  - img [ref=e281]
+                      - tabpanel
+            - list
+  - alert
+  - dialog [ref=e287]:
+    - generic [ref=e288]:
+      - generic [ref=e289]:
+        - heading [level=2]
+        - paragraph
+      - generic:
+        - button "Close" [active] [ref=e290]:
+          - img [ref=e291]
+        - generic [ref=e296]:
+          - button "Clear" [ref=e297]:
+            - img [ref=e298]
+          - button "Close" [ref=e301]:
+            - paragraph [ref=e302]: RUN
+      - code [ref=e304]:
+        - generic [ref=e305]:
+          - textbox "Editor content"
+          - textbox [ref=e306]
+          - generic [ref=e311]: "1"
+          - generic [ref=e316]: MATCH (n) OPTIONAL MATCH (n)-[e]-(m) RETURN * LIMIT 100

@@ -22,7 +22,7 @@ export default function PromptsPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>("templates");
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
-  const [promptDetail, setPromptDetail] = useState<string>("");
+  const [promptDetail, setPromptDetail] = useState<{ system?: string; prompt?: string } | string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const handleSelectPrompt = useCallback(
@@ -31,9 +31,7 @@ export default function PromptsPage() {
       setLoadingDetail(true);
       try {
         const detail = await getPrompt(id);
-        setPromptDetail(
-          typeof detail === "string" ? detail : JSON.stringify(detail, null, 2),
-        );
+        setPromptDetail(detail as typeof promptDetail);
       } catch (err) {
         console.error("Failed to load prompt detail:", err);
         setPromptDetail("Error loading prompt.");
@@ -181,9 +179,32 @@ export default function PromptsPage() {
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Loading...
                         </div>
+                      ) : promptDetail && typeof promptDetail === "object" ? (
+                        <div className="space-y-4">
+                          {promptDetail.system && (
+                            <section>
+                              <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
+                                System
+                              </h3>
+                              <pre className="whitespace-pre-wrap rounded-md border border-border bg-surface-100 p-3 font-mono text-xs text-fg-muted">
+                                {promptDetail.system}
+                              </pre>
+                            </section>
+                          )}
+                          {promptDetail.prompt && (
+                            <section>
+                              <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
+                                Prompt
+                              </h3>
+                              <pre className="whitespace-pre-wrap rounded-md border border-border bg-surface-100 p-3 font-mono text-xs text-fg-muted">
+                                {promptDetail.prompt}
+                              </pre>
+                            </section>
+                          )}
+                        </div>
                       ) : (
                         <pre className="whitespace-pre-wrap font-mono text-xs text-fg-muted">
-                          {promptDetail}
+                          {typeof promptDetail === "string" ? promptDetail : ""}
                         </pre>
                       )}
                     </div>

@@ -1183,44 +1183,42 @@ export class FlowsApi {
   // Prompt management - specialized config operations for AI prompts
 
   /**
-   * Retrieves list of available prompt templates
+   * Retrieves list of available prompt templates from config.prompt.
+   * Each template is stored at `config.prompt.<name>` as an object
+   * `{system, prompt}`. The reserved key `system` holds an optional
+   * global system prompt and is excluded from the template list.
    */
   getPrompts() {
     return this.getConfigAll().then((r) => {
-      const config = r as Record<
-        string,
-        Record<string, Record<string, string>>
-      >;
-      const raw = config.config?.prompt?.["template-index"];
-      return raw ? JSON.parse(raw) : [];
+      const config = r as { config?: { prompt?: Record<string, unknown> } };
+      const promptNs = config.config?.prompt ?? {};
+      return Object.keys(promptNs)
+        .filter((k) => k !== "system")
+        .sort()
+        .map((id) => ({ id, name: id }));
     });
   }
 
   /**
-   * Retrieves a specific prompt template
+   * Retrieves a specific prompt template object: `{system, prompt}`.
    */
   getPrompt(id: string) {
     return this.getConfigAll().then((r) => {
-      const config = r as Record<
-        string,
-        Record<string, Record<string, string>>
-      >;
-      const raw = config.config?.prompt?.[`template.${id}`];
-      return raw ? JSON.parse(raw) : null;
+      const config = r as { config?: { prompt?: Record<string, unknown> } };
+      return config.config?.prompt?.[id] ?? null;
     });
   }
 
   /**
-   * Retrieves the system prompt configuration
+   * Retrieves the optional global system prompt at `config.prompt.system`.
+   * Returns "" if not configured.
    */
   getSystemPrompt() {
     return this.getConfigAll().then((r) => {
-      const config = r as Record<
-        string,
-        Record<string, Record<string, string>>
-      >;
+      const config = r as { config?: { prompt?: { system?: unknown } } };
       const raw = config.config?.prompt?.system;
-      return raw ? JSON.parse(raw) : "";
+      if (raw == null) return "";
+      return typeof raw === "string" ? raw : raw;
     });
   }
 
@@ -2091,44 +2089,42 @@ export class ConfigApi {
   // Specialized prompt management methods
 
   /**
-   * Retrieves available prompt templates
+   * Retrieves list of available prompt templates from config.prompt.
+   * Each template is stored at `config.prompt.<name>` as an object
+   * `{system, prompt}`. The reserved key `system` holds an optional
+   * global system prompt and is excluded from the template list.
    */
   getPrompts() {
     return this.getConfigAll().then((r) => {
-      const config = r as Record<
-        string,
-        Record<string, Record<string, string>>
-      >;
-      const raw = config.config?.prompt?.["template-index"];
-      return raw ? JSON.parse(raw) : [];
+      const config = r as { config?: { prompt?: Record<string, unknown> } };
+      const promptNs = config.config?.prompt ?? {};
+      return Object.keys(promptNs)
+        .filter((k) => k !== "system")
+        .sort()
+        .map((id) => ({ id, name: id }));
     });
   }
 
   /**
-   * Retrieves a specific prompt template
+   * Retrieves a specific prompt template object: `{system, prompt}`.
    */
   getPrompt(id: string) {
     return this.getConfigAll().then((r) => {
-      const config = r as Record<
-        string,
-        Record<string, Record<string, string>>
-      >;
-      const raw = config.config?.prompt?.[`template.${id}`];
-      return raw ? JSON.parse(raw) : null;
+      const config = r as { config?: { prompt?: Record<string, unknown> } };
+      return config.config?.prompt?.[id] ?? null;
     });
   }
 
   /**
-   * Retrieves system prompt configuration
+   * Retrieves the optional global system prompt at `config.prompt.system`.
+   * Returns "" if not configured.
    */
   getSystemPrompt() {
     return this.getConfigAll().then((r) => {
-      const config = r as Record<
-        string,
-        Record<string, Record<string, string>>
-      >;
+      const config = r as { config?: { prompt?: { system?: unknown } } };
       const raw = config.config?.prompt?.system;
-      return raw ? JSON.parse(raw) : "";
+      if (raw == null) return "";
+      return typeof raw === "string" ? raw : raw;
     });
   }
 
