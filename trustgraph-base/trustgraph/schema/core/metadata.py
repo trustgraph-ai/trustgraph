@@ -8,7 +8,5 @@ class Metadata:
     # Root document identifier (set by librarian, preserved through pipeline)
     root: str = ""
 
-    # Collection the message belongs to.  Workspace is NOT carried on the
-    # message — consumers derive it from flow.workspace (the flow the
-    # message arrived on), which is the trusted isolation boundary.
+    # Collection the message belongs to.
     collection: str = ""

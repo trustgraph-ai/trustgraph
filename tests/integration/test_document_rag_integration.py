@@ -54,7 +54,7 @@ class TestDocumentRagIntegration:
     @pytest.fixture
     def mock_fetch_chunk(self):
         """Mock fetch_chunk function that retrieves chunk content from librarian"""
-        async def fetch(chunk_id, user):
+        async def fetch(chunk_id):
             return CHUNK_CONTENT.get(chunk_id, f"Content for {chunk_id}")
         return fetch
 

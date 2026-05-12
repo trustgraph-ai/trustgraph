@@ -24,9 +24,10 @@ logger.setLevel(logging.INFO)
 
 class ConfigReceiver:
 
-    def __init__(self, backend):
+    def __init__(self, backend, auth=None):
 
         self.backend = backend
+        self.auth = auth
 
         self.flow_handlers = []
 
@@ -53,6 +54,15 @@ class ConfigReceiver:
                     f"already at v{self.config_version}"
                 )
                 return
+
+            # Track workspace lifecycle
+            if v.workspace_changes and self.auth:
+                for ws in (v.workspace_changes.created or []):
+                    self.auth.known_workspaces.add(ws)
+                    logger.info(f"Workspace registered: {ws}")
+                for ws in (v.workspace_changes.deleted or []):
+                    self.auth.known_workspaces.discard(ws)
+                    logger.info(f"Workspace deregistered: {ws}")
 
             # Gateway cares about flow config — check if any flow
             # types changed in any workspace
@@ -194,6 +204,33 @@ class ConfigReceiver:
                 client = self._create_config_client()
                 try:
                     await client.start()
+
+                    # Discover all known workspaces
+                    ws_resp = await client.request(
+                        ConfigRequest(
+                            operation="getvalues",
+                            workspace="__workspaces__",
+                            type="workspace",
+                        ),
+                        timeout=10,
+                    )
+
+                    if ws_resp.error:
+                        raise RuntimeError(
+                            f"Workspace discovery error: "
+                            f"{ws_resp.error.message}"
+                        )
+
+                    discovered = {
+                        v.key for v in ws_resp.values if v.key
+                    }
+
+                    if self.auth:
+                        self.auth.known_workspaces = discovered
+
+                    logger.info(
+                        f"Known workspaces: {discovered}"
+                    )
 
                     # Discover workspaces that have any flow config
                     resp = await client.request(

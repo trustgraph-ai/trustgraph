@@ -1,6 +1,4 @@
 
-import asyncio
-
 class Flow:
     """
     Runtime representation of a deployed flow process.
@@ -22,16 +20,22 @@ class Flow:
 
         self.parameter = {}
 
+        self.librarian = None
+
         for spec in processor.specifications:
             spec.add(self, processor, defn)
 
     async def start(self):
+        if self.librarian:
+            await self.librarian.start()
         for c in self.consumer.values():
             await c.start()
 
     async def stop(self):
         for c in self.consumer.values():
             await c.stop()
+        if self.librarian:
+            await self.librarian.stop()
 
     def __call__(self, key):
         if key in self.producer: return self.producer[key]

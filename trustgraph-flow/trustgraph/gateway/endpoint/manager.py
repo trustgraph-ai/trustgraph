@@ -12,8 +12,8 @@ from . auth_endpoints import AuthEndpoints
 from . iam_endpoint import IamEndpoint
 from . registry_endpoint import RegistryRoutedVariableEndpoint
 
-from .. capabilities import PUBLIC, AUTHENTICATED, auth_failure
-from .. registry import lookup as _registry_lookup, RequestContext
+from .. capabilities import PUBLIC, AUTHENTICATED, auth_failure, workspace_not_found
+from .. registry import lookup as _registry_lookup, RequestContext, ResourceLevel
 
 from .. dispatch.manager import DispatcherManager
 
@@ -76,6 +76,10 @@ class _RoutedVariableEndpoint:
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
             )
+
+            ws = resource.get("workspace", "")
+            if ws and ws not in self.auth.known_workspaces:
+                raise workspace_not_found()
 
             async def responder(x, fin):
                 pass
@@ -140,6 +144,11 @@ class _RoutedSocketEndpoint:
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
             )
+
+            ws = resource.get("workspace", "")
+            if ws and ws not in self.auth.known_workspaces:
+                raise workspace_not_found()
+
         except web.HTTPException as e:
             return e
 

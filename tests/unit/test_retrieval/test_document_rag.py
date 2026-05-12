@@ -27,7 +27,7 @@ CHUNK_CONTENT = {
 @pytest.fixture
 def mock_fetch_chunk():
     """Create a mock fetch_chunk function"""
-    async def fetch(chunk_id, user):
+    async def fetch(chunk_id):
         return CHUNK_CONTENT.get(chunk_id, f"Content for {chunk_id}")
     return fetch
 
@@ -203,7 +203,7 @@ class TestQuery:
         mock_rag.doc_embeddings_client = mock_doc_embeddings_client
 
         # Mock fetch_chunk function
-        async def mock_fetch(chunk_id, user):
+        async def mock_fetch(chunk_id):
             return CHUNK_CONTENT.get(chunk_id, f"Content for {chunk_id}")
         mock_rag.fetch_chunk = mock_fetch
 
@@ -361,7 +361,7 @@ class TestQuery:
         mock_rag.doc_embeddings_client = mock_doc_embeddings_client
 
         # Mock fetch_chunk
-        async def mock_fetch(chunk_id, user):
+        async def mock_fetch(chunk_id):
             return CHUNK_CONTENT.get(chunk_id, f"Content for {chunk_id}")
         mock_rag.fetch_chunk = mock_fetch
 
@@ -437,7 +437,7 @@ class TestQuery:
         mock_rag.embeddings_client = mock_embeddings_client
         mock_rag.doc_embeddings_client = mock_doc_embeddings_client
 
-        async def mock_fetch(chunk_id, user):
+        async def mock_fetch(chunk_id):
             return f"Content for {chunk_id}"
         mock_rag.fetch_chunk = mock_fetch
 
@@ -594,7 +594,7 @@ class TestQuery:
         mock_rag.embeddings_client = mock_embeddings_client
         mock_rag.doc_embeddings_client = mock_doc_embeddings_client
 
-        async def mock_fetch(chunk_id, user):
+        async def mock_fetch(chunk_id):
             return CHUNK_CONTENT.get(chunk_id, f"Content for {chunk_id}")
         mock_rag.fetch_chunk = mock_fetch
 

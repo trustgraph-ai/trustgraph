@@ -43,12 +43,12 @@ from ..core.metadata import Metadata
 #   <- (error)
 
 # list-documents
-#   -> (workspace, collection?)
+#   -> (collection?)
 #   <- (document_metadata[])
 #   <- (error)
 
 # list-processing
-#   -> (workspace, collection?)
+#   -> (collection?)
 #   <- (processing_metadata[])
 #   <- (error)
 
@@ -78,7 +78,7 @@ from ..core.metadata import Metadata
 #   <- (error)
 
 # list-uploads
-#   -> (workspace)
+#   -> ()
 #   <- (uploads[])
 #   <- (error)
 
@@ -90,7 +90,6 @@ class DocumentMetadata:
     title: str = ""
     comments: str = ""
     metadata: list[Triple] = field(default_factory=list)
-    workspace: str = ""
     tags: list[str] = field(default_factory=list)
     # Child document support
     parent_id: str = ""  # Empty for top-level docs, set for children
@@ -107,7 +106,6 @@ class ProcessingMetadata:
     document_id: str = ""
     time: int = 0
     flow: str = ""
-    workspace: str = ""
     collection: str = ""
     tags: list[str] = field(default_factory=list)
 
@@ -161,9 +159,6 @@ class LibrarianRequest:
 
     # add-document, upload-chunk
     content: bytes = b""
-
-    # Workspace scopes every library operation.
-    workspace: str = ""
 
     # list-documents?, list-processing?
     collection: str = ""

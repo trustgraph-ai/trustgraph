@@ -4,13 +4,11 @@ for chunk-size and chunk-overlap parameters, and librarian client for
 fetching large document content.
 """
 
-import asyncio
-import base64
 import logging
 
 from .flow_processor import FlowProcessor
 from .parameter_spec import ParameterSpec
-from .librarian_client import LibrarianClient
+from .librarian_spec import LibrarianSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -35,35 +33,27 @@ class ChunkingService(FlowProcessor):
             ParameterSpec(name="chunk-overlap")
         )
 
-        # Librarian client
-        self.librarian = LibrarianClient(
-            id=id,
-            backend=self.pubsub,
-            taskgroup=self.taskgroup,
+        self.register_specification(
+            LibrarianSpec()
         )
 
         logger.debug("ChunkingService initialized with parameter specifications")
 
-    async def start(self):
-        await super(ChunkingService, self).start()
-        await self.librarian.start()
-
-    async def get_document_text(self, doc, workspace):
+    async def get_document_text(self, doc, flow):
         """
         Get text content from a TextDocument, fetching from librarian if needed.
 
         Args:
             doc: TextDocument with either inline text or document_id
-            workspace: Workspace for librarian lookup (from flow.workspace)
+            flow: Flow object with librarian client
 
         Returns:
             str: The document text content
         """
         if doc.document_id and not doc.text:
             logger.info(f"Fetching document {doc.document_id} from librarian...")
-            text = await self.librarian.fetch_document_text(
+            text = await flow.librarian.fetch_document_text(
                 document_id=doc.document_id,
-                workspace=workspace,
             )
             logger.info(f"Fetched {len(text)} characters from librarian")
             return text

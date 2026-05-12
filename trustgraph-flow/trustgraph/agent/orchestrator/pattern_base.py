@@ -61,6 +61,10 @@ class FlowContext:
     def __call__(self, service_name):
         return self._flow(service_name)
 
+    @property
+    def librarian(self):
+        return self._flow.librarian
+
 
 class UsageTracker:
     """Accumulates token usage across multiple prompt calls."""
@@ -320,9 +324,9 @@ class PatternBase:
                 f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
             )
             try:
-                await self.processor.save_answer_content(
+                await flow.librarian.save_document(
                     doc_id=thought_doc_id,
-                    workspace=flow.workspace,
+
                     content=act.thought,
                     title=f"Agent Thought: {act.name}",
                 )
@@ -389,9 +393,9 @@ class PatternBase:
                 f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
             )
             try:
-                await self.processor.save_answer_content(
+                await flow.librarian.save_document(
                     doc_id=observation_doc_id,
-                    workspace=flow.workspace,
+
                     content=observation_text,
                     title=f"Agent Observation",
                 )
@@ -445,9 +449,9 @@ class PatternBase:
         if answer_text:
             answer_doc_id = f"urn:trustgraph:agent:{session_id}/answer"
             try:
-                await self.processor.save_answer_content(
+                await flow.librarian.save_document(
                     doc_id=answer_doc_id,
-                    workspace=flow.workspace,
+
                     content=answer_text,
                     title=f"Agent Answer: {request.question[:50]}...",
                 )
@@ -521,8 +525,8 @@ class PatternBase:
 
         doc_id = f"urn:trustgraph:agent:{session_id}/finding/{index}/doc"
         try:
-            await self.processor.save_answer_content(
-                doc_id=doc_id, workspace=flow.workspace,
+            await flow.librarian.save_document(
+                doc_id=doc_id,
                 content=answer_text,
                 title=f"Finding: {goal[:60]}",
             )
@@ -574,8 +578,8 @@ class PatternBase:
 
         doc_id = f"urn:trustgraph:agent:{session_id}/step/{index}/doc"
         try:
-            await self.processor.save_answer_content(
-                doc_id=doc_id, workspace=flow.workspace,
+            await flow.librarian.save_document(
+                doc_id=doc_id,
                 content=answer_text,
                 title=f"Step result: {goal[:60]}",
             )
@@ -606,8 +610,8 @@ class PatternBase:
 
         doc_id = f"urn:trustgraph:agent:{session_id}/synthesis/doc"
         try:
-            await self.processor.save_answer_content(
-                doc_id=doc_id, workspace=flow.workspace,
+            await flow.librarian.save_document(
+                doc_id=doc_id,
                 content=answer_text,
                 title="Synthesis",
             )

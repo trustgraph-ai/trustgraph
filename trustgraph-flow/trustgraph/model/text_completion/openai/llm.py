@@ -35,8 +35,8 @@ class Processor(LlmService):
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
-        if api_key is None:
-            raise RuntimeError("OpenAI API key not specified")
+        if not api_key:
+            api_key = "not-set"
 
         super(Processor, self).__init__(
             **params | {

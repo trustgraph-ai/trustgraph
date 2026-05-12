@@ -14,7 +14,7 @@ from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue
 from .. log_level import LogLevel
-from . async_processor import AsyncProcessor
+from . workspace_processor import WorkspaceProcessor
 from . flow import Flow
 
 # Module logger
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Parent class for configurable processors, configured with flows by
 # the config service
-class FlowProcessor(AsyncProcessor):
+class FlowProcessor(WorkspaceProcessor):
 
     def __init__(self, **params):
 
@@ -113,7 +113,7 @@ class FlowProcessor(AsyncProcessor):
     @staticmethod
     def add_args(parser: ArgumentParser) -> None:
 
-        AsyncProcessor.add_args(parser)
+        WorkspaceProcessor.add_args(parser)
 
         # parser.add_argument(
         #     '--rate-limit-retry',

@@ -17,7 +17,7 @@ from .embeddings import GraphEmbeddings
 #   <- (error)
 
 # list-kg-cores
-#   -> (workspace)
+#   -> ()
 #   <- ()
 #   <- (error)
 
@@ -26,9 +26,6 @@ class KnowledgeRequest:
     # get-kg-core, delete-kg-core, list-kg-cores, put-kg-core
     # load-kg-core, unload-kg-core
     operation: str = ""
-
-    # Workspace the cores belong to. Partition / isolation boundary.
-    workspace: str = ""
 
     # get-kg-core, list-kg-cores, delete-kg-core, put-kg-core,
     # load-kg-core, unload-kg-core

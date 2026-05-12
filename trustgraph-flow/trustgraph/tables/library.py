@@ -40,9 +40,11 @@ class LibraryTableStore:
     def __init__(
             self,
             cassandra_host, cassandra_username, cassandra_password, keyspace,
+            replication_factor=1,
     ):
 
         self.keyspace = keyspace
+        self.replication_factor = replication_factor
 
         logger.info("Connecting to Cassandra...")
 
@@ -77,12 +79,11 @@ class LibraryTableStore:
 
         logger.debug("Keyspace...")
 
-        # FIXME: Replication factor should be configurable
         self.cassandra.execute(f"""
             create keyspace if not exists {self.keyspace}
                 with replication = {{
                    'class' : 'SimpleStrategy',
-                   'replication_factor' : 1
+                   'replication_factor' : {self.replication_factor}
                 }};
         """);
 
@@ -312,7 +313,7 @@ class LibraryTableStore:
 
         return bool(rows)
 
-    async def add_document(self, document, object_id):
+    async def add_document(self, workspace, document, object_id):
 
         logger.info(f"Adding document {document.id} {object_id}")
 
@@ -332,7 +333,7 @@ class LibraryTableStore:
                 self.cassandra,
                 self.insert_document_stmt,
                 (
-                    document.id, document.workspace, int(document.time * 1000),
+                    document.id, workspace, int(document.time * 1000),
                     document.kind, document.title, document.comments,
                     metadata, document.tags, object_id,
                     parent_id, document_type
@@ -344,7 +345,7 @@ class LibraryTableStore:
 
         logger.debug("Add complete")
 
-    async def update_document(self, document):
+    async def update_document(self, workspace, document):
 
         logger.info(f"Updating document {document.id}")
 
@@ -362,7 +363,7 @@ class LibraryTableStore:
                 (
                     int(document.time * 1000), document.title,
                     document.comments, metadata, document.tags,
-                    document.workspace, document.id
+                    workspace, document.id
                 ),
             )
         except Exception:
@@ -404,7 +405,6 @@ class LibraryTableStore:
         lst = [
             DocumentMetadata(
                 id = row[0],
-                workspace = workspace,
                 time = int(time.mktime(row[1].timetuple())),
                 kind = row[2],
                 title = row[3],
@@ -446,7 +446,6 @@ class LibraryTableStore:
         lst = [
             DocumentMetadata(
                 id = row[0],
-                workspace = row[1],
                 time = int(time.mktime(row[2].timetuple())),
                 kind = row[3],
                 title = row[4],
@@ -487,7 +486,6 @@ class LibraryTableStore:
         for row in rows:
             doc = DocumentMetadata(
                 id = id,
-                workspace = workspace,
                 time = int(time.mktime(row[0].timetuple())),
                 kind = row[1],
                 title = row[2],
@@ -540,7 +538,7 @@ class LibraryTableStore:
 
         return bool(rows)
 
-    async def add_processing(self, processing):
+    async def add_processing(self, workspace, processing):
 
         logger.info(f"Adding processing {processing.id}")
 
@@ -551,7 +549,7 @@ class LibraryTableStore:
                 (
                     processing.id, processing.document_id,
                     int(processing.time * 1000), processing.flow,
-                    processing.workspace, processing.collection,
+                    workspace, processing.collection,
                     processing.tags
                 ),
             )
@@ -597,7 +595,6 @@ class LibraryTableStore:
                 document_id = row[1],
                 time = int(time.mktime(row[2].timetuple())),
                 flow = row[3],
-                workspace = workspace,
                 collection = row[4],
                 tags = row[5] if row[5] else [],
             )

@@ -156,6 +156,7 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
             "output": mock_output_flow,
             "triples": mock_triples_flow,
         }.get(name))
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         config = {
             'id': 'test-mistral-ocr',
@@ -170,9 +171,6 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
             ("# Page 1\nContent", 1),
             ("# Page 2\nMore content", 2),
         ]
-
-        # Mock save_child_document
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         with patch.object(processor, 'ocr', return_value=ocr_result):
             await processor.on_message(mock_msg, None, mock_flow)
@@ -227,8 +225,7 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         Processor.add_args(mock_parser)
 
         mock_parent_add_args.assert_called_once_with(mock_parser)
-        assert mock_parser.add_argument.call_count == 3
-        # Check the API key arg is among them
+        assert mock_parser.add_argument.call_count == 1
         call_args_list = [c[0] for c in mock_parser.add_argument.call_args_list]
         assert ('-k', '--api-key') in call_args_list
 

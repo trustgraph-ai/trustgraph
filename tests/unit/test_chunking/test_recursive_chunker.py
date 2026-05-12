@@ -177,8 +177,7 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
-        # Mock save_child_document to avoid waiting for librarian response
-        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
+        # Mock save_child_document on flow to avoid waiting for librarian response
 
         # Mock message with TextDocument
         mock_message = MagicMock()
@@ -204,6 +203,7 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
             "output": mock_producer,
             "triples": mock_triples_producer,
         }.get(key)
+        mock_flow.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)

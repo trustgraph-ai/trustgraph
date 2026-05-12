@@ -11,17 +11,21 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The context development platform
+# The agent runtime platform
 
 </div>
 
-Building applications that need to know things requires more than a database. [TrustGraph](https://trustgraph.ai) is the context development platform: graph-native infrastructure for storing, enriching, and retrieving structured knowledge at any scale. Think like [Supabase](https://github.com/supabase/supabase) but built around context graphs: multi-model storage, semantic retrieval pipelines, portable [context cores](#context-cores), and a full developer toolkit out of the box. Deploy locally or in the cloud. No unnecessary API keys. Just context, engineered.
+TrustGraph is an agent runtime platform built around context graphs — structured, queryable representations of your domain knowledge that ground every agent query in verified, explainable facts in private deployments with sovereign control. The platform is the full stack for agentic systems: context graphs, memory, retrieval, orchestration, and inference for precision-critical agent workloads.
 
 The platform:
 - [x] Multi-model and multimodal database system
   - [x] Tabular/relational, key-value
   - [x] Document, graph, and vectors
-  - [x] Images, video, and audio 
+  - [x] Images, video, and audio
+- [x] Context Graph engine
+  - [x] Automated entity and relationship extraction
+  - [x] Ontology-driven graph construction
+  - [x] Graph-grounded retrieval for explainable outputs
 - [x] Automated data ingest and loading
   - [x] Quick ingest with semantic similarity retrieval
   - [x] Ontology structuring for precision retrieval
@@ -31,8 +35,8 @@ The platform:
   - [x] OntologyRAG     
 - [x] 3D GraphViz for exploring context
 - [x] Fully Agentic System
-  - [x] Single Agent
-  - [x] Multi Agent
+  - [x] Single or Multi Agent
+  - [x] ReAct, Plan-then-Execute, and Supervisor patterns
   - [x] MCP integration 
 - [x] Run anywhere
   - [x] Deploy locally with Docker
@@ -123,7 +127,7 @@ There are 3 libraries for quick UI integration of TrustGraph services.
 
 ## Context Cores
 
-A Context Core is a **portable, versioned bundle of context** that you can ship between projects and environments, pin in production, and reuse across agents. It packages the “stuff agents need to know” (structured knowledge + embeddings + evidence + policies) into a single artifact, so you can treat context like code: build it, test it, version it, promote it, and roll it back. TrustGraph is built to support this kind of end-to-end context engineering and orchestration workflow.
+Context Cores are how TrustGraph treats context like code. A Context Core is a **portable, versioned bundle of context** that you can ship between projects and environments, pin in production, and reuse across agents. It packages the “stuff agents need to know” (structured knowledge + embeddings + evidence + policies) into a single artifact, so you can treat context like code: build it, test it, version it, promote it, and roll it back. TrustGraph is built to support this kind of end-to-end context engineering and orchestration workflow.
 
 ### What’s inside a Context Core
 A Context Core typically includes:
@@ -197,6 +201,8 @@ TrustGraph provides component flexibility to optimize agent workflows.
 <br>
 
 - Apache Pulsar<br>
+- RabbitMQ<br>
+- Apache Kafka<br>
 
 </details>
 <details>

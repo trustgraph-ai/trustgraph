@@ -4,21 +4,16 @@ Simple RAG service, performs query using document RAG an LLM.
 Input is query, output is response.
 """
 
-import asyncio
-import base64
 import logging
 
-import uuid
-
 from ... schema import DocumentRagQuery, DocumentRagResponse, Error
-from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import Triples, Metadata
 from ... provenance import GRAPH_RETRIEVAL
 from . document_rag import DocumentRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import DocumentEmbeddingsClientSpec
-from ... base import LibrarianClient
+from ... base import LibrarianSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -85,57 +80,13 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Librarian client
-        self.librarian = LibrarianClient(
-            id=id,
-            backend=self.pubsub,
-            taskgroup=self.taskgroup,
+        self.register_specification(
+            LibrarianSpec()
         )
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian.start()
-
-    async def fetch_chunk_content(self, chunk_id, workspace, timeout=120):
-        """Fetch chunk content from librarian. Chunks are small so
-        single request-response is fine."""
-        return await self.librarian.fetch_document_text(
-            document_id=chunk_id, workspace=workspace, timeout=timeout,
-        )
-
-    async def save_answer_content(self, doc_id, workspace, content, title=None, timeout=120):
-        """Save answer content to the librarian."""
-
-        doc_metadata = DocumentMetadata(
-            id=doc_id,
-            workspace=workspace,
-            kind="text/plain",
-            title=title or "DocumentRAG Answer",
-            document_type="answer",
-        )
-
-        request = LibrarianRequest(
-            operation="add-document",
-            document_id=doc_id,
-            document_metadata=doc_metadata,
-            content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
-            workspace=workspace,
-        )
-
-        await self.librarian.request(request, timeout=timeout)
-        return doc_id
 
     async def on_request(self, msg, consumer, flow):
 
         try:
-
-            self.rag = DocumentRag(
-                embeddings_client = flow("embeddings-request"),
-                doc_embeddings_client = flow("document-embeddings-request"),
-                prompt_client = flow("prompt-request"),
-                fetch_chunk = self.fetch_chunk_content,
-                verbose=True,
-            )
 
             v = msg.value()
 
@@ -144,15 +95,25 @@ class Processor(FlowProcessor):
 
             logger.info(f"Handling input {id}...")
 
+            async def fetch_chunk(chunk_id, timeout=120):
+                return await flow.librarian.fetch_document_text(
+                    document_id=chunk_id, timeout=timeout,
+                )
+
+            self.rag = DocumentRag(
+                embeddings_client = flow("embeddings-request"),
+                doc_embeddings_client = flow("document-embeddings-request"),
+                prompt_client = flow("prompt-request"),
+                fetch_chunk = fetch_chunk,
+                verbose=True,
+            )
+
             if v.doc_limit:
                 doc_limit = v.doc_limit
             else:
                 doc_limit = self.doc_limit
 
-            # Real-time explainability callback - emits triples and IDs as they're generated
-            # Triples are stored in the request's collection with a named graph (urn:graph:retrieval)
             async def send_explainability(triples, explain_id):
-                # Send triples to explainability queue - stores in same collection with named graph
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=explain_id,
@@ -161,7 +122,6 @@ class Processor(FlowProcessor):
                     triples=triples,
                 ))
 
-                # Send explain data to response queue
                 await flow("response").send(
                     DocumentRagResponse(
                         response=None,
@@ -173,13 +133,12 @@ class Processor(FlowProcessor):
                     properties={"id": id}
                 )
 
-            # Callback to save answer content to librarian
             async def save_answer(doc_id, answer_text):
-                await self.save_answer_content(
+                await flow.librarian.save_document(
                     doc_id=doc_id,
-                    workspace=flow.workspace,
                     content=answer_text,
                     title=f"DocumentRAG Answer: {v.query[:50]}...",
+                    document_type="answer",
                 )
 
             # Check if streaming is requested

@@ -190,6 +190,16 @@ class Mux:
                 await self.auth.authorise(
                     self.identity, op.capability, resource, parameters,
                 )
+            except _web.HTTPNotFound:
+                await self.ws.send_json({
+                    "id": request_id,
+                    "error": {
+                        "message": "workspace not found",
+                        "type": "workspace-not-found",
+                    },
+                    "complete": True,
+                })
+                return
             except _web.HTTPForbidden:
                 await self.ws.send_json({
                     "id": request_id,
@@ -310,7 +320,7 @@ class Mux:
             else:
 
                 await self.dispatcher_manager.invoke_global_service(
-                    request, responder, svc
+                    request, responder, svc, workspace=workspace,
                 )
 
         except Exception as e:
