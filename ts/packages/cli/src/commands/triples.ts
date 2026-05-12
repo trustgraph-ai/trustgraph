@@ -23,14 +23,17 @@ export function registerTriplesCommands(program: Command): void {
 
       try {
         const flow = socket.flow(opts.flow);
-        const s: Term | undefined = cmdOpts.subject
-          ? { t: "i", i: cmdOpts.subject as string }
+        const subject = cmdOpts.subject as string | undefined;
+        const predicate = cmdOpts.predicate as string | undefined;
+        const object = cmdOpts.object as string | undefined;
+        const s: Term | undefined = subject !== undefined && subject.length > 0
+          ? { t: "i", i: subject }
           : undefined;
-        const p: Term | undefined = cmdOpts.predicate
-          ? { t: "i", i: cmdOpts.predicate as string }
+        const p: Term | undefined = predicate !== undefined && predicate.length > 0
+          ? { t: "i", i: predicate }
           : undefined;
-        const o: Term | undefined = cmdOpts.object
-          ? { t: "i", i: cmdOpts.object as string }
+        const o: Term | undefined = object !== undefined && object.length > 0
+          ? { t: "i", i: object }
           : undefined;
 
         const triples = await flow.triplesQuery(

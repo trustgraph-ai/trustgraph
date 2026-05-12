@@ -22,6 +22,7 @@ import {
   type ConfigRequest,
   type ConfigResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import type {
   BackendProducer,
   BackendConsumer,
@@ -136,7 +137,7 @@ export class FlowManagerService extends AsyncProcessor {
     while (this.running) {
       try {
         const msg = await this.consumer.receive(2000);
-        if (!msg) continue;
+        if (msg === null) continue;
 
         await this.handleMessage(msg);
         await this.consumer.acknowledge(msg);
@@ -155,7 +156,7 @@ export class FlowManagerService extends AsyncProcessor {
     const props = msg.properties();
     const requestId = props.id;
 
-    if (!requestId) {
+    if (requestId === undefined || requestId.length === 0) {
       console.warn("[FlowManager] Received request without id, ignoring");
       return;
     }
@@ -218,12 +219,12 @@ export class FlowManagerService extends AsyncProcessor {
     request: Record<string, unknown>,
   ): Record<string, unknown> {
     const name = request["blueprint-name"] as string | undefined;
-    if (!name) {
+    if (name === undefined || name.length === 0) {
       throw new Error("Missing blueprint-name");
     }
 
     const blueprint = this.blueprints.get(name);
-    if (!blueprint) {
+    if (blueprint === undefined) {
       throw new Error(`Blueprint not found: ${name}`);
     }
 
@@ -236,7 +237,7 @@ export class FlowManagerService extends AsyncProcessor {
     request: Record<string, unknown>,
   ): Record<string, unknown> {
     const name = request["blueprint-name"] as string | undefined;
-    if (!name) {
+    if (name === undefined || name.length === 0) {
       throw new Error("Missing blueprint-name");
     }
 
@@ -264,12 +265,12 @@ export class FlowManagerService extends AsyncProcessor {
     request: Record<string, unknown>,
   ): Record<string, unknown> {
     const id = request["flow-id"] as string | undefined;
-    if (!id) {
+    if (id === undefined || id.length === 0) {
       throw new Error("Missing flow-id");
     }
 
     const inst = this.flows.get(id);
-    if (!inst) {
+    if (inst === undefined) {
       throw new Error(`Flow not found: ${id}`);
     }
 
@@ -290,7 +291,7 @@ export class FlowManagerService extends AsyncProcessor {
     const description = (request["description"] as string) ?? "";
     const parameters = (request["parameters"] as Record<string, string>) ?? {};
 
-    if (!id) {
+    if (id === undefined || id.length === 0) {
       throw new Error("Missing flow-id");
     }
 
@@ -299,7 +300,7 @@ export class FlowManagerService extends AsyncProcessor {
     }
 
     const blueprint = this.blueprints.get(blueprintName);
-    if (!blueprint) {
+    if (blueprint === undefined) {
       throw new Error(`Blueprint not found: ${blueprintName}`);
     }
 
@@ -327,12 +328,12 @@ export class FlowManagerService extends AsyncProcessor {
     request: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const id = request["flow-id"] as string | undefined;
-    if (!id) {
+    if (id === undefined || id.length === 0) {
       throw new Error("Missing flow-id");
     }
 
     const inst = this.flows.get(id);
-    if (!inst) {
+    if (inst === undefined) {
       throw new Error(`Flow not found: ${id}`);
     }
 
@@ -353,12 +354,12 @@ export class FlowManagerService extends AsyncProcessor {
    * to the config service via a PUT operation.
    */
   private async pushFlowsConfig(): Promise<void> {
-    if (!this.configClient) return;
+    if (this.configClient === null) return;
 
     const flowsConfig: Record<string, { topics: Record<string, string> }> = {};
     for (const [id, inst] of this.flows) {
       const blueprint = this.blueprints.get(inst.blueprintName);
-      if (blueprint) {
+      if (blueprint !== undefined) {
         flowsConfig[id] = { topics: blueprint.topics };
       }
     }
@@ -380,15 +381,15 @@ export class FlowManagerService extends AsyncProcessor {
   // ---------- Lifecycle ----------
 
   override async stop(): Promise<void> {
-    if (this.consumer) {
+    if (this.consumer !== null) {
       await this.consumer.close();
       this.consumer = null;
     }
-    if (this.responseProducer) {
+    if (this.responseProducer !== null) {
       await this.responseProducer.close();
       this.responseProducer = null;
     }
-    if (this.configClient) {
+    if (this.configClient !== null) {
       await this.configClient.stop();
       this.configClient = null;
     }
@@ -399,6 +400,11 @@ export class FlowManagerService extends AsyncProcessor {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export const program = makeProcessorProgram({
+  id: "flow-manager",
+  make: (config) => new FlowManagerService(config),
+});
 
 export async function run(): Promise<void> {
   await FlowManagerService.launch("flow-manager");

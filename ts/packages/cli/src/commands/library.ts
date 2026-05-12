@@ -4,10 +4,14 @@
  * Manages documents stored in the TrustGraph library.
  */
 
-import { readFileSync } from "node:fs";
-import { basename } from "node:path";
 import type { Command } from "commander";
 import { createSocket, getOpts } from "./util.js";
+
+function basenamePath(filepath: string): string {
+  const normalized = filepath.replace(/\/+$/, "");
+  const index = normalized.lastIndexOf("/");
+  return index >= 0 ? normalized.slice(index + 1) : normalized;
+}
 
 /** Simple MIME-type lookup by file extension. */
 function guessMimeType(filepath: string): string {
@@ -69,10 +73,10 @@ export function registerLibraryCommands(program: Command): void {
 
       try {
         const lib = socket.librarian();
-        const data = readFileSync(file);
-        const b64 = data.toString("base64");
+        const data = new Uint8Array(await Bun.file(file).arrayBuffer());
+        const b64 = Buffer.from(data).toString("base64");
         const mimeType = (cmdOpts.mimeType as string | undefined) ?? guessMimeType(file);
-        const title = (cmdOpts.title as string | undefined) ?? basename(file);
+        const title = (cmdOpts.title as string | undefined) ?? basenamePath(file);
         const comments = cmdOpts.comments as string;
         const tags: string[] = (cmdOpts.tags as string[] | undefined) ?? [];
 

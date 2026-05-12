@@ -1,72 +1,102 @@
 /**
- * Core data types mirroring the Python schema primitives.
+ * Schema-backed core data types mirroring the Python schema primitives.
  *
  * Python reference: trustgraph-base/trustgraph/schema/core/primitives.py
  */
 
-export interface TgError {
-  type: string;
-  message: string;
-}
+import * as S from "effect/Schema";
 
-// RDF Term types — discriminated union
-export type TermType = "IRI" | "BLANK" | "LITERAL" | "TRIPLE";
+export const TgError = S.Struct({
+  type: S.String,
+  message: S.String,
+});
+export type TgError = typeof TgError.Type;
 
-export interface IriTerm {
-  type: "IRI";
-  iri: string;
-}
+export const TermType = S.Literals([
+  "IRI",
+  "BLANK",
+  "LITERAL",
+  "TRIPLE",
+]);
+export type TermType = typeof TermType.Type;
 
-export interface BlankTerm {
-  type: "BLANK";
-  id: string;
-}
+export const IriTerm = S.Struct({
+  type: S.tag("IRI"),
+  iri: S.String,
+});
+export type IriTerm = typeof IriTerm.Type;
 
-export interface LiteralTerm {
-  type: "LITERAL";
-  value: string;
-  datatype?: string;
-  language?: string;
-}
+export const BlankTerm = S.Struct({
+  type: S.tag("BLANK"),
+  id: S.String,
+});
+export type BlankTerm = typeof BlankTerm.Type;
 
-export interface TripleTerm {
-  type: "TRIPLE";
-  triple: Triple;
-}
+export const LiteralTerm = S.Struct({
+  type: S.tag("LITERAL"),
+  value: S.String,
+  datatype: S.optionalKey(S.String),
+  language: S.optionalKey(S.String),
+});
+export type LiteralTerm = typeof LiteralTerm.Type;
 
 export type Term = IriTerm | BlankTerm | LiteralTerm | TripleTerm;
+export type Triple = {
+  readonly s: Term;
+  readonly p: Term;
+  readonly o: Term;
+  readonly g?: Term;
+};
 
-export interface Triple {
-  s: Term;
-  p: Term;
-  o: Term;
-  g?: Term; // Named graph (optional quad)
+export const Triple: S.Codec<Triple, Triple> = S.suspend(() =>
+  S.Struct({
+    s: Term,
+    p: Term,
+    o: Term,
+    g: S.optionalKey(Term),
+  })
+);
+
+export const TripleTerm: S.Codec<TripleTerm, TripleTerm> = S.suspend(() =>
+  S.Struct({
+    type: S.tag("TRIPLE"),
+    triple: Triple,
+  })
+);
+export interface TripleTerm {
+  readonly type: "TRIPLE";
+  readonly triple: Triple;
 }
 
-export interface Field {
-  name: string;
-  type: string;
-  description?: string;
-}
+export const Term: S.Codec<Term, Term> = S.suspend(() => S.Union([IriTerm, BlankTerm, LiteralTerm, TripleTerm]));
 
-export interface RowSchema {
-  name: string;
-  description?: string;
-  fields: Field[];
-}
+export const Field = S.Struct({
+  name: S.String,
+  type: S.String,
+  description: S.optionalKey(S.String),
+});
+export type Field = typeof Field.Type;
 
-// LLM-related types
-export interface LlmResult {
-  text: string;
-  inToken: number;
-  outToken: number;
-  model: string;
-}
+export const RowSchema = S.Struct({
+  name: S.String,
+  description: S.optionalKey(S.String),
+  fields: S.Array(Field).pipe(S.mutable),
+});
+export type RowSchema = typeof RowSchema.Type;
 
-export interface LlmChunk {
-  text: string;
-  inToken: number | null;
-  outToken: number | null;
-  model: string;
-  isFinal: boolean;
-}
+export const LlmResult = S.Struct({
+  text: S.String,
+  inToken: S.Number,
+  outToken: S.Number,
+  model: S.String,
+});
+export type LlmResult = typeof LlmResult.Type;
+
+export const LlmChunk = S.Struct({
+  text: S.String,
+  inToken: S.NullOr(S.Number),
+  outToken: S.NullOr(S.Number),
+  model: S.String,
+  isFinal: S.Boolean,
+});
+export type LlmChunk = typeof LlmChunk.Type;

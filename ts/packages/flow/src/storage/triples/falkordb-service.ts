@@ -15,6 +15,7 @@ import {
   type FlowContext,
   type Triples,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { FalkorDBTriplesStore } from "./falkordb.js";
 
 export class TriplesStoreService extends FlowProcessor {
@@ -25,7 +26,7 @@ export class TriplesStoreService extends FlowProcessor {
     this.store = new FalkorDBTriplesStore();
 
     this.registerSpecification(
-      new ConsumerSpec<Triples>("store-triples-input", this.onMessage.bind(this)),
+      ConsumerSpec.fromPromise<Triples>("store-triples-input", this.onMessage.bind(this)),
     );
 
     console.log("[TriplesStore] Service initialized");
@@ -33,10 +34,10 @@ export class TriplesStoreService extends FlowProcessor {
 
   private async onMessage(
     msg: Triples,
-    properties: Record<string, string>,
-    flowCtx: FlowContext,
+    _properties: Record<string, string>,
+    _flowCtx: FlowContext,
   ): Promise<void> {
-    if (!msg.triples || msg.triples.length === 0) return;
+    if (msg.triples.length === 0) return;
 
     const user = msg.metadata?.user ?? "default";
     const collection = msg.metadata?.collection ?? "default";
@@ -48,6 +49,11 @@ export class TriplesStoreService extends FlowProcessor {
     );
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "triples-store",
+  make: (config) => new TriplesStoreService(config),
+});
 
 export async function run(): Promise<void> {
   await TriplesStoreService.launch("triples-store");

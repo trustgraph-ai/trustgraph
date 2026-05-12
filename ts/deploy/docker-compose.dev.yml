@@ -31,7 +31,7 @@ services:
 
   # Override text-completion to use Ollama (no API key needed for local dev)
   text-completion:
-    command: ["node", "entrypoints/text-completion-ollama.mjs"]
+    command: ["bun", "entrypoints/text-completion-ollama.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - OLLAMA_URL=http://ollama:11434

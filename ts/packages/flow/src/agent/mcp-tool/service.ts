@@ -22,6 +22,7 @@ import {
   type ToolRequest,
   type ToolResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 interface McpServiceConfig {
   url: string;
@@ -36,7 +37,7 @@ export class McpToolService extends FlowProcessor {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<ToolRequest>("mcp-tool-request", this.onRequest.bind(this)),
+      ConsumerSpec.fromPromise<ToolRequest>("mcp-tool-request", this.onRequest.bind(this)),
     );
     this.registerSpecification(new ProducerSpec<ToolResponse>("mcp-tool-response"));
 
@@ -77,14 +78,16 @@ export class McpToolService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const responseProducer = flowCtx.flow.producer<ToolResponse>("mcp-tool-response");
 
     try {
       const result = await this.invokeTool(
         msg.name,
-        msg.parameters ? JSON.parse(msg.parameters) : {},
+        msg.parameters !== undefined && msg.parameters.length > 0
+          ? JSON.parse(msg.parameters) as Record<string, unknown>
+          : {},
       );
 
       if (typeof result === "string") {
@@ -110,7 +113,7 @@ export class McpToolService extends FlowProcessor {
     }
 
     const svcConfig = this.mcpServices[name];
-    if (!svcConfig.url) {
+    if (svcConfig.url.length === 0) {
       throw new Error(`MCP service "${name}" URL not defined`);
     }
 
@@ -118,7 +121,7 @@ export class McpToolService extends FlowProcessor {
 
     // Build headers with optional bearer token
     const headers: Record<string, string> = {};
-    if (svcConfig["auth-token"]) {
+    if (svcConfig["auth-token"] !== undefined && svcConfig["auth-token"].length > 0) {
       headers["Authorization"] = `Bearer ${svcConfig["auth-token"]}`;
     }
 
@@ -133,7 +136,7 @@ export class McpToolService extends FlowProcessor {
     const client = new Client({ name: "trustgraph-mcp-client", version: "1.0.0" });
 
     try {
-      await client.connect(transport);
+      await client.connect(transport as unknown as Parameters<Client["connect"]>[0]);
 
       const result = await client.callTool({
         name: remoteName,
@@ -141,11 +144,11 @@ export class McpToolService extends FlowProcessor {
       });
 
       // Extract response — prefer structured content, fall back to text
-      if (result.structuredContent) {
+      if (result.structuredContent !== undefined && result.structuredContent !== null) {
         return result.structuredContent;
       }
 
-      if (result.content && Array.isArray(result.content)) {
+      if (result.content !== undefined && Array.isArray(result.content)) {
         return result.content
           .filter((c): c is { type: "text"; text: string } => c.type === "text")
           .map((c) => c.text)
@@ -158,3 +161,8 @@ export class McpToolService extends FlowProcessor {
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "mcp-tool",
+  make: (config) => new McpToolService(config),
+});

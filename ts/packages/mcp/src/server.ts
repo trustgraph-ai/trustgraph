@@ -63,7 +63,10 @@ export function createMcpServer(config: {
       const flow = socket.flow(flowId);
       const response = await flow.graphRag(
         query,
-        { entityLimit: entity_limit, tripleLimit: triple_limit },
+        {
+          ...(entity_limit !== undefined ? { entityLimit: entity_limit } : {}),
+          ...(triple_limit !== undefined ? { tripleLimit: triple_limit } : {}),
+        },
         collection,
       );
       return { content: [{ type: "text" as const, text: response }] };
@@ -141,9 +144,9 @@ export function createMcpServer(config: {
     },
     async ({ s, p, o, limit, collection }) => {
       const flow = socket.flow(flowId);
-      const sTerm: Term | undefined = s ? { t: "i", i: s } : undefined;
-      const pTerm: Term | undefined = p ? { t: "i", i: p } : undefined;
-      const oTerm: Term | undefined = o ? { t: "i", i: o } : undefined;
+      const sTerm: Term | undefined = s !== undefined && s.length > 0 ? { t: "i", i: s } : undefined;
+      const pTerm: Term | undefined = p !== undefined && p.length > 0 ? { t: "i", i: p } : undefined;
+      const oTerm: Term | undefined = o !== undefined && o.length > 0 ? { t: "i", i: o } : undefined;
       const triples = await flow.triplesQuery(sTerm, pTerm, oTerm, limit, collection);
       return { content: [{ type: "text" as const, text: JSON.stringify(triples, null, 2) }] };
     },
@@ -417,8 +420,10 @@ export async function run(): Promise<void> {
   const { server, socket } = createMcpServer({
     gatewayUrl: process.env.GATEWAY_URL ?? "ws://localhost:8088/api/v1/socket",
     user: process.env.USER_ID ?? "mcp",
-    token: process.env.GATEWAY_SECRET,
     flowId: process.env.FLOW_ID ?? "default",
+    ...(process.env.GATEWAY_SECRET !== undefined
+      ? { token: process.env.GATEWAY_SECRET }
+      : {}),
   });
 
   const transport = new StdioServerTransport();

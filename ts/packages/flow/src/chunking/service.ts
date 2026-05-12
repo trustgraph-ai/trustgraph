@@ -16,10 +16,14 @@ import {
   ParameterSpec,
   type ProcessorConfig,
   type FlowContext,
+  type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
   type TextDocument,
   type Chunk,
   type Triples,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
 import { recursiveSplit } from "./recursive-splitter.js";
 
 const DEFAULT_CHUNK_SIZE = 2000;
@@ -30,7 +34,10 @@ export class ChunkingService extends FlowProcessor {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<TextDocument>("chunk-input", this.onMessage.bind(this)),
+      new ConsumerSpec<TextDocument, FlowResourceNotFoundError | MessagingDeliveryError>(
+        "chunk-input",
+        this.onMessageEffect.bind(this),
+      ),
     );
     this.registerSpecification(new ProducerSpec<Chunk>("chunk-output"));
     this.registerSpecification(new ProducerSpec<Triples>("chunk-triples"));
@@ -40,54 +47,54 @@ export class ChunkingService extends FlowProcessor {
     console.log("[ChunkingService] Service initialized");
   }
 
-  private async onMessage(
+  private onMessageEffect(
     msg: TextDocument,
     properties: Record<string, string>,
     flowCtx: FlowContext,
-  ): Promise<void> {
-    const requestId = properties.id;
-    if (!requestId) return;
+  ) {
+    return Effect.gen(function* () {
+      const requestId = properties.id;
+      if (requestId === undefined || requestId.length === 0) return;
 
-    let chunkSize: number;
-    let chunkOverlap: number;
+      const chunkSize = yield* flowCtx.flow.parameterEffect<number>("chunk-size").pipe(
+        Effect.catch(() => Effect.succeed(DEFAULT_CHUNK_SIZE)),
+      );
+      const chunkOverlap = yield* flowCtx.flow.parameterEffect<number>("chunk-overlap").pipe(
+        Effect.catch(() => Effect.succeed(DEFAULT_CHUNK_OVERLAP)),
+      );
 
-    try {
-      chunkSize = flowCtx.flow.parameter<number>("chunk-size");
-    } catch {
-      chunkSize = DEFAULT_CHUNK_SIZE;
-    }
+      const text = msg.text;
+      if (text.trim().length === 0) {
+        yield* Effect.logWarning(`[ChunkingService] Empty text received for document ${msg.documentId}`);
+        return;
+      }
 
-    try {
-      chunkOverlap = flowCtx.flow.parameter<number>("chunk-overlap");
-    } catch {
-      chunkOverlap = DEFAULT_CHUNK_OVERLAP;
-    }
+      const chunks = recursiveSplit(text, chunkSize, chunkOverlap);
 
-    const text = msg.text;
-    if (!text || text.trim().length === 0) {
-      console.warn(`[ChunkingService] Empty text received for document ${msg.documentId}`);
-      return;
-    }
+      yield* Effect.log(
+        `[ChunkingService] Split document ${msg.documentId} into ${chunks.length} chunks (size=${chunkSize}, overlap=${chunkOverlap})`,
+      );
 
-    const chunks = recursiveSplit(text, chunkSize, chunkOverlap);
+      const outputProducer = yield* flowCtx.flow.producerEffect<Chunk>("chunk-output");
 
-    console.log(
-      `[ChunkingService] Split document ${msg.documentId} into ${chunks.length} chunks (size=${chunkSize}, overlap=${chunkOverlap})`,
-    );
-
-    const outputProducer = flowCtx.flow.producer<Chunk>("chunk-output");
-
-    for (const chunkText of chunks) {
-      const chunk: Chunk = {
-        metadata: msg.metadata,
-        chunk: chunkText,
-        documentId: msg.documentId,
-      };
-
-      await outputProducer.send(requestId, chunk);
-    }
+      yield* Effect.forEach(
+        chunks,
+        (chunkText) =>
+          outputProducer.send(requestId, {
+            metadata: msg.metadata,
+            chunk: chunkText,
+            documentId: msg.documentId,
+          }),
+        { discard: true },
+      );
+    });
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "chunking",
+  make: (config) => new ChunkingService(config),
+});
 
 export async function run(): Promise<void> {
   await ChunkingService.launch("chunking");

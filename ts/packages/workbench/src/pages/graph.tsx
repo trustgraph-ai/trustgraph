@@ -18,8 +18,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Filter,
-  ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSocket } from "@/providers/socket-provider";
@@ -193,7 +191,10 @@ export default function GraphPage() {
   const [objectFilter, setObjectFilter] = useState("");
   const [tripleLimit, setTripleLimit] = useState(2000);
   const [showLegend, setShowLegend] = useState(false);
-  const hasActiveFilters = subjectFilter || predicateFilter || objectFilter;
+  const hasActiveFilters =
+    subjectFilter.length > 0 ||
+    predicateFilter.length > 0 ||
+    objectFilter.length > 0;
 
   const fgRef = useRef<ForceGraphMethods<GraphNode, GraphLink> | undefined>(
     undefined,
@@ -210,14 +211,14 @@ export default function GraphPage() {
   // Ref callback — attaches ResizeObserver when the container mounts
   const containerRef = useCallback((el: HTMLDivElement | null) => {
     // Disconnect previous observer
-    if (roRef.current) {
+    if (roRef.current !== null) {
       roRef.current.disconnect();
       roRef.current = null;
     }
-    if (!el) return;
+    if (el === null) return;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) {
+      if (entry !== undefined) {
         const { width, height } = entry.contentRect;
         setContainerSize({ width: Math.floor(width), height: Math.floor(height) });
       }
@@ -236,9 +237,9 @@ export default function GraphPage() {
       hasAutoFit.current = false;
 
       const flow = socket.flow(flowId);
-      const s: Term | undefined = subjectFilter ? { t: "i", i: subjectFilter } : undefined;
-      const p: Term | undefined = predicateFilter ? { t: "i", i: predicateFilter } : undefined;
-      const o: Term | undefined = objectFilter ? { t: "i", i: objectFilter } : undefined;
+      const s: Term | undefined = subjectFilter.length > 0 ? { t: "i", i: subjectFilter } : undefined;
+      const p: Term | undefined = predicateFilter.length > 0 ? { t: "i", i: predicateFilter } : undefined;
+      const o: Term | undefined = objectFilter.length > 0 ? { t: "i", i: objectFilter } : undefined;
 
       const result = await flow.triplesQuery(
         s,
@@ -281,7 +282,7 @@ export default function GraphPage() {
   // Search filter -- highlight matching nodes
   const searchLower = searchTerm.toLowerCase();
   const matchingIds = useMemo(() => {
-    if (!searchLower) return new Set<string>();
+    if (searchLower.length === 0) return new Set<string>();
     return new Set(
       graphData.nodes
         .filter(
@@ -293,13 +294,17 @@ export default function GraphPage() {
     );
   }, [graphData.nodes, searchLower]);
 
-  const selectedLabel = selectedNode
+  const selectedLabel = selectedNode !== null
     ? labelMap.get(selectedNode) ?? localName(selectedNode)
     : "";
 
   // Auto-fit graph to view once data loads
   useEffect(() => {
-    if (graphData.nodes.length > 0 && fgRef.current && !hasAutoFit.current) {
+    if (
+      graphData.nodes.length > 0 &&
+      fgRef.current !== undefined &&
+      hasAutoFit.current === false
+    ) {
       hasAutoFit.current = true;
       // Wait for force simulation to settle briefly before fitting
       const timer = setTimeout(() => fgRef.current?.zoomToFit(400, 40), 500);
@@ -387,7 +392,14 @@ export default function GraphPage() {
 
       const src = link.source as unknown as GraphNode;
       const tgt = link.target as unknown as GraphNode;
-      if (!src.x || !tgt.x) return;
+      if (
+        src.x === undefined ||
+        src.y === undefined ||
+        tgt.x === undefined ||
+        tgt.y === undefined
+      ) {
+        return;
+      }
 
       const midX = ((src.x ?? 0) + (tgt.x ?? 0)) / 2;
       const midY = ((src.y ?? 0) + (tgt.y ?? 0)) / 2;
@@ -427,7 +439,7 @@ export default function GraphPage() {
               aria-label="Search nodes"
               className="w-48 rounded-lg border border-border bg-surface-100 py-1.5 pl-8 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
-            {searchTerm && (
+            {searchTerm.length > 0 && (
               <button
                 onClick={() => setSearchTerm("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg"
@@ -610,7 +622,7 @@ export default function GraphPage() {
       )}
 
       {/* Content */}
-      {error && (
+      {error !== null && (
         <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
@@ -672,13 +684,14 @@ export default function GraphPage() {
               backgroundColor="transparent"
               cooldownTicks={100}
               warmupTicks={30}
-              width={containerSize?.width}
-              height={containerSize?.height}
+              {...(containerSize !== null
+                ? { width: containerSize.width, height: containerSize.height }
+                : {})}
             />
             </Suspense>
 
             {/* Search results badge overlay */}
-            {searchTerm && matchingIds.size > 0 && (
+            {searchTerm.length > 0 && matchingIds.size > 0 && (
               <div className="absolute bottom-3 left-3">
                 <Badge variant="success">
                   {matchingIds.size} match{matchingIds.size > 1 ? "es" : ""}
@@ -708,7 +721,7 @@ export default function GraphPage() {
           )}
 
           {/* Detail panel -- positioned absolutely so it overlays the graph */}
-          {selectedNode && (
+          {selectedNode !== null && (
             <div className="absolute inset-y-0 right-0 z-10">
               <NodeDetailPanel
                 nodeId={selectedNode}

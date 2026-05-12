@@ -1,5 +1,8 @@
-import("../packages/flow/dist/decoding/pdf-decoder.js")
-  .then((m) => m.run())
+import("@effect/platform-bun/BunRuntime")
+  .then(async (BunRuntime) => {
+    const m = await import("../packages/flow/dist/decoding/pdf-decoder.js");
+    BunRuntime.runMain(m.program);
+  })
   .catch((err) => {
     console.error(err);
     process.exit(1);

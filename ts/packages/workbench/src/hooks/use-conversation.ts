@@ -75,9 +75,9 @@ export function nextMessageId(): string {
 export const useConversation = create<ConversationState>()(
   persist(
     (set) => ({
-      messages: [],
+      messages: [] as ChatMessage[],
       input: "",
-      chatMode: "graph-rag",
+      chatMode: "graph-rag" as ChatMode,
 
       setInput: (value) => set({ input: value }),
       setChatMode: (mode) => set({ chatMode: mode }),
@@ -107,7 +107,7 @@ export const useConversation = create<ConversationState>()(
       // Only persist messages and chatMode, not input or transient state
       partialize: (state) => {
         const MAX_PERSISTED_MESSAGES = 200;
-        const filtered = state.messages.filter((m) => !m.isStreaming);
+        const filtered = state.messages.filter((m) => m.isStreaming !== true);
         return {
           messages: filtered.slice(-MAX_PERSISTED_MESSAGES),
           chatMode: state.chatMode,

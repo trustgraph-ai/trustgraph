@@ -12,8 +12,9 @@ import {
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
-  TooManyRequestsError,
+  tooManyRequestsError,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class MistralProcessor extends LlmService {
   private client: Mistral;
@@ -37,7 +38,9 @@ export class MistralProcessor extends LlmService {
     this.maxOutput = config.maxOutput ?? 4096;
 
     const apiKey = config.apiKey ?? process.env.MISTRAL_TOKEN;
-    if (!apiKey) throw new Error("Mistral API key not specified");
+    if (apiKey === undefined || apiKey.length === 0) {
+      throw new Error("Mistral API key not specified");
+    }
 
     this.client = new Mistral({ apiKey });
 
@@ -72,7 +75,7 @@ export class MistralProcessor extends LlmService {
       };
     } catch (err) {
       if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
@@ -107,9 +110,10 @@ export class MistralProcessor extends LlmService {
 
       for await (const chunk of stream) {
         const delta = chunk.data?.choices?.[0]?.delta;
-        if (delta?.content) {
+        const content = delta?.content;
+        if (typeof content === "string" && content.length > 0) {
           yield {
-            text: delta.content as string,
+            text: content,
             inToken: null,
             outToken: null,
             model: modelName,
@@ -117,7 +121,7 @@ export class MistralProcessor extends LlmService {
           };
         }
 
-        if (chunk.data?.usage) {
+        if (chunk.data?.usage !== undefined) {
           totalInputTokens = chunk.data.usage.promptTokens ?? 0;
           totalOutputTokens = chunk.data.usage.completionTokens ?? 0;
         }
@@ -132,12 +136,17 @@ export class MistralProcessor extends LlmService {
       };
     } catch (err) {
       if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "text-completion",
+  make: (config) => new MistralProcessor(config),
+});
 
 export async function run(): Promise<void> {
   await MistralProcessor.launch("text-completion");

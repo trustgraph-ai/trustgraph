@@ -1,4 +1,4 @@
-import { Triple, Term } from "./Triple.js";
+import type { Term, Triple } from "./Triple.js";
 
 export type Request = object;
 export type Response = object;

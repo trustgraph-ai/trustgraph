@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Plug,
   Server,
@@ -55,7 +55,7 @@ function McpServerDialog({
   initial?: McpServerEntry;
   existingKeys: string[];
 }) {
-  const isEditing = initial != null;
+  const isEditing = initial !== undefined;
   const [key, setKey] = useState(initial?.key ?? "");
   const [url, setUrl] = useState(initial?.config.url ?? "");
   const [remoteName, setRemoteName] = useState(
@@ -81,14 +81,14 @@ function McpServerDialog({
   }, [open, initial]);
 
   const handleSave = async () => {
-    if (!key.trim() || !url.trim()) return;
+    if (key.trim().length === 0 || url.trim().length === 0) return;
     if (!isEditing && existingKeys.includes(key.trim())) {
       setKeyError("A server with this key already exists");
       return;
     }
     const config: McpServerConfig = { url: url.trim() };
-    if (remoteName.trim()) config["remote-name"] = remoteName.trim();
-    if (authToken.trim()) config["auth-token"] = authToken.trim();
+    if (remoteName.trim().length > 0) config["remote-name"] = remoteName.trim();
+    if (authToken.trim().length > 0) config["auth-token"] = authToken.trim();
     setSaving(true);
     try {
       await onSave(key.trim(), config);
@@ -113,7 +113,7 @@ function McpServerDialog({
           </button>
           <button
             onClick={handleSave}
-            disabled={!key.trim() || !url.trim() || saving}
+            disabled={key.trim().length === 0 || url.trim().length === 0 || saving}
             className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
           >
             {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -139,7 +139,7 @@ function McpServerDialog({
             placeholder="brave-search"
             className={cn(INPUT_CLASS, isEditing && "opacity-60")}
           />
-          {keyError && (
+          {keyError.length > 0 && (
             <p className="mt-1 text-xs text-error">{keyError}</p>
           )}
         </div>
@@ -220,7 +220,7 @@ function McpToolDialog({
   existingKeys: string[];
   serverKeys: string[];
 }) {
-  const isEditing = initial != null;
+  const isEditing = initial !== undefined;
   const [key, setKey] = useState(initial?.key ?? "");
   const [name, setName] = useState(initial?.config.name ?? "");
   const [description, setDescription] = useState(
@@ -259,7 +259,11 @@ function McpToolDialog({
     setArgs((prev) => prev.filter((_, j) => j !== i));
 
   const handleSave = async () => {
-    if (!key.trim() || !name.trim() || !mcpTool.trim()) return;
+    if (
+      key.trim().length === 0 ||
+      name.trim().length === 0 ||
+      mcpTool.trim().length === 0
+    ) return;
     if (!isEditing && existingKeys.includes(key.trim())) {
       setKeyError("A tool with this key already exists");
       return;
@@ -272,8 +276,8 @@ function McpToolDialog({
       group: group
         .split(",")
         .map((g) => g.trim())
-        .filter(Boolean),
-      arguments: args.filter((a) => a.name.trim()),
+        .filter((g) => g.length > 0),
+      arguments: args.filter((a) => a.name.trim().length > 0),
     };
     setSaving(true);
     try {
@@ -300,7 +304,12 @@ function McpToolDialog({
           </button>
           <button
             onClick={handleSave}
-            disabled={!key.trim() || !name.trim() || !mcpTool.trim() || saving}
+            disabled={
+              key.trim().length === 0 ||
+              name.trim().length === 0 ||
+              mcpTool.trim().length === 0 ||
+              saving
+            }
             className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
           >
             {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -327,7 +336,7 @@ function McpToolDialog({
               placeholder="brave-search"
               className={cn(INPUT_CLASS, isEditing && "opacity-60")}
             />
-            {keyError && (
+            {keyError.length > 0 && (
               <p className="mt-1 text-xs text-error">{keyError}</p>
             )}
           </div>
@@ -740,7 +749,11 @@ export default function McpToolsPage() {
       referencingTools.length > 0
         ? `The following tools reference this server and will stop working: ${referencingTools.join(", ")}`
         : undefined;
-    setDeleteTarget({ type: "server", key, warning });
+    setDeleteTarget({
+      type: "server",
+      key,
+      ...(warning !== undefined ? { warning } : {}),
+    });
   };
 
   const openAddTool = () => {
@@ -774,7 +787,7 @@ export default function McpToolsPage() {
   );
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (deleteTarget === null) return;
     try {
       if (deleteTarget.type === "server") {
         await deleteServer(deleteTarget.key);
@@ -901,7 +914,7 @@ export default function McpToolsPage() {
       </div>
 
       {/* Error */}
-      {error && (
+      {error !== null && error.length > 0 && (
         <p role="alert" className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
@@ -988,24 +1001,24 @@ export default function McpToolsPage() {
         open={serverDialogOpen}
         onClose={() => setServerDialogOpen(false)}
         onSave={handleSaveServer}
-        initial={editingServer}
         existingKeys={serverKeys}
+        {...(editingServer !== undefined ? { initial: editingServer } : {})}
       />
       <McpToolDialog
         open={toolDialogOpen}
         onClose={() => setToolDialogOpen(false)}
         onSave={handleSaveTool}
-        initial={editingTool}
         existingKeys={toolKeys}
         serverKeys={serverKeys}
+        {...(editingTool !== undefined ? { initial: editingTool } : {})}
       />
       <DeleteConfirmDialog
-        open={deleteTarget != null}
+        open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         entityType={deleteTarget?.type === "server" ? "MCP Server" : "Tool"}
         entityKey={deleteTarget?.key ?? ""}
-        warning={deleteTarget?.warning}
+        {...(deleteTarget?.warning !== undefined ? { warning: deleteTarget.warning } : {})}
       />
     </div>
   );

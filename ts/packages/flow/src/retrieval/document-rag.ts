@@ -8,7 +8,7 @@
  */
 
 import type {
-  RequestResponse,
+  FlowRequestor,
   TextCompletionRequest,
   TextCompletionResponse,
   EmbeddingsRequest,
@@ -20,16 +20,20 @@ import type {
 } from "@trustgraph/base";
 
 export interface DocumentRagClients {
-  llm: RequestResponse<TextCompletionRequest, TextCompletionResponse>;
-  embeddings: RequestResponse<EmbeddingsRequest, EmbeddingsResponse>;
-  docEmbeddings: RequestResponse<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>;
-  prompt: RequestResponse<PromptRequest, PromptResponse>;
+  llm: FlowRequestor<TextCompletionRequest, TextCompletionResponse>;
+  embeddings: FlowRequestor<EmbeddingsRequest, EmbeddingsResponse>;
+  docEmbeddings: FlowRequestor<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>;
+  prompt: FlowRequestor<PromptRequest, PromptResponse>;
 }
 
 export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
 
 export class DocumentRag {
-  constructor(private readonly clients: DocumentRagClients) {}
+  private readonly clients: DocumentRagClients;
+
+  constructor(clients: DocumentRagClients) {
+    this.clients = clients;
+  }
 
   async query(
     queryText: string,
@@ -57,8 +61,9 @@ export class DocumentRag {
 
     // Step 3: Build context from chunks
     const context = chunks
-      .filter((c) => c.content)
-      .map((c) => c.content)
+      .flatMap((c) =>
+        c.content !== undefined && c.content.length > 0 ? [c.content] : [],
+      )
       .join("\n\n---\n\n");
 
     // Step 4: Synthesize answer

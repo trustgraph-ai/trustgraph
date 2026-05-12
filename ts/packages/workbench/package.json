@@ -22,6 +22,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.65",
     "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

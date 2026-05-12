@@ -8,7 +8,7 @@ import type {
   CreateProducerOptions,
   CreateConsumerOptions,
 } from "../backend/types.js";
-import { TooManyRequestsError } from "../errors.js";
+import { tooManyRequestsError } from "../errors.js";
 import type { Flow } from "../processor/flow.js";
 
 // ── Mock Message ──────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ describe("Consumer", () => {
     const handler = vi.fn().mockImplementation(async () => {
       handlerCalls++;
       if (handlerCalls === 1) {
-        throw new TooManyRequestsError("rate limited");
+        throw tooManyRequestsError("rate limited");
       }
       // Second call succeeds
     });

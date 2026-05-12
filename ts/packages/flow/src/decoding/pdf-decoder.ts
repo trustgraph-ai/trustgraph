@@ -30,13 +30,14 @@ import {
   type LibrarianRequest,
   type LibrarianResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class PdfDecoderService extends FlowProcessor {
   constructor(config: ProcessorConfig) {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<Document>("decode-input", this.onMessage.bind(this)),
+      ConsumerSpec.fromPromise<Document>("decode-input", this.onMessage.bind(this)),
     );
     this.registerSpecification(new ProducerSpec<TextDocument>("decode-output"));
     this.registerSpecification(new ProducerSpec<Triples>("decode-triples"));
@@ -57,7 +58,7 @@ export class PdfDecoderService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const { documentId } = msg;
     const user = msg.metadata.user;
@@ -73,7 +74,7 @@ export class PdfDecoderService extends FlowProcessor {
       user,
     });
 
-    if (metadataResp.error) {
+    if (metadataResp.error !== undefined) {
       console.error(
         `[PdfDecoder] Failed to get metadata for ${documentId}:`,
         metadataResp.error.message,
@@ -96,7 +97,11 @@ export class PdfDecoderService extends FlowProcessor {
       user,
     });
 
-    if (contentResp.error || !contentResp.content) {
+    if (
+      contentResp.error !== undefined ||
+      contentResp.content === undefined ||
+      contentResp.content.length === 0
+    ) {
       console.error(
         `[PdfDecoder] Failed to get content for ${documentId}:`,
         contentResp.error?.message ?? "no content",
@@ -123,7 +128,7 @@ export class PdfDecoderService extends FlowProcessor {
         .map((item) => item.str)
         .join(" ");
 
-      if (!pageText.trim()) {
+      if (pageText.trim().length === 0) {
         console.log(
           `[PdfDecoder] Skipping empty page ${i} of document ${documentId}`,
         );
@@ -147,7 +152,7 @@ export class PdfDecoderService extends FlowProcessor {
         content: Buffer.from(pageText).toString("base64"),
       });
 
-      if (childResp.error) {
+      if (childResp.error !== undefined) {
         console.error(
           `[PdfDecoder] Failed to save page ${i} of ${documentId}:`,
           childResp.error.message,
@@ -197,6 +202,11 @@ function iriTerm(iri: string): Term {
 function literalTerm(value: string): Term {
   return { type: "LITERAL", value };
 }
+
+export const program = makeProcessorProgram({
+  id: "pdf-decoder",
+  make: (config) => new PdfDecoderService(config),
+});
 
 export async function run(): Promise<void> {
   await PdfDecoderService.launch("pdf-decoder");

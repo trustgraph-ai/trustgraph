@@ -10,3 +10,11 @@ export type {
 } from "./types.js";
 
 export { NatsBackend } from "./nats.js";
+export {
+  PubSub,
+  NatsPubSubLive,
+  makeNatsPubSubLayer,
+  makePubSubService,
+  pubSubLayer,
+  type PubSubService,
+} from "./pubsub.js";

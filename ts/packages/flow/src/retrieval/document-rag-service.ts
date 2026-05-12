@@ -27,6 +27,7 @@ import {
   type PromptRequest,
   type PromptResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { DocumentRag } from "./document-rag.js";
 
 export class DocumentRagService extends FlowProcessor {
@@ -35,7 +36,7 @@ export class DocumentRagService extends FlowProcessor {
 
     // Consumer: document RAG requests
     this.registerSpecification(
-      new ConsumerSpec<DocumentRagRequest>("document-rag-request", this.onRequest.bind(this)),
+      ConsumerSpec.fromPromise<DocumentRagRequest>("document-rag-request", this.onRequest.bind(this)),
     );
 
     // Producer: document RAG responses
@@ -80,7 +81,7 @@ export class DocumentRagService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const producer = flowCtx.flow.producer<DocumentRagResponse>("document-rag-response");
 
@@ -93,7 +94,7 @@ export class DocumentRagService extends FlowProcessor {
       });
 
       const response = await documentRag.query(msg.query, {
-        collection: msg.collection,
+        ...(msg.collection !== undefined ? { collection: msg.collection } : {}),
       });
 
       await producer.send(requestId, { response, endOfStream: true });
@@ -106,6 +107,11 @@ export class DocumentRagService extends FlowProcessor {
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "document-rag",
+  make: (config) => new DocumentRagService(config),
+});
 
 export async function run(): Promise<void> {
   await DocumentRagService.launch("document-rag");

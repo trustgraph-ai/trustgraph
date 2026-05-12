@@ -6,34 +6,44 @@
 
 import type { PubSubBackend, BackendProducer } from "../backend/types.js";
 import type { ProducerMetrics } from "../metrics/prometheus.js";
+import { Effect } from "effect";
+import { makeEffectProducerHandle, type EffectProducer } from "./runtime.js";
 
 export class Producer<T> {
   private backend: BackendProducer<T> | null = null;
-  private running = false;
+  private effectProducer: EffectProducer<T> | null = null;
+  private readonly pubsub: PubSubBackend;
+  private readonly topic: string;
+  private readonly metrics: ProducerMetrics | undefined;
 
-  constructor(
-    private readonly pubsub: PubSubBackend,
-    private readonly topic: string,
-    private readonly metrics?: ProducerMetrics,
-  ) {}
+  constructor(pubsub: PubSubBackend, topic: string, metrics?: ProducerMetrics) {
+    this.pubsub = pubsub;
+    this.topic = topic;
+    this.metrics = metrics;
+  }
 
   async start(): Promise<void> {
     this.backend = await this.pubsub.createProducer<T>({ topic: this.topic });
-    this.running = true;
+    this.effectProducer = makeEffectProducerHandle(this.backend, {
+      topic: this.topic,
+      ...(this.metrics === undefined ? {} : { metrics: this.metrics }),
+    });
   }
 
   async send(id: string, message: T): Promise<void> {
-    if (!this.backend) throw new Error("Producer not started");
+    if (this.effectProducer === null) throw new Error("Producer not started");
 
-    await this.backend.send(message, { id });
-    this.metrics?.inc();
+    await Effect.runPromise(this.effectProducer.send(id, message));
   }
 
   async stop(): Promise<void> {
-    this.running = false;
-    if (this.backend) {
-      await this.backend.flush();
-      await this.backend.close();
+    if (this.effectProducer !== null) {
+      await Effect.runPromise(
+        this.effectProducer.flush.pipe(
+          Effect.flatMap(() => this.effectProducer === null ? Effect.void : this.effectProducer.close),
+        ),
+      );
+      this.effectProducer = null;
       this.backend = null;
     }
   }

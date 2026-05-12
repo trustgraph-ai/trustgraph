@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
+  override componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
   }
 
@@ -30,9 +30,9 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback;
+      if (this.props.fallback !== undefined) return this.props.fallback;
 
       return (
         <div className="flex h-full items-center justify-center p-8">
@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h2>
             <p className="mb-4 text-sm text-fg-muted">
-              {this.state.error?.message || "An unexpected error occurred."}
+              {this.state.error?.message ?? "An unexpected error occurred."}
             </p>
             <button
               onClick={this.handleReset}

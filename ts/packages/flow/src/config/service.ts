@@ -11,17 +11,24 @@
  * Python reference: trustgraph-flow/trustgraph/config/service/service.py
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { Effect } from "effect";
+import * as S from "effect/Schema";
 import {
   AsyncProcessor,
   type ProcessorConfig,
   topics,
+  ConfigRequest as ConfigRequestSchema,
+  ConfigResponse as ConfigResponseSchema,
   type ConfigRequest,
   type ConfigResponse,
   type ConfigOperation,
+  errorMessage,
+  loadProcessorRuntimeConfig,
+  makeProcessorProgram,
+  optionalStringConfig,
 } from "@trustgraph/base";
-import type { PubSubBackend, BackendProducer, BackendConsumer, Message } from "@trustgraph/base";
+import type { BackendProducer, BackendConsumer, Message } from "@trustgraph/base";
+import { readTextFile, writeTextFile } from "../runtime/effect-files.js";
 
 export interface ConfigServiceConfig extends ProcessorConfig {
   persistPath?: string;
@@ -31,6 +38,11 @@ interface ConfigPush {
   version: number;
   config: Record<string, unknown>;
 }
+
+const ConfigPushSchema = S.Struct({
+  version: S.Number,
+  config: S.Record(S.String, S.Unknown),
+});
 
 export class ConfigService extends AsyncProcessor {
   private store = new Map<string, Map<string, unknown>>();
@@ -42,27 +54,30 @@ export class ConfigService extends AsyncProcessor {
 
   constructor(config: ConfigServiceConfig) {
     super(config);
-    this.persistPath = config.persistPath ?? process.env.CONFIG_PERSIST_PATH ?? null;
+    this.persistPath = config.persistPath ?? null;
   }
 
   protected override async run(): Promise<void> {
     // Optionally load persisted state
-    if (this.persistPath) {
+    if (this.persistPath !== null) {
       await this.loadFromDisk();
     }
 
     // Create producers
     this.responseProducer = await this.pubsub.createProducer<ConfigResponse>({
       topic: topics.configResponse,
+      schema: ConfigResponseSchema,
     });
     this.pushProducer = await this.pubsub.createProducer<ConfigPush>({
       topic: topics.configPush,
+      schema: ConfigPushSchema,
     });
 
     // Create consumer for config requests
     this.consumer = await this.pubsub.createConsumer<ConfigRequest>({
       topic: topics.configRequest,
       subscription: `${this.config.id}-config-request`,
+      schema: ConfigRequestSchema,
     });
 
     // Push initial config
@@ -73,11 +88,14 @@ export class ConfigService extends AsyncProcessor {
     // Main consume loop
     while (this.running) {
       try {
-        const msg = await this.consumer.receive(2000);
-        if (!msg) continue;
+        const consumer = this.consumer;
+        if (consumer === null) throw new Error("Config consumer not started");
+
+        const msg = await consumer.receive(2000);
+        if (msg === null) continue;
 
         await this.handleMessage(msg);
-        await this.consumer.acknowledge(msg);
+        await consumer.acknowledge(msg);
       } catch (err) {
         if (!this.running) break;
         console.error("[ConfigService] Error in consume loop:", err);
@@ -87,21 +105,25 @@ export class ConfigService extends AsyncProcessor {
   }
 
   private async handleMessage(msg: Message<ConfigRequest>): Promise<void> {
-    const request = msg.value();
+    const request = await Effect.runPromise(S.decodeUnknownEffect(ConfigRequestSchema)(msg.value()));
     const props = msg.properties();
     const requestId = props.id;
 
-    if (!requestId) {
+    if (requestId === undefined || requestId.length === 0) {
       console.warn("[ConfigService] Received request without id, ignoring");
       return;
     }
 
     try {
       const response = await this.handleOperation(request);
-      await this.responseProducer!.send(response, { id: requestId });
+      const responseProducer = this.responseProducer;
+      if (responseProducer === null) throw new Error("Config response producer not started");
+      await responseProducer.send(response, { id: requestId });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await this.responseProducer!.send(
+      const message = errorMessage(err);
+      const responseProducer = this.responseProducer;
+      if (responseProducer === null) throw new Error("Config response producer not started");
+      await responseProducer.send(
         {
           error: { type: "config-error", message },
         },
@@ -146,7 +168,7 @@ export class ConfigService extends AsyncProcessor {
     const namespace = keys[0];
     const subMap = this.store.get(namespace);
 
-    if (subMap) {
+    if (subMap !== undefined) {
       if (keys.length === 1) {
         // Return entire namespace
         for (const [k, v] of subMap) {
@@ -176,7 +198,7 @@ export class ConfigService extends AsyncProcessor {
 
     const namespace = keys[0];
     let subMap = this.store.get(namespace);
-    if (!subMap) {
+    if (subMap === undefined) {
       subMap = new Map<string, unknown>();
       this.store.set(namespace, subMap);
     }
@@ -205,7 +227,7 @@ export class ConfigService extends AsyncProcessor {
     } else {
       // Delete specific keys within namespace
       const subMap = this.store.get(namespace);
-      if (subMap) {
+      if (subMap !== undefined) {
         for (let i = 1; i < keys.length; i++) {
           subMap.delete(keys[i]);
         }
@@ -236,7 +258,7 @@ export class ConfigService extends AsyncProcessor {
 
     return {
       version: this.version,
-      directory: subMap ? [...subMap.keys()] : [],
+      directory: subMap !== undefined ? [...subMap.keys()] : [],
     };
   }
 
@@ -246,7 +268,12 @@ export class ConfigService extends AsyncProcessor {
     const values: { key: string; value: unknown }[] = [];
 
     for (const [namespace, subMap] of this.store) {
-      if (!type || namespace === type || namespace.startsWith(`${type}.`) || namespace.startsWith(`${type}/`)) {
+      if (
+        type.length === 0 ||
+        namespace === type ||
+        namespace.startsWith(`${type}.`) ||
+        namespace.startsWith(`${type}/`)
+      ) {
         for (const [k, v] of subMap) {
           values.push({ key: `${namespace}.${k}`, value: v });
         }
@@ -274,7 +301,8 @@ export class ConfigService extends AsyncProcessor {
   }
 
   private async pushConfig(): Promise<void> {
-    if (!this.pushProducer) return;
+    const pushProducer = this.pushProducer;
+    if (pushProducer === null) return;
 
     const config: Record<string, unknown> = {};
     for (const [namespace, subMap] of this.store) {
@@ -285,7 +313,7 @@ export class ConfigService extends AsyncProcessor {
       config[namespace] = obj;
     }
 
-    await this.pushProducer.send({
+    await pushProducer.send({
       version: this.version,
       config,
     });
@@ -294,7 +322,8 @@ export class ConfigService extends AsyncProcessor {
   }
 
   private async persist(): Promise<void> {
-    if (!this.persistPath) return;
+    const persistPath = this.persistPath;
+    if (persistPath === null) return;
 
     try {
       const data: Record<string, Record<string, unknown>> = {};
@@ -313,18 +342,18 @@ export class ConfigService extends AsyncProcessor {
         2,
       );
 
-      await mkdir(dirname(this.persistPath), { recursive: true });
-      await writeFile(this.persistPath, json, "utf-8");
+      await writeTextFile(persistPath, json);
     } catch (err) {
-      console.error("[ConfigService] Failed to persist config:", err);
+      await Effect.runPromise(Effect.logError("[ConfigService] Failed to persist config", { error: errorMessage(err) }));
     }
   }
 
   private async loadFromDisk(): Promise<void> {
-    if (!this.persistPath) return;
+    const persistPath = this.persistPath;
+    if (persistPath === null) return;
 
     try {
-      const raw = await readFile(this.persistPath, "utf-8");
+      const raw = await readTextFile(persistPath);
       const parsed = JSON.parse(raw) as {
         version: number;
         data: Record<string, Record<string, unknown>>;
@@ -346,20 +375,20 @@ export class ConfigService extends AsyncProcessor {
       );
     } catch {
       // File doesn't exist yet or is invalid — start fresh
-      console.log("[ConfigService] No persisted config found, starting fresh");
+      await Effect.runPromise(Effect.log("[ConfigService] No persisted config found, starting fresh"));
     }
   }
 
   override async stop(): Promise<void> {
-    if (this.consumer) {
+    if (this.consumer !== null) {
       await this.consumer.close();
       this.consumer = null;
     }
-    if (this.responseProducer) {
+    if (this.responseProducer !== null) {
       await this.responseProducer.close();
       this.responseProducer = null;
     }
-    if (this.pushProducer) {
+    if (this.pushProducer !== null) {
       await this.pushProducer.close();
       this.pushProducer = null;
     }
@@ -371,6 +400,23 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export const loadConfigServiceRuntimeConfig = Effect.fn("loadConfigServiceRuntimeConfig")(function* () {
+  const processorConfig = yield* loadProcessorRuntimeConfig("config-svc", {
+    manageProcessSignals: false,
+  });
+  const persistPath = yield* optionalStringConfig("CONFIG_PERSIST_PATH");
+  return {
+    ...processorConfig,
+    ...(persistPath !== undefined ? { persistPath } : {}),
+  } satisfies ConfigServiceConfig;
+});
+
+export const program = makeProcessorProgram({
+  id: "config-svc",
+  loadConfig: loadConfigServiceRuntimeConfig(),
+  make: (config) => new ConfigService(config),
+});
+
 export async function run(): Promise<void> {
-  await ConfigService.launch("config-svc");
+  await Effect.runPromise(program);
 }

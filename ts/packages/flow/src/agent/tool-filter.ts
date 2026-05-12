@@ -17,7 +17,7 @@ export function filterToolsByGroupAndState(
   currentState?: string,
 ): AgentTool[] {
   const groups = requestedGroups ?? ["default"];
-  const state = currentState || "undefined";
+  const state = currentState ?? "undefined";
 
   return tools.filter((tool) => isToolAvailable(tool, groups, state));
 }
@@ -31,12 +31,12 @@ function isToolAvailable(
 
   // Get tool groups (default to ["default"])
   let toolGroups = config["group"] as string[] | string | undefined;
-  if (!toolGroups) toolGroups = ["default"];
+  if (toolGroups === undefined) toolGroups = ["default"];
   if (!Array.isArray(toolGroups)) toolGroups = [toolGroups];
 
   // Get tool applicable states (default to ["*"] = all states)
   let applicableStates = config["applicable-states"] as string[] | string | undefined;
-  if (!applicableStates) applicableStates = ["*"];
+  if (applicableStates === undefined) applicableStates = ["*"];
   if (!Array.isArray(applicableStates)) applicableStates = [applicableStates];
 
   // Group match: wildcard in requested groups, or intersection non-empty
@@ -57,5 +57,5 @@ function isToolAvailable(
  */
 export function getNextState(tool: AgentTool, currentState: string): string {
   const nextState = tool.config?.["state"] as string | undefined;
-  return nextState || currentState;
+  return nextState ?? currentState;
 }

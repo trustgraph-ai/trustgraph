@@ -28,6 +28,7 @@ import {
   type Triple,
   type Term,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 // Well-known RDF/SKOS IRIs
 const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
@@ -49,7 +50,7 @@ export class KnowledgeExtractService extends FlowProcessor {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<Chunk>("extract-input", this.onMessage.bind(this)),
+      ConsumerSpec.fromPromise<Chunk>("extract-input", this.onMessage.bind(this)),
     );
     this.registerSpecification(new ProducerSpec<Triples>("extract-triples"));
     this.registerSpecification(new ProducerSpec<EntityContexts>("extract-entity-contexts"));
@@ -78,10 +79,10 @@ export class KnowledgeExtractService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const text = msg.chunk;
-    if (!text || text.trim().length === 0) return;
+    if (text.trim().length === 0) return;
 
     const promptClient = flowCtx.flow.requestor<PromptRequest, PromptResponse>("prompt-client");
     const llmClient = flowCtx.flow.requestor<TextCompletionRequest, TextCompletionResponse>("llm-client");
@@ -98,7 +99,7 @@ export class KnowledgeExtractService extends FlowProcessor {
         { timeoutMs: 10_000 },
       );
 
-      if (!relPrompt.error) {
+      if (relPrompt.error === undefined) {
         let relationships: ExtractedRelationship[] | null = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           const relCompletion = await llmClient.request(
@@ -106,18 +107,27 @@ export class KnowledgeExtractService extends FlowProcessor {
             { timeoutMs: 120_000 },
           );
 
-          if (!relCompletion.error && relCompletion.response) {
+          if (
+            relCompletion.error === undefined &&
+            relCompletion.response.length > 0
+          ) {
             relationships = parseJsonResponse<ExtractedRelationship[]>(relCompletion.response);
-            if (relationships) break;
+            if (relationships !== null) break;
             console.warn(`[KnowledgeExtract] Relationship parse failed, attempt ${attempt + 1}/3`);
           } else {
             break; // LLM error, don't retry
           }
         }
 
-        if (relationships) {
+        if (relationships !== null) {
           for (const rel of relationships) {
-            if (!rel.subject || !rel.predicate || !rel.object) continue;
+            if (
+              rel.subject.length === 0 ||
+              rel.predicate.length === 0 ||
+              rel.object.length === 0
+            ) {
+              continue;
+            }
 
             const subjectIri = toEntityIri(rel.subject);
             const predicateIri = toEntityIri(rel.predicate);
@@ -170,7 +180,7 @@ export class KnowledgeExtractService extends FlowProcessor {
         { timeoutMs: 10_000 },
       );
 
-      if (!defPrompt.error) {
+      if (defPrompt.error === undefined) {
         let definitions: ExtractedDefinition[] | null = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           const defCompletion = await llmClient.request(
@@ -178,18 +188,21 @@ export class KnowledgeExtractService extends FlowProcessor {
             { timeoutMs: 120_000 },
           );
 
-          if (!defCompletion.error && defCompletion.response) {
+          if (
+            defCompletion.error === undefined &&
+            defCompletion.response.length > 0
+          ) {
             definitions = parseJsonResponse<ExtractedDefinition[]>(defCompletion.response);
-            if (definitions) break;
+            if (definitions !== null) break;
             console.warn(`[KnowledgeExtract] Definition parse failed, attempt ${attempt + 1}/3`);
           } else {
             break; // LLM error, don't retry
           }
         }
 
-        if (definitions) {
+        if (definitions !== null) {
           for (const def of definitions) {
-            if (!def.entity || !def.definition) continue;
+            if (def.entity.length === 0 || def.definition.length === 0) continue;
 
             const entityIri = toEntityIri(def.entity);
 
@@ -265,8 +278,8 @@ export function parseJsonResponse<T>(raw: string): T | null {
   // Attempt 1: direct parse after stripping fences
   let cleaned = raw.trim();
   const fenceMatch = cleaned.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
-  if (fenceMatch) {
-    cleaned = fenceMatch[1].trim();
+  if (fenceMatch !== null) {
+    cleaned = (fenceMatch[1] ?? "").trim();
   }
 
   try {
@@ -275,7 +288,7 @@ export function parseJsonResponse<T>(raw: string): T | null {
 
   // Attempt 2: extract first JSON array from the text
   const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (arrayMatch) {
+  if (arrayMatch !== null) {
     try {
       return JSON.parse(arrayMatch[0]) as T;
     } catch { /* fall through */ }
@@ -293,7 +306,7 @@ export function parseJsonResponse<T>(raw: string): T | null {
 
   // Attempt 4: extract first JSON object, wrap in array
   const objMatch = cleaned.match(/\{[\s\S]*?\}/);
-  if (objMatch) {
+  if (objMatch !== null) {
     try {
       const obj = JSON.parse(objMatch[0]);
       return [obj] as unknown as T;
@@ -303,6 +316,11 @@ export function parseJsonResponse<T>(raw: string): T | null {
   console.warn("[KnowledgeExtract] Failed to parse JSON from LLM response:", raw.slice(0, 300));
   return null;
 }
+
+export const program = makeProcessorProgram({
+  id: "knowledge-extract",
+  make: (config) => new KnowledgeExtractService(config),
+});
 
 export async function run(): Promise<void> {
   await KnowledgeExtractService.launch("knowledge-extract");

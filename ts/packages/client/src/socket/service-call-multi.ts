@@ -1,4 +1,4 @@
-import { RequestMessage } from "../models/messages.js";
+import type { RequestMessage } from "../models/messages.js";
 import { WS_OPEN, WS_CONNECTING, type IsomorphicWebSocket } from "./websocket-adapter.js";
 
 // Constant defining the delay before attempting to reconnect a WebSocket
@@ -8,8 +8,14 @@ export const SOCKET_RECONNECTION_TIMEOUT = 2000;
 // Forward declare Socket type to avoid circular dependency
 // Using a minimal interface that matches what BaseApi provides
 interface Socket {
-  ws?: IsomorphicWebSocket;
-  inflight: { [key: string]: ServiceCallMulti };
+  ws: IsomorphicWebSocket | null | undefined;
+  inflight: {
+    [key: string]: {
+      onReceived: (resp: object) => void;
+      retryNow: () => void;
+      error: (err: object | string) => void;
+    };
+  };
   reopen: () => void;
   getNextId?: () => string;
   user?: string;
@@ -42,7 +48,7 @@ export class ServiceCallMulti {
   success: (resp: unknown) => void;
   error: (err: object | string) => void;
   receiver: (resp: unknown) => boolean;
-  timeoutId?: ReturnType<typeof setTimeout>;
+  timeoutId: ReturnType<typeof setTimeout> | undefined = undefined;
   timeout: number;
   retries: number;
   socket: Socket;
@@ -121,7 +127,7 @@ export class ServiceCallMulti {
     }
 
     // Check if WebSocket connection is available and ready
-    if (this.socket.ws && this.socket.ws.readyState === WS_OPEN) {
+    if (this.socket.ws !== null && this.socket.ws !== undefined && this.socket.ws.readyState === WS_OPEN) {
       try {
         this.socket.ws.send(JSON.stringify(this.msg));
         this.timeoutId = setTimeout(this.onTimeout.bind(this), this.timeout);
@@ -148,7 +154,8 @@ export class ServiceCallMulti {
       // No WebSocket connection available or not ready
       // Check if socket is connecting
       if (
-        this.socket.ws &&
+        this.socket.ws !== null &&
+        this.socket.ws !== undefined &&
         this.socket.ws.readyState === WS_CONNECTING
       ) {
         // Wait a bit longer for connection to establish

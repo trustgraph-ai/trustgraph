@@ -8,6 +8,7 @@
 
 import { Ollama } from "ollama";
 import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class OllamaProcessor extends LlmService {
   private client: Ollama;
@@ -90,7 +91,7 @@ export class OllamaProcessor extends LlmService {
         totalOutputTokens = chunk.eval_count;
       }
 
-      if (chunk.response) {
+      if (chunk.response.length > 0) {
         yield {
           text: chunk.response,
           inToken: null,
@@ -111,6 +112,11 @@ export class OllamaProcessor extends LlmService {
     };
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "text-completion",
+  make: (config) => new OllamaProcessor(config),
+});
 
 export async function run(): Promise<void> {
   await OllamaProcessor.launch("text-completion");

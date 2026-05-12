@@ -36,6 +36,7 @@ import {
   type ToolRequest,
   type ToolResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 import {
   createKnowledgeQueryTool,
@@ -45,7 +46,7 @@ import {
   type ExplainData,
 } from "./tools.js";
 import { buildReActPrompt } from "./prompt.js";
-import { filterToolsByGroupAndState, getNextState } from "../tool-filter.js";
+import { filterToolsByGroupAndState } from "../tool-filter.js";
 import type { AgentTool, ToolArg } from "./types.js";
 
 const MAX_ITERATIONS = 10;
@@ -59,7 +60,7 @@ export class AgentService extends FlowProcessor {
 
     // Consumer: agent requests
     this.registerSpecification(
-      new ConsumerSpec<AgentRequest>("agent-request", this.onRequest.bind(this)),
+      ConsumerSpec.fromPromise<AgentRequest>("agent-request", this.onRequest.bind(this)),
     );
 
     // Producer: agent responses (streaming chunks)
@@ -132,11 +133,12 @@ export class AgentService extends FlowProcessor {
       for (const [_toolId, toolValue] of Object.entries(toolConfig)) {
         try {
           const data = JSON.parse(toolValue) as Record<string, unknown>;
-          const implType = data["type"] as string;
-          const name = data["name"] as string;
-          const description = data["description"] as string ?? "";
+          const implType = typeof data["type"] === "string" ? data["type"] : "";
+          const name = typeof data["name"] === "string" ? data["name"] : "";
+          const description =
+            typeof data["description"] === "string" ? data["description"] : "";
 
-          if (!name) {
+          if (name.length === 0) {
             console.warn(`[AgentService] Skipping tool with no name: ${_toolId}`);
             continue;
           }
@@ -148,7 +150,10 @@ export class AgentService extends FlowProcessor {
               // Will be wired to requestor at request time
               tool = {
                 name,
-                description: description || "Query the knowledge graph for information about entities and their relationships.",
+                description:
+                  description.length > 0
+                    ? description
+                    : "Query the knowledge graph for information about entities and their relationships.",
                 args: [{ name: "question", type: "string", description: "The question to ask" }],
                 config: data,
                 execute: async () => "", // placeholder — wired at request time
@@ -158,7 +163,10 @@ export class AgentService extends FlowProcessor {
             case "document-query":
               tool = {
                 name,
-                description: description || "Search documents for relevant information.",
+                description:
+                  description.length > 0
+                    ? description
+                    : "Search documents for relevant information.",
                 args: [{ name: "question", type: "string", description: "The question to search for" }],
                 config: data,
                 execute: async () => "",
@@ -168,7 +176,10 @@ export class AgentService extends FlowProcessor {
             case "triples-query":
               tool = {
                 name,
-                description: description || "Query for specific triples in the knowledge graph.",
+                description:
+                  description.length > 0
+                    ? description
+                    : "Query for specific triples in the knowledge graph.",
                 args: [
                   { name: "subject", type: "string", description: "Subject entity (optional)" },
                   { name: "predicate", type: "string", description: "Predicate/relationship (optional)" },
@@ -203,7 +214,7 @@ export class AgentService extends FlowProcessor {
               continue;
           }
 
-          if (tool) {
+          if (tool !== null) {
             tools.push(tool);
             console.log(`[AgentService] Registered tool: ${name} (${implType})`);
           }
@@ -276,7 +287,7 @@ export class AgentService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const responseProducer = flowCtx.flow.producer<AgentResponse>("agent-response");
 
@@ -290,7 +301,7 @@ export class AgentService extends FlowProcessor {
       // Build tools — config-driven or hardcoded fallback
       let tools: AgentTool[];
 
-      if (this.configuredTools) {
+      if (this.configuredTools !== null) {
         tools = this.wireTools(this.configuredTools, flowCtx, msg.collection, onExplain);
       } else {
         // Hardcoded fallback (backward compat)
@@ -339,7 +350,7 @@ export class AgentService extends FlowProcessor {
           prompt: conversation,
         });
 
-        if (llmResponse.error) {
+        if (llmResponse.error !== undefined) {
           await responseProducer.send(requestId, {
             chunk_type: "error",
             content: `LLM error: ${llmResponse.error.message}`,
@@ -354,7 +365,7 @@ export class AgentService extends FlowProcessor {
         const parsed = parseReActResponse(text);
 
         // Send thought chunk
-        if (parsed.thought) {
+        if (parsed.thought.length > 0) {
           await responseProducer.send(requestId, {
             chunk_type: "thought",
             content: parsed.thought,
@@ -363,7 +374,7 @@ export class AgentService extends FlowProcessor {
         }
 
         // If we got a final answer, emit explain events then send the answer
-        if (parsed.finalAnswer) {
+        if (parsed.finalAnswer.length > 0) {
           // Emit explain events collected from tool calls
           for (const explain of explainEvents) {
             await responseProducer.send(requestId, {
@@ -384,11 +395,11 @@ export class AgentService extends FlowProcessor {
         }
 
         // Execute tool if action was specified
-        if (parsed.action && parsed.actionInput) {
+        if (parsed.action.length > 0 && parsed.actionInput.length > 0) {
           const tool = tools.find((t) => t.name === parsed.action);
           let observation: string;
 
-          if (tool) {
+          if (tool !== undefined) {
             try {
               observation = await tool.execute(parsed.actionInput);
             } catch (err) {
@@ -407,7 +418,7 @@ export class AgentService extends FlowProcessor {
 
           // Append the full exchange to conversation for the next iteration
           conversation += `\n${text}\nObservation: ${observation}\n`;
-        } else if (!parsed.finalAnswer) {
+        } else if (parsed.finalAnswer.length === 0) {
           // LLM didn't produce a valid action or final answer -- nudge it
           conversation += `\n${text}\nObservation: You must either use a tool (Action + Action Input) or provide a Final Answer.\n`;
         }
@@ -464,30 +475,31 @@ function parseReActResponse(text: string): {
       // Everything from "Final Answer:" to end of text is the answer
       const firstLine = trimmed.slice("Final Answer:".length).trim();
       const remainingLines = lines.slice(i + 1).join("\n").trim();
-      finalAnswer = firstLine + (remainingLines ? "\n" + remainingLines : "");
+      finalAnswer =
+        firstLine + (remainingLines.length > 0 ? "\n" + remainingLines : "");
       break;
     } else if (trimmed.startsWith("Thought:")) {
       currentSection = "thought";
       const content = trimmed.slice("Thought:".length).trim();
-      if (content) {
-        thought += (thought ? "\n" : "") + content;
+      if (content.length > 0) {
+        thought += (thought.length > 0 ? "\n" : "") + content;
       }
     } else if (trimmed.startsWith("Action Input:")) {
       currentSection = "action_input";
       const content = trimmed.slice("Action Input:".length).trim();
-      if (content) {
+      if (content.length > 0) {
         actionInput += content;
       }
     } else if (trimmed.startsWith("Action:")) {
       currentSection = "action";
       const content = trimmed.slice("Action:".length).trim();
-      if (content) {
+      if (content.length > 0) {
         action = content;
       }
     } else if (trimmed.startsWith("Observation:")) {
       // Stop processing -- observations are injected by us, not the LLM
       currentSection = null;
-    } else if (trimmed.length > 0 && currentSection) {
+    } else if (trimmed.length > 0 && currentSection !== null) {
       // Continuation line for current section
       switch (currentSection) {
         case "thought":
@@ -511,6 +523,11 @@ function parseReActResponse(text: string): {
     finalAnswer: finalAnswer.trim(),
   };
 }
+
+export const program = makeProcessorProgram({
+  id: "agent",
+  make: (config) => new AgentService(config),
+});
 
 export async function run(): Promise<void> {
   await AgentService.launch("agent");

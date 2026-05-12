@@ -94,7 +94,7 @@ export class DispatcherManager {
     key: string,
   ): Promise<RequestResponse<unknown, unknown>> {
     let pending = this.requestors.get(key);
-    if (!pending) {
+    if (pending === undefined) {
       pending = (async () => {
         const rr = new RequestResponse({
           pubsub: this.pubsub,
@@ -114,7 +114,7 @@ export class DispatcherManager {
     kind: string,
   ): { requestTopic: string; responseTopic: string } {
     const entry = GLOBAL_SERVICES.get(kind);
-    if (entry) {
+    if (entry !== undefined) {
       return {
         requestTopic: topicName(entry.request),
         responseTopic: topicName(entry.response),
@@ -131,7 +131,7 @@ export class DispatcherManager {
     kind: string,
   ): { requestTopic: string; responseTopic: string } {
     const entry = FLOW_SERVICES.get(kind);
-    if (entry) {
+    if (entry !== undefined) {
       return {
         requestTopic: topicName(entry.request),
         responseTopic: topicName(entry.response),
@@ -152,15 +152,15 @@ export class DispatcherManager {
     if (typeof response !== "object" || response === null) return true;
     const res = response as Record<string, unknown>;
     return (
-      !!res.complete ||
-      !!res.endOfStream ||
-      !!res.endOfSession ||
-      !!res.end_of_stream ||
-      !!res.end_of_session ||
-      !!res.end_of_dialog ||
-      !!res.eos ||
+      res.complete === true ||
+      res.endOfStream === true ||
+      res.endOfSession === true ||
+      res.end_of_stream === true ||
+      res.end_of_session === true ||
+      res.end_of_dialog === true ||
+      res.eos === true ||
       // error responses are always final
-      !!res.error
+      (res.error !== undefined && res.error !== null)
     );
   }
 

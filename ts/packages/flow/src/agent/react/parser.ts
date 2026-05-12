@@ -25,13 +25,22 @@ const MAX_MARKER_LEN = Math.max(...MARKERS.map((m) => m.prefix.length));
 export class StreamingReActParser {
   private state: ReActState = "initial";
   private buffer = "";
+  private onThought: (text: string) => void;
+  private onAction: (name: string) => void;
+  private onActionInput: (input: string) => void;
+  private onFinalAnswer: (text: string) => void;
 
   constructor(
-    private onThought: (text: string) => void,
-    private onAction: (name: string) => void,
-    private onActionInput: (input: string) => void,
-    private onFinalAnswer: (text: string) => void,
-  ) {}
+    onThought: (text: string) => void,
+    onAction: (name: string) => void,
+    onActionInput: (input: string) => void,
+    onFinalAnswer: (text: string) => void,
+  ) {
+    this.onThought = onThought;
+    this.onAction = onAction;
+    this.onActionInput = onActionInput;
+    this.onFinalAnswer = onFinalAnswer;
+  }
 
   /**
    * Feed a chunk of LLM output text into the parser.

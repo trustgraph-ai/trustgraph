@@ -1,3 +1,22 @@
-export { AsyncProcessor, type ProcessorConfig, type ConfigHandler } from "./async-processor.js";
+export {
+  AsyncProcessor,
+  type ConfigHandler,
+  type EffectConfigHandler,
+  type ProcessorConfig,
+} from "./async-processor.js";
 export { FlowProcessor } from "./flow-processor.js";
-export { Flow, type FlowDefinition } from "./flow.js";
+export {
+  Flow,
+  type FlowConsumer,
+  type FlowDefinition,
+  type FlowProducer,
+  type FlowRequestOptions,
+  type FlowRequestor,
+} from "./flow.js";
+export {
+  makeAsyncProcessorProgram,
+  makeFlowProcessorProgram,
+  makeProcessorProgram,
+  runProcessorScoped,
+  type ProcessorProgramOptions,
+} from "./program.js";

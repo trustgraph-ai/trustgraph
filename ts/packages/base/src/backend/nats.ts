@@ -19,6 +19,7 @@ import {
   AckPolicy,
   DeliverPolicy,
 } from "nats";
+import * as S from "effect/Schema";
 
 import type {
   PubSubBackend,
@@ -34,12 +35,11 @@ const sc = StringCodec();
 class NatsMessage<T> implements Message<T> {
   /** Exposed so acknowledge/negativeAcknowledge can access the raw JsMsg */
   readonly _jsMsg: JsMsg;
+  private readonly decoded: T;
 
-  constructor(
-    msg: JsMsg,
-    private readonly decoded: T,
-  ) {
+  constructor(msg: JsMsg, decoded: T) {
     this._jsMsg = msg;
+    this.decoded = decoded;
   }
 
   value(): T {
@@ -49,9 +49,12 @@ class NatsMessage<T> implements Message<T> {
   properties(): Record<string, string> {
     const headers = this._jsMsg.headers;
     const props: Record<string, string> = {};
-    if (headers) {
+    if (headers !== undefined) {
       for (const [key, values] of headers) {
-        props[key] = values[0];
+        const value = values[0];
+        if (value !== undefined) {
+          props[key] = value;
+        }
       }
     }
     return props;
@@ -59,16 +62,24 @@ class NatsMessage<T> implements Message<T> {
 }
 
 class NatsProducer<T> implements BackendProducer<T> {
-  constructor(
-    private readonly js: JetStreamClient,
-    private readonly subject: string,
-  ) {}
+  private readonly js: JetStreamClient;
+  private readonly subject: string;
+  private readonly schema: S.Top | undefined;
+
+  constructor(js: JetStreamClient, subject: string, schema?: S.Top) {
+    this.js = js;
+    this.subject = subject;
+    this.schema = schema;
+  }
 
   async send(message: T, properties?: Record<string, string>): Promise<void> {
-    const data = sc.encode(JSON.stringify(message));
+    const encoded = this.schema !== undefined
+      ? S.encodeUnknownSync(this.schema as S.Codec<unknown, unknown>)(message)
+      : message;
+    const data = sc.encode(JSON.stringify(encoded));
     const opts: Record<string, unknown> = {};
 
-    if (properties && Object.keys(properties).length > 0) {
+    if (properties !== undefined && Object.keys(properties).length > 0) {
       const { headers } = await import("nats");
       const hdrs = headers();
       for (const [key, val] of Object.entries(properties)) {
@@ -91,15 +102,31 @@ class NatsProducer<T> implements BackendProducer<T> {
 
 class NatsConsumer<T> implements BackendConsumer<T> {
   private consumer: NatsJsConsumer | null = null;
+  private readonly js: JetStreamClient;
+  private readonly jsm: JetStreamManager;
+  private readonly subject: string;
+  private readonly subscription: string;
+  private readonly initialPosition: "latest" | "earliest";
+  private readonly streamName: string;
+  private readonly schema: S.Top | undefined;
 
   constructor(
-    private readonly js: JetStreamClient,
-    private readonly jsm: JetStreamManager,
-    private readonly subject: string,
-    private readonly subscription: string,
-    private readonly initialPosition: "latest" | "earliest",
-    private readonly streamName: string,
-  ) {}
+    js: JetStreamClient,
+    jsm: JetStreamManager,
+    subject: string,
+    subscription: string,
+    initialPosition: "latest" | "earliest",
+    streamName: string,
+    schema?: S.Top,
+  ) {
+    this.js = js;
+    this.jsm = jsm;
+    this.subject = subject;
+    this.subscription = subscription;
+    this.initialPosition = initialPosition;
+    this.streamName = streamName;
+    this.schema = schema;
+  }
 
   async init(): Promise<void> {
     // Stream is already ensured by NatsBackend.ensureStream().
@@ -124,14 +151,17 @@ class NatsConsumer<T> implements BackendConsumer<T> {
   }
 
   async receive(timeoutMs = 2000): Promise<Message<T> | null> {
-    if (!this.consumer) throw new Error("Consumer not initialized");
+    if (this.consumer === null) throw new Error("Consumer not initialized");
 
     // Pull a single message with a timeout using the pull-based API.
     // consumer.next() returns a JsMsg or null when the timeout expires.
     const msg = await this.consumer.next({ expires: timeoutMs });
-    if (!msg) return null;
+    if (msg === null) return null;
 
-    const decoded = JSON.parse(sc.decode(msg.data)) as T;
+    const parsed = JSON.parse(sc.decode(msg.data));
+    const decoded = this.schema !== undefined
+      ? S.decodeUnknownSync(this.schema as S.Codec<unknown, unknown>)(parsed) as T
+      : parsed as T;
     return new NatsMessage(msg, decoded);
   }
 
@@ -161,11 +191,14 @@ export class NatsBackend implements PubSubBackend {
   private js: JetStreamClient | null = null;
   private jsm: JetStreamManager | null = null;
   private initializedStreams = new Set<string>();
+  private readonly url: string;
 
-  constructor(private readonly url: string = "nats://localhost:4222") {}
+  constructor(url = "nats://localhost:4222") {
+    this.url = url;
+  }
 
   private async ensureConnected(): Promise<void> {
-    if (!this.connection) {
+    if (this.connection === null) {
       this.connection = await connect({ servers: this.url });
       this.js = this.connection.jetstream();
       this.jsm = await this.connection.jetstreamManager();
@@ -184,10 +217,13 @@ export class NatsBackend implements PubSubBackend {
 
     const wildcardSubject = `${parts.slice(0, 2).join(".")}.>`;
 
+    const jsm = this.jsm;
+    if (jsm === null) throw new Error("NATS backend not connected");
+
     try {
-      await this.jsm!.streams.info(streamName);
+      await jsm.streams.info(streamName);
     } catch {
-      await this.jsm!.streams.add({
+      await jsm.streams.add({
         name: streamName,
         subjects: [wildcardSubject],
       });
@@ -199,26 +235,32 @@ export class NatsBackend implements PubSubBackend {
   async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
     await this.ensureConnected();
     await this.ensureStream(options.topic);
-    return new NatsProducer<T>(this.js!, options.topic);
+    const js = this.js;
+    if (js === null) throw new Error("NATS backend not connected");
+    return new NatsProducer<T>(js, options.topic, options.schema);
   }
 
   async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
     await this.ensureConnected();
     const streamName = await this.ensureStream(options.topic);
+    const js = this.js;
+    const jsm = this.jsm;
+    if (js === null || jsm === null) throw new Error("NATS backend not connected");
     const consumer = new NatsConsumer<T>(
-      this.js!,
-      this.jsm!,
+      js,
+      jsm,
       options.topic,
       options.subscription,
       options.initialPosition ?? "latest",
       streamName,
+      options.schema,
     );
     await consumer.init();
     return consumer;
   }
 
   async close(): Promise<void> {
-    if (this.connection) {
+    if (this.connection !== null) {
       await this.connection.drain();
       this.connection = null;
       this.js = null;

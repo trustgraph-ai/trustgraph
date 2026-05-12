@@ -1,344 +1,455 @@
 /**
- * Message types for service communication.
+ * Schema-backed message types for service communication.
  *
  * Python reference: trustgraph-base/trustgraph/schema/services/
  */
 
-import type { TgError, Triple, Term, RowSchema } from "./primitives.js";
+import * as S from "effect/Schema";
+import { Term, TgError, Triple } from "./primitives.js";
+
+const UnknownRecord = S.Record(S.String, S.Unknown);
+const MutableArray = <A extends S.Top>(schema: A) => schema.pipe(S.Array, S.mutable);
+const OptionalMutableArray = <A extends S.Top>(schema: A) => schema.pipe(S.Array, S.mutable, S.optionalKey);
+const StringArray = MutableArray(S.String);
+const NumberArray = MutableArray(S.Number);
+const NumberArrays = MutableArray(NumberArray);
 
 // Text completion
-export interface TextCompletionRequest {
-  system: string;
-  prompt: string;
-  model?: string;
-  temperature?: number;
-  streaming?: boolean;
-}
+export const TextCompletionRequest = S.Struct({
+  system: S.String,
+  prompt: S.String,
+  model: S.optionalKey(S.String),
+  temperature: S.optionalKey(S.Number),
+  streaming: S.optionalKey(S.Boolean),
+});
+export type TextCompletionRequest = typeof TextCompletionRequest.Type;
 
-export interface TextCompletionResponse {
-  response: string;
-  model?: string;
-  inToken?: number;
-  outToken?: number;
-  error?: TgError;
-  endOfStream?: boolean;
-}
+export const TextCompletionResponse = S.Struct({
+  response: S.String,
+  model: S.optionalKey(S.String),
+  inToken: S.optionalKey(S.Number),
+  outToken: S.optionalKey(S.Number),
+  error: S.optionalKey(TgError),
+  endOfStream: S.optionalKey(S.Boolean),
+});
+export type TextCompletionResponse = typeof TextCompletionResponse.Type;
 
 // Embeddings
-export interface EmbeddingsRequest {
-  text: string[];
-  model?: string;
-}
+export const EmbeddingsRequest = S.Struct({
+  text: StringArray,
+  model: S.optionalKey(S.String),
+});
+export type EmbeddingsRequest = typeof EmbeddingsRequest.Type;
 
-export interface EmbeddingsResponse {
-  vectors: number[][];
-  error?: TgError;
-}
+export const EmbeddingsResponse = S.Struct({
+  vectors: NumberArrays,
+  error: S.optionalKey(TgError),
+});
+export type EmbeddingsResponse = typeof EmbeddingsResponse.Type;
 
 // Graph RAG
-export interface GraphRagRequest {
-  query: string;
-  collection?: string;
-  entityLimit?: number;
-  tripleLimit?: number;
-  maxSubgraphSize?: number;
-  maxPathLength?: number;
-  streaming?: boolean;
-}
+export const GraphRagRequest = S.Struct({
+  query: S.String,
+  collection: S.optionalKey(S.String),
+  entityLimit: S.optionalKey(S.Number),
+  tripleLimit: S.optionalKey(S.Number),
+  maxSubgraphSize: S.optionalKey(S.Number),
+  maxPathLength: S.optionalKey(S.Number),
+  streaming: S.optionalKey(S.Boolean),
+});
+export type GraphRagRequest = typeof GraphRagRequest.Type;
 
-export interface GraphRagResponse {
-  response: string;
-  error?: TgError;
-  endOfStream?: boolean;
-  // Explainability: include retrieved subgraph triples
-  message_type?: "chunk" | "explain";
-  explain_id?: string;
-  explain_triples?: Triple[];
-  [key: string]: unknown;
-}
+export const GraphRagResponse = S.StructWithRest(
+  S.Struct({
+    response: S.String,
+    error: S.optionalKey(TgError),
+    endOfStream: S.optionalKey(S.Boolean),
+    message_type: S.optionalKey(S.Union([S.Literal("chunk"), S.Literal("explain")])),
+    explain_id: S.optionalKey(S.String),
+    explain_triples: OptionalMutableArray(Triple),
+  }),
+  [UnknownRecord],
+);
+export type GraphRagResponse = typeof GraphRagResponse.Type;
 
 // Document RAG
-export interface DocumentRagRequest {
-  query: string;
-  collection?: string;
-  streaming?: boolean;
-}
+export const DocumentRagRequest = S.Struct({
+  query: S.String,
+  collection: S.optionalKey(S.String),
+  streaming: S.optionalKey(S.Boolean),
+});
+export type DocumentRagRequest = typeof DocumentRagRequest.Type;
 
-export interface DocumentRagResponse {
-  response: string;
-  error?: TgError;
-  endOfStream?: boolean;
-}
+export const DocumentRagResponse = S.Struct({
+  response: S.String,
+  error: S.optionalKey(TgError),
+  endOfStream: S.optionalKey(S.Boolean),
+});
+export type DocumentRagResponse = typeof DocumentRagResponse.Type;
 
 // Agent
-export interface AgentRequest {
-  question: string;
-  collection?: string;
-  streaming?: boolean;
-  group?: string[];
-  state?: string;
-}
+export const AgentRequest = S.Struct({
+  question: S.String,
+  collection: S.optionalKey(S.String),
+  streaming: S.optionalKey(S.Boolean),
+  group: S.optionalKey(StringArray),
+  state: S.optionalKey(S.String),
+});
+export type AgentRequest = typeof AgentRequest.Type;
 
-export interface AgentResponse {
-  /** Streaming chunk type */
-  chunk_type?: "thought" | "observation" | "answer" | "error" | "explain";
-  content?: string;
-  end_of_message?: boolean;
-  end_of_dialog?: boolean;
-  /** Legacy non-streaming fields */
-  answer?: string;
-  error?: TgError;
-  endOfStream?: boolean;
-  endOfSession?: boolean;
-  /** Explainability fields */
-  explain_id?: string;
-  explain_graph?: string;
-  explain_triples?: unknown[];
-  message_type?: string;
-}
+export const AgentResponse = S.Struct({
+  chunk_type: S.optionalKey(S.Union([
+    S.Literal("thought"),
+    S.Literal("observation"),
+    S.Literal("answer"),
+    S.Literal("error"),
+    S.Literal("explain"),
+  ])),
+  content: S.optionalKey(S.String),
+  end_of_message: S.optionalKey(S.Boolean),
+  end_of_dialog: S.optionalKey(S.Boolean),
+  answer: S.optionalKey(S.String),
+  error: S.optionalKey(TgError),
+  endOfStream: S.optionalKey(S.Boolean),
+  endOfSession: S.optionalKey(S.Boolean),
+  explain_id: S.optionalKey(S.String),
+  explain_graph: S.optionalKey(S.String),
+  explain_triples: OptionalMutableArray(S.Unknown),
+  message_type: S.optionalKey(S.String),
+});
+export type AgentResponse = typeof AgentResponse.Type;
 
 // Triples query
-export interface TriplesQueryRequest {
-  s?: Term;
-  p?: Term;
-  o?: Term;
-  collection?: string;
-  limit?: number;
-}
+export const TriplesQueryRequest = S.Struct({
+  s: S.optionalKey(Term),
+  p: S.optionalKey(Term),
+  o: S.optionalKey(Term),
+  collection: S.optionalKey(S.String),
+  limit: S.optionalKey(S.Number),
+});
+export type TriplesQueryRequest = typeof TriplesQueryRequest.Type;
 
-export interface TriplesQueryResponse {
-  triples: Triple[];
-  error?: TgError;
-}
+export const TriplesQueryResponse = S.Struct({
+  triples: MutableArray(Triple),
+  error: S.optionalKey(TgError),
+});
+export type TriplesQueryResponse = typeof TriplesQueryResponse.Type;
 
 // Graph embeddings query
-export interface GraphEmbeddingsRequest {
-  vectors: number[][];
-  user?: string;
-  limit?: number;
-  collection?: string;
-}
+export const GraphEmbeddingsRequest = S.Struct({
+  vectors: NumberArrays,
+  user: S.optionalKey(S.String),
+  limit: S.optionalKey(S.Number),
+  collection: S.optionalKey(S.String),
+});
+export type GraphEmbeddingsRequest = typeof GraphEmbeddingsRequest.Type;
 
-export interface GraphEmbeddingsResponse {
-  entities: Term[];
-  error?: TgError;
-}
+export const GraphEmbeddingsResponse = S.Struct({
+  entities: MutableArray(Term),
+  error: S.optionalKey(TgError),
+});
+export type GraphEmbeddingsResponse = typeof GraphEmbeddingsResponse.Type;
 
 // Document embeddings query
-export interface DocumentEmbeddingsRequest {
-  vectors: number[][];
-  limit?: number;
-  user?: string;
-  collection?: string;
-}
+export const DocumentEmbeddingsRequest = S.Struct({
+  vectors: NumberArrays,
+  limit: S.optionalKey(S.Number),
+  user: S.optionalKey(S.String),
+  collection: S.optionalKey(S.String),
+});
+export type DocumentEmbeddingsRequest = typeof DocumentEmbeddingsRequest.Type;
 
-export interface DocumentEmbeddingsResponse {
-  chunks: Array<{ chunkId: string; score: number; content?: string }>;
-  error?: TgError;
-}
+const DocumentEmbeddingChunk = S.Struct({
+  chunkId: S.String,
+  score: S.Number,
+  content: S.optionalKey(S.String),
+});
+
+export const DocumentEmbeddingsResponse = S.Struct({
+  chunks: MutableArray(DocumentEmbeddingChunk),
+  error: S.optionalKey(TgError),
+});
+export type DocumentEmbeddingsResponse = typeof DocumentEmbeddingsResponse.Type;
 
 // Config
-export type ConfigOperation = "get" | "list" | "delete" | "put" | "config" | "getvalues";
+export const ConfigOperation = S.Union([
+  S.Literal("get"),
+  S.Literal("list"),
+  S.Literal("delete"),
+  S.Literal("put"),
+  S.Literal("config"),
+  S.Literal("getvalues"),
+]);
+export type ConfigOperation = typeof ConfigOperation.Type;
 
-export interface ConfigRequest {
-  operation: ConfigOperation;
-  keys?: string[];
-  values?: Record<string, unknown>;
-  type?: string;
-}
+export const ConfigRequest = S.Struct({
+  operation: ConfigOperation,
+  keys: S.optionalKey(StringArray),
+  values: S.optionalKey(UnknownRecord),
+  type: S.optionalKey(S.String),
+});
+export type ConfigRequest = typeof ConfigRequest.Type;
 
-export interface ConfigResponse {
-  version?: number;
-  values?: Record<string, unknown>;
-  directory?: string[];
-  config?: Record<string, unknown>;
-  error?: TgError;
-}
+export const ConfigResponse = S.Struct({
+  version: S.optionalKey(S.Number),
+  values: S.optionalKey(S.Unknown),
+  directory: S.optionalKey(StringArray),
+  config: S.optionalKey(UnknownRecord),
+  error: S.optionalKey(TgError),
+});
+export type ConfigResponse = typeof ConfigResponse.Type;
 
 // Prompt
-export interface PromptRequest {
-  name: string;
-  variables?: Record<string, string>;
-}
+export const PromptRequest = S.Struct({
+  name: S.String,
+  variables: S.optionalKey(S.Record(S.String, S.String)),
+});
+export type PromptRequest = typeof PromptRequest.Type;
 
-export interface PromptResponse {
-  system: string;
-  prompt: string;
-  error?: TgError;
-}
+export const PromptResponse = S.Struct({
+  system: S.String,
+  prompt: S.String,
+  error: S.optionalKey(TgError),
+});
+export type PromptResponse = typeof PromptResponse.Type;
 
-// ---------- Pipeline types ----------
+// Pipeline types
+export const PipelineMetadata = S.Struct({
+  id: S.String,
+  root: S.String,
+  user: S.String,
+  collection: S.String,
+});
+export type PipelineMetadata = typeof PipelineMetadata.Type;
 
-export interface PipelineMetadata {
-  id: string;
-  root: string;
-  user: string;
-  collection: string;
-}
+export const Document = S.Struct({
+  metadata: PipelineMetadata,
+  documentId: S.String,
+});
+export type Document = typeof Document.Type;
 
-/** Document message — triggers the decode pipeline for a librarian document. */
-export interface Document {
-  metadata: PipelineMetadata;
-  documentId: string;
-}
+export const TextDocument = S.Struct({
+  metadata: PipelineMetadata,
+  text: S.String,
+  documentId: S.String,
+});
+export type TextDocument = typeof TextDocument.Type;
 
-export interface TextDocument {
-  metadata: PipelineMetadata;
-  text: string;
-  documentId: string;
-}
+export const Chunk = S.Struct({
+  metadata: PipelineMetadata,
+  chunk: S.String,
+  documentId: S.String,
+});
+export type Chunk = typeof Chunk.Type;
 
-export interface Chunk {
-  metadata: PipelineMetadata;
-  chunk: string;
-  documentId: string;
-}
+export const EntityContext = S.Struct({
+  entity: Term,
+  context: S.String,
+  chunkId: S.String,
+});
+export type EntityContext = typeof EntityContext.Type;
 
-export interface EntityContext {
-  entity: Term;
-  context: string;
-  chunkId: string;
-}
+export const EntityContexts = S.Struct({
+  metadata: PipelineMetadata,
+  entities: MutableArray(EntityContext),
+});
+export type EntityContexts = typeof EntityContexts.Type;
 
-export interface EntityContexts {
-  metadata: PipelineMetadata;
-  entities: EntityContext[];
-}
+export const Triples = S.Struct({
+  metadata: PipelineMetadata,
+  triples: MutableArray(Triple),
+});
+export type Triples = typeof Triples.Type;
 
-export interface Triples {
-  metadata: PipelineMetadata;
-  triples: Triple[];
-}
+// Document metadata
+export const DocumentMetadata = S.Struct({
+  id: S.String,
+  time: S.Number,
+  kind: S.String,
+  title: S.String,
+  comments: S.String,
+  user: S.String,
+  tags: StringArray,
+  parentId: S.optionalKey(S.String),
+  documentType: S.String,
+  metadata: OptionalMutableArray(Triple),
+});
+export type DocumentMetadata = typeof DocumentMetadata.Type;
 
-// ---------- Document metadata ----------
+export const ProcessingMetadata = S.Struct({
+  id: S.String,
+  documentId: S.String,
+  time: S.Number,
+  flow: S.String,
+  user: S.String,
+  collection: S.String,
+  tags: StringArray,
+});
+export type ProcessingMetadata = typeof ProcessingMetadata.Type;
 
-export interface DocumentMetadata {
-  id: string;
-  time: number;
-  kind: string;
-  title: string;
-  comments: string;
-  user: string;
-  tags: string[];
-  parentId?: string;
-  documentType: string; // "source" | "page" | "chunk" | "extracted"
-  metadata?: Triple[];
-}
+// Librarian
+export const LibrarianOperation = S.Literals([
+  "add-document",
+  "remove-document",
+  "list-documents",
+  "get-document-metadata",
+  "get-document-content",
+  "add-child-document",
+  "list-children",
+  "add-processing",
+  "remove-processing",
+  "list-processing",
+]);
+export type LibrarianOperation = typeof LibrarianOperation.Type;
 
-export interface ProcessingMetadata {
-  id: string;
-  documentId: string;
-  time: number;
-  flow: string;
-  user: string;
-  collection: string;
-  tags: string[];
-}
+export const LibrarianRequest = S.Struct({
+  operation: LibrarianOperation,
+  documentId: S.optionalKey(S.String),
+  processingId: S.optionalKey(S.String),
+  documentMetadata: S.optionalKey(DocumentMetadata),
+  processingMetadata: S.optionalKey(ProcessingMetadata),
+  content: S.optionalKey(S.String),
+  user: S.optionalKey(S.String),
+  collection: S.optionalKey(S.String),
+});
+export type LibrarianRequest = typeof LibrarianRequest.Type;
 
-// ---------- Librarian ----------
+export const LibrarianResponse = S.Struct({
+  error: S.optionalKey(TgError),
+  documentMetadata: S.optionalKey(DocumentMetadata),
+  content: S.optionalKey(S.String),
+  documents: OptionalMutableArray(DocumentMetadata),
+  processing: OptionalMutableArray(ProcessingMetadata),
+});
+export type LibrarianResponse = typeof LibrarianResponse.Type;
 
-export type LibrarianOperation =
-  | "add-document"
-  | "remove-document"
-  | "list-documents"
-  | "get-document-metadata"
-  | "get-document-content"
-  | "add-child-document"
-  | "list-children"
-  | "add-processing"
-  | "remove-processing"
-  | "list-processing";
+// Knowledge core
+export const KnowledgeOperation = S.Literals([
+  "list-kg-cores",
+  "get-kg-core",
+  "delete-kg-core",
+  "put-kg-core",
+  "load-kg-core",
+]);
+export type KnowledgeOperation = typeof KnowledgeOperation.Type;
 
-export interface LibrarianRequest {
-  operation: LibrarianOperation;
-  documentId?: string;
-  processingId?: string;
-  documentMetadata?: DocumentMetadata;
-  processingMetadata?: ProcessingMetadata;
-  content?: string; // base64
-  user?: string;
-  collection?: string;
-}
+const GraphEmbedding = S.Struct({
+  entity: Term,
+  vectors: NumberArrays,
+});
 
-export interface LibrarianResponse {
-  error?: TgError;
-  documentMetadata?: DocumentMetadata;
-  content?: string; // base64
-  documents?: DocumentMetadata[];
-  processing?: ProcessingMetadata[];
-}
+export const KnowledgeRequest = S.Struct({
+  operation: KnowledgeOperation,
+  user: S.optionalKey(S.String),
+  id: S.optionalKey(S.String),
+  flow: S.optionalKey(S.String),
+  collection: S.optionalKey(S.String),
+  triples: OptionalMutableArray(Triple),
+  graphEmbeddings: OptionalMutableArray(GraphEmbedding),
+});
+export type KnowledgeRequest = typeof KnowledgeRequest.Type;
 
-// ---------- Knowledge core ----------
+export const KnowledgeResponse = S.Struct({
+  error: S.optionalKey(TgError),
+  ids: S.optionalKey(StringArray),
+  eos: S.optionalKey(S.Boolean),
+  triples: OptionalMutableArray(Triple),
+  graphEmbeddings: OptionalMutableArray(GraphEmbedding),
+});
+export type KnowledgeResponse = typeof KnowledgeResponse.Type;
 
-export type KnowledgeOperation =
-  | "list-kg-cores"
-  | "get-kg-core"
-  | "delete-kg-core"
-  | "put-kg-core"
-  | "load-kg-core";
+// Collection management
+export const CollectionOperation = S.Literals([
+  "list-collections",
+  "update-collection",
+  "delete-collection",
+]);
+export type CollectionOperation = typeof CollectionOperation.Type;
 
-export interface KnowledgeRequest {
-  operation: KnowledgeOperation;
-  user?: string;
-  id?: string;
-  flow?: string;
-  collection?: string;
-  triples?: Triple[];
-  graphEmbeddings?: { entity: Term; vectors: number[][] }[];
-}
+const CollectionEntry = S.Struct({
+  user: S.String,
+  collection: S.String,
+  name: S.String,
+  description: S.String,
+  tags: StringArray,
+});
 
-export interface KnowledgeResponse {
-  error?: TgError;
-  ids?: string[];
-  eos?: boolean;
-  triples?: Triple[];
-  graphEmbeddings?: { entity: Term; vectors: number[][] }[];
-}
+export const CollectionManagementRequest = S.Struct({
+  operation: CollectionOperation,
+  user: S.optionalKey(S.String),
+  collection: S.optionalKey(S.String),
+  name: S.optionalKey(S.String),
+  description: S.optionalKey(S.String),
+  tags: S.optionalKey(StringArray),
+});
+export type CollectionManagementRequest = typeof CollectionManagementRequest.Type;
 
-// ---------- Collection management ----------
+export const CollectionManagementResponse = S.Struct({
+  error: S.optionalKey(TgError),
+  collections: OptionalMutableArray(CollectionEntry),
+});
+export type CollectionManagementResponse = typeof CollectionManagementResponse.Type;
 
-export type CollectionOperation =
-  | "list-collections"
-  | "update-collection"
-  | "delete-collection";
+// Tool invocation (MCP tools)
+export const ToolRequest = S.Struct({
+  name: S.String,
+  parameters: S.String,
+});
+export type ToolRequest = typeof ToolRequest.Type;
 
-export interface CollectionManagementRequest {
-  operation: CollectionOperation;
-  user?: string;
-  collection?: string;
-  name?: string;
-  description?: string;
-  tags?: string[];
-}
+export const ToolResponse = S.Struct({
+  error: S.optionalKey(TgError),
+  text: S.optionalKey(S.String),
+  object: S.optionalKey(S.String),
+});
+export type ToolResponse = typeof ToolResponse.Type;
 
-export interface CollectionManagementResponse {
-  error?: TgError;
-  collections?: { user: string; collection: string; name: string; description: string; tags: string[] }[];
-}
+// Flow management
+export const FlowRequest = S.StructWithRest(
+  S.Struct({
+    operation: S.String,
+  }),
+  [UnknownRecord],
+);
+export type FlowRequest = typeof FlowRequest.Type;
 
-// ---------- Tool invocation (MCP tools) ----------
+export const FlowResponse = S.StructWithRest(
+  S.Struct({
+    error: S.optionalKey(TgError),
+  }),
+  [UnknownRecord],
+);
+export type FlowResponse = typeof FlowResponse.Type;
 
-export interface ToolRequest {
-  name: string;
-  parameters: string; // JSON-encoded
-}
-
-export interface ToolResponse {
-  error?: TgError;
-  text?: string;    // Plain text response
-  object?: string;  // JSON-encoded structured response
-}
-
-// ---------- Flow management ----------
-
-// Flow request/response use kebab-case wire format to match the client.
-// Access fields via bracket notation: request["flow-id"]
-export interface FlowRequest {
-  operation: string;
-  [key: string]: unknown;
-}
-
-export interface FlowResponse {
-  error?: TgError;
-  [key: string]: unknown;
-}
+export const ServiceMessageSchemas = {
+  TextCompletionRequest,
+  TextCompletionResponse,
+  EmbeddingsRequest,
+  EmbeddingsResponse,
+  GraphRagRequest,
+  GraphRagResponse,
+  DocumentRagRequest,
+  DocumentRagResponse,
+  AgentRequest,
+  AgentResponse,
+  TriplesQueryRequest,
+  TriplesQueryResponse,
+  GraphEmbeddingsRequest,
+  GraphEmbeddingsResponse,
+  DocumentEmbeddingsRequest,
+  DocumentEmbeddingsResponse,
+  ConfigRequest,
+  ConfigResponse,
+  PromptRequest,
+  PromptResponse,
+  LibrarianRequest,
+  LibrarianResponse,
+  KnowledgeRequest,
+  KnowledgeResponse,
+  CollectionManagementRequest,
+  CollectionManagementResponse,
+  ToolRequest,
+  ToolResponse,
+  FlowRequest,
+  FlowResponse,
+} as const;

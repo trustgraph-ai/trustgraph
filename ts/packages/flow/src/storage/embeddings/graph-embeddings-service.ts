@@ -19,6 +19,7 @@ import {
   type EmbeddingsRequest,
   type EmbeddingsResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { QdrantGraphEmbeddingsStore } from "./qdrant-graph.js";
 
 export class GraphEmbeddingsStoreService extends FlowProcessor {
@@ -29,7 +30,7 @@ export class GraphEmbeddingsStoreService extends FlowProcessor {
     this.store = new QdrantGraphEmbeddingsStore();
 
     this.registerSpecification(
-      new ConsumerSpec<EntityContexts>(
+      ConsumerSpec.fromPromise<EntityContexts>(
         "store-graph-embeddings-input",
         this.onMessage.bind(this),
       ),
@@ -47,10 +48,10 @@ export class GraphEmbeddingsStoreService extends FlowProcessor {
 
   private async onMessage(
     msg: EntityContexts,
-    properties: Record<string, string>,
+    _properties: Record<string, string>,
     flowCtx: FlowContext,
   ): Promise<void> {
-    if (!msg.entities || msg.entities.length === 0) return;
+    if (msg.entities.length === 0) return;
 
     const embeddingsClient =
       flowCtx.flow.requestor<EmbeddingsRequest, EmbeddingsResponse>("embeddings-client");
@@ -63,7 +64,7 @@ export class GraphEmbeddingsStoreService extends FlowProcessor {
 
     // Call embeddings service
     const embResponse = await embeddingsClient.request({ text: texts });
-    if (embResponse.error) {
+    if (embResponse.error !== undefined) {
       console.error(
         "[GraphEmbeddingsStore] Embeddings error:",
         embResponse.error.message,
@@ -85,6 +86,11 @@ export class GraphEmbeddingsStoreService extends FlowProcessor {
     );
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "graph-embeddings-store",
+  make: (config) => new GraphEmbeddingsStoreService(config),
+});
 
 export async function run(): Promise<void> {
   await GraphEmbeddingsStoreService.launch("graph-embeddings-store");

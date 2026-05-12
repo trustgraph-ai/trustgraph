@@ -20,7 +20,7 @@ export function AutoTextarea({
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (el === null) return;
 
     // Reset height so scrollHeight is recalculated
     el.style.height = "auto";

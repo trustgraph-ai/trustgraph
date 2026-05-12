@@ -61,10 +61,10 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
 
   // Track container width for the force graph
   useEffect(() => {
-    if (!expanded || !containerRef.current) return;
+    if (!expanded || containerRef.current === null) return;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) setContainerWidth(Math.floor(entry.contentRect.width));
+      if (entry !== undefined) setContainerWidth(Math.floor(entry.contentRect.width));
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
@@ -83,7 +83,10 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
     }
 
     // Fall back to fetching from named graph
-    const graphUris = explainEvents.filter((ev) => ev.explainGraph);
+    const graphUris = explainEvents.filter(
+      (ev): ev is ExplainEvent & { explainGraph: string } =>
+        ev.explainGraph !== undefined && ev.explainGraph.length > 0,
+    );
     if (graphUris.length === 0) return;
 
     setLoading(true);
@@ -117,7 +120,11 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
   // Auto-fit once data loads
   const hasAutoFit = useRef(false);
   useEffect(() => {
-    if (graphData.nodes.length > 0 && fgRef.current && !hasAutoFit.current) {
+    if (
+      graphData.nodes.length > 0 &&
+      fgRef.current !== undefined &&
+      hasAutoFit.current === false
+    ) {
       hasAutoFit.current = true;
       const timer = setTimeout(() => fgRef.current?.zoomToFit(400, 20), 500);
       return () => clearTimeout(timer);
@@ -155,7 +162,14 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
       if (globalScale < 1.5) return;
       const src = link.source as unknown as GraphNode;
       const tgt = link.target as unknown as GraphNode;
-      if (!src.x || !tgt.x) return;
+      if (
+        src.x === undefined ||
+        src.y === undefined ||
+        tgt.x === undefined ||
+        tgt.y === undefined
+      ) {
+        return;
+      }
 
       const midX = ((src.x ?? 0) + (tgt.x ?? 0)) / 2;
       const midY = ((src.y ?? 0) + (tgt.y ?? 0)) / 2;
@@ -210,13 +224,13 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
             </div>
           )}
 
-          {error && (
+          {error !== null && (
             <p className="px-3 py-3 text-xs text-error">
               Failed to load graph: {error}
             </p>
           )}
 
-          {!loading && !error && graphData.nodes.length === 0 && (
+          {!loading && error === null && graphData.nodes.length === 0 && (
             <p className="px-3 py-4 text-center text-xs text-fg-subtle">
               No graph data available for this query.
             </p>
@@ -278,7 +292,7 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
                     linkDirectionalArrowLength={3}
                     linkDirectionalArrowRelPos={0.85}
                     backgroundColor="transparent"
-                    width={containerWidth || undefined}
+                    {...(containerWidth > 0 ? { width: containerWidth } : {})}
                     height={280}
                   />
                 </Suspense>

@@ -79,26 +79,27 @@ function UploadDialog({
 
   const handleFile = useCallback((f: File) => {
     setFile(f);
-    if (!titleRef.current) setTitle(f.name.replace(/\.[^/.]+$/, ""));
+    if (titleRef.current.length === 0) setTitle(f.name.replace(/\.[^/.]+$/, ""));
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
+    if (f !== undefined) handleFile(f);
   }, [handleFile]);
 
   const handleSubmit = async () => {
-    if (!file) return;
+    if (file === null) return;
     setUploading(true);
     try {
       const base64 = await fileToBase64(file);
       const tagList = tags
         .split(",")
         .map((t) => t.trim())
-        .filter(Boolean);
-      const mimeType = file.type || "application/octet-stream";
+        .filter((tag) => tag.length > 0);
+      const mimeType =
+        file.type.length > 0 ? file.type : "application/octet-stream";
 
       if (base64.length > CHUNKED_UPLOAD_THRESHOLD) {
         await onUploadChunked(base64, mimeType, title, comments, tagList, setProgress);
@@ -115,6 +116,7 @@ function UploadDialog({
   };
 
   const progressPercent = progress
+    !== null
     ? Math.round((progress.chunksUploaded / Math.max(progress.chunksTotal, 1)) * 100)
     : 0;
 
@@ -142,7 +144,7 @@ function UploadDialog({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!file || !title.trim() || uploading}
+            disabled={file === null || title.trim().length === 0 || uploading}
             className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
           >
             {uploading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -177,7 +179,7 @@ function UploadDialog({
         )}
       >
         <Upload className="mb-2 h-8 w-8 text-fg-subtle" />
-        {file ? (
+        {file !== null ? (
           <div className="flex items-center gap-2 text-sm text-fg">
             <FileText className="h-4 w-4" />
             <span>{file.name}</span>
@@ -207,15 +209,15 @@ function UploadDialog({
           type="file"
           className="hidden"
           accept=".pdf,.txt,.md,.csv,.json,.xml,.html"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleFile(f);
-          }}
+	          onChange={(e) => {
+	            const f = e.target.files?.[0];
+	            if (f !== undefined) handleFile(f);
+	          }}
         />
       </div>
 
       {/* Upload progress bar */}
-      {uploading && progress && (
+      {uploading && progress !== null && (
         <div className="mb-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-fg-muted">
             <span>
@@ -294,11 +296,11 @@ function DocumentDetailDialog({
   loading?: boolean;
   onClose: () => void;
 }) {
-  if (!doc) return null;
+  if (doc === null) return null;
 
   return (
     <Dialog open={open} onClose={onClose} title="Document Details" className="max-w-xl">
-      {loadingMeta && (
+      {loadingMeta === true && (
         <div className="mb-3 flex items-center gap-2 text-xs text-fg-subtle">
           <Loader2 className="h-3 w-3 animate-spin" />
           Loading full metadata...
@@ -308,7 +310,9 @@ function DocumentDetailDialog({
         {/* Title */}
         <div>
           <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Title</h3>
-          <p className="text-sm text-fg">{doc.title || "Untitled"}</p>
+          <p className="text-sm text-fg">
+            {(doc.title ?? "").length > 0 ? doc.title : "Untitled"}
+          </p>
         </div>
 
         {/* ID */}
@@ -326,7 +330,7 @@ function DocumentDetailDialog({
         </div>
 
         {/* Comments */}
-        {doc.comments && (
+        {(doc.comments ?? "").length > 0 && (
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Comments</h3>
             <p className="text-sm text-fg-muted">{doc.comments}</p>
@@ -334,13 +338,13 @@ function DocumentDetailDialog({
         )}
 
         {/* Tags */}
-        {doc.tags && doc.tags.length > 0 && (
+        {(doc.tags ?? []).length > 0 && (
           <div>
             <h3 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fg-subtle">
               <Tag className="h-3 w-3" /> Tags
             </h3>
             <div className="flex flex-wrap gap-1.5">
-              {doc.tags.map((tag) => (
+              {(doc.tags ?? []).map((tag) => (
                 <Badge key={tag} variant="info">{tag}</Badge>
               ))}
             </div>
@@ -360,7 +364,7 @@ function DocumentDetailDialog({
         )}
 
         {/* User */}
-        {doc.user && (
+        {(doc.user ?? "").length > 0 && (
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">Uploaded by</h3>
             <p className="text-sm text-fg-muted">{doc.user}</p>
@@ -368,7 +372,7 @@ function DocumentDetailDialog({
         )}
 
         {/* Raw metadata (if any RDF triples) */}
-        {doc.metadata && doc.metadata.length > 0 && (
+        {doc.metadata !== undefined && doc.metadata.length > 0 && (
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-fg-subtle">
               Metadata ({doc.metadata.length} triples)
@@ -424,7 +428,9 @@ function ConfirmDeleteDialog({
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
         <p className="text-sm text-fg-muted">
           Are you sure you want to delete{" "}
-          <span className="font-medium text-fg">{docTitle || "this document"}</span>?
+          <span className="font-medium text-fg">
+            {docTitle.length > 0 ? docTitle : "this document"}
+          </span>?
           This action cannot be undone.
         </p>
       </div>
@@ -500,12 +506,14 @@ export default function LibraryPage() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget?.id) {
+    const target = deleteTarget;
+    const targetId = target?.id ?? "";
+    if (target === null || targetId.length === 0) {
       setDeleteTarget(null);
       return;
     }
     try {
-      await removeDocument(deleteTarget.id, collection);
+      await removeDocument(targetId, collection);
       notify.success("Document deleted");
     } catch {
       notify.error("Delete failed");
@@ -517,10 +525,11 @@ export default function LibraryPage() {
     async (doc: DocumentMetadata) => {
       setDetailDoc(doc);
       setDetailOpen(true);
-      if (doc.id) {
+      const id = doc.id ?? "";
+      if (id.length > 0) {
         setLoadingDetail(true);
-        const fullMeta = await getDocumentMetadata(doc.id);
-        if (fullMeta) setDetailDoc(fullMeta);
+        const fullMeta = await getDocumentMetadata(id);
+        if (fullMeta !== null) setDetailDoc(fullMeta);
         setLoadingDetail(false);
       }
     },
@@ -538,13 +547,13 @@ export default function LibraryPage() {
     if (kind.includes("text") || kind.includes("plain")) return "Text";
     if (kind.includes("html")) return "HTML";
     if (kind.includes("json")) return "JSON";
-    return kind || "--";
+    return kind.length > 0 ? kind : "--";
   };
 
   // Search/filter
   const searchLower = searchTerm.toLowerCase();
   const filteredDocuments = useMemo(() => {
-    if (!searchLower) return documents;
+    if (searchLower.length === 0) return documents;
     return documents.filter((doc) => {
       const title = (doc.title ?? "").toLowerCase();
       const id = (doc.id ?? "").toLowerCase();
@@ -603,7 +612,7 @@ export default function LibraryPage() {
             aria-label="Search documents"
             className="w-full rounded-lg border border-border bg-surface-100 py-2 pl-9 pr-9 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
-          {searchTerm && (
+          {searchTerm.length > 0 && (
             <button
               onClick={() => setSearchTerm("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg"
@@ -626,9 +635,11 @@ export default function LibraryPage() {
             {processing.map((p) => (
               <div key={p.id} className="flex items-center gap-2 text-xs text-fg-muted">
                 <FileType2 className="h-3 w-3" />
-                <span className="truncate">{p["document-id"] || p.id}</span>
+	                <span className="truncate">
+	                  {(p["document-id"] ?? "").length > 0 ? p["document-id"] : p.id}
+	                </span>
                 <Badge variant="info" className="ml-auto">
-                  {p.flow || "processing"}
+	                  {p.flow.length > 0 ? p.flow : "processing"}
                 </Badge>
               </div>
             ))}
@@ -644,11 +655,11 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {error && (
+      {error !== null && (
         <p className="py-8 text-center text-error">Error: {error}</p>
       )}
 
-      {!loading && !error && documents.length === 0 && (
+      {!loading && error === null && documents.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center">
           <LibraryBig className="mb-3 h-10 w-10 text-fg-subtle opacity-30" />
           <p className="text-fg-subtle">
@@ -658,7 +669,7 @@ export default function LibraryPage() {
       )}
 
       {/* Search results info */}
-      {searchTerm && documents.length > 0 && (
+      {searchTerm.length > 0 && documents.length > 0 && (
         <p className="mb-2 text-xs text-fg-subtle">
           {filteredDocuments.length} of {documents.length} documents match
         </p>
@@ -677,12 +688,12 @@ export default function LibraryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredDocuments.map((doc) => (
-                <tr key={doc.id} className="hover:bg-surface-100/50">
+              {filteredDocuments.map((doc, index) => (
+                <tr key={doc.id ?? `${doc.title ?? "document"}-${index}`} className="hover:bg-surface-100/50">
                   <td className="px-4 py-3 text-fg">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 shrink-0 text-fg-subtle" />
-                      {doc.title || "Untitled"}
+	                      {(doc.title ?? "").length > 0 ? doc.title : "Untitled"}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -693,7 +704,7 @@ export default function LibraryPage() {
                       {(doc.tags ?? []).map((tag) => (
                         <Badge key={tag} variant="info">{tag}</Badge>
                       ))}
-                      {(!doc.tags || doc.tags.length === 0) && (
+	                      {(doc.tags ?? []).length === 0 && (
                         <span className="text-fg-subtle">--</span>
                       )}
                     </div>
@@ -729,7 +740,7 @@ export default function LibraryPage() {
       )}
 
       {/* Empty search results */}
-      {searchTerm && filteredDocuments.length === 0 && documents.length > 0 && (
+      {searchTerm.length > 0 && filteredDocuments.length === 0 && documents.length > 0 && (
         <div className="flex flex-1 flex-col items-center justify-center py-12">
           <Search className="mb-3 h-8 w-8 text-fg-subtle opacity-30" />
           <p className="text-fg-subtle">No documents match "{searchTerm}"</p>
@@ -746,7 +757,7 @@ export default function LibraryPage() {
       />
 
       <ConfirmDeleteDialog
-        open={deleteTarget != null}
+        open={deleteTarget !== null}
         docTitle={deleteTarget?.title ?? deleteTarget?.id ?? ""}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}

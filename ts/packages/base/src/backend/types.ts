@@ -5,6 +5,8 @@
  * (NATS, Pulsar, Redis Streams) implements these interfaces.
  */
 
+import type * as S from "effect/Schema";
+
 export interface Message<T = unknown> {
   value(): T;
   properties(): Record<string, string>;
@@ -29,6 +31,7 @@ export type InitialPosition = "latest" | "earliest";
 
 export interface CreateProducerOptions {
   topic: string;
+  schema?: S.Top;
 }
 
 export interface CreateConsumerOptions {
@@ -36,6 +39,7 @@ export interface CreateConsumerOptions {
   subscription: string;
   initialPosition?: InitialPosition;
   consumerType?: ConsumerType;
+  schema?: S.Top;
 }
 
 export interface PubSubBackend {

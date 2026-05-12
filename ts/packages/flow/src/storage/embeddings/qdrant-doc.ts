@@ -9,7 +9,6 @@
  */
 
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { randomUUID } from "node:crypto";
 
 export interface QdrantDocEmbeddingsConfig {
   url?: string;
@@ -36,7 +35,10 @@ export class QdrantDocEmbeddingsStore {
     const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
     const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({ url, apiKey });
+    this.client = new QdrantClient({
+      url,
+      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+    });
 
     console.log("[QdrantDocEmbeddings] Store initialized");
   }
@@ -61,8 +63,8 @@ export class QdrantDocEmbeddingsStore {
 
   async store(message: DocEmbeddingsMessage): Promise<void> {
     for (const chunk of message.chunks) {
-      if (!chunk.chunkId || chunk.chunkId === "") continue;
-      if (!chunk.vector || chunk.vector.length === 0) continue;
+      if (chunk.chunkId.length === 0) continue;
+      if (chunk.vector.length === 0) continue;
 
       const dim = chunk.vector.length;
       const name = this.collectionName(message.user, message.collection, dim);
@@ -72,11 +74,13 @@ export class QdrantDocEmbeddingsStore {
       await this.client.upsert(name, {
         points: [
           {
-            id: randomUUID(),
+            id: crypto.randomUUID(),
             vector: chunk.vector,
             payload: {
               chunk_id: chunk.chunkId,
-              ...(chunk.content ? { content: chunk.content } : {}),
+              ...(chunk.content !== undefined && chunk.content.length > 0
+                ? { content: chunk.content }
+                : {}),
             },
           },
         ],

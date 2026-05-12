@@ -34,7 +34,10 @@ export class QdrantDocEmbeddingsQuery {
     const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
     const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({ url, apiKey });
+    this.client = new QdrantClient({
+      url,
+      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+    });
 
     console.log("[QdrantDocQuery] Query service initialized");
   }
@@ -42,7 +45,7 @@ export class QdrantDocEmbeddingsQuery {
   async query(request: DocEmbeddingsQueryRequest): Promise<ChunkMatch[]> {
     const { vector, user, collection, limit } = request;
 
-    if (!vector || vector.length === 0) {
+    if (vector.length === 0) {
       return [];
     }
 
@@ -68,11 +71,11 @@ export class QdrantDocEmbeddingsQuery {
     for (const point of searchResult) {
       const payload = point.payload as Record<string, unknown> | undefined;
       const chunkId = payload?.chunk_id as string | undefined;
-      if (chunkId) {
+      if (chunkId !== undefined && chunkId.length > 0) {
         chunks.push({
           chunkId,
           score: point.score,
-          content: (payload?.content as string) ?? undefined,
+          ...(typeof payload?.content === "string" ? { content: payload.content } : {}),
         });
       }
     }

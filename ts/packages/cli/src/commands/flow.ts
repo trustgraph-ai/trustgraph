@@ -58,8 +58,9 @@ export function registerFlowCommands(program: Command): void {
 
       try {
         const flows = socket.flows();
-        const params = cmdOpts.parameters
-          ? JSON.parse(cmdOpts.parameters as string)
+        const rawParameters = cmdOpts.parameters as string | undefined;
+        const params = rawParameters !== undefined && rawParameters.length > 0
+          ? JSON.parse(rawParameters)
           : undefined;
         const resp = await flows.startFlow(
           id,

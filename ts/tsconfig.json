@@ -1,13 +1,20 @@
 {
+  "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.root.tsbuildinfo",
+    "rootDir": ".",
+    "noEmit": true,
+    "rewriteRelativeImportExtensions": false,
+    "erasableSyntaxOnly": false,
+    "types": ["node", "bun"]
   },
   "references": [
     { "path": "packages/base" },
     { "path": "packages/client" },
     { "path": "packages/flow" },
     { "path": "packages/cli" },
-    { "path": "packages/mcp" }
+    { "path": "packages/mcp" },
+    { "path": "packages/workbench" }
   ]
 }

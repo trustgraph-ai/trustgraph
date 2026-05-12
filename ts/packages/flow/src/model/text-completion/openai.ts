@@ -5,7 +5,8 @@
  */
 
 import OpenAI from "openai";
-import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk, TooManyRequestsError } from "@trustgraph/base";
+import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk, tooManyRequestsError } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class OpenAIProcessor extends LlmService {
   private client: OpenAI;
@@ -27,7 +28,9 @@ export class OpenAIProcessor extends LlmService {
     this.maxOutput = config.maxOutput ?? 4096;
 
     const apiKey = config.apiKey ?? process.env.OPENAI_TOKEN;
-    if (!apiKey) throw new Error("OpenAI API key not specified");
+    if (apiKey === undefined || apiKey.length === 0) {
+      throw new Error("OpenAI API key not specified");
+    }
 
     this.client = new OpenAI({
       apiKey,
@@ -65,7 +68,7 @@ export class OpenAIProcessor extends LlmService {
       };
     } catch (err) {
       if (err instanceof OpenAI.RateLimitError) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
@@ -101,9 +104,10 @@ export class OpenAIProcessor extends LlmService {
       let totalOutputTokens = 0;
 
       for await (const chunk of stream) {
-        if (chunk.choices?.[0]?.delta?.content) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content !== null && content !== undefined && content.length > 0) {
           yield {
-            text: chunk.choices[0].delta.content,
+            text: content,
             inToken: null,
             outToken: null,
             model: modelName,
@@ -111,7 +115,7 @@ export class OpenAIProcessor extends LlmService {
           };
         }
 
-        if (chunk.usage) {
+        if (chunk.usage !== null && chunk.usage !== undefined) {
           totalInputTokens = chunk.usage.prompt_tokens;
           totalOutputTokens = chunk.usage.completion_tokens;
         }
@@ -126,12 +130,17 @@ export class OpenAIProcessor extends LlmService {
       };
     } catch (err) {
       if (err instanceof OpenAI.RateLimitError) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "text-completion",
+  make: (config) => new OpenAIProcessor(config),
+});
 
 export async function run(): Promise<void> {
   await OpenAIProcessor.launch("text-completion");

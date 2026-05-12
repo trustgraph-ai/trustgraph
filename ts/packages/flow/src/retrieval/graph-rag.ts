@@ -16,9 +16,9 @@ import type {
   EmbeddingsResponse,
   GraphEmbeddingsRequest,
   GraphEmbeddingsResponse,
+  FlowRequestor,
   PromptRequest,
   PromptResponse,
-  RequestResponse,
   Term,
   TextCompletionRequest,
   TextCompletionResponse,
@@ -37,11 +37,11 @@ export interface GraphRagConfig {
 }
 
 export interface GraphRagClients {
-  llm: RequestResponse<TextCompletionRequest, TextCompletionResponse>;
-  embeddings: RequestResponse<EmbeddingsRequest, EmbeddingsResponse>;
-  graphEmbeddings: RequestResponse<GraphEmbeddingsRequest, GraphEmbeddingsResponse>;
-  triples: RequestResponse<TriplesQueryRequest, TriplesQueryResponse>;
-  prompt: RequestResponse<PromptRequest, PromptResponse>;
+  llm: FlowRequestor<TextCompletionRequest, TextCompletionResponse>;
+  embeddings: FlowRequestor<EmbeddingsRequest, EmbeddingsResponse>;
+  graphEmbeddings: FlowRequestor<GraphEmbeddingsRequest, GraphEmbeddingsResponse>;
+  triples: FlowRequestor<TriplesQueryRequest, TriplesQueryResponse>;
+  prompt: FlowRequestor<PromptRequest, PromptResponse>;
 }
 
 export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
@@ -52,12 +52,14 @@ export interface GraphRagResult {
 }
 
 export class GraphRag {
+  private readonly clients: GraphRagClients;
   private config: Required<GraphRagConfig>;
 
   constructor(
-    private readonly clients: GraphRagClients,
+    clients: GraphRagClients,
     config: GraphRagConfig = {},
   ) {
+    this.clients = clients;
     this.config = {
       entityLimit: config.entityLimit ?? 50,
       tripleLimit: config.tripleLimit ?? 30,
@@ -125,7 +127,7 @@ export class GraphRag {
     return (llmResp as TextCompletionResponse).response
       .split("\n")
       .map((c) => c.trim())
-      .filter(Boolean);
+      .filter((c) => c.length > 0);
   }
 
   private async getVectors(concepts: string[]): Promise<number[][]> {
@@ -166,11 +168,12 @@ export class GraphRag {
       // Query each entity as subject to get outgoing edges
       const queries = unvisited.map((entityStr) => {
         const term = stringToTerm(entityStr);
-        return this.clients.triples.request({
+        const request: TriplesQueryRequest = {
           s: term,
-          collection,
           limit: this.config.tripleLimit,
-        });
+          ...(collection !== undefined ? { collection } : {}),
+        };
+        return this.clients.triples.request(request);
       });
 
       const results = await Promise.all(queries);
@@ -257,7 +260,12 @@ export class GraphRag {
       const parsed = JSON.parse(responseText) as Array<{ id: string; score: number }>;
       if (Array.isArray(parsed)) {
         for (const item of parsed) {
-          if (item && typeof item.id === "string" && typeof item.score === "number") {
+          if (
+            typeof item === "object" &&
+            item !== null &&
+            typeof item.id === "string" &&
+            typeof item.score === "number"
+          ) {
             scored.push({ id: item.id, score: item.score });
           }
         }
@@ -266,10 +274,15 @@ export class GraphRag {
       // Fall back to parsing line-by-line JSON objects
       for (const line of responseText.split("\n")) {
         const trimmed = line.trim();
-        if (!trimmed) continue;
+        if (trimmed.length === 0) continue;
         try {
           const obj = JSON.parse(trimmed) as { id?: string; score?: number };
-          if (obj && typeof obj.id === "string" && typeof obj.score === "number") {
+          if (
+            typeof obj === "object" &&
+            obj !== null &&
+            typeof obj.id === "string" &&
+            typeof obj.score === "number"
+          ) {
             scored.push({ id: obj.id, score: obj.score });
           }
         } catch {
@@ -281,8 +294,6 @@ export class GraphRag {
     // Sort by score descending and keep top N
     scored.sort((a, b) => b.score - a.score);
     const topN = scored.slice(0, this.config.edgeLimit);
-    const selectedIds = new Set(topN.map((e) => e.id));
-
     // Map back to triples
     const result: Triple[] = [];
     for (const entry of topN) {
@@ -317,7 +328,7 @@ export class GraphRag {
       variables: { query, context },
     });
 
-    if (chunkCallback) {
+    if (chunkCallback !== undefined) {
       // Streaming response
       let fullText = "";
       await this.clients.llm.request(
@@ -329,11 +340,11 @@ export class GraphRag {
         {
           recipient: async (resp) => {
             const r = resp as TextCompletionResponse;
-            if (r.response) {
+            if (r.response.length > 0) {
               fullText += r.response;
-              await chunkCallback(r.response, !!r.endOfStream);
+              await chunkCallback(r.response, r.endOfStream === true);
             }
-            return !!r.endOfStream;
+            return r.endOfStream === true;
           },
         },
       );

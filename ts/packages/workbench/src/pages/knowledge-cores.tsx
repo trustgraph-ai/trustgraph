@@ -130,7 +130,7 @@ export default function KnowledgeCoresPage() {
   );
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (deleteTarget === null || deleteTarget.length === 0) return;
     setActionInProgress(deleteTarget);
     try {
       await socket.knowledge().deleteKgCore(deleteTarget);
@@ -179,13 +179,13 @@ export default function KnowledgeCoresPage() {
         </div>
       )}
 
-      {error && (
+      {error !== null && error.length > 0 && (
         <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
       )}
 
-      {!loading && !error && cores.length === 0 && (
+      {!loading && error === null && cores.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center">
           <BrainCircuit className="mb-3 h-10 w-10 text-fg-subtle opacity-30" />
           <p className="text-fg-subtle">No knowledge cores available.</p>

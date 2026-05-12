@@ -7,30 +7,46 @@
  * Python reference: trustgraph-base/trustgraph/base/prompt_client_spec.py
  */
 
+import { Effect } from "effect";
 import type { Spec } from "./types.js";
 import type { PubSubBackend } from "../backend/types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
-import { RequestResponse } from "../messaging/request-response.js";
+import {
+  RequestResponseFactory,
+  type EffectRequestResponse,
+} from "../messaging/runtime.js";
 
 export class RequestResponseSpec<TReq, TRes> implements Spec {
+  public readonly name: string;
+  private readonly requestTopicName: string;
+  private readonly responseTopicName: string;
+
   constructor(
-    public readonly name: string,
-    private readonly requestTopicName: string,
-    private readonly responseTopicName: string,
-  ) {}
+    name: string,
+    requestTopicName: string,
+    responseTopicName: string,
+  ) {
+    this.name = name;
+    this.requestTopicName = requestTopicName;
+    this.responseTopicName = responseTopicName;
+  }
+
+  addEffect(flow: Flow, definition: FlowDefinition) {
+    const spec = this;
+    return Effect.gen(function* () {
+      const requestTopic = definition.topics?.[spec.requestTopicName] ?? spec.requestTopicName;
+      const responseTopic = definition.topics?.[spec.responseTopicName] ?? spec.responseTopicName;
+      const factory = yield* RequestResponseFactory;
+      const requestor = yield* factory.make<TReq, TRes>({
+        requestTopic,
+        responseTopic,
+        subscription: `${flow.processorId}-${flow.name}-${spec.name}`,
+      });
+      flow.registerRequestor(spec.name, requestor as EffectRequestResponse<unknown, unknown>);
+    });
+  }
 
   async add(flow: Flow, pubsub: PubSubBackend, definition: FlowDefinition): Promise<void> {
-    const requestTopic = definition.topics?.[this.requestTopicName] ?? this.requestTopicName;
-    const responseTopic = definition.topics?.[this.responseTopicName] ?? this.responseTopicName;
-
-    const rr = new RequestResponse<TReq, TRes>({
-      pubsub,
-      requestTopic,
-      responseTopic,
-      subscription: `${flow.processorId}-${flow.name}-${this.name}`,
-    });
-    await rr.start();
-
-    flow.registerRequestor(this.name, rr as RequestResponse<unknown, unknown>);
+    await flow.runInCompatibilityScope(this.addEffect(flow, definition), pubsub);
   }
 }

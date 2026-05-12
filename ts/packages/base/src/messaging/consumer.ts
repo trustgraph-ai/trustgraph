@@ -7,6 +7,7 @@
 import type { PubSubBackend, BackendConsumer, Message } from "../backend/types.js";
 import type { Flow } from "../processor/flow.js";
 import { TooManyRequestsError } from "../errors.js";
+import * as S from "effect/Schema";
 
 export type MessageHandler<T> = (
   message: T,
@@ -14,11 +15,11 @@ export type MessageHandler<T> = (
   flow: FlowContext,
 ) => Promise<void>;
 
-export interface FlowContext {
+export interface FlowContext<Requirements = never> {
   id: string;
   name: string;
   /** Reference to the owning Flow instance, giving handlers access to producers and parameters. */
-  flow: Flow;
+  flow: Flow<Requirements>;
 }
 
 export interface ConsumerOptions<T> {
@@ -36,11 +37,13 @@ export class Consumer<T> {
   private backend: BackendConsumer<T> | null = null;
   private running = false;
   private abortController = new AbortController();
+  private readonly options: ConsumerOptions<T>;
 
   private readonly concurrency: number;
   private readonly rateLimitRetryMs: number;
 
-  constructor(private readonly options: ConsumerOptions<T>) {
+  constructor(options: ConsumerOptions<T>) {
+    this.options = options;
     this.concurrency = options.concurrency ?? 1;
     this.rateLimitRetryMs = options.rateLimitRetryMs ?? 10_000;
   }
@@ -65,7 +68,7 @@ export class Consumer<T> {
   async stop(): Promise<void> {
     this.running = false;
     this.abortController.abort();
-    if (this.backend) {
+    if (this.backend !== null) {
       await this.backend.close();
       this.backend = null;
     }
@@ -75,17 +78,23 @@ export class Consumer<T> {
     while (this.running) {
       let msg: Message<T> | null = null;
       try {
-        msg = await this.backend!.receive(2000);
-        if (!msg) continue;
+        const backend = this.backend;
+        if (backend === null) throw new Error("Consumer backend not started");
+
+        msg = await backend.receive(2000);
+        if (msg === null) continue;
 
         await this.handleWithRetry(msg, flow);
-        await this.backend!.acknowledge(msg);
+        await backend.acknowledge(msg);
       } catch (err) {
         if (!this.running) break;
         console.error("[Consumer] Error in consume loop:", err);
-        if (msg) {
+        if (msg !== null) {
           try {
-            await this.backend!.negativeAcknowledge(msg);
+            const backend = this.backend;
+            if (backend !== null) {
+              await backend.negativeAcknowledge(msg);
+            }
           } catch (nakErr) {
             console.error("[Consumer] Failed to nak message:", nakErr);
           }
@@ -99,7 +108,7 @@ export class Consumer<T> {
     try {
       await this.options.handler(msg.value(), msg.properties(), flow);
     } catch (err) {
-      if (err instanceof TooManyRequestsError) {
+      if (S.is(TooManyRequestsError)(err)) {
         console.warn(`[Consumer] Rate limited, retrying in ${this.rateLimitRetryMs}ms`);
         await sleep(this.rateLimitRetryMs);
         await this.options.handler(msg.value(), msg.properties(), flow);

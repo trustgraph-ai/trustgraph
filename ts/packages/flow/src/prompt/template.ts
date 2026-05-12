@@ -33,6 +33,7 @@ import {
   type PromptRequest,
   type PromptResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export interface PromptTemplate {
   system: string;
@@ -53,7 +54,7 @@ export class PromptTemplateService extends FlowProcessor {
     this.configKey = config.configKey ?? "prompt";
 
     this.registerSpecification(
-      new ConsumerSpec<PromptRequest>(
+      ConsumerSpec.fromPromise<PromptRequest>(
         "prompt-request",
         this.onRequest.bind(this),
       ),
@@ -75,7 +76,7 @@ export class PromptTemplateService extends FlowProcessor {
       | Record<string, { system?: string; prompt?: string }>
       | undefined;
 
-    if (!promptConfig) {
+    if (promptConfig === undefined) {
       console.warn(`[PromptTemplate] No key "${this.configKey}" in config`);
       return;
     }
@@ -104,13 +105,13 @@ export class PromptTemplateService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const responseProducer = flowCtx.flow.producer<PromptResponse>("prompt-response");
 
     try {
       const template = this.templates.get(msg.name);
-      if (!template) {
+      if (template === undefined) {
         throw new Error(`Unknown prompt template: "${msg.name}"`);
       }
 
@@ -148,6 +149,11 @@ function renderTemplate(
     return match;
   });
 }
+
+export const program = makeProcessorProgram({
+  id: "prompt",
+  make: (config) => new PromptTemplateService(config),
+});
 
 export async function run(): Promise<void> {
   await PromptTemplateService.launch("prompt");

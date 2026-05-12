@@ -19,8 +19,8 @@ function AppRoot() {
   return (
     <SocketProvider
       user={settings.user}
-      apiKey={settings.apiKey || undefined}
-      socketUrl={settings.gatewayUrl || undefined}
+      {...(settings.apiKey.length > 0 ? { apiKey: settings.apiKey } : {})}
+      {...(settings.gatewayUrl.length > 0 ? { socketUrl: settings.gatewayUrl } : {})}
     >
       <App />
     </SocketProvider>
@@ -38,7 +38,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 // Dismiss splash screen once React has mounted
 requestAnimationFrame(() => {
   const splash = document.getElementById("splash");
-  if (splash) {
+  if (splash !== null) {
     splash.classList.add("fade-out");
     splash.addEventListener("transitionend", () => splash.remove());
   }

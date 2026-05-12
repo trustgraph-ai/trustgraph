@@ -69,7 +69,7 @@ export function SocketProvider({
   }, [user, apiKey, socketUrl]);
 
   // Don't render children until the first API instance is ready
-  if (!apiRef.current) return null;
+  if (apiRef.current === null) return null;
 
   return (
     <SocketContext.Provider
@@ -93,7 +93,7 @@ export function SocketProvider({
  */
 export function useSocket(): BaseApi {
   const ctx = useContext(SocketContext);
-  if (!ctx) {
+  if (ctx === null) {
     throw new Error("useSocket must be used within a <SocketProvider>");
   }
   return ctx.api;

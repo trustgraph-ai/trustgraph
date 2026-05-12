@@ -9,7 +9,6 @@
  */
 
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { randomUUID } from "node:crypto";
 import type { Term } from "@trustgraph/base";
 
 export interface QdrantGraphEmbeddingsConfig {
@@ -50,7 +49,10 @@ export class QdrantGraphEmbeddingsStore {
     const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
     const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({ url, apiKey });
+    this.client = new QdrantClient({
+      url,
+      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+    });
 
     console.log("[QdrantGraphEmbeddings] Store initialized");
   }
@@ -76,8 +78,8 @@ export class QdrantGraphEmbeddingsStore {
   async store(message: GraphEmbeddingsMessage): Promise<void> {
     for (const entry of message.entities) {
       const entityValue = getTermValue(entry.entity);
-      if (!entityValue || entityValue === "") continue;
-      if (!entry.vector || entry.vector.length === 0) continue;
+      if (entityValue === null || entityValue.length === 0) continue;
+      if (entry.vector.length === 0) continue;
 
       const dim = entry.vector.length;
       const name = this.collectionName(message.user, message.collection, dim);
@@ -85,14 +87,14 @@ export class QdrantGraphEmbeddingsStore {
       await this.ensureCollection(name, dim);
 
       const payload: Record<string, unknown> = { entity: entityValue };
-      if (entry.chunkId) {
+      if (entry.chunkId !== undefined && entry.chunkId.length > 0) {
         payload.chunk_id = entry.chunkId;
       }
 
       await this.client.upsert(name, {
         points: [
           {
-            id: randomUUID(),
+            id: crypto.randomUUID(),
             vector: entry.vector,
             payload,
           },

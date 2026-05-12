@@ -211,7 +211,7 @@ services:
     build:
       context: ../
       dockerfile: Containerfile
-    command: ["node", "entrypoints/gateway.mjs"]
+    command: ["bun", "entrypoints/gateway.mjs"]
     ports:
       - "${GATEWAY_PORT:-8088}:8088"
     environment:
@@ -227,7 +227,7 @@ services:
 
   config-service:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/config.mjs"]
+    command: ["bun", "entrypoints/config.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -239,7 +239,7 @@ services:
 
   text-completion:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/text-completion-openai.mjs"]
+    command: ["bun", "entrypoints/text-completion-openai.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - OPENAI_TOKEN=${OPENAI_TOKEN:-}
@@ -253,7 +253,7 @@ services:
 
   prompt:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/prompt.mjs"]
+    command: ["bun", "entrypoints/prompt.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -265,7 +265,7 @@ services:
 
   embeddings:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/embeddings.mjs"]
+    command: ["bun", "entrypoints/embeddings.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - OLLAMA_URL=http://ollama:11434
@@ -292,7 +292,7 @@ services:
 
   agent:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/agent.mjs"]
+    command: ["bun", "entrypoints/agent.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -304,7 +304,7 @@ services:
 
   mcp-tool:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/mcp-tool.mjs"]
+    command: ["bun", "entrypoints/mcp-tool.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -316,7 +316,7 @@ services:
 
   librarian:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/librarian.mjs"]
+    command: ["bun", "entrypoints/librarian.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     volumes:
@@ -330,7 +330,7 @@ services:
 
   flow-manager:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/flow-manager.mjs"]
+    command: ["bun", "entrypoints/flow-manager.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -342,7 +342,7 @@ services:
 
   knowledge-cores:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/cores.mjs"]
+    command: ["bun", "entrypoints/cores.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -358,7 +358,7 @@ services:
 
   pdf-decoder:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/pdf-decoder.mjs"]
+    command: ["bun", "entrypoints/pdf-decoder.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -370,7 +370,7 @@ services:
 
   chunker:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/chunker.mjs"]
+    command: ["bun", "entrypoints/chunker.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -382,7 +382,7 @@ services:
 
   extractor:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/extractor.mjs"]
+    command: ["bun", "entrypoints/extractor.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -394,7 +394,7 @@ services:
 
   triples-store:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/triples-store.mjs"]
+    command: ["bun", "entrypoints/triples-store.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - FALKORDB_URL=redis://falkordb:6379
@@ -409,7 +409,7 @@ services:
 
   graph-embeddings-store:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/graph-embeddings-store.mjs"]
+    command: ["bun", "entrypoints/graph-embeddings-store.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - QDRANT_URL=http://qdrant:6333
@@ -428,7 +428,7 @@ services:
 
   triples-query:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/triples-query.mjs"]
+    command: ["bun", "entrypoints/triples-query.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - FALKORDB_URL=redis://falkordb:6379
@@ -443,7 +443,7 @@ services:
 
   graph-embeddings-query:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/graph-embeddings-query.mjs"]
+    command: ["bun", "entrypoints/graph-embeddings-query.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - QDRANT_URL=http://qdrant:6333
@@ -458,7 +458,7 @@ services:
 
   doc-embeddings-query:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/doc-embeddings-query.mjs"]
+    command: ["bun", "entrypoints/doc-embeddings-query.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
       - QDRANT_URL=http://qdrant:6333
@@ -477,7 +477,7 @@ services:
 
   graph-rag:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/graph-rag.mjs"]
+    command: ["bun", "entrypoints/graph-rag.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -489,7 +489,7 @@ services:
 
   document-rag:
     image: trustgraph-ts:local
-    command: ["node", "entrypoints/document-rag.mjs"]
+    command: ["bun", "entrypoints/document-rag.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:
@@ -505,7 +505,7 @@ services:
 
   # text-completion-ollama:
   #   image: trustgraph-ts:local
-  #   command: ["node", "entrypoints/text-completion-ollama.mjs"]
+  #   command: ["bun", "entrypoints/text-completion-ollama.mjs"]
   #   environment:
   #     - NATS_URL=nats://nats:4222
   #     - OLLAMA_URL=http://ollama:11434
@@ -521,7 +521,7 @@ services:
 
   # text-completion-claude:
   #   image: trustgraph-ts:local
-  #   command: ["node", "entrypoints/text-completion-claude.mjs"]
+  #   command: ["bun", "entrypoints/text-completion-claude.mjs"]
   #   environment:
   #     - NATS_URL=nats://nats:4222
   #     - CLAUDE_KEY=${CLAUDE_KEY:-}
@@ -534,7 +534,7 @@ services:
 
   # text-completion-azure-openai:
   #   image: trustgraph-ts:local
-  #   command: ["node", "entrypoints/text-completion-azure-openai.mjs"]
+  #   command: ["bun", "entrypoints/text-completion-azure-openai.mjs"]
   #   environment:
   #     - NATS_URL=nats://nats:4222
   #     - AZURE_TOKEN=${AZURE_TOKEN:-}
@@ -550,7 +550,7 @@ services:
 
   # text-completion-openai-compatible:
   #   image: trustgraph-ts:local
-  #   command: ["node", "entrypoints/text-completion-openai-compatible.mjs"]
+  #   command: ["bun", "entrypoints/text-completion-openai-compatible.mjs"]
   #   environment:
   #     - NATS_URL=nats://nats:4222
   #     - OPENAI_COMPAT_URL=${OPENAI_COMPAT_URL:-http://localhost:1234/v1}
@@ -565,7 +565,7 @@ services:
 
   # text-completion-mistral:
   #   image: trustgraph-ts:local
-  #   command: ["node", "entrypoints/text-completion-mistral.mjs"]
+  #   command: ["bun", "entrypoints/text-completion-mistral.mjs"]
   #   environment:
   #     - NATS_URL=nats://nats:4222
   #     - MISTRAL_TOKEN=${MISTRAL_TOKEN:-}

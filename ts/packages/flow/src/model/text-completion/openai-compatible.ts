@@ -16,6 +16,7 @@ import {
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class OpenAICompatibleProcessor extends LlmService {
   private client: OpenAI;
@@ -40,10 +41,11 @@ export class OpenAICompatibleProcessor extends LlmService {
     this.maxOutput = config.maxOutput ?? 4096;
 
     const baseURL = config.baseUrl ?? process.env.OPENAI_COMPAT_URL;
-    if (!baseURL)
+    if (baseURL === undefined || baseURL.length === 0) {
       throw new Error(
         "OpenAI-compatible server URL not specified (set OPENAI_COMPAT_URL)",
       );
+    }
 
     const apiKey =
       config.apiKey ?? process.env.OPENAI_COMPAT_KEY ?? "sk-no-key-required";
@@ -108,9 +110,10 @@ export class OpenAICompatibleProcessor extends LlmService {
     let totalOutputTokens = 0;
 
     for await (const chunk of stream) {
-      if (chunk.choices?.[0]?.delta?.content) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content !== null && content !== undefined && content.length > 0) {
         yield {
-          text: chunk.choices[0].delta.content,
+          text: content,
           inToken: null,
           outToken: null,
           model: modelName,
@@ -118,7 +121,7 @@ export class OpenAICompatibleProcessor extends LlmService {
         };
       }
 
-      if (chunk.usage) {
+      if (chunk.usage !== null && chunk.usage !== undefined) {
         totalInputTokens = chunk.usage.prompt_tokens;
         totalOutputTokens = chunk.usage.completion_tokens;
       }
@@ -133,6 +136,11 @@ export class OpenAICompatibleProcessor extends LlmService {
     };
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "text-completion",
+  make: (config) => new OpenAICompatibleProcessor(config),
+});
 
 export async function run(): Promise<void> {
   await OpenAICompatibleProcessor.launch("text-completion");

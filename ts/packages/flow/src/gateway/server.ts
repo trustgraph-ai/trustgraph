@@ -10,7 +10,9 @@
 
 import Fastify from "fastify";
 import websocketPlugin from "@fastify/websocket";
-import { registry } from "@trustgraph/base";
+import { Config, Effect } from "effect";
+import * as O from "effect/Option";
+import { errorMessage, optionalStringConfig, registry, toTgError } from "@trustgraph/base";
 import { DispatcherManager } from "./dispatch/manager.js";
 import { Mux, type MuxRequest, type MuxHandler } from "./dispatch/mux.js";
 
@@ -33,9 +35,9 @@ export async function createGateway(config: GatewayConfig) {
     if (request.url === "/api/v1/metrics") return;
     if (request.url.startsWith("/api/v1/socket")) return; // Socket auth via query param
 
-    if (config.secret) {
+    if (config.secret !== undefined && config.secret.length > 0) {
       const auth = request.headers.authorization;
-      if (!auth || auth !== `Bearer ${config.secret}`) {
+      if (auth === undefined || auth !== `Bearer ${config.secret}`) {
         reply.code(401).send({ error: "Unauthorized" });
       }
     }
@@ -49,13 +51,13 @@ export async function createGateway(config: GatewayConfig) {
     try {
       const result = await dispatcher.dispatchGlobalService(kind, body) as Record<string, unknown>;
       const err = result?.error as { type?: string; message?: string } | undefined;
-      if (err) {
+      if (err !== undefined) {
         const statusCode = err.type === "not-found" ? 404 : 400;
         return reply.code(statusCode).send(result);
       }
       return result;
     } catch (err) {
-      reply.code(500).send({ error: { type: "internal", message: String(err) } });
+      reply.code(500).send({ error: toTgError(err) });
     }
   });
 
@@ -69,13 +71,13 @@ export async function createGateway(config: GatewayConfig) {
       try {
         const result = await dispatcher.dispatchFlowService(flow, kind, body) as Record<string, unknown>;
         const err = result?.error as { type?: string; message?: string } | undefined;
-        if (err) {
+        if (err !== undefined) {
           const statusCode = err.type === "not-found" ? 404 : 400;
           return reply.code(statusCode).send(result);
         }
         return result;
       } catch (err) {
-        reply.code(500).send({ error: { type: "internal", message: String(err) } });
+        reply.code(500).send({ error: toTgError(err) });
       }
     },
   );
@@ -91,7 +93,7 @@ export async function createGateway(config: GatewayConfig) {
         collection?: string;
       };
 
-      if (!body.documentId) {
+      if (body.documentId === undefined || body.documentId.length === 0) {
         return reply.code(400).send({
           error: { type: "bad-request", message: "documentId is required" },
         });
@@ -116,7 +118,7 @@ export async function createGateway(config: GatewayConfig) {
         return { status: "processing", documentId, flow };
       } catch (err) {
         reply.code(500).send({
-          error: { type: "internal", message: String(err) },
+          error: toTgError(err),
         });
       }
     },
@@ -128,14 +130,14 @@ export async function createGateway(config: GatewayConfig) {
     // Auth via query param
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get("token");
-    if (config.secret && token !== config.secret) {
+    if (config.secret !== undefined && config.secret.length > 0 && token !== config.secret) {
       socket.close(4001, "Unauthorized");
       return;
     }
 
     // Build the MuxHandler that dispatches to the DispatcherManager
     const handler: MuxHandler = async (muxReq, respond) => {
-      if (muxReq.flow) {
+      if (muxReq.flow !== undefined && muxReq.flow.length > 0) {
         await dispatcher.dispatchFlowServiceStreaming(
           muxReq.flow,
           muxReq.service,
@@ -171,7 +173,13 @@ export async function createGateway(config: GatewayConfig) {
           request?: Record<string, unknown>;
         };
 
-        if (!msg.id || !msg.service || !msg.request) {
+        if (
+          msg.id === undefined ||
+          msg.id.length === 0 ||
+          msg.service === undefined ||
+          msg.service.length === 0 ||
+          msg.request === undefined
+        ) {
           socket.send(
             JSON.stringify({
               id: msg.id ?? null,
@@ -185,15 +193,15 @@ export async function createGateway(config: GatewayConfig) {
         const muxReq: MuxRequest = {
           id: msg.id,
           service: msg.service,
-          flow: msg.flow,
           request: msg.request,
+          ...(msg.flow !== undefined ? { flow: msg.flow } : {}),
         };
 
         mux.receive(muxReq);
       } catch (err) {
         socket.send(
           JSON.stringify({
-            error: { type: "parse-error", message: String(err) },
+            error: { type: "parse-error", message: errorMessage(err) },
             complete: true,
           }),
         );
@@ -234,14 +242,36 @@ export async function createGateway(config: GatewayConfig) {
 }
 
 export async function run(): Promise<void> {
-  const config: GatewayConfig = {
-    port: parseInt(process.env.GATEWAY_PORT ?? "8088", 10),
-    metricsPort: parseInt(process.env.METRICS_PORT ?? "8000", 10),
-    secret: process.env.GATEWAY_SECRET,
-    natsUrl: process.env.NATS_URL,
-  };
-
-  const gateway = await createGateway(config);
-  await gateway.start();
-  console.log(`[Gateway] Listening on port ${config.port}`);
+  await Effect.runPromise(program);
 }
+
+export const loadGatewayConfig = Effect.fn("loadGatewayConfig")(function* () {
+  const secret = O.getOrUndefined(yield* Config.string("GATEWAY_SECRET").pipe(Config.option));
+  const natsUrl = yield* optionalStringConfig("NATS_URL");
+  const port = yield* Config.number("GATEWAY_PORT").pipe(Config.withDefault(8088));
+  const metricsPort = yield* Config.number("METRICS_PORT").pipe(Config.withDefault(8000));
+  return {
+    port,
+    metricsPort,
+    ...(secret !== undefined ? { secret } : {}),
+    ...(natsUrl !== undefined ? { natsUrl } : {}),
+  } satisfies GatewayConfig;
+});
+
+export const program = Effect.scoped(
+  Effect.gen(function* () {
+    const config = yield* loadGatewayConfig();
+    const gateway = yield* Effect.promise(() => createGateway(config)).pipe(Effect.orDie);
+    yield* Effect.addFinalizer(() => Effect.promise(() => gateway.stop()).pipe(Effect.orDie));
+    yield* Effect.promise(() => gateway.start()).pipe(
+      Effect.orDie,
+      Effect.withSpan("trustgraph.gateway.start", {
+        attributes: {
+          "trustgraph.gateway.port": config.port,
+        },
+      }),
+    );
+    yield* Effect.log(`[Gateway] Listening on port ${config.port}`);
+    return yield* Effect.never;
+  }),
+);

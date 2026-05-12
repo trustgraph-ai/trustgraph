@@ -25,8 +25,11 @@ export class Mux {
   private queue = new AsyncQueue<MuxRequest>();
   private outstanding = 0;
   private running = true;
+  private readonly handler: MuxHandler;
 
-  constructor(private readonly handler: MuxHandler) {}
+  constructor(handler: MuxHandler) {
+    this.handler = handler;
+  }
 
   receive(request: MuxRequest): void {
     if (this.queue.length >= MAX_QUEUE_SIZE) {

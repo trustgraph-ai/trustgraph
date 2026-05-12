@@ -6,7 +6,7 @@
  */
 
 import type {
-  RequestResponse,
+  FlowRequestor,
   GraphRagRequest,
   GraphRagResponse,
   DocumentRagRequest,
@@ -68,7 +68,7 @@ export interface ExplainData {
  * Query the knowledge graph for information about entities and their relationships.
  */
 export function createKnowledgeQueryTool(
-  client: RequestResponse<GraphRagRequest, GraphRagResponse>,
+  client: FlowRequestor<GraphRagRequest, GraphRagResponse>,
   collection?: string,
   onExplain?: (data: ExplainData) => void,
 ): AgentTool {
@@ -86,19 +86,27 @@ export function createKnowledgeQueryTool(
     async execute(input: string): Promise<string> {
       const question = parseQuestion(input);
       console.log(`[KnowledgeQuery] Executing: "${question.slice(0, 60)}..." collection=${collection}`);
-      const res = await client.request({ query: question, collection });
-      console.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
+      const request: GraphRagRequest = {
+        query: question,
+        ...(collection !== undefined ? { collection } : {}),
+      };
+      const res = await client.request(request);
+      console.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error !== undefined ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
 
       // Extract explain data if embedded in the response
       const rawRes = res as Record<string, unknown>;
-      if (rawRes.message_type === "explain" && rawRes.explain_triples && onExplain) {
+      if (
+        rawRes.message_type === "explain" &&
+        rawRes.explain_triples !== undefined &&
+        onExplain !== undefined
+      ) {
         onExplain({
           explainId: (rawRes.explain_id as string) ?? "",
           triples: rawRes.explain_triples as Triple[],
         });
       }
 
-      if (res.error) return `Error: ${res.error.message}`;
+      if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
     },
   };
@@ -108,7 +116,7 @@ export function createKnowledgeQueryTool(
  * Search documents for relevant information.
  */
 export function createDocumentQueryTool(
-  client: RequestResponse<DocumentRagRequest, DocumentRagResponse>,
+  client: FlowRequestor<DocumentRagRequest, DocumentRagResponse>,
   collection?: string,
 ): AgentTool {
   return {
@@ -124,8 +132,12 @@ export function createDocumentQueryTool(
     ],
     async execute(input: string): Promise<string> {
       const question = parseQuestion(input);
-      const res = await client.request({ query: question, collection });
-      if (res.error) return `Error: ${res.error.message}`;
+      const request: DocumentRagRequest = {
+        query: question,
+        ...(collection !== undefined ? { collection } : {}),
+      };
+      const res = await client.request(request);
+      if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
     },
   };
@@ -153,13 +165,20 @@ function parseTriplesInput(input: string): {
       return undefined;
     };
 
-    return {
-      s: toTerm(parsed.subject ?? parsed.s),
-      p: toTerm(parsed.predicate ?? parsed.p),
-      o: toTerm(parsed.object ?? parsed.o),
-      limit:
-        typeof parsed.limit === "number" ? parsed.limit : undefined,
-    };
+    const result: {
+      s?: Term;
+      p?: Term;
+      o?: Term;
+      limit?: number;
+    } = {};
+    const s = toTerm(parsed.subject ?? parsed.s);
+    const p = toTerm(parsed.predicate ?? parsed.p);
+    const o = toTerm(parsed.object ?? parsed.o);
+    if (s !== undefined) result.s = s;
+    if (p !== undefined) result.p = p;
+    if (o !== undefined) result.o = o;
+    if (typeof parsed.limit === "number") result.limit = parsed.limit;
+    return result;
   } catch {
     // If not valid JSON, treat as a subject search
     return {
@@ -172,7 +191,7 @@ function parseTriplesInput(input: string): {
  * Query for specific triples (subject-predicate-object relationships) in the knowledge graph.
  */
 export function createTriplesQueryTool(
-  client: RequestResponse<TriplesQueryRequest, TriplesQueryResponse>,
+  client: FlowRequestor<TriplesQueryRequest, TriplesQueryResponse>,
   collection?: string,
 ): AgentTool {
   return {
@@ -199,17 +218,18 @@ export function createTriplesQueryTool(
     ],
     async execute(input: string): Promise<string> {
       const { s, p, o, limit } = parseTriplesInput(input);
-      const res = await client.request({
-        s,
-        p,
-        o,
-        collection,
+      const request: TriplesQueryRequest = {
         limit: limit ?? 20,
-      });
+        ...(s !== undefined ? { s } : {}),
+        ...(p !== undefined ? { p } : {}),
+        ...(o !== undefined ? { o } : {}),
+        ...(collection !== undefined ? { collection } : {}),
+      };
+      const res = await client.request(request);
 
-      if (res.error) return `Error: ${res.error.message}`;
+      if (res.error !== undefined) return `Error: ${res.error.message}`;
 
-      if (!res.triples || res.triples.length === 0) {
+      if (res.triples === undefined || res.triples.length === 0) {
         return "No triples found matching the query.";
       }
 
@@ -229,7 +249,7 @@ export function createTriplesQueryTool(
  * this function just wraps it as an AgentTool the ReAct agent can invoke.
  */
 export function createMcpTool(
-  client: RequestResponse<ToolRequest, ToolResponse>,
+  client: FlowRequestor<ToolRequest, ToolResponse>,
   toolName: string,
   description: string,
   args: ToolArg[],
@@ -240,9 +260,9 @@ export function createMcpTool(
     args,
     async execute(input: string): Promise<string> {
       const res = await client.request({ name: toolName, parameters: input });
-      if (res.error) return `Error: ${res.error.message}`;
-      if (res.text) return res.text;
-      if (res.object) return res.object;
+      if (res.error !== undefined) return `Error: ${res.error.message}`;
+      if (res.text !== undefined) return res.text;
+      if (res.object !== undefined) return res.object;
       return "No content";
     },
   };

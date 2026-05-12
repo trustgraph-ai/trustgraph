@@ -19,7 +19,7 @@ export class AsyncQueue<T> {
 
   push(item: T): void {
     const waiter = this.waiters.shift();
-    if (waiter) {
+    if (waiter !== undefined) {
       waiter(item);
     } else {
       this.buffer.push(item);
@@ -34,7 +34,7 @@ export class AsyncQueue<T> {
       let timer: ReturnType<typeof setTimeout> | undefined;
 
       const waiter = (value: T) => {
-        if (timer) clearTimeout(timer);
+        if (timer !== undefined) clearTimeout(timer);
         resolve(value);
       };
 
@@ -58,17 +58,20 @@ export class AsyncQueue<T> {
 export class Subscriber<T> {
   private backend: BackendConsumer<T> | null = null;
   private running = false;
+  private readonly pubsub: PubSubBackend;
+  private readonly topic: string;
+  private readonly subscription: string;
 
   // ID-specific subscriptions (request/response correlation)
   private idSubscribers = new Map<string, Resolver<T>>();
   // Wildcard subscribers (receive all messages)
   private allSubscribers = new Map<string, Resolver<T>>();
 
-  constructor(
-    private readonly pubsub: PubSubBackend,
-    private readonly topic: string,
-    private readonly subscription: string,
-  ) {}
+  constructor(pubsub: PubSubBackend, topic: string, subscription: string) {
+    this.pubsub = pubsub;
+    this.topic = topic;
+    this.subscription = subscription;
+  }
 
   async start(): Promise<void> {
     this.backend = await this.pubsub.createConsumer<T>({
@@ -78,13 +81,13 @@ export class Subscriber<T> {
     this.running = true;
     // Start the dispatch loop (fire and forget — runs until stop)
     this.dispatchLoop().catch((err) => {
-      if (this.running) console.error("[Subscriber] dispatch loop error:", err);
+      if (this.running === true) console.error("[Subscriber] dispatch loop error:", err);
     });
   }
 
   async stop(): Promise<void> {
     this.running = false;
-    if (this.backend) {
+    if (this.backend !== null) {
       await this.backend.close();
       this.backend = null;
     }
@@ -114,8 +117,11 @@ export class Subscriber<T> {
     let consecutiveErrors = 0;
     while (this.running) {
       try {
-        const msg = await this.backend!.receive(2000);
-        if (!msg) continue;
+        const backend = this.backend;
+        if (backend === null) throw new Error("Subscriber backend not started");
+
+        const msg = await backend.receive(2000);
+        if (msg === null) continue;
 
         consecutiveErrors = 0;
 
@@ -124,9 +130,9 @@ export class Subscriber<T> {
         const value = msg.value();
 
         // Route to ID-specific subscriber
-        if (id) {
+        if (id !== undefined && id.length > 0) {
           const sub = this.idSubscribers.get(id);
-          if (sub) {
+          if (sub !== undefined) {
             sub.queue.push(value);
           }
         }
@@ -136,7 +142,7 @@ export class Subscriber<T> {
           sub.queue.push(value);
         }
 
-        await this.backend!.acknowledge(msg);
+        await backend.acknowledge(msg);
       } catch (err) {
         if (!this.running) break;
         consecutiveErrors++;

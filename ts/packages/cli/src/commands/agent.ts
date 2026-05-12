@@ -24,15 +24,15 @@ export function registerAgentCommands(program: Command): void {
             question,
             (chunk) => {
               // think — show thought process
-              if (chunk) process.stderr.write(chunk);
+              if (chunk.length > 0) process.stderr.write(chunk);
             },
             (chunk) => {
               // observe — show observations
-              if (chunk) process.stderr.write(chunk);
+              if (chunk.length > 0) process.stderr.write(chunk);
             },
             (chunk, complete) => {
               // answer — print to stdout
-              if (chunk) process.stdout.write(chunk);
+              if (chunk.length > 0) process.stdout.write(chunk);
               if (complete) {
                 process.stdout.write("\n");
                 resolve();

@@ -1,4 +1,4 @@
-import { RequestMessage } from "../models/messages.js";
+import type { RequestMessage } from "../models/messages.js";
 import { WS_OPEN, type IsomorphicWebSocket } from "./websocket-adapter.js";
 
 // Constant defining the delay before attempting to reconnect a WebSocket
@@ -8,8 +8,14 @@ export const SOCKET_RECONNECTION_TIMEOUT = 2000;
 // Forward declare Socket type to avoid circular dependency
 // Using a minimal interface that matches what BaseApi provides
 interface Socket {
-  ws?: IsomorphicWebSocket;
-  inflight: { [key: string]: ServiceCall };
+  ws: IsomorphicWebSocket | null | undefined;
+  inflight: {
+    [key: string]: {
+      onReceived: (resp: object) => void;
+      retryNow: () => void;
+      error: (err: object | string) => void;
+    };
+  };
   reopen: () => void;
   getNextId?: () => string;
   user?: string;
@@ -52,7 +58,7 @@ export class ServiceCall {
   msg: RequestMessage; // The request message
   success: (resp: unknown) => void; // Success callback
   error: (err: object | string) => void; // Error callback
-  timeoutId?: ReturnType<typeof setTimeout>; // Reference to the active timeout timer
+  timeoutId: ReturnType<typeof setTimeout> | undefined = undefined; // Reference to the active timeout timer
   timeout: number; // Timeout duration in milliseconds
   retries: number; // Remaining retry attempts
   socket: Socket; // WebSocket connection reference
@@ -77,7 +83,10 @@ export class ServiceCall {
    */
   onReceived(resp: object) {
     // Guard: ignore duplicate responses after completion
-    if (this.complete) return;
+    if (this.complete) {
+      console.log(this.mid, "should not happen, request is already complete");
+      return;
+    }
 
     // Mark as complete to prevent duplicate processing
     this.complete = true;
@@ -93,18 +102,18 @@ export class ServiceCall {
     let errorToHandle: unknown = null;
 
     // Check for direct error in response
-    if (resp && typeof resp === "object" && "error" in resp) {
+    if (resp !== null && typeof resp === "object" && "error" in resp) {
       errorToHandle = (resp as Record<string, unknown>).error;
     }
     // Check for nested error under response property
-    else if (resp && typeof resp === "object" && "response" in resp) {
+    else if (resp !== null && typeof resp === "object" && "response" in resp) {
       const response = (resp as Record<string, unknown>).response;
-      if (response && typeof response === "object" && "error" in response) {
+      if (response !== null && typeof response === "object" && "error" in response) {
         errorToHandle = (response as Record<string, unknown>).error;
       }
     }
 
-    if (errorToHandle) {
+    if (errorToHandle !== null && errorToHandle !== undefined) {
       // Response contains an error - call error callback
       const errorObj = errorToHandle as Record<string, unknown>;
       const errorMessage =
@@ -151,7 +160,13 @@ export class ServiceCall {
    */
   onTimeout() {
     // Guard: ignore timeout after completion
-    if (this.complete) return;
+    if (this.complete) {
+      console.log(
+        this.mid,
+        "timeout should not happen, request is already complete",
+      );
+      return;
+    }
 
     console.log("Request", this.mid, "timed out");
 
@@ -180,7 +195,13 @@ export class ServiceCall {
    */
   attempt() {
     // Guard: don't retry completed requests
-    if (this.complete) return;
+    if (this.complete) {
+      console.log(
+        this.mid,
+        "attempt should not be called, request is already complete",
+      );
+      return;
+    }
 
     // Decrement retry counter
     this.retries--;
@@ -197,7 +218,7 @@ export class ServiceCall {
     }
 
     // Check if WebSocket connection is available and ready
-    if (this.socket.ws && this.socket.ws.readyState === WS_OPEN) {
+    if (this.socket.ws !== null && this.socket.ws !== undefined && this.socket.ws.readyState === WS_OPEN) {
       try {
         // Attempt to send the message as JSON
         this.socket.ws.send(JSON.stringify(this.msg));

@@ -13,8 +13,10 @@ export class ConsumerMetrics {
   private requestHistogram: Histogram;
   private processingCounter: Counter;
   private rateLimitCounter: Counter;
+  private readonly labels: { processor: string; flow: string; name: string };
 
   constructor(processor: string, flow: string, name: string) {
+    this.labels = { processor, flow, name };
     this.requestHistogram = new Histogram({
       name: "tg_consumer_request_duration_seconds",
       help: "Consumer request processing time",
@@ -38,22 +40,24 @@ export class ConsumerMetrics {
   }
 
   recordTime(seconds: number): void {
-    this.requestHistogram.observe(seconds);
+    this.requestHistogram.observe(this.labels, seconds);
   }
 
   process(status: "success" | "error"): void {
-    this.processingCounter.inc({ status });
+    this.processingCounter.inc({ ...this.labels, status });
   }
 
   rateLimit(): void {
-    this.rateLimitCounter.inc();
+    this.rateLimitCounter.inc(this.labels);
   }
 }
 
 export class ProducerMetrics {
   private counter: Counter;
+  private readonly labels: { processor: string; flow: string; name: string };
 
   constructor(processor: string, flow: string, name: string) {
+    this.labels = { processor, flow, name };
     this.counter = new Counter({
       name: "tg_producer_items_total",
       help: "Producer items sent",
@@ -63,6 +67,6 @@ export class ProducerMetrics {
   }
 
   inc(): void {
-    this.counter.inc();
+    this.counter.inc(this.labels);
   }
 }

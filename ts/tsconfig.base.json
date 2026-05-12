@@ -1,18 +1,124 @@
 {
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/tsgo/refs/heads/main/schema.json",
+  "include": [],
   "compilerOptions": {
+    "outDir": "${configDir}/dist",
+    "rootDir": "${configDir}/src",
+    "tsBuildInfoFile": "${configDir}/node_modules/.tmp/tsconfig.tsbuildinfo",
+    // Use incremental builds with project references.
+    "incremental": true,
+    "composite": true,
+    // Target modern JavaScript (ES2022+) whilst staying closely compatible with the Node.js module system.
     "target": "ES2022",
     "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2022"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
+    "moduleResolution": "nodenext",
+    "moduleDetection": "force", // Treat every non-declaration file as a module.
+    "verbatimModuleSyntax": true, // Only transform/eliminate type-only import/export statements.
+    "allowImportingTsExtensions": true,
+    "allowJs": false, // Keep JavaScript out of TypeScript project graphs.
+    "rewriteRelativeImportExtensions": true, // Rewrite `.ts` imports to `.js` at build time.
+    "erasableSyntaxOnly": true, // Allows to run directly with bun and type removal
+    // Emit source- & declaration maps.
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": "src"
+    // Opt-in to stricter type checking and correctness guard rails. The more the merrier.
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    // Miscellaneous
+    "stripInternal": false, // We temporarily override this to `true` when publishing packages.
+    "skipLibCheck": true, // Skip type checking of third party libraries.
+    "noErrorTruncation": true, // Do not truncate error messages.
+    "types": [], // Disable automatic loading of `@types/*` packages.
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "namespaceImportPackages": ["effect", "@effect/*", "@beep/*"],
+        "ignoreEffectSuggestionsInTscExitCode": false,
+        "ignoreEffectWarningsInTscExitCode": false,
+        "ignoreEffectErrorsInTscExitCode": false,
+        "includeSuggestionsInTsc": true,
+        "skipDisabledOptimization": false,
+        "effectFn": ["span", "inferred-span", "suggested-span"],
+        "overrides": [
+          {
+            "include": ["**/test/**/*.ts", "**/test/**/*.tsx"],
+            "options": {
+              "diagnosticSeverity": {
+                "missingEffectContext": "off",
+                "nodeBuiltinImport": "off",
+                "strictEffectProvide": "off"
+              }
+            }
+          }
+        ],
+
+        "importAliases": {
+          "Array": "A",
+          "Option": "O",
+          "Predicate": "P",
+          "Record": "R",
+          "Schema": "S",
+          "Equal": "Eq"
+        },
+        "diagnosticSeverity": {
+          "anyUnknownInErrorContext": "error",
+          "catchAllToMapError": "error",
+          "classSelfMismatch": "error",
+          "floatingEffect": "error",
+          "catchUnfailableEffect": "error",
+          "deterministicKeys": "error",
+          "duplicatePackage": "error",
+          "effectFnIife": "error",
+          "effectFnOpportunity": "error",
+          "effectGenUsesAdapter": "error",
+          "effectInFailure": "error",
+          "effectInVoidSuccess": "error",
+          "effectMapVoid": "error",
+          "effectSucceedWithVoid": "error",
+          "extendsNativeError": "error",
+          "genericEffectServices": "error",
+          "missingEffectContext": "error",
+          "missingEffectError": "error",
+          "globalErrorInEffectCatch": "error",
+          "globalErrorInEffectFailure": "error",
+          "missingLayerContext": "error",
+          "instanceOfSchema": "error",
+          "missingReturnYieldStar": "error",
+          "missingStarInYieldEffectGen": "error",
+          "layerMergeAllWithDependencies": "error",
+          "overriddenSchemaConstructor": "error",
+
+          "leakingRequirements": "error",
+          "missedPipeableOpportunity": "error",
+          "missingEffectServiceDependency": "error",
+          "multipleEffectProvide": "error",
+          "nodeBuiltinImport": "error",
+          "outdatedApi": "error",
+          "preferSchemaOverJson": "error",
+          "redundantSchemaTagIdentifier": "error",
+          "returnEffectInGen": "error",
+          "runEffectInsideEffect": "error",
+          "schemaStructWithTag": "error",
+          "schemaSyncInEffect": "error",
+          "schemaUnionOfLiterals": "error",
+          "scopeInLayerEffect": "error",
+          "serviceNotAsClass": "error",
+          "strictBooleanExpressions": "error",
+          "strictEffectProvide": "error",
+          "tryCatchInEffectGen": "error",
+          "unknownInEffectCatch": "error",
+          "unnecessaryEffectGen": "error",
+          "unnecessaryFailYieldableError": "error",
+          "unnecessaryPipe": "error",
+          "unnecessaryPipeChain": "error"
+        }
+      }
+    ]
   }
 }

@@ -54,7 +54,7 @@ export class CollectionManager {
 
   ensureCollectionExists(user: string, collection: string): CollectionEntry {
     const existing = this.getCollection(user, collection);
-    if (existing) return existing;
+    if (existing !== undefined) return existing;
     return this.updateCollection(user, collection, collection, "", []);
   }
 

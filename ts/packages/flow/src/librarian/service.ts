@@ -10,9 +10,6 @@
  * Python reference: trustgraph-flow/trustgraph/librarian/service/service.py
  */
 
-import { randomUUID } from "node:crypto";
-import { readFile, writeFile, mkdir, unlink } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import {
   AsyncProcessor,
   type ProcessorConfig,
@@ -24,8 +21,18 @@ import {
   type DocumentMetadata,
   type ProcessingMetadata,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import type { BackendProducer, BackendConsumer, Message } from "@trustgraph/base";
 import { CollectionManager } from "./collection-manager.js";
+import {
+  ensureDirectory,
+  joinPath,
+  readBinaryFile,
+  readTextFile,
+  removePath,
+  writeBinaryFile,
+  writeTextFile,
+} from "../runtime/effect-files.js";
 
 export interface LibrarianServiceConfig extends ProcessorConfig {
   dataDir?: string;
@@ -49,12 +56,12 @@ export class LibrarianService extends AsyncProcessor {
   constructor(config: LibrarianServiceConfig) {
     super(config);
     this.dataDir = config.dataDir ?? process.env.LIBRARIAN_DATA_DIR ?? "./data/librarian";
-    this.persistPath = join(this.dataDir, "librarian-state.json");
+    this.persistPath = joinPath(this.dataDir, "librarian-state.json");
   }
 
   protected override async run(): Promise<void> {
     // Ensure directories exist
-    await mkdir(join(this.dataDir, "docs"), { recursive: true });
+    await ensureDirectory(joinPath(this.dataDir, "docs"));
 
     // Load persisted state
     await this.loadFromDisk();
@@ -84,14 +91,14 @@ export class LibrarianService extends AsyncProcessor {
       try {
         // Poll librarian requests
         const libMsg = await this.libConsumer.receive(2000);
-        if (libMsg) {
+        if (libMsg !== null) {
           await this.handleLibrarianMessage(libMsg);
           await this.libConsumer.acknowledge(libMsg);
         }
 
         // Poll collection management requests
         const colMsg = await this.colConsumer.receive(2000);
-        if (colMsg) {
+        if (colMsg !== null) {
           await this.handleCollectionMessage(colMsg);
           await this.colConsumer.acknowledge(colMsg);
         }
@@ -110,7 +117,7 @@ export class LibrarianService extends AsyncProcessor {
     const props = msg.properties();
     const requestId = props.id;
 
-    if (!requestId) {
+    if (requestId === undefined || requestId.length === 0) {
       console.warn("[LibrarianService] Received request without id, ignoring");
       return;
     }
@@ -156,9 +163,9 @@ export class LibrarianService extends AsyncProcessor {
 
   private async addDocument(request: LibrarianRequest): Promise<LibrarianResponse> {
     const meta = request.documentMetadata;
-    if (!meta) throw new Error("add-document requires documentMetadata");
+    if (meta === undefined) throw new Error("add-document requires documentMetadata");
 
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const now = Date.now();
 
     const doc: DocumentMetadata = {
@@ -170,10 +177,10 @@ export class LibrarianService extends AsyncProcessor {
     this.documents.set(id, doc);
 
     // Store file content if provided
-    if (request.content) {
-      const filePath = join(this.dataDir, "docs", `${id}.bin`);
+    if (request.content !== undefined && request.content.length > 0) {
+      const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
       const buf = Buffer.from(request.content, "base64");
-      await writeFile(filePath, buf);
+      await writeBinaryFile(filePath, buf);
     }
 
     await this.persist();
@@ -184,14 +191,16 @@ export class LibrarianService extends AsyncProcessor {
 
   private async removeDocument(request: LibrarianRequest): Promise<LibrarianResponse> {
     const id = request.documentId;
-    if (!id) throw new Error("remove-document requires documentId");
+    if (id === undefined || id.length === 0) {
+      throw new Error("remove-document requires documentId");
+    }
 
     // Remove the document itself
     this.documents.delete(id);
 
     // Remove the file
     try {
-      await unlink(join(this.dataDir, "docs", `${id}.bin`));
+      await removePath(joinPath(this.dataDir, "docs", `${id}.bin`));
     } catch {
       // File may not exist — that's fine
     }
@@ -204,7 +213,7 @@ export class LibrarianService extends AsyncProcessor {
     for (const childId of childIds) {
       this.documents.delete(childId);
       try {
-        await unlink(join(this.dataDir, "docs", `${childId}.bin`));
+        await removePath(joinPath(this.dataDir, "docs", `${childId}.bin`));
       } catch {
         // ignore
       }
@@ -231,9 +240,9 @@ export class LibrarianService extends AsyncProcessor {
 
     for (const doc of this.documents.values()) {
       // Filter by user
-      if (user && doc.user !== user) continue;
+      if (user.length > 0 && doc.user !== user) continue;
       // Exclude children (only top-level documents) unless explicitly requested
-      if (doc.parentId) continue;
+      if (doc.parentId !== undefined && doc.parentId.length > 0) continue;
       docs.push(doc);
     }
 
@@ -242,25 +251,29 @@ export class LibrarianService extends AsyncProcessor {
 
   private getDocumentMetadata(request: LibrarianRequest): LibrarianResponse {
     const id = request.documentId;
-    if (!id) throw new Error("get-document-metadata requires documentId");
+    if (id === undefined || id.length === 0) {
+      throw new Error("get-document-metadata requires documentId");
+    }
 
     const doc = this.documents.get(id);
-    if (!doc) throw new Error(`Document not found: ${id}`);
+    if (doc === undefined) throw new Error(`Document not found: ${id}`);
 
     return { documentMetadata: doc };
   }
 
   private async getDocumentContent(request: LibrarianRequest): Promise<LibrarianResponse> {
     const id = request.documentId;
-    if (!id) throw new Error("get-document-content requires documentId");
+    if (id === undefined || id.length === 0) {
+      throw new Error("get-document-content requires documentId");
+    }
 
     const doc = this.documents.get(id);
-    if (!doc) throw new Error(`Document not found: ${id}`);
+    if (doc === undefined) throw new Error(`Document not found: ${id}`);
 
     try {
-      const filePath = join(this.dataDir, "docs", `${id}.bin`);
-      const buf = await readFile(filePath);
-      const content = buf.toString("base64");
+      const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
+      const buf = await readBinaryFile(filePath);
+      const content = Buffer.from(buf).toString("base64");
       return { documentMetadata: doc, content };
     } catch {
       throw new Error(`Document content not found on disk: ${id}`);
@@ -269,15 +282,19 @@ export class LibrarianService extends AsyncProcessor {
 
   private async addChildDocument(request: LibrarianRequest): Promise<LibrarianResponse> {
     const meta = request.documentMetadata;
-    if (!meta) throw new Error("add-child-document requires documentMetadata");
-    if (!meta.parentId) throw new Error("add-child-document requires parentId in metadata");
+    if (meta === undefined) {
+      throw new Error("add-child-document requires documentMetadata");
+    }
+    if (meta.parentId === undefined || meta.parentId.length === 0) {
+      throw new Error("add-child-document requires parentId in metadata");
+    }
 
     // Verify parent exists
     if (!this.documents.has(meta.parentId)) {
       throw new Error(`Parent document not found: ${meta.parentId}`);
     }
 
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const now = Date.now();
 
     const doc: DocumentMetadata = {
@@ -289,10 +306,10 @@ export class LibrarianService extends AsyncProcessor {
     this.documents.set(id, doc);
 
     // Store file content if provided
-    if (request.content) {
-      const filePath = join(this.dataDir, "docs", `${id}.bin`);
+    if (request.content !== undefined && request.content.length > 0) {
+      const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
       const buf = Buffer.from(request.content, "base64");
-      await writeFile(filePath, buf);
+      await writeBinaryFile(filePath, buf);
     }
 
     await this.persist();
@@ -303,7 +320,9 @@ export class LibrarianService extends AsyncProcessor {
 
   private listChildren(request: LibrarianRequest): LibrarianResponse {
     const parentId = request.documentId;
-    if (!parentId) throw new Error("list-children requires documentId");
+    if (parentId === undefined || parentId.length === 0) {
+      throw new Error("list-children requires documentId");
+    }
 
     const children: DocumentMetadata[] = [];
     for (const doc of this.documents.values()) {
@@ -317,9 +336,9 @@ export class LibrarianService extends AsyncProcessor {
 
   private async addProcessing(request: LibrarianRequest): Promise<LibrarianResponse> {
     const proc = request.processingMetadata;
-    if (!proc) throw new Error("add-processing requires processingMetadata");
+    if (proc === undefined) throw new Error("add-processing requires processingMetadata");
 
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const now = Date.now();
 
     const record: ProcessingMetadata = {
@@ -337,7 +356,9 @@ export class LibrarianService extends AsyncProcessor {
 
   private async removeProcessing(request: LibrarianRequest): Promise<LibrarianResponse> {
     const id = request.processingId;
-    if (!id) throw new Error("remove-processing requires processingId");
+    if (id === undefined || id.length === 0) {
+      throw new Error("remove-processing requires processingId");
+    }
 
     this.processing.delete(id);
     await this.persist();
@@ -350,7 +371,9 @@ export class LibrarianService extends AsyncProcessor {
     const records: ProcessingMetadata[] = [];
 
     for (const proc of this.processing.values()) {
-      if (documentId && proc.documentId !== documentId) continue;
+      if (documentId !== undefined && documentId.length > 0 && proc.documentId !== documentId) {
+        continue;
+      }
       records.push(proc);
     }
 
@@ -364,7 +387,7 @@ export class LibrarianService extends AsyncProcessor {
     const props = msg.properties();
     const requestId = props.id;
 
-    if (!requestId) {
+    if (requestId === undefined || requestId.length === 0) {
       console.warn("[LibrarianService] Received collection request without id, ignoring");
       return;
     }
@@ -430,8 +453,7 @@ export class LibrarianService extends AsyncProcessor {
       };
 
       const json = JSON.stringify(data, null, 2);
-      await mkdir(dirname(this.persistPath), { recursive: true });
-      await writeFile(this.persistPath, json, "utf-8");
+      await writeTextFile(this.persistPath, json);
     } catch (err) {
       console.error("[LibrarianService] Failed to persist state:", err);
     }
@@ -439,7 +461,7 @@ export class LibrarianService extends AsyncProcessor {
 
   private async loadFromDisk(): Promise<void> {
     try {
-      const raw = await readFile(this.persistPath, "utf-8");
+      const raw = await readTextFile(this.persistPath);
       const parsed = JSON.parse(raw) as {
         documents?: Record<string, DocumentMetadata>;
         processing?: Record<string, ProcessingMetadata>;
@@ -447,20 +469,20 @@ export class LibrarianService extends AsyncProcessor {
       };
 
       this.documents.clear();
-      if (parsed.documents) {
+      if (parsed.documents !== undefined) {
         for (const [id, doc] of Object.entries(parsed.documents)) {
           this.documents.set(id, doc);
         }
       }
 
       this.processing.clear();
-      if (parsed.processing) {
+      if (parsed.processing !== undefined) {
         for (const [id, proc] of Object.entries(parsed.processing)) {
           this.processing.set(id, proc);
         }
       }
 
-      if (parsed.collections) {
+      if (parsed.collections !== undefined) {
         this.collectionManager.loadFromJSON(parsed.collections);
       }
 
@@ -473,19 +495,19 @@ export class LibrarianService extends AsyncProcessor {
   }
 
   override async stop(): Promise<void> {
-    if (this.libConsumer) {
+    if (this.libConsumer !== null) {
       await this.libConsumer.close();
       this.libConsumer = null;
     }
-    if (this.libProducer) {
+    if (this.libProducer !== null) {
       await this.libProducer.close();
       this.libProducer = null;
     }
-    if (this.colConsumer) {
+    if (this.colConsumer !== null) {
       await this.colConsumer.close();
       this.colConsumer = null;
     }
-    if (this.colProducer) {
+    if (this.colProducer !== null) {
       await this.colProducer.close();
       this.colProducer = null;
     }
@@ -496,6 +518,11 @@ export class LibrarianService extends AsyncProcessor {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export const program = makeProcessorProgram({
+  id: "librarian-svc",
+  make: (config) => new LibrarianService(config),
+});
 
 export async function run(): Promise<void> {
   await LibrarianService.launch("librarian-svc");

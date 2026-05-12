@@ -1,54 +1,82 @@
 /**
- * Base embeddings service.
+ * Embeddings capability contract and message-bus adapter.
  *
  * Python reference: trustgraph-base/trustgraph/base/embeddings_service.py
  */
 
-import { FlowProcessor } from "../processor/flow-processor.js";
-import { ConsumerSpec } from "../spec/consumer-spec.js";
-import { ProducerSpec } from "../spec/producer-spec.js";
-import { ParameterSpec } from "../spec/parameter-spec.js";
-import type { ProcessorConfig } from "../processor/async-processor.js";
+import { Context, Effect } from "effect";
+import {
+  errorMessage,
+  type EmbeddingsError,
+  type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
+} from "../errors.js";
 import type { FlowContext } from "../messaging/consumer.js";
+import { FlowProcessor } from "../processor/flow-processor.js";
+import type { ProcessorConfig } from "../processor/async-processor.js";
 import type { EmbeddingsRequest, EmbeddingsResponse } from "../schema/messages.js";
+import { ConsumerSpec } from "../spec/consumer-spec.js";
+import { ParameterSpec } from "../spec/parameter-spec.js";
+import { ProducerSpec } from "../spec/producer-spec.js";
 
-export abstract class EmbeddingsService extends FlowProcessor {
-  protected constructor(config: ProcessorConfig) {
+export interface EmbeddingsServiceShape {
+  readonly embed: (
+    texts: ReadonlyArray<string>,
+    model?: string,
+  ) => Effect.Effect<number[][], EmbeddingsError>;
+}
+
+export class Embeddings extends Context.Service<Embeddings, EmbeddingsServiceShape>()(
+  "@trustgraph/base/services/embeddings-service/Embeddings",
+) {}
+
+export class EmbeddingsService extends FlowProcessor<Embeddings> {
+  constructor(config: ProcessorConfig) {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<EmbeddingsRequest>(
+      new ConsumerSpec<EmbeddingsRequest, FlowResourceNotFoundError | MessagingDeliveryError, Embeddings>(
         "embeddings-request",
-        this.onRequest.bind(this),
+        this.onRequestEffect.bind(this),
       ),
     );
     this.registerSpecification(new ProducerSpec<EmbeddingsResponse>("embeddings-response"));
     this.registerSpecification(new ParameterSpec("model"));
   }
 
-  private async onRequest(
+  private onRequestEffect(
     msg: EmbeddingsRequest,
     properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
+    flowCtx: FlowContext<Embeddings>,
+  ): Effect.Effect<void, FlowResourceNotFoundError | MessagingDeliveryError, Embeddings> {
     const requestId = properties.id;
-    if (!requestId) return;
-
-    const responseProducer = flowCtx.flow.producer<EmbeddingsResponse>("embeddings-response");
-
-    try {
-      const vectors = await this.onEmbeddings(msg.text, msg.model);
-      await responseProducer.send(requestId, { vectors });
-    } catch (err) {
-      console.error(`[EmbeddingsService] Error processing request:`, err);
-
-      const message = err instanceof Error ? err.message : String(err);
-      await responseProducer.send(requestId, {
-        vectors: [],
-        error: { type: "embeddings-error", message },
-      });
+    if (requestId === undefined || requestId.length === 0) {
+      return Effect.void;
     }
-  }
 
-  abstract onEmbeddings(texts: string[], model?: string): Promise<number[][]>;
+    return Effect.gen(function* () {
+      const responseProducer = yield* flowCtx.flow.producerEffect<EmbeddingsResponse>("embeddings-response");
+      const embeddings = yield* Embeddings;
+      const response = yield* embeddings.embed(msg.text, msg.model).pipe(
+        Effect.map((vectors) => ({ vectors }) satisfies EmbeddingsResponse),
+        Effect.catch((error) =>
+          Effect.logError("[EmbeddingsService] Error processing request", {
+            error: errorMessage(error),
+            operation: error.operation,
+            provider: error.provider ?? "unknown",
+          }).pipe(
+            Effect.as({
+              vectors: [],
+              error: {
+                type: "embeddings-error",
+                message: errorMessage(error),
+              },
+            } satisfies EmbeddingsResponse),
+          ),
+        ),
+      );
+
+      yield* responseProducer.send(requestId, response);
+    });
+  }
 }

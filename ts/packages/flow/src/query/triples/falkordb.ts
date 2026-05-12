@@ -15,7 +15,7 @@ export interface FalkorDBQueryConfig {
 }
 
 function termToValue(term: Term | undefined): string | null {
-  if (!term) return null;
+  if (term === undefined) return null;
   switch (term.type) {
     case "IRI": return term.iri;
     case "LITERAL": return term.value;
@@ -25,7 +25,7 @@ function termToValue(term: Term | undefined): string | null {
 }
 
 function createTerm(value: string): Term {
-  if (!value) {
+  if (value.length === 0) {
     return { type: "LITERAL", value: "" };
   }
   if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -75,25 +75,25 @@ export class FalkorDBTriplesQuery {
     const rawTriples: [string, string, string][] = [];
 
     // Query both Node and Literal targets for each pattern
-    if (sv && pv && ov) {
+    if (sv !== null && pv !== null && ov !== null) {
       // SPO — exact match
       await this.matchPattern(rawTriples, sv, pv, ov, limit);
-    } else if (sv && pv) {
+    } else if (sv !== null && pv !== null) {
       // SP — known subject + predicate
       await this.matchSP(rawTriples, sv, pv, limit);
-    } else if (sv && ov) {
+    } else if (sv !== null && ov !== null) {
       // SO — known subject + object
       await this.matchSO(rawTriples, sv, ov, limit);
-    } else if (pv && ov) {
+    } else if (pv !== null && ov !== null) {
       // PO — known predicate + object
       await this.matchPO(rawTriples, pv, ov, limit);
-    } else if (sv) {
+    } else if (sv !== null) {
       // S only
       await this.matchS(rawTriples, sv, limit);
-    } else if (pv) {
+    } else if (pv !== null) {
       // P only
       await this.matchP(rawTriples, pv, limit);
-    } else if (ov) {
+    } else if (ov !== null) {
       // O only
       await this.matchO(rawTriples, ov, limit);
     } else {
@@ -102,7 +102,7 @@ export class FalkorDBTriplesQuery {
     }
 
     return rawTriples
-      .filter(([s, p, o]) => s != null && p != null && o != null)
+      .filter(([s, p, o]) => s !== null && p !== null && o !== null)
       .slice(0, limit)
       .map(([s, p, o]) => ({
         s: createTerm(s),

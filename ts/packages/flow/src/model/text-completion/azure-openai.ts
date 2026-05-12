@@ -14,8 +14,9 @@ import {
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
-  TooManyRequestsError,
+  tooManyRequestsError,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class AzureOpenAIProcessor extends LlmService {
   private client: AzureOpenAI;
@@ -40,10 +41,14 @@ export class AzureOpenAIProcessor extends LlmService {
     this.maxOutput = config.maxOutput ?? 4096;
 
     const apiKey = config.apiKey ?? process.env.AZURE_TOKEN;
-    if (!apiKey) throw new Error("Azure OpenAI API key not specified");
+    if (apiKey === undefined || apiKey.length === 0) {
+      throw new Error("Azure OpenAI API key not specified");
+    }
 
     const endpoint = config.endpoint ?? process.env.AZURE_ENDPOINT;
-    if (!endpoint) throw new Error("Azure OpenAI endpoint not specified");
+    if (endpoint === undefined || endpoint.length === 0) {
+      throw new Error("Azure OpenAI endpoint not specified");
+    }
 
     const apiVersion =
       config.apiVersion ??
@@ -83,7 +88,7 @@ export class AzureOpenAIProcessor extends LlmService {
       };
     } catch (err) {
       if ((err as any)?.status === 429) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
@@ -119,9 +124,10 @@ export class AzureOpenAIProcessor extends LlmService {
       let totalOutputTokens = 0;
 
       for await (const chunk of stream) {
-        if (chunk.choices?.[0]?.delta?.content) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content !== null && content !== undefined && content.length > 0) {
           yield {
-            text: chunk.choices[0].delta.content,
+            text: content,
             inToken: null,
             outToken: null,
             model: modelName,
@@ -129,7 +135,7 @@ export class AzureOpenAIProcessor extends LlmService {
           };
         }
 
-        if (chunk.usage) {
+        if (chunk.usage !== null && chunk.usage !== undefined) {
           totalInputTokens = chunk.usage.prompt_tokens;
           totalOutputTokens = chunk.usage.completion_tokens;
         }
@@ -144,12 +150,17 @@ export class AzureOpenAIProcessor extends LlmService {
       };
     } catch (err) {
       if ((err as any)?.status === 429) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "text-completion",
+  make: (config) => new AzureOpenAIProcessor(config),
+});
 
 export async function run(): Promise<void> {
   await AzureOpenAIProcessor.launch("text-completion");

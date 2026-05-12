@@ -57,7 +57,7 @@ function AgentPhaseBlock({
 }) {
   const [manualToggle, setManualToggle] = useState<boolean | null>(null);
 
-  if (!content && !isActive) return null;
+  if (content.length === 0 && !isActive) return null;
 
   // Auto-expand while actively streaming; user can override
   const expanded = manualToggle ?? isActive;
@@ -104,12 +104,12 @@ function AgentPhaseBlock({
           <Loader2 className="ml-auto h-3 w-3 animate-spin text-fg-subtle" />
         )}
       </button>
-      {expanded && (content || isActive) && (
+      {expanded && (content.length > 0 || isActive) && (
         <div className="border-t border-border/50 px-3 py-2 text-xs leading-relaxed text-fg-muted">
           <p className="whitespace-pre-wrap">
-            {content || (isActive ? "..." : "")}
+            {content.length > 0 ? content : isActive ? "..." : ""}
           </p>
-          {isActive && content && (
+          {isActive && content.length > 0 && (
             <span className="mt-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
           )}
         </div>
@@ -124,7 +124,7 @@ function AgentPhaseBlock({
 
 function MessageBubble({ msg, collection }: { msg: ChatMessage; collection: string }) {
   const isUser = msg.role === "user";
-  const hasAgentPhases = msg.agentPhases != null;
+  const agentPhases = msg.agentPhases;
   const isError = !isUser && msg.content.startsWith("Error:");
 
   return (
@@ -139,23 +139,23 @@ function MessageBubble({ msg, collection }: { msg: ChatMessage; collection: stri
       )}
     >
       {/* Agent phase blocks (only for agent messages) */}
-      {hasAgentPhases && msg.agentPhases && (
+      {agentPhases !== undefined && (
         <div className="mb-2 space-y-1.5">
           <AgentPhaseBlock
             phase="think"
             icon={<Brain className="h-3 w-3" />}
             label="Thinking"
-            content={msg.agentPhases.think}
+            content={agentPhases.think}
             isActive={msg.activePhase === "think"}
           />
           <AgentPhaseBlock
             phase="observe"
             icon={<Eye className="h-3 w-3" />}
             label="Observing"
-            content={msg.agentPhases.observe}
+            content={agentPhases.observe}
             isActive={msg.activePhase === "observe"}
           />
-          {msg.agentPhases.answer && (
+          {agentPhases.answer.length > 0 && (
             <div className="flex items-center gap-1.5 px-1 pt-1 text-xs text-emerald-400">
               <CheckCircle className="h-3 w-3" />
               <span className="font-medium">Answer</span>
@@ -174,19 +174,19 @@ function MessageBubble({ msg, collection }: { msg: ChatMessage; collection: stri
         </div>
       ) : (
         <div className="prose prose-sm max-w-none text-fg prose-headings:text-fg prose-strong:text-fg prose-p:my-1 prose-a:text-brand-400 prose-pre:bg-surface-200 prose-pre:text-fg prose-code:text-brand-300">
-          <Markdown>{msg.content || (msg.isStreaming ? "" : "(empty)")}</Markdown>
+          <Markdown>{msg.content.length > 0 ? msg.content : msg.isStreaming === true ? "" : "(empty)"}</Markdown>
         </div>
       )}
 
       {/* Streaming indicator */}
-      {msg.isStreaming && (
+      {msg.isStreaming === true && (
         <span className="mt-1 inline-block h-2 w-2 animate-pulse rounded-full bg-brand-400" />
       )}
 
       {/* Token metadata */}
-      {msg.metadata && (
+      {msg.metadata !== undefined && (
         <div className="mt-2 flex items-center gap-3 text-[10px] text-fg-subtle">
-          {msg.metadata.model && <span>{msg.metadata.model}</span>}
+          {msg.metadata.model !== undefined && msg.metadata.model.length > 0 && <span>{msg.metadata.model}</span>}
           {msg.metadata.inTokens != null && (
             <span>in: {msg.metadata.inTokens}</span>
           )}
@@ -197,7 +197,7 @@ function MessageBubble({ msg, collection }: { msg: ChatMessage; collection: stri
       )}
 
       {/* Explainability graph */}
-      {!isUser && !isError && !msg.isStreaming && msg.explainEvents && msg.explainEvents.length > 0 && (
+      {!isUser && !isError && msg.isStreaming !== true && msg.explainEvents !== undefined && msg.explainEvents.length > 0 && (
         <ExplainGraph explainEvents={msg.explainEvents} collection={collection} />
       )}
     </div>
@@ -239,7 +239,7 @@ export default function ChatPage() {
   }, [messages]);
 
   const handleSubmit = useCallback(() => {
-    if (input.trim()) {
+    if (input.trim().length > 0) {
       submitMessage({ input });
     }
   }, [input, submitMessage]);
@@ -317,12 +317,12 @@ export default function ChatPage() {
 
           return (
             <div key={msg.id} className="group relative">
-              {!msg.isStreaming && (
+              {msg.isStreaming !== true && (
                 <MessageActions
                   content={msg.content}
                   isLastAssistant={isLastAssistant}
                   onDelete={() => deleteMessage(msg.id)}
-                  onRegenerate={isLastAssistant ? regenerateLastMessage : undefined}
+                  {...(isLastAssistant ? { onRegenerate: regenerateLastMessage } : {})}
                 />
               )}
               <MessageBubble msg={msg} collection={collection} />
@@ -359,7 +359,7 @@ export default function ChatPage() {
         />
         <button
           onClick={handleSubmit}
-          disabled={!input.trim() || isLoading}
+          disabled={input.trim().length === 0 || isLoading}
           aria-label="Send message"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white transition-colors hover:bg-brand-500 disabled:opacity-40"
         >

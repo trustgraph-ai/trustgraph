@@ -65,14 +65,18 @@ export function clientTermToInternal(wire: ClientTerm): Term {
       return {
         type: "LITERAL",
         value: wire.v,
-        datatype: wire.dt,
-        language: wire.ln,
+        ...(wire.dt !== undefined ? { datatype: wire.dt } : {}),
+        ...(wire.ln !== undefined ? { language: wire.ln } : {}),
       };
-    case "t":
+    case "t": {
+      if (wire.tr === undefined) {
+        throw new Error("Client triple term is missing tr");
+      }
       return {
         type: "TRIPLE",
-        triple: wire.tr ? clientTripleToInternal(wire.tr) : undefined!,
+        triple: clientTripleToInternal(wire.tr),
       };
+    }
     default:
       // Defensive: pass through unknown term types
       return wire as unknown as Term;
@@ -105,14 +109,14 @@ export function internalTermToClient(term: Term): ClientTerm {
       return { t: "b", d: term.id };
     case "LITERAL": {
       const lit: ClientLiteralTerm = { t: "l", v: term.value };
-      if (term.datatype) lit.dt = term.datatype;
-      if (term.language) lit.ln = term.language;
+      if (term.datatype !== undefined) lit.dt = term.datatype;
+      if (term.language !== undefined) lit.ln = term.language;
       return lit;
     }
     case "TRIPLE":
       return {
         t: "t",
-        tr: term.triple ? internalTripleToClient(term.triple) : undefined,
+        tr: internalTripleToClient(term.triple),
       };
     default:
       return term as unknown as ClientTerm;
@@ -131,7 +135,10 @@ export function internalTripleToClient(triple: Triple): ClientTriple {
       result.g = g;
     } else {
       // If g is a Term, convert it back to client wire format
-      result.g = (g as Record<string, unknown>).iri as string | undefined;
+      const iri = (g as Record<string, unknown>).iri;
+      if (typeof iri === "string") {
+        result.g = iri;
+      }
     }
   }
   return result;

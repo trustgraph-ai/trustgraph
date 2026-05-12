@@ -57,7 +57,12 @@ export const useNotification = create<NotificationState>()((set, get) => {
     description,
   ) => {
     const id = nextId();
-    const notification: Notification = { id, type, title, description };
+    const notification: Notification = {
+      id,
+      type,
+      title,
+      ...(description !== undefined ? { description } : {}),
+    };
 
     set((state) => ({
       notifications: [...state.notifications, notification],

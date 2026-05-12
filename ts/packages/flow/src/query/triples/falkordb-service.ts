@@ -16,6 +16,7 @@ import {
   type TriplesQueryRequest,
   type TriplesQueryResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { FalkorDBTriplesQuery } from "./falkordb.js";
 
 export class TriplesQueryService extends FlowProcessor {
@@ -26,7 +27,7 @@ export class TriplesQueryService extends FlowProcessor {
     this.query = new FalkorDBTriplesQuery();
 
     this.registerSpecification(
-      new ConsumerSpec<TriplesQueryRequest>("triples-request", this.onMessage.bind(this)),
+      ConsumerSpec.fromPromise<TriplesQueryRequest>("triples-request", this.onMessage.bind(this)),
     );
     this.registerSpecification(new ProducerSpec<TriplesQueryResponse>("triples-response"));
 
@@ -39,7 +40,7 @@ export class TriplesQueryService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const producer = flowCtx.flow.producer<TriplesQueryResponse>("triples-response");
 
@@ -61,6 +62,11 @@ export class TriplesQueryService extends FlowProcessor {
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "triples-query",
+  make: (config) => new TriplesQueryService(config),
+});
 
 export async function run(): Promise<void> {
   await TriplesQueryService.launch("triples-query");

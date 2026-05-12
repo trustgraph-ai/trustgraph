@@ -21,13 +21,14 @@ export function registerGraphRagCommands(program: Command): void {
 
       try {
         const flow = socket.flow(opts.flow);
+        const collection = cmdOpts.collection as string | undefined;
         const response = await flow.graphRag(
           query,
           {
             entityLimit: parseInt(cmdOpts.entityLimit, 10),
             tripleLimit: parseInt(cmdOpts.tripleLimit, 10),
           },
-          cmdOpts.collection,
+          collection,
         );
         console.log(response);
       } finally {
@@ -47,10 +48,14 @@ export function registerGraphRagCommands(program: Command): void {
 
       try {
         const flow = socket.flow(opts.flow);
+        const docLimit = cmdOpts.docLimit as string | undefined;
+        const collection = cmdOpts.collection as string | undefined;
         const response = await flow.documentRag(
           query,
-          cmdOpts.docLimit ? parseInt(cmdOpts.docLimit, 10) : undefined,
-          cmdOpts.collection,
+          docLimit !== undefined && docLimit.length > 0
+            ? parseInt(docLimit, 10)
+            : undefined,
+          collection,
         );
         console.log(response);
       } finally {

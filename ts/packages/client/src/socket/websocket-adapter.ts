@@ -117,7 +117,9 @@ export function getDefaultSocketUrl(): string {
  */
 export function getRandomValues(array: Uint32Array): Uint32Array {
   if (typeof globalThis.crypto?.getRandomValues === "function") {
-    return globalThis.crypto.getRandomValues(array);
+    const random = globalThis.crypto.getRandomValues(new Uint32Array(array.length));
+    array.set(random);
+    return array;
   }
   // Node.js fallback for versions < 19 where globalThis.crypto may not exist
   try {

@@ -31,6 +31,7 @@ import {
   type PromptRequest,
   type PromptResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { GraphRag } from "./graph-rag.js";
 
 export class GraphRagService extends FlowProcessor {
@@ -39,7 +40,7 @@ export class GraphRagService extends FlowProcessor {
 
     // Consumer: graph RAG requests
     this.registerSpecification(
-      new ConsumerSpec<GraphRagRequest>("graph-rag-request", this.onRequest.bind(this)),
+      ConsumerSpec.fromPromise<GraphRagRequest>("graph-rag-request", this.onRequest.bind(this)),
     );
 
     // Producer: graph RAG responses
@@ -91,7 +92,7 @@ export class GraphRagService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const producer = flowCtx.flow.producer<GraphRagResponse>("graph-rag-response");
     console.log(`[GraphRagService] Received request ${requestId}: "${msg.query?.slice(0, 60)}..." collection=${msg.collection}`);
@@ -107,15 +108,17 @@ export class GraphRagService extends FlowProcessor {
           prompt: flowCtx.flow.requestor<PromptRequest, PromptResponse>("prompt"),
         },
         {
-          entityLimit: msg.entityLimit,
-          tripleLimit: msg.tripleLimit,
-          maxSubgraphSize: msg.maxSubgraphSize,
-          maxPathLength: msg.maxPathLength,
+          ...(msg.entityLimit !== undefined ? { entityLimit: msg.entityLimit } : {}),
+          ...(msg.tripleLimit !== undefined ? { tripleLimit: msg.tripleLimit } : {}),
+          ...(msg.maxSubgraphSize !== undefined
+            ? { maxSubgraphSize: msg.maxSubgraphSize }
+            : {}),
+          ...(msg.maxPathLength !== undefined ? { maxPathLength: msg.maxPathLength } : {}),
         },
       );
 
       const result = await graphRag.query(msg.query, {
-        collection: msg.collection,
+        ...(msg.collection !== undefined ? { collection: msg.collection } : {}),
       });
 
       // Send answer with explain data embedded in a SINGLE message.
@@ -144,6 +147,11 @@ export class GraphRagService extends FlowProcessor {
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "graph-rag",
+  make: (config) => new GraphRagService(config),
+});
 
 export async function run(): Promise<void> {
   await GraphRagService.launch("graph-rag");

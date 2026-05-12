@@ -23,7 +23,7 @@ export class RequestResponse<TReq, TRes> {
   private producer: Producer<TReq>;
   private subscriber: Subscriber<TRes>;
 
-  constructor(private readonly options: RequestResponseOptions) {
+  constructor(options: RequestResponseOptions) {
     this.producer = new Producer<TReq>(options.pubsub, options.requestTopic);
     this.subscriber = new Subscriber<TRes>(
       options.pubsub,
@@ -77,7 +77,7 @@ export class RequestResponse<TReq, TRes> {
 
         const response = await queue.pop(remaining);
 
-        if (recipient) {
+        if (recipient !== undefined) {
           const isFinal = await recipient(response);
           if (isFinal) return response;
         } else {

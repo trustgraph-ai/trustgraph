@@ -4,19 +4,30 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./backend": "./src/backend/index.ts",
+    "./messaging": "./src/messaging/index.ts",
+    "./processor": "./src/processor/index.ts",
+    "./runtime": "./src/runtime/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "bunx --bun tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "vitest run"
+    "test": "bunx --bun vitest run"
   },
   "dependencies": {
+    "effect": "4.0.0-beta.65",
     "nats": "^2.29.0",
     "prom-client": "^15.1.0"
   },
   "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.65",
     "@types/node": "^22.0.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.1.0"
+    "vitest": "^4.1.6"
   }
 }

@@ -101,7 +101,7 @@ export default function PromptsPage() {
       </div>
 
       {/* Error display */}
-      {error && (
+      {error !== null && error.length > 0 && (
         <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
@@ -157,7 +157,7 @@ export default function PromptsPage() {
 
               {/* Prompt detail */}
               <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
-                {selectedPromptId ? (
+                {selectedPromptId !== null && selectedPromptId.length > 0 ? (
                   <>
                     <div className="flex items-center justify-between border-b border-border bg-surface-100 px-4 py-3">
                       <h2 className="text-sm font-medium text-fg">
@@ -179,9 +179,9 @@ export default function PromptsPage() {
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Loading...
                         </div>
-                      ) : promptDetail && typeof promptDetail === "object" ? (
+                      ) : promptDetail !== null && typeof promptDetail === "object" ? (
                         <div className="space-y-4">
-                          {promptDetail.system && (
+                          {promptDetail.system !== undefined && promptDetail.system.length > 0 && (
                             <section>
                               <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
                                 System
@@ -191,7 +191,7 @@ export default function PromptsPage() {
                               </pre>
                             </section>
                           )}
-                          {promptDetail.prompt && (
+                          {promptDetail.prompt !== undefined && promptDetail.prompt.length > 0 && (
                             <section>
                               <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
                                 Prompt
@@ -234,7 +234,7 @@ export default function PromptsPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading...
               </div>
-            ) : systemPrompt ? (
+            ) : systemPrompt.length > 0 ? (
               <pre className="whitespace-pre-wrap font-mono text-xs text-fg-muted">
                 {systemPrompt}
               </pre>

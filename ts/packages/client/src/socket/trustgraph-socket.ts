@@ -1,5 +1,5 @@
 // Import core types and classes for the TrustGraph API
-import { Triple, Term } from "../models/Triple.js";
+import type { Term, Triple } from "../models/Triple.js";
 import { ServiceCallMulti } from "./service-call-multi.js";
 import { ServiceCall } from "./service-call.js";
 import {
@@ -16,7 +16,7 @@ import {
 } from "./websocket-adapter.js";
 
 // Import all message types for different services
-import {
+import type {
   AgentRequest,
   AgentResponse,
   ConfigRequest,
@@ -52,6 +52,7 @@ import {
   PromptResponse,
   //  ProcessingMetadata,
   RequestMessage,
+  ResponseError,
   StructuredQueryRequest,
   StructuredQueryResponse,
   TextCompletionRequest,
@@ -109,6 +110,60 @@ export interface ExplainEvent {
 const SOCKET_RECONNECTION_TIMEOUT = 2000; // 2 seconds between reconnection
 // attempts
 const SOCKET_URL = getDefaultSocketUrl(); // WebSocket endpoint path (isomorphic)
+
+function isNonEmptyString(value: string | undefined): value is string {
+  return value !== undefined && value.length > 0;
+}
+
+function withDefault(value: string | undefined, fallback: string): string {
+  return isNonEmptyString(value) ? value : fallback;
+}
+
+function toErrorMessage(value: unknown, fallback: string): string {
+  if (value instanceof Error) {
+    return value.message;
+  }
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  if (value !== null && typeof value === "object" && "message" in value) {
+    const message = (value as { message?: unknown }).message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
+function streamingMetadataFrom(source: {
+  in_token?: number;
+  out_token?: number;
+  model?: string;
+}): StreamingMetadata | undefined {
+  const metadata: StreamingMetadata = {};
+  let hasMetadata = false;
+
+  if (source.in_token !== undefined) {
+    metadata.in_token = source.in_token;
+    hasMetadata = true;
+  }
+  if (source.out_token !== undefined) {
+    metadata.out_token = source.out_token;
+    hasMetadata = true;
+  }
+  if (source.model !== undefined) {
+    metadata.model = source.model;
+    hasMetadata = true;
+  }
+
+  return hasMetadata ? metadata : undefined;
+}
+
+function throwIfResponseError(error: ResponseError | undefined): void {
+  if (error !== undefined) {
+    throw new Error(error.message);
+  }
+}
 
 /**
  * Socket interface defining all available operations for the TrustGraph API
@@ -242,33 +297,33 @@ export interface ConnectionState {
 }
 
 export class BaseApi {
-  ws?: IsomorphicWebSocket; // WebSocket connection instance
+  ws: IsomorphicWebSocket | undefined = undefined; // WebSocket connection instance
   tag: string; // Unique client identifier
   id: number; // Counter for generating unique message IDs
-  token?: string; // Optional authentication token
+  token: string | undefined; // Optional authentication token
   user: string; // User identifier for API requests
   socketUrl: string; // WebSocket URL
-  inflight: { [key: string]: ServiceCall } = {}; // Track active requests by
+  inflight: { [key: string]: ServiceCall | ServiceCallMulti } = {}; // Track active requests by
   // message ID
   reconnectAttempts: number = 0; // Track reconnection attempts
   maxReconnectAttempts: number = 10; // Maximum reconnection attempts
-  reconnectTimer?: number; // Timer for reconnection attempts
+  reconnectTimer: number | undefined = undefined; // Timer for reconnection attempts
   reconnectionState: "idle" | "reconnecting" | "failed" = "idle"; // Connection state
 
   // Connection state tracking for UI
   private connectionStateListeners: ((state: ConnectionState) => void)[] = [];
-  private lastError?: string;
+  private lastError: string | undefined = undefined;
 
   constructor(user: string, token?: string, socketUrl?: string) {
     this.tag = makeid(16); // Generate unique client tag
     this.id = 1; // Start message ID counter
     this.token = token; // Store authentication token
     this.user = user; // Store user identifier
-    this.socketUrl = socketUrl || SOCKET_URL; // Use provided URL or default
+    this.socketUrl = withDefault(socketUrl, SOCKET_URL); // Use provided URL or default
 
     console.log(
       "SOCKET: opening socket...",
-      token ? "with auth" : "without auth",
+      isNonEmptyString(token) ? "with auth" : "without auth",
       "user:",
       user,
     );
@@ -297,12 +352,12 @@ export class BaseApi {
    * Get current connection state
    */
   private getConnectionState(): ConnectionState {
-    const hasApiKey = !!this.token;
+    const hasApiKey = isNonEmptyString(this.token);
 
     // Determine status based on WebSocket state and reconnection state
     let status: ConnectionState["status"];
 
-    if (!this.ws || this.ws.readyState === WS_CLOSED) {
+    if (this.ws === undefined || this.ws.readyState === WS_CLOSED) {
       if (this.reconnectionState === "failed") {
         status = "failed";
       } else if (this.reconnectionState === "reconnecting") {
@@ -321,8 +376,10 @@ export class BaseApi {
     const state: ConnectionState = {
       status,
       hasApiKey,
-      lastError: this.lastError,
     };
+    if (this.lastError !== undefined) {
+      state.lastError = this.lastError;
+    }
 
     // Add reconnection details if applicable
     if (status === "reconnecting") {
@@ -353,7 +410,7 @@ export class BaseApi {
   openSocket() {
     // Don't create multiple connections
     if (
-      this.ws &&
+      this.ws !== undefined &&
       (this.ws.readyState === WS_CONNECTING ||
         this.ws.readyState === WS_OPEN)
     ) {
@@ -361,7 +418,7 @@ export class BaseApi {
     }
 
     // Clean up old socket if exists
-    if (this.ws) {
+    if (this.ws !== undefined) {
       this.ws.removeEventListener("message", this.onMessage);
       this.ws.removeEventListener("close", this.onClose);
       this.ws.removeEventListener("open", this.onOpen);
@@ -371,7 +428,7 @@ export class BaseApi {
 
     try {
       // Build WebSocket URL with optional token parameter
-      const wsUrl = this.token
+      const wsUrl = isNonEmptyString(this.token)
         ? `${this.socketUrl}?token=${this.token}`
         : this.socketUrl;
       console.log(
@@ -401,18 +458,21 @@ export class BaseApi {
 
   // Handle incoming messages from server
   onMessage(message: WsMessageEvent) {
-    if (!message.data) return;
+    if (message.data === undefined || message.data === null || message.data === "") return;
 
     try {
-      const obj = JSON.parse(String(message.data));
+      const obj: unknown = JSON.parse(String(message.data));
 
       // Skip messages without ID (can't route them)
-      if (!obj.id) return;
+      if (obj === null || typeof obj !== "object" || !("id" in obj)) return;
+      const id = (obj as { id?: unknown }).id;
+      if (typeof id !== "string" || id.length === 0) return;
 
       // Route response to the corresponding inflight request
-      if (this.inflight[obj.id]) {
+      const call = this.inflight[id];
+      if (call !== undefined) {
         // Pass the whole message object so receiver can access 'complete' flag
-        this.inflight[obj.id].onReceived(obj);
+        call.onReceived(obj);
       }
     } catch (e) {
       console.error("[socket message parse error]", e);
@@ -422,7 +482,7 @@ export class BaseApi {
   // Handle connection closure - automatically attempt reconnection
   onClose(event: WsCloseEvent) {
     console.log("[socket close]", event.code, event.reason);
-    this.lastError = `Connection closed: ${event.reason || "Unknown reason"}`;
+    this.lastError = `Connection closed: ${event.reason.length > 0 ? event.reason : "Unknown reason"}`;
     this.ws = undefined;
     this.notifyStateChange();
     this.scheduleReconnect();
@@ -436,7 +496,7 @@ export class BaseApi {
     this.lastError = undefined; // Clear any previous errors
 
     // Clear any pending reconnect timer
-    if (this.reconnectTimer) {
+    if (this.reconnectTimer !== undefined) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
     }
@@ -468,7 +528,7 @@ export class BaseApi {
     }
 
     // Don't schedule if already scheduled
-    if (this.reconnectTimer) return;
+    if (this.reconnectTimer !== undefined) return;
 
     this.reconnectionState = "reconnecting";
     this.reconnectAttempts++;
@@ -510,7 +570,7 @@ export class BaseApi {
     console.log("[socket reopen]");
     // Check if we're already connected or connecting
     if (
-      this.ws &&
+      this.ws !== undefined &&
       (this.ws.readyState === WS_OPEN ||
         this.ws.readyState === WS_CONNECTING)
     ) {
@@ -524,13 +584,13 @@ export class BaseApi {
    */
   close() {
     // Clear reconnection timer
-    if (this.reconnectTimer) {
+    if (this.reconnectTimer !== undefined) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
     }
 
     // Clean up WebSocket
-    if (this.ws) {
+    if (this.ws !== undefined) {
       // Remove event listeners to prevent memory leaks
       this.ws.removeEventListener("message", this.onMessage);
       this.ws.removeEventListener("close", this.onClose);
@@ -577,8 +637,8 @@ export class BaseApi {
     const mid = this.getNextId();
 
     // Set default values
-    if (timeout == undefined) timeout = 10000;
-    if (retries == undefined) retries = 3;
+    if (timeout === undefined) timeout = 10000;
+    if (retries === undefined) retries = 3;
 
     // Construct the request message
     const msg: RequestMessage = {
@@ -588,7 +648,7 @@ export class BaseApi {
     };
 
     // Add flow identifier if provided
-    if (flow) msg.flow = flow;
+    if (isNonEmptyString(flow)) msg.flow = flow;
 
     // Return a Promise that will be resolved/rejected by the ServiceCall
     return new Promise<ResponseType>((resolve, reject) => {
@@ -625,8 +685,8 @@ export class BaseApi {
     const mid = this.getNextId();
 
     // Set defaults
-    if (timeout == undefined) timeout = 10000;
-    if (retries == undefined) retries = 3;
+    if (timeout === undefined) timeout = 10000;
+    if (retries === undefined) retries = 3;
 
     // Construct request message
     const msg: RequestMessage = {
@@ -635,7 +695,7 @@ export class BaseApi {
       request: request,
     };
 
-    if (flow) msg.flow = flow;
+    if (isNonEmptyString(flow)) msg.flow = flow;
 
     return new Promise<ResponseType>((resolve, reject) => {
       const call = new ServiceCallMulti(
@@ -645,7 +705,7 @@ export class BaseApi {
         reject as (err: object | string) => void,
         timeout,
         retries,
-        this as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        this,
         receiver,
       );
 
@@ -666,7 +726,7 @@ export class BaseApi {
     retries?: number,
     flow?: string,
   ) {
-    if (!flow) flow = "default";
+    if (!isNonEmptyString(flow)) flow = "default";
 
     return this.makeRequest<RequestType, ResponseType>(
       service,
@@ -727,7 +787,7 @@ export class LibrarianApi {
         },
         60000, // 60 second timeout for potentially large lists
       )
-      .then((r) => r["document-metadatas"] || []);
+      .then((r) => r["document-metadatas"] ?? []);
   }
 
   /**
@@ -743,7 +803,7 @@ export class LibrarianApi {
         },
         60000,
       )
-      .then((r) => r["processing-metadata"] || []);
+      .then((r) => r["processing-metadata"] ?? []);
   }
 
   /**
@@ -762,7 +822,7 @@ export class LibrarianApi {
         },
         30000,
       )
-      .then((r) => r["document-metadata"] || r.documentMetadata || null);
+      .then((r) => r["document-metadata"] ?? r.documentMetadata ?? null);
   }
 
   /**
@@ -784,20 +844,26 @@ export class LibrarianApi {
     id?: string,
     metadata?: Triple[],
   ) {
+    const documentMetadata: DocumentMetadata = {
+      time: Math.floor(Date.now() / 1000), // Unix timestamp
+      kind: mimeType,
+      title,
+      comments,
+      user: this.api.user,
+      tags,
+    };
+    if (id !== undefined) {
+      documentMetadata.id = id;
+    }
+    if (metadata !== undefined) {
+      documentMetadata.metadata = metadata;
+    }
+
     return this.api.makeRequest<LibraryRequest, LibraryResponse>(
       "librarian",
       {
         operation: "add-document",
-        documentMetadata: {
-          id: id,
-          time: Math.floor(Date.now() / 1000), // Unix timestamp
-          kind: mimeType,
-          title: title,
-          comments: comments,
-          metadata: metadata,
-          user: this.api.user,
-          tags: tags,
-        },
+        documentMetadata,
         content: document,
       },
       30000, // 30 second timeout for document upload
@@ -814,7 +880,7 @@ export class LibrarianApi {
         operation: "remove-document",
         "document-id": id,
         user: this.api.user,
-        collection: collection || "default",
+        collection: withDefault(collection, "default"),
       },
       30000,
     );
@@ -845,8 +911,8 @@ export class LibrarianApi {
           time: Math.floor(Date.now() / 1000),
           flow: flow,
           user: this.api.user,
-          collection: collection ? collection : "default",
-          tags: tags ? tags : [],
+          collection: withDefault(collection, "default"),
+          tags: tags ?? [],
         },
       },
       30000,
@@ -867,21 +933,23 @@ export class LibrarianApi {
     totalSize: number,
     chunkSize?: number,
   ): Promise<BeginUploadResponse> {
+    const request: BeginUploadRequest = {
+      operation: "begin-upload",
+      documentMetadata: metadata,
+      "total-size": totalSize,
+    };
+    if (chunkSize !== undefined) {
+      request["chunk-size"] = chunkSize;
+    }
+
     return this.api
       .makeRequest<BeginUploadRequest, BeginUploadResponse>(
         "librarian",
-        {
-          operation: "begin-upload",
-          documentMetadata: metadata,
-          "total-size": totalSize,
-          "chunk-size": chunkSize,
-        },
+        request,
         30000,
       )
       .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
+        throwIfResponseError(r.error);
         return r;
       });
   }
@@ -912,9 +980,7 @@ export class LibrarianApi {
         60000, // Longer timeout for chunk uploads
       )
       .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
+        throwIfResponseError(r.error);
         return r;
       });
   }
@@ -937,9 +1003,7 @@ export class LibrarianApi {
         30000,
       )
       .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
+        throwIfResponseError(r.error);
         return r;
       });
   }
@@ -961,9 +1025,7 @@ export class LibrarianApi {
         30000,
       )
       .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
+        throwIfResponseError(r.error);
         return r;
       });
   }
@@ -984,9 +1046,7 @@ export class LibrarianApi {
         30000,
       )
       .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
+        throwIfResponseError(r.error);
       });
   }
 
@@ -1005,10 +1065,8 @@ export class LibrarianApi {
         30000,
       )
       .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
-        return r["upload-sessions"] || [];
+        throwIfResponseError(r.error);
+        return r["upload-sessions"] ?? [];
       });
   }
 
@@ -1030,36 +1088,40 @@ export class LibrarianApi {
       const msg = message as { response?: StreamDocumentResponse; complete?: boolean; error?: string };
 
       // Check for top-level error
-      if (msg.error) {
+      if (msg.error !== undefined) {
         onError(msg.error);
         return true;
       }
 
       const resp = msg.response;
-      if (!resp) {
-        return !!msg.complete;
+      if (resp === undefined) {
+        return msg.complete === true;
       }
 
       // Check for response-level error
-      if (resp.error) {
+      if (resp.error !== undefined) {
         onError(resp.error.message);
         return true;
       }
 
-      const complete = !!msg.complete;
+      const complete = msg.complete === true;
       onChunk(resp.content, resp["chunk-index"], resp["total-chunks"], complete);
 
       return complete;
     };
 
+    const request: StreamDocumentRequest = {
+      operation: "stream-document",
+      "document-id": documentId,
+      user: this.api.user,
+    };
+    if (chunkSize !== undefined) {
+      request["chunk-size"] = chunkSize;
+    }
+
     this.api.makeRequestMulti<StreamDocumentRequest, StreamDocumentResponse>(
       "librarian",
-      {
-        operation: "stream-document",
-        "document-id": documentId,
-        "chunk-size": chunkSize,
-        user: this.api.user,
-      },
+      request,
       receiver,
       300000, // 5 minute timeout for full document stream
     );
@@ -1089,7 +1151,7 @@ export class FlowsApi {
         },
         60000,
       )
-      .then((r) => r["flow-ids"] || []);
+      .then((r) => r["flow-ids"] ?? []);
   }
 
   /**
@@ -1105,7 +1167,7 @@ export class FlowsApi {
         },
         60000,
       )
-      .then((r) => JSON.parse(r.flow || "{}")); // Parse JSON flow definition
+      .then((r) => JSON.parse(r.flow ?? "{}")); // Parse JSON flow definition
   }
 
   // Configuration management methods
@@ -1145,7 +1207,7 @@ export class FlowsApi {
     const byType = new Map<string, Record<string, unknown>>();
     for (const item of items) {
       let group = byType.get(item.type);
-      if (!group) {
+      if (group === undefined) {
         group = {};
         byType.set(item.type, group);
       }
@@ -1252,7 +1314,7 @@ export class FlowsApi {
         },
         60000,
       )
-      .then((r) => JSON.parse(r["blueprint-definition"] || "{}"));
+      .then((r) => JSON.parse(r["blueprint-definition"] ?? "{}"));
   }
 
   /**
@@ -1288,26 +1350,15 @@ export class FlowsApi {
     };
 
     // Only include parameters if provided and not empty
-    if (parameters && Object.keys(parameters).length > 0) {
+    if (parameters !== undefined && Object.keys(parameters).length > 0) {
       request.parameters = parameters;
     }
 
     return this.api
       .makeRequest<FlowRequest, FlowResponse>("flow", request, 30000)
       .then((response) => {
-        if (response.error) {
-          let errorMessage = "Flow start failed";
-          if (
-            typeof response.error === "object" &&
-            response.error &&
-            "message" in response.error
-          ) {
-            errorMessage =
-              (response.error as { message?: string }).message || errorMessage;
-          } else if (typeof response.error === "string") {
-            errorMessage = response.error;
-          }
-          throw new Error(errorMessage);
+        if (response.error !== undefined) {
+          throw new Error(toErrorMessage(response.error, "Flow start failed"));
         }
         return response;
       });
@@ -1363,18 +1414,28 @@ export class FlowApi {
    * Performs Graph RAG (Retrieval Augmented Generation) query
    */
   graphRag(text: string, options?: GraphRagOptions, collection?: string) {
+    const request: GraphRagRequest = {
+      query: text,
+      user: this.api.user,
+      collection: withDefault(collection, "default"),
+    };
+    if (options?.entityLimit !== undefined) {
+      request["entity-limit"] = options.entityLimit;
+    }
+    if (options?.tripleLimit !== undefined) {
+      request["triple-limit"] = options.tripleLimit;
+    }
+    if (options?.maxSubgraphSize !== undefined) {
+      request["max-subgraph-size"] = options.maxSubgraphSize;
+    }
+    if (options?.pathLength !== undefined) {
+      request["max-path-length"] = options.pathLength;
+    }
+
     return this.api
       .makeRequest<GraphRagRequest, GraphRagResponse>(
         "graph-rag",
-        {
-          query: text,
-          user: this.api.user,
-          collection: collection || "default",
-          "entity-limit": options?.entityLimit,
-          "triple-limit": options?.tripleLimit,
-          "max-subgraph-size": options?.maxSubgraphSize,
-          "max-path-length": options?.pathLength,
-        },
+        request,
         60000, // Longer timeout for complex graph operations
         undefined,
         this.flowId,
@@ -1392,8 +1453,8 @@ export class FlowApi {
         {
           query: text,
           user: this.api.user,
-          collection: collection || "default",
-          "doc-limit": docLimit || 20,
+          collection: withDefault(collection, "default"),
+          "doc-limit": docLimit ?? 20,
         },
         60000, // Longer timeout for document operations
         undefined,
@@ -1419,38 +1480,42 @@ export class FlowApi {
       const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
 
       // Check for top-level error
-      if (msg.error) {
+      if (msg.error !== undefined) {
         error(msg.error);
         return true;
       }
 
-      const resp = msg.response || {};
+      const resp = msg.response ?? {};
 
       // Check for errors in response
-      if (resp.chunk_type === "error" || resp.error) {
-        error(resp.error?.message || "Unknown agent error");
+      if (resp.chunk_type === "error" || resp.error !== undefined) {
+        error(resp.error?.message ?? "Unknown agent error");
         return true; // End streaming on error
       }
 
       // Handle explainability events (agent uses chunk_type="explain")
-      if ((resp.chunk_type === "explain" || resp.message_type === "explain") && (resp.explain_id || resp.explain_triples)) {
-        onExplain?.({
+      if (
+        (resp.chunk_type === "explain" || resp.message_type === "explain") &&
+        (resp.explain_id !== undefined || resp.explain_triples !== undefined)
+      ) {
+        const event: ExplainEvent = {
           explainId: resp.explain_id ?? "",
           explainGraph: resp.explain_graph ?? "",
-          explainTriples: resp.explain_triples as Triple[] | undefined,
-        });
+        };
+        if (resp.explain_triples !== undefined) {
+          event.explainTriples = resp.explain_triples as Triple[];
+        }
+        onExplain?.(event);
         return false;
       }
 
       // Handle streaming chunks by chunk_type
-      const content = resp.content || "";
-      const messageComplete = !!resp.end_of_message;
-      const dialogComplete = !!msg.complete || !!resp.end_of_dialog;
+      const content = resp.content ?? "";
+      const messageComplete = resp.end_of_message === true;
+      const dialogComplete = msg.complete === true || resp.end_of_dialog === true;
 
       // Extract metadata from final message
-      const metadata: StreamingMetadata | undefined = dialogComplete && (resp.in_token || resp.out_token || resp.model)
-        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
-        : undefined;
+      const metadata = dialogComplete ? streamingMetadataFrom(resp) : undefined;
 
       switch (resp.chunk_type) {
         case "thought":
@@ -1478,7 +1543,7 @@ export class FlowApi {
         {
           question: question,
           user: this.api.user,
-          collection: collection ?? "default",
+        collection: withDefault(collection, "default"),
           streaming: true, // Always use streaming mode
         },
         receiver,
@@ -1487,8 +1552,7 @@ export class FlowApi {
         this.flowId,
       )
       .catch((err) => {
-        const errorMessage =
-          err instanceof Error ? err.message : err?.toString() || "Unknown error";
+        const errorMessage = toErrorMessage(err, "Unknown error");
         error(`Agent request failed: ${errorMessage}`);
       });
   }
@@ -1514,65 +1578,79 @@ export class FlowApi {
       const msg = message as { response?: GraphRagResponse; complete?: boolean; error?: string };
 
       // Check for top-level error
-      if (msg.error) {
+      if (msg.error !== undefined) {
         onError(msg.error);
         return true;
       }
 
-      const resp = (msg.response || {}) as GraphRagResponse;
+      const resp = (msg.response ?? {}) as GraphRagResponse;
 
       // Check for response-level error
-      if (resp.error) {
+      if (resp.error !== undefined) {
         onError(resp.error.message);
         return true;
       }
 
       // Extract explain data if present (may be embedded in the answer message)
-      if (resp.message_type === "explain" && (resp.explain_id || resp.explain_triples)) {
-        onExplain?.({
+      if (
+        resp.message_type === "explain" &&
+        (resp.explain_id !== undefined || resp.explain_triples !== undefined)
+      ) {
+        const event: ExplainEvent = {
           explainId: resp.explain_id ?? "",
           explainGraph: resp.explain_graph ?? "",
-          explainTriples: resp.explain_triples as Triple[] | undefined,
-        });
+        };
+        if (resp.explain_triples !== undefined) {
+          event.explainTriples = resp.explain_triples as Triple[];
+        }
+        onExplain?.(event);
         // If this message also carries answer text, fall through to chunk handling.
         // If it's a standalone explain event (no answer text), stop here.
-        if (!resp.response && !resp.endOfStream && !resp.end_of_session) {
+        if (resp.response === undefined && resp.endOfStream !== true && resp.end_of_session !== true) {
           return false;
         }
       }
 
       // Handle chunk messages (default behavior)
-      const chunk = resp.response || resp.chunk || "";
-      const complete = !!resp.end_of_session || !!resp.endOfStream || !!msg.complete;
+      const chunk = resp.response ?? resp.chunk ?? "";
+      const complete = resp.end_of_session === true || resp.endOfStream === true || msg.complete === true;
 
       // Extract metadata from final message
-      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
-        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
-        : undefined;
+      const metadata = complete ? streamingMetadataFrom(resp) : undefined;
 
       receiver(chunk, complete, metadata);
 
       return complete;
     };
 
+    const request: GraphRagRequest = {
+      query: text,
+      user: this.api.user,
+      collection: withDefault(collection, "default"),
+      streaming: true,
+    };
+    if (options?.entityLimit !== undefined) {
+      request["entity-limit"] = options.entityLimit;
+    }
+    if (options?.tripleLimit !== undefined) {
+      request["triple-limit"] = options.tripleLimit;
+    }
+    if (options?.maxSubgraphSize !== undefined) {
+      request["max-subgraph-size"] = options.maxSubgraphSize;
+    }
+    if (options?.pathLength !== undefined) {
+      request["max-path-length"] = options.pathLength;
+    }
+
     this.api.makeRequestMulti<GraphRagRequest, GraphRagResponse>(
       "graph-rag",
-      {
-        query: text,
-        user: this.api.user,
-        collection: collection || "default",
-        "entity-limit": options?.entityLimit,
-        "triple-limit": options?.tripleLimit,
-        "max-subgraph-size": options?.maxSubgraphSize,
-        "max-path-length": options?.pathLength,
-        streaming: true,
-      },
+      request,
       recv,
       60000,
       undefined,
       this.flowId,
     ).catch((err) => {
-      const errorMessage = err instanceof Error ? err.message : err?.toString() || "Unknown error";
+      const errorMessage = toErrorMessage(err, "Unknown error");
       onError(`Graph RAG request failed: ${errorMessage}`);
     });
   }
@@ -1597,21 +1675,25 @@ export class FlowApi {
       const msg = message as { response?: DocumentRagResponse; complete?: boolean; error?: string };
 
       // Check for top-level error
-      if (msg.error) {
+      if (msg.error !== undefined) {
         onError(msg.error);
         return true;
       }
 
-      const resp = (msg.response || {}) as DocumentRagResponse;
+      const resp = (msg.response ?? {}) as DocumentRagResponse;
 
       // Check for response-level error
-      if (resp.error) {
+      if (resp.error !== undefined) {
         onError(resp.error.message);
         return true;
       }
 
       // Handle explainability events
-      if (resp.message_type === "explain" && resp.explain_id && resp.explain_graph) {
+      if (
+        resp.message_type === "explain" &&
+        resp.explain_id !== undefined &&
+        resp.explain_graph !== undefined
+      ) {
         onExplain?.({
           explainId: resp.explain_id,
           explainGraph: resp.explain_graph,
@@ -1619,34 +1701,36 @@ export class FlowApi {
         return false;
       }
 
-      const chunk = resp.response || resp.chunk || "";
-      const complete = !!resp.end_of_session || !!resp.endOfStream || !!msg.complete;
+      const chunk = resp.response ?? resp.chunk ?? "";
+      const complete = resp.end_of_session === true || resp.endOfStream === true || msg.complete === true;
 
       // Extract metadata from final message
-      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
-        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
-        : undefined;
+      const metadata = complete ? streamingMetadataFrom(resp) : undefined;
 
       receiver(chunk, complete, metadata);
 
       return complete;
     };
 
+    const request: DocumentRagRequest = {
+      query: text,
+      user: this.api.user,
+      collection: withDefault(collection, "default"),
+      streaming: true,
+    };
+    if (docLimit !== undefined) {
+      request["doc-limit"] = docLimit;
+    }
+
     this.api.makeRequestMulti<DocumentRagRequest, DocumentRagResponse>(
       "document-rag",
-      {
-        query: text,
-        user: this.api.user,
-        collection: collection || "default",
-        "doc-limit": docLimit,
-        streaming: true,
-      },
+      request,
       recv,
       60000,
       undefined,
       this.flowId,
     ).catch((err) => {
-      const errorMessage = err instanceof Error ? err.message : err?.toString() || "Unknown error";
+      const errorMessage = toErrorMessage(err, "Unknown error");
       onError(`Document RAG request failed: ${errorMessage}`);
     });
   }
@@ -1668,27 +1752,25 @@ export class FlowApi {
       const msg = message as { response?: TextCompletionResponse; complete?: boolean; error?: string };
 
       // Check for top-level error
-      if (msg.error) {
+      if (msg.error !== undefined) {
         onError(msg.error);
         return true;
       }
 
-      const resp = (msg.response || {}) as TextCompletionResponse;
+      const resp = (msg.response ?? {}) as TextCompletionResponse;
 
       // Check for response-level error
-      if (resp.error) {
+      if (resp.error !== undefined) {
         onError(resp.error.message);
         return true;
       }
 
       // Text completion uses 'response' field for chunks
-      const chunk = resp.response || "";
-      const complete = !!msg.complete;
+      const chunk = resp.response ?? "";
+      const complete = msg.complete === true;
 
       // Extract metadata from final message
-      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
-        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
-        : undefined;
+      const metadata = complete ? streamingMetadataFrom(resp) : undefined;
 
       receiver(chunk, complete, metadata);
 
@@ -1726,27 +1808,25 @@ export class FlowApi {
       const msg = message as { response?: PromptResponse; complete?: boolean; error?: string };
 
       // Check for top-level error
-      if (msg.error) {
+      if (msg.error !== undefined) {
         onError(msg.error);
         return true;
       }
 
-      const resp = (msg.response || {}) as PromptResponse;
+      const resp = (msg.response ?? {}) as PromptResponse;
 
       // Check for response-level error
-      if (resp.error) {
+      if (resp.error !== undefined) {
         onError(resp.error.message);
         return true;
       }
 
       // Prompt service uses 'text' field for chunks
-      const chunk = resp.text || "";
-      const complete = !!msg.complete;
+      const chunk = resp.text ?? "";
+      const complete = msg.complete === true;
 
       // Extract metadata from final message
-      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
-        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
-        : undefined;
+      const metadata = complete ? streamingMetadataFrom(resp) : undefined;
 
       receiver(chunk, complete, metadata);
 
@@ -1798,9 +1878,9 @@ export class FlowApi {
         "graph-embeddings",
         {
           vector: vec,
-          limit: limit ? limit : 20, // Default to 20 results
+          limit: limit ?? 20, // Default to 20 results
           user: this.api.user,
-          collection: collection || "default",
+          collection: withDefault(collection, "default"),
         },
         30000,
         undefined,
@@ -1821,18 +1901,28 @@ export class FlowApi {
     collection?: string,
     graph?: string,
   ) {
+    const request: TriplesQueryRequest = {
+      limit: limit ?? 20,
+      user: this.api.user,
+      collection: withDefault(collection, "default"),
+    };
+    if (s !== undefined) {
+      request.s = s;
+    }
+    if (p !== undefined) {
+      request.p = p;
+    }
+    if (o !== undefined) {
+      request.o = o;
+    }
+    if (graph !== undefined) {
+      request.g = graph;
+    }
+
     return this.api
       .makeRequest<TriplesQueryRequest, TriplesQueryResponse>(
         "triples",
-        {
-          s: s, // Subject
-          p: p, // Predicate
-          o: o, // Object
-          g: graph, // Named graph URI filter
-          limit: limit ? limit : 20,
-          user: this.api.user,
-          collection: collection || "default",
-        },
+        request,
         30000,
         undefined,
         this.flowId,
@@ -1848,13 +1938,19 @@ export class FlowApi {
     id?: string,
     metadata?: Triple[],
   ) {
+    const request: LoadDocumentRequest = {
+      data: document,
+    };
+    if (id !== undefined) {
+      request.id = id;
+    }
+    if (metadata !== undefined) {
+      request.metadata = metadata;
+    }
+
     return this.api.makeRequest<LoadDocumentRequest, LoadDocumentResponse>(
       "document-load",
-      {
-        id: id,
-        metadata: metadata,
-        data: document,
-      },
+      request,
       30000,
       undefined,
       this.flowId,
@@ -1870,14 +1966,22 @@ export class FlowApi {
     metadata?: Triple[],
     charset?: string, // Character encoding
   ) {
+    const request: LoadTextRequest = {
+      text,
+    };
+    if (id !== undefined) {
+      request.id = id;
+    }
+    if (metadata !== undefined) {
+      request.metadata = metadata;
+    }
+    if (charset !== undefined) {
+      request.charset = charset;
+    }
+
     return this.api.makeRequest<LoadTextRequest, LoadTextResponse>(
       "text-load",
-      {
-        id: id,
-        metadata: metadata,
-        text: text,
-        charset: charset,
-      },
+      request,
       30000,
       undefined,
       this.flowId,
@@ -1893,16 +1997,22 @@ export class FlowApi {
     variables?: Record<string, unknown>,
     operationName?: string,
   ) {
+    const request: RowsQueryRequest = {
+      query,
+      user: this.api.user,
+      collection: withDefault(collection, "default"),
+    };
+    if (variables !== undefined) {
+      request.variables = variables;
+    }
+    if (operationName !== undefined) {
+      request.operation_name = operationName;
+    }
+
     return this.api
       .makeRequest<RowsQueryRequest, RowsQueryResponse>(
         "rows",
-        {
-          query: query,
-          user: this.api.user,
-          collection: collection || "default",
-          variables: variables,
-          operation_name: operationName,
-        },
+        request,
         30000,
         undefined,
         this.flowId,
@@ -1911,8 +2021,8 @@ export class FlowApi {
         // Return the GraphQL response structure directly
         const result: Record<string, unknown> = {};
         if (r.data !== undefined) result.data = r.data;
-        if (r.errors) result.errors = r.errors;
-        if (r.extensions) result.extensions = r.extensions;
+        if (r.errors !== undefined) result.errors = r.errors;
+        if (r.extensions !== undefined) result.extensions = r.extensions;
         return result;
       });
   }
@@ -1926,7 +2036,7 @@ export class FlowApi {
         "nlp-query",
         {
           question: question,
-          max_results: maxResults || 100,
+          max_results: maxResults ?? 100,
         },
         30000,
         undefined,
@@ -1946,7 +2056,7 @@ export class FlowApi {
         {
           question: question,
           user: this.api.user,
-          collection: collection || "default",
+          collection: withDefault(collection, "default"),
         },
         30000,
         undefined,
@@ -1956,7 +2066,7 @@ export class FlowApi {
         // Return the response structure directly
         const result: Record<string, unknown> = {};
         if (r.data !== undefined) result.data = r.data;
-        if (r.errors) result.errors = r.errors;
+        if (r.errors !== undefined) result.errors = r.errors;
         return result;
       });
   }
@@ -1980,11 +2090,11 @@ export class FlowApi {
       vector: vector,
       schema_name: schemaName,
       user: this.api.user,
-      collection: collection || "default",
-      limit: limit || 10,
+      collection: withDefault(collection, "default"),
+      limit: limit ?? 10,
     };
 
-    if (indexName) {
+    if (indexName !== undefined) {
       request.index_name = indexName;
     }
 
@@ -1997,10 +2107,10 @@ export class FlowApi {
         this.flowId,
       )
       .then((r) => {
-        if (r.error) {
+        if (r.error !== undefined) {
           throw new Error(r.error.message);
         }
-        return r.matches || [];
+        return r.matches ?? [];
       });
   }
 }
@@ -2051,7 +2161,7 @@ export class ConfigApi {
     const byType = new Map<string, Record<string, unknown>>();
     for (const item of items) {
       let group = byType.get(item.type);
-      if (!group) {
+      if (group === undefined) {
         group = {};
         byType.set(item.type, group);
       }
@@ -2177,7 +2287,7 @@ export class ConfigApi {
       .then((r) => {
         // Parse JSON values and restructure data
         const response = r as RowsQueryResponse;
-        return (response.values || []).map((x: unknown) => {
+        return (response.values ?? []).map((x: unknown) => {
           const item = x as Record<string, string>;
           return { key: item.key, value: JSON.parse(item.value) };
         });
@@ -2221,7 +2331,7 @@ export class KnowledgeApi {
         },
         60000,
       )
-      .then((r) => r.ids || []);
+      .then((r) => r.ids ?? []);
   }
 
   /**
@@ -2234,7 +2344,7 @@ export class KnowledgeApi {
         operation: "delete-kg-core",
         id: id,
         user: this.api.user,
-        collection: collection || "default",
+        collection: withDefault(collection, "default"),
       },
       30000,
     );
@@ -2251,7 +2361,7 @@ export class KnowledgeApi {
         id: id,
         flow: flow,
         user: this.api.user,
-        collection: collection || "default",
+        collection: withDefault(collection, "default"),
       },
       30000,
     );
@@ -2270,7 +2380,7 @@ export class KnowledgeApi {
     // Wrapper to handle end-of-stream detection
     const recv = (msg: unknown) => {
       const response = msg as Record<string, unknown>;
-      if (response.eos) {
+      if (response.eos === true) {
         // End of stream - notify receiver and signal completion
         receiver(msg, true);
         return true;
@@ -2287,7 +2397,7 @@ export class KnowledgeApi {
         operation: "get-kg-core",
         id: id,
         user: this.api.user,
-        collection: collection || "default",
+        collection: withDefault(collection, "default"),
       },
       recv, // Stream handler
       30000,
@@ -2317,7 +2427,7 @@ export class CollectionManagementApi {
       user: this.api.user,
     };
 
-    if (tagFilter && tagFilter.length > 0) {
+    if (tagFilter !== undefined && tagFilter.length > 0) {
       request.tag_filter = tagFilter;
     }
 
@@ -2326,7 +2436,7 @@ export class CollectionManagementApi {
         Record<string, unknown>,
         Record<string, unknown>
       >("collection-management", request, 30000)
-      .then((r) => r.collections || []);
+      .then((r) => r.collections ?? []);
   }
 
   /**
@@ -2366,7 +2476,7 @@ export class CollectionManagementApi {
       >("collection-management", request, 30000)
       .then((r) => {
         if (
-          r.collections &&
+          r.collections !== undefined &&
           Array.isArray(r.collections) &&
           r.collections.length > 0
         ) {

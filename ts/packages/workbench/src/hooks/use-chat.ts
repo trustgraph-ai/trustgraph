@@ -10,6 +10,23 @@ import { useProgressStore } from "./use-progress-store";
 import { useSettings } from "@/providers/settings-provider";
 import type { StreamingMetadata, ExplainEvent } from "@trustgraph/client";
 
+function metadataFrom(metadata: StreamingMetadata | undefined): ChatMessage["metadata"] | undefined {
+  if (metadata === undefined) return undefined;
+
+  const result: NonNullable<ChatMessage["metadata"]> = {};
+  if (metadata.model !== undefined) result.model = metadata.model;
+  if (metadata.in_token !== undefined) result.inTokens = metadata.in_token;
+  if (metadata.out_token !== undefined) result.outTokens = metadata.out_token;
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function withoutActivePhase(message: ChatMessage): ChatMessage {
+  const next = { ...message };
+  delete next.activePhase;
+  return next;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -38,25 +55,26 @@ export function useChat(): UseChatReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const cancelRequest = useCallback(() => {
-    if (abortControllerRef.current) {
+    if (abortControllerRef.current !== null) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    updateLastMessage((prev) => ({
-      ...prev,
-      content: prev.content || "(Cancelled)",
-      isStreaming: false,
-      activePhase: undefined,
-    }));
+    updateLastMessage((prev) =>
+      withoutActivePhase({
+        ...prev,
+        content: prev.content.length > 0 ? prev.content : "(Cancelled)",
+        isStreaming: false,
+      }),
+    );
     removeActivity("Chat request");
   }, [updateLastMessage, removeActivity]);
 
   const submitMessage = useCallback(
     ({ input }: { input: string }) => {
-      if (!input.trim()) return;
+      if (input.trim().length === 0) return;
 
       // Abort any in-flight request
-      if (abortControllerRef.current) {
+      if (abortControllerRef.current !== null) {
         abortControllerRef.current.abort();
       }
       abortControllerRef.current = new AbortController();
@@ -116,20 +134,17 @@ export function useChat(): UseChatReturn {
         complete: boolean,
         metadata?: StreamingMetadata,
       ) => {
-        updateLastMessage((prev) => ({
-          ...prev,
-          content: prev.content + chunk,
-          isStreaming: !complete,
-          ...(complete && metadata
-            ? {
-                metadata: {
-                  model: metadata.model,
-                  inTokens: metadata.in_token,
-                  outTokens: metadata.out_token,
-                },
-              }
-            : {}),
-        }));
+        updateLastMessage((prev) => {
+          const next: ChatMessage = {
+            ...prev,
+            content: prev.content + chunk,
+            isStreaming: !complete,
+          };
+          const finalMetadata = complete ? metadataFrom(metadata) : undefined;
+          return finalMetadata !== undefined
+            ? { ...next, metadata: finalMetadata }
+            : next;
+        });
 
         if (complete) {
           attachExplainEvents();
@@ -138,12 +153,13 @@ export function useChat(): UseChatReturn {
       };
 
       const onError = (error: string) => {
-        updateLastMessage((prev) => ({
-          ...prev,
-          content: prev.content || `Error: ${error}`,
-          isStreaming: false,
-          activePhase: undefined,
-        }));
+        updateLastMessage((prev) =>
+          withoutActivePhase({
+            ...prev,
+            content: prev.content.length > 0 ? prev.content : `Error: ${error}`,
+            isStreaming: false,
+          }),
+        );
         removeActivity(activityLabel);
       };
 
@@ -172,14 +188,14 @@ export function useChat(): UseChatReturn {
                   observe: "",
                   answer: "",
                 };
-                return {
-                  ...prev,
-                  agentPhases: {
-                    ...phases,
-                    think: phases.think + chunk,
-                  },
-                  activePhase: complete ? prev.activePhase : "think",
-                };
+	                return {
+	                  ...prev,
+	                  agentPhases: {
+	                    ...phases,
+	                    think: phases.think + chunk,
+	                  },
+	                  ...(complete ? {} : { activePhase: "think" as const }),
+	                };
               });
             },
             // observe
@@ -190,14 +206,14 @@ export function useChat(): UseChatReturn {
                   observe: "",
                   answer: "",
                 };
-                return {
-                  ...prev,
-                  agentPhases: {
-                    ...phases,
-                    observe: phases.observe + chunk,
-                  },
-                  activePhase: complete ? prev.activePhase : "observe",
-                };
+	                return {
+	                  ...prev,
+	                  agentPhases: {
+	                    ...phases,
+	                    observe: phases.observe + chunk,
+	                  },
+	                  ...(complete ? {} : { activePhase: "observe" as const }),
+	                };
               });
             },
             // answer
@@ -208,27 +224,23 @@ export function useChat(): UseChatReturn {
                   observe: "",
                   answer: "",
                 };
-                const newAnswer = phases.answer + chunk;
-                return {
-                  ...prev,
-                  content: newAnswer,
-                  agentPhases: {
-                    ...phases,
-                    answer: newAnswer,
-                  },
-                  activePhase: complete ? undefined : "answer",
-                  isStreaming: !complete,
-                  ...(complete && metadata
-                    ? {
-                        metadata: {
-                          model: metadata.model,
-                          inTokens: metadata.in_token,
-                          outTokens: metadata.out_token,
-                        },
-                      }
-                    : {}),
-                };
-              });
+	                const newAnswer = phases.answer + chunk;
+	                const next: ChatMessage = {
+	                  ...prev,
+	                  content: newAnswer,
+	                  agentPhases: {
+	                    ...phases,
+	                    answer: newAnswer,
+	                  },
+	                  ...(complete ? {} : { activePhase: "answer" as const }),
+	                  isStreaming: !complete,
+	                };
+	                const finalMetadata = complete ? metadataFrom(metadata) : undefined;
+	                const withMetadata = finalMetadata !== undefined
+	                  ? { ...next, metadata: finalMetadata }
+	                  : next;
+	                return complete ? withoutActivePhase(withMetadata) : withMetadata;
+	              });
               if (complete) {
                 attachExplainEvents();
                 removeActivity(activityLabel);
@@ -259,11 +271,11 @@ export function useChat(): UseChatReturn {
   );
 
   const regenerateLastMessage = useCallback(() => {
-    const msgs = useConversation.getState().messages;
-    const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
-    const lastUser = [...msgs].reverse().find((m) => m.role === "user");
-    if (lastAssistant && lastUser) {
-      useConversation.getState().deleteMessage(lastAssistant.id);
+	    const msgs = useConversation.getState().messages;
+	    const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+	    const lastUser = [...msgs].reverse().find((m) => m.role === "user");
+	    if (lastAssistant !== undefined && lastUser !== undefined) {
+	      useConversation.getState().deleteMessage(lastAssistant.id);
       submitMessage({ input: lastUser.content });
     }
   }, [submitMessage]);

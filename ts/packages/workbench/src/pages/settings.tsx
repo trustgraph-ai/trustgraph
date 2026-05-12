@@ -101,7 +101,7 @@ export default function SettingsPage() {
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return true;
     const saved = localStorage.getItem("tg-theme");
-    if (saved) return saved === "dark";
+    if (saved !== null) return saved === "dark";
     return !document.documentElement.classList.contains("light");
   });
 
@@ -164,21 +164,21 @@ export default function SettingsPage() {
   // Create a new collection
   const handleCreateCollection = useCallback(async () => {
     const trimmedId = newId.trim();
-    if (!trimmedId) return;
+    if (trimmedId.length === 0) return;
 
     setCreating(true);
     try {
       const tags = newTags
         .split(",")
         .map((t) => t.trim())
-        .filter(Boolean);
+        .filter((tag) => tag.length > 0);
 
       await socket
         .collectionManagement()
         .updateCollection(
           trimmedId,
-          newName.trim() || undefined,
-          newDescription.trim() || undefined,
+          newName.trim().length > 0 ? newName.trim() : undefined,
+          newDescription.trim().length > 0 ? newDescription.trim() : undefined,
           tags.length > 0 ? tags : undefined,
         );
 
@@ -205,7 +205,7 @@ export default function SettingsPage() {
   // Delete the current collection
   const handleDeleteCollection = useCallback(async () => {
     const currentId = settings.collection;
-    if (!currentId) return;
+    if (currentId.length === 0) return;
 
     setDeleting(true);
     try {
@@ -432,7 +432,7 @@ export default function SettingsPage() {
               </button>
               <button
                 type="button"
-                disabled={!newId.trim() || creating}
+                disabled={newId.trim().length === 0 || creating}
                 onClick={handleCreateCollection}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -561,7 +561,7 @@ export default function SettingsPage() {
                 {flows.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.id}
-                    {f.description ? ` -- ${f.description}` : ""}
+                    {f.description !== undefined && f.description.length > 0 ? ` -- ${f.description}` : ""}
                   </option>
                 ))}
               </select>
@@ -621,28 +621,31 @@ export default function SettingsPage() {
           title="Feature Switches"
           icon={<SettingsIcon className="h-4 w-4 text-fg-subtle" />}
         >
-          {Object.entries(settings.featureSwitches).map(([key, enabled]) => (
-            <div key={key} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-fg">{featureLabel(key)}</p>
+          {Object.entries(settings.featureSwitches).map(([key, enabled]) => {
+            const isEnabled = enabled === true;
+            return (
+              <div key={key} className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-fg">{featureLabel(key)}</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={isEnabled}
+                  aria-label={featureLabel(key)}
+                  onClick={() => updateFeatureSwitches({ [key]: !isEnabled })}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    isEnabled ? "bg-brand-600" : "bg-fg-subtle",
+                  )}
+                >
+                  <span className={cn(
+                    "inline-block h-4 w-4 rounded-full bg-white transition-transform",
+                    isEnabled ? "translate-x-6" : "translate-x-1",
+                  )} />
+                </button>
               </div>
-              <button
-                role="switch"
-                aria-checked={enabled}
-                aria-label={featureLabel(key)}
-                onClick={() => updateFeatureSwitches({ [key]: !enabled })}
-                className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                  enabled ? "bg-brand-600" : "bg-fg-subtle",
-                )}
-              >
-                <span className={cn(
-                  "inline-block h-4 w-4 rounded-full bg-white transition-transform",
-                  enabled ? "translate-x-6" : "translate-x-1",
-                )} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </Section>
 
         {/* About */}

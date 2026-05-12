@@ -15,7 +15,7 @@ export interface CliOpts {
 export function getOpts(cmd: Command): CliOpts {
   // Walk up to root command to get global options
   let root = cmd;
-  while (root.parent) root = root.parent;
+  while (root.parent !== null) root = root.parent;
   return root.opts() as CliOpts;
 }
 

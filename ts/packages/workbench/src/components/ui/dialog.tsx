@@ -40,7 +40,7 @@ export function Dialog({
   useEffect(() => {
     if (open) {
       triggerRef.current = document.activeElement as HTMLElement | null;
-    } else if (triggerRef.current) {
+    } else if (triggerRef.current !== null) {
       triggerRef.current.focus();
       triggerRef.current = null;
     }
@@ -58,14 +58,14 @@ export function Dialog({
 
   // Auto-focus first focusable element when dialog opens
   useEffect(() => {
-    if (!open || !dialogRef.current) return;
+    if (!open || dialogRef.current === null) return;
     const focusable = Array.from(
       dialogRef.current.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       ),
     ).filter(
       (el) =>
-        !el.hidden &&
+        el.hidden === false &&
         !(el as HTMLButtonElement).disabled &&
         el.offsetParent !== null &&
         window.getComputedStyle(el).display !== "none",
@@ -79,7 +79,7 @@ export function Dialog({
 
   // Focus trap — keep Tab within the dialog
   useEffect(() => {
-    if (!open || !dialogRef.current) return;
+    if (!open || dialogRef.current === null) return;
     const dialog = dialogRef.current;
 
     const handleTab = (e: KeyboardEvent) => {
@@ -90,7 +90,7 @@ export function Dialog({
         ),
       ).filter(
         (el) =>
-          !el.hidden &&
+          el.hidden === false &&
           !(el as HTMLButtonElement).disabled &&
           el.offsetParent !== null &&
           window.getComputedStyle(el).display !== "none",

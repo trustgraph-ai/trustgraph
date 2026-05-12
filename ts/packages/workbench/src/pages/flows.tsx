@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Workflow,
   Plus,
@@ -59,7 +59,7 @@ function StartFlowDialog({
       .then((names) => {
         const list = names ?? [];
         setBlueprints(list);
-        if (list.length > 0 && !blueprint) {
+        if (list.length > 0 && blueprint.length === 0) {
           setBlueprint(list[0]!);
         }
       })
@@ -70,7 +70,7 @@ function StartFlowDialog({
 
   // Fetch blueprint definition when selection changes
   useEffect(() => {
-    if (!blueprint) {
+    if (blueprint.length === 0) {
       setBlueprintDef(null);
       return;
     }
@@ -86,11 +86,11 @@ function StartFlowDialog({
         // Pre-populate parameters with defaults from the definition
         const paramsDef =
           def?.parameters ?? def?.params ?? def?.["parameters"] ?? def?.["params"];
-        if (paramsDef && typeof paramsDef === "object") {
+        if (paramsDef !== undefined && paramsDef !== null && typeof paramsDef === "object") {
           const defaults: Record<string, unknown> = {};
           const params = paramsDef as Record<string, unknown>;
           for (const [key, val] of Object.entries(params)) {
-            if (val && typeof val === "object" && "default" in (val as Record<string, unknown>)) {
+            if (val !== null && typeof val === "object" && "default" in (val as Record<string, unknown>)) {
               defaults[key] = (val as Record<string, unknown>).default;
             }
           }
@@ -100,10 +100,10 @@ function StartFlowDialog({
         }
       })
       .catch(() => {
-        if (!cancelled) setBlueprintDef(null);
+        if (cancelled === false) setBlueprintDef(null);
       })
       .finally(() => {
-        if (!cancelled) setLoadingDef(false);
+        if (cancelled === false) setLoadingDef(false);
       });
     return () => {
       cancelled = true;
@@ -195,7 +195,7 @@ function StartFlowDialog({
           placeholder="my-flow-id"
           className="w-full rounded-lg border border-border bg-surface-100 px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
-        {submitted && !id.trim() && (
+        {submitted && id.trim().length === 0 && (
           <p className="mt-1 text-xs text-red-400">Flow ID is required</p>
         )}
       </div>
@@ -226,7 +226,7 @@ function StartFlowDialog({
             ))}
           </select>
         )}
-        {submitted && !blueprint && (
+        {submitted && blueprint.length === 0 && (
           <p className="mt-1 text-xs text-red-400">Blueprint is required</p>
         )}
 
@@ -237,7 +237,7 @@ function StartFlowDialog({
           </div>
         )}
 
-        {blueprintDef && !loadingDef && (
+        {blueprintDef !== null && !loadingDef && (
           <div className="mt-2 rounded-lg border border-border bg-surface-50 p-3">
             <div className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
               <Info className="h-3.5 w-3.5 text-brand-400" />
@@ -245,7 +245,7 @@ function StartFlowDialog({
             </div>
 
             {/* Description from definition */}
-            {!!(blueprintDef.description || blueprintDef.desc) && (
+            {(blueprintDef.description !== undefined || blueprintDef.desc !== undefined) && (
               <p className="mt-1.5 text-xs text-fg-muted">
                 {String(blueprintDef.description ?? blueprintDef.desc)}
               </p>
@@ -258,7 +258,9 @@ function StartFlowDialog({
                 blueprintDef.params ??
                 blueprintDef["parameters"] ??
                 blueprintDef["params"];
-              if (!paramsDef || typeof paramsDef !== "object") return null;
+              if (paramsDef === undefined || paramsDef === null || typeof paramsDef !== "object") {
+                return null;
+              }
               const entries = Object.entries(paramsDef as Record<string, unknown>);
               if (entries.length === 0) return null;
               return (
@@ -267,16 +269,16 @@ function StartFlowDialog({
                   <div className="mt-1 space-y-1">
                     {entries.map(([name, schema]) => {
                       const s = schema as Record<string, unknown> | null;
-                      const type = s?.type ? String(s.type) : undefined;
-                      const defaultVal = s && "default" in s ? s.default : undefined;
-                      const desc = s?.description ? String(s.description) : undefined;
+                      const type = s?.type !== undefined ? String(s.type) : undefined;
+                      const defaultVal = s !== null && "default" in s ? s.default : undefined;
+                      const desc = s?.description !== undefined ? String(s.description) : undefined;
                       return (
                         <div
                           key={name}
                           className="flex flex-wrap items-baseline gap-x-2 text-xs"
                         >
                           <span className="font-mono font-medium text-fg">{name}</span>
-                          {type && (
+                          {type !== undefined && (
                             <span className="rounded bg-surface-200 px-1 py-0.5 text-[10px] text-fg-subtle">
                               {type}
                             </span>
@@ -286,7 +288,7 @@ function StartFlowDialog({
                               default: <span className="font-mono">{JSON.stringify(defaultVal)}</span>
                             </span>
                           )}
-                          {desc && <span className="text-fg-subtle">- {desc}</span>}
+                          {desc !== undefined && <span className="text-fg-subtle">- {desc}</span>}
                         </div>
                       );
                     })}
@@ -330,7 +332,7 @@ function StartFlowDialog({
           placeholder="Human-readable description"
           className="w-full rounded-lg border border-border bg-surface-100 px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
-        {submitted && !description.trim() && (
+        {submitted && description.trim().length === 0 && (
           <p className="mt-1 text-xs text-red-400">Description is required</p>
         )}
       </div>
@@ -350,12 +352,12 @@ function StartFlowDialog({
           rows={4}
           className={cn(
             "w-full resize-none rounded-lg border bg-surface-100 px-3 py-2 font-mono text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1",
-            paramsError
+            paramsError !== null
               ? "border-error focus:border-error focus:ring-error"
               : "border-border focus:border-brand-500 focus:ring-brand-500",
           )}
         />
-        {paramsError && (
+        {paramsError !== null && (
           <p className="text-xs text-error">{paramsError}</p>
         )}
       </div>
@@ -462,7 +464,7 @@ function FlowRow({
           </div>
         </td>
         <td className="px-4 py-3 text-fg-muted">
-          {flow.description || "--"}
+          {(flow.description ?? "").length > 0 ? flow.description : "--"}
         </td>
         <td className="px-4 py-3">
           <Badge variant="success">Running</Badge>
@@ -550,7 +552,7 @@ export default function FlowsPage() {
   };
 
   const handleStop = async () => {
-    if (!stopTarget) return;
+    if (stopTarget === null || stopTarget.length === 0) return;
     try {
       await stopFlow(stopTarget);
       notify.success("Flow stopped", `Flow "${stopTarget}" has been stopped.`);
@@ -602,13 +604,13 @@ export default function FlowsPage() {
         </div>
       )}
 
-      {error && (
+      {error !== null && (
         <p role="alert" className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
       )}
 
-      {!loading && !error && flows.length === 0 && (
+      {!loading && error === null && flows.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center">
           <Workflow className="mb-3 h-10 w-10 text-fg-subtle opacity-30" />
           <p className="text-fg-subtle">No flows configured.</p>
@@ -650,7 +652,7 @@ export default function FlowsPage() {
       />
 
       <StopFlowDialog
-        open={stopTarget != null}
+        open={stopTarget !== null}
         flowId={stopTarget ?? ""}
         onClose={() => setStopTarget(null)}
         onConfirm={handleStop}

@@ -37,7 +37,12 @@ export {
 } from "./query/embeddings/qdrant-graph.js";
 
 // Embeddings services
-export { OllamaEmbeddingsProcessor, type OllamaEmbeddingsConfig } from "./embeddings/ollama.js";
+export {
+  OllamaEmbeddingsLive,
+  OllamaEmbeddingsProcessor,
+  makeOllamaEmbeddings,
+  type OllamaEmbeddingsConfig,
+} from "./embeddings/ollama.js";
 
 // Prompt template service
 export { PromptTemplateService, type PromptTemplate, type PromptTemplateConfig } from "./prompt/template.js";

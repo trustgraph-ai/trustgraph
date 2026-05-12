@@ -5,7 +5,8 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk, TooManyRequestsError } from "@trustgraph/base";
+import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk, tooManyRequestsError } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 
 export class ClaudeProcessor extends LlmService {
   private client: Anthropic;
@@ -26,7 +27,9 @@ export class ClaudeProcessor extends LlmService {
     this.maxOutput = config.maxOutput ?? 8192;
 
     const apiKey = config.apiKey ?? process.env.CLAUDE_KEY;
-    if (!apiKey) throw new Error("Claude API key not specified");
+    if (apiKey === undefined || apiKey.length === 0) {
+      throw new Error("Claude API key not specified");
+    }
 
     this.client = new Anthropic({ apiKey });
 
@@ -65,7 +68,7 @@ export class ClaudeProcessor extends LlmService {
       };
     } catch (err) {
       if (err instanceof Anthropic.RateLimitError) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
@@ -117,12 +120,17 @@ export class ClaudeProcessor extends LlmService {
       };
     } catch (err) {
       if (err instanceof Anthropic.RateLimitError) {
-        throw new TooManyRequestsError();
+        throw tooManyRequestsError();
       }
       throw err;
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "text-completion",
+  make: (config) => new ClaudeProcessor(config),
+});
 
 export async function run(): Promise<void> {
   await ClaudeProcessor.launch("text-completion");

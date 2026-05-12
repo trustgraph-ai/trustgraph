@@ -4,15 +4,27 @@
  * Python reference: trustgraph-base/trustgraph/base/parameter_spec.py
  */
 
+import { Effect } from "effect";
 import type { Spec } from "./types.js";
 import type { PubSubBackend } from "../backend/types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 
 export class ParameterSpec implements Spec {
-  constructor(public readonly name: string) {}
+  public readonly name: string;
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  addEffect(flow: Flow, definition: FlowDefinition) {
+    const spec = this;
+    return Effect.sync(() => {
+      const value = definition.parameters?.[spec.name];
+      flow.setParameter(spec.name, value);
+    });
+  }
 
   async add(flow: Flow, _pubsub: PubSubBackend, definition: FlowDefinition): Promise<void> {
-    const value = definition.parameters?.[this.name];
-    flow.setParameter(this.name, value);
+    await Effect.runPromise(this.addEffect(flow, definition));
   }
 }

@@ -60,7 +60,7 @@ export default function TokenCostPage() {
   }, [connectionState.status, loadCosts]);
 
   const formatPrice = (price: number) => {
-    if (price == null) return "--";
+    if (!Number.isFinite(price)) return "--";
     return `$${price.toFixed(2)}`;
   };
 
@@ -96,13 +96,13 @@ export default function TokenCostPage() {
         </div>
       )}
 
-      {error && (
+      {error !== null && error.length > 0 && (
         <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
       )}
 
-      {!loading && !error && costs.length === 0 && (
+      {!loading && error === null && costs.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center">
           <Coins className="mb-3 h-10 w-10 text-fg-subtle opacity-30" />
           <p className="text-fg-subtle">No token cost data available.</p>

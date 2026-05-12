@@ -10,8 +10,6 @@
  * Python reference: trustgraph-flow/trustgraph/knowledge/service/service.py
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import {
   AsyncProcessor,
   type ProcessorConfig,
@@ -21,7 +19,9 @@ import {
   type Triple,
   type Term,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import type { BackendProducer, BackendConsumer, Message } from "@trustgraph/base";
+import { joinPath, readTextFile, writeTextFile } from "../runtime/effect-files.js";
 
 export interface KnowledgeCoreServiceConfig extends ProcessorConfig {
   dataDir?: string;
@@ -43,7 +43,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
   constructor(config: KnowledgeCoreServiceConfig) {
     super(config);
     const dataDir = config.dataDir ?? process.env.KNOWLEDGE_DATA_DIR ?? "./data/knowledge";
-    this.persistPath = join(dataDir, "knowledge-state.json");
+    this.persistPath = joinPath(dataDir, "knowledge-state.json");
   }
 
   private coreKey(user: string, id: string): string {
@@ -71,7 +71,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
     while (this.running) {
       try {
         const msg = await this.consumer.receive(2000);
-        if (!msg) continue;
+        if (msg === null) continue;
 
         await this.handleMessage(msg);
         await this.consumer.acknowledge(msg);
@@ -88,7 +88,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
     const props = msg.properties();
     const requestId = props.id;
 
-    if (!requestId) {
+    if (requestId === undefined || requestId.length === 0) {
       console.warn("[KnowledgeCoreService] Received request without id, ignoring");
       return;
     }
@@ -123,11 +123,11 @@ export class KnowledgeCoreService extends AsyncProcessor {
 
   private async listKgCores(request: KnowledgeRequest, requestId: string): Promise<void> {
     const user = request.user ?? "";
-    const prefix = user ? `${user}:` : "";
+    const prefix = user.length > 0 ? `${user}:` : "";
 
     const ids: string[] = [];
     for (const key of this.cores.keys()) {
-      if (!prefix || key.startsWith(prefix)) {
+      if (prefix.length === 0 || key.startsWith(prefix)) {
         // Extract the ID portion after the user prefix
         const id = key.slice(prefix.length);
         ids.push(id);
@@ -143,7 +143,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
     const key = this.coreKey(user, coreId);
 
     const core = this.cores.get(key);
-    if (!core) {
+    if (core === undefined) {
       throw new Error(`Knowledge core not found: ${key}`);
     }
 
@@ -196,18 +196,18 @@ export class KnowledgeCoreService extends AsyncProcessor {
     const key = this.coreKey(user, coreId);
 
     let core = this.cores.get(key);
-    if (!core) {
+    if (core === undefined) {
       core = { triples: [], graphEmbeddings: [] };
       this.cores.set(key, core);
     }
 
     // Append triples if provided
-    if (request.triples && request.triples.length > 0) {
+    if (request.triples !== undefined && request.triples.length > 0) {
       core.triples.push(...request.triples);
     }
 
     // Append graph embeddings if provided
-    if (request.graphEmbeddings && request.graphEmbeddings.length > 0) {
+    if (request.graphEmbeddings !== undefined && request.graphEmbeddings.length > 0) {
       core.graphEmbeddings.push(...request.graphEmbeddings);
     }
 
@@ -225,7 +225,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
     const key = this.coreKey(user, coreId);
 
     const core = this.cores.get(key);
-    if (!core) {
+    if (core === undefined) {
       throw new Error(`Knowledge core not found: ${key}`);
     }
 
@@ -248,8 +248,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
       }
 
       const json = JSON.stringify(data, null, 2);
-      await mkdir(dirname(this.persistPath), { recursive: true });
-      await writeFile(this.persistPath, json, "utf-8");
+      await writeTextFile(this.persistPath, json);
     } catch (err) {
       console.error("[KnowledgeCoreService] Failed to persist state:", err);
     }
@@ -257,7 +256,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
 
   private async loadFromDisk(): Promise<void> {
     try {
-      const raw = await readFile(this.persistPath, "utf-8");
+      const raw = await readTextFile(this.persistPath);
       const parsed = JSON.parse(raw) as Record<string, KnowledgeCore>;
 
       this.cores.clear();
@@ -272,11 +271,11 @@ export class KnowledgeCoreService extends AsyncProcessor {
   }
 
   override async stop(): Promise<void> {
-    if (this.consumer) {
+    if (this.consumer !== null) {
       await this.consumer.close();
       this.consumer = null;
     }
-    if (this.responseProducer) {
+    if (this.responseProducer !== null) {
       await this.responseProducer.close();
       this.responseProducer = null;
     }
@@ -287,6 +286,11 @@ export class KnowledgeCoreService extends AsyncProcessor {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export const program = makeProcessorProgram({
+  id: "knowledge-svc",
+  make: (config) => new KnowledgeCoreService(config),
+});
 
 export async function run(): Promise<void> {
   await KnowledgeCoreService.launch("knowledge-svc");

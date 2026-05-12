@@ -44,7 +44,10 @@ export class QdrantGraphEmbeddingsQuery {
     const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
     const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({ url, apiKey });
+    this.client = new QdrantClient({
+      url,
+      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+    });
 
     console.log("[QdrantGraphQuery] Query service initialized");
   }
@@ -52,7 +55,7 @@ export class QdrantGraphEmbeddingsQuery {
   async query(request: GraphEmbeddingsQueryRequest): Promise<EntityMatch[]> {
     const { vector, user, collection, limit } = request;
 
-    if (!vector || vector.length === 0) {
+    if (vector.length === 0) {
       return [];
     }
 
@@ -82,7 +85,7 @@ export class QdrantGraphEmbeddingsQuery {
     for (const point of searchResult) {
       const payload = point.payload as Record<string, unknown> | undefined;
       const entityValue = payload?.entity as string | undefined;
-      if (!entityValue) continue;
+      if (entityValue === undefined || entityValue.length === 0) continue;
 
       // Deduplicate by entity value, keeping the highest score (results are
       // already sorted by score descending from Qdrant)

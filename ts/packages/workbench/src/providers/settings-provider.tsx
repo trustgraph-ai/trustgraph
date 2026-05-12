@@ -79,7 +79,7 @@ export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
       settings: DEFAULT_SETTINGS,
-      isLoaded: true,
+      isLoaded: true as boolean,
 
       setSettings: (settings) => set({ settings }),
 
@@ -103,7 +103,7 @@ export const useSettings = create<SettingsState>()(
       name: "trustgraph-settings",
       // Mark loaded once rehydration completes
       onRehydrateStorage: () => (state) => {
-        if (state) state.isLoaded = true;
+        if (state !== undefined) state.isLoaded = true;
       },
     },
   ),

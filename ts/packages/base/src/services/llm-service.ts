@@ -22,7 +22,7 @@ export abstract class LlmService extends FlowProcessor {
 		super(config);
 
 		this.registerSpecification(
-			new ConsumerSpec<TextCompletionRequest>(
+			ConsumerSpec.fromPromise<TextCompletionRequest>(
 				"text-completion-request",
 				this.onRequest.bind(this),
 			),
@@ -36,50 +36,52 @@ export abstract class LlmService extends FlowProcessor {
 		msg: TextCompletionRequest,
 		properties: Record<string, string>,
 		flowCtx: FlowContext,
-	): Promise<void> {
-		const requestId = properties.id;
-		if (!requestId) return;
+		): Promise<void> {
+			const requestId = properties.id;
+			if (requestId === undefined || requestId.length === 0) return;
 
-		const responseProducer = flowCtx.flow.producer<TextCompletionResponse>("text-completion-response");
+			const responseProducer = flowCtx.flow.producer<TextCompletionResponse>("text-completion-response");
 
-		try {
-			if (msg.streaming && this.supportsStreaming()) {
-				for await (const chunk of this.generateContentStream(
-					msg.system,
-					msg.prompt,
-					msg.model,
-					msg.temperature,
-				)) {
-					await responseProducer.send(
-						requestId,
-						{
+			try {
+				if (msg.streaming === true && this.supportsStreaming()) {
+					for await (const chunk of this.generateContentStream(
+						msg.system,
+						msg.prompt,
+						msg.model,
+						msg.temperature,
+					)) {
+						const response = {
 							response: chunk.text,
-							model: chunk.model,
-							inToken: chunk.inToken ?? undefined,
-							outToken: chunk.outToken ?? undefined,
+							...(chunk.model !== undefined ? { model: chunk.model } : {}),
+							...(chunk.inToken !== null ? { inToken: chunk.inToken } : {}),
+							...(chunk.outToken !== null ? { outToken: chunk.outToken } : {}),
 							endOfStream: chunk.isFinal,
-						}
-					);
-				}
-			} else {
+						};
+						await responseProducer.send(
+							requestId,
+							response
+						);
+					}
+				} else {
 				const result = await this.generateContent(
 					msg.system,
 					msg.prompt,
 					msg.model,
 					msg.temperature,
-				);
-
-				await responseProducer.send(
-					requestId,
-					{
+					);
+					const response = {
 						response: result.text,
-						model: result.model,
-						inToken: result.inToken,
-						outToken: result.outToken,
+						...(result.model !== undefined ? { model: result.model } : {}),
+						...(result.inToken !== undefined ? { inToken: result.inToken } : {}),
+						...(result.outToken !== undefined ? { outToken: result.outToken } : {}),
 						endOfStream: true,
-					}
-				);
-			}
+					};
+
+					await responseProducer.send(
+						requestId,
+						response
+					);
+				}
 		} catch (err) {
 			console.error(
 				`[LlmService] Error processing request:`,

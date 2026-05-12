@@ -104,7 +104,7 @@ export function triplesToGraph(triples: Triple[]): {
       nodeMap.set(uri, {
         id: uri,
         label: labelMap.get(uri) ?? localName(uri),
-        color: type ? hashColor(localName(type)) : "#5b80ff",
+        color: type !== undefined ? hashColor(localName(type)) : "#5b80ff",
         degree: 0,
       });
     }

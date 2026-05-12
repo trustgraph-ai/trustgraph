@@ -16,6 +16,7 @@ import {
   type GraphEmbeddingsRequest,
   type GraphEmbeddingsResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { QdrantGraphEmbeddingsQuery } from "./qdrant-graph.js";
 
 export class GraphEmbeddingsQueryService extends FlowProcessor {
@@ -26,7 +27,7 @@ export class GraphEmbeddingsQueryService extends FlowProcessor {
     this.query = new QdrantGraphEmbeddingsQuery();
 
     this.registerSpecification(
-      new ConsumerSpec<GraphEmbeddingsRequest>(
+      ConsumerSpec.fromPromise<GraphEmbeddingsRequest>(
         "graph-embeddings-request",
         this.onMessage.bind(this),
       ),
@@ -44,7 +45,7 @@ export class GraphEmbeddingsQueryService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const producer = flowCtx.flow.producer<GraphEmbeddingsResponse>("graph-embeddings-response");
     const user = msg.user ?? "default";
@@ -78,6 +79,11 @@ export class GraphEmbeddingsQueryService extends FlowProcessor {
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "graph-embeddings-query",
+  make: (config) => new GraphEmbeddingsQueryService(config),
+});
 
 export async function run(): Promise<void> {
   await GraphEmbeddingsQueryService.launch("graph-embeddings-query");

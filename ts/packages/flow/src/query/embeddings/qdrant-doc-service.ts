@@ -16,6 +16,7 @@ import {
   type DocumentEmbeddingsRequest,
   type DocumentEmbeddingsResponse,
 } from "@trustgraph/base";
+import { makeProcessorProgram } from "@trustgraph/base";
 import { QdrantDocEmbeddingsQuery } from "./qdrant-doc.js";
 
 export class DocEmbeddingsQueryService extends FlowProcessor {
@@ -26,7 +27,7 @@ export class DocEmbeddingsQueryService extends FlowProcessor {
     this.query = new QdrantDocEmbeddingsQuery();
 
     this.registerSpecification(
-      new ConsumerSpec<DocumentEmbeddingsRequest>(
+      ConsumerSpec.fromPromise<DocumentEmbeddingsRequest>(
         "document-embeddings-request",
         this.onMessage.bind(this),
       ),
@@ -44,7 +45,7 @@ export class DocEmbeddingsQueryService extends FlowProcessor {
     flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
-    if (!requestId) return;
+    if (requestId === undefined || requestId.length === 0) return;
 
     const producer = flowCtx.flow.producer<DocumentEmbeddingsResponse>("document-embeddings-response");
     const collection = msg.collection ?? "default";
@@ -64,7 +65,7 @@ export class DocEmbeddingsQueryService extends FlowProcessor {
           allChunks.push({
             chunkId: match.chunkId,
             score: match.score,
-            content: match.content,
+            ...(match.content !== undefined ? { content: match.content } : {}),
           });
         }
       }
@@ -79,6 +80,11 @@ export class DocEmbeddingsQueryService extends FlowProcessor {
     }
   }
 }
+
+export const program = makeProcessorProgram({
+  id: "doc-embeddings-query",
+  make: (config) => new DocEmbeddingsQueryService(config),
+});
 
 export async function run(): Promise<void> {
   await DocEmbeddingsQueryService.launch("doc-embeddings-query");
