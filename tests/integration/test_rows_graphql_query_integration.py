@@ -184,7 +184,7 @@ class TestObjectsGraphQLQueryIntegration:
         await processor.on_schema_config("default", sample_schema_config, version=1)
         
         # Connect to Cassandra
-        processor.connect_cassandra()
+        await processor.connect_cassandra()
         assert processor.session is not None
         
         # Create test keyspace and table
@@ -219,7 +219,7 @@ class TestObjectsGraphQLQueryIntegration:
         """Test inserting data and querying via GraphQL"""
         # Load schema and connect
         await processor.on_schema_config("default", sample_schema_config, version=1)
-        processor.connect_cassandra()
+        await processor.connect_cassandra()
         
         # Setup test data
         keyspace = "test_user"
@@ -293,7 +293,7 @@ class TestObjectsGraphQLQueryIntegration:
         """Test GraphQL queries with filtering on indexed fields"""
         # Setup (reuse previous setup)
         await processor.on_schema_config("default", sample_schema_config, version=1)
-        processor.connect_cassandra()
+        await processor.connect_cassandra()
         
         keyspace = "test_user"
         collection = "filter_test"
@@ -387,7 +387,7 @@ class TestObjectsGraphQLQueryIntegration:
         """Test full message processing workflow"""
         # Setup
         await processor.on_schema_config("default", sample_schema_config, version=1)
-        processor.connect_cassandra()
+        await processor.connect_cassandra()
         
         # Create mock message
         request = RowsQueryRequest(
@@ -433,7 +433,7 @@ class TestObjectsGraphQLQueryIntegration:
         """Test handling multiple concurrent GraphQL queries"""
         # Setup
         await processor.on_schema_config("default", sample_schema_config, version=1)
-        processor.connect_cassandra()
+        await processor.connect_cassandra()
         
         # Create multiple query tasks
         queries = [
@@ -519,7 +519,7 @@ class TestObjectsGraphQLQueryIntegration:
         """Test handling of large query result sets"""
         # Setup
         await processor.on_schema_config("default", sample_schema_config, version=1)
-        processor.connect_cassandra()
+        await processor.connect_cassandra()
         
         keyspace = "large_test_user"
         collection = "large_collection"

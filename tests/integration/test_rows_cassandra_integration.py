@@ -101,6 +101,8 @@ class TestRowsCassandraIntegration:
         processor.session = None
 
         # Bind actual methods from the new unified table implementation
+        import asyncio
+        processor._setup_lock = asyncio.Lock()
         processor.connect_cassandra = Processor.connect_cassandra.__get__(processor, Processor)
         processor.ensure_keyspace = Processor.ensure_keyspace.__get__(processor, Processor)
         processor.ensure_tables = Processor.ensure_tables.__get__(processor, Processor)
@@ -108,6 +110,7 @@ class TestRowsCassandraIntegration:
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
         processor.build_index_value = Processor.build_index_value.__get__(processor, Processor)
         processor.register_partitions = Processor.register_partitions.__get__(processor, Processor)
+        processor._apply_schema_config = Processor._apply_schema_config.__get__(processor, Processor)
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         processor.on_object = Processor.on_object.__get__(processor, Processor)
         processor.collection_exists = MagicMock(return_value=True)
