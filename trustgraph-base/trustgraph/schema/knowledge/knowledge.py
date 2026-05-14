@@ -4,7 +4,7 @@ from ..core.topic import queue
 from ..core.metadata import Metadata
 from .document import Document, TextDocument
 from .graph import Triples
-from .embeddings import GraphEmbeddings
+from .embeddings import GraphEmbeddings, DocumentEmbeddings
 
 # get-kg-core
 #   -> (???)
@@ -41,6 +41,9 @@ class KnowledgeRequest:
     triples: Triples | None = None
     graph_embeddings: GraphEmbeddings | None = None
 
+    # put-de-core
+    document_embeddings: DocumentEmbeddings | None = None
+
 @dataclass
 class KnowledgeResponse:
     error: Error | None = None
@@ -48,6 +51,7 @@ class KnowledgeResponse:
     eos: bool = False     # Indicates end of knowledge core stream
     triples: Triples | None = None
     graph_embeddings: GraphEmbeddings | None = None
+    document_embeddings: DocumentEmbeddings | None = None
 
 knowledge_request_queue = queue('knowledge', cls='request')
 knowledge_response_queue = queue('knowledge', cls='response')

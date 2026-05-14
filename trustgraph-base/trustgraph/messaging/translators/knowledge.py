@@ -1,6 +1,7 @@
 from typing import Dict, Any, Tuple, Optional
 from ...schema import (
     KnowledgeRequest, KnowledgeResponse, Triples, GraphEmbeddings,
+    DocumentEmbeddings, ChunkEmbeddings,
     Metadata, EntityEmbeddings
 )
 from .base import MessageTranslator
@@ -43,6 +44,23 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 ]
             )
 
+        document_embeddings = None
+        if "document-embeddings" in data:
+            document_embeddings = DocumentEmbeddings(
+                metadata=Metadata(
+                    id=data["document-embeddings"]["metadata"]["id"],
+                    root=data["document-embeddings"]["metadata"].get("root", ""),
+                    collection=data["document-embeddings"]["metadata"]["collection"]
+                ),
+                chunks=[
+                    ChunkEmbeddings(
+                        chunk_id=ch["chunk_id"],
+                        vector=ch["vector"],
+                    )
+                    for ch in data["document-embeddings"]["chunks"]
+                ]
+            )
+
         return KnowledgeRequest(
             operation=data.get("operation"),
             id=data.get("id"),
@@ -50,6 +68,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
             collection=data.get("collection"),
             triples=triples,
             graph_embeddings=graph_embeddings,
+            document_embeddings=document_embeddings,
         )
 
     def encode(self, obj: KnowledgeRequest) -> Dict[str, Any]:
@@ -87,6 +106,22 @@ class KnowledgeRequestTranslator(MessageTranslator):
                         "entity": self.value_translator.encode(entity.entity),
                     }
                     for entity in obj.graph_embeddings.entities
+                ],
+            }
+
+        if obj.document_embeddings:
+            result["document-embeddings"] = {
+                "metadata": {
+                    "id": obj.document_embeddings.metadata.id,
+                    "root": obj.document_embeddings.metadata.root,
+                    "collection": obj.document_embeddings.metadata.collection,
+                },
+                "chunks": [
+                    {
+                        "chunk_id": ch.chunk_id,
+                        "vector": ch.vector,
+                    }
+                    for ch in obj.document_embeddings.chunks
                 ],
             }
 
@@ -140,6 +175,25 @@ class KnowledgeResponseTranslator(MessageTranslator):
                 }
             }
 
+        # Streaming document embeddings response
+        if obj.document_embeddings:
+            return {
+                "document-embeddings": {
+                    "metadata": {
+                        "id": obj.document_embeddings.metadata.id,
+                        "root": obj.document_embeddings.metadata.root,
+                        "collection": obj.document_embeddings.metadata.collection,
+                    },
+                    "chunks": [
+                        {
+                            "chunk_id": ch.chunk_id,
+                            "vector": ch.vector,
+                        }
+                        for ch in obj.document_embeddings.chunks
+                    ],
+                }
+            }
+
         # End of stream marker
         if obj.eos is True:
             return {"eos": True}
@@ -155,7 +209,7 @@ class KnowledgeResponseTranslator(MessageTranslator):
         is_final = (
             obj.ids is not None or  # List response
             obj.eos is True or      # End of stream
-            (not obj.triples and not obj.graph_embeddings)  # Empty response
+            (not obj.triples and not obj.graph_embeddings and not obj.document_embeddings)  # Empty response
         )
         
         return response, is_final
