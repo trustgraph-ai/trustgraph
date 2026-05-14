@@ -89,12 +89,15 @@ class TestRowsGraphQLQueryLogic:
     @pytest.mark.asyncio
     async def test_schema_config_parsing(self):
         """Test parsing of schema configuration"""
+        import asyncio
         processor = MagicMock()
         processor.schemas = {}
         processor.schema_builders = {}
         processor.graphql_schemas = {}
         processor.config_key = "schema"
         processor.query_cassandra = MagicMock()
+        processor._setup_lock = asyncio.Lock()
+        processor._apply_schema_config = Processor._apply_schema_config.__get__(processor, Processor)
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
 
         # Create test config
@@ -335,7 +338,7 @@ class TestUnifiedTableQueries:
         """Test query execution with matching index"""
         processor = MagicMock()
         processor.session = MagicMock()
-        processor.connect_cassandra = MagicMock()
+        processor.connect_cassandra = AsyncMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
         processor.find_matching_index = Processor.find_matching_index.__get__(processor, Processor)
@@ -396,7 +399,7 @@ class TestUnifiedTableQueries:
         """Test query execution without matching index (scan mode)"""
         processor = MagicMock()
         processor.session = MagicMock()
-        processor.connect_cassandra = MagicMock()
+        processor.connect_cassandra = AsyncMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
         processor.find_matching_index = Processor.find_matching_index.__get__(processor, Processor)

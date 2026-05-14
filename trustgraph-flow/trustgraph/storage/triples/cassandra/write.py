@@ -4,12 +4,7 @@ Graph writer.  Input is graph edge.  Writes edges to Cassandra graph.
 """
 
 import asyncio
-import base64
-import os
-import argparse
-import time
 import logging
-import json
 
 from .... direct.cassandra_kg import (
     EntityCentricKnowledgeGraph, DEFAULT_GRAPH
@@ -28,6 +23,8 @@ default_ident = "triples-write"
 
 def serialize_triple(triple):
     """Serialize a Triple object to JSON for storage."""
+    import json
+
     if triple is None:
         return None
 
@@ -141,156 +138,84 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         self.cassandra_host = hosts
         self.cassandra_username = username
         self.cassandra_password = password
-        self.table = None
-        self.tg = None
+
+        self._connections = {}
+        self._conn_lock = asyncio.Lock()
 
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
+    async def _get_connection(self, workspace):
+        async with self._conn_lock:
+            if workspace not in self._connections:
+                if self.cassandra_username and self.cassandra_password:
+                    tg = await asyncio.to_thread(
+                        EntityCentricKnowledgeGraph,
+                        hosts=self.cassandra_host,
+                        keyspace=workspace,
+                        username=self.cassandra_username,
+                        password=self.cassandra_password,
+                    )
+                else:
+                    tg = await asyncio.to_thread(
+                        EntityCentricKnowledgeGraph,
+                        hosts=self.cassandra_host,
+                        keyspace=workspace,
+                    )
+                self._connections[workspace] = tg
+            return self._connections[workspace]
+
     async def store_triples(self, workspace, message):
 
-        # The cassandra-driver work below — connection, schema
-        # setup, and per-triple inserts — is all synchronous.
-        # Wrap the whole batch in a worker thread so the event
-        # loop stays responsive for sibling processors when
-        # running in a processor group.
+        tg = await self._get_connection(workspace)
 
-        def _do_store():
+        for t in message.triples:
+            s_val = get_term_value(t.s)
+            p_val = get_term_value(t.p)
+            o_val = get_term_value(t.o)
+            g_val = t.g if t.g is not None else DEFAULT_GRAPH
 
-            if self.table is None or self.table != workspace:
+            otype = get_term_otype(t.o)
+            dtype = get_term_dtype(t.o)
+            lang = get_term_lang(t.o)
 
-                self.tg = None
-
-                # Use factory function to select implementation
-                KGClass = EntityCentricKnowledgeGraph
-
-                try:
-                    if self.cassandra_username and self.cassandra_password:
-                        self.tg = KGClass(
-                            hosts=self.cassandra_host,
-                            keyspace=workspace,
-                            username=self.cassandra_username,
-                            password=self.cassandra_password,
-                        )
-                    else:
-                        self.tg = KGClass(
-                            hosts=self.cassandra_host,
-                            keyspace=workspace,
-                        )
-                except Exception as e:
-                    logger.error(f"Exception: {e}", exc_info=True)
-                    time.sleep(1)
-                    raise e
-
-                self.table = workspace
-
-            for t in message.triples:
-                # Extract values from Term objects
-                s_val = get_term_value(t.s)
-                p_val = get_term_value(t.p)
-                o_val = get_term_value(t.o)
-                # t.g is None for default graph, or a graph IRI
-                g_val = t.g if t.g is not None else DEFAULT_GRAPH
-
-                # Extract object type metadata for entity-centric storage
-                otype = get_term_otype(t.o)
-                dtype = get_term_dtype(t.o)
-                lang = get_term_lang(t.o)
-
-                self.tg.insert(
-                    message.metadata.collection,
-                    s_val,
-                    p_val,
-                    o_val,
-                    g=g_val,
-                    otype=otype,
-                    dtype=dtype,
-                    lang=lang,
-                )
-
-        await asyncio.to_thread(_do_store)
+            await tg.async_insert(
+                message.metadata.collection,
+                s_val,
+                p_val,
+                o_val,
+                g=g_val,
+                otype=otype,
+                dtype=dtype,
+                lang=lang,
+            )
 
     async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Create a collection in Cassandra triple store via config push"""
+        try:
+            tg = await self._get_connection(workspace)
 
-        def _do_create():
-            # Create or reuse connection for this workspace's keyspace
-            if self.table is None or self.table != workspace:
-                self.tg = None
-
-                # Use factory function to select implementation
-                KGClass = EntityCentricKnowledgeGraph
-
-                try:
-                    if self.cassandra_username and self.cassandra_password:
-                        self.tg = KGClass(
-                            hosts=self.cassandra_host,
-                            keyspace=workspace,
-                            username=self.cassandra_username,
-                            password=self.cassandra_password,
-                        )
-                    else:
-                        self.tg = KGClass(
-                            hosts=self.cassandra_host,
-                            keyspace=workspace,
-                        )
-                except Exception as e:
-                    logger.error(f"Failed to connect to Cassandra for workspace {workspace}: {e}")
-                    raise
-
-                self.table = workspace
-
-            # Create collection using the built-in method
             logger.info(f"Creating collection {collection} for workspace {workspace}")
 
-            if self.tg.collection_exists(collection):
+            exists = await tg.async_collection_exists(collection)
+            if exists:
                 logger.info(f"Collection {collection} already exists")
             else:
-                self.tg.create_collection(collection)
+                await tg.async_create_collection(collection)
                 logger.info(f"Created collection {collection}")
 
-        try:
-            await asyncio.to_thread(_do_create)
         except Exception as e:
             logger.error(f"Failed to create collection {workspace}/{collection}: {e}", exc_info=True)
             raise
 
     async def delete_collection(self, workspace: str, collection: str):
         """Delete all data for a specific collection from the unified triples table"""
+        try:
+            tg = await self._get_connection(workspace)
 
-        def _do_delete():
-            # Create or reuse connection for this workspace's keyspace
-            if self.table is None or self.table != workspace:
-                self.tg = None
-
-                # Use factory function to select implementation
-                KGClass = EntityCentricKnowledgeGraph
-
-                try:
-                    if self.cassandra_username and self.cassandra_password:
-                        self.tg = KGClass(
-                            hosts=self.cassandra_host,
-                            keyspace=workspace,
-                            username=self.cassandra_username,
-                            password=self.cassandra_password,
-                        )
-                    else:
-                        self.tg = KGClass(
-                            hosts=self.cassandra_host,
-                            keyspace=workspace,
-                        )
-                except Exception as e:
-                    logger.error(f"Failed to connect to Cassandra for workspace {workspace}: {e}")
-                    raise
-
-                self.table = workspace
-
-            # Delete all triples for this collection using the built-in method
-            self.tg.delete_collection(collection)
+            await tg.async_delete_collection(collection)
             logger.info(f"Deleted all triples for collection {collection} from keyspace {workspace}")
 
-        try:
-            await asyncio.to_thread(_do_delete)
         except Exception as e:
             logger.error(f"Failed to delete collection {workspace}/{collection}: {e}", exc_info=True)
             raise

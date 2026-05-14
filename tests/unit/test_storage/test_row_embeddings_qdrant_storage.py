@@ -125,13 +125,13 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
-        processor.ensure_collection("test_collection", 384)
+        await processor.ensure_collection("test_collection", 384)
 
         mock_qdrant_instance.collection_exists.assert_called_once_with("test_collection")
         mock_qdrant_instance.create_collection.assert_called_once()
 
         # Verify the collection is cached
-        assert "test_collection" in processor.created_collections
+        assert "test_collection" in processor._known_collections
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_ensure_collection_skips_existing(self, mock_qdrant_client):
@@ -149,7 +149,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
-        processor.ensure_collection("existing_collection", 384)
+        await processor.ensure_collection("existing_collection", 384)
 
         mock_qdrant_instance.collection_exists.assert_called_once()
         mock_qdrant_instance.create_collection.assert_not_called()
@@ -168,9 +168,9 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.created_collections.add("cached_collection")
+        processor._known_collections.add("cached_collection")
 
-        processor.ensure_collection("cached_collection", 384)
+        await processor.ensure_collection("cached_collection", 384)
 
         # Should not check or create - just return
         mock_qdrant_instance.collection_exists.assert_not_called()
@@ -391,7 +391,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor.created_collections.add('rows_test_workspace_test_collection_schema1_384')
+        processor._known_collections.add('rows_test_workspace_test_collection_schema1_384')
 
         await processor.delete_collection('test_workspace', 'test_collection')
 
@@ -399,7 +399,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         assert mock_qdrant_instance.delete_collection.call_count == 2
 
         # Verify the cached collection was removed
-        assert 'rows_test_workspace_test_collection_schema1_384' not in processor.created_collections
+        assert 'rows_test_workspace_test_collection_schema1_384' not in processor._known_collections
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_delete_collection_schema(self, mock_qdrant_client):

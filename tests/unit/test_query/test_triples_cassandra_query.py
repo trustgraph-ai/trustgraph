@@ -2,8 +2,10 @@
 Tests for Cassandra triples query service
 """
 
+import asyncio
+
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from trustgraph.query.triples.cassandra.service import Processor, create_term
 from trustgraph.schema import Term, IRI, LITERAL
@@ -18,7 +20,7 @@ class TestCassandraQueryProcessor:
         return Processor(
             taskgroup=MagicMock(),
             id='test-cassandra-query',
-            graph_host='localhost'
+            cassandra_host='localhost'
         )
 
     def test_create_term_with_http_uri(self, processor):
@@ -85,7 +87,7 @@ class TestCassandraQueryProcessor:
         mock_result.dtype = None
         mock_result.lang = None
         mock_result.o = 'test_object'
-        mock_tg_instance.get_spo.return_value = [mock_result]
+        mock_tg_instance.async_get_spo = AsyncMock(return_value=[mock_result])
 
         processor = Processor(
             taskgroup=MagicMock(),
@@ -110,8 +112,8 @@ class TestCassandraQueryProcessor:
             keyspace='test_user'
         )
 
-        # Verify get_spo was called with correct parameters
-        mock_tg_instance.get_spo.assert_called_once_with(
+        # Verify async_get_spo was called with correct parameters
+        mock_tg_instance.async_get_spo.assert_called_once_with(
             'test_collection', 'test_subject', 'test_predicate', 'test_object', g=None, limit=100
         )
 
@@ -130,23 +132,25 @@ class TestCassandraQueryProcessor:
         assert processor.cassandra_host == ['cassandra']  # Updated default
         assert processor.cassandra_username is None
         assert processor.cassandra_password is None
-        assert processor.table is None
+        assert processor._connections == {}
+        assert isinstance(processor._conn_lock, asyncio.Lock)
 
     def test_processor_initialization_with_custom_params(self):
         """Test processor initialization with custom parameters"""
         taskgroup_mock = MagicMock()
-        
+
         processor = Processor(
             taskgroup=taskgroup_mock,
             cassandra_host='cassandra.example.com',
             cassandra_username='queryuser',
             cassandra_password='querypass'
         )
-        
+
         assert processor.cassandra_host == ['cassandra.example.com']
         assert processor.cassandra_username == 'queryuser'
         assert processor.cassandra_password == 'querypass'
-        assert processor.table is None
+        assert processor._connections == {}
+        assert isinstance(processor._conn_lock, asyncio.Lock)
 
     @pytest.mark.asyncio
     @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
@@ -164,7 +168,7 @@ class TestCassandraQueryProcessor:
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_sp.return_value = [mock_result]
+        mock_tg_instance.async_get_sp = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -178,7 +182,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', g=None, limit=50)
+        mock_tg_instance.async_get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', g=None, limit=50)
         assert len(result) == 1
         assert result[0].s.iri == 'test_subject'
         assert result[0].p.iri == 'test_predicate'
@@ -200,7 +204,7 @@ class TestCassandraQueryProcessor:
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_s.return_value = [mock_result]
+        mock_tg_instance.async_get_s = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -214,7 +218,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.get_s.assert_called_once_with('test_collection', 'test_subject', g=None, limit=25)
+        mock_tg_instance.async_get_s.assert_called_once_with('test_collection', 'test_subject', g=None, limit=25)
         assert len(result) == 1
         assert result[0].s.iri == 'test_subject'
         assert result[0].p.iri == 'result_predicate'
@@ -236,7 +240,7 @@ class TestCassandraQueryProcessor:
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_p.return_value = [mock_result]
+        mock_tg_instance.async_get_p = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -250,7 +254,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.get_p.assert_called_once_with('test_collection', 'test_predicate', g=None, limit=10)
+        mock_tg_instance.async_get_p.assert_called_once_with('test_collection', 'test_predicate', g=None, limit=10)
         assert len(result) == 1
         assert result[0].s.iri == 'result_subject'
         assert result[0].p.iri == 'test_predicate'
@@ -272,7 +276,7 @@ class TestCassandraQueryProcessor:
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_o.return_value = [mock_result]
+        mock_tg_instance.async_get_o = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -286,7 +290,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.get_o.assert_called_once_with('test_collection', 'test_object', g=None, limit=75)
+        mock_tg_instance.async_get_o.assert_called_once_with('test_collection', 'test_object', g=None, limit=75)
         assert len(result) == 1
         assert result[0].s.iri == 'result_subject'
         assert result[0].p.iri == 'result_predicate'
@@ -305,11 +309,11 @@ class TestCassandraQueryProcessor:
         mock_result.s = 'all_subject'
         mock_result.p = 'all_predicate'
         mock_result.o = 'all_object'
-        mock_result.g = ''
+        mock_result.d = ''
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_all.return_value = [mock_result]
+        mock_tg_instance.async_get_all = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -323,7 +327,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.get_all.assert_called_once_with('test_collection', limit=1000)
+        mock_tg_instance.async_get_all.assert_called_once_with('test_collection', limit=1000)
         assert len(result) == 1
         assert result[0].s.iri == 'all_subject'
         assert result[0].p.iri == 'all_predicate'
@@ -410,7 +414,7 @@ class TestCassandraQueryProcessor:
         mock_result.dtype = None
         mock_result.lang = None
         mock_result.o = 'test_object'
-        mock_tg_instance.get_spo.return_value = [mock_result]
+        mock_tg_instance.async_get_spo = AsyncMock(return_value=[mock_result])
 
         processor = Processor(
             taskgroup=MagicMock(),
@@ -451,7 +455,7 @@ class TestCassandraQueryProcessor:
         mock_result.dtype = None
         mock_result.lang = None
         mock_result.o = 'test_object'
-        mock_tg_instance.get_spo.return_value = [mock_result]
+        mock_tg_instance.async_get_spo = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -489,8 +493,8 @@ class TestCassandraQueryProcessor:
         mock_result.lang = None
         mock_result.p = 'p'
         mock_result.o = 'o'
-        mock_tg_instance1.get_s.return_value = [mock_result]
-        mock_tg_instance2.get_s.return_value = [mock_result]
+        mock_tg_instance1.async_get_s = AsyncMock(return_value=[mock_result])
+        mock_tg_instance2.async_get_s = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -504,7 +508,6 @@ class TestCassandraQueryProcessor:
         )
 
         await processor.query_triples('user1', query1)
-        assert processor.table == 'user1'
 
         # Second query with different table
         query2 = TriplesQueryRequest(
@@ -516,10 +519,11 @@ class TestCassandraQueryProcessor:
         )
 
         await processor.query_triples('user2', query2)
-        assert processor.table == 'user2'
 
-        # Verify TrustGraph was created twice
+        # Verify TrustGraph was created twice for different workspaces
         assert mock_kg_class.call_count == 2
+        mock_kg_class.assert_any_call(hosts=['cassandra'], keyspace='user1')
+        mock_kg_class.assert_any_call(hosts=['cassandra'], keyspace='user2')
 
     @pytest.mark.asyncio
     @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
@@ -529,7 +533,7 @@ class TestCassandraQueryProcessor:
 
         mock_tg_instance = MagicMock()
         mock_kg_class.return_value = mock_tg_instance
-        mock_tg_instance.get_spo.side_effect = Exception("Query failed")
+        mock_tg_instance.async_get_spo = AsyncMock(side_effect=Exception("Query failed"))
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -566,7 +570,7 @@ class TestCassandraQueryProcessor:
         mock_result2.otype = None
         mock_result2.dtype = None
         mock_result2.lang = None
-        mock_tg_instance.get_sp.return_value = [mock_result1, mock_result2]
+        mock_tg_instance.async_get_sp = AsyncMock(return_value=[mock_result1, mock_result2])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -603,7 +607,7 @@ class TestCassandraQueryPerformanceOptimizations:
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_po.return_value = [mock_result]
+        mock_tg_instance.async_get_po = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -618,8 +622,8 @@ class TestCassandraQueryPerformanceOptimizations:
 
         result = await processor.query_triples('test_user', query)
 
-        # Verify get_po was called (should use optimized po_table)
-        mock_tg_instance.get_po.assert_called_once_with(
+        # Verify async_get_po was called (should use optimized po_table)
+        mock_tg_instance.async_get_po.assert_called_once_with(
             'test_collection', 'test_predicate', 'test_object', g=None, limit=50
         )
 
@@ -643,7 +647,7 @@ class TestCassandraQueryPerformanceOptimizations:
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
-        mock_tg_instance.get_os.return_value = [mock_result]
+        mock_tg_instance.async_get_os = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -658,8 +662,8 @@ class TestCassandraQueryPerformanceOptimizations:
 
         result = await processor.query_triples('test_user', query)
 
-        # Verify get_os was called (should use optimized subject_table with clustering)
-        mock_tg_instance.get_os.assert_called_once_with(
+        # Verify async_get_os was called (should use optimized subject_table with clustering)
+        mock_tg_instance.async_get_os.assert_called_once_with(
             'test_collection', 'test_object', 'test_subject', g=None, limit=25
         )
 
@@ -678,28 +682,28 @@ class TestCassandraQueryPerformanceOptimizations:
         mock_kg_class.return_value = mock_tg_instance
 
         # Mock empty results for all queries
-        mock_tg_instance.get_all.return_value = []
-        mock_tg_instance.get_s.return_value = []
-        mock_tg_instance.get_p.return_value = []
-        mock_tg_instance.get_o.return_value = []
-        mock_tg_instance.get_sp.return_value = []
-        mock_tg_instance.get_po.return_value = []
-        mock_tg_instance.get_os.return_value = []
-        mock_tg_instance.get_spo.return_value = []
+        mock_tg_instance.async_get_all = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_s = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_p = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_o = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_sp = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_po = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_os = AsyncMock(return_value=[])
+        mock_tg_instance.async_get_spo = AsyncMock(return_value=[])
 
         processor = Processor(taskgroup=MagicMock())
 
         # Test each query pattern
         test_patterns = [
             # (s, p, o, expected_method)
-            (None, None, None, 'get_all'),  # All triples
-            ('s1', None, None, 'get_s'),    # Subject only
-            (None, 'p1', None, 'get_p'),    # Predicate only
-            (None, None, 'o1', 'get_o'),    # Object only
-            ('s1', 'p1', None, 'get_sp'),   # Subject + Predicate
-            (None, 'p1', 'o1', 'get_po'),   # Predicate + Object (CRITICAL OPTIMIZATION)
-            ('s1', None, 'o1', 'get_os'),   # Object + Subject
-            ('s1', 'p1', 'o1', 'get_spo'),  # All three
+            (None, None, None, 'async_get_all'),  # All triples
+            ('s1', None, None, 'async_get_s'),    # Subject only
+            (None, 'p1', None, 'async_get_p'),    # Predicate only
+            (None, None, 'o1', 'async_get_o'),    # Object only
+            ('s1', 'p1', None, 'async_get_sp'),   # Subject + Predicate
+            (None, 'p1', 'o1', 'async_get_po'),   # Predicate + Object (CRITICAL OPTIMIZATION)
+            ('s1', None, 'o1', 'async_get_os'),   # Object + Subject
+            ('s1', 'p1', 'o1', 'async_get_spo'),  # All three
         ]
 
         for s, p, o, expected_method in test_patterns:
@@ -759,7 +763,7 @@ class TestCassandraQueryPerformanceOptimizations:
             mock_result.lang = None
             mock_results.append(mock_result)
 
-        mock_tg_instance.get_po.return_value = mock_results
+        mock_tg_instance.async_get_po = AsyncMock(return_value=mock_results)
 
         processor = Processor(taskgroup=MagicMock())
 
@@ -774,8 +778,8 @@ class TestCassandraQueryPerformanceOptimizations:
 
         result = await processor.query_triples('large_dataset_user', query)
 
-        # Verify optimized get_po was used (no ALLOW FILTERING needed!)
-        mock_tg_instance.get_po.assert_called_once_with(
+        # Verify optimized async_get_po was used (no ALLOW FILTERING needed!)
+        mock_tg_instance.async_get_po.assert_called_once_with(
             'massive_collection',
             'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
             'http://example.com/Person',

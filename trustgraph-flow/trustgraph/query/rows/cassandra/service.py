@@ -11,6 +11,7 @@ Queries against the unified 'rows' table with schema:
     - source: text
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -97,34 +98,38 @@ class Processor(FlowProcessor):
         # Cassandra session
         self.cluster = None
         self.session = None
+        self._setup_lock = asyncio.Lock()
 
         # Known keyspaces
         self.known_keyspaces: Set[str] = set()
 
-    def connect_cassandra(self):
+    async def connect_cassandra(self):
         """Connect to Cassandra cluster"""
-        if self.session:
-            return
+        async with self._setup_lock:
+            if self.session:
+                return
 
-        try:
-            if self.cassandra_username and self.cassandra_password:
-                auth_provider = PlainTextAuthProvider(
-                    username=self.cassandra_username,
-                    password=self.cassandra_password
-                )
-                self.cluster = Cluster(
-                    contact_points=self.cassandra_host,
-                    auth_provider=auth_provider
-                )
-            else:
-                self.cluster = Cluster(contact_points=self.cassandra_host)
+            try:
+                if self.cassandra_username and self.cassandra_password:
+                    auth_provider = PlainTextAuthProvider(
+                        username=self.cassandra_username,
+                        password=self.cassandra_password
+                    )
+                    cluster = Cluster(
+                        contact_points=self.cassandra_host,
+                        auth_provider=auth_provider
+                    )
+                else:
+                    cluster = Cluster(contact_points=self.cassandra_host)
 
-            self.session = self.cluster.connect()
-            logger.info(f"Connected to Cassandra cluster at {self.cassandra_host}")
+                session = await asyncio.to_thread(cluster.connect)
+                self.cluster = cluster
+                self.session = session
+                logger.info(f"Connected to Cassandra cluster at {self.cassandra_host}")
 
-        except Exception as e:
-            logger.error(f"Failed to connect to Cassandra: {e}", exc_info=True)
-            raise
+            except Exception as e:
+                logger.error(f"Failed to connect to Cassandra: {e}", exc_info=True)
+                raise
 
     def sanitize_name(self, name: str) -> str:
         """Sanitize names for Cassandra compatibility"""
@@ -140,14 +145,17 @@ class Processor(FlowProcessor):
             f"for workspace {workspace}"
         )
 
-        # Replace existing schemas for this workspace
+        async with self._setup_lock:
+            await self._apply_schema_config(workspace, config)
+
+    async def _apply_schema_config(self, workspace, config):
+
         ws_schemas: Dict[str, RowSchema] = {}
         self.schemas[workspace] = ws_schemas
 
         builder = GraphQLSchemaBuilder()
         self.schema_builders[workspace] = builder
 
-        # Check if our config type exists
         if self.config_key not in config:
             logger.warning(
                 f"No '{self.config_key}' type in configuration "
@@ -156,16 +164,12 @@ class Processor(FlowProcessor):
             self.graphql_schemas[workspace] = None
             return
 
-        # Get the schemas dictionary for our type
         schemas_config = config[self.config_key]
 
-        # Process each schema in the schemas config
         for schema_name, schema_json in schemas_config.items():
             try:
-                # Parse the JSON schema definition
                 schema_def = json.loads(schema_json)
 
-                # Create Field objects
                 fields = []
                 for field_def in schema_def.get("fields", []):
                     field = SchemaField(
@@ -180,7 +184,6 @@ class Processor(FlowProcessor):
                     )
                     fields.append(field)
 
-                # Create RowSchema
                 row_schema = RowSchema(
                     name=schema_def.get("name", schema_name),
                     description=schema_def.get("description", ""),
@@ -202,7 +205,6 @@ class Processor(FlowProcessor):
             f"{len(ws_schemas)} schemas"
         )
 
-        # Regenerate GraphQL schema for this workspace
         self.graphql_schemas[workspace] = builder.build(self.query_cassandra)
 
     def get_index_names(self, schema: RowSchema) -> List[str]:
@@ -254,7 +256,7 @@ class Processor(FlowProcessor):
         For other queries, we need to scan and post-filter.
         """
         # Connect if needed
-        self.connect_cassandra()
+        await self.connect_cassandra()
 
         safe_keyspace = self.sanitize_name(workspace)
 

@@ -89,7 +89,8 @@ class TestSanitizeName:
 
 class TestFindCollection:
 
-    def test_finds_matching_collection(self):
+    @pytest.mark.asyncio
+    async def test_finds_matching_collection(self):
         proc = _make_processor()
         mock_coll = MagicMock()
         mock_coll.name = "rows_test_workspace_test_col_customers_384"
@@ -98,11 +99,12 @@ class TestFindCollection:
         mock_collections.collections = [mock_coll]
         proc.qdrant.get_collections.return_value = mock_collections
 
-        result = proc.find_collection("test-workspace", "test-col", "customers")
+        result = await proc.find_collection("test-workspace", "test-col", "customers")
 
         assert result == "rows_test_workspace_test_col_customers_384"
 
-    def test_returns_none_when_no_match(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_match(self):
         proc = _make_processor()
         mock_coll = MagicMock()
         mock_coll.name = "rows_other_workspace_other_col_schema_768"
@@ -111,14 +113,15 @@ class TestFindCollection:
         mock_collections.collections = [mock_coll]
         proc.qdrant.get_collections.return_value = mock_collections
 
-        result = proc.find_collection("test-workspace", "test-col", "customers")
+        result = await proc.find_collection("test-workspace", "test-col", "customers")
         assert result is None
 
-    def test_returns_none_on_error(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_on_error(self):
         proc = _make_processor()
         proc.qdrant.get_collections.side_effect = Exception("connection error")
 
-        result = proc.find_collection("workspace", "col", "schema")
+        result = await proc.find_collection("workspace", "col", "schema")
         assert result is None
 
 
@@ -139,7 +142,7 @@ class TestQueryRowEmbeddings:
     @pytest.mark.asyncio
     async def test_no_collection_returns_empty(self):
         proc = _make_processor()
-        proc.find_collection = MagicMock(return_value=None)
+        proc.find_collection = AsyncMock(return_value=None)
         request = _make_request()
 
         result = await proc.query_row_embeddings("test-workspace", request)
@@ -148,7 +151,7 @@ class TestQueryRowEmbeddings:
     @pytest.mark.asyncio
     async def test_successful_query_returns_matches(self):
         proc = _make_processor()
-        proc.find_collection = MagicMock(return_value="rows_w_c_s_384")
+        proc.find_collection = AsyncMock(return_value="rows_w_c_s_384")
 
         points = [
             _make_search_point("name", ["Alice Smith"], "Alice Smith", 0.95),
@@ -172,7 +175,7 @@ class TestQueryRowEmbeddings:
     async def test_index_name_filter_applied(self):
         """When index_name is specified, a Qdrant filter should be used."""
         proc = _make_processor()
-        proc.find_collection = MagicMock(return_value="rows_w_c_s_384")
+        proc.find_collection = AsyncMock(return_value="rows_w_c_s_384")
 
         mock_result = MagicMock()
         mock_result.points = []
@@ -188,7 +191,7 @@ class TestQueryRowEmbeddings:
     async def test_no_index_name_no_filter(self):
         """When index_name is empty, no filter should be applied."""
         proc = _make_processor()
-        proc.find_collection = MagicMock(return_value="rows_w_c_s_384")
+        proc.find_collection = AsyncMock(return_value="rows_w_c_s_384")
 
         mock_result = MagicMock()
         mock_result.points = []
@@ -204,7 +207,7 @@ class TestQueryRowEmbeddings:
     async def test_missing_payload_fields_default(self):
         """Points with missing payload fields should use defaults."""
         proc = _make_processor()
-        proc.find_collection = MagicMock(return_value="rows_w_c_s_384")
+        proc.find_collection = AsyncMock(return_value="rows_w_c_s_384")
 
         point = MagicMock()
         point.payload = {}  # Empty payload
@@ -225,7 +228,7 @@ class TestQueryRowEmbeddings:
     @pytest.mark.asyncio
     async def test_qdrant_error_propagates(self):
         proc = _make_processor()
-        proc.find_collection = MagicMock(return_value="rows_w_c_s_384")
+        proc.find_collection = AsyncMock(return_value="rows_w_c_s_384")
         proc.qdrant.query_points.side_effect = Exception("qdrant down")
 
         request = _make_request()
