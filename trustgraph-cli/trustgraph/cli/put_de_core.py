@@ -1,5 +1,6 @@
 """
-Puts a knowledge core into the knowledge manager via the API socket.
+Puts a document embeddings core into the knowledge manager via the API
+socket.
 """
 
 import argparse
@@ -14,34 +15,24 @@ default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def read_message(unpacked, id):
 
-    if unpacked[0] == "ge":
+    if unpacked[0] == "de":
         msg = unpacked[1]
-        return "ge", {
+        return {
             "metadata": {
                 "id": id,
                 "root": msg["m"]["m"],
                 "collection": "default",
             },
-            "entities": [
+            "chunks": [
                 {
-                    "entity": ent["e"],
-                    "vector": ent["v"],
+                    "chunk_id": ch["i"],
+                    "vector": ch["v"],
                 }
-                for ent in msg["e"]
+                for ch in msg["c"]
             ],
         }
-    elif unpacked[0] == "t":
-        msg = unpacked[1]
-        return "t", {
-            "metadata": {
-                "id": id,
-                "root": msg["m"]["m"],
-                "collection": "default",
-            },
-            "triples": msg["t"],
-        }
     else:
-        raise RuntimeError("Unpacked unexpected messsage type", unpacked[0])
+        raise RuntimeError("Unexpected message type", unpacked[0])
 
 def put(url, workspace, id, input, token=None):
 
@@ -49,8 +40,7 @@ def put(url, workspace, id, input, token=None):
     socket = api.socket()
 
     try:
-        ge = 0
-        t = 0
+        de = 0
 
         with open(input, "rb") as f:
 
@@ -63,20 +53,11 @@ def put(url, workspace, id, input, token=None):
                 except msgpack.OutOfData:
                     break
 
-                kind, msg = read_message(unpacked, id)
+                msg = read_message(unpacked, id)
+                de += 1
+                socket.put_de_core(id, document_embeddings=msg)
 
-                if kind == "ge":
-                    ge += 1
-                    socket.put_kg_core(id, graph_embeddings=msg)
-
-                elif kind == "t":
-                    t += 1
-                    socket.put_kg_core(id, triples=msg)
-
-                else:
-                    raise RuntimeError("Unexpected message kind", kind)
-
-        print(f"Put: {t} triple, {ge} GE messages.")
+        print(f"Put: {de} document embeddings messages.")
 
     finally:
         socket.close()
@@ -84,7 +65,7 @@ def put(url, workspace, id, input, token=None):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-put-kg-core',
+        prog='tg-put-de-core',
         description=__doc__,
     )
 
@@ -103,7 +84,7 @@ def main():
     parser.add_argument(
         '--id', '--identifier',
         required=True,
-        help=f'Knowledge core ID',
+        help=f'Document embeddings core ID',
     )
 
     parser.add_argument(

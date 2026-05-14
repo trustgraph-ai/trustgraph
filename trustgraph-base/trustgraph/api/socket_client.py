@@ -491,6 +491,58 @@ class SocketClient:
             triples=raw_triples,
         )
 
+    def get_kg_core(self, id: str) -> Iterator[Dict[str, Any]]:
+        request = {
+            "operation": "get-kg-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        for response in self._send_request_sync(
+            "knowledge", None, request, streaming_raw=True,
+        ):
+            if response.get("eos"):
+                break
+            yield response
+
+    def put_kg_core(
+        self, id: str, triples=None, graph_embeddings=None,
+    ) -> Dict[str, Any]:
+        request = {
+            "operation": "put-kg-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        if triples is not None:
+            request["triples"] = triples
+        if graph_embeddings is not None:
+            request["graph-embeddings"] = graph_embeddings
+        return self._send_request_sync("knowledge", None, request)
+
+    def get_de_core(self, id: str) -> Iterator[Dict[str, Any]]:
+        request = {
+            "operation": "get-de-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        for response in self._send_request_sync(
+            "knowledge", None, request, streaming_raw=True,
+        ):
+            if response.get("eos"):
+                break
+            yield response
+
+    def put_de_core(
+        self, id: str, document_embeddings=None,
+    ) -> Dict[str, Any]:
+        request = {
+            "operation": "put-de-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        if document_embeddings is not None:
+            request["document-embeddings"] = document_embeddings
+        return self._send_request_sync("knowledge", None, request)
+
     def close(self) -> None:
         """Close the persistent WebSocket connection."""
         if self._loop and not self._loop.is_closed():
