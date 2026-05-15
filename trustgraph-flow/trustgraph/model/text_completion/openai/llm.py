@@ -111,7 +111,7 @@ class Processor(LlmService):
                     code = body.get('error', {}).get('code')
                     if code in ('insufficient_quota', 'invalid_api_key', 'account_deactivated'):
                         raise RuntimeError(f"OpenAI unrecoverable error: {code} - {body['error'].get('message', '')}")
-            except Exception:
+            except (ValueError, KeyError, TypeError, AttributeError):
                 pass
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
@@ -204,7 +204,7 @@ class Processor(LlmService):
                     if code in ('insufficient_quota', 'invalid_api_key', 'account_deactivated'):
                         logger.warning(f"Hit unrecoverable rate limit error during streaming: {code}")
                         raise RuntimeError(f"OpenAI unrecoverable error: {code} - {body['error'].get('message', '')}")
-            except Exception:
+            except (ValueError, KeyError, TypeError, AttributeError):
                 pass
             logger.warning("Hit rate limit during streaming")
             raise TooManyRequests()
