@@ -4,11 +4,10 @@ Graph embeddings query service.  Input is vector, output is list of
 entities
 """
 
+import asyncio
 import logging
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
-from qdrant_client.models import Distance, VectorParams
 
 from .... schema import GraphEmbeddingsResponse, EntityMatch
 from .... schema import Error, Term, IRI, LITERAL
@@ -38,32 +37,6 @@ class Processor(GraphEmbeddingsQueryService):
         )
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
-        self.last_collection = None
-
-    def ensure_collection_exists(self, collection, dim):
-        """Ensure collection exists, create if it doesn't"""
-        if collection != self.last_collection:
-            if not self.qdrant.collection_exists(collection):
-                try:
-                    self.qdrant.create_collection(
-                        collection_name=collection,
-                        vectors_config=VectorParams(
-                            size=dim, distance=Distance.COSINE
-                        ),
-                    )
-                    logger.info(f"Created collection: {collection}")
-                except Exception as e:
-                    logger.error(f"Qdrant collection creation failed: {e}")
-                    raise e
-            self.last_collection = collection
-
-    def collection_exists(self, collection):
-        """Check if collection exists (no implicit creation)"""
-        return self.qdrant.collection_exists(collection)
-
-    def collection_exists(self, collection):
-        """Check if collection exists (no implicit creation)"""
-        return self.qdrant.collection_exists(collection)
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
@@ -79,23 +52,26 @@ class Processor(GraphEmbeddingsQueryService):
             if not vec:
                 return []
 
-            # Use dimension suffix in collection name
             dim = len(vec)
             collection = f"t_{workspace}_{msg.collection}_{dim}"
 
-            # Check if collection exists - return empty if not
-            if not self.collection_exists(collection):
+            exists = await asyncio.to_thread(
+                self.qdrant.collection_exists, collection
+            )
+            if not exists:
                 logger.info(f"Collection {collection} does not exist")
                 return []
 
             # Heuristic hack, get (2*limit), so that we have more chance
             # of getting (limit) unique entities
-            search_result = self.qdrant.query_points(
+            result = await asyncio.to_thread(
+                self.qdrant.query_points,
                 collection_name=collection,
                 query=vec,
                 limit=msg.limit * 2,
                 with_payload=True,
-            ).points
+            )
+            search_result = result.points
 
             entity_set = set()
             entities = []

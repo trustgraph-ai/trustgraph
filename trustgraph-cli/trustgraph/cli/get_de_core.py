@@ -1,6 +1,6 @@
 """
-Uses the knowledge service to fetch a knowledge core which is saved
-to a local file in msgpack format.
+Uses the knowledge service to fetch a document embeddings core which is
+saved to a local file in msgpack format.
 """
 
 import argparse
@@ -13,35 +13,21 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def write_triple(f, data):
+def write_de(f, data):
     msg = (
-        "t",
+        "de",
         {
             "m": {
                 "i": data["metadata"]["id"],
                 "m": data["metadata"]["root"],
                 "c": data["metadata"]["collection"],
             },
-            "t": data["triples"],
-        }
-    )
-    f.write(msgpack.packb(msg, use_bin_type=True))
-
-def write_ge(f, data):
-    msg = (
-        "ge",
-        {
-            "m": {
-                "i": data["metadata"]["id"],
-                "m": data["metadata"]["root"],
-                "c": data["metadata"]["collection"],
-            },
-            "e": [
+            "c": [
                 {
-                    "e": ent["entity"],
-                    "v": ent["vector"],
+                    "i": ch["chunk_id"],
+                    "v": ch["vector"],
                 }
-                for ent in data["entities"]
+                for ch in data["chunks"]
             ]
         }
     )
@@ -53,22 +39,17 @@ def fetch(url, workspace, id, output, token=None):
     socket = api.socket()
 
     try:
-        ge = 0
-        t = 0
+        de = 0
 
         with open(output, "wb") as f:
 
-            for response in socket.get_kg_core(id):
+            for response in socket.get_de_core(id):
 
-                if "triples" in response:
-                    t += 1
-                    write_triple(f, response["triples"])
+                if "document-embeddings" in response:
+                    de += 1
+                    write_de(f, response["document-embeddings"])
 
-                if "graph-embeddings" in response:
-                    ge += 1
-                    write_ge(f, response["graph-embeddings"])
-
-        print(f"Got: {t} triple, {ge} GE messages.")
+        print(f"Got: {de} document embeddings messages.")
 
     finally:
         socket.close()
@@ -76,7 +57,7 @@ def fetch(url, workspace, id, output, token=None):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-get-kg-core',
+        prog='tg-get-de-core',
         description=__doc__,
     )
 
@@ -95,7 +76,7 @@ def main():
     parser.add_argument(
         '--id', '--identifier',
         required=True,
-        help=f'Knowledge core ID',
+        help=f'Document embeddings core ID',
     )
 
     parser.add_argument(

@@ -457,6 +457,12 @@ for _op in ("put-kg-core", "delete-kg-core",
             "load-kg-core", "unload-kg-core"):
     _register_kind_op("knowledge", _op, "knowledge:write")
 
+# knowledge: document-embeddings core service.
+for _op in ("get-de-core", "list-de-cores"):
+    _register_kind_op("knowledge", _op, "knowledge:read")
+for _op in ("put-de-core", "delete-de-core", "load-de-core"):
+    _register_kind_op("knowledge", _op, "knowledge:write")
+
 
 # collection-management: workspace collection lifecycle.
 _register_kind_op("collection-management", "list-collections", "collections:read")

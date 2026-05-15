@@ -413,8 +413,8 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Assert
         expected_collection = 'd_cache_user_cache_collection_3'  # 3 dimensions
 
-        # Verify collection existence is checked on each write
-        mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
+        # Second write uses cached collection state — no collection_exists check
+        mock_qdrant_instance.collection_exists.assert_not_called()
 
         # But upsert should still be called
         mock_qdrant_instance.upsert.assert_called_once()

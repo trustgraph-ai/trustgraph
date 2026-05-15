@@ -16,10 +16,10 @@ Payload structure:
     - text: The text that was embedded (for debugging/display)
 """
 
+import asyncio
 import logging
 import re
 import uuid
-from typing import Set, Tuple
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, Distance, VectorParams
@@ -63,11 +63,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         # Register config handler for collection management
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-        # Cache of created Qdrant collections
-        self.created_collections: Set[str] = set()
-
-        # Qdrant client
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self._cache_lock = asyncio.Lock()
+        self._known_collections: set[str] = set()
 
     def sanitize_name(self, name: str) -> str:
         """Sanitize names for Qdrant collection naming"""
@@ -85,25 +83,28 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         safe_schema = self.sanitize_name(schema_name)
         return f"rows_{safe_user}_{safe_collection}_{safe_schema}_{dimension}"
 
-    def ensure_collection(self, collection_name: str, dimension: int):
+    async def ensure_collection(self, collection_name: str, dimension: int):
         """Create Qdrant collection if it doesn't exist"""
-        if collection_name in self.created_collections:
-            return
-
-        if not self.qdrant.collection_exists(collection_name):
-            logger.info(
-                f"Creating Qdrant collection {collection_name} "
-                f"with dimension {dimension}"
+        async with self._cache_lock:
+            if collection_name in self._known_collections:
+                return
+            exists = await asyncio.to_thread(
+                self.qdrant.collection_exists, collection_name
             )
-            self.qdrant.create_collection(
-                collection_name=collection_name,
-                vectors_config=VectorParams(
-                    size=dimension,
-                    distance=Distance.COSINE
+            if not exists:
+                logger.info(
+                    f"Creating Qdrant collection {collection_name} "
+                    f"with dimension {dimension}"
                 )
-            )
-
-        self.created_collections.add(collection_name)
+                await asyncio.to_thread(
+                    self.qdrant.create_collection,
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=dimension,
+                        distance=Distance.COSINE
+                    ),
+                )
+            self._known_collections.add(collection_name)
 
     async def on_embeddings(self, msg, consumer, flow):
         """Process incoming RowEmbeddings and write to Qdrant"""
@@ -143,15 +144,14 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
             dimension = len(vector)
 
-            # Create/get collection name (lazily on first vector)
             if qdrant_collection is None:
                 qdrant_collection = self.get_collection_name(
                     workspace, collection, schema_name, dimension
                 )
-                self.ensure_collection(qdrant_collection, dimension)
+                await self.ensure_collection(qdrant_collection, dimension)
 
-            # Write to Qdrant
-            self.qdrant.upsert(
+            await asyncio.to_thread(
+                self.qdrant.upsert,
                 collection_name=qdrant_collection,
                 points=[
                     PointStruct(
@@ -163,7 +163,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                             "text": row_emb.text
                         }
                     )
-                ]
+                ],
             )
             embeddings_written += 1
 
@@ -181,8 +181,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         try:
             prefix = f"rows_{self.sanitize_name(workspace)}_{self.sanitize_name(collection)}_"
 
-            # Get all collections and filter for matches
-            all_collections = self.qdrant.get_collections().collections
+            all_collections = await asyncio.to_thread(
+                lambda: self.qdrant.get_collections().collections
+            )
             matching_collections = [
                 coll.name for coll in all_collections
                 if coll.name.startswith(prefix)
@@ -192,8 +193,11 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                 logger.info(f"No Qdrant collections found matching prefix {prefix}")
             else:
                 for collection_name in matching_collections:
-                    self.qdrant.delete_collection(collection_name)
-                    self.created_collections.discard(collection_name)
+                    await asyncio.to_thread(
+                        self.qdrant.delete_collection, collection_name
+                    )
+                    async with self._cache_lock:
+                        self._known_collections.discard(collection_name)
                     logger.info(f"Deleted Qdrant collection: {collection_name}")
                 logger.info(
                     f"Deleted {len(matching_collections)} collection(s) "
@@ -217,8 +221,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                 f"{self.sanitize_name(collection)}_{self.sanitize_name(schema_name)}_"
             )
 
-            # Get all collections and filter for matches
-            all_collections = self.qdrant.get_collections().collections
+            all_collections = await asyncio.to_thread(
+                lambda: self.qdrant.get_collections().collections
+            )
             matching_collections = [
                 coll.name for coll in all_collections
                 if coll.name.startswith(prefix)
@@ -228,8 +233,11 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                 logger.info(f"No Qdrant collections found matching prefix {prefix}")
             else:
                 for collection_name in matching_collections:
-                    self.qdrant.delete_collection(collection_name)
-                    self.created_collections.discard(collection_name)
+                    await asyncio.to_thread(
+                        self.qdrant.delete_collection, collection_name
+                    )
+                    async with self._cache_lock:
+                        self._known_collections.discard(collection_name)
                     logger.info(f"Deleted Qdrant collection: {collection_name}")
 
         except Exception as e:

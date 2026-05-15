@@ -82,7 +82,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
         # Cache of known keyspaces and whether tables exist
         self.known_keyspaces: Set[str] = set()
-        self.tables_initialized: Set[str] = set()  # keyspaces with rows/row_partitions tables
+        self.tables_initialized: Set[str] = set()
 
         # Cache of registered (collection, schema_name) pairs
         self.registered_partitions: Set[Tuple[str, str]] = set()
@@ -93,6 +93,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         # Cassandra session
         self.cluster = None
         self.session = None
+
+        # Protects connection setup and cache mutations
+        self._setup_lock = asyncio.Lock()
 
     def connect_cassandra(self):
         """Connect to Cassandra cluster"""
@@ -125,6 +128,11 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             f"Loading schema configuration version {version} "
             f"for workspace {workspace}"
         )
+
+        async with self._setup_lock:
+            return await self._apply_schema_config(workspace, config, version)
+
+    async def _apply_schema_config(self, workspace, config, version):
 
         # Track which schemas changed in this workspace
         old_schemas = self.schemas.get(workspace, {})
@@ -391,16 +399,12 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         schema_name = obj.schema_name
         source = getattr(obj.metadata, 'source', '') or ''
 
-        # Ensure tables exist (sync DDL — push to a worker thread
-        # so the event loop stays responsive when running in a
-        # processor group sharing the loop with siblings).
-        await asyncio.to_thread(self.ensure_tables, keyspace)
-
-        # Register partitions if first time seeing this (collection, schema_name)
-        await asyncio.to_thread(
-            self.register_partitions,
-            keyspace, collection, schema_name, workspace,
-        )
+        async with self._setup_lock:
+            await asyncio.to_thread(self.ensure_tables, keyspace)
+            await asyncio.to_thread(
+                self.register_partitions,
+                keyspace, collection, schema_name, workspace,
+            )
 
         safe_keyspace = self.sanitize_name(keyspace)
 
@@ -461,34 +465,26 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
     async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """Create/verify collection exists in Cassandra row store"""
-        # Connect if not already connected (sync, push to thread)
-        await asyncio.to_thread(self.connect_cassandra)
-
-        # Ensure tables exist (sync DDL, push to thread)
-        await asyncio.to_thread(self.ensure_tables, workspace)
+        async with self._setup_lock:
+            await asyncio.to_thread(self.connect_cassandra)
+            await asyncio.to_thread(self.ensure_tables, workspace)
 
         logger.info(f"Collection {collection} ready for workspace {workspace}")
 
     async def delete_collection(self, workspace: str, collection: str):
         """Delete all data for a specific collection using partition tracking"""
-        # Connect if not already connected
-        await asyncio.to_thread(self.connect_cassandra)
+        async with self._setup_lock:
+            await asyncio.to_thread(self.connect_cassandra)
+            if workspace not in self.known_keyspaces:
+                safe_ks = self.sanitize_name(workspace)
+                check_cql = "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = %s"
+                result = await async_execute(self.session, check_cql, (safe_ks,))
+                if not result:
+                    logger.info(f"Keyspace {safe_ks} does not exist, nothing to delete")
+                    return
+                self.known_keyspaces.add(workspace)
 
         safe_keyspace = self.sanitize_name(workspace)
-
-        # Check if keyspace exists
-        if workspace not in self.known_keyspaces:
-            check_keyspace_cql = """
-            SELECT keyspace_name FROM system_schema.keyspaces
-            WHERE keyspace_name = %s
-            """
-            result = await async_execute(
-                self.session, check_keyspace_cql, (safe_keyspace,)
-            )
-            if not result:
-                logger.info(f"Keyspace {safe_keyspace} does not exist, nothing to delete")
-                return
-            self.known_keyspaces.add(workspace)
 
         # Discover all partitions for this collection
         select_partitions_cql = f"""
@@ -540,11 +536,11 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             logger.error(f"Failed to clean up row_partitions for {collection}: {e}")
             raise
 
-        # Clear from local cache
-        self.registered_partitions = {
-            (col, sch) for col, sch in self.registered_partitions
-            if col != collection
-        }
+        async with self._setup_lock:
+            self.registered_partitions = {
+                (col, sch) for col, sch in self.registered_partitions
+                if col != collection
+            }
 
         logger.info(
             f"Deleted collection {collection}: {partitions_deleted} partitions "
@@ -553,8 +549,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
     async def delete_collection_schema(self, workspace: str, collection: str, schema_name: str):
         """Delete all data for a specific collection + schema combination"""
-        # Connect if not already connected
-        await asyncio.to_thread(self.connect_cassandra)
+        async with self._setup_lock:
+            await asyncio.to_thread(self.connect_cassandra)
 
         safe_keyspace = self.sanitize_name(workspace)
 
@@ -614,8 +610,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             )
             raise
 
-        # Clear from local cache
-        self.registered_partitions.discard((collection, schema_name))
+        async with self._setup_lock:
+            self.registered_partitions.discard((collection, schema_name))
 
         logger.info(
             f"Deleted {collection}/{schema_name}: {partitions_deleted} partitions "

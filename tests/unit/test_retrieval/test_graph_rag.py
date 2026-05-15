@@ -338,6 +338,57 @@ class TestQuery:
         mock_cache.put.assert_called_once_with(cache_key, "unlabeled_entity")
 
     @pytest.mark.asyncio
+    async def test_triples_query_never_passes_workspace(self):
+        """Workspace isolation is handled by pub/sub topic routing, not
+        by passing workspace to TriplesClient.query(). Verify that
+        GraphRAG never passes workspace as a keyword argument."""
+        mock_rag = MagicMock()
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None
+        mock_rag.label_cache = mock_cache
+        mock_triples_client = AsyncMock()
+        mock_rag.triples_client = mock_triples_client
+
+        mock_triple = MagicMock()
+        mock_triple.o = "Label"
+        mock_triples_client.query.return_value = [mock_triple]
+
+        query = Query(
+            rag=mock_rag,
+            collection="test_collection",
+            verbose=False
+        )
+
+        await query.maybe_label("http://example.com/entity")
+
+        for c in mock_triples_client.query.call_args_list:
+            assert "workspace" not in c.kwargs
+
+    @pytest.mark.asyncio
+    async def test_follow_edges_never_passes_workspace(self):
+        """Verify follow_edges never passes workspace to query_stream."""
+        mock_rag = MagicMock()
+        mock_triples_client = AsyncMock()
+        mock_rag.triples_client = mock_triples_client
+
+        mock_triple = MagicMock()
+        mock_triple.s, mock_triple.p, mock_triple.o = "e1", "p1", "o1"
+        mock_triples_client.query_stream.return_value = [mock_triple]
+
+        query = Query(
+            rag=mock_rag,
+            collection="test_collection",
+            verbose=False,
+            triple_limit=10
+        )
+
+        subgraph = set()
+        await query.follow_edges("e1", subgraph, path_length=1)
+
+        for c in mock_triples_client.query_stream.call_args_list:
+            assert "workspace" not in c.kwargs
+
+    @pytest.mark.asyncio
     async def test_follow_edges_basic_functionality(self):
         """Test Query.follow_edges method basic triple discovery"""
         mock_rag = MagicMock()

@@ -121,10 +121,13 @@ class TestRowsCassandraStorageLogic:
     @pytest.mark.asyncio
     async def test_schema_config_parsing(self):
         """Test parsing of schema configurations"""
+        import asyncio
         processor = MagicMock()
         processor.schemas = {}
         processor.config_key = "schema"
         processor.registered_partitions = set()
+        processor._setup_lock = asyncio.Lock()
+        processor._apply_schema_config = Processor._apply_schema_config.__get__(processor, Processor)
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
 
         # Create test configuration

@@ -113,12 +113,15 @@ class TestDocEmbeddingsNullProtection:
 
     @pytest.mark.asyncio
     async def test_valid_embedding_upserted(self):
+        import asyncio
         from trustgraph.storage.doc_embeddings.qdrant.write import Processor
 
         proc = Processor.__new__(Processor)
         proc.qdrant = MagicMock()
         proc.qdrant.collection_exists.return_value = True
         proc.collection_exists = MagicMock(return_value=True)
+        proc._cache_lock = asyncio.Lock()
+        proc._known_collections = set()
 
         msg = MagicMock()
         msg.metadata.collection = "col1"
@@ -134,12 +137,15 @@ class TestDocEmbeddingsNullProtection:
     @pytest.mark.asyncio
     async def test_dimension_in_collection_name(self):
         """Collection name should include vector dimension."""
+        import asyncio
         from trustgraph.storage.doc_embeddings.qdrant.write import Processor
 
         proc = Processor.__new__(Processor)
         proc.qdrant = MagicMock()
         proc.qdrant.collection_exists.return_value = True
         proc.collection_exists = MagicMock(return_value=True)
+        proc._cache_lock = asyncio.Lock()
+        proc._known_collections = set()
 
         msg = MagicMock()
         msg.metadata.collection = "docs"
@@ -220,12 +226,15 @@ class TestGraphEmbeddingsNullProtection:
 
     @pytest.mark.asyncio
     async def test_valid_entity_and_vector_upserted(self):
+        import asyncio
         from trustgraph.storage.graph_embeddings.qdrant.write import Processor
 
         proc = Processor.__new__(Processor)
         proc.qdrant = MagicMock()
         proc.qdrant.collection_exists.return_value = True
         proc.collection_exists = MagicMock(return_value=True)
+        proc._cache_lock = asyncio.Lock()
+        proc._known_collections = set()
 
         msg = MagicMock()
         msg.metadata.collection = "col1"
@@ -241,12 +250,15 @@ class TestGraphEmbeddingsNullProtection:
 
     @pytest.mark.asyncio
     async def test_lazy_collection_creation_on_new_dimension(self):
+        import asyncio
         from trustgraph.storage.graph_embeddings.qdrant.write import Processor
 
         proc = Processor.__new__(Processor)
         proc.qdrant = MagicMock()
         proc.qdrant.collection_exists.return_value = False
         proc.collection_exists = MagicMock(return_value=True)
+        proc._cache_lock = asyncio.Lock()
+        proc._known_collections = set()
 
         msg = MagicMock()
         msg.metadata.collection = "graphs"
