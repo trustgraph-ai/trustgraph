@@ -365,7 +365,7 @@ class Library:
                     id = v["id"],
                     time = datetime.datetime.fromtimestamp(v["time"]),
                     kind = v["kind"],
-                    title = v["title"],
+                    title = v.get("title", ""),
                     comments = v.get("comments", ""),
                     metadata = [
                         Triple(
@@ -482,14 +482,15 @@ class Library:
             "workspace": self.api.workspace,
             "document-metadata": {
                 "document-id": id,
-                "time": metadata.time,
+                "id": id,
+                "time": int(metadata.time.timestamp()) if hasattr(metadata.time, 'timestamp') else metadata.time,
                 "title": metadata.title,
                 "comments": metadata.comments,
                 "metadata": [
                     {
-                        "s": from_value(t["s"]),
-                        "p": from_value(t["p"]),
-                        "o": from_value(t["o"]),
+                        "s": from_value(t.s),
+                        "p": from_value(t.p),
+                        "o": from_value(t.o),
                     }
                     for t in metadata.metadata
                 ],
@@ -498,14 +499,17 @@ class Library:
         }
 
         object = self.request(input)
-        doc = object["document-metadata"]
+        doc = object.get("document-metadata") if isinstance(object, dict) else None
+
+        if not doc:
+            return metadata
 
         try:
-            DocumentMetadata(
+            return DocumentMetadata(
                 id = doc["id"],
                 time = datetime.datetime.fromtimestamp(doc["time"]),
                 kind = doc["kind"],
-                title = doc["title"],
+                title = doc.get("title", ""),
                 comments = doc.get("comments", ""),
                 metadata = [
                     Triple(
@@ -513,10 +517,11 @@ class Library:
                         p = to_value(w["p"]),
                         o = to_value(w["o"])
                     )
-                    for w in doc["metadata"]
+                    for w in doc.get("metadata", [])
                 ],
-                workspace = doc.get("workspace", ""),
-                tags = doc["tags"]
+                tags = doc.get("tags", []),
+                parent_id = doc.get("parent-id", ""),
+                document_type = doc.get("document-type", "source"),
             )
         except Exception as e:
             logger.error("Failed to parse document update response", exc_info=True)
