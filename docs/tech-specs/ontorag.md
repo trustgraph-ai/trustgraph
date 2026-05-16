@@ -278,7 +278,7 @@ The system uses **FAISS (Facebook AI Similarity Search)** with IndexFlatIP for e
 3. **Similarity Search**:
    - For each text segment embedding, search the vector store
    - Retrieve top-k (e.g., 10) most similar ontology elements
-   - Apply similarity threshold (e.g., 0.7) to filter weak matches
+   - Apply similarity threshold (e.g., 0.3) to filter weak matches
    - Aggregate results across all segments, tracking match frequencies
 
 4. **Dependency Resolution**:

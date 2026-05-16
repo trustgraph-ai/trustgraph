@@ -121,6 +121,7 @@ class Processor(FlowProcessor):
         # Configuration
         self.top_k = params.get("top_k", 10)
         self.similarity_threshold = params.get("similarity_threshold", 0.3)
+        self.bypass_selector_below = params.get("bypass_selector_below", 5)
 
         # Per-workspace ontology version tracking
         self.current_ontology_versions = {}  # workspace -> version
@@ -187,7 +188,8 @@ class Processor(FlowProcessor):
                 ontology_embedder=ontology_embedder,
                 ontology_loader=loader,
                 top_k=self.top_k,
-                similarity_threshold=self.similarity_threshold
+                similarity_threshold=self.similarity_threshold,
+                bypass_selector_below=self.bypass_selector_below,
             )
 
             # Store flow-specific components
@@ -980,6 +982,13 @@ class Processor(FlowProcessor):
             type=float,
             default=0.3,
             help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
+        )
+        parser.add_argument(
+            '--bypass-selector-below',
+            type=int,
+            default=5,
+            help='Bypass ontology selector when total ontology elements '
+                 '(classes + properties) is below this value (default: 5)'
         )
         parser.add_argument(
             '--triples-batch-size',
