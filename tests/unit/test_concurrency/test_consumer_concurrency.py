@@ -272,23 +272,22 @@ class TestMetricsIntegration:
 class TestPollTimeout:
 
     @pytest.mark.asyncio
-    async def test_poll_timeout_is_100ms(self):
-        """Consumer receive timeout should be 100ms, not the original 2000ms.
+    async def test_poll_timeout_is_2000ms(self):
+        """Consumer receive timeout should be 2000ms.
 
-        A 2000ms poll timeout means every service adds up to 2s of idle
-        blocking between message bursts. With many sequential hops in a
-        query pipeline, this compounds into seconds of unnecessary latency.
-        100ms keeps responsiveness high without significant CPU overhead.
+        receive() is a blocking call that returns immediately when a
+        message arrives — the timeout only governs how often the loop
+        checks the shutdown flag during idle periods.  Lower values
+        (e.g. 100ms) generate excessive C++ client WARN logging with
+        no latency benefit.
         """
         consumer = _make_consumer()
 
-        # Wire up a mock Pulsar consumer that records the receive kwargs
         mock_pulsar_consumer = MagicMock()
         received_kwargs = {}
 
         def capture_receive(**kwargs):
             received_kwargs.update(kwargs)
-            # Stop after one call
             consumer.running = False
             raise type('Timeout', (Exception,), {})("timeout")
 
@@ -296,7 +295,7 @@ class TestPollTimeout:
 
         await consumer.consume_from_queue(mock_pulsar_consumer)
 
-        assert received_kwargs.get("timeout_millis") == 100
+        assert received_kwargs.get("timeout_millis") == 2000
 
 
 # ---------------------------------------------------------------------------
