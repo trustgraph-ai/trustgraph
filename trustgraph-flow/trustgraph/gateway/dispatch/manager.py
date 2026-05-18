@@ -135,19 +135,27 @@ class DispatcherWrapper:
 class DispatcherManager:
 
     def __init__(self, backend, config_receiver, auth,
-                 prefix="api-gateway", queue_overrides=None):
+                 prefix="api-gateway", queue_overrides=None, timeout=120):
         """
         ``auth`` is required.  It flows into the Mux for first-frame
         WebSocket authentication and into downstream dispatcher
         construction.  There is no permissive default — constructing
         a DispatcherManager without an authenticator would be a
         silent downgrade to no-auth on the socket path.
+
+        ``timeout`` is the per-request timeout in seconds, propagated
+        to every dispatcher created by this manager. Must match the
+        gateway's ``--timeout`` flag so that long-running requests
+        are not prematurely cut off at the old hard-coded 120 s
+        ceiling.
         """
         if auth is None:
             raise ValueError(
                 "DispatcherManager requires an 'auth' argument — there "
                 "is no no-auth mode"
             )
+
+        self.timeout = timeout
 
         self.backend = backend
         self.config_receiver = config_receiver
@@ -291,7 +299,7 @@ class DispatcherManager:
 
                     dispatcher = global_dispatchers[kind](
                         backend = self.backend,
-                        timeout = 120,
+                        timeout = self.timeout,
                         consumer = consumer_name,
                         subscriber = consumer_name,
                         request_queue = request_queue,
@@ -448,7 +456,7 @@ class DispatcherManager:
                             backend = self.backend,
                             request_queue = qconfig["request"],
                             response_queue = qconfig["response"],
-                            timeout = 120,
+                            timeout = self.timeout,
                             consumer = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                             subscriber = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                         )
