@@ -233,10 +233,10 @@ class IamAuth:
 
         header = request.headers.get("Authorization", "")
         if not header.startswith("Bearer "):
-            raise _auth_failure()
+            return await self._authenticate_anonymous()
         token = header[len("Bearer "):].strip()
         if not token:
-            raise _auth_failure()
+            return await self._authenticate_anonymous()
 
         # API keys always start with "tg_".  JWTs have two dots and
         # no "tg_" prefix.  Discriminate cheaply.
@@ -264,6 +264,26 @@ class IamAuth:
         # any roles / claims field is ignored here.
         return Identity(
             handle=sub, workspace=ws, principal_id=sub, source="jwt",
+        )
+
+    async def _authenticate_anonymous(self):
+        try:
+            async def _call(client):
+                return await client.authenticate_anonymous()
+            user_id, workspace, _roles = await self._with_client(_call)
+        except Exception as e:
+            logger.debug(
+                f"Anonymous authentication rejected: "
+                f"{type(e).__name__}: {e}"
+            )
+            raise _auth_failure()
+
+        if not user_id or not workspace:
+            raise _auth_failure()
+
+        return Identity(
+            handle=user_id, workspace=workspace,
+            principal_id=user_id, source="anonymous",
         )
 
     async def _resolve_api_key(self, plaintext):

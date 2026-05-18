@@ -165,22 +165,37 @@ class TestIamAuthDispatch:
     by shape of the bearer."""
 
     @pytest.mark.asyncio
-    async def test_no_authorization_header_raises_401(self):
+    async def test_no_authorization_header_tries_anonymous(self):
         auth = IamAuth(backend=Mock())
-        with pytest.raises(web.HTTPUnauthorized):
-            await auth.authenticate(make_request(None))
+
+        async def fake_with_client(op):
+            raise RuntimeError("auth-failed: anonymous access not permitted")
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authenticate(make_request(None))
 
     @pytest.mark.asyncio
-    async def test_non_bearer_header_raises_401(self):
+    async def test_non_bearer_header_tries_anonymous(self):
         auth = IamAuth(backend=Mock())
-        with pytest.raises(web.HTTPUnauthorized):
-            await auth.authenticate(make_request("Basic whatever"))
+
+        async def fake_with_client(op):
+            raise RuntimeError("auth-failed: anonymous access not permitted")
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authenticate(make_request("Basic whatever"))
 
     @pytest.mark.asyncio
-    async def test_empty_bearer_raises_401(self):
+    async def test_empty_bearer_tries_anonymous(self):
         auth = IamAuth(backend=Mock())
-        with pytest.raises(web.HTTPUnauthorized):
-            await auth.authenticate(make_request("Bearer "))
+
+        async def fake_with_client(op):
+            raise RuntimeError("auth-failed: anonymous access not permitted")
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authenticate(make_request("Bearer "))
 
     @pytest.mark.asyncio
     async def test_unknown_format_raises_401(self):
@@ -445,3 +460,121 @@ class TestAuthorise:
 
         # Different resource → different cache key → two IAM calls.
         assert calls["n"] == 2
+
+
+# -- Anonymous authentication boundary ------------------------------------
+
+
+class TestAnonymousAuthBoundary:
+    """The gateway must only attempt anonymous auth when no credential
+    is presented.  A malformed token must NOT fall through to the
+    anonymous path — that would let an attacker bypass a broken token
+    by simply sending garbage."""
+
+    @pytest.mark.asyncio
+    async def test_no_header_attempts_anonymous(self):
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            return await op(Mock(
+                authenticate_anonymous=AsyncMock(
+                    return_value=("anon", "default", ["reader"]),
+                )
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            ident = await auth.authenticate(make_request(None))
+        assert ident.handle == "anon"
+        assert ident.source == "anonymous"
+
+    @pytest.mark.asyncio
+    async def test_empty_bearer_attempts_anonymous(self):
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            return await op(Mock(
+                authenticate_anonymous=AsyncMock(
+                    return_value=("anon", "default", ["reader"]),
+                )
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            ident = await auth.authenticate(make_request("Bearer "))
+        assert ident.handle == "anon"
+        assert ident.source == "anonymous"
+
+    @pytest.mark.asyncio
+    async def test_malformed_token_does_not_fall_through_to_anonymous(self):
+        auth = IamAuth(backend=Mock())
+        called = {"anonymous": False}
+
+        original = auth._authenticate_anonymous
+
+        async def spy_anonymous():
+            called["anonymous"] = True
+            return await original()
+
+        auth._authenticate_anonymous = spy_anonymous
+
+        with pytest.raises(web.HTTPUnauthorized):
+            await auth.authenticate(make_request("Bearer garbage"))
+        assert not called["anonymous"]
+
+    @pytest.mark.asyncio
+    async def test_bad_api_key_does_not_fall_through_to_anonymous(self):
+        auth = IamAuth(backend=Mock())
+        called = {"anonymous": False}
+
+        async def spy_anonymous():
+            called["anonymous"] = True
+
+        auth._authenticate_anonymous = spy_anonymous
+
+        async def fake_with_client(op):
+            raise RuntimeError("auth-failed: unknown key")
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authenticate(make_request("Bearer tg_bad"))
+        assert not called["anonymous"]
+
+    @pytest.mark.asyncio
+    async def test_bad_jwt_does_not_fall_through_to_anonymous(self):
+        auth = IamAuth(backend=Mock())
+        auth._signing_public_pem = "not-a-real-pem"
+        called = {"anonymous": False}
+
+        async def spy_anonymous():
+            called["anonymous"] = True
+
+        auth._authenticate_anonymous = spy_anonymous
+
+        with pytest.raises(web.HTTPUnauthorized):
+            await auth.authenticate(make_request("Bearer a.b.c"))
+        assert not called["anonymous"]
+
+    @pytest.mark.asyncio
+    async def test_anonymous_rejected_by_iam_raises_401(self):
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            raise RuntimeError("auth-failed: anonymous access not permitted")
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authenticate(make_request(None))
+
+    @pytest.mark.asyncio
+    async def test_anonymous_with_empty_user_id_raises_401(self):
+        auth = IamAuth(backend=Mock())
+
+        async def fake_with_client(op):
+            return await op(Mock(
+                authenticate_anonymous=AsyncMock(
+                    return_value=("", "default", []),
+                )
+            ))
+
+        with patch.object(auth, "_with_client", side_effect=fake_with_client):
+            with pytest.raises(web.HTTPUnauthorized):
+                await auth.authenticate(make_request(None))
