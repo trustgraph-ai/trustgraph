@@ -139,6 +139,10 @@ class PulsarBackend:
         if api_key:
             client_args['authentication'] = pulsar.AuthenticationToken(api_key)
 
+        client_args['logger'] = pulsar.ConsoleLogger(
+            _pulsar.LoggerLevel.Error
+        )
+
         self.client = pulsar.Client(**client_args)
         logger.info(f"Pulsar client connected to {host}")
 

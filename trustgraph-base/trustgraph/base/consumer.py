@@ -188,7 +188,7 @@ class Consumer:
             try:
                 msg = await loop.run_in_executor(
                     executor,
-                    lambda: consumer.receive(timeout_millis=100),
+                    lambda: consumer.receive(timeout_millis=2000),
                 )
             except Exception as e:
                 # Handle timeout from any backend
