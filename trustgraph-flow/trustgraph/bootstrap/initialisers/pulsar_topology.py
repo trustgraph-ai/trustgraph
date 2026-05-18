@@ -112,6 +112,10 @@ class PulsarTopology(Initialiser):
     def _reconcile_sync(self, logger):
         if not self._tenant_exists():
             clusters = self._get_clusters()
+            if not clusters:
+                raise RuntimeError(
+                    "Pulsar cluster list is empty — broker not ready yet"
+                )
             logger.info(
                 f"Creating tenant {self.tenant!r} with clusters {clusters}"
             )

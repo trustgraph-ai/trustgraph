@@ -397,8 +397,8 @@ class IamService:
 
     async def auto_bootstrap_if_token_mode(self):
         """Called from the service processor at startup.  In
-        ``token`` mode, if tables are empty, seeds the default
-        workspace / admin / signing key using the operator-provided
+        ``token`` mode, if tables are empty, seeds the admin user,
+        API key, and signing key using the operator-provided
         bootstrap token.  The admin's API key plaintext is *the*
         ``bootstrap_token`` — the operator already knows it, nothing
         needs to be returned or logged.
@@ -408,7 +408,7 @@ class IamService:
         if self.bootstrap_mode != "token":
             return
 
-        if await self.table_store.any_workspace_exists():
+        if await self.table_store.any_signing_key_exists():
             logger.info(
                 "IAM: token mode, tables already populated; skipping "
                 "auto-bootstrap"
@@ -423,21 +423,12 @@ class IamService:
 
     async def _seed_tables(self, api_key_plaintext):
         """Shared seeding logic used by token-mode auto-bootstrap and
-        bootstrap-mode handle_bootstrap.  Creates the default
-        workspace, admin user, admin API key (using the given
-        plaintext), and an initial signing key.  Returns the admin
+        bootstrap-mode handle_bootstrap.  Creates the admin user,
+        admin API key (using the given plaintext), and an initial
+        signing key.  The workspace is created separately by the
+        bootstrapper's WorkspaceInit initialiser.  Returns the admin
         user id."""
         now = _now_dt()
-
-        await self.table_store.put_workspace(
-            id=DEFAULT_WORKSPACE,
-            name="Default",
-            enabled=True,
-            created=now,
-        )
-
-        if self._on_workspace_created:
-            await self._on_workspace_created(DEFAULT_WORKSPACE)
 
         admin_user_id = str(uuid.uuid4())
         admin_password = secrets.token_urlsafe(32)
@@ -491,7 +482,7 @@ class IamService:
         if self.bootstrap_mode != "bootstrap":
             return _err("auth-failed", "auth failure")
 
-        if await self.table_store.any_workspace_exists():
+        if await self.table_store.any_signing_key_exists():
             return _err("auth-failed", "auth failure")
 
         plaintext = _generate_api_key()
@@ -531,7 +522,7 @@ class IamService:
         instead of forcing callers to probe the masked-failure path."""
         available = (
             self.bootstrap_mode == "bootstrap"
-            and not await self.table_store.any_workspace_exists()
+            and not await self.table_store.any_signing_key_exists()
         )
         return IamResponse(bootstrap_available=available)
 
