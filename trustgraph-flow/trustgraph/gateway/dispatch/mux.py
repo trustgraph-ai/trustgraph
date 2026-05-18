@@ -57,16 +57,13 @@ class Mux:
         (important for browsers, which treat a handshake-time 401
         as terminal)."""
         token = data.get("token", "")
-        if not token:
-            await self.ws.send_json({
-                "type": "auth-failed",
-                "error": "auth failure",
-            })
-            return
 
         class _Shim:
             def __init__(self, tok):
-                self.headers = {"Authorization": f"Bearer {tok}"}
+                self.headers = (
+                    {"Authorization": f"Bearer {tok}"} if tok
+                    else {}
+                )
 
         try:
             identity = await self.auth.authenticate(_Shim(token))

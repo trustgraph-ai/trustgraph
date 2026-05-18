@@ -287,6 +287,9 @@ class IamService:
         op = v.operation
 
         try:
+            if op == "authenticate-anonymous":
+                return _err("auth-failed", "anonymous access not permitted")
+
             if op == "bootstrap":
                 return await self.handle_bootstrap(v)
             if op == "bootstrap-status":

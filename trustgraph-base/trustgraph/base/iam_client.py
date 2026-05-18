@@ -62,6 +62,22 @@ class IamClient(RequestResponse):
         )
         return resp.user
 
+    async def authenticate_anonymous(self, timeout=IAM_TIMEOUT):
+        """Request anonymous access from the IAM regime.
+
+        Returns ``(user_id, workspace, roles)`` if the regime permits
+        anonymous access, or raises ``RuntimeError`` with error type
+        ``auth-failed`` if it does not."""
+        resp = await self._request(
+            operation="authenticate-anonymous",
+            timeout=timeout,
+        )
+        return (
+            resp.resolved_user_id,
+            resp.resolved_workspace,
+            list(resp.resolved_roles),
+        )
+
     async def resolve_api_key(self, api_key, timeout=IAM_TIMEOUT):
         """Resolve a plaintext API key to its identity triple.
 

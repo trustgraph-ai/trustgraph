@@ -137,12 +137,6 @@ class SocketClient:
         if self._connected:
             return
 
-        if not self.token:
-            raise ProtocolException(
-                "SocketClient requires a token for first-frame auth "
-                "against /api/v1/socket"
-            )
-
         ws_url = self._build_ws_url()
         self._connect_cm = websockets.connect(
             ws_url, ping_interval=20, ping_timeout=self.timeout
@@ -153,7 +147,7 @@ class SocketClient:
         # auth-ok / auth-failed response isn't consumed by the reader
         # loop's id-based routing.
         await self._socket.send(json.dumps({
-            "type": "auth", "token": self.token,
+            "type": "auth", "token": self.token or "",
         }))
         try:
             raw = await asyncio.wait_for(
