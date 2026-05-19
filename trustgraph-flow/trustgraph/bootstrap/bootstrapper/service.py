@@ -326,6 +326,58 @@ class Processor(AsyncProcessor):
     # Main loop.
     # ------------------------------------------------------------------
 
+    async def _run_pre_service(self):
+        """Run pre-service initialisers before opening pub/sub clients.
+
+        These bring up infrastructure that other services depend on
+        (e.g. Pulsar tenant/namespaces).  They use out-of-band APIs
+        (HTTP admin), not pub/sub, so they don't need a config client.
+        They run without flag tracking — they must be idempotent.
+        """
+        pre_specs = [
+            s for s in self.specs
+            if not s.instance.wait_for_services
+        ]
+        if not pre_specs:
+            return
+
+        for spec in pre_specs:
+            child_logger = logger.getChild(spec.name)
+            child_ctx = InitContext(
+                logger=child_logger,
+                config=None,
+                make_flow_client=self._make_flow_client,
+                make_iam_client=self._make_iam_client,
+            )
+            child_logger.info(f"Running pre-service initialiser")
+            try:
+                await spec.instance.run(child_ctx, None, spec.flag)
+                child_logger.info(f"Pre-service initialiser completed")
+            except Exception as e:
+                child_logger.error(
+                    f"Pre-service initialiser failed: "
+                    f"{type(e).__name__}: {e}",
+                    exc_info=True,
+                )
+                raise
+
+    async def start(self):
+        # Run pre-service initialisers before opening any pub/sub
+        # connections.  They bring up infrastructure (Pulsar
+        # namespaces, etc.) that super().start() depends on.
+        while self.running:
+            try:
+                await self._run_pre_service()
+                break
+            except Exception as e:
+                logger.info(
+                    f"Pre-service initialisation failed "
+                    f"({type(e).__name__}: {e}); retry in {GATE_BACKOFF}s"
+                )
+                await asyncio.sleep(GATE_BACKOFF)
+
+        await super().start()
+
     async def run(self):
 
         logger.info(
@@ -347,29 +399,18 @@ class Processor(AsyncProcessor):
                 continue
 
             try:
-                # Phase 1: pre-service initialisers run unconditionally.
-                pre_specs = [
-                    s for s in self.specs
-                    if not s.instance.wait_for_services
-                ]
-                pre_results = {}
-                for spec in pre_specs:
-                    pre_results[spec.name] = await self._run_spec(
-                        spec, config,
-                    )
-
-                # Phase 2: gate.
+                # Phase 1: gate.
                 gate_ok = await self._gate_ready(config)
 
-                # Phase 3: post-service initialisers, if gate passed.
-                post_results = {}
+                # Phase 2: post-service initialisers, if gate passed.
+                results = {}
                 if gate_ok:
                     post_specs = [
                         s for s in self.specs
                         if s.instance.wait_for_services
                     ]
                     for spec in post_specs:
-                        post_results[spec.name] = await self._run_spec(
+                        results[spec.name] = await self._run_spec(
                             spec, config,
                         )
 
@@ -377,8 +418,7 @@ class Processor(AsyncProcessor):
                 if not gate_ok:
                     sleep_for = GATE_BACKOFF
                 else:
-                    all_results = {**pre_results, **post_results}
-                    if any(r != "skip" for r in all_results.values()):
+                    if any(r != "skip" for r in results.values()):
                         sleep_for = INIT_RETRY
                     else:
                         sleep_for = STEADY_INTERVAL
