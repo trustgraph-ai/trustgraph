@@ -76,8 +76,10 @@ class Consumer:
 
         if hasattr(self, "consumer"):
             if self.consumer:
-                self.consumer.unsubscribe()
-                self.consumer.close()
+                try:
+                    self.consumer.close()
+                except Exception:
+                    pass
                 self.consumer = None
 
     async def stop(self):
@@ -157,12 +159,14 @@ class Consumer:
             except Exception as e:
 
                 logger.error(f"Consumer loop exception: {e}", exc_info=True)
-                for c in consumers:
+                for i, c in enumerate(consumers):
                     try:
-                        c.unsubscribe()
                         c.close()
-                    except Exception:
-                        pass
+                    except Exception as ce:
+                        logger.warning(
+                            f"Consumer {i} close failed (error path): "
+                            f"{type(ce).__name__}: {ce}"
+                        )
                 for ex in executors:
                     ex.shutdown(wait=False)
                 consumers = []
@@ -171,12 +175,14 @@ class Consumer:
                 continue
 
             finally:
-                for c in consumers:
+                for i, c in enumerate(consumers):
                     try:
-                        c.unsubscribe()
                         c.close()
-                    except Exception:
-                        pass
+                    except Exception as ce:
+                        logger.warning(
+                            f"Consumer {i} close failed: "
+                            f"{type(ce).__name__}: {ce}"
+                        )
                 for ex in executors:
                     ex.shutdown(wait=False)
 

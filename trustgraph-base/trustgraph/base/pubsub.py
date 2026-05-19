@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 # Default connection settings from environment
 DEFAULT_PULSAR_HOST = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 DEFAULT_PULSAR_API_KEY = os.getenv("PULSAR_API_KEY", None)
+DEFAULT_PULSAR_ADMIN_URL = os.getenv("PULSAR_ADMIN_URL", 'http://pulsar:8080')
 
 DEFAULT_RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", 'rabbitmq')
 DEFAULT_RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", '5672'))
@@ -43,6 +44,7 @@ def get_pubsub(**config: Any) -> Any:
             host=config.get('pulsar_host', DEFAULT_PULSAR_HOST),
             api_key=config.get('pulsar_api_key', DEFAULT_PULSAR_API_KEY),
             listener=config.get('pulsar_listener'),
+            admin_url=config.get('pulsar_admin_url', DEFAULT_PULSAR_ADMIN_URL),
         )
     elif backend_type == 'rabbitmq':
         from .rabbitmq_backend import RabbitMQBackend
@@ -77,6 +79,7 @@ def get_pubsub(**config: Any) -> Any:
 
 
 STANDALONE_PULSAR_HOST = 'pulsar://localhost:6650'
+STANDALONE_PULSAR_ADMIN_URL = 'http://localhost:8080'
 
 
 def add_pubsub_args(parser: ArgumentParser, standalone: bool = False) -> None:
@@ -88,6 +91,7 @@ def add_pubsub_args(parser: ArgumentParser, standalone: bool = False) -> None:
                     that run outside containers)
     """
     pulsar_host = STANDALONE_PULSAR_HOST if standalone else DEFAULT_PULSAR_HOST
+    pulsar_admin_url = STANDALONE_PULSAR_ADMIN_URL if standalone else DEFAULT_PULSAR_ADMIN_URL
     pulsar_listener = 'localhost' if standalone else None
     rabbitmq_host = 'localhost' if standalone else DEFAULT_RABBITMQ_HOST
     kafka_bootstrap = 'localhost:9092' if standalone else DEFAULT_KAFKA_BOOTSTRAP
@@ -103,6 +107,12 @@ def add_pubsub_args(parser: ArgumentParser, standalone: bool = False) -> None:
         '-p', '--pulsar-host',
         default=pulsar_host,
         help=f'Pulsar host (default: {pulsar_host})',
+    )
+
+    parser.add_argument(
+        '--pulsar-admin-url',
+        default=pulsar_admin_url,
+        help=f'Pulsar admin REST API URL (default: {pulsar_admin_url})',
     )
 
     parser.add_argument(
