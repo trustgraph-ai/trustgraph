@@ -5,9 +5,15 @@ Evaluates rdflib algebra expression nodes against a solution (variable
 binding) to produce a value or boolean result.
 """
 
+import hashlib
+import math
+import random
 import re
 import logging
 import operator
+import uuid
+from datetime import datetime, date, timezone
+from urllib.parse import quote
 
 from rdflib.term import Variable, URIRef, Literal, BNode
 from rdflib.plugins.sparql.parserutils import CompValue
@@ -17,23 +23,31 @@ from . parser import rdflib_term_to_term
 
 logger = logging.getLogger(__name__)
 
+_exists_callback = None
+
 
 class ExpressionError(Exception):
     """Raised when a SPARQL expression cannot be evaluated."""
     pass
 
 
-def evaluate_expression(expr, solution):
+def evaluate_expression(expr, solution, exists_cb=None):
     """
     Evaluate a SPARQL expression against a solution binding.
 
     Args:
         expr: rdflib algebra expression node
         solution: dict mapping variable names to Term values
+        exists_cb: optional callback(graph_node, solution) -> bool for
+            EXISTS/NOT EXISTS evaluation; provided by algebra.py
 
     Returns:
         The result value (Term, bool, number, string, or None)
     """
+    global _exists_callback
+    if exists_cb is not None:
+        _exists_callback = exists_cb
+
     if expr is None:
         return True
 
@@ -119,15 +133,7 @@ def _evaluate_comp_value(node, solution):
     if name == "Function":
         return _eval_function(node, solution)
 
-    # Exists / NotExists
-    if name == "Builtin_EXISTS":
-        # EXISTS requires graph pattern evaluation - not handled here
-        logger.warning("EXISTS not supported in filter expressions")
-        return True
-
-    if name == "Builtin_NOTEXISTS":
-        logger.warning("NOT EXISTS not supported in filter expressions")
-        return True
+    # Exists / NotExists — handled via _eval_builtin now
 
     # TrueFilter (used with OPTIONAL)
     if name == "TrueFilter":
@@ -335,6 +341,197 @@ def _eval_builtin(name, node, solution):
                 return val
         return None
 
+    if builtin == "YEAR":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        return dt.year if dt is not None else None
+
+    if builtin == "MONTH":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        return dt.month if dt is not None else None
+
+    if builtin == "DAY":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        return dt.day if dt is not None else None
+
+    if builtin == "HOURS":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        if dt is None:
+            return None
+        return dt.hour if isinstance(dt, datetime) else 0
+
+    if builtin == "MINUTES":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        if dt is None:
+            return None
+        return dt.minute if isinstance(dt, datetime) else 0
+
+    if builtin == "SECONDS":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        if dt is None:
+            return None
+        return dt.second if isinstance(dt, datetime) else 0
+
+    if builtin == "FLOOR":
+        val = _to_numeric(evaluate_expression(node.arg, solution))
+        if val is None:
+            return None
+        return int(math.floor(val))
+
+    if builtin == "CEIL":
+        val = _to_numeric(evaluate_expression(node.arg, solution))
+        if val is None:
+            return None
+        return int(math.ceil(val))
+
+    if builtin == "ABS":
+        val = _to_numeric(evaluate_expression(node.arg, solution))
+        if val is None:
+            return None
+        return abs(val)
+
+    if builtin == "ROUND":
+        val = _to_numeric(evaluate_expression(node.arg, solution))
+        if val is None:
+            return None
+        return round(val)
+
+    if builtin == "STRBEFORE":
+        string = _to_string(evaluate_expression(node.arg1, solution))
+        sep = _to_string(evaluate_expression(node.arg2, solution))
+        idx = string.find(sep)
+        if idx < 0:
+            return Term(type=LITERAL, value="")
+        return Term(type=LITERAL, value=string[:idx])
+
+    if builtin == "STRAFTER":
+        string = _to_string(evaluate_expression(node.arg1, solution))
+        sep = _to_string(evaluate_expression(node.arg2, solution))
+        idx = string.find(sep)
+        if idx < 0:
+            return Term(type=LITERAL, value="")
+        return Term(type=LITERAL, value=string[idx + len(sep):])
+
+    if builtin == "ENCODE_FOR_URI":
+        val = _to_string(evaluate_expression(node.arg, solution))
+        return Term(type=LITERAL, value=quote(val, safe=""))
+
+    if builtin == "REPLACE":
+        string = _to_string(evaluate_expression(node.arg, solution))
+        pattern = _to_string(evaluate_expression(node.pattern, solution))
+        replacement = _to_string(
+            evaluate_expression(node.replacement, solution)
+        )
+        flags_str = ""
+        if hasattr(node, "flags") and node.flags is not None:
+            flags_str = _to_string(evaluate_expression(node.flags, solution))
+        re_flags = 0
+        if "i" in flags_str:
+            re_flags |= re.IGNORECASE
+        if "m" in flags_str:
+            re_flags |= re.MULTILINE
+        if "s" in flags_str:
+            re_flags |= re.DOTALL
+        try:
+            result = re.sub(pattern, replacement, string, flags=re_flags)
+            return Term(type=LITERAL, value=result)
+        except re.error:
+            return None
+
+    if builtin == "SUBSTR":
+        string = _to_string(evaluate_expression(node.arg, solution))
+        start = _to_numeric(evaluate_expression(node.start, solution))
+        if start is None:
+            return None
+        start_idx = max(int(start) - 1, 0)
+        if hasattr(node, "length") and node.length is not None:
+            length = _to_numeric(evaluate_expression(node.length, solution))
+            if length is None:
+                return None
+            return Term(
+                type=LITERAL, value=string[start_idx:start_idx + int(length)]
+            )
+        return Term(type=LITERAL, value=string[start_idx:])
+
+    if builtin == "EXISTS":
+        if _exists_callback is not None:
+            return _exists_callback(node.graph, solution)
+        logger.warning("EXISTS requires an exists_cb; not available")
+        return True
+
+    if builtin == "NOTEXISTS":
+        if _exists_callback is not None:
+            return not _exists_callback(node.graph, solution)
+        logger.warning("NOT EXISTS requires an exists_cb; not available")
+        return True
+
+    if builtin == "LANGMATCHES":
+        tag = _to_string(evaluate_expression(node.arg1, solution))
+        rng = _to_string(evaluate_expression(node.arg2, solution))
+        if rng == "*":
+            return len(tag) > 0
+        return tag.lower().startswith(rng.lower())
+
+    if builtin == "IRI" or builtin == "URI":
+        val = _to_string(evaluate_expression(node.arg, solution))
+        return Term(type=IRI, iri=val)
+
+    if builtin == "BNODE":
+        if hasattr(node, "arg") and node.arg is not None:
+            label = _to_string(evaluate_expression(node.arg, solution))
+            return Term(type=BLANK, id=label)
+        return Term(type=BLANK, id=str(uuid.uuid4()))
+
+    if builtin == "NOW":
+        now = datetime.now(timezone.utc)
+        return Term(
+            type=LITERAL,
+            value=now.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            datatype="http://www.w3.org/2001/XMLSchema#dateTime",
+        )
+
+    if builtin == "TZ":
+        dt = _to_datetime(evaluate_expression(node.arg, solution))
+        if dt is None:
+            return Term(type=LITERAL, value="")
+        if dt.tzinfo is not None:
+            offset = dt.strftime("%z")
+            if offset:
+                return Term(type=LITERAL, value=offset[:3] + ":" + offset[3:])
+        return Term(type=LITERAL, value="")
+
+    if builtin == "RAND":
+        return random.random()
+
+    if builtin == "UUID":
+        return Term(type=IRI, iri="urn:uuid:" + str(uuid.uuid4()))
+
+    if builtin == "STRUUID":
+        return Term(type=LITERAL, value=str(uuid.uuid4()))
+
+    if builtin == "MD5":
+        val = _to_string(evaluate_expression(node.arg, solution))
+        return Term(
+            type=LITERAL, value=hashlib.md5(val.encode()).hexdigest()
+        )
+
+    if builtin == "SHA1":
+        val = _to_string(evaluate_expression(node.arg, solution))
+        return Term(
+            type=LITERAL, value=hashlib.sha1(val.encode()).hexdigest()
+        )
+
+    if builtin == "SHA256":
+        val = _to_string(evaluate_expression(node.arg, solution))
+        return Term(
+            type=LITERAL, value=hashlib.sha256(val.encode()).hexdigest()
+        )
+
+    if builtin == "SHA512":
+        val = _to_string(evaluate_expression(node.arg, solution))
+        return Term(
+            type=LITERAL, value=hashlib.sha512(val.encode()).hexdigest()
+        )
+
     if builtin == "sameTerm":
         left = evaluate_expression(node.arg1, solution)
         right = evaluate_expression(node.arg2, solution)
@@ -451,6 +648,27 @@ def _to_numeric(val):
             return int(val)
         except (ValueError, TypeError):
             return None
+    return None
+
+
+def _to_datetime(val):
+    """Convert a value to a date or datetime object."""
+    if val is None:
+        return None
+    s = _to_string(val)
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        pass
     return None
 
 
