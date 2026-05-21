@@ -125,6 +125,13 @@ def _evaluate_comp_value(node, solution):
     if name == "MultiplicativeExpression":
         return _eval_multiplicative(node, solution)
 
+    # IN / NOT IN — must be checked before the generic Builtin_ dispatch
+    if name == "Builtin_IN":
+        return _eval_in(node, solution)
+
+    if name == "Builtin_NOTIN":
+        return not _eval_in(node, solution)
+
     # SPARQL built-in functions
     if name.startswith("Builtin_"):
         return _eval_builtin(name, node, solution)
@@ -133,18 +140,9 @@ def _evaluate_comp_value(node, solution):
     if name == "Function":
         return _eval_function(node, solution)
 
-    # Exists / NotExists — handled via _eval_builtin now
-
     # TrueFilter (used with OPTIONAL)
     if name == "TrueFilter":
         return True
-
-    # IN / NOT IN
-    if name == "Builtin_IN":
-        return _eval_in(node, solution)
-
-    if name == "Builtin_NOTIN":
-        return not _eval_in(node, solution)
 
     logger.warning(f"Unknown CompValue expression: {name}")
     return None
@@ -170,6 +168,22 @@ def _eval_relational(node, solution):
         "<=": operator.le,
         ">=": operator.ge,
     }
+
+    if str(op) == "IN":
+        items = node.other if isinstance(node.other, list) else [node.other]
+        for item in items:
+            other_val = evaluate_expression(item, solution)
+            if _comparable_value(left) == _comparable_value(other_val):
+                return True
+        return False
+
+    if str(op) == "NOT IN":
+        items = node.other if isinstance(node.other, list) else [node.other]
+        for item in items:
+            other_val = evaluate_expression(item, solution)
+            if _comparable_value(left) == _comparable_value(other_val):
+                return False
+        return True
 
     op_fn = ops.get(str(op))
     if op_fn is None:

@@ -12,7 +12,7 @@ from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import TriplesClientSpec
 
 from . parser import parse_sparql, ParseError
-from . algebra import evaluate, EvaluationError
+from . algebra import evaluate, materialise, EvaluationError
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +66,10 @@ class Processor(FlowProcessor):
 
             logger.debug(f"Handling SPARQL query request {id}...")
 
-            response = await self.execute_sparql(request, flow)
-
-            if request.streaming and response.query_type == "select":
-                await self.send_streaming(response, flow, id, request)
+            if request.streaming:
+                await self.execute_sparql_streaming(request, flow, id)
             else:
+                response = await self.execute_sparql(request, flow)
                 await flow("response").send(
                     response, properties={"id": id}
                 )
@@ -92,37 +91,77 @@ class Processor(FlowProcessor):
 
             await flow("response").send(r, properties={"id": id})
 
-    async def send_streaming(self, response, flow, id, request):
-        """Send SELECT results in batches."""
+    async def execute_sparql_streaming(self, request, flow, id):
+        """Execute a SPARQL query and stream results as they arrive."""
 
-        bindings = response.bindings
+        try:
+            parsed = parse_sparql(request.query)
+        except ParseError as e:
+            await flow("response").send(
+                SparqlQueryResponse(
+                    error=Error(
+                        type="sparql-parse-error",
+                        message=str(e),
+                    ),
+                ),
+                properties={"id": id}
+            )
+            return
+
+        if parsed.query_type != "select":
+            response = await self._execute_non_select(parsed, request, flow)
+            await flow("response").send(response, properties={"id": id})
+            return
+
+        triples_client = flow("triples-request")
+        variables = parsed.variables
         batch_size = request.batch_size if request.batch_size > 0 else 20
+        batch = []
 
-        for i in range(0, len(bindings), batch_size):
-            batch = bindings[i:i + batch_size]
-            is_final = (i + batch_size >= len(bindings))
-            r = SparqlQueryResponse(
-                query_type=response.query_type,
-                variables=response.variables,
-                bindings=batch,
-                is_final=is_final,
-            )
-            await flow("response").send(r, properties={"id": id})
+        try:
+            async for sol in evaluate(
+                parsed.algebra,
+                triples_client,
+                collection=request.collection or "default",
+                limit=request.limit or 10000,
+            ):
+                values = [sol.get(v) for v in variables]
+                batch.append(SparqlBinding(values=values))
 
-        # Handle empty results
-        if len(bindings) == 0:
-            r = SparqlQueryResponse(
-                query_type=response.query_type,
-                variables=response.variables,
-                bindings=[],
-                is_final=True,
+                if len(batch) >= batch_size:
+                    r = SparqlQueryResponse(
+                        query_type="select",
+                        variables=variables,
+                        bindings=batch,
+                        is_final=False,
+                    )
+                    await flow("response").send(r, properties={"id": id})
+                    batch = []
+
+        except EvaluationError as e:
+            await flow("response").send(
+                SparqlQueryResponse(
+                    error=Error(
+                        type="sparql-evaluation-error",
+                        message=str(e),
+                    ),
+                ),
+                properties={"id": id}
             )
-            await flow("response").send(r, properties={"id": id})
+            return
+
+        # Final batch (may be empty for zero results)
+        r = SparqlQueryResponse(
+            query_type="select",
+            variables=variables,
+            bindings=batch,
+            is_final=True,
+        )
+        await flow("response").send(r, properties={"id": id})
 
     async def execute_sparql(self, request, flow):
-        """Parse and evaluate a SPARQL query."""
+        """Parse and evaluate a SPARQL query (non-streaming)."""
 
-        # Parse the SPARQL query
         try:
             parsed = parse_sparql(request.query)
         except ParseError as e:
@@ -133,12 +172,31 @@ class Processor(FlowProcessor):
                 ),
             )
 
-        # Get the triples client from the flow
-        triples_client = flow("triples-request")
+        if parsed.query_type == "select":
+            triples_client = flow("triples-request")
+            try:
+                solutions = await materialise(
+                    parsed.algebra,
+                    triples_client,
+                    collection=request.collection or "default",
+                    limit=request.limit or 10000,
+                )
+            except EvaluationError as e:
+                return SparqlQueryResponse(
+                    error=Error(
+                        type="sparql-evaluation-error",
+                        message=str(e),
+                    ),
+                )
+            return self._build_select_response(parsed, solutions)
 
-        # Evaluate the algebra
+        return await self._execute_non_select(parsed, request, flow)
+
+    async def _execute_non_select(self, parsed, request, flow):
+        """Execute ASK, CONSTRUCT, or DESCRIBE queries."""
+        triples_client = flow("triples-request")
         try:
-            solutions = await evaluate(
+            solutions = await materialise(
                 parsed.algebra,
                 triples_client,
                 collection=request.collection or "default",
@@ -152,10 +210,7 @@ class Processor(FlowProcessor):
                 ),
             )
 
-        # Build response based on query type
-        if parsed.query_type == "select":
-            return self._build_select_response(parsed, solutions)
-        elif parsed.query_type == "ask":
+        if parsed.query_type == "ask":
             return self._build_ask_response(solutions)
         elif parsed.query_type == "construct":
             return self._build_construct_response(parsed, solutions)
