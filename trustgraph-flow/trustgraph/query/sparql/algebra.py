@@ -17,7 +17,7 @@ from ... knowledge import Uri
 from ... knowledge import Literal as KgLiteral
 from . parser import rdflib_term_to_term
 from . solutions import (
-    hash_join, left_join, union, project, distinct,
+    hash_join, left_join, minus, union, project, distinct,
     order_by, slice_solutions, _term_key,
 )
 from . expressions import evaluate_expression, _effective_boolean
@@ -159,14 +159,69 @@ async def _eval_union(node, tc, collection, limit):
     return union(left, right)[:limit]
 
 
+async def _eval_minus(node, tc, collection, limit):
+    """Evaluate a Minus node."""
+    left = await evaluate(node.p1, tc, collection, limit)
+    right = await evaluate(node.p2, tc, collection, limit)
+    return minus(left, right)
+
+
+async def _check_exists(graph_node, sol, tc, collection, limit):
+    """Evaluate an EXISTS graph pattern against a solution."""
+    results = await evaluate(graph_node, tc, collection, limit)
+    for r in results:
+        shared = set(sol.keys()) & set(r.keys())
+        if all(
+            _term_key(sol[v]) == _term_key(r[v])
+            for v in shared
+            if sol.get(v) is not None and r.get(v) is not None
+        ):
+            return True
+    return False
+
+
+async def _pre_eval_exists(expr, sol, tc, collection, limit, cache):
+    """Walk an expression tree, pre-evaluate EXISTS/NOT EXISTS, cache results."""
+    if not isinstance(expr, CompValue):
+        return
+    if expr.name in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+        key = id(expr.graph), id(sol)
+        if key not in cache:
+            cache[key] = await _check_exists(
+                expr.graph, sol, tc, collection, limit
+            )
+        return
+    for attr in ("expr", "other", "arg", "arg1", "arg2", "arg3"):
+        child = getattr(expr, attr, None)
+        if child is None:
+            continue
+        if isinstance(child, CompValue):
+            await _pre_eval_exists(child, sol, tc, collection, limit, cache)
+        elif isinstance(child, (list, tuple)):
+            for item in child:
+                if isinstance(item, CompValue):
+                    await _pre_eval_exists(
+                        item, sol, tc, collection, limit, cache
+                    )
+
+
 async def _eval_filter(node, tc, collection, limit):
     """Evaluate a Filter node."""
     solutions = await evaluate(node.p, tc, collection, limit)
     expr = node.expr
-    return [
-        sol for sol in solutions
-        if _effective_boolean(evaluate_expression(expr, sol))
-    ]
+    exists_cache = {}
+
+    def exists_cb(graph_node, sol):
+        key = id(graph_node), id(sol)
+        return exists_cache.get(key, False)
+
+    result = []
+    for sol in solutions:
+        await _pre_eval_exists(expr, sol, tc, collection, limit, exists_cache)
+        if _effective_boolean(evaluate_expression(expr, sol, exists_cb=exists_cb)):
+            result.append(sol)
+
+    return result
 
 
 async def _eval_distinct(node, tc, collection, limit):
@@ -222,10 +277,16 @@ async def _eval_extend(node, tc, collection, limit):
     solutions = await evaluate(node.p, tc, collection, limit)
     var_name = str(node.var)
     expr = node.expr
+    exists_cache = {}
+
+    def exists_cb(graph_node, sol):
+        key = id(graph_node), id(sol)
+        return exists_cache.get(key, False)
 
     result = []
     for sol in solutions:
-        val = evaluate_expression(expr, sol)
+        await _pre_eval_exists(expr, sol, tc, collection, limit, exists_cache)
+        val = evaluate_expression(expr, sol, exists_cb=exists_cb)
         new_sol = dict(sol)
         if isinstance(val, Term):
             new_sol[var_name] = val
@@ -525,6 +586,7 @@ _HANDLERS = {
     "Join": _eval_join,
     "LeftJoin": _eval_left_join,
     "Union": _eval_union,
+    "Minus": _eval_minus,
     "Filter": _eval_filter,
     "Distinct": _eval_distinct,
     "Reduced": _eval_reduced,

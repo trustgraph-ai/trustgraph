@@ -84,6 +84,20 @@ def make_distinct(inner):
     return node
 
 
+def make_filter(inner, expr):
+    node = CompValue("Filter")
+    node.p = inner
+    node.expr = expr
+    return node
+
+
+def make_minus(left, right):
+    node = CompValue("Minus")
+    node.p1 = left
+    node.p2 = right
+    return node
+
+
 class TestQueryPattern:
     """Tests for _query_pattern — the leaf that calls TriplesClient."""
 
@@ -281,6 +295,177 @@ class TestEvaluate:
         solutions = await evaluate(tree, tc, collection="default")
 
         assert len(solutions) == 1
+
+    @pytest.mark.asyncio
+    async def test_minus_removes_matching(self):
+        tc = AsyncMock()
+
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        knows = iri("http://example.com/knows")
+        hates = iri("http://example.com/hates")
+        charlie = iri("http://example.com/charlie")
+
+        left_triple = make_triple(alice, knows, bob)
+        right_triple1 = make_triple(alice, knows, bob)
+        right_triple2 = make_triple(alice, hates, charlie)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o"))
+        )
+        right_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/hates"), Variable("r"))
+        )
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/knows":
+                return [left_triple]
+            elif pred and pred.iri == "http://example.com/hates":
+                return [right_triple2]
+            return []
+
+        tc.query.side_effect = mock_query
+
+        tree = make_select(
+            make_project(
+                make_minus(left_bgp, right_bgp),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await evaluate(tree, tc, collection="default")
+
+        # alice knows bob, but alice also hates charlie
+        # shared var is "s" (alice), so alice's solution is removed
+        assert len(solutions) == 0
+
+    @pytest.mark.asyncio
+    async def test_minus_no_shared_vars_preserves_all(self):
+        tc = AsyncMock()
+
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+
+        left_triple = make_triple(alice, iri("http://example.com/p"), bob)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/p"), Variable("o"))
+        )
+        right_bgp = make_bgp(
+            (Variable("x"), URIRef("http://example.com/q"), Variable("y"))
+        )
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/p":
+                return [left_triple]
+            return []
+
+        tc.query.side_effect = mock_query
+
+        tree = make_select(
+            make_project(
+                make_minus(left_bgp, right_bgp),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await evaluate(tree, tc, collection="default")
+
+        assert len(solutions) == 1
+
+    @pytest.mark.asyncio
+    async def test_filter_exists_keeps_matching(self):
+        tc = AsyncMock()
+
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        charlie = iri("http://example.com/charlie")
+
+        left_triple1 = make_triple(alice, iri("http://example.com/knows"), bob)
+        left_triple2 = make_triple(alice, iri("http://example.com/knows"), charlie)
+        exists_triple = make_triple(bob, iri("http://example.com/likes"), alice)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o"))
+        )
+        exists_bgp = make_bgp(
+            (Variable("o"), URIRef("http://example.com/likes"), Variable("_any"))
+        )
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/knows":
+                return [left_triple1, left_triple2]
+            elif pred and pred.iri == "http://example.com/likes":
+                return [exists_triple]
+            return []
+
+        tc.query.side_effect = mock_query
+
+        exists_expr = CompValue("Builtin_EXISTS")
+        exists_expr.graph = exists_bgp
+
+        tree = make_select(
+            make_project(
+                make_filter(left_bgp, exists_expr),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await evaluate(tree, tc, collection="default")
+
+        # Only bob has a "likes" triple, so only the bob solution passes
+        result_objects = [s["o"].iri for s in solutions]
+        assert "http://example.com/bob" in result_objects
+        assert "http://example.com/charlie" not in result_objects
+
+    @pytest.mark.asyncio
+    async def test_filter_not_exists_removes_matching(self):
+        tc = AsyncMock()
+
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        charlie = iri("http://example.com/charlie")
+
+        left_triple1 = make_triple(alice, iri("http://example.com/knows"), bob)
+        left_triple2 = make_triple(alice, iri("http://example.com/knows"), charlie)
+        exists_triple = make_triple(bob, iri("http://example.com/likes"), alice)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o"))
+        )
+        exists_bgp = make_bgp(
+            (Variable("o"), URIRef("http://example.com/likes"), Variable("_any"))
+        )
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/knows":
+                return [left_triple1, left_triple2]
+            elif pred and pred.iri == "http://example.com/likes":
+                return [exists_triple]
+            return []
+
+        tc.query.side_effect = mock_query
+
+        not_exists_expr = CompValue("Builtin_NOTEXISTS")
+        not_exists_expr.graph = exists_bgp
+
+        tree = make_select(
+            make_project(
+                make_filter(left_bgp, not_exists_expr),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await evaluate(tree, tc, collection="default")
+
+        # bob has a "likes" triple so is removed; charlie stays
+        result_objects = [s["o"].iri for s in solutions]
+        assert "http://example.com/charlie" in result_objects
+        assert "http://example.com/bob" not in result_objects
 
     @pytest.mark.asyncio
     async def test_unsupported_node_returns_empty_solution(self):

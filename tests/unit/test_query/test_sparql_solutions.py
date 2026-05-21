@@ -5,7 +5,7 @@ Tests for SPARQL solution sequence operations.
 import pytest
 from trustgraph.schema import Term, IRI, LITERAL
 from trustgraph.query.sparql.solutions import (
-    hash_join, left_join, union, project, distinct,
+    hash_join, left_join, minus, union, project, distinct,
     order_by, slice_solutions, _terms_equal, _compatible,
 )
 
@@ -311,6 +311,30 @@ class TestOrderBy:
         result = order_by(solutions, [])
         assert len(result) == 1
 
+    def test_order_by_numeric_literals(self):
+        solutions = [
+            {"year": lit("1950")},
+            {"year": lit("700")},
+            {"year": lit("2000")},
+            {"year": lit("450")},
+            {"year": lit("1200")},
+        ]
+        key_fns = [(lambda sol: sol.get("year"), True)]
+        result = order_by(solutions, key_fns)
+        values = [s["year"].value for s in result]
+        assert values == ["450", "700", "1200", "1950", "2000"]
+
+    def test_order_by_numeric_descending(self):
+        solutions = [
+            {"year": lit("1950")},
+            {"year": lit("700")},
+            {"year": lit("2000")},
+        ]
+        key_fns = [(lambda sol: sol.get("year"), False)]
+        result = order_by(solutions, key_fns)
+        values = [s["year"].value for s in result]
+        assert values == ["2000", "1950", "700"]
+
 
 class TestSlice:
 
@@ -343,3 +367,37 @@ class TestSlice:
         solutions = [{"s": alice}, {"s": bob}]
         result = slice_solutions(solutions)
         assert len(result) == 2
+
+
+class TestMinus:
+
+    def test_removes_compatible(self, alice, bob):
+        left = [{"s": alice}, {"s": bob}]
+        right = [{"s": alice}]
+        result = minus(left, right)
+        assert len(result) == 1
+        assert result[0]["s"].iri == "http://example.com/bob"
+
+    def test_empty_right_preserves_all(self, alice, bob):
+        left = [{"s": alice}, {"s": bob}]
+        result = minus(left, [])
+        assert len(result) == 2
+
+    def test_no_shared_variables_preserves_all(self, alice, bob):
+        left = [{"s": alice}]
+        right = [{"t": bob}]
+        result = minus(left, right)
+        assert len(result) == 1
+
+    def test_all_removed(self, alice):
+        left = [{"s": alice}]
+        right = [{"s": alice}]
+        result = minus(left, right)
+        assert len(result) == 0
+
+    def test_partial_shared_variables(self, alice, bob):
+        left = [{"s": alice, "p": lit("x")}, {"s": bob, "p": lit("y")}]
+        right = [{"s": alice}]
+        result = minus(left, right)
+        assert len(result) == 1
+        assert result[0]["s"].iri == "http://example.com/bob"
