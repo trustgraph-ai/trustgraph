@@ -262,13 +262,7 @@ async def _eval_order_by(node, tc, collection, limit):
 
 async def _eval_slice(node, tc, collection, limit):
     """Evaluate a Slice node (LIMIT/OFFSET)."""
-    # Pass tighter limit downstream if possible
-    inner_limit = limit
-    if node.length is not None:
-        offset = node.start or 0
-        inner_limit = min(limit, offset + node.length)
-
-    solutions = await evaluate(node.p, tc, collection, inner_limit)
+    solutions = await evaluate(node.p, tc, collection, limit)
     return slice_solutions(solutions, node.start or 0, node.length)
 
 
