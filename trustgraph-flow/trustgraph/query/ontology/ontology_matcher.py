@@ -7,10 +7,10 @@ import logging
 from typing import List, Dict, Any, Set, Optional
 from dataclasses import dataclass
 
-from ...extract.kg.ontology.ontology_loader import Ontology, OntologyLoader
-from ...extract.kg.ontology.ontology_embedder import OntologyEmbedder
-from ...extract.kg.ontology.text_processor import TextSegment
-from ...extract.kg.ontology.ontology_selector import OntologySelector, OntologySubset
+from trustgraph.extract.kg.ontology.ontology_loader import Ontology, OntologyLoader
+from trustgraph.extract.kg.ontology.ontology_embedder import OntologyEmbedder
+from trustgraph.extract.kg.ontology.text_processor import TextSegment
+from trustgraph.extract.kg.ontology.ontology_selector import OntologySelector, OntologySubset
 from .question_analyzer import QuestionComponents, QuestionType
 
 logger = logging.getLogger(__name__)
