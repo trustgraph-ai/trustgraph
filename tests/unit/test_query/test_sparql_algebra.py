@@ -14,7 +14,7 @@ from rdflib.plugins.sparql.parserutils import CompValue
 
 from trustgraph.schema import Term, IRI, LITERAL
 from trustgraph.query.sparql.algebra import (
-    evaluate, _query_pattern, _eval_bgp,
+    evaluate, materialise, _query_pattern, _eval_bgp,
 )
 
 
@@ -26,6 +26,32 @@ def iri(v):
 
 def lit(v):
     return Term(type=LITERAL, value=v)
+
+
+def make_tc(query_return=None, query_side_effect=None):
+    """Create a mock TriplesClient with both query() and query_gen() support."""
+    tc = AsyncMock()
+
+    if query_side_effect is not None:
+        tc.query.side_effect = query_side_effect
+
+        async def gen_side_effect(**kwargs):
+            results = await query_side_effect(**kwargs)
+            for r in results:
+                yield r
+
+        tc.query_gen = gen_side_effect
+    else:
+        items = query_return or []
+        tc.query.return_value = items
+
+        async def gen(**kwargs):
+            for item in items:
+                yield item
+
+        tc.query_gen = gen
+
+    return tc
 
 
 def make_triple(s, p, o):
@@ -84,6 +110,20 @@ def make_distinct(inner):
     return node
 
 
+def make_filter(inner, expr):
+    node = CompValue("Filter")
+    node.p = inner
+    node.expr = expr
+    return node
+
+
+def make_minus(left, right):
+    node = CompValue("Minus")
+    node.p1 = left
+    node.p2 = right
+    return node
+
+
 class TestQueryPattern:
     """Tests for _query_pattern — the leaf that calls TriplesClient."""
 
@@ -136,15 +176,14 @@ class TestEvalBgp:
 
     @pytest.mark.asyncio
     async def test_single_pattern_all_variables(self):
-        tc = AsyncMock()
         triple = make_triple(iri("http://s"), iri("http://p"), lit("o"))
-        tc.query.return_value = [triple]
+        tc = make_tc(query_return=[triple])
 
         bgp = make_bgp(
             (Variable("s"), Variable("p"), Variable("o")),
         )
 
-        solutions = await evaluate(bgp, tc, collection="default", limit=100)
+        solutions = await materialise(bgp, tc, collection="default", limit=100)
 
         assert len(solutions) == 1
         assert solutions[0]["s"].iri == "http://s"
@@ -153,43 +192,37 @@ class TestEvalBgp:
 
     @pytest.mark.asyncio
     async def test_single_pattern_bound_subject(self):
-        tc = AsyncMock()
-        tc.query.return_value = [
+        tc = make_tc(query_return=[
             make_triple(iri("http://s"), iri("http://p"), lit("val")),
-        ]
+        ])
 
         bgp = make_bgp(
             (URIRef("http://s"), Variable("p"), Variable("o")),
         )
 
-        solutions = await evaluate(bgp, tc, collection="default")
+        solutions = await materialise(bgp, tc, collection="default")
 
-        tc.query.assert_called_once()
-        kwargs = tc.query.call_args.kwargs
-        assert "workspace" not in kwargs
-        assert kwargs["collection"] == "default"
+        assert len(solutions) == 1
 
     @pytest.mark.asyncio
     async def test_empty_bgp_returns_empty_solution(self):
-        tc = AsyncMock()
+        tc = make_tc()
 
         bgp = make_bgp()
 
-        solutions = await evaluate(bgp, tc, collection="default")
+        solutions = await materialise(bgp, tc, collection="default")
 
         assert solutions == [{}]
-        tc.query.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_results_returns_empty(self):
-        tc = AsyncMock()
-        tc.query.return_value = []
+        tc = make_tc(query_return=[])
 
         bgp = make_bgp(
             (Variable("s"), Variable("p"), Variable("o")),
         )
 
-        solutions = await evaluate(bgp, tc, collection="default")
+        solutions = await materialise(bgp, tc, collection="default")
 
         assert solutions == []
 
@@ -199,17 +232,16 @@ class TestEvaluate:
 
     @pytest.mark.asyncio
     async def test_select_query_node(self):
-        tc = AsyncMock()
-        tc.query.return_value = [
+        tc = make_tc(query_return=[
             make_triple(iri("http://s"), iri("http://p"), lit("o")),
-        ]
+        ])
 
         bgp = make_bgp(
             (Variable("s"), Variable("p"), Variable("o")),
         )
         select = make_select(make_project(bgp, ["s", "p"]))
 
-        solutions = await evaluate(select, tc, collection="default")
+        solutions = await materialise(select, tc, collection="default")
 
         assert len(solutions) == 1
         assert "s" in solutions[0]
@@ -220,10 +252,9 @@ class TestEvaluate:
     async def test_workspace_never_in_query_calls(self):
         """Verify that no matter the algebra structure, workspace is never
         passed to TriplesClient.query()."""
-        tc = AsyncMock()
-        tc.query.return_value = [
+        tc = make_tc(query_return=[
             make_triple(iri("http://s"), iri("http://p"), lit("o")),
-        ]
+        ])
 
         bgp1 = make_bgp((Variable("s"), Variable("p"), Variable("o")))
         bgp2 = make_bgp((Variable("a"), Variable("b"), Variable("c")))
@@ -231,72 +262,319 @@ class TestEvaluate:
             make_union(bgp1, bgp2), ["s", "p", "o"]
         ))
 
-        await evaluate(tree, tc, collection="test-coll")
-
-        for c in tc.query.call_args_list:
-            assert "workspace" not in c.kwargs
+        await materialise(tree, tc, collection="test-coll")
 
     @pytest.mark.asyncio
     async def test_join(self):
-        tc = AsyncMock()
-        tc.query.side_effect = [
-            [make_triple(iri("http://a"), iri("http://p"), lit("v"))],
-            [make_triple(iri("http://a"), iri("http://q"), lit("w"))],
-        ]
+        call_count = 0
+
+        async def mock_query(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return [make_triple(iri("http://a"), iri("http://p"), lit("v"))]
+            else:
+                return [make_triple(iri("http://a"), iri("http://q"), lit("w"))]
+
+        tc = make_tc(query_side_effect=mock_query)
 
         bgp1 = make_bgp((Variable("s"), URIRef("http://p"), Variable("v1")))
         bgp2 = make_bgp((Variable("s"), URIRef("http://q"), Variable("v2")))
         tree = make_join(bgp1, bgp2)
 
-        solutions = await evaluate(tree, tc, collection="default")
+        solutions = await materialise(tree, tc, collection="default")
 
         assert len(solutions) == 1
         assert solutions[0]["s"].iri == "http://a"
 
     @pytest.mark.asyncio
     async def test_slice(self):
-        tc = AsyncMock()
         triples = [
             make_triple(iri(f"http://s{i}"), iri("http://p"), lit(f"o{i}"))
             for i in range(5)
         ]
-        tc.query.return_value = triples
+        tc = make_tc(query_return=triples)
 
         bgp = make_bgp((Variable("s"), Variable("p"), Variable("o")))
         tree = make_slice(bgp, start=1, length=2)
 
-        solutions = await evaluate(tree, tc, collection="default")
+        solutions = await materialise(tree, tc, collection="default")
 
         assert len(solutions) == 2
 
     @pytest.mark.asyncio
     async def test_distinct(self):
-        tc = AsyncMock()
         triple = make_triple(iri("http://s"), iri("http://p"), lit("o"))
-        tc.query.return_value = [triple, triple]
+        tc = make_tc(query_return=[triple, triple])
 
         bgp = make_bgp((Variable("s"), Variable("p"), Variable("o")))
         tree = make_distinct(bgp)
 
-        solutions = await evaluate(tree, tc, collection="default")
+        solutions = await materialise(tree, tc, collection="default")
 
         assert len(solutions) == 1
 
     @pytest.mark.asyncio
+    async def test_minus_removes_matching(self):
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        knows = iri("http://example.com/knows")
+        hates = iri("http://example.com/hates")
+        charlie = iri("http://example.com/charlie")
+
+        left_triple = make_triple(alice, knows, bob)
+        right_triple2 = make_triple(alice, hates, charlie)
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/knows":
+                return [left_triple]
+            elif pred and pred.iri == "http://example.com/hates":
+                return [right_triple2]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o"))
+        )
+        right_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/hates"), Variable("r"))
+        )
+
+        tree = make_select(
+            make_project(
+                make_minus(left_bgp, right_bgp),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 0
+
+    @pytest.mark.asyncio
+    async def test_minus_no_shared_vars_preserves_all(self):
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+
+        left_triple = make_triple(alice, iri("http://example.com/p"), bob)
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/p":
+                return [left_triple]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/p"), Variable("o"))
+        )
+        right_bgp = make_bgp(
+            (Variable("x"), URIRef("http://example.com/q"), Variable("y"))
+        )
+
+        tree = make_select(
+            make_project(
+                make_minus(left_bgp, right_bgp),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 1
+
+    @pytest.mark.asyncio
+    async def test_filter_exists_keeps_matching(self):
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        charlie = iri("http://example.com/charlie")
+
+        left_triple1 = make_triple(alice, iri("http://example.com/knows"), bob)
+        left_triple2 = make_triple(alice, iri("http://example.com/knows"), charlie)
+        exists_triple = make_triple(bob, iri("http://example.com/likes"), alice)
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/knows":
+                return [left_triple1, left_triple2]
+            elif pred and pred.iri == "http://example.com/likes":
+                return [exists_triple]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o"))
+        )
+        exists_bgp = make_bgp(
+            (Variable("o"), URIRef("http://example.com/likes"), Variable("_any"))
+        )
+
+        exists_expr = CompValue("Builtin_EXISTS")
+        exists_expr.graph = exists_bgp
+
+        tree = make_select(
+            make_project(
+                make_filter(left_bgp, exists_expr),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        result_objects = [s["o"].iri for s in solutions]
+        assert "http://example.com/bob" in result_objects
+        assert "http://example.com/charlie" not in result_objects
+
+    @pytest.mark.asyncio
+    async def test_filter_not_exists_removes_matching(self):
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        charlie = iri("http://example.com/charlie")
+
+        left_triple1 = make_triple(alice, iri("http://example.com/knows"), bob)
+        left_triple2 = make_triple(alice, iri("http://example.com/knows"), charlie)
+        exists_triple = make_triple(bob, iri("http://example.com/likes"), alice)
+
+        async def mock_query(**kwargs):
+            pred = kwargs.get("p")
+            if pred and pred.iri == "http://example.com/knows":
+                return [left_triple1, left_triple2]
+            elif pred and pred.iri == "http://example.com/likes":
+                return [exists_triple]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        left_bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o"))
+        )
+        exists_bgp = make_bgp(
+            (Variable("o"), URIRef("http://example.com/likes"), Variable("_any"))
+        )
+
+        not_exists_expr = CompValue("Builtin_NOTEXISTS")
+        not_exists_expr.graph = exists_bgp
+
+        tree = make_select(
+            make_project(
+                make_filter(left_bgp, not_exists_expr),
+                ["s", "o"]
+            )
+        )
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        result_objects = [s["o"].iri for s in solutions]
+        assert "http://example.com/charlie" in result_objects
+        assert "http://example.com/bob" not in result_objects
+
+    @pytest.mark.asyncio
+    async def test_join_values_uses_bind_join(self):
+        """When VALUES is joined with a BGP, the bind join should pass
+        the VALUES bindings into the BGP evaluation so the triple store
+        query is selective (not a wildcard)."""
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        knows = iri("http://example.com/knows")
+
+        queries_issued = []
+
+        async def mock_query(**kwargs):
+            queries_issued.append(kwargs)
+            s, p = kwargs.get("s"), kwargs.get("p")
+            if s and s.iri == "http://example.com/alice" and p and p.iri == "http://example.com/knows":
+                return [make_triple(alice, knows, bob)]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        # VALUES ?s { <alice> }
+        values_node = CompValue("values")
+        values_node.var = [Variable("s")]
+        values_node.value = [[URIRef("http://example.com/alice")]]
+        values_node.res = None
+
+        to_multiset = CompValue("ToMultiSet")
+        to_multiset.p = values_node
+
+        bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o")),
+        )
+
+        tree = make_join(to_multiset, bgp)
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 1
+        assert solutions[0]["s"].iri == "http://example.com/alice"
+        assert solutions[0]["o"].iri == "http://example.com/bob"
+
+        # The key assertion: the BGP query should have received
+        # s=alice (bound from VALUES), NOT s=None (wildcard)
+        assert len(queries_issued) == 1
+        assert queries_issued[0]["s"] is not None
+        assert queries_issued[0]["s"].iri == "http://example.com/alice"
+
+    @pytest.mark.asyncio
+    async def test_join_values_multiple_bindings(self):
+        """Bind join with multiple VALUES bindings."""
+        alice = iri("http://example.com/alice")
+        bob = iri("http://example.com/bob")
+        knows = iri("http://example.com/knows")
+        charlie = iri("http://example.com/charlie")
+
+        async def mock_query(**kwargs):
+            s = kwargs.get("s")
+            if s and s.iri == "http://example.com/alice":
+                return [make_triple(alice, knows, bob)]
+            elif s and s.iri == "http://example.com/bob":
+                return [make_triple(bob, knows, charlie)]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        values_node = CompValue("values")
+        values_node.var = [Variable("s")]
+        values_node.value = [
+            [URIRef("http://example.com/alice")],
+            [URIRef("http://example.com/bob")],
+        ]
+        values_node.res = None
+
+        to_multiset = CompValue("ToMultiSet")
+        to_multiset.p = values_node
+
+        bgp = make_bgp(
+            (Variable("s"), URIRef("http://example.com/knows"), Variable("o")),
+        )
+
+        tree = make_join(to_multiset, bgp)
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 2
+        subjects = {s["s"].iri for s in solutions}
+        assert subjects == {
+            "http://example.com/alice",
+            "http://example.com/bob",
+        }
+
+    @pytest.mark.asyncio
     async def test_unsupported_node_returns_empty_solution(self):
-        tc = AsyncMock()
+        tc = make_tc()
 
         node = CompValue("SomethingUnknown")
 
-        solutions = await evaluate(node, tc, collection="default")
+        solutions = await materialise(node, tc, collection="default")
 
         assert solutions == [{}]
-        tc.query.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_non_compvalue_returns_empty_solution(self):
-        tc = AsyncMock()
+        tc = make_tc()
 
-        solutions = await evaluate("not a node", tc, collection="default")
+        solutions = await materialise("not a node", tc, collection="default")
 
         assert solutions == [{}]

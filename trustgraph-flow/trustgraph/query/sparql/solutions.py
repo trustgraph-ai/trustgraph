@@ -150,6 +150,30 @@ def left_join(left, right, filter_fn=None):
     return results
 
 
+def minus(left, right):
+    """
+    MINUS operation: remove left solutions that are compatible with any
+    right solution sharing at least one variable.
+    """
+    if not right:
+        return list(left)
+
+    right_vars = set()
+    for sol in right:
+        right_vars.update(sol.keys())
+
+    results = []
+    for sol_l in left:
+        shared = set(sol_l.keys()) & right_vars
+        if not shared:
+            results.append(sol_l)
+            continue
+        if not any(_compatible(sol_l, sol_r) for sol_r in right):
+            results.append(sol_l)
+
+    return results
+
+
 def union(left, right):
     """Union two solution sequences (concatenation)."""
     return list(left) + list(right)
@@ -177,6 +201,28 @@ def distinct(solutions):
     return results
 
 
+def _sort_comparable(val):
+    """Convert a value to a form suitable for sort ordering."""
+    if val is None:
+        return (0, "")
+    if isinstance(val, (int, float)):
+        return (2, val)
+    if isinstance(val, Term):
+        if val.type == LITERAL:
+            try:
+                if "." in val.value:
+                    return (2, float(val.value))
+                return (2, int(val.value))
+            except (ValueError, TypeError):
+                pass
+            return (3, val.value)
+        elif val.type == IRI:
+            return (4, val.iri)
+        elif val.type == BLANK:
+            return (5, val.id)
+    return (6, str(val))
+
+
 def order_by(solutions, key_fns):
     """
     Sort solutions by the given key functions.
@@ -191,14 +237,7 @@ def order_by(solutions, key_fns):
         keys = []
         for fn, ascending in key_fns:
             val = fn(sol)
-            # Convert to comparable form
-            if val is None:
-                comparable = ("", "")
-            elif isinstance(val, Term):
-                comparable = _term_key(val)
-            else:
-                comparable = ("v", str(val))
-            keys.append(comparable)
+            keys.append(_sort_comparable(val))
         return keys
 
     # Handle ascending/descending
@@ -224,10 +263,8 @@ def _mixed_sort(solutions, key_fns):
 
     def compare(a, b):
         for fn, ascending in key_fns:
-            va = fn(a)
-            vb = fn(b)
-            ka = _term_key(va) if isinstance(va, Term) else ("v", str(va)) if va is not None else ("", "")
-            kb = _term_key(vb) if isinstance(vb, Term) else ("v", str(vb)) if vb is not None else ("", "")
+            ka = _sort_comparable(fn(a))
+            kb = _sort_comparable(fn(b))
 
             if ka < kb:
                 return -1 if ascending else 1

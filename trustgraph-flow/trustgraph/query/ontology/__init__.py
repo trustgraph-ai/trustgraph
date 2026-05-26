@@ -7,7 +7,7 @@ Provides semantic query understanding, ontology matching, and answer generation.
 
 from .query_service import OntoRAGQueryService, QueryRequest, QueryResponse
 from .question_analyzer import QuestionAnalyzer, QuestionComponents, QuestionType
-from .ontology_matcher import OntologyMatcher, QueryOntologySubset
+from .ontology_matcher import OntologyMatcherForQueries, QueryOntologySubset
 from .backend_router import BackendRouter, BackendType, QueryRoute
 from .sparql_generator import SPARQLGenerator, SPARQLQuery
 from .sparql_cassandra import SPARQLCassandraEngine, SPARQLResult
@@ -27,7 +27,7 @@ __all__ = [
     'QuestionType',
 
     # Ontology matching
-    'OntologyMatcher',
+    'OntologyMatcherForQueries',
     'QueryOntologySubset',
 
     # Backend routing

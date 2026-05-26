@@ -28,7 +28,7 @@ try:
 except ImportError:
     CASSANDRA_AVAILABLE = False
 
-from ....tables.config import ConfigTableStore
+from trustgraph.tables.config import ConfigTableStore
 
 logger = logging.getLogger(__name__)
 
