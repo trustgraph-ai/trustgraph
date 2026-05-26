@@ -4,6 +4,7 @@ Provides comprehensive monitoring of system performance, query patterns, and res
 """
 
 import logging
+import re
 import time
 import asyncio
 import inspect
@@ -276,6 +277,26 @@ class MetricsCollector:
         return f"{name}{{{label_str}}}"
 
 
+def _extract_metric_label(metric_name: str, label: str) -> Optional[str]:
+    """Extract a label value from an internal metric key."""
+    labels_start = metric_name.find('{')
+    labels_end = metric_name.find('}', labels_start + 1)
+
+    if labels_start == -1 or labels_end == -1:
+        return None
+
+    labels = metric_name[labels_start + 1:labels_end]
+    label_match = re.search(
+        rf'(?:^|,){re.escape(label)}=(?:"([^"]*)"|([^,]*))',
+        labels,
+    )
+    if not label_match:
+        return None
+
+    quoted_value, unquoted_value = label_match.groups()
+    return quoted_value if quoted_value is not None else unquoted_value
+
+
 class PerformanceMonitor:
     """Monitors system performance and component health."""
 
@@ -474,8 +495,8 @@ class PerformanceMonitor:
         # Cache performance
         cache_types = set()
         for metric_name in self.metrics_collector.counters.keys():
-            if 'cache_type=' in metric_name:
-                cache_type = metric_name.split('cache_type=')[1].split(',')[0].split('}')[0]
+            cache_type = _extract_metric_label(metric_name, 'cache_type')
+            if cache_type is not None:
                 cache_types.add(cache_type)
 
         for cache_type in cache_types:
