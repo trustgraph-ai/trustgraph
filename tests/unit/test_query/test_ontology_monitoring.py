@@ -2,27 +2,10 @@
 Tests for ontology monitoring metrics.
 """
 
-import importlib.util
-import sys
-from pathlib import Path
-
-
-MODULE_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "trustgraph-flow"
-    / "trustgraph"
-    / "query"
-    / "ontology"
-    / "monitoring.py"
+from trustgraph.query.ontology.monitoring import (
+    PerformanceMonitor,
+    _extract_metric_label,
 )
-spec = importlib.util.spec_from_file_location("ontology_monitoring", MODULE_PATH)
-assert spec is not None and spec.loader is not None
-monitoring = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = monitoring
-spec.loader.exec_module(monitoring)
-
-PerformanceMonitor = monitoring.PerformanceMonitor
-_extract_metric_label = monitoring._extract_metric_label
 
 
 def test_extract_metric_label_reads_unquoted_label_value():

@@ -8,13 +8,13 @@ from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
 from datetime import datetime
 
-from ....flow.flow_processor import FlowProcessor
-from ....tables.config import ConfigTableStore
-from ...extract.kg.ontology.ontology_loader import OntologyLoader
-from ...extract.kg.ontology.vector_store import InMemoryVectorStore
+from trustgraph.base.flow_processor import FlowProcessor
+from trustgraph.tables.config import ConfigTableStore
+from trustgraph.extract.kg.ontology.ontology_loader import OntologyLoader
+from trustgraph.extract.kg.ontology.vector_store import InMemoryVectorStore
 
 from .question_analyzer import QuestionAnalyzer, QuestionComponents
-from .ontology_matcher import OntologyMatcher, QueryOntologySubset
+from .ontology_matcher import OntologyMatcherForQueries, QueryOntologySubset
 from .backend_router import BackendRouter, QueryRoute, BackendType
 from .sparql_generator import SPARQLGenerator, SPARQLQuery
 from .sparql_cassandra import SPARQLCassandraEngine, SPARQLResult
@@ -105,7 +105,7 @@ class OntoRAGQueryService(FlowProcessor):
 
         # Initialize ontology matcher
         matcher_config = self.config.get('ontology_matcher', {})
-        self.ontology_matcher = OntologyMatcher(
+        self.ontology_matcher = OntologyMatcherForQueries(
             vector_store=self.vector_store,
             embedding_service=self.embedding_service,
             config=matcher_config
