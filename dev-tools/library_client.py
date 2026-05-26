@@ -25,7 +25,7 @@ BUCKET_URL = "https://storage.googleapis.com/trustgraph-library"
 INDEX_URL = f"{BUCKET_URL}/index.json"
 
 default_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
-default_user = "trustgraph"
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 
@@ -113,7 +113,7 @@ def convert_metadata(metadata_json):
     return triples
 
 
-def load_document(api, user, doc_entry):
+def load_document(api, doc_entry):
     """Fetch metadata and content for a document, then load into TrustGraph."""
     doc_id = doc_entry["id"]
     title = doc_entry["title"]
@@ -133,7 +133,6 @@ def load_document(api, user, doc_entry):
     api.add_document(
         id=doc["id"],
         metadata=metadata,
-        user=user,
         kind=doc["kind"],
         title=doc["title"],
         comments=doc["comments"],
@@ -144,12 +143,12 @@ def load_document(api, user, doc_entry):
     print(f"    done.")
 
 
-def load_documents(api, user, docs):
+def load_documents(api, docs):
     """Load a list of documents."""
     print(f"Loading {len(docs)} document(s)...\n")
     for doc in docs:
         try:
-            load_document(api, user, doc)
+            load_document(api, doc)
         except Exception as e:
             print(f"    FAILED: {e}", file=sys.stderr)
         print()
@@ -166,8 +165,8 @@ def main():
         help=f"TrustGraph API URL (default: {default_url})",
     )
     parser.add_argument(
-        "-U", "--user", default=default_user,
-        help=f"User ID (default: {default_user})",
+        "-w", "--workspace", default=default_workspace,
+        help=f"Workspace (default: {default_workspace})",
     )
     parser.add_argument(
         "-t", "--token", default=default_token,
@@ -212,22 +211,22 @@ def main():
         return
 
     # Load commands need the API
-    api = Api(args.url, token=args.token).library()
+    api = Api(args.url, token=args.token, workspace=args.workspace).library()
 
     if args.command == "load-all":
-        load_documents(api, args.user, index)
+        load_documents(api, index)
 
     elif args.command == "load-doc":
         matches = [d for d in index if str(d.get("id")) == args.id]
         if not matches:
             print(f"No document with ID '{args.id}' found.", file=sys.stderr)
             sys.exit(1)
-        load_documents(api, args.user, matches)
+        load_documents(api, matches)
 
     elif args.command == "load-match":
         results = search_index(index, args.query)
         if results:
-            load_documents(api, args.user, results)
+            load_documents(api, results)
         else:
             print("No matches found.", file=sys.stderr)
             sys.exit(1)
