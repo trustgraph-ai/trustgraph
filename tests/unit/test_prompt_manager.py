@@ -7,7 +7,7 @@ including template rendering, term merging, JSON validation, and error handling.
 
 import pytest
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 from trustgraph.template.prompt_manager import PromptManager, PromptConfiguration, Prompt
 
@@ -343,6 +343,42 @@ class TestPromptManager:
         assert pm.config.system_template == "Be helpful."  # Default system
         assert pm.terms == {}  # Default empty terms
         assert len(pm.prompts) == 0
+
+    def test_load_config_does_not_swallow_keyboard_interrupt(self, monkeypatch):
+        """KeyboardInterrupt should propagate out of config parsing."""
+        pm = PromptManager()
+
+        def interrupt(_value):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("trustgraph.template.prompt_manager.json.loads", interrupt)
+
+        with pytest.raises(KeyboardInterrupt):
+            pm.load_config({"system": json.dumps("Test")})
+
+    @pytest.mark.asyncio
+    async def test_json_parse_does_not_swallow_system_exit(self):
+        """SystemExit should propagate out of JSON response parsing."""
+        pm = PromptManager()
+        config = {
+            "system": json.dumps("Test"),
+            "template-index": json.dumps(["json_response"]),
+            "template.json_response": json.dumps({
+                "prompt": "Generate JSON",
+                "response-type": "json"
+            })
+        }
+        pm.load_config(config)
+
+        def exit_parse(_text):
+            raise SystemExit(2)
+
+        pm.parse_json = exit_parse
+        mock_llm = AsyncMock()
+        mock_llm.return_value = "{}"
+
+        with pytest.raises(SystemExit):
+            await pm.invoke("json_response", {}, mock_llm)
 
 
 @pytest.mark.unit
