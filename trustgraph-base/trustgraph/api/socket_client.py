@@ -11,6 +11,7 @@ multiplexes requests by ID.
 import json
 import asyncio
 import websockets
+from websockets.exceptions import ConnectionClosed
 from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
@@ -191,13 +192,13 @@ class SocketClient:
                 if request_id and request_id in self._pending:
                     await self._pending[request_id].put(response)
 
-        except websockets.exceptions.ConnectionClosed:
+        except ConnectionClosed:
             pass
         except Exception as e:
             for queue in self._pending.values():
                 try:
                     await queue.put({"error": str(e)})
-                except:
+                except Exception:
                     pass
         finally:
             self._connected = False
@@ -250,7 +251,7 @@ class SocketClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     def _streaming_generator_raw(
@@ -273,7 +274,7 @@ class SocketClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _send_request_async_streaming_raw(
@@ -542,7 +543,7 @@ class SocketClient:
         if self._loop and not self._loop.is_closed():
             try:
                 self._loop.run_until_complete(self._close_async())
-            except:
+            except Exception:
                 pass
 
     async def _close_async(self):
