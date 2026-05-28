@@ -23,7 +23,7 @@ RUN pip3 install --no-cache-dir \
     langchain==1.2.16 langchain-core==1.3.2 langchain-huggingface==1.2.2 \
     langchain-community==0.4.1 \
     sentence-transformers==5.4.1 transformers==5.7.0 \
-    huggingface-hub==1.13.0 \
+    huggingface-hub==1.13.0 click \
     pulsar-client==3.11.0
 
 # Most commonly used embeddings model, just build it into the container
