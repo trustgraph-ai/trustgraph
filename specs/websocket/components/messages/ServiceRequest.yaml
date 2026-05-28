@@ -9,14 +9,14 @@ description: |
 payload:
   description: Service request envelope with id, service, optional flow, and service-specific request payload
   oneOf:
-    # Global services (no flow parameter)
+    # Workspace-scoped services (no flow parameter)
     - $ref: './requests/ConfigRequest.yaml'
     - $ref: './requests/FlowRequest.yaml'
     - $ref: './requests/LibrarianRequest.yaml'
     - $ref: './requests/KnowledgeRequest.yaml'
     - $ref: './requests/CollectionManagementRequest.yaml'
 
-    # Flow-hosted services (require flow parameter)
+    # Flow-scoped services (require flow parameter)
     - $ref: './requests/AgentRequest.yaml'
     - $ref: './requests/DocumentRagRequest.yaml'
     - $ref: './requests/GraphRagRequest.yaml'

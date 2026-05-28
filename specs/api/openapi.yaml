@@ -2,21 +2,44 @@ openapi: 3.1.0
 
 info:
   title: TrustGraph API Gateway
-  version: "2.2"
+  version: "2.4"
   description: |
     REST API for TrustGraph - an AI-powered knowledge graph and RAG system.
 
     ## Overview
 
     The API provides access to:
-    - **Global Services**: Configuration, flow management, knowledge storage, library management
-    - **Flow-Hosted Services**: AI services like RAG, text completion, embeddings (require running flow)
+    - **Global Services**: IAM (user management, authentication)
+    - **Workspace-Scoped Services**: Configuration, flow management, knowledge storage, library management
+    - **Flow-Scoped Services**: AI services like RAG, text completion, embeddings (require running flow)
     - **Import/Export**: Bulk data operations for triples, embeddings, entity contexts
     - **WebSocket**: Multiplexed interface for all services
 
-    ## Service Types
+    ## Authentication
+
+    Clients authenticate by passing an opaque bearer token in the
+    `Authorization` header.  The token is obtained via the IAM service
+    (e.g. `tg-login` or `tg-create-api-key`).
+
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    The gateway resolves the token to an authenticated identity and an
+    associated workspace.  The token is an opaque string — clients must
+    not make assumptions about its internal structure.
+
+    ## Service Tiers
 
     ### Global Services
+    System-wide services with no workspace scoping:
+    - `iam` - User management, authentication, API key lifecycle
+
+    ### Workspace-Scoped Services
+    Operate within the workspace associated with the authenticated
+    token.  The workspace is resolved by the gateway — it is not
+    passed as an explicit parameter.
+
     Fixed endpoints accessible via `/api/v1/{kind}`:
     - `config` - Configuration management
     - `flow` - Flow lifecycle and blueprints
@@ -24,23 +47,16 @@ info:
     - `knowledge` - Knowledge graph core management
     - `collection-management` - Collection metadata
 
-    ### Flow-Hosted Services
-    Require running flow instance, accessed via `/api/v1/flow/{flow}/service/{kind}`:
+    ### Flow-Scoped Services
+    Require a `flow` parameter identifying the processing flow to use.
+    Workspace context comes from the authenticated token.
+
+    Accessed via `/api/v1/flow/{flow}/service/{kind}`:
     - AI services: agent, text-completion, prompt, RAG (document/graph)
     - Embeddings: embeddings, graph-embeddings, document-embeddings
     - Query: triples, rows, nlp-query, structured-query, sparql-query, row-embeddings
     - Data loading: text-load, document-load
     - Utilities: mcp-tool, structured-diag
-
-    ## Authentication
-
-    Bearer token authentication when `GATEWAY_SECRET` environment variable is set.
-    Include token in Authorization header:
-    ```
-    Authorization: Bearer <token>
-    ```
-
-    If `GATEWAY_SECRET` is not set, API runs without authentication (development mode).
 
     ## Field Naming
 
@@ -74,17 +90,17 @@ security:
 
 tags:
   - name: Config
-    description: Configuration management (global service)
+    description: Configuration management (workspace-scoped)
   - name: Flow
-    description: Flow lifecycle and blueprint management (global service)
+    description: Flow lifecycle and blueprint management (workspace-scoped)
   - name: Librarian
-    description: Document library management (global service)
+    description: Document library management (workspace-scoped)
   - name: Knowledge
-    description: Knowledge graph core management (global service)
+    description: Knowledge graph core management (workspace-scoped)
   - name: Collection
-    description: Collection metadata management (global service)
+    description: Collection metadata management (workspace-scoped)
   - name: Flow Services
-    description: Services hosted within flow instances
+    description: AI and query services hosted within flow instances (flow-scoped)
   - name: Import/Export
     description: Bulk data import and export
   - name: WebSocket

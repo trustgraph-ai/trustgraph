@@ -1,9 +1,12 @@
 post:
   tags:
     - Flow
-  summary: Flow lifecycle and blueprint management
+  summary: Flow lifecycle and blueprint management (workspace-scoped)
   description: |
     Manage flow instances and blueprints.
+
+    This is a **workspace-scoped** service. All operations apply to the
+    workspace associated with the authenticated bearer token.
 
     ## Important Distinction
 

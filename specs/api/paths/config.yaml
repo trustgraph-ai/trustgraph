@@ -1,9 +1,13 @@
 post:
   tags:
     - Config
-  summary: Configuration service
+  summary: Configuration service (workspace-scoped)
   description: |
-    Manage TrustGraph configuration including flows, prompts, token costs, parameter types, and more.
+    Manage TrustGraph configuration including flows, prompts, token costs,
+    parameter types, and more.
+
+    This is a **workspace-scoped** service. All operations apply to the
+    workspace associated with the authenticated bearer token.
 
     ## Operations
 

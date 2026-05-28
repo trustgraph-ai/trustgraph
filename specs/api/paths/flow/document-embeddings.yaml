@@ -5,6 +5,10 @@ post:
   description: |
     Query document embeddings to find similar text chunks by vector similarity.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## Document Embeddings Query Overview
 
     Find document chunks semantically similar to a query vector:
