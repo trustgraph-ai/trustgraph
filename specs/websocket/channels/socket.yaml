@@ -3,8 +3,16 @@ description: |
   Primary WebSocket channel for all TrustGraph services.
 
   This single channel provides multiplexed access to:
-  - All global services (config, flow, librarian, knowledge, collection-management)
-  - All flow-hosted services (agent, RAG, embeddings, queries, loading, etc.)
+  - Global services (IAM)
+  - Workspace-scoped services (config, flow, librarian, knowledge, collection-management)
+  - Flow-scoped services (agent, RAG, embeddings, queries, loading, etc.)
+
+  ## Authentication
+
+  The handshake is accepted unconditionally.  The client must send a
+  bearer token as the first frame after connecting (in-band auth).
+  The gateway resolves the token to an identity and workspace.  All
+  subsequent requests execute within that workspace context.
 
   ## Multiplexing
 
@@ -13,16 +21,17 @@ description: |
 
   ## Message Flow
 
-  1. Client sends request with unique `id`, `service`, optional `flow`, and `request` payload
-  2. Server processes request asynchronously
-  3. Server sends response(s) with matching `id` and either `response` or `error`
-  4. For streaming services, multiple responses may be sent with the same `id`
+  1. Client connects and sends bearer token as first frame (authentication)
+  2. Client sends requests with unique `id`, `service`, optional `flow`, and `request` payload
+  3. Server processes request asynchronously
+  4. Server sends response(s) with matching `id` and either `response` or `error`
+  5. For streaming services, multiple responses may be sent with the same `id`
 
   ## Service Routing
 
   Messages are routed to services based on:
   - `service`: Service identifier (required)
-  - `flow`: Flow ID (required for flow-hosted services, omitted for global services)
+  - `flow`: Flow ID (required for flow-scoped services, omitted for workspace-scoped and global services)
 
 messages:
   request:

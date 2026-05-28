@@ -1,5 +1,5 @@
 type: object
-description: WebSocket request for row-embeddings service (flow-hosted service)
+description: WebSocket request for row-embeddings service (flow-scoped service)
 required:
   - id
   - service

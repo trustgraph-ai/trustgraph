@@ -5,6 +5,10 @@ post:
   description: |
     Execute a SPARQL 1.1 query against the knowledge graph.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## Supported Query Types
 
     - **SELECT**: Returns variable bindings as a table of results

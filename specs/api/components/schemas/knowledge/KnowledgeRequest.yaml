@@ -18,7 +18,7 @@ properties:
       - unload-kg-core
     description: |
       Knowledge core operation:
-      - `list-kg-cores`: List knowledge cores in workspace
+      - `list-kg-cores`: List knowledge cores in the current workspace (resolved from token)
       - `get-kg-core`: Get knowledge core by ID
       - `put-kg-core`: Store triples and/or embeddings
       - `delete-kg-core`: Delete knowledge core by ID

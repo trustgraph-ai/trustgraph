@@ -1,9 +1,13 @@
 post:
   tags:
     - Librarian
-  summary: Document library management
+  summary: Document library management (workspace-scoped)
   description: |
-    Manage document library: add, remove, list documents, and control processing.
+    Manage document library: add, remove, list documents, and control
+    processing.
+
+    This is a **workspace-scoped** service. All operations apply to the
+    workspace associated with the authenticated bearer token.
 
     ## Document Library
 

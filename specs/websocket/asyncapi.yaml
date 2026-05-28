@@ -2,7 +2,7 @@ asyncapi: 3.0.0
 
 info:
   title: TrustGraph WebSocket API
-  version: "2.2"
+  version: "2.4"
   description: |
     WebSocket API for TrustGraph - providing multiplexed, asynchronous access to all services.
 
@@ -14,21 +14,35 @@ info:
     - **Efficient**: Lower overhead than HTTP REST
     - **Streaming**: Real-time progressive responses
 
+    ## Authentication
+
+    The `/api/v1/socket` endpoint uses **in-band authentication**.
+    The WebSocket handshake is accepted unconditionally. The client
+    must authenticate by sending a bearer token as the first message
+    after connecting.  The gateway resolves the token to an
+    authenticated identity and workspace.
+
+    All subsequent requests execute within the workspace context
+    established by the authentication frame.
+
     ## Protocol Summary
 
     All messages are JSON with:
     - `id`: Client-generated unique identifier for request/response correlation
     - `service`: Service identifier (e.g., "config", "agent", "document-rag")
-    - `flow`: Optional flow ID for flow-hosted services
+    - `flow`: Optional flow ID for flow-scoped services
     - `request`/`response`: Service-specific payload (identical to REST API schemas)
     - `error`: Error information on failure
 
-    ## Service Types
+    ## Service Tiers
 
-    **Global Services** (no `flow` parameter):
+    **Global Services** (no workspace scoping):
+    - iam
+
+    **Workspace-Scoped Services** (workspace resolved from token):
     - config, flow, librarian, knowledge, collection-management
 
-    **Flow-Hosted Services** (require `flow` parameter):
+    **Flow-Scoped Services** (require `flow` parameter, workspace from token):
     - agent, text-completion, prompt, document-rag, graph-rag
     - embeddings, graph-embeddings, document-embeddings
     - triples, rows, nlp-query, structured-query, sparql-query, structured-diag, row-embeddings
@@ -64,11 +78,14 @@ components:
   securitySchemes:
     bearerAuth:
       type: httpApiKey
-      name: token
-      in: query
+      name: Authorization
+      in: header
       description: |
-        Bearer token authentication when GATEWAY_SECRET is configured.
-        Include as query parameter: ws://localhost:8088/api/v1/socket?token=<token>
+        Bearer token authentication.  The `/api/v1/socket` endpoint
+        uses in-band authentication: the WebSocket handshake is
+        accepted unconditionally and the client sends a bearer token
+        as the first frame after connecting.  The token is an opaque
+        string obtained via the IAM service.
 
   messages:
     ServiceRequest:

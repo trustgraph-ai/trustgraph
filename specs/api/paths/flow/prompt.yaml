@@ -5,6 +5,10 @@ post:
   description: |
     Execute stored prompt templates with variable substitution.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## Prompt Service Overview
 
     The prompt service enables:
