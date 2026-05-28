@@ -121,6 +121,9 @@ tg-show-extraction-provenance = "trustgraph.cli.show_extraction_provenance:main"
 tg-list-explain-traces = "trustgraph.cli.list_explain_traces:main"
 tg-show-explain-trace = "trustgraph.cli.show_explain_trace:main"
 
+[tool.setuptools.package-data]
+"trustgraph.cli.sample_documents" = ["*.md", "*.pdf", "*.json"]
+
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]
 
