@@ -1,704 +1,82 @@
 """
-Loads a PDF document into the library
+Loads sample documents into the TrustGraph library from bundled package data.
 """
 
 import argparse
+import json
 import os
-import datetime
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.response import HTTPResponse
+from importlib import resources
 
 from trustgraph.api import Api
-from trustgraph.api.types import hash, Uri, Literal, Triple
+from trustgraph.api.types import Uri, Literal, Triple
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-
-class FileAdapter(HTTPAdapter):
-    def send(self, request, *args, **kwargs):
-        resp = HTTPResponse(body=open(request.url[7:], 'rb'), status=200, preload_content=False)
-        return self.build_response(request, resp)
-
-session = requests.session()
-
-session.mount('file://', FileAdapter())
-
-os.makedirs("doc-cache", exist_ok=True)
-
-documents = [
-
-    {
-        "id": "https://trustgraph.ai/doc/challenger-report-vol-1",
-        "title": "Report of the Presidential Commission on the Space Shuttle Challenger Accident, Volume 1",
-        "comments": "The findings of the Commission regarding the circumstances surrounding the Challenger accident are reported and recommendations for corrective action are outlined",
-        "url": "https://ntrs.nasa.gov/api/citations/19860015255/downloads/19860015255.pdf",
-        "kind": "application/pdf",
-        "date": datetime.datetime.now().date(),
-        "tags": ["nasa", "safety-engineering", "space-shuttle"],
-        "metadata": [
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/DigitalDocument")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("Report of the Presidential Commission on the Space Shuttle Challenger Accident, Volume 1")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("Report of the Presidential Commission on the Space Shuttle Challenger Accident, Volume 1")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("The findings of the Commission regarding the circumstances surrounding the Challenger accident are reported and recommendations for corrective action are outlined")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/copyrightNotice"),
-                o = Literal("Work of the US Gov. Public Use Permitted")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/copyrightHolder"),
-                o = Literal("US Gov.")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/copyrightYear"),
-                o = Literal("1986")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("nasa")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("space-shuttle")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("safety-engineering")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("challenger")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("space-transportation")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/publication"),
-                o = Uri("https://trustgraph.ai/pubev/d946c320-0432-48c8-a015-26b0af3cedae")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/d946c320-0432-48c8-a015-26b0af3cedae"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/PublicationEvent")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/d946c320-0432-48c8-a015-26b0af3cedae"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("The findings of the Commission regarding the circumstances surrounding the Challenger accident are reported and recommendations for corrective action are outlined")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/d946c320-0432-48c8-a015-26b0af3cedae"),
-                p = Uri("https://schema.org/publishedBy"),
-                o = Uri("https://trustgraph.ai/org/nasa")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/nasa"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Organization")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/nasa"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("NASA")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/nasa"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("NASA")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/d946c320-0432-48c8-a015-26b0af3cedae"),
-                p = Uri("https://schema.org/startDate"),
-                o = Literal("1986-06-06")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/d946c320-0432-48c8-a015-26b0af3cedae"),
-                p = Uri("https://schema.org/endDate"),
-                o = Literal("1986-06-06")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/challenger-report-vol-1"),
-                p = Uri("https://schema.org/url"),
-                o = Uri("https://ntrs.nasa.gov/api/citations/19860015255/downloads/19860015255.pdf")
-            )
-        ]
-    },
-
-    {
-        "id": "https://trustgraph.ai/doc/icelandic-dictionary",
-        "title": "A Concise Dictionary of Old Icelandic",
-        "comments": "A Concise Dictionary of Old Icelandic, published in 1910, is a 551-page dictionary that offers a comprehensive overview of the Old Norse language, particularly Old Icelandic.",
-        "url": "https://css4.pub/2015/icelandic/dictionary.pdf",
-        "kind": "application/pdf",
-        "date": datetime.datetime.now().date(),
-        "tags": ["old-icelandic", "dictionary", "language", "grammar", "old-norse", "icelandic"],
-        "metadata": [
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/DigitalDocument")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("A Concise Dictionary of Old Icelandic"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("A Concise Dictionary of Old Icelandic"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("A Concise Dictionary of Old Icelandic, published in 1910, is a 551-page dictionary that offers a comprehensive overview of the Old Norse language, particularly Old Icelandic."),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/copyrightNotice"),
-                o = Literal("Copyright expired, public domain")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/copyrightHolder"),
-                o = Literal("Geir Zoëga, Clarendon Press")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/copyrightYear"),
-                o = Literal("1910")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("icelandic")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("old-norse")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("dictionary")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("grammar")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("old-icelandic")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/publication"),
-                o = Uri("https://trustgraph.ai/pubev/11a78156-3aea-4263-9f1b-0c63cbde69d7")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/11a78156-3aea-4263-9f1b-0c63cbde69d7"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/PublicationEvent")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/11a78156-3aea-4263-9f1b-0c63cbde69d7"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("Published by Clarendon Press in 1910"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/11a78156-3aea-4263-9f1b-0c63cbde69d7"),
-                p = Uri("https://schema.org/publishedBy"),
-                o = Uri("https://trustgraph.ai/org/clarendon-press")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/clarendon-press"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Organization")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/clarendon-press"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("NASA")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/clarendon-press"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("Clarendon Press")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/11a78156-3aea-4263-9f1b-0c63cbde69d7"),
-                p = Uri("https://schema.org/startDate"),
-                o = Literal("1910-01-01")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/11a78156-3aea-4263-9f1b-0c63cbde69d7"),
-                p = Uri("https://schema.org/endDate"),
-                o = Literal("1910-01-01")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/icelandic-dictionary"),
-                p = Uri("https://schema.org/url"),
-                o = Uri("https://digital-research-books-beta.nypl.org/edition/10476341")
-            )
-        ]
-    },
+SAMPLE_DOCS_PACKAGE = "trustgraph.cli.sample_documents"
 
 
-    {
-        "id": "https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025",
-        "title": "Annual threat assessment of the U.S. intelligence community - March 2025",
-        "comments": "The report reflects the collective insights of the Intelligence Community (IC), which is committed to providing the nuanced, independent, and unvarnished intelligence that policymakers, warfighters, and domestic law enforcement personnel need to protect American lives and America’s interests anywhere in the world.",
-        "url": "https://www.intelligence.senate.gov/sites/default/files/2025%20Annual%20Threat%20Assessment%20of%20the%20U.S.%20Intelligence%20Community.pdf",
-        "kind": "application/pdf",
-        "date": datetime.datetime.now().date(),
-        "tags": ["adversary-cooperation", "cyberthreats", "supply-chain-vulnerabilities", "economic-competition", "national-security", "data-privacy"],
-        "metadata": [
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/DigitalDocument")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("Annual threat assessment of the U.S. intelligence community - March 2025"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("Annual threat assessment of the U.S. intelligence community - March 2025"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("The report reflects the collective insights of the Intelligence Community (IC), which is committed to providing the nuanced, independent, and unvarnished intelligence that policymakers, warfighters, and domestic law enforcement personnel need to protect American lives and America’s interests anywhere in the world."),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/copyrightNotice"),
-                o = Literal("Not copyright")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/copyrightHolder"),
-                o = Literal("US Government")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/copyrightYear"),
-                o = Literal("2025")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("adversary-cooperation")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("cyberthreats")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("supply-chain-vulnerabilities")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("economic-competition")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("national-security")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/publication"),
-                o = Uri("https://trustgraph.ai/pubev/0f1cfbe2-ce64-403b-8327-799aa8ba3cec")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/0f1cfbe2-ce64-403b-8327-799aa8ba3cec"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/PublicationEvent")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/0f1cfbe2-ce64-403b-8327-799aa8ba3cec"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("Published by the Director of National Intelligence (DNI)"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/0f1cfbe2-ce64-403b-8327-799aa8ba3cec"),
-                p = Uri("https://schema.org/publishedBy"),
-                o = Uri("https://trustgraph.ai/org/us-gov-dni")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/us-gov-dni"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Organization")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/us-gov-dni"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("The Director of National Intelligence")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/us-gov-dni"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("The Director of National Intelligence")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/0f1cfbe2-ce64-403b-8327-799aa8ba3cec"),
-                p = Uri("https://schema.org/startDate"),
-                o = Literal("2025-03-18")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/0f1cfbe2-ce64-403b-8327-799aa8ba3cec"),
-                p = Uri("https://schema.org/endDate"),
-                o = Literal("2025-03-18")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/annual-threat-assessment-us-dni-march-2025"),
-                p = Uri("https://schema.org/url"),
-                o = Uri("https://www.dni.gov/index.php/newsroom/reports-publications/reports-publications-2025/4058-2025-annual-threat-assessment")
-            )
-        ]
-    },
+def get_data_path():
+    return resources.files(SAMPLE_DOCS_PACKAGE)
 
-    {
-        "id": "https://trustgraph.ai/doc/intelligence-and-state",
-        "title": "The Role of Intelligence and State Policies in International Security",
-        "comments": "A volume by Mehmet Emin Erendor, published by Cambridge Scholars Publishing (2021). It is well-known that the understanding of security has changed since the end of the Cold War. This, in turn, has impacted the characteristics of intelligence, as states have needed to improve their security policies with new intelligence tactics. This volume investigates this new state of play in the international arena.",
-        "url": "https://www.cambridgescholars.com/resources/pdfs/978-1-5275-7604-9-sample.pdf",
-        "kind": "application/pdf",
-        "date": "2025-05-06",
-        "tags": ["intelligence", "state-policy", "international-security", "national-security", "geopolitics", "foreign-policy", "security-studies", "military", "crime"],
-        "metadata": [
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Book")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("The Role of Intelligence and State Policies in International Security")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("The Role of Intelligence and State Policies in International Security")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("A volume by Mehmet Emin Erendor. It is well-known that the understanding of security has changed since the end of the Cold War. This, in turn, has impacted the characteristics of intelligence, as states have needed to improve their security policies with new intelligence tactics. This volume investigates this new state of play in the international arena.")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/author"),
-                o = Literal("Mehmet Emin Erendor")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/isbn"),
-                o = Literal("9781527576049")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/numberOfPages"),
-                o = Literal("220")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("intelligence")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("state policy")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("international security")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("national security")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("geopolitics")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/publication"),
-                o = Uri("https://trustgraph.ai/pubev/b4352222-5da0-480d-a00f-f7342fe77862")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/b4352222-5da0-480d-a00f-f7342fe77862"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/PublicationEvent")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/b4352222-5da0-480d-a00f-f7342fe77862"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("Published by Cambridge Scholars Publishing on October 28, 2021.")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/b4352222-5da0-480d-a00f-f7342fe77862"),
-                p = Uri("https://schema.org/publishedBy"),
-                o = Uri("https://trustgraph.ai/org/cambridge-scholars-publishing")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/cambridge-scholars-publishing"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Organization")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/cambridge-scholars-publishing"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("Cambridge Scholars Publishing")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/cambridge-scholars-publishing"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("Cambridge Scholars Publishing")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/b4352222-5da0-480d-a00f-f7342fe77862"),
-                p = Uri("https://schema.org/startDate"),
-                o = Literal("2021-10-28")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/intelligence-and-state"),
-                p = Uri("https://schema.org/url"),
-                o = Uri("https://www.cambridgescholars.com/resources/pdfs/978-1-5275-7604-9-sample.pdf")
-            )
-        ]
-    },
 
-    {
-        "id": "https://trustgraph.ai/doc/beyond-vigilant-state",
-        "title": "Beyond the vigilant state: globalisation and intelligence",
-        "comments": "This academic paper by Richard J. Aldrich examines the relationship between globalization and intelligence agencies, discussing how intelligence services have adapted to global changes in the post-Cold War era.",
-        "url": "https://warwick.ac.uk/fac/soc/pais/people/aldrich/publications/beyond.pdf",
-        "kind": "application/pdf",
-        "date": datetime.datetime.now().date(),
-        "tags": ["intelligence", "globalization", "security-studies", "surveillance", "international-relations", "post-cold-war"],
-        "metadata": [
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/ScholarlyArticle")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("Beyond the vigilant state: globalisation and intelligence"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("Beyond the vigilant state: globalisation and intelligence"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("This academic paper by Richard J. Aldrich examines the relationship between globalization and intelligence agencies, discussing how intelligence services have adapted to global changes in the post-Cold War era."),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/copyrightNotice"),
-                o = Literal("(c) British International Studies Association")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/copyrightHolder"),
-                o = Literal("British International Studies Association")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/author"),
-                o = Uri("https://trustgraph.ai/person/3a45f8c9-b7d1-42e5-8631-d9f82c4a0e22")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/person/3a45f8c9-b7d1-42e5-8631-d9f82c4a0e22"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Person")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/person/3a45f8c9-b7d1-42e5-8631-d9f82c4a0e22"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("Richard J. Aldrich")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/person/3a45f8c9-b7d1-42e5-8631-d9f82c4a0e22"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("Richard J. Aldrich")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("intelligence")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("globalisation")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("security-studies")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("surveillance")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("international-relations")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/keywords"),
-                o = Literal("post-cold-war")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/publication"),
-                o = Uri("https://trustgraph.ai/pubev/75c83dfa-6b2e-4d89-bda1-c8e92f0e3410")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/75c83dfa-6b2e-4d89-bda1-c8e92f0e3410"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/PublicationEvent")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/75c83dfa-6b2e-4d89-bda1-c8e92f0e3410"),
-                p = Uri("https://schema.org/description"),
-                o = Literal("Published in Review of International Studies"),
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/pubev/75c83dfa-6b2e-4d89-bda1-c8e92f0e3410"),
-                p = Uri("https://schema.org/publishedBy"),
-                o = Uri("https://trustgraph.ai/org/british-international-studies-association")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/british-international-studies-association"),
-                p = Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                o = Uri("https://schema.org/Organization")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/british-international-studies-association"),
-                p = Uri("http://www.w3.org/2000/01/rdf-schema#label"),
-                o = Literal("British International Studies Association")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/org/british-international-studies-association"),
-                p = Uri("https://schema.org/name"),
-                o = Literal("British International Studies Association")
-            ),
-            Triple(
-                s = Uri("https://trustgraph.ai/doc/beyond-vigilant-state"),
-                p = Uri("https://schema.org/url"),
-                o = Uri("https://warwick.ac.uk/fac/soc/pais/people/aldrich/publications/beyond.pdf")
-            )
-        ]
-    }
+def load_metadata():
+    data_path = get_data_path()
+    metadata_file = data_path / "metadata.json"
+    return json.loads(metadata_file.read_text(encoding="utf-8"))
 
-]
 
-class Loader:
+def convert_value(v):
+    if v["type"] == "uri":
+        return Uri(v["value"])
+    else:
+        return Literal(v["value"])
 
-    def __init__(
-            self, url, token=None, workspace="default",
-    ):
 
-        self.api = Api(url, token=token, workspace=workspace).library()
+def convert_metadata(metadata_json):
+    triples = []
+    for t in metadata_json:
+        triples.append(Triple(
+            s=convert_value(t["s"]),
+            p=convert_value(t["p"]),
+            o=convert_value(t["o"]),
+        ))
+    return triples
 
-    def load(self, documents):
 
-        for doc in documents:
-            self.load_doc(doc)
+def load_document(api, doc_entry, data_path):
 
-    def load_doc(self, doc):
+    doc_id = doc_entry["id"]
+    title = doc_entry["title"]
+    filename = doc_entry["file"]
 
-        try:
+    print(f"  [{filename}] {title}")
 
-            print(doc["title"], ":")
+    print(f"    reading content...")
+    content_file = data_path / filename
+    content = content_file.read_bytes()
 
-            hid = hash(doc["url"])
-            cache_file = f"doc-cache/{hid}"
+    print(f"    loading into TrustGraph ({len(content) // 1024}KB)...")
+    metadata = convert_metadata(doc_entry["metadata"])
 
-            if os.path.isfile(cache_file):
-                print("  (use cache file)")
-                content = open(cache_file, "rb").read()
-            else:
-                print("  downloading...")
-                resp = session.get(doc["url"])
-                content = resp.content
-                open(cache_file, "wb").write(content)
-                print("  done.")
+    api.add_document(
+        id=doc_id,
+        metadata=metadata,
+        kind=doc_entry["kind"],
+        title=title,
+        comments=doc_entry["comments"],
+        tags=doc_entry["tags"],
+        document=content,
+    )
 
-            print("  adding...")
+    print(f"    done.")
 
-            self.api.add_document(
-                id=doc["id"], metadata=doc["metadata"],
-                kind=doc["kind"], title=doc["title"],
-                comments=doc["comments"], tags=doc["tags"],
-                document=content,
-            )
-
-            print("  successful.")
-
-        except Exception as e:
-            print("Failed: {str(e)}", flush=True)
-            raise e
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-add-library-document',
+        prog='tg-load-sample-documents',
         description=__doc__,
     )
 
@@ -724,18 +102,27 @@ def main():
 
     try:
 
-        p = Loader(
-            url=args.url,
-            token=args.token,
-            workspace=args.workspace,
-        )
+        api = Api(args.url, token=args.token, workspace=args.workspace)
+        library = api.library()
 
-        p.load(documents)
+        data_path = get_data_path()
+        documents = load_metadata()
+
+        print(f"Loading {len(documents)} sample document(s)...\n")
+
+        for doc in documents:
+            try:
+                load_document(library, doc, data_path)
+            except Exception as e:
+                print(f"    FAILED: {e}")
+            print()
+
+        print("Complete.")
 
     except Exception as e:
-
-        print("Exception:", e, flush=True)
+        print(f"Exception: {e}")
         raise e
+
 
 if __name__ == "__main__":
     main()
