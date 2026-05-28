@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock, call
 import json
 
+from trustgraph.api.socket_client import SocketClient
 from trustgraph.api import (
     Api,
     Triple,
@@ -221,6 +222,82 @@ class TestSocketClient:
 
         for method in expected_methods:
             assert hasattr(flow_instance, method), f"Missing method: {method}"
+
+    def test_socket_client_close_does_not_swallow_base_exceptions(self):
+        """Test close cleanup does not suppress process-level interrupts."""
+
+        class InterruptingLoop:
+            def is_closed(self):
+                return False
+
+            def run_until_complete(self, awaitable):
+                if hasattr(awaitable, "close"):
+                    awaitable.close()
+                raise SystemExit("stop")
+
+        socket = SocketClient(url="http://test/", timeout=60, token=None)
+        socket._loop = InterruptingLoop()
+
+        with pytest.raises(SystemExit):
+            socket.close()
+
+    @pytest.mark.parametrize(
+        ("generator_method", "async_method"),
+        [
+            ("_streaming_generator", "_send_request_async_streaming"),
+            ("_streaming_generator_raw", "_send_request_async_streaming_raw"),
+        ],
+    )
+    def test_socket_client_streaming_cleanup_does_not_swallow_base_exceptions(
+        self, generator_method, async_method
+    ):
+        """Test streaming cleanup does not suppress process-level interrupts."""
+
+        class FakeAsyncGenerator:
+            def __anext__(self):
+                return "next"
+
+            def aclose(self):
+                return "close"
+
+        class InterruptingLoop:
+            def run_until_complete(self, awaitable):
+                if awaitable == "next":
+                    raise StopAsyncIteration
+                if awaitable == "close":
+                    raise SystemExit("stop")
+                raise AssertionError(f"unexpected awaitable: {awaitable!r}")
+
+        socket = SocketClient(url="http://test/", timeout=60, token=None)
+        setattr(socket, async_method, lambda *args, **kwargs: FakeAsyncGenerator())
+        generator = getattr(socket, generator_method)(
+            "agent", "default", {}, InterruptingLoop()
+        )
+
+        with pytest.raises(SystemExit):
+            next(generator)
+
+    @pytest.mark.asyncio
+    async def test_socket_client_reader_does_not_swallow_base_exceptions(self):
+        """Test reader error fanout does not suppress process-level interrupts."""
+
+        class FailingSocket:
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise ValueError("reader failed")
+
+        class InterruptingQueue:
+            async def put(self, message):
+                raise SystemExit("stop")
+
+        socket = SocketClient(url="http://test/", timeout=60, token=None)
+        socket._socket = FailingSocket()
+        socket._pending = {"req-1": InterruptingQueue()}
+
+        with pytest.raises(SystemExit):
+            await socket._reader()
 
 
 class TestBulkClient:

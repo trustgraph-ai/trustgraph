@@ -31,12 +31,12 @@ class PromptManager:
 
         try:
             system = json.loads(config["system"])
-        except:
+        except (KeyError, TypeError, json.JSONDecodeError):
             system = "Be helpful."
 
         try:
             ix = json.loads(config["template-index"])
-        except:
+        except (KeyError, TypeError, json.JSONDecodeError):
             ix = []
 
         prompts = {}
@@ -68,8 +68,8 @@ class PromptManager:
 
         try:
             self.system_template = ibis.Template(self.config.system_template)
-        except:
-            raise RuntimeError("Error in system template")
+        except Exception as e:
+            raise RuntimeError(f"Error in system template: {e}")
 
         self.templates = {}
         for k, v in self.prompts.items():
@@ -136,8 +136,6 @@ class PromptManager:
 
         terms = self.terms | self.prompts[id].terms | input
 
-        resp_type = self.prompts[id].response_type
-
         return self.templates[id].render(terms)
 
     async def invoke(self, id, input, llm):
@@ -161,7 +159,7 @@ class PromptManager:
         if resp_type == "json":
             try:
                 obj = self.parse_json(resp)
-            except:
+            except (json.JSONDecodeError, TypeError):
                 logger.error(f"JSON parse failed: {resp}")
                 raise RuntimeError("JSON parse fail")
 
@@ -195,4 +193,3 @@ class PromptManager:
             return objects
 
         raise RuntimeError(f"Response type {resp_type} not known")
-

@@ -1,0 +1,527 @@
+[
+    {
+        "id": "https://trustgraph.ai/doc/west-country-recipes",
+        "title": "The Foundations of West Country Cooking",
+        "comments": "A structured guide to traditional West Country recipes including clotted cream, scones, hedgerow jam, the cream tea, Cornish pasty, homity pie, and Devonshire fudge, with regional supply chain dependencies.",
+        "file": "recipes.md",
+        "kind": "text/markdown",
+        "tags": ["cooking", "west-country", "devon", "cornwall", "recipes", "food-history"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "The Foundations of West Country Cooking"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "The Foundations of West Country Cooking"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "A structured guide to traditional West Country recipes including clotted cream, scones, hedgerow jam, the cream tea, Cornish pasty, homity pie, and Devonshire fudge, with regional supply chain dependencies."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "cooking"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "west-country"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "devon"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "cornwall"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "recipes"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/west-country-recipes"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "food-history"}
+            }
+        ]
+    },
+    {
+        "id": "https://trustgraph.ai/doc/belgian-beer",
+        "title": "The Brewing Traditions of Belgium",
+        "comments": "An exploration of Belgian brewing traditions covering Trappist yeasts, wild fermentation, monastic beers including Westvleteren and Chimay, spontaneous sour traditions like Oude Geuze and Flemish Red Ale.",
+        "file": "belgian-beer.md",
+        "kind": "text/markdown",
+        "tags": ["brewing", "belgium", "beer", "trappist", "fermentation", "food-history"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "The Brewing Traditions of Belgium"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "The Brewing Traditions of Belgium"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "An exploration of Belgian brewing traditions covering Trappist yeasts, wild fermentation, monastic beers including Westvleteren and Chimay, spontaneous sour traditions like Oude Geuze and Flemish Red Ale."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "brewing"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "belgium"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "beer"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "trappist"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "fermentation"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/belgian-beer"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "food-history"}
+            }
+        ]
+    },
+    {
+        "id": "https://trustgraph.ai/doc/trade-routes-europe",
+        "title": "Traditional Trade Routes of Pre-Modern Europe",
+        "comments": "A structured overview of pre-modern European trade networks including the Hanseatic Baltic Route and Venetian Maritime Route, hub cities like Bruges, Lübeck, and Constantinople, specialized commodities, and geopolitical chokepoints.",
+        "file": "trade-routes-europe.md",
+        "kind": "text/markdown",
+        "tags": ["trade", "medieval", "europe", "hanseatic-league", "venice", "economic-history"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "Traditional Trade Routes of Pre-Modern Europe"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "Traditional Trade Routes of Pre-Modern Europe"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "A structured overview of pre-modern European trade networks including the Hanseatic Baltic Route and Venetian Maritime Route, hub cities like Bruges, Lübeck, and Constantinople, specialized commodities, and geopolitical chokepoints."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "trade"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "medieval"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "europe"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "hanseatic-league"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "venice"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/trade-routes-europe"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "economic-history"}
+            }
+        ]
+    },
+    {
+        "id": "https://trustgraph.ai/doc/corporate-scandals",
+        "title": "Global Corporate Fraud & Governance Failures",
+        "comments": "Detailed analysis of major corporate fraud cases including Enron and Wirecard, covering the financial engineering mechanisms, key executives, audit failures, whistleblowers, and collapse sequences.",
+        "file": "corporate-scandals.pdf",
+        "kind": "application/pdf",
+        "tags": ["corporate-fraud", "enron", "wirecard", "accounting", "governance", "financial-crime"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "Global Corporate Fraud & Governance Failures"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "Global Corporate Fraud & Governance Failures"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "Detailed analysis of major corporate fraud cases including Enron and Wirecard, covering the financial engineering mechanisms, key executives, audit failures, whistleblowers, and collapse sequences."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "corporate-fraud"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "enron"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "wirecard"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "accounting"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "governance"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/corporate-scandals"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "financial-crime"}
+            }
+        ]
+    },
+    {
+        "id": "https://trustgraph.ai/doc/history-of-pets",
+        "title": "The Domestic Canopy: A Unified Narrative of Companionship",
+        "comments": "A narrative history of human-animal companionship from Pleistocene wolf domestication through Egyptian cat worship, Roman exotic pets, medieval class divides, to the Victorian birth of the commercial pet industry.",
+        "file": "history-of-pets.md",
+        "kind": "text/markdown",
+        "tags": ["pets", "domestication", "animal-history", "cultural-history", "dogs", "cats"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "The Domestic Canopy: A Unified Narrative of Companionship"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "The Domestic Canopy: A Unified Narrative of Companionship"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "A narrative history of human-animal companionship from Pleistocene wolf domestication through Egyptian cat worship, Roman exotic pets, medieval class divides, to the Victorian birth of the commercial pet industry."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "pets"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "domestication"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "animal-history"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "cultural-history"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "dogs"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/history-of-pets"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "cats"}
+            }
+        ]
+    },
+    {
+        "id": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c",
+        "title": "Military Fortifications in 19th Century America",
+        "comments": "The evolution of American military fortification from the Third System masonry forts through Civil War obsolescence to earthwork defenses, plus the parallel development of frontier forts for westward expansion.",
+        "file": "mil-fortifications-america-19th-c.md",
+        "kind": "text/markdown",
+        "tags": ["military-history", "fortifications", "civil-war", "engineering", "american-history", "coastal-defense"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "Military Fortifications in 19th Century America"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "Military Fortifications in 19th Century America"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "The evolution of American military fortification from the Third System masonry forts through Civil War obsolescence to earthwork defenses, plus the parallel development of frontier forts for westward expansion."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "military-history"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "fortifications"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "civil-war"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "engineering"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "american-history"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/mil-fortifications-america-19th-c"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "coastal-defense"}
+            }
+        ]
+    },
+    {
+        "id": "https://trustgraph.ai/doc/bronze-age-collapse",
+        "title": "Echoes of the Void: The Late Bronze Age Collapse",
+        "comments": "A synthesis of the Late Bronze Age Collapse (c. 1200-1150 BCE) covering the interconnected trade networks, the cascade of failure from drought through the Sea Peoples to internal revolt, archaeological evidence, and the transition to the Iron Age.",
+        "file": "bronze-age-collapse.pdf",
+        "kind": "application/pdf",
+        "tags": ["bronze-age", "ancient-history", "archaeology", "mediterranean", "trade", "collapse"],
+        "metadata": [
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                "o": {"type": "uri", "value": "https://schema.org/DigitalDocument"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "http://www.w3.org/2000/01/rdf-schema#label"},
+                "o": {"type": "literal", "value": "Echoes of the Void: The Late Bronze Age Collapse"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/name"},
+                "o": {"type": "literal", "value": "Echoes of the Void: The Late Bronze Age Collapse"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/description"},
+                "o": {"type": "literal", "value": "A synthesis of the Late Bronze Age Collapse (c. 1200-1150 BCE) covering the interconnected trade networks, the cascade of failure from drought through the Sea Peoples to internal revolt, archaeological evidence, and the transition to the Iron Age."}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightNotice"},
+                "o": {"type": "literal", "value": "Original content, public domain"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightHolder"},
+                "o": {"type": "literal", "value": "TrustGraph AI"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/copyrightYear"},
+                "o": {"type": "literal", "value": "2025"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "bronze-age"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "ancient-history"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "archaeology"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "mediterranean"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "trade"}
+            },
+            {
+                "s": {"type": "uri", "value": "https://trustgraph.ai/doc/bronze-age-collapse"},
+                "p": {"type": "uri", "value": "https://schema.org/keywords"},
+                "o": {"type": "literal", "value": "collapse"}
+            }
+        ]
+    }
+]
