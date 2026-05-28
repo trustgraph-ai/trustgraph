@@ -1,9 +1,12 @@
 post:
   tags:
     - Collection
-  summary: Collection metadata management
+  summary: Collection metadata management (workspace-scoped)
   description: |
     Manage collection metadata for organizing documents and knowledge.
+
+    This is a **workspace-scoped** service. All operations apply to the
+    workspace associated with the authenticated bearer token.
 
     ## Collections
 

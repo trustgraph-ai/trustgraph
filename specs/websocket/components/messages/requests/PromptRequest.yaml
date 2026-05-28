@@ -1,5 +1,5 @@
 type: object
-description: WebSocket request for prompt service (flow-hosted service)
+description: WebSocket request for prompt service (flow-scoped service)
 required:
   - id
   - service

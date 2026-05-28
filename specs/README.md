@@ -28,8 +28,9 @@ specs/
 Location: `specs/api/openapi.yaml`
 
 The REST API specification documents:
-- **5 Global Services**: config, flow, librarian, knowledge, collection-management
-- **16 Flow-Hosted Services**: agent, RAG, embeddings, queries, loading, tools
+- **Global Services**: IAM (user management, authentication)
+- **5 Workspace-Scoped Services**: config, flow, librarian, knowledge, collection-management
+- **16 Flow-Scoped Services**: agent, RAG, embeddings, queries, loading, tools
 - **Import/Export**: Bulk data operations
 - **Metrics**: Prometheus monitoring
 

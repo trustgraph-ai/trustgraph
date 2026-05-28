@@ -3,10 +3,19 @@ scheme: bearer
 description: |
   Bearer token authentication.
 
-  Set via `GATEWAY_SECRET` environment variable on the gateway.
-  If `GATEWAY_SECRET` is not set, authentication is disabled (development mode).
+  Clients authenticate by passing an opaque token in the
+  `Authorization` header. The token is treated as an opaque string by
+  clients — its internal structure is a gateway implementation detail
+  and must not be relied upon.
+
+  The gateway resolves the token to an authenticated identity and an
+  associated workspace. All workspace-scoped and flow-scoped operations
+  then execute within that workspace context.
+
+  Tokens are obtained via the IAM service (e.g. `tg-login` or
+  `tg-create-api-key`).
 
   Example:
   ```
-  Authorization: Bearer your-secret-token
+  Authorization: Bearer <token>
   ```

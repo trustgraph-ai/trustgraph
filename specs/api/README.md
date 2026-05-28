@@ -2,6 +2,55 @@
 
 This directory contains the modular OpenAPI 3.1 specification for the TrustGraph REST API Gateway.
 
+## Authentication
+
+Clients authenticate by passing an opaque bearer token in the
+`Authorization` header.  The gateway resolves the token to an
+authenticated identity and an associated workspace.  Tokens are
+obtained via the IAM service (e.g. `tg-login` or `tg-create-api-key`).
+
+## Service Tiers
+
+API services are organized into three tiers based on their scoping:
+
+### Global services
+
+These services are not scoped to a workspace.  They manage
+system-wide resources.
+
+- **IAM** — user management, authentication, API key lifecycle
+
+### Workspace-scoped services
+
+These services operate within the workspace associated with the
+authenticated token.  The workspace is resolved by the gateway from
+the bearer token — it is not passed as an explicit parameter.
+
+- **Config** — configuration management (prompts, token costs, etc.)
+- **Librarian** — document library management
+- **Knowledge** — knowledge graph core management
+- **Collection Management** — collection metadata
+- **Flow** — flow lifecycle and blueprint management
+
+### Flow-scoped services
+
+These services require a `flow` parameter identifying the processing
+flow to use, in addition to the workspace context from the token.
+
+- **Agent** — agentic AI interactions
+- **Document RAG** — retrieval-augmented generation over documents
+- **Graph RAG** — retrieval-augmented generation over knowledge graphs
+- **Text Completion** — LLM text completion
+- **Prompt** — prompt template expansion
+- **Embeddings** — vector embedding generation
+- **SPARQL Query** — SPARQL queries against the knowledge graph
+- **Graph Embeddings** — knowledge graph embedding queries
+- **Document Embeddings** — document embedding queries
+- **Structured Query** — structured data queries
+- **Row Embeddings** — structured data embedding queries
+- **Rows Query** — row-level data queries
+- **Triples Query** — knowledge graph triple queries
+
 ## Structure
 
 ```

@@ -15,6 +15,11 @@ class WebSocketManager:
         self.token = token
         self.socket = None
 
+    # FIXME: authentication is broken. The /api/v1/socket endpoint uses
+    # in-band auth (first-frame protocol via the Mux dispatcher), not
+    # query-parameter tokens. This query-string token is silently ignored.
+    # Fix: after connect(), send an auth frame with the bearer token as
+    # the first message, matching the gateway's in-band auth protocol.
     def _build_url(self):
         if not self.token:
             return self.url

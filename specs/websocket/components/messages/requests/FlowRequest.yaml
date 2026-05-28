@@ -1,5 +1,5 @@
 type: object
-description: WebSocket request for flow service (global service)
+description: WebSocket request for flow service (workspace-scoped service)
 required:
   - id
   - service
