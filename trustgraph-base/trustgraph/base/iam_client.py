@@ -300,6 +300,14 @@ class IamClient(RequestResponse):
         )
         return resp.workspace
 
+    async def list_my_workspaces(self, actor="", timeout=IAM_TIMEOUT):
+        resp = await self._request(
+            operation="list-my-workspaces",
+            actor=actor,
+            timeout=timeout,
+        )
+        return list(resp.workspaces)
+
     async def list_workspaces(self, actor="", timeout=IAM_TIMEOUT):
         resp = await self._request(
             operation="list-workspaces",

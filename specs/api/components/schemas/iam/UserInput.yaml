@@ -1,0 +1,42 @@
+type: object
+description: |
+  User creation/update fields.  Used with `create-user` and `update-user`.
+  The `password` field is only accepted on `create-user`.
+properties:
+  username:
+    type: string
+    description: Login username.  Unique within a workspace.
+    examples:
+      - alice
+  name:
+    type: string
+    description: Display name.
+    examples:
+      - Alice Smith
+  email:
+    type: string
+    description: Email address.
+    examples:
+      - alice@example.com
+  password:
+    type: string
+    description: |
+      Initial password.  Only accepted on `create-user`; rejected on
+      `update-user`.  Use `reset-password` or `change-password` to
+      modify passwords.
+  roles:
+    type: array
+    items:
+      type: string
+    description: |
+      Roles to assign.  Open-source roles: `reader`, `writer`, `admin`.
+    examples:
+      - - reader
+  enabled:
+    type: boolean
+    description: Whether the user is enabled.
+    default: true
+  must_change_password:
+    type: boolean
+    description: Force password change on next login.
+    default: false

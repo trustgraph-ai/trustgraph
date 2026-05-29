@@ -9,6 +9,9 @@ description: |
 payload:
   description: Service request envelope with id, service, optional flow, and service-specific request payload
   oneOf:
+    # Global services
+    - $ref: './requests/IamRequest.yaml'
+
     # Workspace-scoped services (no flow parameter)
     - $ref: './requests/ConfigRequest.yaml'
     - $ref: './requests/FlowRequest.yaml'

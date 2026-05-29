@@ -1,0 +1,46 @@
+type: object
+description: User record returned by IAM operations.
+properties:
+  id:
+    type: string
+    description: Unique user identifier.
+    examples:
+      - usr_abc123
+  workspace:
+    type: string
+    description: User's home workspace.
+    examples:
+      - default
+  username:
+    type: string
+    description: Login username (unique within workspace).
+    examples:
+      - alice
+  name:
+    type: string
+    description: Display name.
+    examples:
+      - Alice Smith
+  email:
+    type: string
+    description: Email address.
+    examples:
+      - alice@example.com
+  roles:
+    type: array
+    items:
+      type: string
+    description: Assigned roles.
+    examples:
+      - - reader
+  enabled:
+    type: boolean
+    description: Whether the user is enabled.
+  must_change_password:
+    type: boolean
+    description: Whether the user must change password on next login.
+  created:
+    type: string
+    description: Creation timestamp (ISO-8601 UTC).
+    examples:
+      - "2026-01-15T10:30:00Z"

@@ -1,0 +1,23 @@
+type: object
+description: |
+  Workspace creation/update fields.  Used with `create-workspace` and
+  `update-workspace`.
+properties:
+  id:
+    type: string
+    description: |
+      Workspace identifier.  Required for all workspace operations.
+      Immutable after creation.
+    examples:
+      - default
+      - production
+  name:
+    type: string
+    description: Human-readable workspace name.
+    examples:
+      - Default Workspace
+      - Production
+  enabled:
+    type: boolean
+    description: Whether the workspace is enabled.
+    default: true
