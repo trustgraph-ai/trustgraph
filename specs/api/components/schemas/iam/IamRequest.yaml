@@ -1,0 +1,106 @@
+type: object
+description: |
+  IAM service request.
+
+  The IAM service is a **global service** — it operates at system level,
+  not scoped to a specific workspace.  All operations are dispatched via
+  the `operation` field.
+
+  Some operations require admin capabilities; others (like `whoami` and
+  `list-my-workspaces`) are available to any authenticated user.  See
+  the capability vocabulary for details.
+
+  The `actor` field is injected by the gateway and cannot be set by
+  the client.  It identifies the authenticated caller.
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    enum:
+      - whoami
+      - list-my-workspaces
+      - create-user
+      - list-users
+      - get-user
+      - update-user
+      - disable-user
+      - enable-user
+      - delete-user
+      - create-workspace
+      - list-workspaces
+      - get-workspace
+      - update-workspace
+      - disable-workspace
+      - create-api-key
+      - list-api-keys
+      - revoke-api-key
+      - reset-password
+      - rotate-signing-key
+    description: |
+      Operation to perform.
+
+      **Any authenticated user:**
+      - `whoami`: Return the caller's own user record
+      - `list-my-workspaces`: List workspaces the caller has access to
+
+      **User management (requires `users:read`/`users:write`/`users:admin`):**
+      - `create-user`: Create a new user in a workspace
+      - `list-users`: List users (optionally filtered by workspace)
+      - `get-user`: Get a specific user record
+      - `update-user`: Update user fields (name, email, roles, enabled)
+      - `disable-user`: Soft-disable a user and revoke their API keys
+      - `enable-user`: Re-enable a previously disabled user
+      - `delete-user`: Hard-delete a user and their API keys
+
+      **Workspace management (requires `workspaces:admin`):**
+      - `create-workspace`: Create a new workspace
+      - `list-workspaces`: List all workspaces (admin view)
+      - `get-workspace`: Get a specific workspace record
+      - `update-workspace`: Update workspace name or enabled state
+      - `disable-workspace`: Disable workspace and all its users
+
+      **API key management (requires `keys:self` or `keys:admin`):**
+      - `create-api-key`: Create an API key for a user
+      - `list-api-keys`: List API keys for a user
+      - `revoke-api-key`: Revoke (delete) an API key
+
+      **Password management:**
+      - `reset-password`: Admin-initiated password reset (requires `users:admin`)
+
+      **System (requires `iam:admin`):**
+      - `rotate-signing-key`: Rotate the JWT signing key
+  workspace:
+    type: string
+    description: |
+      Workspace scope.  Required on workspace-scoped operations
+      (e.g. `create-user`).  Acts as an optional integrity check on
+      operations that target a user or key — when supplied, the target's
+      home workspace must match.
+
+      Omitted for system-level operations (`list-workspaces`,
+      `rotate-signing-key`) and for identity-resolution operations
+      (`whoami`, `list-my-workspaces`).
+    examples:
+      - default
+      - production
+  user_id:
+    type: string
+    description: |
+      Target user identifier.  Required for operations that act on a
+      specific user: `get-user`, `update-user`, `disable-user`,
+      `enable-user`, `delete-user`, `reset-password`, `list-api-keys`.
+    examples:
+      - usr_abc123
+  user:
+    $ref: './UserInput.yaml'
+  workspace_record:
+    $ref: './WorkspaceInput.yaml'
+  key:
+    $ref: './ApiKeyInput.yaml'
+  key_id:
+    type: string
+    description: |
+      API key identifier.  Required for `revoke-api-key`.
+    examples:
+      - key_xyz789

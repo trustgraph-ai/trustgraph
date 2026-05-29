@@ -68,6 +68,7 @@ _READER_CAPS = {
     "collections:read",
     "knowledge:read",
     "keys:self",
+    "workspaces:list-own",
 }
 
 _WRITER_CAPS = _READER_CAPS | {
@@ -328,6 +329,8 @@ class IamService:
                 return await self.handle_delete_user(v)
             if op == "create-workspace":
                 return await self.handle_create_workspace(v)
+            if op == "list-my-workspaces":
+                return await self.handle_list_my_workspaces(v)
             if op == "list-workspaces":
                 return await self.handle_list_workspaces(v)
             if op == "get-workspace":
@@ -914,6 +917,30 @@ class IamService:
 
         row = await self.table_store.get_workspace(v.workspace_record.id)
         return IamResponse(workspace=self._row_to_workspace_record(row))
+
+    async def handle_list_my_workspaces(self, v):
+        if not v.actor:
+            return _err("invalid-argument", "actor required")
+
+        user_row = await self.table_store.get_user(v.actor)
+        if user_row is None:
+            return _err("not-found", "user not found")
+
+        user_roles = user_row[6] or []
+        is_admin = "admin" in user_roles
+
+        if is_admin:
+            rows = await self.table_store.list_workspaces()
+        else:
+            user_workspace = user_row[1]
+            row = await self.table_store.get_workspace(user_workspace)
+            rows = [row] if row else []
+
+        return IamResponse(
+            workspaces=[
+                self._row_to_workspace_record(r) for r in rows
+            ],
+        )
 
     async def handle_list_workspaces(self, v):
         rows = await self.table_store.list_workspaces()

@@ -1,0 +1,206 @@
+post:
+  tags:
+    - IAM
+  summary: IAM service (global)
+  description: |
+    Identity and access management service.
+
+    This is a **global service** — it operates at system level, not
+    scoped to a specific workspace.  The `workspace` field in the
+    request body is used as a scope filter or integrity check on
+    certain operations, not as an addressing component.
+
+    ## Authentication
+
+    Most operations require a bearer token.  The gateway resolves the
+    token to an authenticated identity and injects the `actor` field
+    (the caller's user ID) into the request.  Clients cannot set
+    `actor` — the gateway overwrites it.
+
+    ## Operations by Capability
+
+    ### Any authenticated user
+    - `whoami`: Return the caller's own user record
+    - `list-my-workspaces`: List workspaces the caller has access to.
+      For open-source IAM: returns the caller's home workspace, or all
+      workspaces if the caller has the `admin` role.
+
+    ### User management (`users:read` / `users:write` / `users:admin`)
+    - `create-user`: Create a new user in a workspace
+    - `list-users`: List users, optionally filtered by workspace
+    - `get-user`: Get a user record by ID
+    - `update-user`: Update user fields (name, email, roles, enabled)
+    - `disable-user`: Soft-disable a user and revoke their API keys
+    - `enable-user`: Re-enable a disabled user
+    - `delete-user`: Hard-delete a user and their API keys
+
+    ### Workspace management (`workspaces:admin`)
+    - `create-workspace`: Create a new workspace
+    - `list-workspaces`: List all workspaces (admin view)
+    - `get-workspace`: Get a workspace record
+    - `update-workspace`: Update workspace name or enabled state
+    - `disable-workspace`: Disable a workspace and all its users
+
+    ### API key management (`keys:self` / `keys:admin`)
+    - `create-api-key`: Create an API key (plaintext returned once)
+    - `list-api-keys`: List API keys for a user
+    - `revoke-api-key`: Revoke (delete) an API key
+
+    ### Password management (`users:admin`)
+    - `reset-password`: Admin-initiated password reset (returns temporary password)
+
+    ### System (`iam:admin`)
+    - `rotate-signing-key`: Rotate the JWT signing key
+
+  operationId: iamService
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/iam/IamRequest.yaml'
+        examples:
+          whoami:
+            summary: Get the caller's own user record
+            value:
+              operation: whoami
+          listMyWorkspaces:
+            summary: List workspaces the caller has access to
+            value:
+              operation: list-my-workspaces
+          createUser:
+            summary: Create a new user
+            value:
+              operation: create-user
+              workspace: default
+              user:
+                username: alice
+                name: Alice Smith
+                email: alice@example.com
+                password: changeme123
+                roles:
+                  - writer
+          listUsers:
+            summary: List users in a workspace
+            value:
+              operation: list-users
+              workspace: default
+          getUser:
+            summary: Get a specific user
+            value:
+              operation: get-user
+              user_id: usr_abc123
+          updateUser:
+            summary: Update a user's roles
+            value:
+              operation: update-user
+              user_id: usr_abc123
+              user:
+                roles:
+                  - admin
+          disableUser:
+            summary: Disable a user
+            value:
+              operation: disable-user
+              user_id: usr_abc123
+          createWorkspace:
+            summary: Create a workspace
+            value:
+              operation: create-workspace
+              workspace_record:
+                id: production
+                name: Production Workspace
+          listWorkspaces:
+            summary: List all workspaces (admin)
+            value:
+              operation: list-workspaces
+          createApiKey:
+            summary: Create an API key
+            value:
+              operation: create-api-key
+              key:
+                user_id: usr_abc123
+                name: laptop
+                expires: "2027-01-01T00:00:00Z"
+          listApiKeys:
+            summary: List a user's API keys
+            value:
+              operation: list-api-keys
+              user_id: usr_abc123
+          revokeApiKey:
+            summary: Revoke an API key
+            value:
+              operation: revoke-api-key
+              key_id: key_xyz789
+          resetPassword:
+            summary: Admin-initiated password reset
+            value:
+              operation: reset-password
+              user_id: usr_abc123
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/iam/IamResponse.yaml'
+          examples:
+            whoami:
+              summary: Caller's user record
+              value:
+                user:
+                  id: usr_abc123
+                  workspace: default
+                  username: alice
+                  name: Alice Smith
+                  email: alice@example.com
+                  roles:
+                    - writer
+                  enabled: true
+                  must_change_password: false
+                  created: "2026-01-15T10:30:00Z"
+            listMyWorkspaces:
+              summary: Workspaces the caller can access
+              value:
+                workspaces:
+                  - id: default
+                    name: Default Workspace
+                    enabled: true
+                    created: "2026-01-01T00:00:00Z"
+            listUsers:
+              summary: Users in a workspace
+              value:
+                users:
+                  - id: usr_abc123
+                    workspace: default
+                    username: alice
+                    name: Alice Smith
+                    roles:
+                      - writer
+                    enabled: true
+                    created: "2026-01-15T10:30:00Z"
+            createApiKey:
+              summary: New API key (plaintext returned once)
+              value:
+                api_key_plaintext: tg_aBcDeFgHiJkLmNoPqRsTuVwXyZ
+                api_key:
+                  id: key_xyz789
+                  user_id: usr_abc123
+                  name: laptop
+                  prefix: tg_a
+                  expires: "2027-01-01T00:00:00Z"
+                  created: "2026-05-29T14:00:00Z"
+            resetPassword:
+              summary: Temporary password (returned once)
+              value:
+                temporary_password: tmp_xK9mQ2pL
+    '400':
+      description: Bad request (unknown operation, missing required fields)
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '403':
+      description: Access denied (insufficient capabilities)
+    '500':
+      $ref: '../components/responses/Error.yaml'

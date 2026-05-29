@@ -89,6 +89,8 @@ security:
   - bearerAuth: []
 
 tags:
+  - name: IAM
+    description: Identity and access management (global)
   - name: Config
     description: Configuration management (workspace-scoped)
   - name: Flow
@@ -109,6 +111,11 @@ tags:
     description: System metrics and monitoring
 
 paths:
+  # Global services
+  /api/v1/iam:
+    $ref: './paths/iam.yaml'
+
+  # Workspace-scoped services
   /api/v1/config:
     $ref: './paths/config.yaml'
   /api/v1/flow:

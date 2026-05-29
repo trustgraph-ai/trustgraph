@@ -1,0 +1,21 @@
+type: object
+description: |
+  API key creation fields.  Used with `create-api-key`.
+properties:
+  user_id:
+    type: string
+    description: User to create the key for.
+    examples:
+      - usr_abc123
+  name:
+    type: string
+    description: Operator-facing label for the key (e.g. "laptop", "CI").
+    examples:
+      - laptop
+  expires:
+    type: string
+    description: |
+      Optional expiry timestamp in ISO-8601 UTC.  Empty string or
+      omitted means the key does not expire.
+    examples:
+      - "2027-01-01T00:00:00Z"

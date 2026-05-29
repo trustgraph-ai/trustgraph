@@ -310,6 +310,13 @@ register(Operation(
     extract_parameters=_no_parameters,
 ))
 register(Operation(
+    name="list-my-workspaces",
+    capability="workspaces:list-own",
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_no_parameters,
+))
+register(Operation(
     name="list-workspaces",
     capability="workspaces:admin",
     resource_level=ResourceLevel.SYSTEM,

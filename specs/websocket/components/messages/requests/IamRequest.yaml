@@ -1,0 +1,25 @@
+type: object
+description: WebSocket request for IAM service (global service)
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: iam
+    description: Service identifier for IAM service
+  request:
+    $ref: '../../../../api/components/schemas/iam/IamRequest.yaml'
+examples:
+  - id: req-1
+    service: iam
+    request:
+      operation: whoami
+  - id: req-2
+    service: iam
+    request:
+      operation: list-my-workspaces

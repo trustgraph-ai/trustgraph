@@ -1,0 +1,51 @@
+type: object
+description: |
+  IAM service response.  Fields are populated depending on the
+  operation that was invoked.
+properties:
+  user:
+    $ref: './UserRecord.yaml'
+  users:
+    type: array
+    description: List of user records (populated by `list-users`).
+    items:
+      $ref: './UserRecord.yaml'
+  workspace:
+    $ref: './WorkspaceRecord.yaml'
+  workspaces:
+    type: array
+    description: |
+      List of workspace records (populated by `list-workspaces` and
+      `list-my-workspaces`).
+    items:
+      $ref: './WorkspaceRecord.yaml'
+  api_key_plaintext:
+    type: string
+    description: |
+      Plaintext API key.  Returned **once** by `create-api-key`.
+      Never populated on any other operation.  The caller must
+      capture this value — it cannot be retrieved again.
+  api_key:
+    $ref: './ApiKeyRecord.yaml'
+  api_keys:
+    type: array
+    description: List of API key records (populated by `list-api-keys`).
+    items:
+      $ref: './ApiKeyRecord.yaml'
+  temporary_password:
+    type: string
+    description: |
+      Temporary password returned once by `reset-password`.
+  error:
+    type: object
+    description: Error details (present on failure).
+    properties:
+      type:
+        type: string
+        description: |
+          Error type.  One of: `invalid-argument`, `not-found`,
+          `duplicate`, `auth-failed`, `weak-password`, `disabled`,
+          `operation-not-permitted`, `internal-error`.
+      message:
+        type: string
+        description: Human-readable error description (not surfaced to end users).
