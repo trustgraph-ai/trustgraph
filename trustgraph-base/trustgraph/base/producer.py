@@ -34,6 +34,9 @@ class Producer:
 
     async def stop(self):
         self.running = False
+        if self.producer:
+            self.producer.close()
+            self.producer = None
 
     async def send(self, msg, properties={}):
 

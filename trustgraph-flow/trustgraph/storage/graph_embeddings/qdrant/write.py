@@ -3,11 +3,13 @@
 Accepts entity/vector pairs and writes them to a Qdrant store.
 """
 
+import asyncio
+import uuid
+import logging
+
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
-import uuid
-import logging
 
 from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
@@ -50,13 +52,35 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         )
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self._cache_lock = asyncio.Lock()
+        self._known_collections: set[str] = set()
 
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
+    async def ensure_collection(self, collection_name, dim):
+        async with self._cache_lock:
+            if collection_name in self._known_collections:
+                return
+            exists = await asyncio.to_thread(
+                self.qdrant.collection_exists, collection_name
+            )
+            if not exists:
+                logger.info(
+                    f"Lazily creating Qdrant collection {collection_name} "
+                    f"with dimension {dim}"
+                )
+                await asyncio.to_thread(
+                    self.qdrant.create_collection,
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=dim, distance=Distance.COSINE
+                    ),
+                )
+            self._known_collections.add(collection_name)
+
     async def store_graph_embeddings(self, workspace, message):
 
-        # Validate collection exists in config before processing
         if not self.collection_exists(workspace, message.metadata.collection):
             logger.warning(
                 f"Collection {message.metadata.collection} for workspace {workspace} "
@@ -75,22 +99,12 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             if not vec:
                 continue
 
-            # Create collection name with dimension suffix for lazy creation
             dim = len(vec)
             collection = (
                 f"t_{workspace}_{message.metadata.collection}_{dim}"
             )
 
-            # Lazily create collection if it doesn't exist (but only if authorized in config)
-            if not self.qdrant.collection_exists(collection):
-                logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
-                self.qdrant.create_collection(
-                    collection_name=collection,
-                    vectors_config=VectorParams(
-                        size=dim,
-                        distance=Distance.COSINE
-                    )
-                )
+            await self.ensure_collection(collection, dim)
 
             payload = {
                 "entity": entity_value,
@@ -98,7 +112,8 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             if entity.chunk_id:
                 payload["chunk_id"] = entity.chunk_id
 
-            self.qdrant.upsert(
+            await asyncio.to_thread(
+                self.qdrant.upsert,
                 collection_name=collection,
                 points=[
                     PointStruct(
@@ -106,7 +121,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                         vector=vec,
                         payload=payload,
                     )
-                ]
+                ],
             )
 
     @staticmethod
@@ -143,8 +158,9 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         try:
             prefix = f"t_{workspace}_{collection}_"
 
-            # Get all collections and filter for matches
-            all_collections = self.qdrant.get_collections().collections
+            all_collections = await asyncio.to_thread(
+                lambda: self.qdrant.get_collections().collections
+            )
             matching_collections = [
                 coll.name for coll in all_collections
                 if coll.name.startswith(prefix)
@@ -154,7 +170,11 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                 logger.info(f"No collections found matching prefix {prefix}")
             else:
                 for collection_name in matching_collections:
-                    self.qdrant.delete_collection(collection_name)
+                    await asyncio.to_thread(
+                        self.qdrant.delete_collection, collection_name
+                    )
+                    async with self._cache_lock:
+                        self._known_collections.discard(collection_name)
                     logger.info(f"Deleted Qdrant collection: {collection_name}")
                 logger.info(f"Deleted {len(matching_collections)} collection(s) for {workspace}/{collection}")
 

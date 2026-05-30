@@ -34,6 +34,8 @@ class Flow:
     async def stop(self):
         for c in self.consumer.values():
             await c.stop()
+        for p in self.producer.values():
+            await p.stop()
         if self.librarian:
             await self.librarian.stop()
 

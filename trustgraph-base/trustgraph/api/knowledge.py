@@ -132,3 +132,34 @@ class Knowledge:
 
         self.request(request = input)
 
+    def list_de_cores(self):
+
+        input = {
+            "operation": "list-de-cores",
+            "workspace": self.api.workspace,
+        }
+
+        return self.request(request = input)["ids"]
+
+    def delete_de_core(self, id):
+
+        input = {
+            "operation": "delete-de-core",
+            "workspace": self.api.workspace,
+            "id": id,
+        }
+
+        self.request(request = input)
+
+    def load_de_core(self, id, flow="default", collection="default"):
+
+        input = {
+            "operation": "load-de-core",
+            "workspace": self.api.workspace,
+            "id": id,
+            "flow": flow,
+            "collection": collection,
+        }
+
+        self.request(request = input)
+

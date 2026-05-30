@@ -435,3 +435,7 @@ class IamTableStore:
     async def any_workspace_exists(self):
         rows = await self.list_workspaces()
         return bool(rows)
+
+    async def any_signing_key_exists(self):
+        rows = await self.list_signing_keys()
+        return bool(rows)

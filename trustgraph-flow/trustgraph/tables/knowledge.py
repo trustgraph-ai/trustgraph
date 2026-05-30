@@ -1,6 +1,7 @@
 
 from .. schema import KnowledgeResponse, Triple, Triples, EntityEmbeddings
 from .. schema import Metadata, Term, IRI, LITERAL, GraphEmbeddings
+from .. schema import DocumentEmbeddings, ChunkEmbeddings
 
 from cassandra.cluster import Cluster
 
@@ -217,6 +218,16 @@ class KnowledgeTableStore:
             WHERE workspace = ? AND document_id = ?
         """)
 
+        self.delete_document_embeddings_stmt = self.cassandra.prepare("""
+            DELETE FROM document_embeddings
+            WHERE workspace = ? AND document_id = ?
+        """)
+
+        self.list_de_cores_stmt = self.cassandra.prepare("""
+            SELECT DISTINCT workspace, document_id FROM document_embeddings
+            WHERE workspace = ?
+        """)
+
     async def add_triples(self, workspace, m):
 
         when = int(time.time() * 1000)
@@ -338,6 +349,50 @@ class KnowledgeTableStore:
             logger.error("Exception occurred", exc_info=True)
             raise
 
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_document_embeddings_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
+
+    async def delete_document_embeddings(self, workspace, document_id):
+
+        logger.debug("Delete document embeddings...")
+
+        try:
+            await async_execute(
+                self.cassandra,
+                self.delete_document_embeddings_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
+
+    async def list_de_cores(self, workspace):
+
+        logger.debug("List DE cores...")
+
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.list_de_cores_stmt,
+                (workspace,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
+
+        lst = [row[1] for row in rows]
+
+        logger.debug("Done")
+
+        return lst
+
     async def get_triples(self, workspace, document_id, receiver):
 
         logger.debug("Get triples...")
@@ -412,6 +467,45 @@ class KnowledgeTableStore:
                         collection = "default",   # FIXME: What to put here?
                     ),
                     entities = entities
+                )
+            )
+
+        logger.debug("Done")
+
+    async def get_document_embeddings(self, workspace, document_id, receiver):
+
+        logger.debug("Get DE...")
+
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_document_embeddings_stmt,
+                (workspace, document_id),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
+
+        for row in rows:
+
+            if row[3]:
+                chunks = [
+                    ChunkEmbeddings(
+                        chunk_id=ch[0],
+                        vector=ch[1],
+                    )
+                    for ch in row[3]
+                ]
+            else:
+                chunks = []
+
+            await receiver(
+                DocumentEmbeddings(
+                    metadata = Metadata(
+                        id = document_id,
+                        collection = "default",
+                    ),
+                    chunks = chunks
                 )
             )
 

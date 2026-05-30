@@ -5,13 +5,11 @@ to a local file in msgpack format.
 
 import argparse
 import os
-import uuid
-import asyncio
-import json
-from websockets.asyncio.client import connect
 import msgpack
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
+from trustgraph.api import Api
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
@@ -21,7 +19,7 @@ def write_triple(f, data):
         {
             "m": {
                 "i": data["metadata"]["id"],
-                "m": data["metadata"]["metadata"],
+                "m": data["metadata"]["root"],
                 "c": data["metadata"]["collection"],
             },
             "t": data["triples"],
@@ -35,13 +33,13 @@ def write_ge(f, data):
         {
             "m": {
                 "i": data["metadata"]["id"],
-                "m": data["metadata"]["metadata"],
+                "m": data["metadata"]["root"],
                 "c": data["metadata"]["collection"],
             },
             "e": [
                 {
                     "e": ent["entity"],
-                    "v": ent["vectors"],
+                    "v": ent["vector"],
                 }
                 for ent in data["entities"]
             ]
@@ -49,54 +47,18 @@ def write_ge(f, data):
     )
     f.write(msgpack.packb(msg, use_bin_type=True))
 
-async def fetch(url, workspace, id, output, token=None):
+def fetch(url, workspace, id, output, token=None):
 
-    if not url.endswith("/"):
-        url += "/"
+    api = Api(url=url, token=token, workspace=workspace)
+    socket = api.socket()
 
-    url = url + "api/v1/socket"
-
-    if token:
-        url = f"{url}?token={token}"
-
-    mid = str(uuid.uuid4())
-
-    async with connect(url) as ws:
-
-        req = json.dumps({
-            "id": mid,
-            "workspace": workspace,
-            "service": "knowledge",
-            "request": {
-                "operation": "get-kg-core",
-                "workspace": workspace,
-                "id": id,
-            }
-        })
-
-        await ws.send(req)
-
+    try:
         ge = 0
         t = 0
 
         with open(output, "wb") as f:
 
-            while True:
-
-                msg = await ws.recv()
-
-                obj = json.loads(msg)
-
-                if "response" not in obj:
-                    raise RuntimeError("No response?")
-
-                response = obj["response"]
-
-                if "error" in response:
-                    raise RuntimeError(obj["error"])
-
-                if "eos" in response:
-                    if response["eos"]: break
+            for response in socket.get_kg_core(id):
 
                 if "triples" in response:
                     t += 1
@@ -108,7 +70,8 @@ async def fetch(url, workspace, id, output, token=None):
 
         print(f"Got: {t} triple, {ge} GE messages.")
 
-        await ws.close()
+    finally:
+        socket.close()
 
 def main():
 
@@ -151,14 +114,12 @@ def main():
 
     try:
 
-        asyncio.run(
-            fetch(
-                url=args.url,
-                workspace=args.workspace,
-                id=args.id,
-                output=args.output,
-                token=args.token,
-            )
+        fetch(
+            url=args.url,
+            workspace=args.workspace,
+            id=args.id,
+            output=args.output,
+            token=args.token,
         )
 
     except Exception as e:

@@ -2,6 +2,8 @@
 Tests for Cassandra triples storage service
 """
 
+import asyncio
+
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
@@ -24,12 +26,13 @@ class TestCassandraStorageProcessor:
         assert processor.cassandra_host == ['cassandra']  # Updated default
         assert processor.cassandra_username is None
         assert processor.cassandra_password is None
-        assert processor.table is None
+        assert processor._connections == {}
+        assert isinstance(processor._conn_lock, asyncio.Lock)
 
     def test_processor_initialization_with_custom_params(self):
         """Test processor initialization with custom parameters (new cassandra_* names)"""
         taskgroup_mock = MagicMock()
-        
+
         processor = Processor(
             taskgroup=taskgroup_mock,
             id='custom-storage',
@@ -37,11 +40,12 @@ class TestCassandraStorageProcessor:
             cassandra_username='testuser',
             cassandra_password='testpass'
         )
-        
+
         assert processor.cassandra_host == ['cassandra.example.com']
         assert processor.cassandra_username == 'testuser'
         assert processor.cassandra_password == 'testpass'
-        assert processor.table is None
+        assert processor._connections == {}
+        assert isinstance(processor._conn_lock, asyncio.Lock)
 
     def test_processor_initialization_with_partial_auth(self):
         """Test processor initialization with only username (no password)"""
@@ -92,6 +96,7 @@ class TestCassandraStorageProcessor:
         """Test table switching logic when authentication is provided"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(
@@ -114,7 +119,6 @@ class TestCassandraStorageProcessor:
             username='testuser',
             password='testpass'
         )
-        assert processor.table == 'user1'
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
@@ -122,6 +126,7 @@ class TestCassandraStorageProcessor:
         """Test table switching logic when no authentication is provided"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -138,7 +143,6 @@ class TestCassandraStorageProcessor:
             hosts=['cassandra'],  # Updated default
             keyspace='user2'
         )
-        assert processor.table == 'user2'
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
@@ -146,6 +150,7 @@ class TestCassandraStorageProcessor:
         """Test that TrustGraph is not recreated when table hasn't changed"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -169,6 +174,7 @@ class TestCassandraStorageProcessor:
         """Test that triples are properly inserted into Cassandra"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -208,12 +214,12 @@ class TestCassandraStorageProcessor:
         await processor.store_triples('user1', mock_message)
 
         # Verify both triples were inserted (with g=, otype=, dtype=, lang= parameters)
-        assert mock_tg_instance.insert.call_count == 2
-        mock_tg_instance.insert.assert_any_call(
+        assert mock_tg_instance.async_insert.call_count == 2
+        mock_tg_instance.async_insert.assert_any_call(
             'collection1', 'subject1', 'predicate1', 'object1',
             g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
         )
-        mock_tg_instance.insert.assert_any_call(
+        mock_tg_instance.async_insert.assert_any_call(
             'collection1', 'subject2', 'predicate2', 'object2',
             g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
         )
@@ -224,6 +230,7 @@ class TestCassandraStorageProcessor:
         """Test behavior when message has no triples"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -236,28 +243,23 @@ class TestCassandraStorageProcessor:
         await processor.store_triples('user1', mock_message)
 
         # Verify no triples were inserted
-        mock_tg_instance.insert.assert_not_called()
+        mock_tg_instance.async_insert.assert_not_called()
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
-    @patch('trustgraph.storage.triples.cassandra.write.time.sleep')
-    async def test_exception_handling_with_retry(self, mock_sleep, mock_kg_class):
+    async def test_exception_handling_on_connection_failure(self, mock_kg_class):
         """Test exception handling during TrustGraph creation"""
         taskgroup_mock = MagicMock()
         mock_kg_class.side_effect = Exception("Connection failed")
 
         processor = Processor(taskgroup=taskgroup_mock)
 
-        # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = []
 
         with pytest.raises(Exception, match="Connection failed"):
             await processor.store_triples('user1', mock_message)
-
-        # Verify sleep was called before re-raising
-        mock_sleep.assert_called_once_with(1)
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""
@@ -359,8 +361,6 @@ class TestCassandraStorageProcessor:
         mock_message1.triples = []
 
         await processor.store_triples('user1', mock_message1)
-        assert processor.table == 'user1'
-        assert processor.tg == mock_tg_instance1
 
         # Second message with different table
         mock_message2 = MagicMock()
@@ -368,11 +368,11 @@ class TestCassandraStorageProcessor:
         mock_message2.triples = []
 
         await processor.store_triples('user2', mock_message2)
-        assert processor.table == 'user2'
-        assert processor.tg == mock_tg_instance2
 
-        # Verify TrustGraph was created twice for different tables
+        # Verify TrustGraph was created twice for different workspaces
         assert mock_kg_class.call_count == 2
+        mock_kg_class.assert_any_call(hosts=['cassandra'], keyspace='user1')
+        mock_kg_class.assert_any_call(hosts=['cassandra'], keyspace='user2')
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
@@ -380,6 +380,7 @@ class TestCassandraStorageProcessor:
         """Test storing triples with special characters and unicode"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -405,7 +406,7 @@ class TestCassandraStorageProcessor:
         await processor.store_triples('test_workspace', mock_message)
 
         # Verify the triple was inserted with special characters preserved
-        mock_tg_instance.insert.assert_called_once_with(
+        mock_tg_instance.async_insert.assert_called_once_with(
             'test_collection',
             'subject with spaces & symbols',
             'predicate:with/colons',
@@ -418,29 +419,29 @@ class TestCassandraStorageProcessor:
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
-    async def test_store_triples_preserves_old_table_on_exception(self, mock_kg_class):
-        """Test that table remains unchanged when TrustGraph creation fails"""
+    async def test_connection_failure_does_not_cache_stale_state(self, mock_kg_class):
+        """Test that a failed connection doesn't leave stale cached state"""
         taskgroup_mock = MagicMock()
+        mock_good_instance = MagicMock()
 
         processor = Processor(taskgroup=taskgroup_mock)
 
-        # Set an initial table
-        processor.table = ('old_user', 'old_collection')
-
-        # Mock TrustGraph to raise exception
-        mock_kg_class.side_effect = Exception("Connection failed")
-
         mock_message = MagicMock()
-        mock_message.metadata.collection = 'new_collection'
+        mock_message.metadata.collection = 'collection1'
         mock_message.triples = []
 
+        # First call fails
+        mock_kg_class.side_effect = Exception("Connection failed")
         with pytest.raises(Exception, match="Connection failed"):
-            await processor.store_triples('new_user', mock_message)
+            await processor.store_triples('user1', mock_message)
 
-        # Table should remain unchanged since self.table = table happens after try/except
-        assert processor.table == ('old_user', 'old_collection')
-        # TrustGraph should be set to None though
-        assert processor.tg is None
+        # Second call succeeds — should retry connection, not use stale state
+        mock_kg_class.side_effect = None
+        mock_kg_class.return_value = mock_good_instance
+        await processor.store_triples('user1', mock_message)
+
+        # Connection was attempted twice (failed + succeeded)
+        assert mock_kg_class.call_count == 2
 
 
 class TestCassandraPerformanceOptimizations:
@@ -452,6 +453,7 @@ class TestCassandraPerformanceOptimizations:
         """Test that legacy mode still works with single table"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
@@ -472,6 +474,7 @@ class TestCassandraPerformanceOptimizations:
         """Test that optimized mode uses multi-table schema"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
@@ -492,6 +495,7 @@ class TestCassandraPerformanceOptimizations:
         """Test that all tables stay consistent during batch writes"""
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
+        mock_tg_instance.async_insert = AsyncMock()
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -517,7 +521,7 @@ class TestCassandraPerformanceOptimizations:
         await processor.store_triples('user1', mock_message)
 
         # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
-        mock_tg_instance.insert.assert_called_once_with(
+        mock_tg_instance.async_insert.assert_called_once_with(
             'collection1', 'test_subject', 'test_predicate', 'test_object',
             g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
         )

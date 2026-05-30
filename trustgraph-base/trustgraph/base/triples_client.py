@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
@@ -44,6 +45,60 @@ def from_value(x: Any) -> Any:
         return Term(type=LITERAL, value=str(x))
 
 class TriplesClient(RequestResponse):
+
+    async def query_gen(self, s=None, p=None, o=None, limit=20,
+                        collection="default",
+                        batch_size=20, timeout=30, g=None):
+        """Async generator yielding Triple objects as batches arrive."""
+        queue = asyncio.Queue()
+        done = False
+
+        async def recipient(resp):
+            if resp.error:
+                raise RuntimeError(resp.error.message)
+
+            batch = [
+                Triple(to_value(v.s), to_value(v.p), to_value(v.o))
+                for v in resp.triples
+            ]
+            await queue.put(batch)
+
+            if resp.is_final:
+                await queue.put(None)
+
+            return resp.is_final
+
+        # Launch the streaming request as a background task
+        task = asyncio.ensure_future(self.request(
+            TriplesQueryRequest(
+                s=from_value(s),
+                p=from_value(p),
+                o=from_value(o),
+                limit=limit,
+                collection=collection,
+                streaming=True,
+                batch_size=batch_size,
+                g=g,
+            ),
+            timeout=timeout,
+            recipient=recipient,
+        ))
+
+        try:
+            while True:
+                batch = await queue.get()
+                if batch is None:
+                    break
+                for triple in batch:
+                    yield triple
+        finally:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
+
     async def query(self, s=None, p=None, o=None, limit=20,
                     collection="default",
                     timeout=30, g=None):

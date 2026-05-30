@@ -4,13 +4,11 @@ Puts a knowledge core into the knowledge manager via the API socket.
 
 import argparse
 import os
-import uuid
-import asyncio
-import json
-from websockets.asyncio.client import connect
 import msgpack
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
+from trustgraph.api import Api
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
@@ -21,13 +19,13 @@ def read_message(unpacked, id):
         return "ge", {
             "metadata": {
                 "id": id,
-                "metadata": msg["m"]["m"],
-                "collection": "default",  # Not used?
+                "root": msg["m"]["m"],
+                "collection": "default",
             },
             "entities": [
                 {
                     "entity": ent["e"],
-                    "vectors": ent["v"],
+                    "vector": ent["v"],
                 }
                 for ent in msg["e"]
             ],
@@ -37,26 +35,20 @@ def read_message(unpacked, id):
         return "t", {
             "metadata": {
                 "id": id,
-                "metadata": msg["m"]["m"],
-                "collection": "default",   # Not used by receiver?
+                "root": msg["m"]["m"],
+                "collection": "default",
             },
             "triples": msg["t"],
         }
     else:
         raise RuntimeError("Unpacked unexpected messsage type", unpacked[0])
 
-async def put(url, workspace, id, input, token=None):
+def put(url, workspace, id, input, token=None):
 
-    if not url.endswith("/"):
-        url += "/"
+    api = Api(url=url, token=token, workspace=workspace)
+    socket = api.socket()
 
-    url = url + "api/v1/socket"
-
-    if token:
-        url = f"{url}?token={token}"
-
-    async with connect(url) as ws:
-
+    try:
         ge = 0
         t = 0
 
@@ -68,69 +60,26 @@ async def put(url, workspace, id, input, token=None):
 
                 try:
                     unpacked = unpacker.unpack()
-                except:
+                except msgpack.OutOfData:
                     break
 
                 kind, msg = read_message(unpacked, id)
 
-                mid = str(uuid.uuid4())
-
                 if kind == "ge":
-
                     ge += 1
-
-                    req = json.dumps({
-                        "id": mid,
-                        "workspace": workspace,
-                        "service": "knowledge",
-                        "request": {
-                            "operation": "put-kg-core",
-                            "workspace": workspace,
-                            "id": id,
-                            "graph-embeddings": msg
-                        }
-                    })
+                    socket.put_kg_core(id, graph_embeddings=msg)
 
                 elif kind == "t":
-
                     t += 1
-
-                    req = json.dumps({
-                        "id": mid,
-                        "workspace": workspace,
-                        "service": "knowledge",
-                        "request": {
-                            "operation": "put-kg-core",
-                            "workspace": workspace,
-                            "id": id,
-                            "triples": msg
-                        }
-                    })
+                    socket.put_kg_core(id, triples=msg)
 
                 else:
-
                     raise RuntimeError("Unexpected message kind", kind)
-
-                await ws.send(req)
-
-                # Retry loop, wait for right response to come back
-                while True:
-
-                    msg = await ws.recv()
-                    msg = json.loads(msg)
-
-                    if msg["id"] != mid:
-                        continue
-
-                    if "response" in msg:
-                        if "error" in msg["response"]:
-                            raise RuntimeError(msg["response"]["error"])
-
-                    break
 
         print(f"Put: {t} triple, {ge} GE messages.")
 
-        await ws.close()
+    finally:
+        socket.close()
 
 def main():
 
@@ -173,14 +122,12 @@ def main():
 
     try:
 
-        asyncio.run(
-            put(
-                url=args.url,
-                workspace=args.workspace,
-                id=args.id,
-                input=args.input,
-                token=args.token,
-            )
+        put(
+            url=args.url,
+            workspace=args.workspace,
+            id=args.id,
+            input=args.input,
+            token=args.token,
         )
 
     except Exception as e:

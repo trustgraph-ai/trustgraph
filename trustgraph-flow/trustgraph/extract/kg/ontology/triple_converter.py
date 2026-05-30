@@ -6,7 +6,7 @@ with full URIs and correct is_uri flags.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from .... schema import Triple, Term, IRI, LITERAL
 from .... rdf import RDF_TYPE, RDF_LABEL
@@ -31,6 +31,25 @@ class TripleConverter:
         self.ontology_subset = ontology_subset
         self.ontology_id = ontology_id
         self.entity_registry = EntityRegistry(ontology_id)
+
+    def _get_ancestor_classes(self, class_id: str) -> Set[str]:
+        ancestors = set()
+        current = class_id
+        while current:
+            cls_def = self.ontology_subset.classes.get(current)
+            if not cls_def:
+                break
+            parent = cls_def.get("subclass_of") if isinstance(cls_def, dict) else getattr(cls_def, "subclass_of", None)
+            if not parent or parent in ancestors:
+                break
+            ancestors.add(parent)
+            current = parent
+        return ancestors
+
+    def _matches_class_constraint(self, actual_type: str, expected_type: str) -> bool:
+        if actual_type == expected_type:
+            return True
+        return expected_type in self._get_ancestor_classes(actual_type)
 
     def convert_all(self, extraction: ExtractionResult) -> List[Triple]:
         """Convert complete extraction result to RDF triples.
@@ -129,6 +148,29 @@ class TripleConverter:
             logger.warning(f"Unknown relationship '{relationship.relation}', skipping")
             return None
 
+        # Enforce domain/range constraints when declared
+        prop_def = self.ontology_subset.object_properties.get(
+            relationship.relation, {}
+        )
+        domain = prop_def.get("domain") if isinstance(prop_def, dict) else getattr(prop_def, "domain", None)
+        range_ = prop_def.get("range") if isinstance(prop_def, dict) else getattr(prop_def, "range", None)
+
+        if domain and not self._matches_class_constraint(relationship.subject_type, domain):
+            logger.warning(
+                f"Domain violation: '{relationship.relation}' expects "
+                f"domain '{domain}', got subject type "
+                f"'{relationship.subject_type}', skipping"
+            )
+            return None
+
+        if range_ and not self._matches_class_constraint(relationship.object_type, range_):
+            logger.warning(
+                f"Range violation: '{relationship.relation}' expects "
+                f"range '{range_}', got object type "
+                f"'{relationship.object_type}', skipping"
+            )
+            return None
+
         # Generate triple: subject property object
         return Triple(
             s=Term(type=IRI, iri=subject_uri),
@@ -157,11 +199,25 @@ class TripleConverter:
             logger.warning(f"Unknown attribute '{attribute.attribute}', skipping")
             return None
 
+        # Enforce domain constraint when declared
+        prop_def = self.ontology_subset.datatype_properties.get(
+            attribute.attribute, {}
+        )
+        domain = prop_def.get("domain") if isinstance(prop_def, dict) else getattr(prop_def, "domain", None)
+
+        if domain and not self._matches_class_constraint(attribute.entity_type, domain):
+            logger.warning(
+                f"Domain violation: attribute '{attribute.attribute}' "
+                f"expects domain '{domain}', got entity type "
+                f"'{attribute.entity_type}', skipping"
+            )
+            return None
+
         # Generate triple: entity property "literal value"
         return Triple(
             s=Term(type=IRI, iri=entity_uri),
             p=Term(type=IRI, iri=property_uri),
-            o=Term(type=LITERAL, value=attribute.value)  # Literal!
+            o=Term(type=LITERAL, value=attribute.value)
         )
 
     def _get_class_uri(self, class_id: str) -> Optional[str]:

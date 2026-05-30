@@ -63,26 +63,26 @@ class TestEndToEndConfigurationFlow:
             'CASSANDRA_USERNAME': 'obj-user',
             'CASSANDRA_PASSWORD': 'obj-pass'
         }
-        
+
         mock_auth_instance = MagicMock()
         mock_auth_provider.return_value = mock_auth_instance
         mock_cluster_instance = MagicMock()
         mock_session = MagicMock()
         mock_cluster_instance.connect.return_value = mock_session
         mock_cluster.return_value = mock_cluster_instance
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             processor = RowsWriter(taskgroup=MagicMock())
-            
+
             # Trigger Cassandra connection
             processor.connect_cassandra()
-            
+
             # Verify auth provider was created with env vars
             mock_auth_provider.assert_called_once_with(
                 username='obj-user',
                 password='obj-pass'
             )
-            
+
             # Verify cluster was created with hosts from env and auth
             mock_cluster.assert_called_once()
             call_args = mock_cluster.call_args
@@ -188,37 +188,34 @@ class TestConfigurationPriorityEndToEnd:
             )
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra_kg.Cluster')
-    async def test_no_config_defaults_end_to_end(self, mock_cluster):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_no_config_defaults_end_to_end(self, mock_kg_class):
         """Test that defaults are used when no configuration provided end-to-end."""
-        mock_cluster_instance = MagicMock()
-        mock_session = MagicMock()
-        mock_cluster_instance.connect.return_value = mock_session
-        mock_cluster.return_value = mock_cluster_instance
-        
+        from unittest.mock import AsyncMock
+
+        mock_tg_instance = MagicMock()
+        mock_tg_instance.async_get_all = AsyncMock(return_value=[])
+        mock_kg_class.return_value = mock_tg_instance
+
         with patch.dict(os.environ, {}, clear=True):
             processor = TriplesQuery(taskgroup=MagicMock())
-            
+
             # Mock query to trigger TrustGraph creation
             mock_query = MagicMock()
             mock_query.collection = 'default_collection'
             mock_query.s = None
             mock_query.p = None
             mock_query.o = None
+            mock_query.g = None
             mock_query.limit = 100
-            
-            # Mock the get_all method to return empty list
-            mock_tg_instance = MagicMock()
-            mock_tg_instance.get_all.return_value = []
-            processor.tg = mock_tg_instance
-            
+
             await processor.query_triples('default_user', mock_query)
-            
+
             # Should use defaults
-            mock_cluster.assert_called_once()
-            call_args = mock_cluster.call_args
-            assert call_args.args[0] == ['cassandra']  # Default host
-            assert 'auth_provider' not in call_args.kwargs  # No auth with default config
+            mock_kg_class.assert_called_once_with(
+                hosts=['cassandra'],
+                keyspace='default_user'
+            )
 
 
 class TestNoBackwardCompatibilityEndToEnd:
@@ -324,16 +321,16 @@ class TestMultipleHostsHandling:
         env_vars = {
             'CASSANDRA_HOST': 'host1,host2,host3,host4,host5'
         }
-        
+
         mock_cluster_instance = MagicMock()
         mock_session = MagicMock()
         mock_cluster_instance.connect.return_value = mock_session
         mock_cluster.return_value = mock_cluster_instance
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
-            
+
             # Verify all hosts were passed to Cluster
             mock_cluster.assert_called_once()
             call_args = mock_cluster.call_args
@@ -392,27 +389,27 @@ class TestAuthenticationFlow:
             'CASSANDRA_USERNAME': 'auth-user',
             'CASSANDRA_PASSWORD': 'auth-secret'
         }
-        
+
         mock_auth_instance = MagicMock()
         mock_auth_provider.return_value = mock_auth_instance
         mock_cluster_instance = MagicMock()
         mock_cluster.return_value = mock_cluster_instance
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
-            
+
             # Auth provider should be created
             mock_auth_provider.assert_called_once_with(
                 username='auth-user',
                 password='auth-secret'
             )
-            
+
             # Cluster should be created with auth provider
             call_args = mock_cluster.call_args
             assert 'auth_provider' in call_args.kwargs
             assert call_args.kwargs['auth_provider'] == mock_auth_instance
-    
+
     @patch('trustgraph.storage.rows.cassandra.write.Cluster')
     @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_no_authentication_when_credentials_missing(self, mock_auth_provider, mock_cluster):
@@ -421,21 +418,21 @@ class TestAuthenticationFlow:
             'CASSANDRA_HOST': 'no-auth-host'
             # No username/password
         }
-        
+
         mock_cluster_instance = MagicMock()
         mock_cluster.return_value = mock_cluster_instance
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
-            
+
             # Auth provider should not be created
             mock_auth_provider.assert_not_called()
-            
+
             # Cluster should be created without auth provider
             call_args = mock_cluster.call_args
             assert 'auth_provider' not in call_args.kwargs
-    
+
     @patch('trustgraph.storage.rows.cassandra.write.Cluster')
     @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_no_authentication_when_only_username_provided(self, mock_auth_provider, mock_cluster):
@@ -446,15 +443,15 @@ class TestAuthenticationFlow:
             cassandra_username='partial-user'
             # No password
         )
-        
+
         mock_cluster_instance = MagicMock()
         mock_cluster.return_value = mock_cluster_instance
-        
+
         processor.connect_cassandra()
-        
+
         # Auth provider should not be created (needs both username AND password)
         mock_auth_provider.assert_not_called()
-        
+
         # Cluster should be created without auth provider
         call_args = mock_cluster.call_args
         assert 'auth_provider' not in call_args.kwargs

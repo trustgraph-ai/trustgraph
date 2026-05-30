@@ -11,6 +11,7 @@ multiplexes requests by ID.
 import json
 import asyncio
 import websockets
+from websockets.exceptions import ConnectionClosed
 from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
@@ -137,12 +138,6 @@ class SocketClient:
         if self._connected:
             return
 
-        if not self.token:
-            raise ProtocolException(
-                "SocketClient requires a token for first-frame auth "
-                "against /api/v1/socket"
-            )
-
         ws_url = self._build_ws_url()
         self._connect_cm = websockets.connect(
             ws_url, ping_interval=20, ping_timeout=self.timeout
@@ -153,7 +148,7 @@ class SocketClient:
         # auth-ok / auth-failed response isn't consumed by the reader
         # loop's id-based routing.
         await self._socket.send(json.dumps({
-            "type": "auth", "token": self.token,
+            "type": "auth", "token": self.token or "",
         }))
         try:
             raw = await asyncio.wait_for(
@@ -197,13 +192,13 @@ class SocketClient:
                 if request_id and request_id in self._pending:
                     await self._pending[request_id].put(response)
 
-        except websockets.exceptions.ConnectionClosed:
+        except ConnectionClosed:
             pass
         except Exception as e:
             for queue in self._pending.values():
                 try:
                     await queue.put({"error": str(e)})
-                except:
+                except Exception:
                     pass
         finally:
             self._connected = False
@@ -256,7 +251,7 @@ class SocketClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     def _streaming_generator_raw(
@@ -279,7 +274,7 @@ class SocketClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _send_request_async_streaming_raw(
@@ -491,12 +486,64 @@ class SocketClient:
             triples=raw_triples,
         )
 
+    def get_kg_core(self, id: str) -> Iterator[Dict[str, Any]]:
+        request = {
+            "operation": "get-kg-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        for response in self._send_request_sync(
+            "knowledge", None, request, streaming_raw=True,
+        ):
+            if response.get("eos"):
+                break
+            yield response
+
+    def put_kg_core(
+        self, id: str, triples=None, graph_embeddings=None,
+    ) -> Dict[str, Any]:
+        request = {
+            "operation": "put-kg-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        if triples is not None:
+            request["triples"] = triples
+        if graph_embeddings is not None:
+            request["graph-embeddings"] = graph_embeddings
+        return self._send_request_sync("knowledge", None, request)
+
+    def get_de_core(self, id: str) -> Iterator[Dict[str, Any]]:
+        request = {
+            "operation": "get-de-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        for response in self._send_request_sync(
+            "knowledge", None, request, streaming_raw=True,
+        ):
+            if response.get("eos"):
+                break
+            yield response
+
+    def put_de_core(
+        self, id: str, document_embeddings=None,
+    ) -> Dict[str, Any]:
+        request = {
+            "operation": "put-de-core",
+            "workspace": self.workspace,
+            "id": id,
+        }
+        if document_embeddings is not None:
+            request["document-embeddings"] = document_embeddings
+        return self._send_request_sync("knowledge", None, request)
+
     def close(self) -> None:
         """Close the persistent WebSocket connection."""
         if self._loop and not self._loop.is_closed():
             try:
                 self._loop.run_until_complete(self._close_async())
-            except:
+            except Exception:
                 pass
 
     async def _close_async(self):

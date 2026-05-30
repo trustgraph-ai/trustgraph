@@ -300,6 +300,438 @@ class TestBuiltinFunctions:
                                   flags=None)
         assert evaluate_expression(expr, {"x": lit("hello")}) is False
 
+    def test_substr_three_args(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("SUBSTR",
+                                  arg=Variable("x"),
+                                  start=Literal(1),
+                                  length=Literal(4))
+        result = evaluate_expression(expr, {"x": lit("2024-03-15")})
+        assert result.type == LITERAL
+        assert result.value == "2024"
+
+    def test_substr_two_args(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("SUBSTR",
+                                  arg=Variable("x"),
+                                  start=Literal(6),
+                                  length=None)
+        result = evaluate_expression(expr, {"x": lit("2024-03-15")})
+        assert result.type == LITERAL
+        assert result.value == "03-15"
+
+    def test_substr_middle(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("SUBSTR",
+                                  arg=Variable("x"),
+                                  start=Literal(6),
+                                  length=Literal(2))
+        result = evaluate_expression(expr, {"x": lit("2024-03-15")})
+        assert result.type == LITERAL
+        assert result.value == "03"
+
+    def test_substr_null_start(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("SUBSTR",
+                                  arg=Variable("x"),
+                                  start=Variable("missing"),
+                                  length=None)
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result is None
+
+    def test_year(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("YEAR", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15", datatype=XSD + "date")}
+        )
+        assert result == 2024
+
+    def test_month(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("MONTH", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15", datatype=XSD + "date")}
+        )
+        assert result == 3
+
+    def test_day(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("DAY", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15", datatype=XSD + "date")}
+        )
+        assert result == 15
+
+    def test_hours(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("HOURS", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15T10:30:45", datatype=XSD + "dateTime")}
+        )
+        assert result == 10
+
+    def test_minutes(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("MINUTES", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15T10:30:45", datatype=XSD + "dateTime")}
+        )
+        assert result == 30
+
+    def test_seconds(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("SECONDS", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15T10:30:45", datatype=XSD + "dateTime")}
+        )
+        assert result == 45
+
+    def test_year_from_datetime(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("YEAR", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15T10:30:45", datatype=XSD + "dateTime")}
+        )
+        assert result == 2024
+
+    def test_hours_from_date_returns_zero(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("HOURS", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15", datatype=XSD + "date")}
+        )
+        assert result == 0
+
+    def test_year_invalid_date(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("YEAR", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("not-a-date")}
+        )
+        assert result is None
+
+    def test_floor(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("FLOOR", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("3.7")}) == 3
+
+    def test_floor_negative(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("FLOOR", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("-2.3")}) == -3
+
+    def test_floor_none(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("FLOOR", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("abc")}) is None
+
+    def test_ceil(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("CEIL", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("3.2")}) == 4
+
+    def test_ceil_negative(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("CEIL", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("-2.7")}) == -2
+
+    def test_abs_positive(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ABS", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("42")}) == 42
+
+    def test_abs_negative(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ABS", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("-42")}) == 42
+
+    def test_abs_none(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ABS", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("abc")}) is None
+
+    def test_replace_simple(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("REPLACE",
+                                  arg=Variable("x"),
+                                  pattern=Literal(" BC"),
+                                  replacement=Literal(""),
+                                  flags=None)
+        result = evaluate_expression(expr, {"x": lit("500 BC")})
+        assert result.type == LITERAL
+        assert result.value == "500"
+
+    def test_replace_regex(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("REPLACE",
+                                  arg=Variable("x"),
+                                  pattern=Literal("[0-9]+"),
+                                  replacement=Literal("X"),
+                                  flags=None)
+        result = evaluate_expression(expr, {"x": lit("abc123def456")})
+        assert result.value == "abcXdefX"
+
+    def test_replace_case_insensitive(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("REPLACE",
+                                  arg=Variable("x"),
+                                  pattern=Literal("hello"),
+                                  replacement=Literal("world"),
+                                  flags=Literal("i"))
+        result = evaluate_expression(expr, {"x": lit("HELLO there")})
+        assert result.value == "world there"
+
+    def test_round_up(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ROUND", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("3.7")}) == 4
+
+    def test_round_down(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ROUND", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("3.2")}) == 3
+
+    def test_round_none(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ROUND", arg=Variable("x"))
+        assert evaluate_expression(expr, {"x": lit("abc")}) is None
+
+    def test_strbefore(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("STRBEFORE",
+                                  arg1=Variable("x"), arg2=Literal("-"))
+        result = evaluate_expression(expr, {"x": lit("2024-03-15")})
+        assert result.value == "2024"
+
+    def test_strbefore_not_found(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("STRBEFORE",
+                                  arg1=Variable("x"), arg2=Literal("/"))
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result.value == ""
+
+    def test_strafter(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("STRAFTER",
+                                  arg1=Variable("x"), arg2=Literal("-"))
+        result = evaluate_expression(expr, {"x": lit("2024-03-15")})
+        assert result.value == "03-15"
+
+    def test_strafter_not_found(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("STRAFTER",
+                                  arg1=Variable("x"), arg2=Literal("/"))
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result.value == ""
+
+    def test_encode_for_uri(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ENCODE_FOR_URI", arg=Variable("x"))
+        result = evaluate_expression(expr, {"x": lit("hello world")})
+        assert result.value == "hello%20world"
+
+    def test_encode_for_uri_special_chars(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("ENCODE_FOR_URI", arg=Variable("x"))
+        result = evaluate_expression(expr, {"x": lit("a/b?c=d&e")})
+        assert result.value == "a%2Fb%3Fc%3Dd%26e"
+
+    def test_langmatches_basic(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("LANGMATCHES",
+                                  arg1=Literal("en"), arg2=Literal("en"))
+        assert evaluate_expression(expr, {}) is True
+
+    def test_langmatches_subtag(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("LANGMATCHES",
+                                  arg1=Literal("en-US"), arg2=Literal("en"))
+        assert evaluate_expression(expr, {}) is True
+
+    def test_langmatches_wildcard(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("LANGMATCHES",
+                                  arg1=Literal("fr"), arg2=Literal("*"))
+        assert evaluate_expression(expr, {}) is True
+
+    def test_langmatches_wildcard_empty(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("LANGMATCHES",
+                                  arg1=Literal(""), arg2=Literal("*"))
+        assert evaluate_expression(expr, {}) is False
+
+    def test_langmatches_no_match(self):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("LANGMATCHES",
+                                  arg1=Literal("fr"), arg2=Literal("en"))
+        assert evaluate_expression(expr, {}) is False
+
+    def test_iri_constructor(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("IRI", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("http://example.com/test")}
+        )
+        assert result.type == IRI
+        assert result.iri == "http://example.com/test"
+
+    def test_uri_constructor(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("URI", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("http://example.com/test")}
+        )
+        assert result.type == IRI
+        assert result.iri == "http://example.com/test"
+
+    def test_bnode_no_arg(self):
+        expr = self._make_builtin("BNODE")
+        result = evaluate_expression(expr, {})
+        assert result.type == BLANK
+        assert len(result.id) > 0
+
+    def test_bnode_with_label(self):
+        from rdflib import Literal
+        expr = self._make_builtin("BNODE", arg=Literal("mynode"))
+        result = evaluate_expression(expr, {})
+        assert result.type == BLANK
+        assert result.id == "mynode"
+
+    def test_now(self):
+        import re as re_mod
+        expr = self._make_builtin("NOW")
+        result = evaluate_expression(expr, {})
+        assert result.type == LITERAL
+        assert result.datatype == XSD + "dateTime"
+        assert re_mod.match(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", result.value)
+
+    def test_tz_with_utc(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("TZ", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15T10:30:45+0000",
+                            datatype=XSD + "dateTime")}
+        )
+        assert result.type == LITERAL
+        assert result.value == "+00:00"
+
+    def test_tz_no_timezone(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("TZ", arg=Variable("x"))
+        result = evaluate_expression(
+            expr, {"x": lit("2024-03-15T10:30:45",
+                            datatype=XSD + "dateTime")}
+        )
+        assert result.value == ""
+
+    def test_rand(self):
+        expr = self._make_builtin("RAND")
+        result = evaluate_expression(expr, {})
+        assert isinstance(result, float)
+        assert 0.0 <= result < 1.0
+
+    def test_uuid(self):
+        import re as re_mod
+        expr = self._make_builtin("UUID")
+        result = evaluate_expression(expr, {})
+        assert result.type == IRI
+        assert result.iri.startswith("urn:uuid:")
+        uuid_part = result.iri[len("urn:uuid:"):]
+        assert re_mod.match(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            uuid_part
+        )
+
+    def test_struuid(self):
+        import re as re_mod
+        expr = self._make_builtin("STRUUID")
+        result = evaluate_expression(expr, {})
+        assert result.type == LITERAL
+        assert re_mod.match(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            result.value
+        )
+
+    def test_md5(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("MD5", arg=Variable("x"))
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result.type == LITERAL
+        assert result.value == "5d41402abc4b2a76b9719d911017c592"
+
+    def test_sha1(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("SHA1", arg=Variable("x"))
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result.type == LITERAL
+        assert result.value == "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+
+    def test_sha256(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("SHA256", arg=Variable("x"))
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result.type == LITERAL
+        assert result.value == (
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e"
+            "1b161e5c1fa7425e73043362938b9824"
+        )
+
+    def test_sha512(self):
+        from rdflib.term import Variable
+        expr = self._make_builtin("SHA512", arg=Variable("x"))
+        result = evaluate_expression(expr, {"x": lit("hello")})
+        assert result.type == LITERAL
+        assert len(result.value) == 128
+
+    def test_exists_with_callback(self):
+        from rdflib.plugins.sparql.parserutils import CompValue
+        graph = CompValue("BGP")
+        expr = self._make_builtin("EXISTS", graph=graph)
+        cb = lambda g, s: True
+        result = evaluate_expression(expr, {}, exists_cb=cb)
+        assert result is True
+
+    def test_exists_callback_false(self):
+        from rdflib.plugins.sparql.parserutils import CompValue
+        graph = CompValue("BGP")
+        expr = self._make_builtin("EXISTS", graph=graph)
+        cb = lambda g, s: False
+        result = evaluate_expression(expr, {}, exists_cb=cb)
+        assert result is False
+
+    def test_notexists_with_callback(self):
+        from rdflib.plugins.sparql.parserutils import CompValue
+        graph = CompValue("BGP")
+        expr = self._make_builtin("NOTEXISTS", graph=graph)
+        cb = lambda g, s: True
+        result = evaluate_expression(expr, {}, exists_cb=cb)
+        assert result is False
+
+    def test_notexists_callback_false(self):
+        from rdflib.plugins.sparql.parserutils import CompValue
+        graph = CompValue("BGP")
+        expr = self._make_builtin("NOTEXISTS", graph=graph)
+        cb = lambda g, s: False
+        result = evaluate_expression(expr, {}, exists_cb=cb)
+        assert result is True
+
 
 class TestEffectiveBoolean:
 

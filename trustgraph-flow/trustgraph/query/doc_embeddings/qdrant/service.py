@@ -4,11 +4,10 @@ Document embeddings query service.  Input is vector, output is an array
 of chunk_ids
 """
 
+import asyncio
 import logging
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
-from qdrant_client.models import Distance, VectorParams
 
 from .... schema import DocumentEmbeddingsResponse, ChunkMatch
 from .... schema import Error
@@ -38,32 +37,6 @@ class Processor(DocumentEmbeddingsQueryService):
         )
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
-        self.last_collection = None
-
-    def ensure_collection_exists(self, collection, dim):
-        """Ensure collection exists, create if it doesn't"""
-        if collection != self.last_collection:
-            if not self.qdrant.collection_exists(collection):
-                try:
-                    self.qdrant.create_collection(
-                        collection_name=collection,
-                        vectors_config=VectorParams(
-                            size=dim, distance=Distance.COSINE
-                        ),
-                    )
-                    logger.info(f"Created collection: {collection}")
-                except Exception as e:
-                    logger.error(f"Qdrant collection creation failed: {e}")
-                    raise e
-            self.last_collection = collection
-
-    def collection_exists(self, collection):
-        """Check if collection exists (no implicit creation)"""
-        return self.qdrant.collection_exists(collection)
-
-    def collection_exists(self, collection):
-        """Check if collection exists (no implicit creation)"""
-        return self.qdrant.collection_exists(collection)
 
     async def query_document_embeddings(self, workspace, msg):
 
@@ -73,21 +46,24 @@ class Processor(DocumentEmbeddingsQueryService):
             if not vec:
                 return []
 
-            # Use dimension suffix in collection name
             dim = len(vec)
             collection = f"d_{workspace}_{msg.collection}_{dim}"
 
-            # Check if collection exists - return empty if not
-            if not self.collection_exists(collection):
+            exists = await asyncio.to_thread(
+                self.qdrant.collection_exists, collection
+            )
+            if not exists:
                 logger.info(f"Collection {collection} does not exist, returning empty results")
                 return []
 
-            search_result = self.qdrant.query_points(
+            result = await asyncio.to_thread(
+                self.qdrant.query_points,
                 collection_name=collection,
                 query=vec,
                 limit=msg.limit,
                 with_payload=True,
-            ).points
+            )
+            search_result = result.points
 
             chunks = []
             for r in search_result:

@@ -33,19 +33,44 @@ class OntologySelector:
     def __init__(self, ontology_embedder: OntologyEmbedder,
                  ontology_loader: OntologyLoader,
                  top_k: int = 10,
-                 similarity_threshold: float = 0.7):
-        """Initialize the ontology selector.
-
-        Args:
-            ontology_embedder: Embedder with vector store
-            ontology_loader: Loader with ontology definitions
-            top_k: Number of top results to retrieve per segment
-            similarity_threshold: Minimum similarity score
-        """
+                 similarity_threshold: float = 0.3,
+                 bypass_selector_below: int = 5):
         self.embedder = ontology_embedder
         self.loader = ontology_loader
         self.top_k = top_k
         self.similarity_threshold = similarity_threshold
+        self.bypass_selector_below = bypass_selector_below
+
+    def _total_ontology_elements(self) -> int:
+        total = 0
+        for ontology in self.loader.get_all_ontologies().values():
+            total += len(ontology.classes)
+            total += len(ontology.object_properties)
+            total += len(ontology.datatype_properties)
+        return total
+
+    def _build_full_subsets(self) -> List[OntologySubset]:
+        subsets = []
+        for ont_id, ontology in self.loader.get_all_ontologies().items():
+            subset = OntologySubset(
+                ontology_id=ont_id,
+                classes={
+                    cid: cls.__dict__
+                    for cid, cls in ontology.classes.items()
+                },
+                object_properties={
+                    pid: prop.__dict__
+                    for pid, prop in ontology.object_properties.items()
+                },
+                datatype_properties={
+                    pid: prop.__dict__
+                    for pid, prop in ontology.datatype_properties.items()
+                },
+                metadata=ontology.metadata,
+                relevance_score=1.0,
+            )
+            subsets.append(subset)
+        return subsets
 
     async def select_ontology_subset(self, segments: List[TextSegment]) -> List[OntologySubset]:
         """Select relevant ontology subsets for text segments.
@@ -56,6 +81,15 @@ class OntologySelector:
         Returns:
             List of ontology subsets with relevant elements
         """
+        total = self._total_ontology_elements()
+        if total < self.bypass_selector_below:
+            logger.info(
+                f"Ontology has {total} elements (below "
+                f"bypass_selector_below={self.bypass_selector_below}), "
+                f"using full ontology"
+            )
+            return self._build_full_subsets()
+
         # Collect all relevant elements
         relevant_elements = await self._find_relevant_elements(segments)
 

@@ -1,10 +1,14 @@
 
+import datetime
+import os
+import logging
+
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement, SimpleStatement
 from ssl import SSLContext, PROTOCOL_TLSv1_2
-import os
-import logging
+
+from ..tables.cassandra_async import async_execute
 
 # Global list to track clusters for cleanup
 _active_clusters = []
@@ -461,7 +465,6 @@ class KnowledgeGraph:
     def create_collection(self, collection):
         """Create collection by inserting metadata row"""
         try:
-            import datetime
             self.session.execute(
                 f"INSERT INTO {self.collection_metadata_table} (collection, created_at) VALUES (%s, %s)",
                 (collection, datetime.datetime.now())
@@ -954,7 +957,6 @@ class EntityCentricKnowledgeGraph:
     def create_collection(self, collection):
         """Create collection by inserting metadata row"""
         try:
-            import datetime
             self.session.execute(
                 f"INSERT INTO {self.collection_metadata_table} (collection, created_at) VALUES (%s, %s)",
                 (collection, datetime.datetime.now())
@@ -1043,6 +1045,222 @@ class EntityCentricKnowledgeGraph:
             (collection,)
         )
 
+        logger.info(f"Deleted collection {collection}: {len(entities)} entity partitions, {len(quads)} quads")
+
+    # ========================================================================
+    # Async methods — use cassandra driver's native async API via async_execute
+    # ========================================================================
+
+    async def async_insert(self, collection, s, p, o, g=None, otype=None, dtype="", lang=""):
+        if g is None:
+            g = DEFAULT_GRAPH
+        if otype is None:
+            if o.startswith("http://") or o.startswith("https://"):
+                otype = "u"
+            else:
+                otype = "l"
+
+        batch = BatchStatement()
+        batch.add(self.insert_entity_stmt, (collection, s, 'S', p, otype, s, o, g, dtype, lang))
+        batch.add(self.insert_entity_stmt, (collection, p, 'P', p, otype, s, o, g, dtype, lang))
+        if otype == 'u' or otype == 't':
+            batch.add(self.insert_entity_stmt, (collection, o, 'O', p, otype, s, o, g, dtype, lang))
+        if g != DEFAULT_GRAPH:
+            batch.add(self.insert_entity_stmt, (collection, g, 'G', p, otype, s, o, g, dtype, lang))
+        batch.add(self.insert_collection_stmt, (collection, g, s, p, o, otype, dtype, lang))
+
+        await async_execute(self.session, batch)
+
+    async def async_get_all(self, collection, limit=50):
+        return await async_execute(
+            self.session, self.get_collection_all_stmt, (collection, limit)
+        )
+
+    async def async_get_s(self, collection, s, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_s_stmt, (collection, s, limit)
+        )
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=row.s, p=row.p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_p(self, collection, p, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_p_stmt, (collection, p, limit)
+        )
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=row.s, p=row.p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_o(self, collection, o, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_o_stmt, (collection, o, limit)
+        )
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=row.s, p=row.p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_sp(self, collection, s, p, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_s_p_stmt, (collection, s, p, limit)
+        )
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=s, p=p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_po(self, collection, p, o, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_o_p_stmt, (collection, o, p, limit)
+        )
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=row.s, p=p, o=o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_os(self, collection, o, s, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_s_stmt, (collection, s, limit)
+        )
+        results = []
+        for row in rows:
+            if row.o != o:
+                continue
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=s, p=row.p, o=o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_spo(self, collection, s, p, o, g=None, limit=10):
+        rows = await async_execute(
+            self.session, self.get_entity_as_s_p_stmt, (collection, s, p, limit)
+        )
+        results = []
+        for row in rows:
+            if row.o != o:
+                continue
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is not None and d != g:
+                continue
+            results.append(QuadResult(
+                s=s, p=p, o=o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+        return results
+
+    async def async_get_g(self, collection, g, limit=50):
+        if g is None:
+            g = DEFAULT_GRAPH
+        return await async_execute(
+            self.session, self.get_collection_by_graph_stmt, (collection, g, limit)
+        )
+
+    async def async_collection_exists(self, collection):
+        try:
+            result = await async_execute(
+                self.session,
+                f"SELECT collection FROM {self.collection_metadata_table} WHERE collection = %s LIMIT 1",
+                (collection,)
+            )
+            return bool(result)
+        except Exception as e:
+            logger.error(f"Error checking collection existence: {e}")
+            return False
+
+    async def async_create_collection(self, collection):
+        await async_execute(
+            self.session,
+            f"INSERT INTO {self.collection_metadata_table} (collection, created_at) VALUES (%s, %s)",
+            (collection, datetime.datetime.now())
+        )
+        logger.info(f"Created collection metadata for {collection}")
+
+    async def async_delete_collection(self, collection):
+        rows = await async_execute(
+            self.session,
+            f"SELECT d, s, p, o, otype, dtype, lang FROM {self.collection_table} WHERE collection = %s",
+            (collection,)
+        )
+
+        entities = set()
+        quads = []
+        for row in rows:
+            d, s, p, o = row.d, row.s, row.p, row.o
+            otype = row.otype
+            dtype = row.dtype if hasattr(row, 'dtype') else ''
+            lang = row.lang if hasattr(row, 'lang') else ''
+            quads.append((d, s, p, o, otype, dtype, lang))
+            entities.add(s)
+            entities.add(p)
+            if otype == 'u' or otype == 't':
+                entities.add(o)
+            if d != DEFAULT_GRAPH:
+                entities.add(d)
+
+        batch = BatchStatement()
+        count = 0
+        for entity in entities:
+            batch.add(self.delete_entity_partition_stmt, (collection, entity))
+            count += 1
+            if count % 50 == 0:
+                await async_execute(self.session, batch)
+                batch = BatchStatement()
+        if count % 50 != 0:
+            await async_execute(self.session, batch)
+
+        batch = BatchStatement()
+        count = 0
+        for d, s, p, o, otype, dtype, lang in quads:
+            batch.add(self.delete_collection_row_stmt, (collection, d, s, p, o, otype, dtype, lang))
+            count += 1
+            if count % 50 == 0:
+                await async_execute(self.session, batch)
+                batch = BatchStatement()
+        if count % 50 != 0:
+            await async_execute(self.session, batch)
+
+        await async_execute(
+            self.session,
+            f"DELETE FROM {self.collection_metadata_table} WHERE collection = %s",
+            (collection,)
+        )
         logger.info(f"Deleted collection {collection}: {len(entities)} entity partitions, {len(quads)} quads")
 
     def close(self):

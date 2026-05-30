@@ -6,6 +6,7 @@ Output is matching row index information (index_name, index_value) for
 use in subsequent Cassandra lookups.
 """
 
+import asyncio
 import logging
 import re
 from typing import Optional
@@ -70,7 +71,7 @@ class Processor(FlowProcessor):
             safe_name = 'r_' + safe_name
         return safe_name.lower()
 
-    def find_collection(self, workspace: str, collection: str, schema_name: str) -> Optional[str]:
+    async def find_collection(self, workspace: str, collection: str, schema_name: str) -> Optional[str]:
         """Find the Qdrant collection for a given workspace/collection/schema"""
         prefix = (
             f"rows_{self.sanitize_name(workspace)}_"
@@ -78,14 +79,15 @@ class Processor(FlowProcessor):
         )
 
         try:
-            all_collections = self.qdrant.get_collections().collections
+            all_collections = await asyncio.to_thread(
+                lambda: self.qdrant.get_collections().collections
+            )
             matching = [
                 coll.name for coll in all_collections
                 if coll.name.startswith(prefix)
             ]
 
             if matching:
-                # Return first match (there should typically be only one per dimension)
                 return matching[0]
 
         except Exception as e:
@@ -100,8 +102,7 @@ class Processor(FlowProcessor):
         if not vec:
             return []
 
-        # Find the collection for this workspace/collection/schema
-        qdrant_collection = self.find_collection(
+        qdrant_collection = await self.find_collection(
             workspace, request.collection, request.schema_name
         )
 
@@ -113,7 +114,6 @@ class Processor(FlowProcessor):
             return []
 
         try:
-            # Build optional filter for index_name
             query_filter = None
             if request.index_name:
                 query_filter = Filter(
@@ -125,16 +125,16 @@ class Processor(FlowProcessor):
                     ]
                 )
 
-            # Query Qdrant
-            search_result = self.qdrant.query_points(
+            result = await asyncio.to_thread(
+                self.qdrant.query_points,
                 collection_name=qdrant_collection,
                 query=vec,
                 limit=request.limit,
                 with_payload=True,
                 query_filter=query_filter,
-            ).points
+            )
+            search_result = result.points
 
-            # Convert to RowIndexMatch objects
             matches = []
             for point in search_result:
                 payload = point.payload or {}

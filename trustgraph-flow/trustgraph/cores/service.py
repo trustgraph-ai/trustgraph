@@ -187,6 +187,11 @@ class Processor(WorkspaceProcessor):
             "put-kg-core": self.knowledge.put_kg_core,
             "load-kg-core": self.knowledge.load_kg_core,
             "unload-kg-core": self.knowledge.unload_kg_core,
+            "list-de-cores": self.knowledge.list_de_cores,
+            "get-de-core": self.knowledge.get_de_core,
+            "delete-de-core": self.knowledge.delete_de_core,
+            "put-de-core": self.knowledge.put_de_core,
+            "load-de-core": self.knowledge.load_de_core,
         }
 
         if v.operation not in impls:
