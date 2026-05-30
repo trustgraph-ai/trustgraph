@@ -92,6 +92,9 @@ const DEFAULT_BLUEPRINT: Blueprint = {
     // Librarian RPC (for PDF decoder)
     "librarian-request": "tg.flow.librarian-request",
     "librarian-response": "tg.flow.librarian-response",
+    // MCP tool invocation
+    "mcp-tool-request": "tg.flow.mcp-tool-request",
+    "mcp-tool-response": "tg.flow.mcp-tool-response",
   },
 };
 

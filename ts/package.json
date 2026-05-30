@@ -15,6 +15,7 @@
     "llm:openai": "bun scripts/run-llm-openai.ts",
     "test:pipeline": "bun scripts/test-pipeline.ts",
     "seed": "bun scripts/seed-config.ts",
+    "seed:flows": "bun scripts/seed-flows.ts",
     "prompt": "bun scripts/run-prompt.ts",
     "agent": "bun scripts/run-agent.ts",
     "librarian": "bun scripts/run-librarian.ts",
