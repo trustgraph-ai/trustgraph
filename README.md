@@ -11,11 +11,11 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The agent runtime platform
+# The semantic infrastructure for agents
 
 </div>
 
-TrustGraph is an agent runtime platform built around context graphs — structured, queryable representations of your domain knowledge that ground every agent query in verified, explainable facts in private deployments with sovereign control. The platform is the full stack for agentic systems: context graphs, memory, retrieval, orchestration, and inference for precision-critical agent workloads.
+TrustGraph is a comprehensive semantic infrastructure for agents built around context graphs — structured, queryable representations of your domain knowledge that ground every agent query in verified, explainable facts in private deployments with sovereign control. The platform is the full stack for agentic systems: context graphs, memory, retrieval, orchestration, and inference for deterministic agent workloads.
 
 The platform:
 - [x] Multi-model and multimodal database system
@@ -99,23 +99,21 @@ For a browser based configuration, try the [Configuration Terminal](https://conf
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
 - [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
 
-## Workbench
+## Context Graph UI
 
-The **Workbench** provides tools for all major features of TrustGraph. The **Workbench** is on port `8888` by default.
+<img width="1389" height="961" alt="Image" src="https://github.com/user-attachments/assets/35c9250d-0f01-40cb-9294-1ee8fd9a1b56" />
 
-- **Vector Search**: Search the installed knowledge bases
-- **Agentic, GraphRAG and LLM Chat**: Chat interface for agents, GraphRAG queries, or direct to LLMs
-- **Relationships**: Analyze deep relationships in the installed knowledge bases
-- **Graph Visualizer**: 3D GraphViz of the installed knowledge bases
-- **Library**: Staging area for installing knowledge bases
-- **Flow Classes**: Workflow preset configurations
-- **Flows**: Create custom workflows and adjust LLM parameters during runtime
-- **Knowledge Cores**: Manage resuable knowledge bases
-- **Prompts**: Manage and adjust prompts during runtime
-- **Schemas**: Define custom schemas for structured data knowledge bases
-- **Ontologies**: Define custom ontologies for unstructured data knowledge bases
-- **Agent Tools**: Define tools with collections, knowledge cores, MCP connections, and tool groups
-- **MCP Tools**: Connect to MCP servers
+The UI provides tools for all major features of TrustGraph. The UI deploys on port `8888` by default.
+
+- **Agent Console** — Query your agents directly with streaming responses and live explainability event tracking, so you can watch reasoning unfold in real time
+- **GraphRAG View** — Interactive graph RAG queries with a visual explainability DAG and inline provenance display, making it easy to see exactly where answers came from
+- **Context Explorer** — An interactive 3D context graph explorer with dynamic graph loading, BFS neighborhood extraction, edge pulse animation, and multiple navigation views
+- **Document Ingestion** — A complete upload and submission workflow with page and chunk inspection and document structure browsing
+- **Ontology Workbench** — A full ontology editor with class and property trees, OWL/XML and Turtle import/export with round-trip fidelity, circular dependency detection, and safe-delete confirmation dialogs
+- **Schema Workbench** — Interactive schema management with list, create, edit, and delete operations including field and index management
+- **Flow Management** — Flow creation and detail views with configurable parameters, temperature controls, and grouped storage layout
+- **Workspace UX** — Workspace selection and management surfaced directly in the interface
+- **Prompt Editor** — A dedicated prompt editing workflow
 
 ## TypeScript Library for UIs
 
