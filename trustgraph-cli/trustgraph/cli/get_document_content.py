@@ -5,7 +5,7 @@ Gets document content from the library by document ID.
 import argparse
 import os
 import sys
-from trustgraph.api import Api
+import requests
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
@@ -13,15 +13,29 @@ default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def get_content(url, document_id, output_file, token=None, workspace="default"):
 
-    api = Api(url, token=token, workspace=workspace).library()
+    stream_url = url.rstrip("/") + "/api/v1/document-stream"
 
-    content = api.get_document_content(id=document_id)
+    params = {
+        "document-id": document_id,
+        "workspace": workspace,
+    }
+
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    resp = requests.get(stream_url, params=params, headers=headers, stream=True)
+    resp.raise_for_status()
 
     if output_file:
+        total = 0
         with open(output_file, 'wb') as f:
-            f.write(content)
-        print(f"Written {len(content)} bytes to {output_file}")
+            for chunk in resp.iter_content(chunk_size=65536):
+                f.write(chunk)
+                total += len(chunk)
+        print(f"Written {total} bytes to {output_file}")
     else:
+        content = resp.content
         try:
             text = content.decode('utf-8')
             print(text)

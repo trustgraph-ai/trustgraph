@@ -107,7 +107,14 @@ class Processor(FlowProcessor):
         # Get the source document ID
         source_doc_id = v.document_id or v.metadata.id
 
-        pages = convert_from_bytes(blob)
+        try:
+            pages = convert_from_bytes(blob)
+        except Exception as e:
+            logger.error(
+                f"Failed to decode PDF {source_doc_id}: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
 
         for ix, page in enumerate(pages):
 

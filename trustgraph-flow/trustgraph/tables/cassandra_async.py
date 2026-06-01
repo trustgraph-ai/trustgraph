@@ -27,6 +27,8 @@ Notes:
 
 import asyncio
 
+from cassandra.query import SimpleStatement
+
 
 async def async_execute(session, query, parameters=None):
     """Execute a CQL statement asynchronously.
@@ -76,3 +78,36 @@ def _set_result_if_pending(fut, result):
 def _set_exception_if_pending(fut, exc):
     if not fut.done():
         fut.set_exception(exc)
+
+
+async def async_execute_paged(session, query, parameters=None, fetch_size=100):
+    """Execute a CQL query with page-by-page iteration.
+
+    Uses synchronous session.execute() inside run_in_executor so that
+    the driver's ResultSet paging works correctly without materialising
+    the entire result set in memory.
+
+    Yields one page of rows at a time (as a list).
+    """
+    loop = asyncio.get_running_loop()
+
+    if isinstance(query, str):
+        stmt = SimpleStatement(query, fetch_size=fetch_size)
+    else:
+        stmt = query
+        stmt.fetch_size = fetch_size
+
+    def _fetch_all_pages():
+        pages = []
+        result_set = session.execute(stmt, parameters)
+        while True:
+            pages.append(list(result_set.current_rows))
+            if result_set.has_more_pages:
+                result_set.fetch_next_page()
+            else:
+                break
+        return pages
+
+    return await loop.run_in_executor(
+        None, _fetch_all_pages
+    )

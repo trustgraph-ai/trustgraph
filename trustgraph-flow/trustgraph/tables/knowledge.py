@@ -5,7 +5,7 @@ from .. schema import DocumentEmbeddings, ChunkEmbeddings
 
 from cassandra.cluster import Cluster
 
-from . cassandra_async import async_execute
+from . cassandra_async import async_execute, async_execute_paged
 
 
 def term_to_tuple(term):
@@ -398,7 +398,7 @@ class KnowledgeTableStore:
         logger.debug("Get triples...")
 
         try:
-            rows = await async_execute(
+            pages = await async_execute_paged(
                 self.cassandra,
                 self.get_triples_stmt,
                 (workspace, document_id),
@@ -407,29 +407,30 @@ class KnowledgeTableStore:
             logger.error("Exception occurred", exc_info=True)
             raise
 
-        for row in rows:
+        for page in pages:
+            for row in page:
 
-            if row[3]:
-                triples = [
-                    Triple(
-                        s = tuple_to_term(elt[0], elt[1]),
-                        p = tuple_to_term(elt[2], elt[3]),
-                        o = tuple_to_term(elt[4], elt[5]),
+                if row[3]:
+                    triples = [
+                        Triple(
+                            s = tuple_to_term(elt[0], elt[1]),
+                            p = tuple_to_term(elt[2], elt[3]),
+                            o = tuple_to_term(elt[4], elt[5]),
+                        )
+                        for elt in row[3]
+                    ]
+                else:
+                    triples = []
+
+                await receiver(
+                    Triples(
+                        metadata = Metadata(
+                            id = document_id,
+                            collection = "default",
+                        ),
+                        triples = triples
                     )
-                    for elt in row[3]
-                ]
-            else:
-                triples = []
-
-            await receiver(
-                Triples(
-                    metadata = Metadata(
-                        id = document_id,
-                        collection = "default",  # FIXME: What to put here?
-                    ),
-                    triples = triples
                 )
-            )
 
         logger.debug("Done")
 
@@ -438,7 +439,7 @@ class KnowledgeTableStore:
         logger.debug("Get GE...")
 
         try:
-            rows = await async_execute(
+            pages = await async_execute_paged(
                 self.cassandra,
                 self.get_graph_embeddings_stmt,
                 (workspace, document_id),
@@ -447,28 +448,29 @@ class KnowledgeTableStore:
             logger.error("Exception occurred", exc_info=True)
             raise
 
-        for row in rows:
+        for page in pages:
+            for row in page:
 
-            if row[3]:
-                entities = [
-                    EntityEmbeddings(
-                        entity = tuple_to_term(ent[0][0], ent[0][1]),
-                        vector = ent[1]
+                if row[3]:
+                    entities = [
+                        EntityEmbeddings(
+                            entity = tuple_to_term(ent[0][0], ent[0][1]),
+                            vector = ent[1]
+                        )
+                        for ent in row[3]
+                    ]
+                else:
+                    entities = []
+
+                await receiver(
+                    GraphEmbeddings(
+                        metadata = Metadata(
+                            id = document_id,
+                            collection = "default",
+                        ),
+                        entities = entities
                     )
-                    for ent in row[3]
-                ]
-            else:
-                entities = []
-
-            await receiver(
-                GraphEmbeddings(
-                    metadata = Metadata(
-                        id = document_id,
-                        collection = "default",   # FIXME: What to put here?
-                    ),
-                    entities = entities
                 )
-            )
 
         logger.debug("Done")
 
@@ -477,7 +479,7 @@ class KnowledgeTableStore:
         logger.debug("Get DE...")
 
         try:
-            rows = await async_execute(
+            pages = await async_execute_paged(
                 self.cassandra,
                 self.get_document_embeddings_stmt,
                 (workspace, document_id),
@@ -486,28 +488,29 @@ class KnowledgeTableStore:
             logger.error("Exception occurred", exc_info=True)
             raise
 
-        for row in rows:
+        for page in pages:
+            for row in page:
 
-            if row[3]:
-                chunks = [
-                    ChunkEmbeddings(
-                        chunk_id=ch[0],
-                        vector=ch[1],
+                if row[3]:
+                    chunks = [
+                        ChunkEmbeddings(
+                            chunk_id=ch[0],
+                            vector=ch[1],
+                        )
+                        for ch in row[3]
+                    ]
+                else:
+                    chunks = []
+
+                await receiver(
+                    DocumentEmbeddings(
+                        metadata = Metadata(
+                            id = document_id,
+                            collection = "default",
+                        ),
+                        chunks = chunks
                     )
-                    for ch in row[3]
-                ]
-            else:
-                chunks = []
-
-            await receiver(
-                DocumentEmbeddings(
-                    metadata = Metadata(
-                        id = document_id,
-                        collection = "default",
-                    ),
-                    chunks = chunks
                 )
-            )
 
         logger.debug("Done")
 
