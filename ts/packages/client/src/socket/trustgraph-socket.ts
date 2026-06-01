@@ -1,6 +1,11 @@
 // Import core types and classes for the TrustGraph API
 import type { Term, Triple } from "../models/Triple.js";
-import { EffectRpcClient, type DispatchInput, type RpcConnectionState } from "./effect-rpc-client.js";
+import {
+  EffectRpcClient,
+  type DispatchInput,
+  type DispatchOptions,
+  type RpcConnectionState,
+} from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
 
 // Import all message types for different services
@@ -118,6 +123,18 @@ function toErrorMessage(value: unknown, fallback: string): string {
     }
   }
   return fallback;
+}
+
+function dispatchOptions(
+  timeoutMs: number | undefined,
+  retries: number | undefined,
+): DispatchOptions {
+  const options: DispatchOptions = {};
+  if (timeoutMs !== undefined) {
+    return retries === undefined ? { timeoutMs } : { timeoutMs, retries };
+  }
+  if (retries !== undefined) return { retries };
+  return options;
 }
 
 function streamingMetadataFrom(source: {
@@ -427,13 +444,15 @@ export class BaseApi {
   makeRequest<RequestType extends object, ResponseType>(
     service: string,
     request: RequestType,
-    _timeout?: number,
-    _retries?: number,
+    timeout?: number,
+    retries?: number,
     flow?: string,
   ) {
-    return this.rpc.dispatch(this.dispatchInput(service, request, flow)).then((obj) => {
-      return obj as ResponseType;
-    });
+    return this.rpc
+      .dispatch(this.dispatchInput(service, request, flow), dispatchOptions(timeout, retries))
+      .then((obj) => {
+        return obj as ResponseType;
+      });
   }
 
   /**
@@ -444,15 +463,21 @@ export class BaseApi {
     service: string,
     request: RequestType,
     receiver: (resp: unknown) => boolean, // Callback to handle each response chunk
-    _timeout?: number,
-    _retries?: number,
+    timeout?: number,
+    retries?: number,
     flow?: string,
   ) {
-    return this.rpc.dispatchStream(this.dispatchInput(service, request, flow), (chunk) => {
-      return receiver({ response: chunk.response, complete: chunk.complete });
-    }).then((obj) => {
-      return obj as ResponseType;
-    });
+    return this.rpc
+      .dispatchStream(
+        this.dispatchInput(service, request, flow),
+        (chunk) => {
+          return receiver({ response: chunk.response, complete: chunk.complete });
+        },
+        dispatchOptions(timeout, retries),
+      )
+      .then((obj) => {
+        return obj as ResponseType;
+      });
   }
 
   /**

@@ -30,6 +30,14 @@ export interface DispatchInput {
   request: Record<string, unknown>;
 }
 
+export interface DispatchOptions {
+  readonly timeoutMs?: number;
+  readonly retries?: number;
+}
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_REQUEST_ATTEMPTS = 3;
+
 export class EffectRpcClient {
   private readonly url: string;
   private readonly onConnect: (() => void) | undefined;
@@ -68,30 +76,36 @@ export class EffectRpcClient {
     };
   }
 
-  async dispatch(input: DispatchInput): Promise<unknown> {
+  async dispatch(input: DispatchInput, options: DispatchOptions = {}): Promise<unknown> {
     const client = await this.clientPromise;
-    return await Effect.runPromise(client.Dispatch(new DispatchPayload(input)));
+    return await Effect.runPromise(
+      this.withRequestPolicy(client.Dispatch(new DispatchPayload(input)), options),
+    );
   }
 
   async dispatchStream(
     input: DispatchInput,
     receiver: (chunk: DispatchStreamChunk) => boolean,
+    options: DispatchOptions = {},
   ): Promise<DispatchStreamChunk | undefined> {
     const client = await this.clientPromise;
     let last: DispatchStreamChunk | undefined;
     await Effect.runPromise(
-      client.DispatchStream(new DispatchPayload(input)).pipe(
-        Stream.runForEach((chunk) =>
-          Effect.suspend(() => {
-            last = chunk;
-            if (receiver(chunk)) return Effect.fail(new StopStreaming());
-            return Effect.void;
-          }),
+      this.withRequestPolicy(
+        client.DispatchStream(new DispatchPayload(input)).pipe(
+          Stream.runForEach((chunk) =>
+            Effect.suspend(() => {
+              last = chunk;
+              if (receiver(chunk)) return Effect.fail(new StopStreaming());
+              return Effect.void;
+            }),
+          ),
+          Effect.catchIf(
+            (cause): cause is StopStreaming => cause instanceof StopStreaming,
+            () => Effect.void,
+          ),
         ),
-        Effect.catchIf(
-          (cause): cause is StopStreaming => cause instanceof StopStreaming,
-          () => Effect.void,
-        ),
+        options,
       ),
     );
     return last;
@@ -158,6 +172,27 @@ export class EffectRpcClient {
       listener(state);
     }
   }
+
+  private withRequestPolicy<A, E, R>(
+    effect: Effect.Effect<A, E, R>,
+    options: DispatchOptions,
+  ): Effect.Effect<A, E | DispatchError, R> {
+    const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
+    const retryTimes = normalizeAttempts(options.retries) - 1;
+    const timed = effect.pipe(
+      Effect.timeoutOrElse({
+        duration: timeoutMs,
+        orElse: () =>
+          Effect.fail(
+            new DispatchError({
+              message: `Request timed out after ${timeoutMs}ms`,
+            }),
+          ),
+      }),
+    );
+
+    return retryTimes > 0 ? timed.pipe(Effect.retry({ times: retryTimes })) : timed;
+  }
 }
 
 class StopStreaming extends Data.TaggedError("StopStreaming")<{}> {}
@@ -189,4 +224,18 @@ function errorMessage(cause: unknown): string {
     if (typeof message === "string") return message;
   }
   return String(cause);
+}
+
+function normalizeTimeoutMs(timeoutMs: number | undefined): number {
+  if (timeoutMs === undefined || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+  return Math.floor(timeoutMs);
+}
+
+function normalizeAttempts(retries: number | undefined): number {
+  if (retries === undefined || !Number.isFinite(retries)) {
+    return DEFAULT_REQUEST_ATTEMPTS;
+  }
+  return Math.max(1, Math.floor(retries));
 }

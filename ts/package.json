@@ -7,7 +7,7 @@
     "lint": "bunx --bun turbo lint",
     "test": "bunx --bun turbo test",
     "check:tsgo": "tsgo -b tsconfig.json",
-    "workbench:qa": "bun --cwd packages/workbench run qa:browser",
+    "workbench:qa": "bun run --cwd packages/workbench qa:browser",
     "prepare": "effect-tsgo patch",
     "clean": "turbo clean",
     "gateway": "bun scripts/run-gateway.ts",

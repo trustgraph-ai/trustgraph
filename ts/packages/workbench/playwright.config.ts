@@ -6,10 +6,10 @@ const baseURL = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: "./tests/workbench-qa",
   outputDir: "../../.playwright/workbench/test-results",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 3 : undefined,
+  workers: 1,
   reporter: [["list"], ["html", { outputFolder: "../../.playwright/workbench/report", open: "never" }]],
   use: {
     baseURL,
@@ -21,7 +21,7 @@ export default defineConfig({
     command: `bun run dev -- --host 127.0.0.1 --port ${port} --strictPort`,
     cwd: ".",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [
