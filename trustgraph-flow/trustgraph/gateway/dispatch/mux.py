@@ -288,6 +288,8 @@ class Mux:
             await self.maybe_tidy_workers(workers)
 
         async def responder(resp, fin):
+            if self.ws is None:
+                return
             await self.ws.send_json({
                 "id": id,
                 "response": resp,
@@ -321,6 +323,8 @@ class Mux:
                 )
 
         except Exception as e:
+            if self.ws is None:
+                return
             await self.ws.send_json({
                 "id": id,
                 "error": {"message": str(e), "type": "error"},

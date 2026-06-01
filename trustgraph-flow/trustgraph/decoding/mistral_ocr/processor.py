@@ -219,7 +219,14 @@ class Processor(FlowProcessor):
         source_doc_id = v.document_id or v.metadata.id
 
         # Run OCR, get per-page markdown
-        pages = self.ocr(blob)
+        try:
+            pages = self.ocr(blob)
+        except Exception as e:
+            logger.error(
+                f"Failed to decode PDF {source_doc_id}: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
 
         for markdown, page_num in pages:
 
