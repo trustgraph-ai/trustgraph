@@ -119,7 +119,8 @@ def main():
                 raise RuntimeError("Can't use --system with other args")
 
             set_system(
-                url=args.api_url, system=args.system, token=args.token
+                url=args.api_url, system=args.system, token=args.token,
+                workspace=args.workspace,
             )
 
         else:
