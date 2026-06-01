@@ -15,6 +15,7 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
+default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 def format_enum_values(enum_list):
     """
@@ -125,11 +126,11 @@ async def fetch_single_param_type(client, param_type_name):
         return json.loads(values[0].get("value", "{}"))
     return None
 
-def show_parameter_types(url, token=None):
+def show_parameter_types(url, token=None, workspace="default"):
     """Show all parameter type definitions."""
 
     async def _fetch():
-        async with AsyncSocketClient(url, timeout=60, token=token) as client:
+        async with AsyncSocketClient(url, timeout=60, token=token, workspace=workspace) as client:
             return await fetch_all_param_types(client)
 
     param_type_names, param_type_defs = asyncio.run(_fetch())
@@ -153,11 +154,11 @@ def show_parameter_types(url, token=None):
         ))
         print()
 
-def show_specific_parameter_type(url, param_type_name, token=None):
+def show_specific_parameter_type(url, param_type_name, token=None, workspace="default"):
     """Show a specific parameter type definition."""
 
     async def _fetch():
-        async with AsyncSocketClient(url, timeout=60, token=token) as client:
+        async with AsyncSocketClient(url, timeout=60, token=token, workspace=workspace) as client:
             return await fetch_single_param_type(client, param_type_name)
 
     param_type_def = asyncio.run(_fetch())
@@ -194,6 +195,12 @@ def main():
     )
 
     parser.add_argument(
+        '-w', '--workspace',
+        default=default_workspace,
+        help=f'Workspace (default: {default_workspace})',
+    )
+
+    parser.add_argument(
         '-t', '--type',
         help='Show only the specified parameter type',
     )
@@ -202,9 +209,9 @@ def main():
 
     try:
         if args.type:
-            show_specific_parameter_type(args.api_url, args.type, args.token)
+            show_specific_parameter_type(args.api_url, args.type, args.token, workspace=args.workspace)
         else:
-            show_parameter_types(args.api_url, args.token)
+            show_parameter_types(args.api_url, args.token, workspace=args.workspace)
 
     except Exception as e:
         print("Exception:", e, flush=True)
