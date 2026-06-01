@@ -1,11 +1,4 @@
-import {
-  type ReactNode,
-  type MouseEvent,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,11 +12,6 @@ interface DialogProps {
   className?: string;
 }
 
-/**
- * Simple modal dialog built with Tailwind.
- * Renders a backdrop overlay + centered content panel.
- * Includes focus trap, auto-focus, and Escape to close.
- */
 export function Dialog({
   open,
   onClose,
@@ -32,103 +20,24 @@ export function Dialog({
   footer,
   className,
 }: DialogProps) {
-  const titleId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  // Save the element that triggered the dialog so we can restore focus on close
-  const triggerRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (open) {
-      triggerRef.current = document.activeElement as HTMLElement | null;
-    } else if (triggerRef.current !== null) {
-      triggerRef.current.focus();
-      triggerRef.current = null;
-    }
-  }, [open]);
-
-  // Close on Escape key
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  // Auto-focus first focusable element when dialog opens
-  useEffect(() => {
-    if (!open || dialogRef.current === null) return;
-    const focusable = Array.from(
-      dialogRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      ),
-    ).filter(
-      (el) =>
-        el.hidden === false &&
-        !(el as HTMLButtonElement).disabled &&
-        el.offsetParent !== null &&
-        window.getComputedStyle(el).display !== "none",
-    );
-    // Focus the first input/textarea if available, otherwise the close button
-    const firstInput = focusable.find(
-      (el) => el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT",
-    );
-    (firstInput ?? focusable[0])?.focus();
-  }, [open]);
-
-  // Focus trap — keep Tab within the dialog
-  useEffect(() => {
-    if (!open || dialogRef.current === null) return;
-    const dialog = dialogRef.current;
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter(
-        (el) =>
-          el.hidden === false &&
-          !(el as HTMLButtonElement).disabled &&
-          el.offsetParent !== null &&
-          window.getComputedStyle(el).display !== "none",
-      );
-      if (focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleTab);
-    return () => window.removeEventListener("keydown", handleTab);
-  }, [open]);
-
-  const handleBackdrop = useCallback(
-    (e: MouseEvent) => {
-      if (e.target === e.currentTarget) onClose();
-    },
-    [onClose],
-  );
+  const titleId = `dialog-title-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const handleBackdrop = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) onClose();
+  };
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") onClose();
+  };
 
   if (!open) return null;
 
   return (
     <div
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={handleBackdrop}
+      onKeyDown={handleKeyDown}
     >
       <div
-        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

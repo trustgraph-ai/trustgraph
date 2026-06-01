@@ -7,6 +7,7 @@
     "lint": "bunx --bun turbo lint",
     "test": "bunx --bun turbo test",
     "check:tsgo": "tsgo -b tsconfig.json",
+    "workbench:qa": "bun --cwd packages/workbench run qa:browser",
     "prepare": "effect-tsgo patch",
     "clean": "turbo clean",
     "gateway": "bun scripts/run-gateway.ts",
@@ -41,9 +42,9 @@
     "llm:mistral": "bun scripts/run-llm-mistral.ts"
   },
   "devDependencies": {
-    "@effect/platform-bun": "4.0.0-beta.65",
-    "@effect/tsgo": "0.6.0",
-    "@effect/vitest": "4.0.0-beta.65",
+    "@effect/platform-bun": "4.0.0-beta.74",
+    "@effect/tsgo": "0.13.0",
+    "@effect/vitest": "4.0.0-beta.74",
     "@types/bun": "^1.3.13",
     "@types/node": "^25.7.0",
     "@typescript/native-preview": "^7.0.0-dev.20260511.1",
@@ -52,11 +53,12 @@
     "pdf-lib": "^1.17.1",
     "tsx": "^4.21.0",
     "turbo": "^2.5.0",
+
     "typescript": "^5.8.0",
     "vitest": "^4.1.6"
   },
   "dependencies": {
-    "effect": "4.0.0-beta.65"
+    "effect": "4.0.0-beta.74"
   },
   "packageManager": "bun@1.3.13",
   "workspaces": [

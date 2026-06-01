@@ -418,7 +418,7 @@ export function createMcpServer(config: {
 
 export async function run(): Promise<void> {
   const { server, socket } = createMcpServer({
-    gatewayUrl: process.env.GATEWAY_URL ?? "ws://localhost:8088/api/v1/socket",
+    gatewayUrl: process.env.GATEWAY_URL ?? "ws://localhost:8088/api/v1/rpc",
     user: process.env.USER_ID ?? "mcp",
     flowId: process.env.FLOW_ID ?? "default",
     ...(process.env.GATEWAY_SECRET !== undefined

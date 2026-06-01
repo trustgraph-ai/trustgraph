@@ -11,7 +11,9 @@
  */
 
 import { QdrantClient } from "@qdrant/js-client-rest";
-import type { Term } from "@trustgraph/base";
+import { errorMessage, type Term } from "@trustgraph/base";
+import { Context, Effect, Layer } from "effect";
+import * as S from "effect/Schema";
 
 export interface QdrantGraphQueryConfig {
   url?: string;
@@ -104,3 +106,54 @@ export class QdrantGraphEmbeddingsQuery {
     return entities;
   }
 }
+
+export class QdrantGraphEmbeddingsQueryError extends S.TaggedErrorClass<QdrantGraphEmbeddingsQueryError>()(
+  "QdrantGraphEmbeddingsQueryError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+export interface QdrantGraphEmbeddingsQueryServiceShape {
+  readonly query: (
+    request: GraphEmbeddingsQueryRequest,
+  ) => Effect.Effect<ReadonlyArray<EntityMatch>, QdrantGraphEmbeddingsQueryError>;
+}
+
+export class QdrantGraphEmbeddingsQueryService extends Context.Service<
+  QdrantGraphEmbeddingsQueryService,
+  QdrantGraphEmbeddingsQueryServiceShape
+>()(
+  "@trustgraph/flow/query/embeddings/qdrant-graph/QdrantGraphEmbeddingsQueryService",
+) {}
+
+const qdrantGraphEmbeddingsQueryError = (operation: string, cause: unknown) =>
+  new QdrantGraphEmbeddingsQueryError({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+export const makeQdrantGraphEmbeddingsQueryService = (
+  config: QdrantGraphQueryConfig = {},
+): QdrantGraphEmbeddingsQueryServiceShape => {
+  const query = new QdrantGraphEmbeddingsQuery(config);
+  return {
+    query: Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (request) {
+      return yield* Effect.tryPromise({
+        try: () => query.query(request),
+        catch: (cause) => qdrantGraphEmbeddingsQueryError("query", cause),
+      });
+    }),
+  };
+};
+
+export const QdrantGraphEmbeddingsQueryLive = (
+  config: QdrantGraphQueryConfig = {},
+): Layer.Layer<QdrantGraphEmbeddingsQueryService> =>
+  Layer.succeed(
+    QdrantGraphEmbeddingsQueryService,
+    QdrantGraphEmbeddingsQueryService.of(makeQdrantGraphEmbeddingsQueryService(config)),
+  );

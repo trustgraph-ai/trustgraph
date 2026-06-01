@@ -1,3 +1,4 @@
+import { useAtom, useAtomValue } from "@effect/atom-react";
 import { NavLink } from "react-router";
 import {
   MessageSquareText,
@@ -16,10 +17,13 @@ import {
 } from "lucide-react";
 import { BeepGraphLogo } from "./beep-graph-logo";
 import { cn } from "@/lib/utils";
-import { useConnectionState } from "@/providers/socket-provider";
-import { useSessionStore } from "@/hooks/use-session-store";
-import { useFlows } from "@/hooks/use-flows";
-import { useSettings } from "@/providers/settings-provider";
+import {
+  connectionStateAtom,
+  flowIdAtom,
+  flowsAtom,
+  resultData,
+  settingsAtom,
+} from "@/atoms/workbench";
 
 // ---------------------------------------------------------------------------
 // Nav item
@@ -33,18 +37,23 @@ interface NavItemProps {
 
 function NavItem({ to, icon: Icon, label }: NavItemProps) {
   return (
-    <NavLink to={to} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-50">
+    <NavLink
+      to={to}
+      aria-label={label}
+      title={label}
+      className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-50"
+    >
       {({ isActive }) => (
         <div
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            "flex items-center justify-center rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:justify-start sm:gap-3 sm:px-3",
             isActive
               ? "bg-brand-600/20 text-brand-400"
               : "text-fg-muted hover:bg-surface-200 hover:text-fg",
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{label}</span>
+          <span className="hidden truncate sm:inline">{label}</span>
         </div>
       )}
     </NavLink>
@@ -56,7 +65,7 @@ function NavItem({ to, icon: Icon, label }: NavItemProps) {
 // ---------------------------------------------------------------------------
 
 function ConnectionBadge() {
-  const state = useConnectionState();
+  const state = useAtomValue(connectionStateAtom);
 
   const isConnected =
     state.status === "connected" ||
@@ -103,10 +112,9 @@ function ConnectionBadge() {
 // ---------------------------------------------------------------------------
 
 function FlowSelectorDropdown() {
-  const { flows } = useFlows();
-  const flowId = useSessionStore((s) => s.flowId);
-  const setFlowId = useSessionStore((s) => s.setFlowId);
-  const collection = useSettings((s) => s.settings.collection);
+  const flows = resultData(useAtomValue(flowsAtom), []);
+  const [flowId, setFlowId] = useAtom(flowIdAtom);
+  const collection = useAtomValue(settingsAtom).collection;
 
   return (
     <div className="space-y-2 px-3">
@@ -148,26 +156,26 @@ function FlowSelectorDropdown() {
 // ---------------------------------------------------------------------------
 
 export function Sidebar() {
-  const { featureSwitches } = useSettings((s) => s.settings);
+  const { featureSwitches } = useAtomValue(settingsAtom);
 
   return (
-    <aside aria-label="Sidebar" className="flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface-50">
+    <aside aria-label="Sidebar" className="flex h-screen w-sidebar-collapsed shrink-0 flex-col border-r border-border bg-surface-50 sm:w-sidebar">
       {/* Logo area */}
-      <div className="flex h-14 items-center gap-2.5 px-4">
+      <div className="flex h-14 items-center justify-center gap-2.5 px-2 sm:justify-start sm:px-4">
         <BeepGraphLogo className="h-7 w-7 shrink-0 text-brand-400" />
-        <span className="text-lg font-bold text-fg">Beep Graph</span>
+        <span className="hidden text-lg font-bold text-fg sm:inline">Beep Graph</span>
       </div>
 
       {/* Divider */}
       <div className="mx-3 border-t border-border" />
 
       {/* Flow & collection selectors */}
-      <div className="py-3">
+      <div className="hidden py-3 sm:block">
         <FlowSelectorDropdown />
       </div>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-border" />
+      <div className="hidden mx-3 border-t border-border sm:block" />
 
       {/* Navigation links */}
       <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3">
@@ -185,7 +193,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer: connection badge */}
-      <div className="border-t border-border px-2 py-2">
+      <div className="hidden border-t border-border px-2 py-2 sm:block">
         <ConnectionBadge />
       </div>
     </aside>

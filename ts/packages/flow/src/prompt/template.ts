@@ -29,11 +29,17 @@ import {
   ConsumerSpec,
   ProducerSpec,
   type ProcessorConfig,
+  type EffectConfigHandler,
   type FlowContext,
+  type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
   type PromptRequest,
   type PromptResponse,
+  type Spec,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
+import * as S from "effect/Schema";
 
 export interface PromptTemplate {
   system: string;
@@ -44,93 +50,128 @@ export interface PromptTemplateConfig extends ProcessorConfig {
   configKey?: string;
 }
 
+const PromptTemplateEntry = S.Struct({
+  system: S.optionalKey(S.String),
+  prompt: S.optionalKey(S.String),
+});
+
+const PromptTemplateEntries = S.Record(S.String, PromptTemplateEntry);
+
+interface PromptTemplateRuntime {
+  readonly specs: ReadonlyArray<Spec<never>>;
+  readonly configHandlers: ReadonlyArray<EffectConfigHandler>;
+}
+
+const programRuntimes = new WeakMap<PromptTemplateConfig, PromptTemplateRuntime>();
+
+const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplateRuntime => {
+  const templates = new Map<string, PromptTemplate>();
+  const configKey = config.configKey ?? "prompt";
+
+  const onPromptConfig = Effect.fn("PromptTemplateService.onConfig")(function* (
+    pushedConfig: Record<string, unknown>,
+    version: number,
+  ) {
+    yield* Effect.log(`[PromptTemplate] Loading prompt configuration version ${version}`);
+
+    const promptConfig = pushedConfig[configKey];
+    if (promptConfig === undefined) {
+      yield* Effect.logWarning(`[PromptTemplate] No key "${configKey}" in config`);
+      return;
+    }
+
+    const decoded = yield* S.decodeUnknownEffect(PromptTemplateEntries)(promptConfig).pipe(
+      Effect.catch((error) =>
+        Effect.logError("[PromptTemplate] Failed to decode prompt configuration", {
+          error: error.message,
+          configKey,
+        }).pipe(Effect.as(null)),
+      ),
+    );
+    if (decoded === null) return;
+
+    templates.clear();
+
+    for (const [name, template] of Object.entries(decoded)) {
+      templates.set(name, {
+        system: template.system ?? "",
+        prompt: template.prompt ?? "",
+      });
+    }
+
+    yield* Effect.log(
+      `[PromptTemplate] Loaded ${templates.size} template(s): ${[...templates.keys()].join(", ")}`,
+    );
+  });
+
+  const onRequest = Effect.fn("PromptTemplateService.onRequest")(function* (
+    msg: PromptRequest,
+    properties: Record<string, string>,
+    flowCtx: FlowContext,
+  ) {
+    const requestId = properties.id;
+    if (requestId === undefined || requestId.length === 0) return;
+
+    const responseProducer = yield* flowCtx.flow.producerEffect<PromptResponse>("prompt-response");
+    const template = templates.get(msg.name);
+    if (template === undefined) {
+      yield* responseProducer.send(requestId, {
+        system: "",
+        prompt: "",
+        error: {
+          type: "prompt-error",
+          message: `Unknown prompt template: "${msg.name}"`,
+        },
+      });
+      return;
+    }
+
+    const variables = msg.variables ?? {};
+
+    yield* responseProducer.send(requestId, {
+      system: renderTemplate(template.system, variables),
+      prompt: renderTemplate(template.prompt, variables),
+    });
+  });
+
+  return {
+    specs: [
+      new ConsumerSpec<PromptRequest, FlowResourceNotFoundError | MessagingDeliveryError>(
+        "prompt-request",
+        onRequest,
+      ),
+      new ProducerSpec<PromptResponse>("prompt-response"),
+    ],
+    configHandlers: [onPromptConfig],
+  };
+};
+
+const promptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplateRuntime => {
+  const existing = programRuntimes.get(config);
+  if (existing !== undefined) return existing;
+  const runtime = makePromptTemplateRuntime(config);
+  programRuntimes.set(config, runtime);
+  return runtime;
+};
+
 export class PromptTemplateService extends FlowProcessor {
-  private templates = new Map<string, PromptTemplate>();
-  private readonly configKey: string;
+  private readonly runtime: PromptTemplateRuntime;
 
   constructor(config: PromptTemplateConfig) {
     super(config);
 
-    this.configKey = config.configKey ?? "prompt";
+    this.runtime = makePromptTemplateRuntime(config);
 
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<PromptRequest>(
-        "prompt-request",
-        this.onRequest.bind(this),
-      ),
-    );
-    this.registerSpecification(new ProducerSpec<PromptResponse>("prompt-response"));
-
-    this.registerConfigHandler(this.onPromptConfig.bind(this));
+    for (const spec of this.runtime.specs) {
+      this.registerSpecification(spec);
+    }
+    for (const handler of this.runtime.configHandlers) {
+      this.registerConfigHandler((pushedConfig, version) =>
+        Effect.runPromise(handler(pushedConfig, version)),
+      );
+    }
 
     console.log("[PromptTemplate] Service initialized");
-  }
-
-  private async onPromptConfig(
-    config: Record<string, unknown>,
-    version: number,
-  ): Promise<void> {
-    console.log(`[PromptTemplate] Loading prompt configuration version ${version}`);
-
-    const promptConfig = config[this.configKey] as
-      | Record<string, { system?: string; prompt?: string }>
-      | undefined;
-
-    if (promptConfig === undefined) {
-      console.warn(`[PromptTemplate] No key "${this.configKey}" in config`);
-      return;
-    }
-
-    try {
-      this.templates.clear();
-
-      for (const [name, template] of Object.entries(promptConfig)) {
-        this.templates.set(name, {
-          system: template.system ?? "",
-          prompt: template.prompt ?? "",
-        });
-      }
-
-      console.log(
-        `[PromptTemplate] Loaded ${this.templates.size} template(s): ${[...this.templates.keys()].join(", ")}`,
-      );
-    } catch (err) {
-      console.error("[PromptTemplate] Failed to load prompt configuration:", err);
-    }
-  }
-
-  private async onRequest(
-    msg: PromptRequest,
-    properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
-    const requestId = properties.id;
-    if (requestId === undefined || requestId.length === 0) return;
-
-    const responseProducer = flowCtx.flow.producer<PromptResponse>("prompt-response");
-
-    try {
-      const template = this.templates.get(msg.name);
-      if (template === undefined) {
-        throw new Error(`Unknown prompt template: "${msg.name}"`);
-      }
-
-      const variables = msg.variables ?? {};
-
-      const system = renderTemplate(template.system, variables);
-      const prompt = renderTemplate(template.prompt, variables);
-
-      await responseProducer.send(requestId, { system, prompt });
-    } catch (err) {
-      console.error(`[PromptTemplate] Error processing request:`, err);
-
-      const message = err instanceof Error ? err.message : String(err);
-      await responseProducer.send(requestId, {
-        system: "",
-        prompt: "",
-        error: { type: "prompt-error", message },
-      });
-    }
   }
 }
 
@@ -150,11 +191,12 @@ function renderTemplate(
   });
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram({
   id: "prompt",
-  make: (config) => new PromptTemplateService(config),
+  specs: (config: PromptTemplateConfig) => promptTemplateRuntime(config).specs,
+  configHandlers: (config: PromptTemplateConfig) => promptTemplateRuntime(config).configHandlers,
 });
 
 export async function run(): Promise<void> {
-  await PromptTemplateService.launch("prompt");
+  await Effect.runPromise(program);
 }

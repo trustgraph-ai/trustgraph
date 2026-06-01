@@ -1,10 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from "react";
+import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react";
+import type { KeyboardEvent } from "react";
 import {
   MessageSquareText,
   Send,
@@ -20,17 +15,23 @@ import {
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { useConversation, type ChatMessage } from "@/hooks/use-conversation";
-import { useChat } from "@/hooks/use-chat";
-import { useSettings } from "@/providers/settings-provider";
-import { useProgressStore } from "@/hooks/use-progress-store";
+import {
+  agentPhaseExpandedAtom,
+  cancelChatAtom,
+  clearMessagesAtom,
+  conversationAtom,
+  deleteMessageAtom,
+  isLoadingAtom,
+  regenerateLastMessageAtom,
+  setChatModeAtom,
+  setConversationInputAtom,
+  settingsAtom,
+  submitMessageAtom,
+  type ChatMessage,
+} from "@/atoms/workbench";
 import { AutoTextarea } from "@/components/ui/textarea";
 import { MessageActions } from "@/components/chat/message-actions";
 import { ExplainGraph } from "@/components/chat/explain-graph";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const MODES = [
   { value: "graph-rag" as const, label: "Graph RAG" },
@@ -38,29 +39,25 @@ const MODES = [
   { value: "agent" as const, label: "Agent" },
 ];
 
-// ---------------------------------------------------------------------------
-// Agent phase section (collapsible)
-// ---------------------------------------------------------------------------
-
 function AgentPhaseBlock({
+  messageId,
   phase,
   icon,
   label,
   content,
   isActive,
 }: {
+  messageId: string;
   phase: string;
   icon: React.ReactNode;
   label: string;
   content: string;
   isActive: boolean;
 }) {
-  const [manualToggle, setManualToggle] = useState<boolean | null>(null);
-
+  const [expandedMap, setExpandedMap] = useAtom(agentPhaseExpandedAtom);
+  const key = `${messageId}:${phase}`;
   if (content.length === 0 && !isActive) return null;
-
-  // Auto-expand while actively streaming; user can override
-  const expanded = manualToggle ?? isActive;
+  const expanded = expandedMap[key] ?? isActive;
 
   const phaseColors: Record<string, string> = {
     think: "border-amber-500/30 bg-amber-500/5",
@@ -75,40 +72,22 @@ function AgentPhaseBlock({
   };
 
   return (
-    <div
-      className={cn(
-        "rounded-md border",
-        phaseColors[phase] ?? "border-border bg-surface-100",
-      )}
-    >
+    <div className={cn("rounded-md border", phaseColors[phase] ?? "border-border bg-surface-100")}>
       <button
-        onClick={() => setManualToggle((prev) => !(prev ?? isActive))}
+        onClick={() => setExpandedMap({ ...expandedMap, [key]: !expanded })}
         aria-expanded={expanded}
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-fg-muted"
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0" />
-        )}
+        {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
         {icon}
-        <span
-          className={cn(
-            "rounded px-1.5 py-0.5",
-            badgeColors[phase] ?? "bg-surface-200 text-fg-muted",
-          )}
-        >
+        <span className={cn("rounded px-1.5 py-0.5", badgeColors[phase] ?? "bg-surface-200 text-fg-muted")}>
           {label}
         </span>
-        {isActive && (
-          <Loader2 className="ml-auto h-3 w-3 animate-spin text-fg-subtle" />
-        )}
+        {isActive && <Loader2 className="ml-auto h-3 w-3 animate-spin text-fg-subtle" />}
       </button>
       {expanded && (content.length > 0 || isActive) && (
         <div className="border-t border-border/50 px-3 py-2 text-xs leading-relaxed text-fg-muted">
-          <p className="whitespace-pre-wrap">
-            {content.length > 0 ? content : isActive ? "..." : ""}
-          </p>
+          <p className="whitespace-pre-wrap">{content.length > 0 ? content : isActive ? "..." : ""}</p>
           {isActive && content.length > 0 && (
             <span className="mt-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
           )}
@@ -118,168 +97,146 @@ function AgentPhaseBlock({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Single message bubble
-// ---------------------------------------------------------------------------
-
-function MessageBubble({ msg, collection }: { msg: ChatMessage; collection: string }) {
+function MessageBubble({
+  msg,
+  collection,
+  isLastAssistant,
+}: {
+  msg: ChatMessage;
+  collection: string;
+  isLastAssistant: boolean;
+}) {
+  const deleteMessage = useAtomSet(deleteMessageAtom);
+  const regenerateLastMessage = useAtomSet(regenerateLastMessageAtom);
   const isUser = msg.role === "user";
   const agentPhases = msg.agentPhases;
   const isError = !isUser && msg.content.startsWith("Error:");
 
   return (
-    <div
-      className={cn(
-        "rounded-lg px-4 py-3 text-sm leading-relaxed",
-        isUser
-          ? "ml-auto max-w-[80%] bg-brand-700/30 text-fg"
-          : isError
-            ? "mr-auto max-w-[80%] border border-error/30 bg-error/10 text-error"
-            : "mr-auto max-w-[80%] bg-surface-100 text-fg",
-      )}
-    >
-      {/* Agent phase blocks (only for agent messages) */}
-      {agentPhases !== undefined && (
-        <div className="mb-2 space-y-1.5">
-          <AgentPhaseBlock
-            phase="think"
-            icon={<Brain className="h-3 w-3" />}
-            label="Thinking"
-            content={agentPhases.think}
-            isActive={msg.activePhase === "think"}
-          />
-          <AgentPhaseBlock
-            phase="observe"
-            icon={<Eye className="h-3 w-3" />}
-            label="Observing"
-            content={agentPhases.observe}
-            isActive={msg.activePhase === "observe"}
-          />
-          {agentPhases.answer.length > 0 && (
-            <div className="flex items-center gap-1.5 px-1 pt-1 text-xs text-emerald-400">
-              <CheckCircle className="h-3 w-3" />
-              <span className="font-medium">Answer</span>
-            </div>
-          )}
-        </div>
-      )}
+    <div className="group relative">
+      <div
+        className={cn(
+          "rounded-lg px-4 py-3 text-sm leading-relaxed",
+          isUser
+            ? "ml-auto max-w-[80%] bg-brand-700/30 text-fg"
+            : isError
+              ? "mr-auto max-w-[80%] border border-error/30 bg-error/10 text-error"
+              : "mr-auto max-w-[80%] bg-surface-100 text-fg",
+        )}
+      >
+        {agentPhases !== undefined && (
+          <div className="mb-2 space-y-1.5">
+            <AgentPhaseBlock
+              messageId={msg.id}
+              phase="think"
+              icon={<Brain className="h-3 w-3" />}
+              label="Thinking"
+              content={agentPhases.think}
+              isActive={msg.activePhase === "think"}
+            />
+            <AgentPhaseBlock
+              messageId={msg.id}
+              phase="observe"
+              icon={<Eye className="h-3 w-3" />}
+              label="Observing"
+              content={agentPhases.observe}
+              isActive={msg.activePhase === "observe"}
+            />
+            {agentPhases.answer.length > 0 && (
+              <div className="flex items-center gap-1.5 px-1 pt-1 text-xs text-emerald-400">
+                <CheckCircle className="h-3 w-3" />
+                <span className="font-medium">Answer</span>
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Main content (markdown for assistant, plain for user) */}
-      {isUser ? (
-        <p className="whitespace-pre-wrap">{msg.content}</p>
-      ) : isError ? (
-        <div className="flex items-start gap-2">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        {isUser ? (
           <p className="whitespace-pre-wrap">{msg.content}</p>
-        </div>
-      ) : (
-        <div className="prose prose-sm max-w-none text-fg prose-headings:text-fg prose-strong:text-fg prose-p:my-1 prose-a:text-brand-400 prose-pre:bg-surface-200 prose-pre:text-fg prose-code:text-brand-300">
-          <Markdown>{msg.content.length > 0 ? msg.content : msg.isStreaming === true ? "" : "(empty)"}</Markdown>
-        </div>
-      )}
+        ) : isError ? (
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+          </div>
+        ) : (
+          <div className="prose prose-sm max-w-none text-fg prose-headings:text-fg prose-strong:text-fg prose-p:my-1 prose-a:text-brand-400 prose-pre:bg-surface-200 prose-pre:text-fg prose-code:text-brand-300">
+            <Markdown>{msg.content.length > 0 ? msg.content : msg.isStreaming === true ? "" : "(empty)"}</Markdown>
+          </div>
+        )}
 
-      {/* Streaming indicator */}
-      {msg.isStreaming === true && (
-        <span className="mt-1 inline-block h-2 w-2 animate-pulse rounded-full bg-brand-400" />
-      )}
+        {msg.isStreaming === true && (
+          <span className="mt-1 inline-block h-2 w-2 animate-pulse rounded-full bg-brand-400" />
+        )}
 
-      {/* Token metadata */}
-      {msg.metadata !== undefined && (
-        <div className="mt-2 flex items-center gap-3 text-[10px] text-fg-subtle">
-          {msg.metadata.model !== undefined && msg.metadata.model.length > 0 && <span>{msg.metadata.model}</span>}
-          {msg.metadata.inTokens != null && (
-            <span>in: {msg.metadata.inTokens}</span>
-          )}
-          {msg.metadata.outTokens != null && (
-            <span>out: {msg.metadata.outTokens}</span>
-          )}
-        </div>
-      )}
+        {msg.metadata !== undefined && (
+          <div className="mt-2 flex items-center gap-3 text-[10px] text-fg-subtle">
+            {msg.metadata.model !== undefined && msg.metadata.model.length > 0 && <span>{msg.metadata.model}</span>}
+            {msg.metadata.inTokens != null && <span>in: {msg.metadata.inTokens}</span>}
+            {msg.metadata.outTokens != null && <span>out: {msg.metadata.outTokens}</span>}
+          </div>
+        )}
 
-      {/* Explainability graph */}
-      {!isUser && !isError && msg.isStreaming !== true && msg.explainEvents !== undefined && msg.explainEvents.length > 0 && (
-        <ExplainGraph explainEvents={msg.explainEvents} collection={collection} />
+        {!isUser && !isError && msg.isStreaming !== true && msg.explainEvents !== undefined && msg.explainEvents.length > 0 && (
+          <ExplainGraph explainEvents={msg.explainEvents} collection={collection} />
+        )}
+      </div>
+      {!isUser && (
+        <MessageActions
+          messageId={msg.id}
+          content={msg.content}
+          isLastAssistant={isLastAssistant}
+          onDelete={() => deleteMessage(msg.id)}
+          onRegenerate={() => regenerateLastMessage()}
+        />
       )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Chat page
-// ---------------------------------------------------------------------------
-
 export default function ChatPage() {
-  const messages = useConversation((s) => s.messages);
-  const input = useConversation((s) => s.input);
-  const chatMode = useConversation((s) => s.chatMode);
-  const setInput = useConversation((s) => s.setInput);
-  const setChatMode = useConversation((s) => s.setChatMode);
-  const clearMessages = useConversation((s) => s.clearMessages);
-  const { submitMessage, cancelRequest, regenerateLastMessage } = useChat();
-  const deleteMessage = useConversation((s) => s.deleteMessage);
-  const collection = useSettings((s) => s.settings.collection);
-  const isLoading = useProgressStore((s) => s.isLoading);
+  const conversation = useAtomValue(conversationAtom);
+  const collection = useAtomValue(settingsAtom).collection;
+  const isLoading = useAtomValue(isLoadingAtom);
+  const setInput = useAtomSet(setConversationInputAtom);
+  const setChatMode = useAtomSet(setChatModeAtom);
+  const clearMessages = useAtomSet(clearMessagesAtom);
+  const submitMessage = useAtomSet(submitMessageAtom);
+  const cancelRequest = useAtomSet(cancelChatAtom);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Elapsed time counter while loading
-  const [elapsed, setElapsed] = useState(0);
-  useEffect(() => {
-    if (!isLoading) {
-      setElapsed(0);
-      return;
+  const handleSubmit = () => {
+    if (conversation.input.trim().length > 0) {
+      submitMessage({ input: conversation.input });
     }
-    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isLoading]);
+  };
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSubmit = useCallback(() => {
-    if (input.trim().length > 0) {
-      submitMessage({ input });
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSubmit();
     }
-  }, [input, submitMessage]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
-    },
-    [handleSubmit],
-  );
+  const lastAssistantId = [...conversation.messages].reverse().find((message) => message.role === "assistant")?.id;
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <MessageSquareText className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Chat</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-muted">
-            {collection}
-          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Mode selector */}
-          <div role="group" aria-label="Chat mode" className="flex rounded-lg border border-border bg-surface-100 p-0.5">
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-border bg-surface-100 p-1">
             {MODES.map((mode) => (
               <button
-                type="button"
                 key={mode.value}
                 onClick={() => setChatMode(mode.value)}
-                aria-pressed={chatMode === mode.value}
                 className={cn(
-                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                  chatMode === mode.value
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  conversation.chatMode === mode.value
                     ? "bg-brand-600 text-white"
-                    : "text-fg-muted hover:text-fg",
+                    : "text-fg-muted hover:bg-surface-200 hover:text-fg",
                 )}
               >
                 {mode.label}
@@ -287,84 +244,68 @@ export default function ChatPage() {
             ))}
           </div>
 
-          <button
-            onClick={() => { cancelRequest(); clearMessages(); }}
-            className="rounded-lg p-2 text-fg-subtle hover:bg-surface-200 hover:text-fg"
-            title="Clear messages"
-            aria-label="Clear messages"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {conversation.messages.length > 0 && (
+            <button
+              onClick={() => clearMessages(null)}
+              className="rounded-lg border border-border p-2 text-fg-subtle hover:bg-surface-200 hover:text-error"
+              aria-label="Clear conversation"
+              title="Clear conversation"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto pb-4 pt-10">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-fg-subtle">
-            <MessageSquareText className="mb-3 h-10 w-10 opacity-30" />
-            <p>Send a message to start a conversation.</p>
-            <p className="mt-1 text-xs">
-              Mode: <span className="text-fg-muted">{MODES.find((m) => m.value === chatMode)?.label ?? chatMode}</span>
-            </p>
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-surface-50 p-4">
+        {conversation.messages.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <MessageSquareText className="mb-3 h-10 w-10 text-fg-subtle opacity-30" />
+            <p className="text-sm text-fg-subtle">Start a conversation with TrustGraph.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {conversation.messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                msg={message}
+                collection={collection}
+                isLastAssistant={message.id === lastAssistantId}
+              />
+            ))}
           </div>
         )}
-
-        {messages.map((msg, idx) => {
-          const isLastAssistant =
-            msg.role === "assistant" &&
-            idx === messages.length - 1;
-
-          return (
-            <div key={msg.id} className="group relative">
-              {msg.isStreaming !== true && (
-                <MessageActions
-                  content={msg.content}
-                  isLastAssistant={isLastAssistant}
-                  onDelete={() => deleteMessage(msg.id)}
-                  {...(isLastAssistant ? { onRegenerate: regenerateLastMessage } : {})}
-                />
-              )}
-              <MessageBubble msg={msg} collection={collection} />
-            </div>
-          );
-        })}
-        <div ref={scrollRef} />
       </div>
 
-      {/* Loading indicator */}
-      {isLoading && (
-        <div className="flex items-center gap-2 pb-2 text-xs text-fg-subtle">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>Processing... {elapsed}s</span>
-          <button
-            onClick={cancelRequest}
-            className="flex items-center gap-1 rounded-lg px-3 py-1 text-xs text-red-400 hover:bg-surface-200"
-          >
-            <X className="h-3 w-3" />
-            Cancel
-          </button>
+      <div className="mt-4 rounded-lg border border-border bg-surface-50 p-3">
+        <div className="flex items-end gap-2">
+          <AutoTextarea
+            value={conversation.input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={`Ask using ${MODES.find((mode) => mode.value === conversation.chatMode)?.label ?? "TrustGraph"}...`}
+            disabled={isLoading}
+            maxRows={8}
+          />
+          {isLoading ? (
+            <button
+              onClick={() => cancelRequest(null)}
+              className="rounded-lg border border-border p-3 text-fg-muted hover:bg-error/10 hover:text-error"
+              aria-label="Cancel request"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={conversation.input.trim().length === 0}
+              className="rounded-lg bg-brand-600 p-3 text-white hover:bg-brand-500 disabled:opacity-40"
+              aria-label="Send message"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          )}
         </div>
-      )}
-
-      {/* Input area */}
-      <div className="flex items-end gap-2 border-t border-border pt-4">
-        <AutoTextarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-          aria-label="Chat message"
-          maxRows={6}
-        />
-        <button
-          onClick={handleSubmit}
-          disabled={input.trim().length === 0 || isLoading}
-          aria-label="Send message"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white transition-colors hover:bg-brand-500 disabled:opacity-40"
-        >
-          <Send className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );

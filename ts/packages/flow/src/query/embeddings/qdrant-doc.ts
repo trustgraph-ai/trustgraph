@@ -8,6 +8,9 @@
  */
 
 import { QdrantClient } from "@qdrant/js-client-rest";
+import { errorMessage } from "@trustgraph/base";
+import { Context, Effect, Layer } from "effect";
+import * as S from "effect/Schema";
 
 export interface QdrantDocQueryConfig {
   url?: string;
@@ -83,3 +86,54 @@ export class QdrantDocEmbeddingsQuery {
     return chunks;
   }
 }
+
+export class QdrantDocEmbeddingsQueryError extends S.TaggedErrorClass<QdrantDocEmbeddingsQueryError>()(
+  "QdrantDocEmbeddingsQueryError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+export interface QdrantDocEmbeddingsQueryServiceShape {
+  readonly query: (
+    request: DocEmbeddingsQueryRequest,
+  ) => Effect.Effect<ReadonlyArray<ChunkMatch>, QdrantDocEmbeddingsQueryError>;
+}
+
+export class QdrantDocEmbeddingsQueryService extends Context.Service<
+  QdrantDocEmbeddingsQueryService,
+  QdrantDocEmbeddingsQueryServiceShape
+>()(
+  "@trustgraph/flow/query/embeddings/qdrant-doc/QdrantDocEmbeddingsQueryService",
+) {}
+
+const qdrantDocEmbeddingsQueryError = (operation: string, cause: unknown) =>
+  new QdrantDocEmbeddingsQueryError({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+export const makeQdrantDocEmbeddingsQueryService = (
+  config: QdrantDocQueryConfig = {},
+): QdrantDocEmbeddingsQueryServiceShape => {
+  const query = new QdrantDocEmbeddingsQuery(config);
+  return {
+    query: Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request) {
+      return yield* Effect.tryPromise({
+        try: () => query.query(request),
+        catch: (cause) => qdrantDocEmbeddingsQueryError("query", cause),
+      });
+    }),
+  };
+};
+
+export const QdrantDocEmbeddingsQueryLive = (
+  config: QdrantDocQueryConfig = {},
+): Layer.Layer<QdrantDocEmbeddingsQueryService> =>
+  Layer.succeed(
+    QdrantDocEmbeddingsQueryService,
+    QdrantDocEmbeddingsQueryService.of(makeQdrantDocEmbeddingsQueryService(config)),
+  );

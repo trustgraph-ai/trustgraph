@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "qa:browser": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.75.0",
@@ -19,10 +20,26 @@
     "react-markdown": "^10.1.0",
     "react-router": "^7.6.0",
     "tailwind-merge": "^3.3.0",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "@effect/platform-node": "4.0.0-beta.74",
+    "@effect/platform-node-shared": "4.0.0-beta.74",
+    "@effect/ai-anthropic": "4.0.0-beta.74",
+    "@effect/ai-openai": "4.0.0-beta.74",
+    "@effect/ai-openrouter": "4.0.0-beta.74",
+    "@effect/atom-react": "4.0.0-beta.74",
+    "@effect/openapi-generator": "4.0.0-beta.74",
+    "@effect/opentelemetry": "4.0.0-beta.74",
+    "@effect/platform-browser": "4.0.0-beta.74",
+    "@effect/platform-bun": "4.0.0-beta.74",
+    "@effect/tsgo": "0.13.0",
+    "@effect/sql-pg": "4.0.0-beta.74",
+    "@effect/sql-sqlite-bun": "4.0.0-beta.74",
+    "@effect/sql-sqlite-node": "4.0.0-beta.74",
+    "@effect/vitest": "4.0.0-beta.74"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.0-beta.65",
+    "@effect/vitest": "4.0.0-beta.74",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

@@ -280,12 +280,16 @@ export interface DocumentMetadata {
   metadata?: Triple[];
   user?: string;
   tags?: string[];
+  parentId?: string;
+  documentType?: string;
+  "parent-id"?: string;
   "document-type"?: string;
 }
 
 export interface ProcessingMetadata {
   id?: string;
   "document-id"?: string;
+  documentId?: string;
   time?: number;
   flow?: string;
   user?: string;
@@ -295,7 +299,9 @@ export interface ProcessingMetadata {
 
 export interface LibraryRequest {
   operation: string;
+  documentId?: string;
   "document-id"?: string;
+  processingId?: string;
   "processing-id"?: string;
   "document-metadata"?: DocumentMetadata;
   documentMetadata?: DocumentMetadata;
@@ -309,12 +315,15 @@ export interface LibraryRequest {
 }
 
 export interface LibraryResponse {
-  error: Error;
+  error?: Error;
   "document-metadata"?: DocumentMetadata;
   documentMetadata?: DocumentMetadata;
   content?: string;
   "document-metadatas"?: DocumentMetadata[];
+  documents?: DocumentMetadata[];
   "processing-metadata"?: ProcessingMetadata;
+  "processing-metadatas"?: ProcessingMetadata[];
+  processing?: ProcessingMetadata[];
 }
 
 export interface KnowledgeRequest {
@@ -325,6 +334,9 @@ export interface KnowledgeRequest {
   collection?: string;
   triples?: Triple[];
   "graph-embeddings"?: GraphEmbeddings;
+  graphEmbeddings?: GraphEmbeddings;
+  "document-embeddings"?: unknown;
+  documentEmbeddings?: unknown;
 }
 
 export interface KnowledgeResponse {
@@ -333,6 +345,9 @@ export interface KnowledgeResponse {
   eos?: boolean;
   triples?: Triple[];
   "graph-embeddings"?: GraphEmbeddings;
+  graphEmbeddings?: GraphEmbeddings;
+  "document-embeddings"?: unknown;
+  documentEmbeddings?: unknown;
 }
 
 export interface FlowRequest {

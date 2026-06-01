@@ -1,158 +1,197 @@
 /**
- * Graph RAG service — FlowProcessor wrapper around the GraphRag class.
+ * Graph RAG service.
  *
  * Consumes GraphRagRequest messages from the agent/gateway, runs the full
- * Graph RAG pipeline (concept extraction → entity lookup → graph traversal →
- * edge scoring → answer synthesis), and emits GraphRagResponse.
- *
- * Each request gets its own GraphRag instance to prevent data leakage
- * across requests (security requirement from the Python implementation).
+ * Graph RAG pipeline, and emits GraphRagResponse.
  *
  * Python reference: trustgraph-flow/trustgraph/retrieval/graph_rag/rag.py
  */
 
 import {
-  FlowProcessor,
   ConsumerSpec,
+  FlowProcessor,
   ProducerSpec,
   RequestResponseSpec,
-  type ProcessorConfig,
+  makeFlowProcessorProgram,
+  type EffectRequestOptions,
+  type EffectRequestResponse,
   type FlowContext,
-  type GraphRagRequest,
-  type GraphRagResponse,
-  type TextCompletionRequest,
-  type TextCompletionResponse,
-  type EmbeddingsRequest,
-  type EmbeddingsResponse,
+  type FlowRequestOptions,
+  type FlowRequestor,
+  type FlowResourceNotFoundError,
   type GraphEmbeddingsRequest,
   type GraphEmbeddingsResponse,
-  type TriplesQueryRequest,
-  type TriplesQueryResponse,
+  type GraphRagRequest,
+  type GraphRagResponse,
+  type EmbeddingsRequest,
+  type EmbeddingsResponse,
+  type MessagingDeliveryError,
+  type ProcessorConfig,
   type PromptRequest,
   type PromptResponse,
+  type Spec,
+  type TextCompletionRequest,
+  type TextCompletionResponse,
+  type TriplesQueryRequest,
+  type TriplesQueryResponse,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
-import { GraphRag } from "./graph-rag.js";
+import { Effect } from "effect";
+import {
+  GraphRagEngine,
+  GraphRagEngineError,
+  GraphRagLive,
+  makeGraphRagEngine,
+  type GraphRagClients,
+  type GraphRagConfig,
+} from "./graph-rag.js";
 
-export class GraphRagService extends FlowProcessor {
-  constructor(config: ProcessorConfig) {
-    super(config);
+const toEffectRequestOptions = <TRes>(
+  options: FlowRequestOptions<TRes> | undefined,
+): EffectRequestOptions<TRes> | undefined => {
+  if (options === undefined) return undefined;
+  return {
+    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+    ...(options.recipient === undefined
+      ? {}
+      : {
+          recipient: (response: TRes) =>
+            Effect.promise(() => options.recipient?.(response) ?? Promise.resolve(true)),
+        }),
+  };
+};
 
-    // Consumer: graph RAG requests
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<GraphRagRequest>("graph-rag-request", this.onRequest.bind(this)),
-    );
+const toPromiseRequestor = <TReq, TRes>(
+  requestor: EffectRequestResponse<TReq, TRes>,
+): FlowRequestor<TReq, TRes> => ({
+  request: (request, options) =>
+    Effect.runPromise(requestor.request(request, toEffectRequestOptions(options))),
+  stop: () => Effect.runPromise(requestor.stop),
+});
 
-    // Producer: graph RAG responses
-    this.registerSpecification(new ProducerSpec<GraphRagResponse>("graph-rag-response"));
+const graphRagConfigFromRequest = (msg: GraphRagRequest): GraphRagConfig => ({
+  ...(msg.entityLimit !== undefined ? { entityLimit: msg.entityLimit } : {}),
+  ...(msg.tripleLimit !== undefined ? { tripleLimit: msg.tripleLimit } : {}),
+  ...(msg.maxSubgraphSize !== undefined ? { maxSubgraphSize: msg.maxSubgraphSize } : {}),
+  ...(msg.maxPathLength !== undefined ? { maxPathLength: msg.maxPathLength } : {}),
+});
 
-    // Request-response clients for the pipeline
-    this.registerSpecification(
-      new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
-        "llm",
-        "text-completion-request",
-        "text-completion-response",
-      ),
-    );
-    this.registerSpecification(
-      new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
-        "embeddings",
-        "embeddings-request",
-        "embeddings-response",
-      ),
-    );
-    this.registerSpecification(
-      new RequestResponseSpec<GraphEmbeddingsRequest, GraphEmbeddingsResponse>(
-        "graph-embeddings",
-        "graph-embeddings-request",
-        "graph-embeddings-response",
-      ),
-    );
-    this.registerSpecification(
-      new RequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
-        "triples",
-        "triples-request",
-        "triples-response",
-      ),
-    );
-    this.registerSpecification(
-      new RequestResponseSpec<PromptRequest, PromptResponse>(
-        "prompt",
-        "prompt-request",
-        "prompt-response",
-      ),
-    );
+const onGraphRagRequest = Effect.fn("GraphRagService.onRequest")(function* (
+  msg: GraphRagRequest,
+  properties: Record<string, string>,
+  flowCtx: FlowContext<GraphRagEngine>,
+) {
+  const requestId = properties.id;
+  if (requestId === undefined || requestId.length === 0) return;
 
-    console.log("[GraphRag] Service initialized");
+  const producer = yield* flowCtx.flow.producerEffect<GraphRagResponse>("graph-rag-response");
+  const engine = yield* GraphRagEngine;
+
+  yield* Effect.log(`[GraphRagService] Received request ${requestId}: "${msg.query?.slice(0, 60)}..." collection=${msg.collection}`);
+
+  const clients: GraphRagClients = {
+    llm: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm")),
+    embeddings: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings")),
+    graphEmbeddings: toPromiseRequestor(
+      yield* flowCtx.flow.requestorEffect<GraphEmbeddingsRequest, GraphEmbeddingsResponse>("graph-embeddings"),
+    ),
+    triples: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<TriplesQueryRequest, TriplesQueryResponse>("triples")),
+    prompt: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt")),
+  };
+
+  const result = yield* engine.query(
+    clients,
+    msg.query,
+    {
+      ...(msg.collection !== undefined ? { collection: msg.collection } : {}),
+    },
+    graphRagConfigFromRequest(msg),
+  ).pipe(
+    Effect.catch((error: GraphRagEngineError) =>
+      Effect.logError("[GraphRag] Query failed", {
+        error: error.message,
+        operation: error.operation,
+      }).pipe(
+        Effect.flatMap(() =>
+          producer.send(requestId, {
+            response: "",
+            error: { type: "rag-error", message: error.message },
+          }),
+        ),
+        Effect.as(undefined),
+      ),
+    ),
+  );
+
+  if (result === undefined) return;
+
+  const response: GraphRagResponse = {
+    response: result.answer,
+    endOfStream: true,
+  };
+
+  if (result.subgraph.length > 0) {
+    (response as Record<string, unknown>).message_type = "explain";
+    (response as Record<string, unknown>).explain_id = `explain-${requestId}`;
+    (response as Record<string, unknown>).explain_triples = result.subgraph;
   }
 
-  private async onRequest(
-    msg: GraphRagRequest,
-    properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
-    const requestId = properties.id;
-    if (requestId === undefined || requestId.length === 0) return;
+  yield* producer.send(requestId, response);
+});
 
-    const producer = flowCtx.flow.producer<GraphRagResponse>("graph-rag-response");
-    console.log(`[GraphRagService] Received request ${requestId}: "${msg.query?.slice(0, 60)}..." collection=${msg.collection}`);
+export const makeGraphRagSpecs = (): ReadonlyArray<Spec<GraphRagEngine>> => [
+  new ConsumerSpec<GraphRagRequest, FlowResourceNotFoundError | MessagingDeliveryError, GraphRagEngine>(
+    "graph-rag-request",
+    onGraphRagRequest,
+  ),
+  new ProducerSpec<GraphRagResponse>("graph-rag-response"),
+  new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+    "llm",
+    "text-completion-request",
+    "text-completion-response",
+  ),
+  new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+    "embeddings",
+    "embeddings-request",
+    "embeddings-response",
+  ),
+  new RequestResponseSpec<GraphEmbeddingsRequest, GraphEmbeddingsResponse>(
+    "graph-embeddings",
+    "graph-embeddings-request",
+    "graph-embeddings-response",
+  ),
+  new RequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
+    "triples",
+    "triples-request",
+    "triples-response",
+  ),
+  new RequestResponseSpec<PromptRequest, PromptResponse>(
+    "prompt",
+    "prompt-request",
+    "prompt-response",
+  ),
+];
 
-    try {
-      // Create a per-request GraphRag instance with flow clients
-      const graphRag = new GraphRag(
-        {
-          llm: flowCtx.flow.requestor<TextCompletionRequest, TextCompletionResponse>("llm"),
-          embeddings: flowCtx.flow.requestor<EmbeddingsRequest, EmbeddingsResponse>("embeddings"),
-          graphEmbeddings: flowCtx.flow.requestor<GraphEmbeddingsRequest, GraphEmbeddingsResponse>("graph-embeddings"),
-          triples: flowCtx.flow.requestor<TriplesQueryRequest, TriplesQueryResponse>("triples"),
-          prompt: flowCtx.flow.requestor<PromptRequest, PromptResponse>("prompt"),
-        },
-        {
-          ...(msg.entityLimit !== undefined ? { entityLimit: msg.entityLimit } : {}),
-          ...(msg.tripleLimit !== undefined ? { tripleLimit: msg.tripleLimit } : {}),
-          ...(msg.maxSubgraphSize !== undefined
-            ? { maxSubgraphSize: msg.maxSubgraphSize }
-            : {}),
-          ...(msg.maxPathLength !== undefined ? { maxPathLength: msg.maxPathLength } : {}),
-        },
-      );
-
-      const result = await graphRag.query(msg.query, {
-        ...(msg.collection !== undefined ? { collection: msg.collection } : {}),
-      });
-
-      // Send answer with explain data embedded in a SINGLE message.
-      // Non-streaming callers (agent's RequestResponse) return the first
-      // response — so the answer must be in that first (and only) message.
-      // Streaming callers (gateway) extract explain data + answer from
-      // the same message.
-      const response: GraphRagResponse = {
-        response: result.answer,
-        endOfStream: true,
-      };
-
-      if (result.subgraph.length > 0) {
-        (response as Record<string, unknown>).message_type = "explain";
-        (response as Record<string, unknown>).explain_id = `explain-${requestId}`;
-        (response as Record<string, unknown>).explain_triples = result.subgraph;
-      }
-
-      await producer.send(requestId, response);
-    } catch (err) {
-      console.error("[GraphRag] Query failed:", err);
-      await producer.send(requestId, {
-        response: "",
-        error: { type: "rag-error", message: String(err) },
-      });
+export class GraphRagService extends FlowProcessor<GraphRagEngine> {
+  constructor(config: ProcessorConfig) {
+    super(config);
+    for (const spec of makeGraphRagSpecs()) {
+      this.registerSpecification(spec);
     }
+  }
+
+  override startEffect() {
+    return super.startEffect().pipe(
+      Effect.provideService(GraphRagEngine, GraphRagEngine.of(makeGraphRagEngine())),
+    );
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram({
   id: "graph-rag",
-  make: (config) => new GraphRagService(config),
+  specs: makeGraphRagSpecs,
+  layer: () => GraphRagLive,
 });
 
 export async function run(): Promise<void> {
-  await GraphRagService.launch("graph-rag");
+  await Effect.runPromise(program);
 }

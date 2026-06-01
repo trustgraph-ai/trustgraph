@@ -15,83 +15,112 @@ import {
   RequestResponseSpec,
   type ProcessorConfig,
   type FlowContext,
+  type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
+  type MessagingTimeoutError,
   type EntityContexts,
   type EmbeddingsRequest,
   type EmbeddingsResponse,
+  type Spec,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
-import { QdrantGraphEmbeddingsStore } from "./qdrant-graph.js";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
+import {
+  QdrantGraphEmbeddingsStoreLive,
+  QdrantGraphEmbeddingsStoreService,
+  makeQdrantGraphEmbeddingsStoreService,
+  type QdrantGraphEmbeddingsConfig,
+  type QdrantGraphEmbeddingsStoreError,
+} from "./qdrant-graph.js";
 
-export class GraphEmbeddingsStoreService extends FlowProcessor {
-  private store: QdrantGraphEmbeddingsStore;
+type GraphEmbeddingsStoreRequirements = QdrantGraphEmbeddingsStoreService;
+type GraphEmbeddingsStoreError =
+  | FlowResourceNotFoundError
+  | MessagingDeliveryError
+  | MessagingTimeoutError
+  | QdrantGraphEmbeddingsStoreError;
+
+const onGraphEmbeddingsStoreMessage = Effect.fn("GraphEmbeddingsStoreService.onMessage")(function* (
+  msg: EntityContexts,
+  _properties: Record<string, string>,
+  flowCtx: FlowContext<GraphEmbeddingsStoreRequirements>,
+): Effect.fn.Return<void, GraphEmbeddingsStoreError, GraphEmbeddingsStoreRequirements> {
+  if (msg.entities.length === 0) return;
+
+  const embeddingsClient =
+    yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings-client");
+
+  const user = msg.metadata?.user ?? "default";
+  const collection = msg.metadata?.collection ?? "default";
+  const texts = msg.entities.map((entity) => entity.context);
+
+  const embResponse = yield* embeddingsClient.request({ text: texts });
+  if (embResponse.error !== undefined) {
+    yield* Effect.logError("[GraphEmbeddingsStore] Embeddings error", {
+      error: embResponse.error.message,
+    });
+    return;
+  }
+
+  const entities = msg.entities.map((entity, index) => ({
+    entity: entity.entity,
+    vector: embResponse.vectors[index],
+    chunkId: entity.chunkId,
+  }));
+  const store = yield* QdrantGraphEmbeddingsStoreService;
+
+  yield* store.store({ user, collection, entities });
+
+  yield* Effect.log(
+    `[GraphEmbeddingsStore] Stored ${entities.length} embeddings for ${user}/${collection}`,
+  );
+});
+
+export const makeGraphEmbeddingsStoreSpecs = (): ReadonlyArray<Spec<GraphEmbeddingsStoreRequirements>> => [
+  new ConsumerSpec<EntityContexts, GraphEmbeddingsStoreError, GraphEmbeddingsStoreRequirements>(
+    "store-graph-embeddings-input",
+    onGraphEmbeddingsStoreMessage,
+  ),
+  new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+    "embeddings-client",
+    "embeddings-request",
+    "embeddings-response",
+  ),
+];
+
+export class GraphEmbeddingsStoreService extends FlowProcessor<GraphEmbeddingsStoreRequirements> {
+  private readonly store = makeQdrantGraphEmbeddingsStoreService();
 
   constructor(config: ProcessorConfig) {
     super(config);
-    this.store = new QdrantGraphEmbeddingsStore();
 
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<EntityContexts>(
-        "store-graph-embeddings-input",
-        this.onMessage.bind(this),
-      ),
-    );
-    this.registerSpecification(
-      new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
-        "embeddings-client",
-        "embeddings-request",
-        "embeddings-response",
-      ),
-    );
+    for (const spec of makeGraphEmbeddingsStoreSpecs()) {
+      this.registerSpecification(spec);
+    }
 
     console.log("[GraphEmbeddingsStore] Service initialized");
   }
 
-  private async onMessage(
-    msg: EntityContexts,
-    _properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
-    if (msg.entities.length === 0) return;
-
-    const embeddingsClient =
-      flowCtx.flow.requestor<EmbeddingsRequest, EmbeddingsResponse>("embeddings-client");
-
-    const user = msg.metadata?.user ?? "default";
-    const collection = msg.metadata?.collection ?? "default";
-
-    // Get text contexts for vectorization
-    const texts = msg.entities.map((e) => e.context);
-
-    // Call embeddings service
-    const embResponse = await embeddingsClient.request({ text: texts });
-    if (embResponse.error !== undefined) {
-      console.error(
-        "[GraphEmbeddingsStore] Embeddings error:",
-        embResponse.error.message,
-      );
-      return;
-    }
-
-    // Store entity+vector pairs
-    const entities = msg.entities.map((e, i) => ({
-      entity: e.entity,
-      vector: embResponse.vectors[i],
-      chunkId: e.chunkId,
-    }));
-
-    await this.store.store({ user, collection, entities });
-
-    console.log(
-      `[GraphEmbeddingsStore] Stored ${entities.length} embeddings for ${user}/${collection}`,
+  override startEffect() {
+    return super.startEffect().pipe(
+      Effect.provideService(
+        QdrantGraphEmbeddingsStoreService,
+        QdrantGraphEmbeddingsStoreService.of(this.store),
+      ),
     );
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<
+  ProcessorConfig & QdrantGraphEmbeddingsConfig,
+  never,
+  GraphEmbeddingsStoreRequirements
+>({
   id: "graph-embeddings-store",
-  make: (config) => new GraphEmbeddingsStoreService(config),
+  specs: () => makeGraphEmbeddingsStoreSpecs(),
+  layer: (config) => QdrantGraphEmbeddingsStoreLive(config),
 });
 
 export async function run(): Promise<void> {
-  await GraphEmbeddingsStoreService.launch("graph-embeddings-store");
+  await Effect.runPromise(program);
 }

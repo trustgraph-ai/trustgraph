@@ -10,13 +10,17 @@
 
 import { AzureOpenAI } from "openai";
 import {
+  Llm,
   LlmService,
+  makeFlowProcessorProgram,
+  makeLlmServiceShape,
+  makeLlmSpecs,
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
   tooManyRequestsError,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
+import { Effect, Layer } from "effect";
 
 export class AzureOpenAIProcessor extends LlmService {
   private client: AzureOpenAI;
@@ -157,11 +161,16 @@ export class AzureOpenAIProcessor extends LlmService {
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   id: "text-completion",
-  make: (config) => new AzureOpenAIProcessor(config),
+  specs: () => makeLlmSpecs(),
+  layer: (config) =>
+    Layer.succeed(
+      Llm,
+      Llm.of(makeLlmServiceShape(new AzureOpenAIProcessor(config))),
+    ),
 });
 
 export async function run(): Promise<void> {
-  await AzureOpenAIProcessor.launch("text-completion");
+  await Effect.runPromise(program);
 }

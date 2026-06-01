@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useAtom, useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import {
   MessageCircleCode,
   Loader2,
@@ -9,47 +9,40 @@ import {
   Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePrompts } from "@/hooks/use-prompts";
-
-// ---------------------------------------------------------------------------
-// Prompts page
-// ---------------------------------------------------------------------------
-
-type Tab = "templates" | "system";
+import {
+  promptActiveTabAtom,
+  promptDetailAtom,
+  promptsAtom,
+  resultData,
+  resultError,
+  resultLoading,
+  selectedPromptIdAtom,
+  systemPromptAtom,
+} from "@/atoms/workbench";
 
 export default function PromptsPage() {
-  const { prompts, systemPrompt, loading, error, loadPrompts, loadSystemPrompt, getPrompt } = usePrompts();
+  const promptsResult = useAtomValue(promptsAtom);
+  const systemPromptResult = useAtomValue(systemPromptAtom);
+  const refreshPrompts = useAtomRefresh(promptsAtom);
+  const refreshSystemPrompt = useAtomRefresh(systemPromptAtom);
+  const [activeTab, setActiveTab] = useAtom(promptActiveTabAtom);
+  const [selectedPromptId, setSelectedPromptId] = useAtom(selectedPromptIdAtom);
+  const promptDetailResult = useAtomValue(promptDetailAtom(selectedPromptId ?? ""));
 
-  const [activeTab, setActiveTab] = useState<Tab>("templates");
-  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
-  const [promptDetail, setPromptDetail] = useState<{ system?: string; prompt?: string } | string | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const prompts = resultData(promptsResult, []);
+  const systemPrompt = resultData(systemPromptResult, "");
+  const loading = resultLoading(promptsResult, prompts) || resultLoading(systemPromptResult, systemPrompt);
+  const error = resultError(promptsResult) ?? resultError(systemPromptResult);
+  const promptDetail = resultData(promptDetailResult, null) as { system?: string; prompt?: string } | string | null;
+  const loadingDetail = selectedPromptId !== null && resultLoading(promptDetailResult, promptDetail);
 
-  const handleSelectPrompt = useCallback(
-    async (id: string) => {
-      setSelectedPromptId(id);
-      setLoadingDetail(true);
-      try {
-        const detail = await getPrompt(id);
-        setPromptDetail(detail as typeof promptDetail);
-      } catch (err) {
-        console.error("Failed to load prompt detail:", err);
-        setPromptDetail("Error loading prompt.");
-      } finally {
-        setLoadingDetail(false);
-      }
-    },
-    [getPrompt],
-  );
-
-  const handleRefresh = useCallback(() => {
-    loadPrompts();
-    loadSystemPrompt();
-  }, [loadPrompts, loadSystemPrompt]);
+  const refresh = () => {
+    refreshPrompts();
+    refreshSystemPrompt();
+  };
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <MessageCircleCode className="h-6 w-6 text-brand-400" />
@@ -57,7 +50,7 @@ export default function PromptsPage() {
         </div>
 
         <button
-          onClick={handleRefresh}
+          onClick={refresh}
           disabled={loading}
           className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-fg-muted transition-colors hover:bg-surface-200 disabled:opacity-40"
         >
@@ -66,7 +59,6 @@ export default function PromptsPage() {
         </button>
       </div>
 
-      {/* Tabs */}
       <div role="tablist" aria-label="Prompt sections" className="mb-4 flex gap-1 rounded-lg bg-surface-100 p-1">
         <button
           id="tab-templates"
@@ -75,9 +67,7 @@ export default function PromptsPage() {
           onClick={() => setActiveTab("templates")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "templates"
-              ? "bg-surface-50 text-fg shadow-sm"
-              : "text-fg-muted hover:text-fg",
+            activeTab === "templates" ? "bg-surface-50 text-fg shadow-sm" : "text-fg-muted hover:text-fg",
           )}
         >
           <FileText className="h-3.5 w-3.5" />
@@ -90,9 +80,7 @@ export default function PromptsPage() {
           onClick={() => setActiveTab("system")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "system"
-              ? "bg-surface-50 text-fg shadow-sm"
-              : "text-fg-muted hover:text-fg",
+            activeTab === "system" ? "bg-surface-50 text-fg shadow-sm" : "text-fg-muted hover:text-fg",
           )}
         >
           <Terminal className="h-3.5 w-3.5" />
@@ -100,14 +88,12 @@ export default function PromptsPage() {
         </button>
       </div>
 
-      {/* Error display */}
-      {error !== null && error.length > 0 && (
+      {error !== null && (
         <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>
       )}
 
-      {/* Templates tab */}
       {activeTab === "templates" && (
         <div id="panel-templates" role="tabpanel" aria-labelledby="tab-templates" tabIndex={0} className="flex flex-1 flex-col gap-4 overflow-hidden">
           {loading && prompts.length === 0 && (
@@ -125,21 +111,20 @@ export default function PromptsPage() {
           )}
 
           {prompts.length > 0 && (
-            <div className="flex flex-1 gap-4 overflow-hidden">
-              {/* Prompt list */}
-              <div className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border">
+            <div className="flex flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+              <div className="max-h-56 w-full shrink-0 overflow-y-auto rounded-lg border border-border lg:max-h-none lg:w-80">
                 <div className="border-b border-border bg-surface-100 px-4 py-3">
                   <h2 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
                     Templates ({prompts.length})
                   </h2>
                 </div>
                 <div className="divide-y divide-border">
-                  {prompts.map((p) => {
-                    const id = p.id ?? (p as Record<string, unknown>).name ?? String(p);
+                  {prompts.map((prompt) => {
+                    const id = prompt.id ?? (prompt as Record<string, unknown>).name ?? String(prompt);
                     return (
                       <button
                         key={String(id)}
-                        onClick={() => handleSelectPrompt(String(id))}
+                        onClick={() => setSelectedPromptId(String(id))}
                         className={cn(
                           "flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors",
                           selectedPromptId === String(id)
@@ -155,8 +140,7 @@ export default function PromptsPage() {
                 </div>
               </div>
 
-              {/* Prompt detail */}
-              <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
+              <div className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
                 {selectedPromptId !== null && selectedPromptId.length > 0 ? (
                   <>
                     <div className="flex items-center justify-between border-b border-border bg-surface-100 px-4 py-3">
@@ -164,10 +148,8 @@ export default function PromptsPage() {
                         <span className="font-mono">{selectedPromptId}</span>
                       </h2>
                       <button
-                        onClick={() => {
-                          setSelectedPromptId(null);
-                          setPromptDetail("");
-                        }}
+                        onClick={() => setSelectedPromptId(null)}
+                        aria-label="Close prompt detail"
                         className="rounded-md p-1 text-fg-subtle hover:bg-surface-200 hover:text-fg"
                       >
                         <X className="h-4 w-4" />
@@ -220,7 +202,6 @@ export default function PromptsPage() {
         </div>
       )}
 
-      {/* System Prompt tab */}
       {activeTab === "system" && (
         <div id="panel-system" role="tabpanel" aria-labelledby="tab-system" tabIndex={0} className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
           <div className="border-b border-border bg-surface-100 px-4 py-3">

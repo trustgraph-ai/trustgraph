@@ -13,12 +13,26 @@
   "dependencies": {
     "@trustgraph/base": "workspace:*",
     "@trustgraph/client": "workspace:*",
-    "effect": "4.0.0-beta.65",
+    "@effect/platform-node": "4.0.0-beta.74",
+    "@effect/platform-node-shared": "4.0.0-beta.74",
+    "@effect/ai-anthropic": "4.0.0-beta.74",
+    "@effect/ai-openai": "4.0.0-beta.74",
+    "@effect/ai-openrouter": "4.0.0-beta.74",
+    "@effect/atom-react": "4.0.0-beta.74",
+    "@effect/openapi-generator": "4.0.0-beta.74",
+    "@effect/opentelemetry": "4.0.0-beta.74",
+    "@effect/platform-browser": "4.0.0-beta.74",
+    "@effect/platform-bun": "4.0.0-beta.74",
+    "@effect/tsgo": "0.13.0",
+    "@effect/sql-pg": "4.0.0-beta.74",
+    "@effect/sql-sqlite-bun": "4.0.0-beta.74",
+    "@effect/sql-sqlite-node": "4.0.0-beta.74",
+    "@effect/vitest": "4.0.0-beta.74",
     "@modelcontextprotocol/sdk": "^1.8.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.0-beta.65",
+    "@effect/vitest": "4.0.0-beta.74",
     "@types/node": "^22.0.0",
     "typescript": "^5.8.0",
     "vitest": "^4.1.6"

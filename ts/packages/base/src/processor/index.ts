@@ -4,7 +4,11 @@ export {
   type EffectConfigHandler,
   type ProcessorConfig,
 } from "./async-processor.js";
-export { FlowProcessor } from "./flow-processor.js";
+export {
+  FlowProcessor,
+  runFlowProcessorDefinitionScoped,
+  type FlowProcessorRuntimeOptions,
+} from "./flow-processor.js";
 export {
   Flow,
   type FlowConsumer,
@@ -18,5 +22,6 @@ export {
   makeFlowProcessorProgram,
   makeProcessorProgram,
   runProcessorScoped,
+  type FlowProcessorProgramOptions,
   type ProcessorProgramOptions,
 } from "./program.js";

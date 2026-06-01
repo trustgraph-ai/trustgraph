@@ -8,7 +8,9 @@
  */
 
 import { createClient, Graph } from "falkordb";
-import type { Term, Triple } from "@trustgraph/base";
+import { errorMessage, type Term, type Triple } from "@trustgraph/base";
+import { Context, Effect, Layer } from "effect";
+import * as S from "effect/Schema";
 
 export interface FalkorDBConfig {
   url?: string;
@@ -130,3 +132,71 @@ export class FalkorDBTriplesStore {
     );
   }
 }
+
+export class FalkorDBTriplesStoreError extends S.TaggedErrorClass<FalkorDBTriplesStoreError>()(
+  "FalkorDBTriplesStoreError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+export interface FalkorDBTriplesStoreServiceShape {
+  readonly storeTriples: (
+    triples: ReadonlyArray<Triple>,
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
+  readonly deleteCollection: (
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
+}
+
+export class FalkorDBTriplesStoreService extends Context.Service<
+  FalkorDBTriplesStoreService,
+  FalkorDBTriplesStoreServiceShape
+>()(
+  "@trustgraph/flow/storage/triples/falkordb/FalkorDBTriplesStoreService",
+) {}
+
+const falkorDBTriplesStoreError = (operation: string, cause: unknown) =>
+  new FalkorDBTriplesStoreError({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+export const makeFalkorDBTriplesStoreService = (
+  config: FalkorDBConfig = {},
+): FalkorDBTriplesStoreServiceShape => {
+  const store = new FalkorDBTriplesStore(config);
+  return {
+    storeTriples: Effect.fn("FalkorDBTriplesStore.storeTriples")((
+      triples: ReadonlyArray<Triple>,
+      user: string,
+      collection: string,
+    ) =>
+      Effect.tryPromise({
+        try: () => store.storeTriples(Array.from(triples), user, collection),
+        catch: (cause) => falkorDBTriplesStoreError("store-triples", cause),
+      })),
+    deleteCollection: Effect.fn("FalkorDBTriplesStore.deleteCollection")((
+      user: string,
+      collection: string,
+    ) =>
+      Effect.tryPromise({
+        try: () => store.deleteCollection(user, collection),
+        catch: (cause) => falkorDBTriplesStoreError("delete-collection", cause),
+      })),
+  };
+};
+
+export const FalkorDBTriplesStoreLive = (
+  config: FalkorDBConfig = {},
+): Layer.Layer<FalkorDBTriplesStoreService> =>
+  Layer.succeed(
+    FalkorDBTriplesStoreService,
+    FalkorDBTriplesStoreService.of(makeFalkorDBTriplesStoreService(config)),
+  );

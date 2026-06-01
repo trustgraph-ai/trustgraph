@@ -13,61 +13,95 @@ import {
   ProducerSpec,
   type ProcessorConfig,
   type FlowContext,
+  type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
   type TriplesQueryRequest,
   type TriplesQueryResponse,
+  type Spec,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
-import { FalkorDBTriplesQuery } from "./falkordb.js";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
+import {
+  FalkorDBTriplesQueryLive,
+  FalkorDBTriplesQueryService,
+  makeFalkorDBTriplesQueryService,
+  type FalkorDBQueryConfig,
+} from "./falkordb.js";
 
-export class TriplesQueryService extends FlowProcessor {
-  private query: FalkorDBTriplesQuery;
+const onTriplesQueryMessage = Effect.fn("TriplesQueryService.onMessage")(function* (
+  msg: TriplesQueryRequest,
+  properties: Record<string, string>,
+  flowCtx: FlowContext<FalkorDBTriplesQueryService>,
+) {
+  const requestId = properties.id;
+  if (requestId === undefined || requestId.length === 0) return;
+
+  const producer = yield* flowCtx.flow.producerEffect<TriplesQueryResponse>("triples-response");
+  const query = yield* FalkorDBTriplesQueryService;
+  const triples = yield* query.queryTriples(
+    msg.s,
+    msg.p,
+    msg.o,
+    msg.limit ?? 100,
+  ).pipe(
+    Effect.catch((error) =>
+      Effect.logError("[TriplesQuery] Query failed", {
+        error: error.message,
+        operation: error.operation,
+      }).pipe(
+        Effect.flatMap(() =>
+          producer.send(requestId, {
+            triples: [],
+            error: { type: "query-error", message: error.message },
+          })
+        ),
+        Effect.as(null),
+      ),
+    ),
+  );
+  if (triples === null) return;
+
+  yield* producer.send(requestId, { triples: Array.from(triples) });
+});
+
+export const makeTriplesQuerySpecs = (): ReadonlyArray<Spec<FalkorDBTriplesQueryService>> => [
+  new ConsumerSpec<
+    TriplesQueryRequest,
+    FlowResourceNotFoundError | MessagingDeliveryError,
+    FalkorDBTriplesQueryService
+  >("triples-request", onTriplesQueryMessage),
+  new ProducerSpec<TriplesQueryResponse>("triples-response"),
+];
+
+export class TriplesQueryService extends FlowProcessor<FalkorDBTriplesQueryService> {
+  private readonly query = makeFalkorDBTriplesQueryService();
 
   constructor(config: ProcessorConfig) {
     super(config);
-    this.query = new FalkorDBTriplesQuery();
 
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<TriplesQueryRequest>("triples-request", this.onMessage.bind(this)),
-    );
-    this.registerSpecification(new ProducerSpec<TriplesQueryResponse>("triples-response"));
+    for (const spec of makeTriplesQuerySpecs()) {
+      this.registerSpecification(spec);
+    }
 
     console.log("[TriplesQuery] Service initialized");
   }
 
-  private async onMessage(
-    msg: TriplesQueryRequest,
-    properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
-    const requestId = properties.id;
-    if (requestId === undefined || requestId.length === 0) return;
-
-    const producer = flowCtx.flow.producer<TriplesQueryResponse>("triples-response");
-
-    try {
-      const triples = await this.query.queryTriples(
-        msg.s,
-        msg.p,
-        msg.o,
-        msg.limit ?? 100,
-      );
-
-      await producer.send(requestId, { triples });
-    } catch (err) {
-      console.error("[TriplesQuery] Query failed:", err);
-      await producer.send(requestId, {
-        triples: [],
-        error: { type: "query-error", message: String(err) },
-      });
-    }
+  override startEffect() {
+    return super.startEffect().pipe(
+      Effect.provideService(
+        FalkorDBTriplesQueryService,
+        FalkorDBTriplesQueryService.of(this.query),
+      ),
+    );
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBQueryConfig, never, FalkorDBTriplesQueryService>({
   id: "triples-query",
-  make: (config) => new TriplesQueryService(config),
+  specs: () => makeTriplesQuerySpecs(),
+  layer: (config) => FalkorDBTriplesQueryLive(config),
 });
 
 export async function run(): Promise<void> {
-  await TriplesQueryService.launch("triples-query");
+  await Effect.runPromise(program);
 }

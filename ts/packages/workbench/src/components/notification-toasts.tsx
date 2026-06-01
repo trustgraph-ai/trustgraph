@@ -1,8 +1,9 @@
+import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNotification, type NotificationType } from "@/providers/notification-provider";
+import { notificationsAtom, removeNotificationAtom, type Notification } from "@/atoms/workbench";
 
-const typeStyles: Record<NotificationType, string> = {
+const typeStyles: Record<Notification["type"], string> = {
   success: "border-success/40 bg-success/10 text-success",
   error: "border-error/40 bg-error/10 text-error",
   warning: "border-warning/40 bg-warning/10 text-warning",
@@ -13,8 +14,8 @@ const typeStyles: Record<NotificationType, string> = {
  * Renders the active notification stack in the bottom-right corner.
  */
 export function NotificationToasts() {
-  const notifications = useNotification((s) => s.notifications);
-  const removeNotification = useNotification((s) => s.removeNotification);
+  const notifications = useAtomValue(notificationsAtom);
+  const removeNotification = useAtomSet(removeNotificationAtom);
 
   if (notifications.length === 0) return null;
 

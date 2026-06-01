@@ -1,72 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import { Coins, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSocket } from "@/providers/socket-provider";
-import { useConnectionState } from "@/providers/socket-provider";
+import { resultData, resultError, resultLoading, tokenCostsAtom } from "@/atoms/workbench";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface TokenCost {
-  model: string;
-  input_price: number;
-  output_price: number;
+function formatPrice(price: number) {
+  if (!Number.isFinite(price)) return "--";
+  return `$${price.toFixed(2)}`;
 }
 
-// ---------------------------------------------------------------------------
-// Token Cost page
-// ---------------------------------------------------------------------------
-
 export default function TokenCostPage() {
-  const socket = useSocket();
-  const connectionState = useConnectionState();
-  const [costs, setCosts] = useState<TokenCost[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadCosts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await socket.config().getTokenCosts();
-      setCosts(
-        Array.isArray(data)
-          ? data.map((d: Record<string, unknown>) => ({
-              model: String(d.model ?? ""),
-              input_price: Number(d.input_price ?? 0),
-              output_price: Number(d.output_price ?? 0),
-            }))
-          : [],
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
-      console.error("Failed to load token costs:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [socket]);
-
-  // Auto-load when connected
-  useEffect(() => {
-    const connected =
-      connectionState.status === "connected" ||
-      connectionState.status === "authenticated" ||
-      connectionState.status === "unauthenticated";
-    if (connected) {
-      loadCosts();
-    }
-  }, [connectionState.status, loadCosts]);
-
-  const formatPrice = (price: number) => {
-    if (!Number.isFinite(price)) return "--";
-    return `$${price.toFixed(2)}`;
-  };
+  const result = useAtomValue(tokenCostsAtom);
+  const refresh = useAtomRefresh(tokenCostsAtom);
+  const costs = resultData(result, []);
+  const loading = resultLoading(result, costs);
+  const error = resultError(result);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Coins className="h-6 w-6 text-brand-400" />
@@ -79,7 +29,7 @@ export default function TokenCostPage() {
         </div>
 
         <button
-          onClick={loadCosts}
+          onClick={refresh}
           disabled={loading}
           className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-fg-muted transition-colors hover:bg-surface-200 disabled:opacity-40"
         >
@@ -88,7 +38,6 @@ export default function TokenCostPage() {
         </button>
       </div>
 
-      {/* Content */}
       {loading && costs.length === 0 && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="mr-2 h-5 w-5 animate-spin text-fg-subtle" />
@@ -96,7 +45,7 @@ export default function TokenCostPage() {
         </div>
       )}
 
-      {error !== null && error.length > 0 && (
+      {error !== null && (
         <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
         </p>

@@ -5,8 +5,13 @@
  * executable path while the processor internals remain Promise-based.
  */
 
-import { Effect, Scope } from "effect";
-import { processorLifecycleError, type ProcessorLifecycleError } from "../errors.js";
+import { Config as EffectConfig, Effect, Layer, Scope } from "effect";
+import {
+  processorLifecycleError,
+  type FlowRuntimeError,
+  type ProcessorLifecycleError,
+  type PubSubError,
+} from "../errors.js";
 import { NatsBackend } from "../backend/nats.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import {
@@ -24,7 +29,13 @@ import {
   type ProcessorRuntimeConfigOptions,
 } from "../runtime/config.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
-import type { AsyncProcessor, ProcessorConfig } from "./async-processor.js";
+import type {
+  AsyncProcessor,
+  EffectConfigHandler,
+  ProcessorConfig,
+} from "./async-processor.js";
+import { runFlowProcessorDefinitionScoped } from "./flow-processor.js";
+import type { Spec } from "../spec/types.js";
 
 type ProcessorRunError<Processor> = Processor extends AsyncProcessor<infer Error, unknown> ? Error : never;
 type ProcessorRunRequirements<Processor> = Processor extends AsyncProcessor<unknown, infer Requirements> ? Requirements : never;
@@ -38,6 +49,23 @@ export interface ProcessorProgramOptions<
   readonly id: string;
   readonly make: (config: Config) => Processor;
   readonly loadConfig?: Effect.Effect<Config, Error, Requirements>;
+}
+
+export interface FlowProcessorProgramOptions<
+  Config extends ProcessorConfig,
+  Error = never,
+  FlowRequirements = never,
+  LayerRequirements = never,
+> {
+  readonly id: string;
+  readonly loadConfig?: Effect.Effect<Config, Error, LayerRequirements>;
+  readonly specs: (config: Config) => ReadonlyArray<Spec<FlowRequirements>>;
+  readonly configHandlers?: (
+    config: Config,
+  ) => ReadonlyArray<EffectConfigHandler<Error, FlowRequirements>>;
+  readonly layer?: (
+    config: Config,
+  ) => Layer.Layer<FlowRequirements, Error, LayerRequirements>;
 }
 
 export function runProcessorScoped<
@@ -136,4 +164,74 @@ export function makeProcessorProgram<
 }
 
 export const makeAsyncProcessorProgram = makeProcessorProgram;
-export const makeFlowProcessorProgram = makeProcessorProgram;
+
+export function makeFlowProcessorProgram<
+  Config extends ProcessorConfig,
+  Error = never,
+  FlowRequirements = never,
+  LayerRequirements = never,
+>(
+  options: FlowProcessorProgramOptions<Config, Error, FlowRequirements, LayerRequirements>,
+): Effect.Effect<
+  void,
+  Error | EffectConfig.ConfigError | PubSubError | FlowRuntimeError,
+  LayerRequirements
+> {
+  return Effect.scoped(
+    Effect.gen(function* () {
+      const config = yield* (
+        options.loadConfig ??
+        loadProcessorRuntimeConfig(options.id, {
+          manageProcessSignals: false,
+        } satisfies ProcessorRuntimeConfigOptions)
+      );
+
+      const runtimeConfig = {
+        ...config,
+        manageProcessSignals: false,
+      } as Config;
+
+      const pubsub = makePubSubService(new NatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
+      const messagingConfig = yield* loadMessagingRuntimeConfig();
+      yield* Effect.addFinalizer(() =>
+        pubsub.close.pipe(
+          Effect.catch((error) =>
+            Effect.logError("[PubSub] Failed to close processor backend", {
+              error: error.message,
+              operation: error.operation,
+            }),
+          ),
+        ),
+      );
+
+      const configHandlers = options.configHandlers?.(runtimeConfig);
+      const processorOptions = {
+        id: runtimeConfig.id,
+        pubsub: pubsub.backend,
+        specifications: options.specs(runtimeConfig),
+        ...(configHandlers === undefined ? {} : { configHandlers }),
+      };
+      const processorLayer = Layer.effectDiscard(
+        runFlowProcessorDefinitionScoped<FlowRequirements, Error, FlowRequirements>(processorOptions),
+      );
+      const runtimeLayer = Layer.mergeAll(
+        Layer.succeed(PubSub, PubSub.of(pubsub)),
+        Layer.succeed(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
+        Layer.succeed(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
+        Layer.succeed(
+          RequestResponseFactory,
+          RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
+        ),
+        Layer.succeed(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
+      );
+      const dependencyLayer = options.layer?.(runtimeConfig) ??
+        (Layer.empty as unknown as Layer.Layer<FlowRequirements, Error, LayerRequirements>);
+      const providedProcessorLayer = processorLayer.pipe(
+        Layer.provide(dependencyLayer),
+        Layer.provide(runtimeLayer),
+      );
+
+      return yield* Layer.launch(providedProcessorLayer);
+    }),
+  );
+}

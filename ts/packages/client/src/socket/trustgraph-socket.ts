@@ -1,19 +1,7 @@
 // Import core types and classes for the TrustGraph API
 import type { Term, Triple } from "../models/Triple.js";
-import { ServiceCallMulti } from "./service-call-multi.js";
-import { ServiceCall } from "./service-call.js";
-import {
-  getWebSocketConstructor,
-  getDefaultSocketUrl,
-  getRandomValues,
-  WS_CONNECTING,
-  WS_OPEN,
-  WS_CLOSED,
-  type IsomorphicWebSocket,
-  type WsMessageEvent,
-  type WsCloseEvent,
-  type WsEvent,
-} from "./websocket-adapter.js";
+import { EffectRpcClient, type DispatchInput, type RpcConnectionState } from "./effect-rpc-client.js";
+import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
 
 // Import all message types for different services
 import type {
@@ -51,7 +39,6 @@ import type {
   PromptRequest,
   PromptResponse,
   //  ProcessingMetadata,
-  RequestMessage,
   ResponseError,
   StructuredQueryRequest,
   StructuredQueryResponse,
@@ -107,8 +94,6 @@ export interface ExplainEvent {
 }
 
 // Configuration constants
-const SOCKET_RECONNECTION_TIMEOUT = 2000; // 2 seconds between reconnection
-// attempts
 const SOCKET_URL = getDefaultSocketUrl(); // WebSocket endpoint path (isomorphic)
 
 function isNonEmptyString(value: string | undefined): value is string {
@@ -162,6 +147,38 @@ function streamingMetadataFrom(source: {
 function throwIfResponseError(error: ResponseError | undefined): void {
   if (error !== undefined) {
     throw new Error(error.message);
+  }
+}
+
+interface ConfigValueEntry {
+  workspace?: string;
+  type?: string;
+  key: string;
+  value: unknown;
+}
+
+function asConfigValues(response: unknown): ConfigValueEntry[] {
+  if (response === null || typeof response !== "object") return [];
+  const values = (response as { values?: unknown }).values;
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((value) => {
+    if (value === null || typeof value !== "object") return [];
+    const item = value as Record<string, unknown>;
+    const key = item.key;
+    if (typeof key !== "string") return [];
+    const entry: ConfigValueEntry = { key, value: item.value };
+    if (typeof item.workspace === "string") entry.workspace = item.workspace;
+    if (typeof item.type === "string") entry.type = item.type;
+    return [entry];
+  });
+}
+
+function parseConfigJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
   }
 }
 
@@ -297,22 +314,17 @@ export interface ConnectionState {
 }
 
 export class BaseApi {
-  ws: IsomorphicWebSocket | undefined = undefined; // WebSocket connection instance
   tag: string; // Unique client identifier
   id: number; // Counter for generating unique message IDs
   token: string | undefined; // Optional authentication token
   user: string; // User identifier for API requests
   socketUrl: string; // WebSocket URL
-  inflight: { [key: string]: ServiceCall | ServiceCallMulti } = {}; // Track active requests by
-  // message ID
-  reconnectAttempts: number = 0; // Track reconnection attempts
-  maxReconnectAttempts: number = 10; // Maximum reconnection attempts
-  reconnectTimer: number | undefined = undefined; // Timer for reconnection attempts
-  reconnectionState: "idle" | "reconnecting" | "failed" = "idle"; // Connection state
+  private readonly rpc: EffectRpcClient;
 
   // Connection state tracking for UI
   private connectionStateListeners: ((state: ConnectionState) => void)[] = [];
   private lastError: string | undefined = undefined;
+  private rpcState: RpcConnectionState = { status: "connecting" };
 
   constructor(user: string, token?: string, socketUrl?: string) {
     this.tag = makeid(16); // Generate unique client tag
@@ -320,6 +332,12 @@ export class BaseApi {
     this.token = token; // Store authentication token
     this.user = user; // Store user identifier
     this.socketUrl = withDefault(socketUrl, SOCKET_URL); // Use provided URL or default
+    this.rpc = new EffectRpcClient(this.socketUrlWithToken());
+    this.rpc.subscribe((state) => {
+      this.rpcState = state;
+      this.lastError = state.lastError;
+      this.notifyStateChange();
+    });
 
     console.log(
       "SOCKET: opening socket...",
@@ -327,8 +345,6 @@ export class BaseApi {
       "user:",
       user,
     );
-    this.openSocket(); // Establish WebSocket connection
-    console.log("SOCKET: socket opened");
   }
 
   /**
@@ -353,25 +369,7 @@ export class BaseApi {
    */
   private getConnectionState(): ConnectionState {
     const hasApiKey = isNonEmptyString(this.token);
-
-    // Determine status based on WebSocket state and reconnection state
-    let status: ConnectionState["status"];
-
-    if (this.ws === undefined || this.ws.readyState === WS_CLOSED) {
-      if (this.reconnectionState === "failed") {
-        status = "failed";
-      } else if (this.reconnectionState === "reconnecting") {
-        status = "reconnecting";
-      } else {
-        status = "connecting";
-      }
-    } else if (this.ws.readyState === WS_CONNECTING) {
-      status = "connecting";
-    } else if (this.ws.readyState === WS_OPEN) {
-      status = hasApiKey ? "authenticated" : "unauthenticated";
-    } else {
-      status = "connecting";
-    }
+    const status = this.connectionStatusFromRpc(hasApiKey);
 
     const state: ConnectionState = {
       status,
@@ -379,12 +377,6 @@ export class BaseApi {
     };
     if (this.lastError !== undefined) {
       state.lastError = this.lastError;
-    }
-
-    // Add reconnection details if applicable
-    if (status === "reconnecting") {
-      state.reconnectAttempt = this.reconnectAttempts;
-      state.maxAttempts = this.maxReconnectAttempts;
     }
 
     return state;
@@ -405,207 +397,12 @@ export class BaseApi {
   }
 
   /**
-   * Establishes WebSocket connection and sets up event handlers
-   */
-  openSocket() {
-    // Don't create multiple connections
-    if (
-      this.ws !== undefined &&
-      (this.ws.readyState === WS_CONNECTING ||
-        this.ws.readyState === WS_OPEN)
-    ) {
-      return;
-    }
-
-    // Clean up old socket if exists
-    if (this.ws !== undefined) {
-      this.ws.removeEventListener("message", this.onMessage);
-      this.ws.removeEventListener("close", this.onClose);
-      this.ws.removeEventListener("open", this.onOpen);
-      this.ws.removeEventListener("error", this.onError);
-      this.ws = undefined;
-    }
-
-    try {
-      // Build WebSocket URL with optional token parameter
-      const wsUrl = isNonEmptyString(this.token)
-        ? `${this.socketUrl}?token=${this.token}`
-        : this.socketUrl;
-      console.log(
-        "SOCKET: connecting to",
-        wsUrl.replace(/token=[^&]*/, "token=***"),
-      );
-      const WS = getWebSocketConstructor();
-      this.ws = new WS(wsUrl);
-    } catch (e) {
-      console.error("[socket creation error]", e);
-      this.scheduleReconnect();
-      return;
-    }
-
-    // Bind event handlers to maintain proper 'this' context
-    this.onMessage = this.onMessage.bind(this);
-    this.onClose = this.onClose.bind(this);
-    this.onOpen = this.onOpen.bind(this);
-    this.onError = this.onError.bind(this);
-
-    // Attach event listeners
-    this.ws.addEventListener("message", this.onMessage);
-    this.ws.addEventListener("close", this.onClose);
-    this.ws.addEventListener("open", this.onOpen);
-    this.ws.addEventListener("error", this.onError);
-  }
-
-  // Handle incoming messages from server
-  onMessage(message: WsMessageEvent) {
-    if (message.data === undefined || message.data === null || message.data === "") return;
-
-    try {
-      const obj: unknown = JSON.parse(String(message.data));
-
-      // Skip messages without ID (can't route them)
-      if (obj === null || typeof obj !== "object" || !("id" in obj)) return;
-      const id = (obj as { id?: unknown }).id;
-      if (typeof id !== "string" || id.length === 0) return;
-
-      // Route response to the corresponding inflight request
-      const call = this.inflight[id];
-      if (call !== undefined) {
-        // Pass the whole message object so receiver can access 'complete' flag
-        call.onReceived(obj);
-      }
-    } catch (e) {
-      console.error("[socket message parse error]", e);
-    }
-  }
-
-  // Handle connection closure - automatically attempt reconnection
-  onClose(event: WsCloseEvent) {
-    console.log("[socket close]", event.code, event.reason);
-    this.lastError = `Connection closed: ${event.reason.length > 0 ? event.reason : "Unknown reason"}`;
-    this.ws = undefined;
-    this.notifyStateChange();
-    this.scheduleReconnect();
-  }
-
-  // Handle successful connection
-  onOpen(_event: WsEvent) {
-    console.log("[socket open]");
-    this.reconnectAttempts = 0; // Reset reconnection attempts on success
-    this.reconnectionState = "idle"; // Reset connection state
-    this.lastError = undefined; // Clear any previous errors
-
-    // Clear any pending reconnect timer
-    if (this.reconnectTimer !== undefined) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = undefined;
-    }
-
-    // Notify UI of successful connection
-    this.notifyStateChange();
-
-    // Immediately retry any pending requests that were waiting for connection
-    for (const mid in this.inflight) {
-      this.inflight[mid].retryNow();
-    }
-  }
-
-  // Handle socket errors
-  onError(event: WsEvent) {
-    console.error("[socket error]", event);
-    this.lastError = "Connection error occurred";
-    this.notifyStateChange();
-  }
-
-  /**
-   * Schedules a reconnection attempt with exponential backoff
-   */
-  scheduleReconnect() {
-    // Prevent concurrent reconnection attempts
-    if (this.reconnectionState === "reconnecting") {
-      console.log("[socket] Reconnection already in progress, skipping");
-      return;
-    }
-
-    // Don't schedule if already scheduled
-    if (this.reconnectTimer !== undefined) return;
-
-    this.reconnectionState = "reconnecting";
-    this.reconnectAttempts++;
-    this.notifyStateChange(); // Notify UI of reconnection attempt
-
-    if (this.reconnectAttempts > this.maxReconnectAttempts) {
-      console.error("[socket] Max reconnection attempts reached");
-      this.reconnectionState = "failed";
-      this.lastError = "Max reconnection attempts exceeded";
-      this.notifyStateChange();
-      // Notify all pending requests of the failure
-      for (const mid in this.inflight) {
-        this.inflight[mid].error(new Error("WebSocket connection failed"));
-      }
-      return;
-    }
-
-    // Calculate exponential backoff with jitter
-    const backoffDelay = Math.min(
-      SOCKET_RECONNECTION_TIMEOUT * Math.pow(2, this.reconnectAttempts - 1) +
-        Math.random() * 1000,
-      30000, // Max 30 seconds
-    );
-
-    console.log(
-      `[socket] Reconnecting in ${backoffDelay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
-    );
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = undefined;
-      this.reopen();
-    }, backoffDelay) as unknown as number;
-  }
-
-  /**
-   * Reopens the WebSocket connection (used after connection failures)
-   */
-  reopen() {
-    console.log("[socket reopen]");
-    // Check if we're already connected or connecting
-    if (
-      this.ws !== undefined &&
-      (this.ws.readyState === WS_OPEN ||
-        this.ws.readyState === WS_CONNECTING)
-    ) {
-      return;
-    }
-    this.openSocket();
-  }
-
-  /**
    * Closes the WebSocket connection and cleans up
    */
   close() {
-    // Clear reconnection timer
-    if (this.reconnectTimer !== undefined) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = undefined;
-    }
-
-    // Clean up WebSocket
-    if (this.ws !== undefined) {
-      // Remove event listeners to prevent memory leaks
-      this.ws.removeEventListener("message", this.onMessage);
-      this.ws.removeEventListener("close", this.onClose);
-      this.ws.removeEventListener("open", this.onOpen);
-      this.ws.removeEventListener("error", this.onError);
-
-      this.ws.close();
-      this.ws = undefined;
-    }
-
-    // Clear any remaining inflight requests
-    for (const mid in this.inflight) {
-      this.inflight[mid].error(new Error("Socket closed"));
-    }
-    this.inflight = {};
+    this.rpc.close().catch((err) => {
+      console.error("[socket close error]", err);
+    });
   }
 
   /**
@@ -630,42 +427,11 @@ export class BaseApi {
   makeRequest<RequestType extends object, ResponseType>(
     service: string,
     request: RequestType,
-    timeout?: number,
-    retries?: number,
+    _timeout?: number,
+    _retries?: number,
     flow?: string,
   ) {
-    const mid = this.getNextId();
-
-    // Set default values
-    if (timeout === undefined) timeout = 10000;
-    if (retries === undefined) retries = 3;
-
-    // Construct the request message
-    const msg: RequestMessage = {
-      id: mid,
-      service: service,
-      request: request,
-    };
-
-    // Add flow identifier if provided
-    if (isNonEmptyString(flow)) msg.flow = flow;
-
-    // Return a Promise that will be resolved/rejected by the ServiceCall
-    return new Promise<ResponseType>((resolve, reject) => {
-      const call = new ServiceCall(
-        mid,
-        msg,
-        resolve as (resp: unknown) => void,
-        reject as (err: object | string) => void,
-        timeout,
-        retries,
-        this,
-      );
-
-      call.start();
-      // Commented out debug logging: console.log("-->", msg);
-    }).then((obj) => {
-      // Commented out success logging: console.log("Success for", mid);
+    return this.rpc.dispatch(this.dispatchInput(service, request, flow)).then((obj) => {
       return obj as ResponseType;
     });
   }
@@ -678,38 +444,12 @@ export class BaseApi {
     service: string,
     request: RequestType,
     receiver: (resp: unknown) => boolean, // Callback to handle each response chunk
-    timeout?: number,
-    retries?: number,
+    _timeout?: number,
+    _retries?: number,
     flow?: string,
   ) {
-    const mid = this.getNextId();
-
-    // Set defaults
-    if (timeout === undefined) timeout = 10000;
-    if (retries === undefined) retries = 3;
-
-    // Construct request message
-    const msg: RequestMessage = {
-      id: mid,
-      service: service,
-      request: request,
-    };
-
-    if (isNonEmptyString(flow)) msg.flow = flow;
-
-    return new Promise<ResponseType>((resolve, reject) => {
-      const call = new ServiceCallMulti(
-        mid,
-        msg,
-        resolve as (resp: unknown) => void,
-        reject as (err: object | string) => void,
-        timeout,
-        retries,
-        this,
-        receiver,
-      );
-
-      call.start();
+    return this.rpc.dispatchStream(this.dispatchInput(service, request, flow), (chunk) => {
+      return receiver({ response: chunk.response, complete: chunk.complete });
     }).then((obj) => {
       return obj as ResponseType;
     });
@@ -735,6 +475,45 @@ export class BaseApi {
       retries,
       flow,
     );
+  }
+
+  private connectionStatusFromRpc(hasApiKey: boolean): ConnectionState["status"] {
+    switch (this.rpcState.status) {
+      case "connected":
+        return hasApiKey ? "authenticated" : "unauthenticated";
+      case "failed":
+        return "failed";
+      case "closed":
+        return "failed";
+      case "connecting":
+        return this.lastError === undefined ? "connecting" : "reconnecting";
+    }
+  }
+
+  private dispatchInput<RequestType extends object>(
+    service: string,
+    request: RequestType,
+    flow?: string,
+  ): DispatchInput {
+    if (isNonEmptyString(flow)) {
+      return {
+        scope: "flow",
+        service,
+        flow,
+        request: request as Record<string, unknown>,
+      };
+    }
+    return {
+      scope: "global",
+      service,
+      request: request as Record<string, unknown>,
+    };
+  }
+
+  private socketUrlWithToken(): string {
+    if (!isNonEmptyString(this.token)) return this.socketUrl;
+    const separator = this.socketUrl.includes("?") ? "&" : "?";
+    return `${this.socketUrl}${separator}token=${encodeURIComponent(this.token)}`;
   }
 
   // Factory methods for creating specialized API instances
@@ -787,7 +566,7 @@ export class LibrarianApi {
         },
         60000, // 60 second timeout for potentially large lists
       )
-      .then((r) => r["document-metadatas"] ?? []);
+      .then((r) => r["document-metadatas"] ?? r.documents ?? []);
   }
 
   /**
@@ -803,7 +582,7 @@ export class LibrarianApi {
         },
         60000,
       )
-      .then((r) => r["processing-metadata"] ?? []);
+      .then((r) => r["processing-metadatas"] ?? r.processing ?? r["processing-metadata"] ?? []);
   }
 
   /**
@@ -818,6 +597,7 @@ export class LibrarianApi {
         {
           operation: "get-document-metadata",
           "document-id": documentId,
+          documentId,
           user: this.api.user,
         },
         30000,
@@ -851,6 +631,8 @@ export class LibrarianApi {
       comments,
       user: this.api.user,
       tags,
+      "document-type": "source",
+      documentType: "source",
     };
     if (id !== undefined) {
       documentMetadata.id = id;
@@ -863,6 +645,7 @@ export class LibrarianApi {
       "librarian",
       {
         operation: "add-document",
+        "document-metadata": documentMetadata,
         documentMetadata,
         content: document,
       },
@@ -879,6 +662,7 @@ export class LibrarianApi {
       {
         operation: "remove-document",
         "document-id": id,
+        documentId: id,
         user: this.api.user,
         collection: withDefault(collection, "default"),
       },
@@ -908,6 +692,7 @@ export class LibrarianApi {
         "processing-metadata": {
           id: id,
           "document-id": doc_id,
+          documentId: doc_id,
           time: Math.floor(Date.now() / 1000),
           flow: flow,
           user: this.api.user,
@@ -935,6 +720,7 @@ export class LibrarianApi {
   ): Promise<BeginUploadResponse> {
     const request: BeginUploadRequest = {
       operation: "begin-upload",
+      "document-metadata": metadata,
       documentMetadata: metadata,
       "total-size": totalSize,
     };
@@ -1200,32 +986,17 @@ export class FlowsApi {
   }
 
   /**
-   * Updates configuration values. Items are grouped by `type` (the namespace);
-   * one put request is issued per distinct type.
+   * Updates configuration values using the Python-compatible values array.
    */
   putConfig(items: { type: string; key: string; value: string }[]) {
-    const byType = new Map<string, Record<string, unknown>>();
-    for (const item of items) {
-      let group = byType.get(item.type);
-      if (group === undefined) {
-        group = {};
-        byType.set(item.type, group);
-      }
-      group[item.key] = item.value;
-    }
-    return Promise.all(
-      [...byType.entries()].map(([type, values]) =>
-        this.api.makeRequest<ConfigRequest, ConfigResponse>(
-          "config",
-          {
-            operation: "put",
-            keys: [type],
-            values,
-          },
-          60000,
-        ),
-      ),
-    ).then((responses) => responses[responses.length - 1]);
+    return this.api.makeRequest<ConfigRequest, ConfigResponse>(
+      "config",
+      {
+        operation: "put",
+        values: items,
+      },
+      60000,
+    );
   }
 
   /**
@@ -1233,13 +1004,13 @@ export class FlowsApi {
    */
   deleteConfig(target: { type: string; key: string }) {
     return this.api.makeRequest<ConfigRequest, ConfigResponse>(
-      "config",
-      {
-        operation: "delete",
-        keys: [target.type, target.key],
-      },
-      30000,
-    );
+        "config",
+        {
+          operation: "delete",
+          keys: [target],
+        },
+        30000,
+      );
   }
 
   // Prompt management - specialized config operations for AI prompts
@@ -2154,32 +1925,17 @@ export class ConfigApi {
   }
 
   /**
-   * Updates configuration values. Items are grouped by `type` (the namespace);
-   * one put request is issued per distinct type.
+   * Updates configuration values using the Python-compatible values array.
    */
   putConfig(items: { type: string; key: string; value: string }[]) {
-    const byType = new Map<string, Record<string, unknown>>();
-    for (const item of items) {
-      let group = byType.get(item.type);
-      if (group === undefined) {
-        group = {};
-        byType.set(item.type, group);
-      }
-      group[item.key] = item.value;
-    }
-    return Promise.all(
-      [...byType.entries()].map(([type, values]) =>
-        this.api.makeRequest<ConfigRequest, ConfigResponse>(
-          "config",
-          {
-            operation: "put",
-            keys: [type],
-            values,
-          },
-          60000,
-        ),
-      ),
-    ).then((responses) => responses[responses.length - 1]);
+    return this.api.makeRequest<ConfigRequest, ConfigResponse>(
+      "config",
+      {
+        operation: "put",
+        values: items,
+      },
+      60000,
+    );
   }
 
   /**
@@ -2187,13 +1943,13 @@ export class ConfigApi {
    */
   deleteConfig(target: { type: string; key: string }) {
     return this.api.makeRequest<ConfigRequest, ConfigResponse>(
-      "config",
-      {
-        operation: "delete",
-        keys: [target.type, target.key],
-      },
-      30000,
-    );
+        "config",
+        {
+          operation: "delete",
+          keys: [target],
+        },
+        30000,
+      );
   }
 
   // Specialized prompt management methods
@@ -2267,7 +2023,7 @@ export class ConfigApi {
         },
         60000,
       )
-      .then((r) => (r as RowsQueryResponse).values);
+      .then((r) => asConfigValues(r));
   }
 
   /**
@@ -2285,12 +2041,10 @@ export class ConfigApi {
         60000,
       )
       .then((r) => {
-        // Parse JSON values and restructure data
-        const response = r as RowsQueryResponse;
-        return (response.values ?? []).map((x: unknown) => {
-          const item = x as Record<string, string>;
-          return { key: item.key, value: JSON.parse(item.value) };
-        });
+        return asConfigValues(r).map((item) => ({
+          key: item.key,
+          value: parseConfigJson(item.value),
+        }));
       })
       .then((r) =>
         // Transform to more usable format
@@ -2334,6 +2088,19 @@ export class KnowledgeApi {
       .then((r) => r.ids ?? []);
   }
 
+  getDocumentEmbeddingCores() {
+    return this.api
+      .makeRequest<FlowRequest, FlowResponse>(
+        "knowledge",
+        {
+          operation: "list-de-cores",
+          user: this.api.user,
+        },
+        60000,
+      )
+      .then((r) => r.ids ?? []);
+  }
+
   /**
    * Deletes a knowledge graph core
    */
@@ -2360,6 +2127,45 @@ export class KnowledgeApi {
         operation: "load-kg-core",
         id: id,
         flow: flow,
+        user: this.api.user,
+        collection: withDefault(collection, "default"),
+      },
+      30000,
+    );
+  }
+
+  unloadKgCore(id: string, flow: string) {
+    return this.api.makeRequest<LibraryRequest, LibraryResponse>(
+      "knowledge",
+      {
+        operation: "unload-kg-core",
+        id,
+        flow,
+        user: this.api.user,
+      },
+      30000,
+    );
+  }
+
+  deleteDeCore(id: string) {
+    return this.api.makeRequest<LibraryRequest, LibraryResponse>(
+      "knowledge",
+      {
+        operation: "delete-de-core",
+        id,
+        user: this.api.user,
+      },
+      30000,
+    );
+  }
+
+  loadDeCore(id: string, flow: string, collection?: string) {
+    return this.api.makeRequest<LibraryRequest, LibraryResponse>(
+      "knowledge",
+      {
+        operation: "load-de-core",
+        id,
+        flow,
         user: this.api.user,
         collection: withDefault(collection, "default"),
       },
@@ -2512,7 +2318,7 @@ export class CollectionManagementApi {
  * This is the main entry point for using the TrustGraph API
  * @param user - User identifier for API requests
  * @param token - Optional authentication token for secure connections
- * @param socketUrl - Optional WebSocket URL (defaults to /api/socket for browser, provide full URL for Node.js)
+ * @param socketUrl - Optional WebSocket URL (defaults to /api/v1/rpc for browser, provide full URL for Node.js)
  */
 export const createTrustGraphSocket = (
   user: string,

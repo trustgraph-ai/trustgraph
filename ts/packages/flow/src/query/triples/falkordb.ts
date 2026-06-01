@@ -7,7 +7,9 @@
  */
 
 import { createClient, Graph } from "falkordb";
-import type { Term, Triple } from "@trustgraph/base";
+import { errorMessage, type Term, type Triple } from "@trustgraph/base";
+import { Context, Effect, Layer } from "effect";
+import * as S from "effect/Schema";
 
 export interface FalkorDBQueryConfig {
   url?: string;
@@ -264,3 +266,61 @@ export class FalkorDBTriplesQuery {
     }
   }
 }
+
+export class FalkorDBTriplesQueryError extends S.TaggedErrorClass<FalkorDBTriplesQueryError>()(
+  "FalkorDBTriplesQueryError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+export interface FalkorDBTriplesQueryServiceShape {
+  readonly queryTriples: (
+    s: Term | undefined,
+    p: Term | undefined,
+    o: Term | undefined,
+    limit: number,
+  ) => Effect.Effect<ReadonlyArray<Triple>, FalkorDBTriplesQueryError>;
+}
+
+export class FalkorDBTriplesQueryService extends Context.Service<
+  FalkorDBTriplesQueryService,
+  FalkorDBTriplesQueryServiceShape
+>()(
+  "@trustgraph/flow/query/triples/falkordb/FalkorDBTriplesQueryService",
+) {}
+
+const falkorDBTriplesQueryError = (operation: string, cause: unknown) =>
+  new FalkorDBTriplesQueryError({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+export const makeFalkorDBTriplesQueryService = (
+  config: FalkorDBQueryConfig = {},
+): FalkorDBTriplesQueryServiceShape => {
+  const query = new FalkorDBTriplesQuery(config);
+  return {
+    queryTriples: Effect.fn("FalkorDBTriplesQuery.queryTriples")((
+      s: Term | undefined,
+      p: Term | undefined,
+      o: Term | undefined,
+      limit: number,
+    ) =>
+      Effect.tryPromise({
+        try: () => query.queryTriples(s, p, o, limit),
+        catch: (cause) => falkorDBTriplesQueryError("query-triples", cause),
+      })),
+  };
+};
+
+export const FalkorDBTriplesQueryLive = (
+  config: FalkorDBQueryConfig = {},
+): Layer.Layer<FalkorDBTriplesQueryService> =>
+  Layer.succeed(
+    FalkorDBTriplesQueryService,
+    FalkorDBTriplesQueryService.of(makeFalkorDBTriplesQueryService(config)),
+  );

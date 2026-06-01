@@ -28,6 +28,7 @@ import type {
   BackendConsumer,
   Message,
 } from "@trustgraph/base";
+import { Effect } from "effect";
 
 // ---------- Internal state types ----------
 
@@ -35,13 +36,48 @@ interface FlowInstance {
   id: string;
   blueprintName: string;
   description: string;
-  parameters: Record<string, string>;
+  parameters: Record<string, unknown>;
   status: "running" | "stopped";
 }
 
 interface Blueprint {
   description: string;
   topics: Record<string, string>;
+  parameters?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface ConfigValueEntry {
+  key: string;
+  value: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function configValues(response: ConfigResponse): ConfigValueEntry[] {
+  const values = response.values;
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((value) => {
+    if (!isRecord(value)) return [];
+    const key = optionalString(value.key);
+    if (key === undefined) return [];
+    return [{ key, value: value.value }];
+  });
+}
+
+function parseConfigRecord(value: unknown): Record<string, unknown> | undefined {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) as unknown : value;
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------- Default blueprint ----------
@@ -122,6 +158,8 @@ export class FlowManagerService extends AsyncProcessor {
       subscription: `${this.config.id}-config-client`,
     });
     await this.configClient.start();
+    await this.ensureDefaultBlueprint();
+    await this.refreshBlueprintsFromConfig();
 
     // Create producer for flow-response topic
     this.responseProducer = await this.pubsub.createProducer<Record<string, unknown>>({
@@ -178,14 +216,100 @@ export class FlowManagerService extends AsyncProcessor {
     }
   }
 
+  private async configRequest(request: ConfigRequest): Promise<ConfigResponse> {
+    if (this.configClient === null) throw new Error("Config client not started");
+    return this.configClient.request(request);
+  }
+
+  private async ensureDefaultBlueprint(): Promise<void> {
+    const response = await this.configRequest({
+      operation: "getvalues",
+      type: "flow-blueprint",
+    });
+    if (configValues(response).some((value) => value.key === "default")) {
+      return;
+    }
+
+    await this.configRequest({
+      operation: "put",
+      keys: ["flow-blueprint"],
+      values: {
+        default: JSON.stringify(DEFAULT_BLUEPRINT),
+      },
+    });
+  }
+
+  private async refreshBlueprintsFromConfig(): Promise<void> {
+    const response = await this.configRequest({
+      operation: "getvalues",
+      type: "flow-blueprint",
+    });
+    const next = new Map<string, Blueprint>();
+
+    for (const item of configValues(response)) {
+      const parsed = parseConfigRecord(item.value);
+      if (parsed === undefined) continue;
+      next.set(item.key, parsed as Blueprint);
+    }
+
+    if (!next.has("default")) {
+      next.set("default", DEFAULT_BLUEPRINT);
+    }
+    this.blueprints = next;
+  }
+
+  private async refreshFlowsFromConfig(): Promise<void> {
+    const response = await this.configRequest({
+      operation: "getvalues",
+      type: "flow",
+    });
+    const next = new Map<string, FlowInstance>();
+
+    for (const item of configValues(response)) {
+      const parsed = parseConfigRecord(item.value);
+      if (parsed === undefined) continue;
+      const parameters = isRecord(parsed.parameters) ? parsed.parameters : {};
+      next.set(item.key, {
+        id: item.key,
+        blueprintName: optionalString(parsed["blueprint-name"]) ?? optionalString(parsed.blueprintName) ?? "default",
+        description: optionalString(parsed.description) ?? "",
+        parameters,
+        status: "running",
+      });
+    }
+
+    if (next.size === 0) {
+      const flowsResponse = await this.configRequest({
+        operation: "getvalues",
+        type: "flows",
+      });
+      for (const item of configValues(flowsResponse)) {
+        next.set(item.key, {
+          id: item.key,
+          blueprintName: "default",
+          description: "",
+          parameters: {},
+          status: "running",
+        });
+      }
+    }
+
+    this.flows = next;
+  }
+
   private async handleOperation(
     request: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const op = request.operation as string;
+    await this.refreshBlueprintsFromConfig();
+    await this.refreshFlowsFromConfig();
 
     switch (op) {
       case "list-blueprints":
         return this.handleListBlueprints();
+
+      case "put-blueprint":
+        return await this.handlePutBlueprint(request);
 
       case "get-blueprint":
         return this.handleGetBlueprint(request);
@@ -236,9 +360,33 @@ export class FlowManagerService extends AsyncProcessor {
     };
   }
 
-  private handleDeleteBlueprint(
+  private async handlePutBlueprint(
     request: Record<string, unknown>,
-  ): Record<string, unknown> {
+  ): Promise<Record<string, unknown>> {
+    const name = request["blueprint-name"] as string | undefined;
+    if (name === undefined || name.length === 0) {
+      throw new Error("Missing blueprint-name");
+    }
+    const rawDefinition = request["blueprint-definition"];
+    if (rawDefinition === undefined) {
+      throw new Error("Missing blueprint-definition");
+    }
+    const definition = typeof rawDefinition === "string"
+      ? rawDefinition
+      : JSON.stringify(rawDefinition);
+
+    await this.configRequest({
+      operation: "put",
+      keys: ["flow-blueprint"],
+      values: { [name]: definition },
+    });
+    await this.refreshBlueprintsFromConfig();
+    return {};
+  }
+
+  private async handleDeleteBlueprint(
+    request: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     const name = request["blueprint-name"] as string | undefined;
     if (name === undefined || name.length === 0) {
       throw new Error("Missing blueprint-name");
@@ -248,10 +396,11 @@ export class FlowManagerService extends AsyncProcessor {
       throw new Error("Cannot delete the default blueprint");
     }
 
-    const existed = this.blueprints.delete(name);
-    if (!existed) {
-      throw new Error(`Blueprint not found: ${name}`);
-    }
+    await this.configRequest({
+      operation: "delete",
+      keys: ["flow-blueprint", name],
+    });
+    this.blueprints.delete(name);
 
     return {};
   }
@@ -292,7 +441,7 @@ export class FlowManagerService extends AsyncProcessor {
     const id = request["flow-id"] as string | undefined;
     const blueprintName = (request["blueprint-name"] as string) ?? "default";
     const description = (request["description"] as string) ?? "";
-    const parameters = (request["parameters"] as Record<string, string>) ?? {};
+    const parameters = (request["parameters"] as Record<string, unknown>) ?? {};
 
     if (id === undefined || id.length === 0) {
       throw new Error("Missing flow-id");
@@ -342,13 +491,15 @@ export class FlowManagerService extends AsyncProcessor {
 
     this.flows.delete(id);
 
-    console.log(`[FlowManager] Stopped flow "${id}"`);
+	    console.log(`[FlowManager] Stopped flow "${id}"`);
 
-    // Push updated flows config (without the removed flow)
-    await this.pushFlowsConfig();
+	    await this.deleteFlowConfig(id);
 
-    return {};
-  }
+	    // Push updated flows config (without the removed flow)
+	    await this.pushFlowsConfig();
+
+	    return {};
+	  }
 
   // ---------- Config push ----------
 
@@ -360,10 +511,16 @@ export class FlowManagerService extends AsyncProcessor {
     if (this.configClient === null) return;
 
     const flowsConfig: Record<string, { topics: Record<string, string> }> = {};
+    const flowRecords: Record<string, string> = {};
     for (const [id, inst] of this.flows) {
       const blueprint = this.blueprints.get(inst.blueprintName);
       if (blueprint !== undefined) {
         flowsConfig[id] = { topics: blueprint.topics };
+        flowRecords[id] = JSON.stringify({
+          "blueprint-name": inst.blueprintName,
+          description: inst.description,
+          parameters: inst.parameters,
+        });
       }
     }
 
@@ -373,12 +530,29 @@ export class FlowManagerService extends AsyncProcessor {
         keys: ["flows"],
         values: flowsConfig,
       });
+      await this.configClient.request({
+        operation: "put",
+        keys: ["flow"],
+        values: flowRecords,
+      });
       console.log(
         `[FlowManager] Pushed flows config (${this.flows.size} active flows)`,
       );
     } catch (err) {
       console.error("[FlowManager] Failed to push flows config:", err);
     }
+  }
+
+  private async deleteFlowConfig(id: string): Promise<void> {
+    if (this.configClient === null) return;
+    await this.configClient.request({
+      operation: "delete",
+      keys: ["flows", id],
+    });
+    await this.configClient.request({
+      operation: "delete",
+      keys: ["flow", id],
+    });
   }
 
   // ---------- Lifecycle ----------
@@ -410,5 +584,5 @@ export const program = makeProcessorProgram({
 });
 
 export async function run(): Promise<void> {
-  await FlowManagerService.launch("flow-manager");
+  await Effect.runPromise(program);
 }

@@ -97,16 +97,16 @@ export function getWebSocketConstructor(): IsomorphicWebSocketConstructor {
 /**
  * Returns the default WebSocket URL for the current environment.
  *
- * - Browser: returns the relative path `"/api/socket"` (resolved by the
+ * - Browser: returns the relative path `"/api/v1/rpc"` (resolved by the
  *   browser against the current page origin).
- * - Node.js: returns a full URL `"ws://localhost:8088/api/v1/socket"` since
+ * - Node.js: returns a full URL `"ws://localhost:8088/api/v1/rpc"` since
  *   relative URLs are not meaningful outside a browser.
  */
 export function getDefaultSocketUrl(): string {
   if (typeof window !== "undefined") {
-    return "/api/socket";
+    return "/api/v1/rpc";
   }
-  return "ws://localhost:8088/api/v1/socket";
+  return "ws://localhost:8088/api/v1/rpc";
 }
 
 /**

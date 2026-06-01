@@ -22,6 +22,7 @@ import {
   RequestResponseSpec,
   type ProcessorConfig,
   type FlowContext,
+  type FlowResourceNotFoundError,
   type Document,
   type TextDocument,
   type Triples,
@@ -29,169 +30,204 @@ import {
   type Term,
   type LibrarianRequest,
   type LibrarianResponse,
+  type MessagingDeliveryError,
+  type MessagingTimeoutError,
+  type Spec,
+  errorMessage,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
+import * as S from "effect/Schema";
+
+export class PdfDecoderError extends S.TaggedErrorClass<PdfDecoderError>()(
+  "PdfDecoderError",
+  {
+    message: S.String,
+    operation: S.String,
+    documentId: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+type PdfDecoderHandlerError =
+  | FlowResourceNotFoundError
+  | MessagingDeliveryError
+  | MessagingTimeoutError
+  | PdfDecoderError;
+
+type PdfDocument = Awaited<ReturnType<typeof getDocument>["promise"]>;
+
+const pdfDecoderError = (
+  operation: string,
+  documentId: string,
+  cause: unknown,
+) =>
+  new PdfDecoderError({
+    operation,
+    documentId,
+    message: errorMessage(cause),
+    cause,
+  });
+
+const loadPdf = (documentId: string, pdfBuffer: Buffer) =>
+  Effect.tryPromise({
+    try: () => getDocument({ data: new Uint8Array(pdfBuffer) }).promise,
+    catch: (cause) => pdfDecoderError("load-pdf", documentId, cause),
+  });
+
+const loadPageText = (documentId: string, pageNumber: number, pdf: PdfDocument) =>
+  Effect.tryPromise({
+    try: async () => {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      return textContent.items
+        .filter((item): item is TextItem => "str" in item)
+        .map((item) => item.str)
+        .join(" ");
+    },
+    catch: (cause) => pdfDecoderError("load-page-text", documentId, cause),
+  });
+
+const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
+  msg: Document,
+  properties: Record<string, string>,
+  flowCtx: FlowContext,
+): Effect.fn.Return<void, PdfDecoderHandlerError> {
+  const requestId = properties.id;
+  if (requestId === undefined || requestId.length === 0) return;
+
+  const { documentId } = msg;
+  const user = msg.metadata.user;
+
+  const librarian = yield* flowCtx.flow.requestorEffect<LibrarianRequest, LibrarianResponse>(
+    "librarian-client",
+  );
+
+  const metadataResp = yield* librarian.request({
+    operation: "get-document-metadata",
+    documentId,
+    user,
+  });
+
+  if (metadataResp.error !== undefined) {
+    yield* Effect.logError(`[PdfDecoder] Failed to get metadata for ${documentId}`, {
+      error: metadataResp.error.message,
+    });
+    return;
+  }
+
+  const kind = metadataResp.documentMetadata?.kind;
+  if (kind !== "application/pdf") {
+    yield* Effect.log(`[PdfDecoder] Skipping document ${documentId}: kind=${kind} (not PDF)`);
+    return;
+  }
+
+  const contentResp = yield* librarian.request({
+    operation: "get-document-content",
+    documentId,
+    user,
+  });
+
+  if (
+    contentResp.error !== undefined ||
+    contentResp.content === undefined ||
+    contentResp.content.length === 0
+  ) {
+    yield* Effect.logError(`[PdfDecoder] Failed to get content for ${documentId}`, {
+      error: contentResp.error?.message ?? "no content",
+    });
+    return;
+  }
+
+  const pdfBuffer = Buffer.from(contentResp.content, "base64");
+  const pdf = yield* loadPdf(documentId, pdfBuffer);
+
+  yield* Effect.log(`[PdfDecoder] Document ${documentId}: ${pdf.numPages} pages`);
+
+  const outputProducer = yield* flowCtx.flow.producerEffect<TextDocument>("decode-output");
+  const triplesProducer = yield* flowCtx.flow.producerEffect<Triples>("decode-triples");
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const pageText = yield* loadPageText(documentId, i, pdf);
+
+    if (pageText.trim().length === 0) {
+      yield* Effect.log(`[PdfDecoder] Skipping empty page ${i} of document ${documentId}`);
+      continue;
+    }
+
+    const childResp = yield* librarian.request({
+      operation: "add-child-document",
+      documentMetadata: {
+        id: "",
+        user,
+        kind: "text/plain",
+        title: `Page ${i}`,
+        parentId: documentId,
+        documentType: "page",
+        time: Date.now(),
+        comments: "",
+        tags: [],
+      },
+      content: Buffer.from(pageText).toString("base64"),
+    });
+
+    if (childResp.error !== undefined) {
+      yield* Effect.logError(`[PdfDecoder] Failed to save page ${i} of ${documentId}`, {
+        error: childResp.error.message,
+      });
+      continue;
+    }
+
+    const childDocId = childResp.documentMetadata?.id ?? "";
+
+    yield* outputProducer.send(requestId, {
+      metadata: msg.metadata,
+      text: pageText,
+      documentId: childDocId,
+    });
+
+    const triples: Triple[] = [
+      {
+        s: iriTerm(`urn:tg:page:${childDocId}`),
+        p: iriTerm("http://www.w3.org/ns/prov#wasDerivedFrom"),
+        o: iriTerm(`urn:tg:doc:${documentId}`),
+      },
+      {
+        s: iriTerm(`urn:tg:page:${childDocId}`),
+        p: iriTerm("http://www.w3.org/2000/01/rdf-schema#label"),
+        o: literalTerm(`Page ${i}`),
+      },
+    ];
+
+    yield* triplesProducer.send(requestId, {
+      metadata: msg.metadata,
+      triples,
+    });
+  }
+
+  yield* Effect.log(`[PdfDecoder] Finished processing document ${documentId}`);
+});
+
+export const makePdfDecoderSpecs = (): ReadonlyArray<Spec<never>> => [
+  new ConsumerSpec<Document, PdfDecoderHandlerError>("decode-input", onPdfDecodeMessage),
+  new ProducerSpec<TextDocument>("decode-output"),
+  new ProducerSpec<Triples>("decode-triples"),
+  new RequestResponseSpec<LibrarianRequest, LibrarianResponse>(
+    "librarian-client",
+    "librarian-request",
+    "librarian-response",
+  ),
+];
 
 export class PdfDecoderService extends FlowProcessor {
   constructor(config: ProcessorConfig) {
     super(config);
 
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<Document>("decode-input", this.onMessage.bind(this)),
-    );
-    this.registerSpecification(new ProducerSpec<TextDocument>("decode-output"));
-    this.registerSpecification(new ProducerSpec<Triples>("decode-triples"));
-    this.registerSpecification(
-      new RequestResponseSpec<LibrarianRequest, LibrarianResponse>(
-        "librarian-client",
-        "librarian-request",
-        "librarian-response",
-      ),
-    );
+    for (const spec of makePdfDecoderSpecs()) {
+      this.registerSpecification(spec);
+    }
 
     console.log("[PdfDecoder] Service initialized");
-  }
-
-  private async onMessage(
-    msg: Document,
-    properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
-    const requestId = properties.id;
-    if (requestId === undefined || requestId.length === 0) return;
-
-    const { documentId } = msg;
-    const user = msg.metadata.user;
-
-    const librarian = flowCtx.flow.requestor<LibrarianRequest, LibrarianResponse>(
-      "librarian-client",
-    );
-
-    // 1. Fetch document metadata to check MIME type
-    const metadataResp = await librarian.request({
-      operation: "get-document-metadata",
-      documentId,
-      user,
-    });
-
-    if (metadataResp.error !== undefined) {
-      console.error(
-        `[PdfDecoder] Failed to get metadata for ${documentId}:`,
-        metadataResp.error.message,
-      );
-      return;
-    }
-
-    const kind = metadataResp.documentMetadata?.kind;
-    if (kind !== "application/pdf") {
-      console.log(
-        `[PdfDecoder] Skipping document ${documentId}: kind=${kind} (not PDF)`,
-      );
-      return;
-    }
-
-    // 2. Fetch document content
-    const contentResp = await librarian.request({
-      operation: "get-document-content",
-      documentId,
-      user,
-    });
-
-    if (
-      contentResp.error !== undefined ||
-      contentResp.content === undefined ||
-      contentResp.content.length === 0
-    ) {
-      console.error(
-        `[PdfDecoder] Failed to get content for ${documentId}:`,
-        contentResp.error?.message ?? "no content",
-      );
-      return;
-    }
-
-    // 3. Decode base64 content and extract text per page
-    const pdfBuffer = Buffer.from(contentResp.content, "base64");
-    const pdf = await getDocument({ data: new Uint8Array(pdfBuffer) }).promise;
-
-    console.log(
-      `[PdfDecoder] Document ${documentId}: ${pdf.numPages} pages`,
-    );
-
-    const outputProducer = flowCtx.flow.producer<TextDocument>("decode-output");
-    const triplesProducer = flowCtx.flow.producer<Triples>("decode-triples");
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .filter((item): item is TextItem => "str" in item)
-        .map((item) => item.str)
-        .join(" ");
-
-      if (pageText.trim().length === 0) {
-        console.log(
-          `[PdfDecoder] Skipping empty page ${i} of document ${documentId}`,
-        );
-        continue;
-      }
-
-      // 4. Save as child document in librarian
-      const childResp = await librarian.request({
-        operation: "add-child-document",
-        documentMetadata: {
-          id: "",
-          user,
-          kind: "text/plain",
-          title: `Page ${i}`,
-          parentId: documentId,
-          documentType: "page",
-          time: Date.now(),
-          comments: "",
-          tags: [],
-        },
-        content: Buffer.from(pageText).toString("base64"),
-      });
-
-      if (childResp.error !== undefined) {
-        console.error(
-          `[PdfDecoder] Failed to save page ${i} of ${documentId}:`,
-          childResp.error.message,
-        );
-        continue;
-      }
-
-      const childDocId = childResp.documentMetadata?.id ?? "";
-
-      // 5. Emit TextDocument for the chunking pipeline
-      await outputProducer.send(requestId, {
-        metadata: msg.metadata,
-        text: pageText,
-        documentId: childDocId,
-      });
-
-      // 6. Emit provenance triples
-      const triples: Triple[] = [
-        {
-          s: iriTerm(`urn:tg:page:${childDocId}`),
-          p: iriTerm("http://www.w3.org/ns/prov#wasDerivedFrom"),
-          o: iriTerm(`urn:tg:doc:${documentId}`),
-        },
-        {
-          s: iriTerm(`urn:tg:page:${childDocId}`),
-          p: iriTerm("http://www.w3.org/2000/01/rdf-schema#label"),
-          o: literalTerm(`Page ${i}`),
-        },
-      ];
-
-      await triplesProducer.send(requestId, {
-        metadata: msg.metadata,
-        triples,
-      });
-    }
-
-    console.log(
-      `[PdfDecoder] Finished processing document ${documentId}`,
-    );
   }
 }
 
@@ -203,11 +239,11 @@ function literalTerm(value: string): Term {
   return { type: "LITERAL", value };
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram({
   id: "pdf-decoder",
-  make: (config) => new PdfDecoderService(config),
+  specs: () => makePdfDecoderSpecs(),
 });
 
 export async function run(): Promise<void> {
-  await PdfDecoderService.launch("pdf-decoder");
+  await Effect.runPromise(program);
 }

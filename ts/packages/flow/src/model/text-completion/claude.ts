@@ -5,8 +5,18 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk, tooManyRequestsError } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
+import {
+  Llm,
+  LlmService,
+  makeFlowProcessorProgram,
+  makeLlmServiceShape,
+  makeLlmSpecs,
+  type ProcessorConfig,
+  type LlmResult,
+  type LlmChunk,
+  tooManyRequestsError,
+} from "@trustgraph/base";
+import { Effect, Layer } from "effect";
 
 export class ClaudeProcessor extends LlmService {
   private client: Anthropic;
@@ -127,11 +137,16 @@ export class ClaudeProcessor extends LlmService {
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   id: "text-completion",
-  make: (config) => new ClaudeProcessor(config),
+  specs: () => makeLlmSpecs(),
+  layer: (config) =>
+    Layer.succeed(
+      Llm,
+      Llm.of(makeLlmServiceShape(new ClaudeProcessor(config))),
+    ),
 });
 
 export async function run(): Promise<void> {
-  await ClaudeProcessor.launch("text-completion");
+  await Effect.runPromise(program);
 }

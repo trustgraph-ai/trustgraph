@@ -1,9 +1,11 @@
-import { useState, useCallback } from "react";
+import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { Copy, Check, Trash2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { copiedMessageIdAtom, copyMessageAtom } from "@/atoms/workbench";
 
 interface MessageActionsProps {
   content: string;
+  messageId: string;
   isLastAssistant: boolean;
   onDelete: () => void;
   onRegenerate?: () => void;
@@ -11,38 +13,25 @@ interface MessageActionsProps {
 
 export function MessageActions({
   content,
+  messageId,
   isLastAssistant,
   onDelete,
   onRegenerate,
 }: MessageActionsProps) {
-  const [copied, setCopied] = useState(false);
+  const copiedMessageId = useAtomValue(copiedMessageIdAtom);
+  const copyMessage = useAtomSet(copyMessageAtom);
+  const copied = copiedMessageId === messageId;
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback for insecure contexts
-      const textarea = document.createElement("textarea");
-      textarea.value = content;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, [content]);
+  const handleCopy = () => {
+    copyMessage({ id: messageId, content });
+  };
 
   return (
     <div
       className={cn(
-        "absolute -top-8 right-2 z-10 flex items-center gap-0.5",
+        "mt-1 flex w-fit items-center gap-0.5 lg:absolute lg:-top-8 lg:right-2 lg:z-10 lg:mt-0",
         "rounded-lg border border-border bg-surface-200 px-1 py-0.5 shadow-sm",
-        "pointer-events-none opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100",
+        "opacity-100 transition-opacity lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100",
       )}
     >
       <button

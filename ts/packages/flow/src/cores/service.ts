@@ -21,7 +21,8 @@ import {
 } from "@trustgraph/base";
 import { makeProcessorProgram } from "@trustgraph/base";
 import type { BackendProducer, BackendConsumer, Message } from "@trustgraph/base";
-import { joinPath, readTextFile, writeTextFile } from "../runtime/effect-files.js";
+import { Effect } from "effect";
+import { ensureDirectory, joinPath, readTextFile, writeTextFile } from "../runtime/effect-files.js";
 
 export interface KnowledgeCoreServiceConfig extends ProcessorConfig {
   dataDir?: string;
@@ -32,9 +33,17 @@ interface KnowledgeCore {
   graphEmbeddings: { entity: Term; vectors: number[][] }[];
 }
 
+interface DocumentEmbeddingsCore {
+  metadata?: Record<string, unknown>;
+  chunks?: unknown[];
+  [key: string]: unknown;
+}
+
 export class KnowledgeCoreService extends AsyncProcessor {
   /** Keyed by `${user}:${id}` */
   private cores = new Map<string, KnowledgeCore>();
+  private deCores = new Map<string, DocumentEmbeddingsCore[]>();
+  private readonly dataDir: string;
   private readonly persistPath: string;
 
   private consumer: BackendConsumer<KnowledgeRequest> | null = null;
@@ -43,6 +52,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
   constructor(config: KnowledgeCoreServiceConfig) {
     super(config);
     const dataDir = config.dataDir ?? process.env.KNOWLEDGE_DATA_DIR ?? "./data/knowledge";
+    this.dataDir = dataDir;
     this.persistPath = joinPath(dataDir, "knowledge-state.json");
   }
 
@@ -51,6 +61,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
   }
 
   protected override async run(): Promise<void> {
+    await ensureDirectory(this.dataDir);
     // Load persisted state
     await this.loadFromDisk();
 
@@ -116,9 +127,38 @@ export class KnowledgeCoreService extends AsyncProcessor {
         return this.putKgCore(request, requestId);
       case "load-kg-core":
         return this.loadKgCore(request, requestId);
+      case "unload-kg-core":
+        return this.unloadKgCore(request, requestId);
+      case "list-de-cores":
+        return this.listDeCores(request, requestId);
+      case "get-de-core":
+        return this.getDeCore(request, requestId);
+      case "delete-de-core":
+        return this.deleteDeCore(request, requestId);
+      case "put-de-core":
+        return this.putDeCore(request, requestId);
+      case "load-de-core":
+        return this.loadDeCore(request, requestId);
       default:
         throw new Error(`Unknown knowledge operation: ${request.operation as string}`);
     }
+  }
+
+  private requestRecord(request: KnowledgeRequest): Record<string, unknown> {
+    return request as Record<string, unknown>;
+  }
+
+  private graphEmbeddings(request: KnowledgeRequest): { entity: Term; vectors: number[][] }[] {
+    const req = this.requestRecord(request);
+    const value = request.graphEmbeddings ?? req["graph-embeddings"];
+    return Array.isArray(value) ? value as { entity: Term; vectors: number[][] }[] : [];
+  }
+
+  private documentEmbeddings(request: KnowledgeRequest): DocumentEmbeddingsCore | undefined {
+    const req = this.requestRecord(request);
+    const value = request.documentEmbeddings ?? req["document-embeddings"];
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+    return value as DocumentEmbeddingsCore;
   }
 
   private async listKgCores(request: KnowledgeRequest, requestId: string): Promise<void> {
@@ -167,7 +207,7 @@ export class KnowledgeCoreService extends AsyncProcessor {
       const isLast = i + BATCH_SIZE >= core.graphEmbeddings.length;
 
       await this.responseProducer!.send(
-        { graphEmbeddings: batch, eos: isLast },
+        { graphEmbeddings: batch, "graph-embeddings": batch, eos: isLast } as KnowledgeResponse,
         { id: requestId },
       );
     }
@@ -207,8 +247,9 @@ export class KnowledgeCoreService extends AsyncProcessor {
     }
 
     // Append graph embeddings if provided
-    if (request.graphEmbeddings !== undefined && request.graphEmbeddings.length > 0) {
-      core.graphEmbeddings.push(...request.graphEmbeddings);
+    const graphEmbeddings = this.graphEmbeddings(request);
+    if (graphEmbeddings.length > 0) {
+      core.graphEmbeddings.push(...graphEmbeddings);
     }
 
     await this.persist();
@@ -229,11 +270,91 @@ export class KnowledgeCoreService extends AsyncProcessor {
       throw new Error(`Knowledge core not found: ${key}`);
     }
 
-    // MVP: just acknowledge. Full implementation would publish triples
-    // to flow storage topics via the flow config.
+    if (core.triples.length > 0) {
+      const producer = await this.pubsub.createProducer<unknown>({ topic: "tg.flow.triples" });
+      try {
+        await producer.send({
+          metadata: {
+            id: coreId,
+            root: coreId,
+            user,
+            collection: request.collection ?? "default",
+          },
+          triples: core.triples,
+        });
+      } finally {
+        await producer.close();
+      }
+    }
+
     console.log(
-      `[KnowledgeCoreService] Load requested for core ${key} (triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length}) — returning success`,
+      `[KnowledgeCoreService] Loaded core ${key} (triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length})`,
     );
+    await this.responseProducer!.send({}, { id: requestId });
+  }
+
+  private async unloadKgCore(_request: KnowledgeRequest, requestId: string): Promise<void> {
+    await this.responseProducer!.send({}, { id: requestId });
+  }
+
+  private async listDeCores(request: KnowledgeRequest, requestId: string): Promise<void> {
+    const user = request.user ?? "";
+    const prefix = user.length > 0 ? `${user}:` : "";
+    const ids = [...this.deCores.keys()]
+      .filter((key) => prefix.length === 0 || key.startsWith(prefix))
+      .map((key) => key.slice(prefix.length));
+    await this.responseProducer!.send({ ids }, { id: requestId });
+  }
+
+  private async getDeCore(request: KnowledgeRequest, requestId: string): Promise<void> {
+    const user = request.user ?? "";
+    const coreId = request.id ?? "";
+    const key = this.coreKey(user, coreId);
+    const core = this.deCores.get(key);
+    if (core === undefined) throw new Error(`Document embeddings core not found: ${key}`);
+
+    for (let i = 0; i < core.length; i++) {
+      const isLast = i === core.length - 1;
+      await this.responseProducer!.send(
+        {
+          documentEmbeddings: core[i],
+          "document-embeddings": core[i],
+          eos: isLast,
+        } as KnowledgeResponse,
+        { id: requestId },
+      );
+    }
+    if (core.length === 0) {
+      await this.responseProducer!.send({ eos: true }, { id: requestId });
+    }
+  }
+
+  private async deleteDeCore(request: KnowledgeRequest, requestId: string): Promise<void> {
+    const user = request.user ?? "";
+    const coreId = request.id ?? "";
+    this.deCores.delete(this.coreKey(user, coreId));
+    await this.persist();
+    await this.responseProducer!.send({}, { id: requestId });
+  }
+
+  private async putDeCore(request: KnowledgeRequest, requestId: string): Promise<void> {
+    const user = request.user ?? "";
+    const coreId = request.id ?? "";
+    const key = this.coreKey(user, coreId);
+    const item = this.documentEmbeddings(request);
+    if (item === undefined) throw new Error("put-de-core requires document-embeddings");
+    const core = this.deCores.get(key) ?? [];
+    core.push(item);
+    this.deCores.set(key, core);
+    await this.persist();
+    await this.responseProducer!.send({}, { id: requestId });
+  }
+
+  private async loadDeCore(request: KnowledgeRequest, requestId: string): Promise<void> {
+    const user = request.user ?? "";
+    const coreId = request.id ?? "";
+    const key = this.coreKey(user, coreId);
+    if (!this.deCores.has(key)) throw new Error(`Document embeddings core not found: ${key}`);
     await this.responseProducer!.send({}, { id: requestId });
   }
 
@@ -242,9 +363,15 @@ export class KnowledgeCoreService extends AsyncProcessor {
   private async persist(): Promise<void> {
     try {
       // Serialize Map to object
-      const data: Record<string, KnowledgeCore> = {};
+      const data: {
+        kg: Record<string, KnowledgeCore>;
+        de: Record<string, DocumentEmbeddingsCore[]>;
+      } = { kg: {}, de: {} };
       for (const [key, core] of this.cores) {
-        data[key] = core;
+        data.kg[key] = core;
+      }
+      for (const [key, core] of this.deCores) {
+        data.de[key] = core;
       }
 
       const json = JSON.stringify(data, null, 2);
@@ -257,14 +384,24 @@ export class KnowledgeCoreService extends AsyncProcessor {
   private async loadFromDisk(): Promise<void> {
     try {
       const raw = await readTextFile(this.persistPath);
-      const parsed = JSON.parse(raw) as Record<string, KnowledgeCore>;
+      const parsed = JSON.parse(raw) as Record<string, KnowledgeCore> | {
+        kg?: Record<string, KnowledgeCore>;
+        de?: Record<string, DocumentEmbeddingsCore[]>;
+      };
 
       this.cores.clear();
-      for (const [key, core] of Object.entries(parsed)) {
+      this.deCores.clear();
+      const kg = "kg" in parsed && parsed.kg !== undefined ? parsed.kg : parsed as Record<string, KnowledgeCore>;
+      for (const [key, core] of Object.entries(kg)) {
         this.cores.set(key, core);
       }
+      if ("de" in parsed && parsed.de !== undefined) {
+        for (const [key, core] of Object.entries(parsed.de)) {
+          this.deCores.set(key, core);
+        }
+      }
 
-      console.log(`[KnowledgeCoreService] Loaded persisted state (cores=${this.cores.size})`);
+      console.log(`[KnowledgeCoreService] Loaded persisted state (kg=${this.cores.size}, de=${this.deCores.size})`);
     } catch {
       console.log("[KnowledgeCoreService] No persisted state found, starting fresh");
     }
@@ -293,5 +430,5 @@ export const program = makeProcessorProgram({
 });
 
 export async function run(): Promise<void> {
-  await KnowledgeCoreService.launch("knowledge-svc");
+  await Effect.runPromise(program);
 }

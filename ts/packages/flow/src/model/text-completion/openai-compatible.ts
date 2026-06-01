@@ -11,12 +11,16 @@
 
 import OpenAI from "openai";
 import {
+  Llm,
   LlmService,
+  makeFlowProcessorProgram,
+  makeLlmServiceShape,
+  makeLlmSpecs,
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
+import { Effect, Layer } from "effect";
 
 export class OpenAICompatibleProcessor extends LlmService {
   private client: OpenAI;
@@ -137,11 +141,16 @@ export class OpenAICompatibleProcessor extends LlmService {
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   id: "text-completion",
-  make: (config) => new OpenAICompatibleProcessor(config),
+  specs: () => makeLlmSpecs(),
+  layer: (config) =>
+    Layer.succeed(
+      Llm,
+      Llm.of(makeLlmServiceShape(new OpenAICompatibleProcessor(config))),
+    ),
 });
 
 export async function run(): Promise<void> {
-  await OpenAICompatibleProcessor.launch("text-completion");
+  await Effect.runPromise(program);
 }

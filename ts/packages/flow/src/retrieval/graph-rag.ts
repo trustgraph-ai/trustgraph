@@ -1,22 +1,15 @@
 /**
  * Graph RAG retrieval pipeline.
  *
- * This is the core RAG pipeline that:
- * 1. Extracts concepts from the query
- * 2. Embeds concepts to find matching entities
- * 3. Traverses the knowledge graph from those entities
- * 4. Scores and filters edges
- * 5. Synthesizes an answer with the selected context
- *
  * Python reference: trustgraph-flow/trustgraph/retrieval/graph_rag/graph_rag.py
  */
 
 import type {
   EmbeddingsRequest,
   EmbeddingsResponse,
+  FlowRequestor,
   GraphEmbeddingsRequest,
   GraphEmbeddingsResponse,
-  FlowRequestor,
   PromptRequest,
   PromptResponse,
   Term,
@@ -26,6 +19,10 @@ import type {
   TriplesQueryRequest,
   TriplesQueryResponse,
 } from "@trustgraph/base";
+import { errorMessage } from "@trustgraph/base";
+import { Context, Effect, Layer } from "effect";
+import * as O from "effect/Option";
+import * as S from "effect/Schema";
 
 export interface GraphRagConfig {
   entityLimit?: number;
@@ -46,321 +43,373 @@ export interface GraphRagClients {
 
 export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
 
+export interface GraphRagQueryOptions {
+  readonly collection?: string;
+  readonly streaming?: boolean;
+  readonly chunkCallback?: ChunkCallback;
+}
+
 export interface GraphRagResult {
   answer: string;
   subgraph: Triple[];
 }
 
+interface NormalizedGraphRagConfig {
+  entityLimit: number;
+  tripleLimit: number;
+  maxSubgraphSize: number;
+  maxPathLength: number;
+  edgeScoreLimit: number;
+  edgeLimit: number;
+}
+
+export class GraphRagEngineError extends S.TaggedErrorClass<GraphRagEngineError>()(
+  "GraphRagEngineError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+export interface GraphRagEngineShape {
+  readonly query: (
+    clients: GraphRagClients,
+    queryText: string,
+    options?: GraphRagQueryOptions,
+    config?: GraphRagConfig,
+  ) => Effect.Effect<GraphRagResult, GraphRagEngineError>;
+}
+
+export class GraphRagEngine extends Context.Service<GraphRagEngine, GraphRagEngineShape>()(
+  "@trustgraph/flow/retrieval/graph-rag/GraphRagEngine",
+) {}
+
+const graphRagError = (operation: string, cause: unknown) =>
+  new GraphRagEngineError({
+    operation,
+    cause,
+    message: errorMessage(cause),
+  });
+
+export function normalizeGraphRagConfig(config: GraphRagConfig = {}): NormalizedGraphRagConfig {
+  return {
+    entityLimit: config.entityLimit ?? 50,
+    tripleLimit: config.tripleLimit ?? 30,
+    maxSubgraphSize: config.maxSubgraphSize ?? 1000,
+    maxPathLength: config.maxPathLength ?? 2,
+    edgeScoreLimit: config.edgeScoreLimit ?? 50,
+    edgeLimit: config.edgeLimit ?? 25,
+  };
+}
+
+export function makeGraphRagEngine(): GraphRagEngineShape {
+  return {
+    query: Effect.fn("GraphRagEngine.query")((
+      clients: GraphRagClients,
+      queryText: string,
+      options?: GraphRagQueryOptions,
+      config?: GraphRagConfig,
+    ) =>
+      Effect.tryPromise({
+        try: () => queryGraphRag(clients, queryText, options, config),
+        catch: (cause) => graphRagError("query", cause),
+      }),
+    ),
+  };
+}
+
+export const GraphRagLive: Layer.Layer<GraphRagEngine> = Layer.succeed(
+  GraphRagEngine,
+  GraphRagEngine.of(makeGraphRagEngine()),
+);
+
 export class GraphRag {
+  private readonly engine = makeGraphRagEngine();
   private readonly clients: GraphRagClients;
-  private config: Required<GraphRagConfig>;
+  private readonly config: GraphRagConfig;
 
   constructor(
     clients: GraphRagClients,
     config: GraphRagConfig = {},
   ) {
     this.clients = clients;
-    this.config = {
-      entityLimit: config.entityLimit ?? 50,
-      tripleLimit: config.tripleLimit ?? 30,
-      maxSubgraphSize: config.maxSubgraphSize ?? 1000,
-      maxPathLength: config.maxPathLength ?? 2,
-      edgeScoreLimit: config.edgeScoreLimit ?? 50,
-      edgeLimit: config.edgeLimit ?? 25,
-    };
+    this.config = config;
   }
 
-  async query(
+  query(
     queryText: string,
-    options?: {
-      collection?: string;
-      streaming?: boolean;
-      chunkCallback?: ChunkCallback;
-    },
+    options?: GraphRagQueryOptions,
   ): Promise<GraphRagResult> {
-    console.log(`[GraphRag] Query: "${queryText.slice(0, 80)}..."`);
-
-    // Step 1: Extract concepts from the query via prompt + LLM
-    const concepts = await this.extractConcepts(queryText);
-    console.log(`[GraphRag] Step 1: extracted ${concepts.length} concepts: ${concepts.slice(0, 5).join(", ")}`);
-
-    // Step 2: Embed concepts concurrently
-    const vectors = await this.getVectors(concepts);
-    console.log(`[GraphRag] Step 2: got ${vectors.length} vectors (dim=${vectors[0]?.length ?? 0})`);
-
-    // Step 3: Find matching entities via graph embeddings
-    const entities = await this.getEntities(vectors, options?.collection);
-    console.log(`[GraphRag] Step 3: found ${entities.length} matching entities`);
-
-    // Step 4: Traverse the knowledge graph from entities
-    const subgraph = await this.followEdges(entities, options?.collection);
-    console.log(`[GraphRag] Step 4: traversed graph, ${subgraph.length} triples in subgraph`);
-
-    // Step 5: Score and filter edges via LLM
-    const scoredEdges = await this.scoreEdges(queryText, subgraph);
-    console.log(`[GraphRag] Step 5: scored down to ${scoredEdges.length} edges`);
-
-    // Step 6: Synthesize answer
-    console.log(`[GraphRag] Step 6: synthesizing answer from ${scoredEdges.length} edges...`);
-    const answer = await this.synthesize(
-      queryText,
-      scoredEdges,
-      options?.chunkCallback,
+    return Effect.runPromise(
+      this.engine.query(this.clients, queryText, options, this.config),
     );
-    console.log(`[GraphRag] Step 6: done (${answer.length} chars)`);
-
-    return { answer, subgraph: scoredEdges };
-  }
-
-  private async extractConcepts(query: string): Promise<string[]> {
-    const promptResp = await this.clients.prompt.request({
-      name: "extract-concepts",
-      variables: { query },
-    });
-
-    const llmResp = await this.clients.llm.request({
-      system: (promptResp as PromptResponse).system,
-      prompt: (promptResp as PromptResponse).prompt,
-    });
-
-    // Parse concepts from LLM response (newline-separated)
-    return (llmResp as TextCompletionResponse).response
-      .split("\n")
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-  }
-
-  private async getVectors(concepts: string[]): Promise<number[][]> {
-    const resp = await this.clients.embeddings.request({ text: concepts });
-    return (resp as EmbeddingsResponse).vectors;
-  }
-
-  private async getEntities(vectors: number[][], collection?: string): Promise<Term[]> {
-    const resp = await this.clients.graphEmbeddings.request({
-      vectors,
-      user: "default",
-      collection: collection ?? "default",
-      limit: this.config.entityLimit,
-    });
-    return (resp as GraphEmbeddingsResponse).entities;
-  }
-
-  private async followEdges(entities: Term[], collection?: string): Promise<Triple[]> {
-    // BFS multi-hop traversal up to maxPathLength
-    const visited = new Set<string>();
-    const subgraph: Triple[] = [];
-
-    // Current frontier: the set of entities to expand at this depth level
-    let currentLevel = new Set<string>(
-      entities.map((e) => termToString(e)),
-    );
-
-    for (let depth = 0; depth < this.config.maxPathLength; depth++) {
-      if (currentLevel.size === 0 || subgraph.length >= this.config.maxSubgraphSize) {
-        break;
-      }
-
-      // Filter out already-visited entities
-      const unvisited = [...currentLevel].filter((e) => !visited.has(e));
-      if (unvisited.length === 0) break;
-
-      // Batch triple queries for all unvisited entities at this depth
-      // Query each entity as subject to get outgoing edges
-      const queries = unvisited.map((entityStr) => {
-        const term = stringToTerm(entityStr);
-        const request: TriplesQueryRequest = {
-          s: term,
-          limit: this.config.tripleLimit,
-          ...(collection !== undefined ? { collection } : {}),
-        };
-        return this.clients.triples.request(request);
-      });
-
-      const results = await Promise.all(queries);
-
-      const nextLevel = new Set<string>();
-
-      for (const result of results) {
-        const triples = (result as TriplesQueryResponse).triples;
-        for (const triple of triples) {
-          subgraph.push(triple);
-
-          // Collect objects as next-level entities for further expansion
-          // (only if we have more depth levels remaining)
-          if (depth < this.config.maxPathLength - 1) {
-            const objStr = termToString(triple.o);
-            if (!visited.has(objStr)) {
-              nextLevel.add(objStr);
-            }
-          }
-
-          if (subgraph.length >= this.config.maxSubgraphSize) {
-            return subgraph;
-          }
-        }
-      }
-
-      // Mark current level as visited and move to next
-      for (const e of currentLevel) {
-        visited.add(e);
-      }
-      currentLevel = nextLevel;
-    }
-
-    return subgraph.slice(0, this.config.maxSubgraphSize);
-  }
-
-  private async scoreEdges(query: string, triples: Triple[]): Promise<Triple[]> {
-    if (triples.length === 0) return [];
-
-    // If the subgraph is small enough, skip LLM scoring entirely
-    // 500 triples is well within LLM context limits and avoids lossy scoring
-    if (triples.length <= 500) {
-      console.log(`[GraphRag] Skipping edge scoring — ${triples.length} triples fits in context directly`);
-      return triples;
-    }
-
-    // Build a numbered list of edges for the LLM to score
-    const edgeDescriptions = triples.map((t, i) => ({
-      id: String(i),
-      s: termToString(t.s),
-      p: termToString(t.p),
-      o: termToString(t.o),
-    }));
-
-    // Limit how many edges we send for scoring to avoid overflowing context
-    const toScore = edgeDescriptions.slice(0, this.config.edgeScoreLimit);
-
-    const knowledgeJson = JSON.stringify(toScore, null, 2);
-
-    // Ask the LLM to score each edge for relevance to the query
-    const promptResp = await this.clients.prompt.request({
-      name: "kg-edge-scoring",
-      variables: {
-        query,
-        knowledge: knowledgeJson,
-      },
-    });
-
-    const llmResp = await this.clients.llm.request({
-      system: (promptResp as PromptResponse).system,
-      prompt: (promptResp as PromptResponse).prompt,
-    });
-
-    const responseText = (llmResp as TextCompletionResponse).response;
-    console.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${responseText.slice(0, 500)}`);
-
-    // Parse scores from LLM response
-    // Expected format: JSON array of { id: string, score: number }
-    // or newline-separated JSON objects
-    const scored: Array<{ id: string; score: number }> = [];
-
-    try {
-      // Try parsing as a JSON array first
-      const parsed = JSON.parse(responseText) as Array<{ id: string; score: number }>;
-      if (Array.isArray(parsed)) {
-        for (const item of parsed) {
-          if (
-            typeof item === "object" &&
-            item !== null &&
-            typeof item.id === "string" &&
-            typeof item.score === "number"
-          ) {
-            scored.push({ id: item.id, score: item.score });
-          }
-        }
-      }
-    } catch {
-      // Fall back to parsing line-by-line JSON objects
-      for (const line of responseText.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed.length === 0) continue;
-        try {
-          const obj = JSON.parse(trimmed) as { id?: string; score?: number };
-          if (
-            typeof obj === "object" &&
-            obj !== null &&
-            typeof obj.id === "string" &&
-            typeof obj.score === "number"
-          ) {
-            scored.push({ id: obj.id, score: obj.score });
-          }
-        } catch {
-          // Skip unparseable lines
-        }
-      }
-    }
-
-    // Sort by score descending and keep top N
-    scored.sort((a, b) => b.score - a.score);
-    const topN = scored.slice(0, this.config.edgeLimit);
-    // Map back to triples
-    const result: Triple[] = [];
-    for (const entry of topN) {
-      const idx = parseInt(entry.id, 10);
-      if (!isNaN(idx) && idx >= 0 && idx < triples.length) {
-        result.push(triples[idx]);
-      }
-    }
-
-    console.log(`[GraphRag] Edge scoring: LLM returned ${scored.length} scores, keeping top ${topN.length}, mapped ${result.length} triples`);
-
-    // If scoring failed entirely, fall back to returning the first edgeLimit triples
-    if (result.length === 0) {
-      return triples.slice(0, this.config.edgeLimit);
-    }
-
-    return result;
-  }
-
-  private async synthesize(
-    query: string,
-    edges: Triple[],
-    chunkCallback?: ChunkCallback,
-  ): Promise<string> {
-    // Format edges as context
-    const context = edges
-      .map((t) => `${termToString(t.s)} -> ${termToString(t.p)} -> ${termToString(t.o)}`)
-      .join("\n");
-
-    const promptResp = await this.clients.prompt.request({
-      name: "graph-rag-synthesize",
-      variables: { query, context },
-    });
-
-    if (chunkCallback !== undefined) {
-      // Streaming response
-      let fullText = "";
-      await this.clients.llm.request(
-        {
-          system: (promptResp as PromptResponse).system,
-          prompt: (promptResp as PromptResponse).prompt,
-          streaming: true,
-        },
-        {
-          recipient: async (resp) => {
-            const r = resp as TextCompletionResponse;
-            if (r.response.length > 0) {
-              fullText += r.response;
-              await chunkCallback(r.response, r.endOfStream === true);
-            }
-            return r.endOfStream === true;
-          },
-        },
-      );
-      return fullText;
-    }
-
-    const resp = await this.clients.llm.request({
-      system: (promptResp as PromptResponse).system,
-      prompt: (promptResp as PromptResponse).prompt,
-    });
-
-    return (resp as TextCompletionResponse).response;
   }
 }
 
-function termToString(term: Term): string {
+async function queryGraphRag(
+  clients: GraphRagClients,
+  queryText: string,
+  options?: GraphRagQueryOptions,
+  rawConfig?: GraphRagConfig,
+): Promise<GraphRagResult> {
+  const config = normalizeGraphRagConfig(rawConfig);
+  console.log(`[GraphRag] Query: "${queryText.slice(0, 80)}..."`);
+
+  const concepts = await extractConcepts(clients, queryText);
+  console.log(`[GraphRag] Step 1: extracted ${concepts.length} concepts: ${concepts.slice(0, 5).join(", ")}`);
+
+  const vectors = await getVectors(clients, concepts);
+  console.log(`[GraphRag] Step 2: got ${vectors.length} vectors (dim=${vectors[0]?.length ?? 0})`);
+
+  const entities = await getEntities(clients, config, vectors, options?.collection);
+  console.log(`[GraphRag] Step 3: found ${entities.length} matching entities`);
+
+  const subgraph = await followEdges(clients, config, entities, options?.collection);
+  console.log(`[GraphRag] Step 4: traversed graph, ${subgraph.length} triples in subgraph`);
+
+  const scoredEdges = await scoreEdges(clients, config, queryText, subgraph);
+  console.log(`[GraphRag] Step 5: scored down to ${scoredEdges.length} edges`);
+
+  console.log(`[GraphRag] Step 6: synthesizing answer from ${scoredEdges.length} edges...`);
+  const answer = await synthesize(
+    clients,
+    queryText,
+    scoredEdges,
+    options?.chunkCallback,
+  );
+  console.log(`[GraphRag] Step 6: done (${answer.length} chars)`);
+
+  return { answer, subgraph: scoredEdges };
+}
+
+async function extractConcepts(clients: GraphRagClients, query: string): Promise<string[]> {
+  const promptResp = await clients.prompt.request({
+    name: "extract-concepts",
+    variables: { query },
+  });
+
+  const llmResp = await clients.llm.request({
+    system: promptResp.system,
+    prompt: promptResp.prompt,
+  });
+
+  return llmResp.response
+    .split("\n")
+    .map((concept) => concept.trim())
+    .filter((concept) => concept.length > 0);
+}
+
+async function getVectors(clients: GraphRagClients, concepts: string[]): Promise<number[][]> {
+  const resp = await clients.embeddings.request({ text: concepts });
+  return resp.vectors;
+}
+
+async function getEntities(
+  clients: GraphRagClients,
+  config: NormalizedGraphRagConfig,
+  vectors: number[][],
+  collection?: string,
+): Promise<Term[]> {
+  const resp = await clients.graphEmbeddings.request({
+    vectors,
+    user: "default",
+    collection: collection ?? "default",
+    limit: config.entityLimit,
+  });
+  return resp.entities;
+}
+
+async function followEdges(
+  clients: GraphRagClients,
+  config: NormalizedGraphRagConfig,
+  entities: Term[],
+  collection?: string,
+): Promise<Triple[]> {
+  const visited = new Set<string>();
+  const subgraph: Triple[] = [];
+  let currentLevel = new Set<string>(
+    entities.map((entity) => termToString(entity)),
+  );
+
+  for (let depth = 0; depth < config.maxPathLength; depth++) {
+    if (currentLevel.size === 0 || subgraph.length >= config.maxSubgraphSize) {
+      break;
+    }
+
+    const unvisited = [...currentLevel].filter((entity) => !visited.has(entity));
+    if (unvisited.length === 0) break;
+
+    const queries = unvisited.map((entityStr) => {
+      const term = stringToTerm(entityStr);
+      const request: TriplesQueryRequest = {
+        s: term,
+        limit: config.tripleLimit,
+        ...(collection !== undefined ? { collection } : {}),
+      };
+      return clients.triples.request(request);
+    });
+
+    const results = await Promise.all(queries);
+    const nextLevel = new Set<string>();
+
+    for (const result of results) {
+      for (const triple of result.triples) {
+        subgraph.push(triple);
+
+        if (depth < config.maxPathLength - 1) {
+          const objStr = termToString(triple.o);
+          if (!visited.has(objStr)) {
+            nextLevel.add(objStr);
+          }
+        }
+
+        if (subgraph.length >= config.maxSubgraphSize) {
+          return subgraph;
+        }
+      }
+    }
+
+    for (const entity of currentLevel) {
+      visited.add(entity);
+    }
+    currentLevel = nextLevel;
+  }
+
+  return subgraph.slice(0, config.maxSubgraphSize);
+}
+
+async function scoreEdges(
+  clients: GraphRagClients,
+  config: NormalizedGraphRagConfig,
+  query: string,
+  triples: Triple[],
+): Promise<Triple[]> {
+  if (triples.length === 0) return [];
+
+  if (triples.length <= 500) {
+    console.log(`[GraphRag] Skipping edge scoring - ${triples.length} triples fits in context directly`);
+    return triples;
+  }
+
+  const edgeDescriptions = triples.map((triple, index) => ({
+    id: String(index),
+    s: termToString(triple.s),
+    p: termToString(triple.p),
+    o: termToString(triple.o),
+  }));
+
+  const toScore = edgeDescriptions.slice(0, config.edgeScoreLimit);
+  const knowledgeJson = JSON.stringify(toScore, null, 2);
+
+  const promptResp = await clients.prompt.request({
+    name: "kg-edge-scoring",
+    variables: {
+      query,
+      knowledge: knowledgeJson,
+    },
+  });
+
+  const llmResp = await clients.llm.request({
+    system: promptResp.system,
+    prompt: promptResp.prompt,
+  });
+
+  console.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${llmResp.response.slice(0, 500)}`);
+
+  const scored = parseScoredEdges(llmResp.response);
+  scored.sort((a, b) => b.score - a.score);
+  const topN = scored.slice(0, config.edgeLimit);
+
+  const result: Triple[] = [];
+  for (const entry of topN) {
+    const idx = Number.parseInt(entry.id, 10);
+    if (!Number.isNaN(idx) && idx >= 0 && idx < triples.length) {
+      result.push(triples[idx]);
+    }
+  }
+
+  console.log(`[GraphRag] Edge scoring: LLM returned ${scored.length} scores, keeping top ${topN.length}, mapped ${result.length} triples`);
+
+  if (result.length === 0) {
+    return triples.slice(0, config.edgeLimit);
+  }
+
+  return result;
+}
+
+async function synthesize(
+  clients: GraphRagClients,
+  query: string,
+  edges: Triple[],
+  chunkCallback?: ChunkCallback,
+): Promise<string> {
+  const context = edges
+    .map((triple) => `${termToString(triple.s)} -> ${termToString(triple.p)} -> ${termToString(triple.o)}`)
+    .join("\n");
+
+  const promptResp = await clients.prompt.request({
+    name: "graph-rag-synthesize",
+    variables: { query, context },
+  });
+
+  if (chunkCallback !== undefined) {
+    let fullText = "";
+    await clients.llm.request(
+      {
+        system: promptResp.system,
+        prompt: promptResp.prompt,
+        streaming: true,
+      },
+      {
+        recipient: async (resp) => {
+          if (resp.response.length > 0) {
+            fullText += resp.response;
+            await chunkCallback(resp.response, resp.endOfStream === true);
+          }
+          return resp.endOfStream === true;
+        },
+      },
+    );
+    return fullText;
+  }
+
+  const resp = await clients.llm.request({
+    system: promptResp.system,
+    prompt: promptResp.prompt,
+  });
+
+  return resp.response;
+}
+
+const ScoredEdge = S.Struct({
+  id: S.String,
+  score: S.Number,
+});
+const ScoredEdgesFromJson = S.Array(ScoredEdge).pipe(S.fromJsonString);
+const ScoredEdgeFromJson = ScoredEdge.pipe(S.fromJsonString);
+const decodeScoredEdges = S.decodeUnknownOption(ScoredEdgesFromJson);
+const decodeScoredEdge = S.decodeUnknownOption(ScoredEdgeFromJson);
+
+function parseScoredEdges(responseText: string): Array<typeof ScoredEdge.Type> {
+  const parsedArray = decodeScoredEdges(responseText);
+  if (O.isSome(parsedArray)) {
+    return Array.from(parsedArray.value);
+  }
+
+  const scored: Array<typeof ScoredEdge.Type> = [];
+  for (const line of responseText.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    const parsedLine = decodeScoredEdge(trimmed);
+    if (O.isSome(parsedLine)) {
+      scored.push(parsedLine.value);
+    }
+  }
+  return scored;
+}
+
+export function termToString(term: Term): string {
   switch (term.type) {
     case "IRI":
       return term.iri;
@@ -373,7 +422,7 @@ function termToString(term: Term): string {
   }
 }
 
-function stringToTerm(value: string): Term {
+export function stringToTerm(value: string): Term {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return { type: "IRI", iri: value };
   }

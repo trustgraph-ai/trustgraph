@@ -10,10 +10,11 @@ import {
   Embeddings,
   EmbeddingsService,
   embeddingsError,
+  makeEmbeddingsSpecs,
   type EmbeddingsServiceShape,
   type ProcessorConfig,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
 
 export interface OllamaEmbeddingsConfig extends ProcessorConfig {
   model?: string;
@@ -102,11 +103,12 @@ export class OllamaEmbeddingsProcessor extends EmbeddingsService {
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<OllamaEmbeddingsConfig, never, Embeddings>({
   id: "embeddings",
-  make: (config) => new OllamaEmbeddingsProcessor(config),
+  specs: () => makeEmbeddingsSpecs(),
+  layer: (config) => OllamaEmbeddingsLive(config),
 });
 
 export async function run(): Promise<void> {
-  await OllamaEmbeddingsProcessor.launch("embeddings");
+  await Effect.runPromise(program);
 }

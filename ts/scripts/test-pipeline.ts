@@ -11,6 +11,17 @@
 
 const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://localhost:8088";
 
+interface RpcSocket {
+  close: () => void;
+  makeRequest: <RequestType extends object, ResponseType>(
+    service: string,
+    request: RequestType,
+    timeout?: number,
+    retries?: number,
+    flow?: string,
+  ) => Promise<ResponseType>;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────
 
 async function post(path: string, body: unknown): Promise<unknown> {
@@ -217,55 +228,37 @@ async function testTextCompletion(): Promise<boolean> {
 }
 
 async function testWebSocket(): Promise<boolean> {
+  let socket: RpcSocket | undefined;
   try {
-    // Use the vendored client's WebSocket adapter
-    const { getWebSocketConstructor } = await import(
-      "../packages/client/src/socket/websocket-adapter.js"
+    const { createTrustGraphSocket } = await import(
+      "../packages/client/src/socket/trustgraph-socket.js"
     );
-    const WS = getWebSocketConstructor();
 
-    return new Promise<boolean>((resolve) => {
-      const ws = new WS(`${GATEWAY_URL.replace("http", "ws")}/api/v1/socket`);
-      const timeout = setTimeout(() => {
-        ws.close();
-        fail("WebSocket", "connection timeout");
-        resolve(false);
-      }, 5000);
+    const gatewayWsUrl = GATEWAY_URL.replace(/^http/, "ws").replace(/\/$/, "");
+    socket = createTrustGraphSocket(
+      "pipeline",
+      process.env.GATEWAY_SECRET,
+      `${gatewayWsUrl}/api/v1/rpc`,
+    );
+    const response = await Promise.race([
+      socket.makeRequest<Record<string, unknown>, Record<string, unknown>>(
+        "config",
+        { operation: "list", keys: [] },
+        5000,
+      ),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("connection timeout")), 5000)
+      ),
+    ]);
 
-      ws.onopen = () => {
-        clearTimeout(timeout);
-        // Send a config list request
-        const msg = JSON.stringify({
-          id: "test-ws-1",
-          service: "config",
-          request: { operation: "list", keys: [] },
-        });
-        ws.send(msg);
-      };
-
-      ws.onmessage = (event: { data: unknown }) => {
-        clearTimeout(timeout);
-        const data = JSON.parse(String(event.data));
-        log("websocket/response", data);
-        ws.close();
-        if (data.id === "test-ws-1") {
-          pass("WebSocket round-trip works");
-          resolve(true);
-        } else {
-          fail("WebSocket", "unexpected response id");
-          resolve(false);
-        }
-      };
-
-      ws.onerror = (err: unknown) => {
-        clearTimeout(timeout);
-        fail("WebSocket", err);
-        resolve(false);
-      };
-    });
+    log("websocket/rpc-response", response);
+    pass("Effect RPC WebSocket round-trip works");
+    return true;
   } catch (err) {
-    fail("WebSocket", err);
+    fail("Effect RPC WebSocket", err);
     return false;
+  } finally {
+    socket?.close();
   }
 }
 

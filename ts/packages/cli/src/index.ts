@@ -24,7 +24,7 @@ program
   .name("tg")
   .description("TrustGraph CLI — interact with TrustGraph services")
   .version("0.1.0")
-  .option("-g, --gateway <url>", "Gateway WebSocket URL", "ws://localhost:8088/api/v1/socket")
+  .option("-g, --gateway <url>", "Gateway WebSocket URL", "ws://localhost:8088/api/v1/rpc")
   .option("-u, --user <id>", "User identifier", "cli")
   .option("-t, --token <token>", "Authentication token")
   .option("-f, --flow <id>", "Flow ID", "default");

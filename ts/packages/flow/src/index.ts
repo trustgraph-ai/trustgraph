@@ -3,8 +3,28 @@
 export { createGateway, type GatewayConfig } from "./gateway/index.js";
 export { OpenAIProcessor } from "./model/text-completion/openai.js";
 export { ClaudeProcessor } from "./model/text-completion/claude.js";
-export { GraphRag, type GraphRagConfig, type GraphRagClients } from "./retrieval/graph-rag.js";
-export { DocumentRag, type DocumentRagClients } from "./retrieval/document-rag.js";
+export {
+  GraphRag,
+  GraphRagEngine,
+  GraphRagLive,
+  makeGraphRagEngine,
+  normalizeGraphRagConfig,
+  stringToTerm,
+  termToString,
+  type GraphRagConfig,
+  type GraphRagClients,
+  type GraphRagEngineShape,
+  type GraphRagQueryOptions,
+} from "./retrieval/graph-rag.js";
+export {
+  DocumentRag,
+  DocumentRagEngine,
+  DocumentRagLive,
+  makeDocumentRagEngine,
+  type DocumentRagClients,
+  type DocumentRagEngineShape,
+  type DocumentRagQueryOptions,
+} from "./retrieval/document-rag.js";
 export { FalkorDBTriplesStore, type FalkorDBConfig } from "./storage/triples/falkordb.js";
 export { FalkorDBTriplesQuery, type FalkorDBQueryConfig } from "./query/triples/falkordb.js";
 

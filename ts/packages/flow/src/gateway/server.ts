@@ -2,19 +2,20 @@
  * API Gateway — HTTP + WebSocket server.
  *
  * Replaces the Python aiohttp gateway with Fastify.
- * Uses the Mux class for WebSocket multiplexing (queue-based request
- * buffering, concurrency control, proper task lifecycle).
+ * Uses Effect RPC over WebSocket for streaming client requests.
  *
  * Python reference: trustgraph-flow/trustgraph/gateway/service.py
  */
 
 import Fastify from "fastify";
 import websocketPlugin from "@fastify/websocket";
-import { Config, Effect } from "effect";
+import { Config, Effect, Exit, Scope } from "effect";
 import * as O from "effect/Option";
-import { errorMessage, optionalStringConfig, registry, toTgError } from "@trustgraph/base";
+import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
+import * as EffectSocket from "effect/unstable/socket/Socket";
+import { optionalStringConfig, registry, toTgError } from "@trustgraph/base";
 import { DispatcherManager } from "./dispatch/manager.js";
-import { Mux, type MuxRequest, type MuxHandler } from "./dispatch/mux.js";
+import { makeGatewayRpcServer } from "./rpc-server.js";
 
 export interface GatewayConfig {
   port: number;
@@ -29,17 +30,56 @@ export async function createGateway(config: GatewayConfig) {
 
   const dispatcher = new DispatcherManager(config);
   await dispatcher.start();
+  const rpcScope = await Effect.runPromise(Scope.make());
+  const rpcServer = await Effect.runPromise(
+    makeGatewayRpcServer(dispatcher).pipe(
+      Effect.provideService(RpcSerialization.RpcSerialization, RpcSerialization.ndjson),
+      Scope.provide(rpcScope),
+    ),
+  );
 
   // Authentication middleware
   app.addHook("onRequest", async (request, reply) => {
     if (request.url === "/api/v1/metrics") return;
-    if (request.url.startsWith("/api/v1/socket")) return; // Socket auth via query param
+    if (request.url.startsWith("/api/v1/rpc")) return; // RPC socket auth via query param
 
     if (config.secret !== undefined && config.secret.length > 0) {
       const auth = request.headers.authorization;
       if (auth === undefined || auth !== `Bearer ${config.secret}`) {
         reply.code(401).send({ error: "Unauthorized" });
       }
+    }
+  });
+
+  app.post<{
+    Body: {
+      scope?: string;
+      service?: string;
+      flow?: string;
+      request?: Record<string, unknown>;
+    };
+  }>("/api/v1/workbench/dispatch", async (request, reply) => {
+    const body = request.body;
+    const service = body.service;
+    const payload = body.request;
+    if (service === undefined || service.length === 0 || payload === undefined) {
+      return reply.code(400).send({
+        error: { type: "bad-request", message: "service and request are required" },
+      });
+    }
+
+    try {
+      const result = body.scope === "flow"
+        ? await dispatcher.dispatchFlowService(body.flow ?? "default", service, payload)
+        : await dispatcher.dispatchGlobalService(service, payload);
+      const err = (result as Record<string, unknown>)?.error as { type?: string; message?: string } | undefined;
+      if (err !== undefined) {
+        const statusCode = err.type === "not-found" ? 404 : 400;
+        return reply.code(statusCode).send(result);
+      }
+      return result;
+    } catch (err) {
+      reply.code(500).send({ error: toTgError(err) });
     }
   });
 
@@ -124,10 +164,8 @@ export async function createGateway(config: GatewayConfig) {
     },
   );
 
-  // WebSocket endpoint: /api/v1/socket
-  // Uses Mux for queue-based request buffering and concurrency control.
-  app.get("/api/v1/socket", { websocket: true }, (socket, request) => {
-    // Auth via query param
+  // Effect RPC WebSocket endpoint: /api/v1/rpc
+  app.get("/api/v1/rpc", { websocket: true }, (socket, request) => {
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get("token");
     if (config.secret !== undefined && config.secret.length > 0 && token !== config.secret) {
@@ -135,91 +173,18 @@ export async function createGateway(config: GatewayConfig) {
       return;
     }
 
-    // Build the MuxHandler that dispatches to the DispatcherManager
-    const handler: MuxHandler = async (muxReq, respond) => {
-      if (muxReq.flow !== undefined && muxReq.flow.length > 0) {
-        await dispatcher.dispatchFlowServiceStreaming(
-          muxReq.flow,
-          muxReq.service,
-          muxReq.request,
-          respond,
+    const program = Effect.scoped(
+      Effect.gen(function* () {
+        const effectSocket = yield* EffectSocket.fromWebSocket(
+          Effect.succeed(socket as unknown as globalThis.WebSocket),
+          { closeCodeIsError: (code) => code !== 1000 },
         );
-      } else {
-        await dispatcher.dispatchGlobalServiceStreaming(
-          muxReq.service,
-          muxReq.request,
-          respond,
-        );
-      }
-    };
+        yield* rpcServer.onSocket(effectSocket, headersFrom(request.headers));
+      }),
+    );
 
-    const mux = new Mux(handler);
-
-    // Start the Mux run loop — sends responses back over the socket
-    const runPromise = mux.run((data) => {
-      // Only send if the socket is still open (readyState 1 = OPEN)
-      if (socket.readyState === 1) {
-        socket.send(data);
-      }
-    });
-
-    // Incoming messages get queued into the Mux
-    socket.on("message", (data) => {
-      try {
-        const msg = JSON.parse(data.toString()) as {
-          id?: string;
-          service?: string;
-          flow?: string;
-          request?: Record<string, unknown>;
-        };
-
-        if (
-          msg.id === undefined ||
-          msg.id.length === 0 ||
-          msg.service === undefined ||
-          msg.service.length === 0 ||
-          msg.request === undefined
-        ) {
-          socket.send(
-            JSON.stringify({
-              id: msg.id ?? null,
-              error: { type: "bad-request", message: "Missing id, service, or request" },
-              complete: true,
-            }),
-          );
-          return;
-        }
-
-        const muxReq: MuxRequest = {
-          id: msg.id,
-          service: msg.service,
-          request: msg.request,
-          ...(msg.flow !== undefined ? { flow: msg.flow } : {}),
-        };
-
-        mux.receive(muxReq);
-      } catch (err) {
-        socket.send(
-          JSON.stringify({
-            error: { type: "parse-error", message: errorMessage(err) },
-            complete: true,
-          }),
-        );
-      }
-    });
-
-    socket.on("close", () => {
-      mux.stop();
-    });
-
-    socket.on("error", () => {
-      mux.stop();
-    });
-
-    // Ensure runPromise errors don't go unhandled
-    runPromise.catch((err) => {
-      console.error("[Gateway] Mux run loop error:", err);
-      mux.stop();
+    Effect.runPromise(program.pipe(Scope.provide(rpcScope))).catch((err) => {
+      console.error("[Gateway] RPC WebSocket error:", err);
       if (socket.readyState === 1) {
         socket.close(1011, "Internal server error");
       }
@@ -236,9 +201,19 @@ export async function createGateway(config: GatewayConfig) {
     start: () => app.listen({ port: config.port, host: "0.0.0.0" }),
     stop: async () => {
       await app.close();
+      await Effect.runPromise(Scope.close(rpcScope, Exit.void));
       await dispatcher.stop();
     },
   };
+}
+
+function headersFrom(headers: Record<string, string | string[] | number | undefined>): ReadonlyArray<[string, string]> {
+  return Object.entries(headers).flatMap(([key, value]) => {
+    if (typeof value === "string") return [[key, value] satisfies [string, string]];
+    if (typeof value === "number") return [[key, String(value)] satisfies [string, string]];
+    if (Array.isArray(value)) return value.map((item) => [key, item] satisfies [string, string]);
+    return [];
+  });
 }
 
 export async function run(): Promise<void> {

@@ -1,14 +1,14 @@
+import { useAtomValue } from "@effect/atom-react";
 import { Workflow, Database } from "lucide-react";
-import { useSessionStore } from "@/hooks/use-session-store";
-import { useSettings } from "@/providers/settings-provider";
+import { flowIdAtom, settingsAtom } from "@/atoms/workbench";
 
 /**
  * Compact badge showing the active flow and collection.
  * Will be expanded later into a popover picker.
  */
 export function FlowSelector() {
-  const flowId = useSessionStore((s) => s.flowId);
-  const collection = useSettings((s) => s.settings.collection);
+  const flowId = useAtomValue(flowIdAtom);
+  const collection = useAtomValue(settingsAtom).collection;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-xs text-fg-muted">

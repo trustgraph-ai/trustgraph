@@ -1,37 +1,23 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RegistryProvider, useAtomMount } from "@effect/atom-react";
 import App from "@/App";
-import { SocketProvider } from "@/providers/socket-provider";
-import { useSettings } from "@/providers/settings-provider";
+import { connectionStateAtom, themeClassAtom } from "@/atoms/workbench";
+import { getWorkbenchQaInitialValues } from "@/qa/initial-values";
 import "@/index.css";
 
-const queryClient = new QueryClient();
-
-/**
- * AppRoot reads settings from the Zustand store and passes them
- * into the SocketProvider so the WebSocket connection is configured
- * before any child component mounts.
- */
 function AppRoot() {
-  const settings = useSettings((s) => s.settings);
+  useAtomMount(themeClassAtom);
+  useAtomMount(connectionStateAtom);
 
-  return (
-    <SocketProvider
-      user={settings.user}
-      {...(settings.apiKey.length > 0 ? { apiKey: settings.apiKey } : {})}
-      {...(settings.gatewayUrl.length > 0 ? { socketUrl: settings.gatewayUrl } : {})}
-    >
-      <App />
-    </SocketProvider>
-  );
+  return <App />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <RegistryProvider defaultIdleTTL={1_000} initialValues={getWorkbenchQaInitialValues()}>
       <AppRoot />
-    </QueryClientProvider>
+    </RegistryProvider>
   </React.StrictMode>,
 );
 

@@ -1,16 +1,16 @@
+import { useAtomValue } from "@effect/atom-react";
 import { Outlet } from "react-router";
 import { WifiOff } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { FlowSelector } from "./flow-selector";
 import { GlowBackground } from "./glow-background";
-import { useProgressStore } from "@/hooks/use-progress-store";
-import { useConnectionState } from "@/providers/socket-provider";
+import { connectionStateAtom, isLoadingAtom } from "@/atoms/workbench";
 
 /**
  * Top loading bar -- shown when any global activity is in progress.
  */
 function LoadingBar() {
-  const isLoading = useProgressStore((s) => s.isLoading);
+  const isLoading = useAtomValue(isLoadingAtom);
 
   if (!isLoading) return null;
 
@@ -25,7 +25,7 @@ function LoadingBar() {
  * Root layout: fixed sidebar + scrollable main content area with a top bar.
  */
 export function RootLayout() {
-  const connectionState = useConnectionState();
+  const connectionState = useAtomValue(connectionStateAtom);
   const isDisconnected =
     connectionState.status === "failed" ||
     connectionState.status === "reconnecting";
@@ -50,7 +50,7 @@ export function RootLayout() {
         <GlowBackground />
 
         {/* Top bar */}
-        <header className="relative z-10 flex h-14 shrink-0 items-center justify-end border-b border-border bg-surface-50/80 backdrop-blur-sm px-6">
+        <header className="relative z-10 flex h-14 shrink-0 items-center justify-end border-b border-border bg-surface-50/80 px-3 backdrop-blur-sm sm:px-6">
           <FlowSelector />
         </header>
 
@@ -63,7 +63,7 @@ export function RootLayout() {
         )}
 
         {/* Page content */}
-        <main id="main-content" className="relative z-10 flex-1 overflow-y-auto p-6">
+        <main id="main-content" className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-6">
           <Outlet />
         </main>
       </div>

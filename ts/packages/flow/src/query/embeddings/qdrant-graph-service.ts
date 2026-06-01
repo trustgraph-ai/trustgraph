@@ -13,78 +13,109 @@ import {
   ProducerSpec,
   type ProcessorConfig,
   type FlowContext,
+  type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
   type GraphEmbeddingsRequest,
   type GraphEmbeddingsResponse,
+  type Spec,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
-import { QdrantGraphEmbeddingsQuery } from "./qdrant-graph.js";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
+import {
+  QdrantGraphEmbeddingsQueryLive,
+  QdrantGraphEmbeddingsQueryService,
+  makeQdrantGraphEmbeddingsQueryService,
+  type QdrantGraphQueryConfig,
+} from "./qdrant-graph.js";
 
-export class GraphEmbeddingsQueryService extends FlowProcessor {
-  private query: QdrantGraphEmbeddingsQuery;
+const onGraphEmbeddingsQueryMessage = Effect.fn("GraphEmbeddingsQueryService.onMessage")(function* (
+  msg: GraphEmbeddingsRequest,
+  properties: Record<string, string>,
+  flowCtx: FlowContext<QdrantGraphEmbeddingsQueryService>,
+) {
+  const requestId = properties.id;
+  if (requestId === undefined || requestId.length === 0) return;
+
+  const producer = yield* flowCtx.flow.producerEffect<GraphEmbeddingsResponse>("graph-embeddings-response");
+  const query = yield* QdrantGraphEmbeddingsQueryService;
+  const user = msg.user ?? "default";
+  const collection = msg.collection ?? "default";
+  yield* Effect.log(
+    `[GraphEmbeddingsQuery] Request: user=${user}, collection=${collection}, vectors=${msg.vectors?.length ?? 0}, limit=${msg.limit}`,
+  );
+
+  const allEntities: GraphEmbeddingsResponse["entities"] = [];
+
+  for (const vector of msg.vectors ?? []) {
+    const matches = yield* query.query({
+      vector,
+      user,
+      collection,
+      limit: msg.limit ?? 50,
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.logError("[GraphEmbeddingsQuery] Query failed", {
+          error: error.message,
+          operation: error.operation,
+        }).pipe(
+          Effect.flatMap(() =>
+            producer.send(requestId, {
+              entities: [],
+              error: { type: "query-error", message: error.message },
+            })
+          ),
+          Effect.as(null),
+        ),
+      ),
+    );
+    if (matches === null) return;
+
+    for (const match of matches) {
+      allEntities.push(match.entity);
+    }
+  }
+
+  yield* producer.send(requestId, { entities: allEntities });
+});
+
+export const makeGraphEmbeddingsQuerySpecs = (): ReadonlyArray<Spec<QdrantGraphEmbeddingsQueryService>> => [
+  new ConsumerSpec<
+    GraphEmbeddingsRequest,
+    FlowResourceNotFoundError | MessagingDeliveryError,
+    QdrantGraphEmbeddingsQueryService
+  >("graph-embeddings-request", onGraphEmbeddingsQueryMessage),
+  new ProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response"),
+];
+
+export class GraphEmbeddingsQueryService extends FlowProcessor<QdrantGraphEmbeddingsQueryService> {
+  private readonly query = makeQdrantGraphEmbeddingsQueryService();
 
   constructor(config: ProcessorConfig) {
     super(config);
-    this.query = new QdrantGraphEmbeddingsQuery();
 
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<GraphEmbeddingsRequest>(
-        "graph-embeddings-request",
-        this.onMessage.bind(this),
-      ),
-    );
-    this.registerSpecification(
-      new ProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response"),
-    );
+    for (const spec of makeGraphEmbeddingsQuerySpecs()) {
+      this.registerSpecification(spec);
+    }
 
     console.log("[GraphEmbeddingsQuery] Service initialized");
   }
 
-  private async onMessage(
-    msg: GraphEmbeddingsRequest,
-    properties: Record<string, string>,
-    flowCtx: FlowContext,
-  ): Promise<void> {
-    const requestId = properties.id;
-    if (requestId === undefined || requestId.length === 0) return;
-
-    const producer = flowCtx.flow.producer<GraphEmbeddingsResponse>("graph-embeddings-response");
-    const user = msg.user ?? "default";
-    const collection = msg.collection ?? "default";
-    console.log(`[GraphEmbeddingsQuery] Request: user=${user}, collection=${collection}, vectors=${msg.vectors?.length ?? 0}, limit=${msg.limit}`);
-
-    try {
-      // Query for each vector and aggregate results
-      const allEntities: GraphEmbeddingsResponse["entities"] = [];
-
-      for (const vector of msg.vectors ?? []) {
-        const matches = await this.query.query({
-          vector,
-          user,
-          collection,
-          limit: msg.limit ?? 50,
-        });
-
-        for (const match of matches) {
-          allEntities.push(match.entity);
-        }
-      }
-
-      await producer.send(requestId, { entities: allEntities });
-    } catch (err) {
-      console.error("[GraphEmbeddingsQuery] Query failed:", err);
-      await producer.send(requestId, {
-        entities: [],
-        error: { type: "query-error", message: String(err) },
-      });
-    }
+  override startEffect() {
+    return super.startEffect().pipe(
+      Effect.provideService(
+        QdrantGraphEmbeddingsQueryService,
+        QdrantGraphEmbeddingsQueryService.of(this.query),
+      ),
+    );
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantGraphQueryConfig, never, QdrantGraphEmbeddingsQueryService>({
   id: "graph-embeddings-query",
-  make: (config) => new GraphEmbeddingsQueryService(config),
+  specs: () => makeGraphEmbeddingsQuerySpecs(),
+  layer: (config) => QdrantGraphEmbeddingsQueryLive(config),
 });
 
 export async function run(): Promise<void> {
-  await GraphEmbeddingsQueryService.launch("graph-embeddings-query");
+  await Effect.runPromise(program);
 }

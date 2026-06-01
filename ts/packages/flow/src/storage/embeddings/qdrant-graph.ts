@@ -9,7 +9,9 @@
  */
 
 import { QdrantClient } from "@qdrant/js-client-rest";
-import type { Term } from "@trustgraph/base";
+import { errorMessage, type Term } from "@trustgraph/base";
+import { Context, Effect, Layer } from "effect";
+import * as S from "effect/Schema";
 
 export interface QdrantGraphEmbeddingsConfig {
   url?: string;
@@ -127,3 +129,67 @@ export class QdrantGraphEmbeddingsStore {
     );
   }
 }
+
+export class QdrantGraphEmbeddingsStoreError extends S.TaggedErrorClass<QdrantGraphEmbeddingsStoreError>()(
+  "QdrantGraphEmbeddingsStoreError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+export interface QdrantGraphEmbeddingsStoreServiceShape {
+  readonly store: (
+    message: GraphEmbeddingsMessage,
+  ) => Effect.Effect<void, QdrantGraphEmbeddingsStoreError>;
+  readonly deleteCollection: (
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, QdrantGraphEmbeddingsStoreError>;
+}
+
+export class QdrantGraphEmbeddingsStoreService extends Context.Service<
+  QdrantGraphEmbeddingsStoreService,
+  QdrantGraphEmbeddingsStoreServiceShape
+>()(
+  "@trustgraph/flow/storage/embeddings/qdrant-graph/QdrantGraphEmbeddingsStoreService",
+) {}
+
+const qdrantGraphEmbeddingsStoreError = (operation: string, cause: unknown) =>
+  new QdrantGraphEmbeddingsStoreError({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+export const makeQdrantGraphEmbeddingsStoreService = (
+  config: QdrantGraphEmbeddingsConfig = {},
+): QdrantGraphEmbeddingsStoreServiceShape => {
+  const store = new QdrantGraphEmbeddingsStore(config);
+  return {
+    store: Effect.fn("QdrantGraphEmbeddingsStore.store")(function* (message) {
+      return yield* Effect.tryPromise({
+        try: () => store.store(message),
+        catch: (cause) => qdrantGraphEmbeddingsStoreError("store", cause),
+      });
+    }),
+    deleteCollection: Effect.fn("QdrantGraphEmbeddingsStore.deleteCollection")(function* (
+      user,
+      collection,
+    ) {
+      return yield* Effect.tryPromise({
+        try: () => store.deleteCollection(user, collection),
+        catch: (cause) => qdrantGraphEmbeddingsStoreError("delete-collection", cause),
+      });
+    }),
+  };
+};
+
+export const QdrantGraphEmbeddingsStoreLive = (
+  config: QdrantGraphEmbeddingsConfig = {},
+): Layer.Layer<QdrantGraphEmbeddingsStoreService> =>
+  Layer.succeed(
+    QdrantGraphEmbeddingsStoreService,
+    QdrantGraphEmbeddingsStoreService.of(makeQdrantGraphEmbeddingsStoreService(config)),
+  );

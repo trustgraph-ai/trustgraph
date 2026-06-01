@@ -179,15 +179,16 @@ export const ConfigOperation = S.Union([
   S.Literal("put"),
   S.Literal("config"),
   S.Literal("getvalues"),
+  S.Literal("getvalues-all-ws"),
 ]);
 export type ConfigOperation = typeof ConfigOperation.Type;
 
-export const ConfigRequest = S.Struct({
-  operation: ConfigOperation,
-  keys: S.optionalKey(StringArray),
-  values: S.optionalKey(UnknownRecord),
-  type: S.optionalKey(S.String),
-});
+export const ConfigRequest = S.StructWithRest(
+  S.Struct({
+    operation: ConfigOperation,
+  }),
+  [UnknownRecord],
+);
 export type ConfigRequest = typeof ConfigRequest.Type;
 
 export const ConfigResponse = S.Struct({
@@ -271,7 +272,9 @@ export const DocumentMetadata = S.Struct({
   user: S.String,
   tags: StringArray,
   parentId: S.optionalKey(S.String),
-  documentType: S.String,
+  "parent-id": S.optionalKey(S.String),
+  documentType: S.optionalKey(S.String),
+  "document-type": S.optionalKey(S.String),
   metadata: OptionalMutableArray(Triple),
 });
 export type DocumentMetadata = typeof DocumentMetadata.Type;
@@ -279,6 +282,7 @@ export type DocumentMetadata = typeof DocumentMetadata.Type;
 export const ProcessingMetadata = S.Struct({
   id: S.String,
   documentId: S.String,
+  "document-id": S.optionalKey(S.String),
   time: S.Number,
   flow: S.String,
   user: S.String,
@@ -291,6 +295,7 @@ export type ProcessingMetadata = typeof ProcessingMetadata.Type;
 export const LibrarianOperation = S.Literals([
   "add-document",
   "remove-document",
+  "update-document",
   "list-documents",
   "get-document-metadata",
   "get-document-content",
@@ -299,15 +304,26 @@ export const LibrarianOperation = S.Literals([
   "add-processing",
   "remove-processing",
   "list-processing",
+  "begin-upload",
+  "upload-chunk",
+  "complete-upload",
+  "get-upload-status",
+  "abort-upload",
+  "list-uploads",
+  "stream-document",
 ]);
 export type LibrarianOperation = typeof LibrarianOperation.Type;
 
 export const LibrarianRequest = S.Struct({
   operation: LibrarianOperation,
   documentId: S.optionalKey(S.String),
+  "document-id": S.optionalKey(S.String),
   processingId: S.optionalKey(S.String),
+  "processing-id": S.optionalKey(S.String),
   documentMetadata: S.optionalKey(DocumentMetadata),
+  "document-metadata": S.optionalKey(DocumentMetadata),
   processingMetadata: S.optionalKey(ProcessingMetadata),
+  "processing-metadata": S.optionalKey(ProcessingMetadata),
   content: S.optionalKey(S.String),
   user: S.optionalKey(S.String),
   collection: S.optionalKey(S.String),
@@ -317,9 +333,13 @@ export type LibrarianRequest = typeof LibrarianRequest.Type;
 export const LibrarianResponse = S.Struct({
   error: S.optionalKey(TgError),
   documentMetadata: S.optionalKey(DocumentMetadata),
+  "document-metadata": S.optionalKey(DocumentMetadata),
   content: S.optionalKey(S.String),
   documents: OptionalMutableArray(DocumentMetadata),
+  "document-metadatas": OptionalMutableArray(DocumentMetadata),
   processing: OptionalMutableArray(ProcessingMetadata),
+  "processing-metadata": OptionalMutableArray(ProcessingMetadata),
+  "processing-metadatas": OptionalMutableArray(ProcessingMetadata),
 });
 export type LibrarianResponse = typeof LibrarianResponse.Type;
 
@@ -330,6 +350,12 @@ export const KnowledgeOperation = S.Literals([
   "delete-kg-core",
   "put-kg-core",
   "load-kg-core",
+  "unload-kg-core",
+  "list-de-cores",
+  "get-de-core",
+  "delete-de-core",
+  "put-de-core",
+  "load-de-core",
 ]);
 export type KnowledgeOperation = typeof KnowledgeOperation.Type;
 
@@ -337,6 +363,14 @@ const GraphEmbedding = S.Struct({
   entity: Term,
   vectors: NumberArrays,
 });
+
+const DocumentEmbeddingsCore = S.StructWithRest(
+  S.Struct({
+    metadata: S.optionalKey(UnknownRecord),
+    chunks: S.optionalKey(S.Unknown.pipe(S.Array, S.mutable)),
+  }),
+  [UnknownRecord],
+);
 
 export const KnowledgeRequest = S.Struct({
   operation: KnowledgeOperation,
@@ -346,6 +380,7 @@ export const KnowledgeRequest = S.Struct({
   collection: S.optionalKey(S.String),
   triples: OptionalMutableArray(Triple),
   graphEmbeddings: OptionalMutableArray(GraphEmbedding),
+  documentEmbeddings: S.optionalKey(DocumentEmbeddingsCore),
 });
 export type KnowledgeRequest = typeof KnowledgeRequest.Type;
 
@@ -355,6 +390,7 @@ export const KnowledgeResponse = S.Struct({
   eos: S.optionalKey(S.Boolean),
   triples: OptionalMutableArray(Triple),
   graphEmbeddings: OptionalMutableArray(GraphEmbedding),
+  documentEmbeddings: S.optionalKey(DocumentEmbeddingsCore),
 });
 export type KnowledgeResponse = typeof KnowledgeResponse.Type;
 

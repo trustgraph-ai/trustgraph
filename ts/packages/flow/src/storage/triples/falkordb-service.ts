@@ -14,47 +14,72 @@ import {
   type ProcessorConfig,
   type FlowContext,
   type Triples,
+  type Spec,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
-import { FalkorDBTriplesStore } from "./falkordb.js";
+import { makeFlowProcessorProgram } from "@trustgraph/base";
+import { Effect } from "effect";
+import {
+  FalkorDBTriplesStoreLive,
+  FalkorDBTriplesStoreService,
+  makeFalkorDBTriplesStoreService,
+  type FalkorDBConfig,
+  type FalkorDBTriplesStoreError,
+} from "./falkordb.js";
 
-export class TriplesStoreService extends FlowProcessor {
-  private store: FalkorDBTriplesStore;
+const onStoreTriplesMessage = Effect.fn("TriplesStoreService.onMessage")(function* (
+  msg: Triples,
+  _properties: Record<string, string>,
+  _flowCtx: FlowContext<FalkorDBTriplesStoreService>,
+): Effect.fn.Return<void, FalkorDBTriplesStoreError, FalkorDBTriplesStoreService> {
+  if (msg.triples.length === 0) return;
+
+  const user = msg.metadata?.user ?? "default";
+  const collection = msg.metadata?.collection ?? "default";
+  const store = yield* FalkorDBTriplesStoreService;
+
+  yield* store.storeTriples(msg.triples, user, collection);
+
+  yield* Effect.log(
+    `[TriplesStore] Stored ${msg.triples.length} triples for ${user}/${collection}`,
+  );
+});
+
+export const makeTriplesStoreSpecs = (): ReadonlyArray<Spec<FalkorDBTriplesStoreService>> => [
+  new ConsumerSpec<Triples, FalkorDBTriplesStoreError, FalkorDBTriplesStoreService>(
+    "store-triples-input",
+    onStoreTriplesMessage,
+  ),
+];
+
+export class TriplesStoreService extends FlowProcessor<FalkorDBTriplesStoreService> {
+  private readonly store = makeFalkorDBTriplesStoreService();
 
   constructor(config: ProcessorConfig) {
     super(config);
-    this.store = new FalkorDBTriplesStore();
 
-    this.registerSpecification(
-      ConsumerSpec.fromPromise<Triples>("store-triples-input", this.onMessage.bind(this)),
-    );
+    for (const spec of makeTriplesStoreSpecs()) {
+      this.registerSpecification(spec);
+    }
 
     console.log("[TriplesStore] Service initialized");
   }
 
-  private async onMessage(
-    msg: Triples,
-    _properties: Record<string, string>,
-    _flowCtx: FlowContext,
-  ): Promise<void> {
-    if (msg.triples.length === 0) return;
-
-    const user = msg.metadata?.user ?? "default";
-    const collection = msg.metadata?.collection ?? "default";
-
-    await this.store.storeTriples(msg.triples, user, collection);
-
-    console.log(
-      `[TriplesStore] Stored ${msg.triples.length} triples for ${user}/${collection}`,
+  override startEffect() {
+    return super.startEffect().pipe(
+      Effect.provideService(
+        FalkorDBTriplesStoreService,
+        FalkorDBTriplesStoreService.of(this.store),
+      ),
     );
   }
 }
 
-export const program = makeProcessorProgram({
+export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBConfig, never, FalkorDBTriplesStoreService>({
   id: "triples-store",
-  make: (config) => new TriplesStoreService(config),
+  specs: () => makeTriplesStoreSpecs(),
+  layer: (config) => FalkorDBTriplesStoreLive(config),
 });
 
 export async function run(): Promise<void> {
-  await TriplesStoreService.launch("triples-store");
+  await Effect.runPromise(program);
 }

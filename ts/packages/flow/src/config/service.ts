@@ -44,8 +44,33 @@ const ConfigPushSchema = S.Struct({
   config: S.Record(S.String, S.Unknown),
 });
 
+const DEFAULT_WORKSPACE = "default";
+
+interface ConfigKeyLike {
+  type: string;
+  key?: string;
+}
+
+interface ConfigValueLike {
+  workspace?: string;
+  type: string;
+  key: string;
+  value: unknown;
+}
+
+type NamespaceStore = Map<string, unknown>;
+type WorkspaceStore = Map<string, NamespaceStore>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 export class ConfigService extends AsyncProcessor {
-  private store = new Map<string, Map<string, unknown>>();
+  private store = new Map<string, WorkspaceStore>();
   private version = 0;
   private readonly persistPath: string | null;
   private consumer: BackendConsumer<ConfigRequest> | null = null;
@@ -137,36 +162,146 @@ export class ConfigService extends AsyncProcessor {
 
     switch (op) {
       case "get":
-        return this.handleGet(request.keys ?? []);
+        return this.handleGet(request);
 
       case "put":
-        return await this.handlePut(request.keys ?? [], request.values ?? {});
+        return await this.handlePut(request);
 
       case "delete":
-        return await this.handleDelete(request.keys ?? []);
+        return await this.handleDelete(request);
 
       case "list":
-        return this.handleList(request.keys ?? []);
+        return this.handleList(request);
 
       case "config":
-        return this.handleConfigDump();
+        return this.handleConfigDump(request);
 
       case "getvalues":
         return this.handleGetValues(request);
+
+      case "getvalues-all-ws":
+        return this.handleGetValuesAllWorkspaces(request);
 
       default:
         throw new Error(`Unknown config operation: ${op as string}`);
     }
   }
 
-  private handleGet(keys: string[]): ConfigResponse {
+  private requestRecord(request: ConfigRequest): Record<string, unknown> {
+    return request as Record<string, unknown>;
+  }
+
+  private workspaceFor(request: ConfigRequest): string {
+    return optionalString(this.requestRecord(request).workspace) ?? DEFAULT_WORKSPACE;
+  }
+
+  private workspaceStore(workspace: string, create: boolean): WorkspaceStore | undefined {
+    let store = this.store.get(workspace);
+    if (store === undefined && create) {
+      store = new Map<string, NamespaceStore>();
+      this.store.set(workspace, store);
+    }
+    return store;
+  }
+
+  private namespaceStore(
+    workspace: string,
+    namespace: string,
+    create: boolean,
+  ): NamespaceStore | undefined {
+    const ws = this.workspaceStore(workspace, create);
+    if (ws === undefined) return undefined;
+
+    let ns = ws.get(namespace);
+    if (ns === undefined && create) {
+      ns = new Map<string, unknown>();
+      ws.set(namespace, ns);
+    }
+    return ns;
+  }
+
+  private rawKeys(request: ConfigRequest): unknown[] {
+    const keys = this.requestRecord(request).keys;
+    return Array.isArray(keys) ? keys : [];
+  }
+
+  private stringKeys(request: ConfigRequest): string[] {
+    return this.rawKeys(request).filter((key): key is string => typeof key === "string");
+  }
+
+  private objectKeys(request: ConfigRequest): ConfigKeyLike[] {
+    return this.rawKeys(request).flatMap((key) => {
+      if (!isRecord(key)) return [];
+      const type = optionalString(key.type);
+      if (type === undefined) return [];
+      const item: ConfigKeyLike = { type };
+      const keyValue = optionalString(key.key);
+      if (keyValue !== undefined) item.key = keyValue;
+      return [item];
+    });
+  }
+
+  private requestType(request: ConfigRequest): string | undefined {
+    return optionalString(this.requestRecord(request).type) ?? this.stringKeys(request)[0];
+  }
+
+  private configValues(request: ConfigRequest): ConfigValueLike[] {
+    const req = this.requestRecord(request);
+    const rawValues = req.values;
+    const workspace = this.workspaceFor(request);
+
+    if (Array.isArray(rawValues)) {
+      return rawValues.flatMap((value) => {
+        if (!isRecord(value)) return [];
+        const type = optionalString(value.type);
+        const key = optionalString(value.key);
+        if (type === undefined || key === undefined) return [];
+        return [{
+          workspace: optionalString(value.workspace) ?? workspace,
+          type,
+          key,
+          value: value.value,
+        }];
+      });
+    }
+
+    if (isRecord(rawValues)) {
+      const namespace = this.requestType(request);
+      if (namespace === undefined) return [];
+      return Object.entries(rawValues).map(([key, value]) => ({
+        workspace,
+        type: namespace,
+        key,
+        value,
+      }));
+    }
+
+    return [];
+  }
+
+  private handleGet(request: ConfigRequest): ConfigResponse {
+    const workspace = this.workspaceFor(request);
+    const objectKeys = this.objectKeys(request);
+
+    if (objectKeys.length > 0) {
+      const values = objectKeys.map((key) => ({
+        type: key.type,
+        key: key.key ?? "",
+        value: key.key !== undefined
+          ? this.namespaceStore(workspace, key.type, false)?.get(key.key)
+          : undefined,
+      }));
+      return { version: this.version, values };
+    }
+
+    const keys = this.stringKeys(request);
     if (keys.length === 0) {
       return { version: this.version, values: {} };
     }
 
     const values: Record<string, unknown> = {};
     const namespace = keys[0];
-    const subMap = this.store.get(namespace);
+    const subMap = this.namespaceStore(workspace, namespace, false);
 
     if (subMap !== undefined) {
       if (keys.length === 1) {
@@ -188,23 +323,12 @@ export class ConfigService extends AsyncProcessor {
     return { version: this.version, values };
   }
 
-  private async handlePut(
-    keys: string[],
-    values: Record<string, unknown>,
-  ): Promise<ConfigResponse> {
-    if (keys.length === 0) {
-      throw new Error("Put requires at least one key (namespace)");
-    }
+  private async handlePut(request: ConfigRequest): Promise<ConfigResponse> {
+    const values = this.configValues(request);
+    if (values.length === 0) throw new Error("Put requires config values");
 
-    const namespace = keys[0];
-    let subMap = this.store.get(namespace);
-    if (subMap === undefined) {
-      subMap = new Map<string, unknown>();
-      this.store.set(namespace, subMap);
-    }
-
-    for (const [k, v] of Object.entries(values)) {
-      subMap.set(k, v);
+    for (const item of values) {
+      this.namespaceStore(item.workspace ?? DEFAULT_WORKSPACE, item.type, true)?.set(item.key, item.value);
     }
 
     this.version++;
@@ -214,25 +338,49 @@ export class ConfigService extends AsyncProcessor {
     return { version: this.version };
   }
 
-  private async handleDelete(keys: string[]): Promise<ConfigResponse> {
+  private async handleDelete(request: ConfigRequest): Promise<ConfigResponse> {
+    const workspace = this.workspaceFor(request);
+    const objectKeys = this.objectKeys(request);
+    if (objectKeys.length > 0) {
+      for (const key of objectKeys) {
+        const ws = this.workspaceStore(workspace, false);
+        if (ws === undefined) continue;
+        if (key.key === undefined) {
+          ws.delete(key.type);
+        } else {
+          const ns = ws.get(key.type);
+          ns?.delete(key.key);
+          if (ns !== undefined && ns.size === 0) ws.delete(key.type);
+        }
+      }
+
+      this.version++;
+      await this.persist();
+      await this.pushConfig();
+      return { version: this.version };
+    }
+
+    const keys = this.stringKeys(request);
     if (keys.length === 0) {
       throw new Error("Delete requires at least one key");
     }
 
     const namespace = keys[0];
+    const ws = this.workspaceStore(workspace, false);
+    if (ws === undefined) return { version: this.version };
 
     if (keys.length === 1) {
       // Delete entire namespace
-      this.store.delete(namespace);
+      ws.delete(namespace);
     } else {
       // Delete specific keys within namespace
-      const subMap = this.store.get(namespace);
+      const subMap = ws.get(namespace);
       if (subMap !== undefined) {
         for (let i = 1; i < keys.length; i++) {
           subMap.delete(keys[i]);
         }
         if (subMap.size === 0) {
-          this.store.delete(namespace);
+          ws.delete(namespace);
         }
       }
     }
@@ -244,17 +392,20 @@ export class ConfigService extends AsyncProcessor {
     return { version: this.version };
   }
 
-  private handleList(keys: string[]): ConfigResponse {
-    if (keys.length === 0) {
+  private handleList(request: ConfigRequest): ConfigResponse {
+    const workspace = this.workspaceFor(request);
+    const ws = this.workspaceStore(workspace, false);
+    const namespace = this.requestType(request);
+
+    if (namespace === undefined) {
       // List all namespaces
       return {
         version: this.version,
-        directory: [...this.store.keys()],
+        directory: ws !== undefined ? [...ws.keys()] : [],
       };
     }
 
-    const namespace = keys[0];
-    const subMap = this.store.get(namespace);
+    const subMap = ws?.get(namespace);
 
     return {
       version: this.version,
@@ -263,30 +414,48 @@ export class ConfigService extends AsyncProcessor {
   }
 
   private handleGetValues(request: ConfigRequest): ConfigResponse {
-    const type = request.type ?? "";
+    const workspace = this.workspaceFor(request);
+    const type = this.requestType(request) ?? "";
+    const ws = this.workspaceStore(workspace, false);
 
-    const values: { key: string; value: unknown }[] = [];
+    const values: { type: string; key: string; value: unknown }[] = [];
 
-    for (const [namespace, subMap] of this.store) {
+    for (const [namespace, subMap] of ws ?? new Map<string, NamespaceStore>()) {
       if (
         type.length === 0 ||
-        namespace === type ||
-        namespace.startsWith(`${type}.`) ||
-        namespace.startsWith(`${type}/`)
+        namespace === type
       ) {
         for (const [k, v] of subMap) {
-          values.push({ key: `${namespace}.${k}`, value: v });
+          values.push({ type: namespace, key: k, value: v });
         }
       }
     }
 
-    return { version: this.version, values: values as unknown as Record<string, unknown> };
+    return { version: this.version, values };
   }
 
-  private handleConfigDump(): ConfigResponse {
+  private handleGetValuesAllWorkspaces(request: ConfigRequest): ConfigResponse {
+    const type = this.requestType(request) ?? "";
+    const values: { workspace: string; type: string; key: string; value: unknown }[] = [];
+
+    for (const [workspace, ws] of this.store) {
+      for (const [namespace, subMap] of ws) {
+        if (type.length > 0 && namespace !== type) continue;
+        for (const [key, value] of subMap) {
+          values.push({ workspace, type: namespace, key, value });
+        }
+      }
+    }
+
+    return { version: this.version, values };
+  }
+
+  private handleConfigDump(request: ConfigRequest): ConfigResponse {
+    const workspace = this.workspaceFor(request);
+    const ws = this.workspaceStore(workspace, false);
     const config: Record<string, unknown> = {};
 
-    for (const [namespace, subMap] of this.store) {
+    for (const [namespace, subMap] of ws ?? new Map<string, NamespaceStore>()) {
       const obj: Record<string, unknown> = {};
       for (const [k, v] of subMap) {
         obj[k] = v;
@@ -305,7 +474,8 @@ export class ConfigService extends AsyncProcessor {
     if (pushProducer === null) return;
 
     const config: Record<string, unknown> = {};
-    for (const [namespace, subMap] of this.store) {
+    const ws = this.workspaceStore(DEFAULT_WORKSPACE, false);
+    for (const [namespace, subMap] of ws ?? new Map<string, NamespaceStore>()) {
       const obj: Record<string, unknown> = {};
       for (const [k, v] of subMap) {
         obj[k] = v;
@@ -326,18 +496,22 @@ export class ConfigService extends AsyncProcessor {
     if (persistPath === null) return;
 
     try {
-      const data: Record<string, Record<string, unknown>> = {};
+      const workspaces: Record<string, Record<string, Record<string, unknown>>> = {};
 
-      for (const [namespace, subMap] of this.store) {
-        const obj: Record<string, unknown> = {};
-        for (const [k, v] of subMap) {
-          obj[k] = v;
+      for (const [workspace, ws] of this.store) {
+        const workspaceData: Record<string, Record<string, unknown>> = {};
+        for (const [namespace, subMap] of ws) {
+          const obj: Record<string, unknown> = {};
+          for (const [k, v] of subMap) {
+            obj[k] = v;
+          }
+          workspaceData[namespace] = obj;
         }
-        data[namespace] = obj;
+        workspaces[workspace] = workspaceData;
       }
 
       const json = JSON.stringify(
-        { version: this.version, data },
+        { version: this.version, workspaces },
         null,
         2,
       );
@@ -356,22 +530,39 @@ export class ConfigService extends AsyncProcessor {
       const raw = await readTextFile(persistPath);
       const parsed = JSON.parse(raw) as {
         version: number;
-        data: Record<string, Record<string, unknown>>;
+        data?: Record<string, Record<string, unknown>>;
+        workspaces?: Record<string, Record<string, Record<string, unknown>>>;
       };
 
       this.version = parsed.version ?? 0;
       this.store.clear();
 
-      for (const [namespace, obj] of Object.entries(parsed.data ?? {})) {
-        const subMap = new Map<string, unknown>();
-        for (const [k, v] of Object.entries(obj)) {
-          subMap.set(k, v);
+      if (parsed.workspaces !== undefined) {
+        for (const [workspace, namespaces] of Object.entries(parsed.workspaces)) {
+          const ws = new Map<string, NamespaceStore>();
+          for (const [namespace, obj] of Object.entries(namespaces)) {
+            const subMap = new Map<string, unknown>();
+            for (const [k, v] of Object.entries(obj)) {
+              subMap.set(k, v);
+            }
+            ws.set(namespace, subMap);
+          }
+          this.store.set(workspace, ws);
         }
-        this.store.set(namespace, subMap);
+      } else {
+        const ws = new Map<string, NamespaceStore>();
+        for (const [namespace, obj] of Object.entries(parsed.data ?? {})) {
+          const subMap = new Map<string, unknown>();
+          for (const [k, v] of Object.entries(obj)) {
+            subMap.set(k, v);
+          }
+          ws.set(namespace, subMap);
+        }
+        this.store.set(DEFAULT_WORKSPACE, ws);
       }
 
       console.log(
-        `[ConfigService] Loaded persisted config (version=${this.version}, namespaces=${this.store.size})`,
+        `[ConfigService] Loaded persisted config (version=${this.version}, workspaces=${this.store.size})`,
       );
     } catch {
       // File doesn't exist yet or is invalid — start fresh

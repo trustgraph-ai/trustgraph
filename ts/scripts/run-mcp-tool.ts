@@ -6,10 +6,10 @@
  * Env:
  *   NATS_URL (default: nats://localhost:4222)
  */
-import { McpToolService } from "../packages/flow/src/agent/mcp-tool/index.js";
+import { run as runMcpToolService } from "../packages/flow/src/agent/mcp-tool/index.js";
 
 async function run(): Promise<void> {
-  await McpToolService.launch("mcp-tool");
+  await runMcpToolService();
 }
 
 run().catch((err) => {

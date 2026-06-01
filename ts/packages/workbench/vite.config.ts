@@ -12,13 +12,16 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api/socket": {
+      "/api/v1/rpc": {
         target: "ws://localhost:8088/",
         ws: true,
-        rewrite: (p) => p.replace("/api/socket", "/api/v1/socket"),
       },
       "/api/v1": {
         target: "http://localhost:8088/",
+      },
+      "/otel": {
+        target: "http://localhost:4328/",
+        rewrite: (p) => p.replace(/^\/otel/, ""),
       },
     },
   },

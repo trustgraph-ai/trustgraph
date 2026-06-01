@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 .turbo/
+.playwright/
+playwright-report/
+test-results/
