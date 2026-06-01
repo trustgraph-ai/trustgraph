@@ -293,7 +293,7 @@ def load_structured_data(
 
         # Send to TrustGraph
         print(f"🚀 Importing {len(output_records)} records to TrustGraph...")
-        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size, token=token)
+        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size, token=token, workspace=workspace)
         
         # Get summary info from descriptor
         format_info = descriptor.get('format', {})
