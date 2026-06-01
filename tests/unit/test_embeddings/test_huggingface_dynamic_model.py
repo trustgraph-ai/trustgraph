@@ -18,7 +18,7 @@ from trustgraph.embeddings.hf.hf import Processor
 class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
     """Test HuggingFace dynamic model loading and caching"""
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_default_model_loaded_on_init(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -39,7 +39,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         assert processor.cached_model_name == "test-model"
         assert processor.embeddings is not None
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_model_caching_avoids_reload(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -63,7 +63,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         mock_hf_class.assert_not_called()
         assert processor.cached_model_name == "test-model"
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_model_reload_on_name_change(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -84,7 +84,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         mock_hf_class.assert_called_once_with(model_name="different-model")
         assert processor.cached_model_name == "different-model"
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_on_embeddings_uses_default_model(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -107,7 +107,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         assert processor.cached_model_name == "test-model"  # Still using default
         assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_on_embeddings_uses_specified_model(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -130,7 +130,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         assert processor.cached_model_name == "custom-model"
         mock_hf_instance.embed_documents.assert_called_once_with(["test text"])
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_multiple_model_switches(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -164,7 +164,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         assert call_count_after_b == initial_call_count + 2  # Reload for model-b
         assert call_count_after_a_again == initial_call_count + 3  # Reload back to model-a
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_none_model_uses_default(self, mock_embeddings_init, mock_async_init, mock_hf_class):
@@ -187,7 +187,7 @@ class TestHuggingFaceDynamicModelLoading(IsolatedAsyncioTestCase):
         assert mock_hf_class.call_count == initial_count
         assert processor.cached_model_name == "test-model"
 
-    @patch('trustgraph.embeddings.hf.hf.HuggingFaceEmbeddings')
+    @patch('langchain_huggingface.HuggingFaceEmbeddings')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.embeddings_service.EmbeddingsService.__init__')
     async def test_initialization_without_model_uses_default(self, mock_embeddings_init, mock_async_init, mock_hf_class):
