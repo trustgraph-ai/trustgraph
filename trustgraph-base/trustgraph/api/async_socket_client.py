@@ -30,6 +30,7 @@ class AsyncSocketClient:
         self.timeout = timeout
         self.token = token
         self.workspace = workspace
+        self._workspace_explicit = workspace != "default"
         self._request_counter = 0
         self._socket = None
         self._connect_cm = None
@@ -92,7 +93,8 @@ class AsyncSocketClient:
             )
 
         if resp.get("type") == "auth-ok":
-            self.workspace = resp.get("workspace", self.workspace)
+            if not self._workspace_explicit:
+                self.workspace = resp.get("workspace", self.workspace)
         elif resp.get("type") == "auth-failed":
             await self._socket.close()
             raise ProtocolException(
