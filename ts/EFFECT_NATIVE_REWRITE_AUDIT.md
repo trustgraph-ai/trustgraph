@@ -13,18 +13,18 @@ Verified source roots:
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
 Current signal counts from `ts/packages` after the 2026-06-02
-flow-manager/librarian runtime normalization slice:
+FlowManager ref-backed state slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 198 |
-| `Map<` | 71 |
+| `Effect.runPromise` | 204 |
+| `Map<` | 75 |
 | `WebSocket` | 47 |
-| `new Map` | 53 |
+| `new Map` | 56 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
-| `while (` | 11 |
+| `while (` | 10 |
 | `new Error` | 14 |
 | `new Promise` | 10 |
 | `JSON.parse` | 7 |
@@ -42,6 +42,10 @@ Notes:
 - `Effect.runPromise` is expected at external Promise compatibility
   boundaries, but each match should still be audited for avoidable internal
   runtime ownership.
+- The `Effect.runPromise`, `Map<`, and `new Map` counts increased in this
+  snapshot because the FlowManager slice added focused service tests and
+  Promise compatibility facades while removing the service's internal mutable
+  object state.
 
 ## Loop Passes
 
@@ -215,6 +219,37 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: FlowManager Ref-Backed State Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/flow-manager/service.ts` now exposes a typed
+    `FlowManagerService` instead of `AsyncProcessorRuntime & Record<string,
+    any>`.
+  - Runtime state now lives in
+    `SynchronizedRef<FlowManagerServiceState>` with `flows`, `blueprints`, the
+    request consumer, response producer, and config request client.
+  - Flow operations now have Effect-returning handlers with Promise facades
+    only on exported compatibility methods.
+  - Blueprint config loading now narrows runtime values before constructing
+    `Blueprint` records, replacing the prior `parsed as Blueprint` shortcut.
+  - `start-flow` and `stop-flow` mutate the flow map through
+    `SynchronizedRef.modifyEffect`, making duplicate checks and map updates
+    atomic.
+  - The consume loop now uses `Effect.whileLoop`; the remaining
+    `consumer.receive(2000)` call is a pubsub boundary for this service.
+  - New flow-manager tests cover tagged errors, ref-backed flow mutation,
+    config push/delete requests, blueprint narrowing, duplicate concurrent
+    starts, and message-level flow-error responses.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/flow-manager-service.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -224,13 +259,12 @@ Notes:
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
 - Flow stateful services:
-  - Config service and KnowledgeCore service ref-backed state are complete.
-    Librarian and flow-manager now have native Effect module startup
-    (`NodeRuntime.runMain` with `ManagedRuntime` compatibility facades), but
-    they still have mutable poller service objects. These remain good
-    candidates for `Context` services, scoped layers,
-    `Ref`/`SynchronizedRef`, `Schedule`, and managed
-    persistence.
+  - Config service, KnowledgeCore service, and FlowManager ref-backed state
+    are complete. Librarian now has native Effect module startup
+    (`NodeRuntime.runMain` with a `ManagedRuntime` compatibility facade), but
+    it still has a mutable poller service object. It remains a good candidate
+    for `Context` services, scoped layers, `Ref`/`SynchronizedRef`,
+    `Schedule`, and managed persistence.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
 - Base messaging/processors:
@@ -256,11 +290,10 @@ Notes:
 
 ## Ranked Findings
 
-### P0: Continue Stateful Flow Services To Scoped Effect Services
+### P0: Migrate Librarian Stateful Service To Scoped Effect Service
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/librarian/service.ts`
-  - `ts/packages/flow/src/flow-manager/service.ts`
 - Effect primitives:
   - `Context`, `Layer.scoped`, `Ref`, `SynchronizedRef`, `Schedule`,
     `Effect.addFinalizer`, `Config`, `Schema`, `FileSystem`,
