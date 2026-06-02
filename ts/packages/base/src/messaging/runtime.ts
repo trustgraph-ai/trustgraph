@@ -3,7 +3,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Context, Duration, Effect, Fiber, Layer, Queue, Scope } from "effect";
+import { Context, Duration, Effect, Fiber, Layer, Queue, Result, Scope, Stream } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type {
@@ -403,17 +403,27 @@ const waitForResponse = Effect.fn("waitForResponse")(function* <TRes, E, R>(
   queue: Queue.Queue<TRes>,
   options: EffectRequestOptions<TRes, E, R> | undefined,
 ) {
-  while (true) {
-    const response = yield* Queue.take(queue);
-    if (options?.recipient === undefined) {
-      return response;
-    }
+  const response = yield* Stream.fromQueue(queue).pipe(
+    Stream.filterMapEffect((candidate) => {
+      if (options?.recipient === undefined) {
+        return Effect.succeed(Result.succeed(candidate));
+      }
 
-    const complete = yield* options.recipient(response);
-    if (complete) {
-      return response;
-    }
-  }
+      return options.recipient(candidate).pipe(
+        Effect.map((complete) =>
+          complete
+            ? Result.succeed(candidate)
+            : Result.fail(undefined)
+        ),
+      );
+    }),
+    Stream.runHead,
+  );
+
+  return yield* O.match(response, {
+    onNone: () => Effect.never,
+    onSome: Effect.succeed,
+  });
 });
 
 export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestResponseFromPubSub")(function* <

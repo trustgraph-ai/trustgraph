@@ -216,6 +216,53 @@ describe("Effect-native messaging runtime", () => {
   );
 
   it.effect(
+    "waits until the request recipient accepts a response",
+    Effect.fnUntraced(function* () {
+      const responseConsumer = new ScriptedConsumer<unknown>();
+      const backend = new RuntimeBackend(
+        responseConsumer,
+        (_message, properties) => {
+          const id = properties?.id ?? "";
+          responseConsumer.push(createMessage("partial", { id }));
+          responseConsumer.push(createMessage("final", { id }));
+        },
+      );
+      const seen: Array<string> = [];
+
+      const response = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const requestor = yield* makeEffectRequestResponseFromPubSub<string, string>(
+            PubSub.fromBackend(backend),
+            {
+              ...defaultMessagingRuntimeConfig,
+              consumerReceiveTimeoutMs: 1,
+            },
+            {
+              requestTopic: "tg.test.request",
+              responseTopic: "tg.test.response",
+              subscription: "sub",
+            },
+          );
+          const fiber = yield* requestor.request("request", {
+            timeoutMs: 250,
+            recipient: (candidate) =>
+              Effect.sync(() => {
+                seen.push(candidate);
+                return candidate === "final";
+              }),
+          }).pipe(Effect.forkChild);
+          yield* TestClock.adjust(Duration.millis(5));
+          return yield* Fiber.join(fiber);
+        }),
+      );
+
+      expect(response).toBe("final");
+      expect(seen).toEqual(["partial", "final"]);
+      expect(responseConsumer.acknowledged.length).toBe(2);
+    }),
+  );
+
+  it.effect(
     "fails request-response calls with a typed timeout",
     Effect.fnUntraced(function* () {
       const responseConsumer = new ScriptedConsumer<string>();
