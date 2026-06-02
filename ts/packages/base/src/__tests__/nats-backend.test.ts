@@ -5,6 +5,27 @@ const natsMock = vi.hoisted(() => {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
+  class MockNatsError extends Error {
+    readonly code: string;
+    private readonly apiCode: number | undefined;
+
+    constructor(code: string, apiCode?: number) {
+      super(code);
+      this.name = "NatsError";
+      this.code = code;
+      this.apiCode = apiCode;
+    }
+
+    jsError() {
+      return this.apiCode === undefined
+        ? null
+        : {
+            code: this.apiCode,
+            description: this.code,
+          };
+    }
+  }
+
   const publish = vi.fn();
   const consumersGet = vi.fn();
   const consumersAdd = vi.fn();
@@ -28,6 +49,7 @@ const natsMock = vi.hoisted(() => {
     encoder,
     headerAppend,
     headers,
+    NatsError: MockNatsError,
     nak,
     next,
     publish,
@@ -39,13 +61,19 @@ const natsMock = vi.hoisted(() => {
 vi.mock("nats", () => ({
   AckPolicy: { Explicit: "explicit" },
   DeliverPolicy: { All: "all", New: "new" },
+  ErrorCode: { JetStream404NoMessages: "404" },
   StringCodec: () => ({
     decode: (input: Uint8Array) => natsMock.decoder.decode(input),
     encode: (input: string) => natsMock.encoder.encode(input),
   }),
   connect: natsMock.connect,
   headers: natsMock.headers,
+  NatsError: natsMock.NatsError,
 }));
+
+function makeNatsError(code: string, apiCode?: number) {
+  return new natsMock.NatsError(code, apiCode);
+}
 
 function resetNatsMock(): void {
   vi.clearAllMocks();
@@ -86,6 +114,66 @@ function resetNatsMock(): void {
 describe("NATS backend", () => {
   beforeEach(() => {
     resetNatsMock();
+  });
+
+  it("creates streams only when stream lookup returns a JetStream 404", async () => {
+    natsMock.streamsInfo.mockRejectedValueOnce(makeNatsError("404", 404));
+    const backend = makeNatsBackend("nats://test");
+
+    await backend.createProducer<string>({ topic: "tg.test.topic" });
+
+    expect(natsMock.streamsAdd).toHaveBeenCalledWith({
+      name: "tg_test",
+      subjects: ["tg.test.>"],
+    });
+  });
+
+  it("does not create streams for non-missing lookup failures", async () => {
+    natsMock.streamsInfo.mockRejectedValueOnce(makeNatsError("PERMISSIONS_VIOLATION"));
+    const backend = makeNatsBackend("nats://test");
+
+    const error = await backend.createProducer<string>({ topic: "tg.test.topic" }).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      _tag: "PubSubError",
+      operation: "stream-info:tg_test",
+    });
+    expect(natsMock.streamsAdd).not.toHaveBeenCalled();
+  });
+
+  it("creates durable consumers only when consumer lookup returns a JetStream 404", async () => {
+    natsMock.consumersGet
+      .mockRejectedValueOnce(makeNatsError("404", 404))
+      .mockResolvedValueOnce({ next: natsMock.next });
+    const backend = makeNatsBackend("nats://test");
+
+    await backend.createConsumer<string>({
+      topic: "tg.test.topic",
+      subscription: "worker",
+    });
+
+    expect(natsMock.consumersAdd).toHaveBeenCalledWith("tg_test", {
+      ack_policy: "explicit",
+      deliver_policy: "new",
+      durable_name: "worker",
+      filter_subject: "tg.test.topic",
+    });
+  });
+
+  it("does not create durable consumers for non-missing lookup failures", async () => {
+    natsMock.consumersGet.mockRejectedValueOnce(makeNatsError("PERMISSIONS_VIOLATION"));
+    const backend = makeNatsBackend("nats://test");
+
+    const error = await backend.createConsumer<string>({
+      topic: "tg.test.topic",
+      subscription: "worker",
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      _tag: "PubSubError",
+      operation: "init-consumer:tg.test.topic",
+    });
+    expect(natsMock.consumersAdd).not.toHaveBeenCalled();
   });
 
   it("maps invalid publish headers to tagged PubSubError", async () => {

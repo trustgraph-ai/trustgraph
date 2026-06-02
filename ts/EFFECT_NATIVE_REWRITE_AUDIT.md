@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 NATS typed
-boundary slice:
+Current signal counts from `ts/packages` after the 2026-06-02 NATS selective
+404 slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -105,6 +105,11 @@ Notes:
   path and maps header construction plus `ack()`/`nak()` failures into tagged
   `PubSubError`s with `Effect.try`. The `receive(` and `JSON.stringify` count
   increases are from the new mocked NATS backend test, not production code.
+- The NATS selective 404 slice replaced catch-all stream/consumer create
+  fallbacks with an internal `S.TaggedErrorClass` lookup wrapper plus
+  `Effect.catchIf` recovery only for NATS JetStream missing-resource errors.
+  Non-missing lookup failures now stay on the typed failure path without
+  attempting to create streams or durable consumers.
 - The gateway streaming callback slice added Effect-returning dispatcher
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
@@ -1182,6 +1187,27 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: NATS Selective 404 Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Added an internal `NatsLookupError` tagged error to preserve lookup causes
+    without leaving `unknown` in Effect error channels.
+  - Stream creation now happens only when `manager.streams.info()` fails with
+    a NATS JetStream 404/missing-resource error.
+  - Durable consumer creation now happens only when `js.consumers.get()` fails
+    with a NATS JetStream 404/missing-resource error.
+  - Added mocked NATS tests proving 404 lookups create resources while
+    permission-style lookup failures do not.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/nats-backend.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1213,10 +1239,9 @@ Notes:
     runtime. Remaining broker P0 work should focus on native backend/NATS
     runtime shape and consumer polling, not replacing `PubSubBackend` with
     `effect/PubSub`.
-  - NATS header construction and ack/nak operations now map thrown SDK
-    failures into tagged `PubSubError`s. Remaining NATS work is selective
-    404 handling, scoped backend/layer construction, and stream/consumer state
-    ownership.
+  - NATS header construction, ack/nak operations, and lookup create-on-missing
+    behavior now stay typed. Remaining NATS work is scoped backend/layer
+    construction and stream/consumer state ownership.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -1287,9 +1312,9 @@ Notes:
   - Treat the producer Promise facade as a completed compatibility wrapper;
     avoid reopening it unless backend runtime changes require a narrower
     adapter.
-  - Keep NATS SDK boundary failures typed; future backend slices should avoid
-    catch-all create-on-failure behavior and move connection/stream state into
-    scoped Effect services.
+  - Keep NATS SDK boundary failures typed and avoid catch-all
+    create-on-failure behavior. Future backend slices should move
+    connection/stream state into scoped Effect services.
 - Tests:
   - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
     config-push stream tests.
