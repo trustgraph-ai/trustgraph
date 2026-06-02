@@ -115,11 +115,10 @@ const makeNativeRecordingProcessor = (
         events.push(`pubsub:${pubsub.backend.constructor.name}`);
       }),
   });
-  const stopEffect = processor.stopEffect;
-  processor.stopEffect = () => {
+  processor.onShutdown(() => {
     events.push("native-stop");
-    return stopEffect();
-  };
+    return Promise.resolve();
+  });
   return processor;
 };
 

@@ -44,37 +44,42 @@ export function makeRequestResponse<TReq, TRes>(
   let runtime: RequestResponseRuntime<TReq, TRes> | null = null;
 
   return {
-    start: async () => {
-      if (runtime !== null) return;
+    start: () =>
+      runtime !== null
+        ? Promise.resolve()
+        : Effect.runPromise(
+            Effect.gen(function* () {
+              const scope = yield* Scope.make();
+              const startRuntime = Effect.gen(function* () {
+                const config = yield* loadMessagingRuntimeConfig();
+                const requestor = yield* makeEffectRequestResponseFromPubSub<TReq, TRes>(
+                  PubSub.fromBackend(options.pubsub),
+                  config,
+                  {
+                    requestTopic: options.requestTopic,
+                    responseTopic: options.responseTopic,
+                    subscription: options.subscription,
+                  },
+                ).pipe(Scope.provide(scope));
 
-      const scope = await Effect.runPromise(Scope.make());
+                runtime = { scope, requestor };
+              });
 
-      try {
-        const config = await Effect.runPromise(loadMessagingRuntimeConfig());
-        const requestor = await Effect.runPromise(
-          makeEffectRequestResponseFromPubSub<TReq, TRes>(
-            PubSub.fromBackend(options.pubsub),
-            config,
-            {
-              requestTopic: options.requestTopic,
-              responseTopic: options.responseTopic,
-              subscription: options.subscription,
-            },
-          ).pipe(Scope.provide(scope)),
-        );
-
-        runtime = { scope, requestor };
-      } catch (error) {
-        await Effect.runPromise(Scope.close(scope, Exit.fail(error))).catch(() => undefined);
-        throw error;
-      }
-    },
-    stop: async () => {
+              yield* startRuntime.pipe(
+                Effect.catch((error) =>
+                  Scope.close(scope, Exit.fail(error)).pipe(
+                    Effect.flatMap(() => Effect.fail(error)),
+                  ),
+                ),
+              );
+            }),
+          ),
+    stop: () => {
       const current = runtime;
       runtime = null;
-      if (current === null) return;
-
-      await Effect.runPromise(Scope.close(current.scope, Exit.void));
+      return current === null
+        ? Promise.resolve()
+        : Effect.runPromise(Scope.close(current.scope, Exit.void));
     },
     /**
      * Send a request and wait for responses.
@@ -85,20 +90,24 @@ export function makeRequestResponse<TReq, TRes>(
      *   Return `true` to indicate the final response has been received.
      *   If omitted, returns the first response.
      */
-    request: async (request, requestOptions) => {
+    request: (request, requestOptions) => {
       const current = runtime;
       if (current === null) {
-        throw messagingLifecycleError(
-          `${options.requestTopic}:${options.responseTopic}`,
-          "request",
-          "RequestResponse not started",
+        return Effect.runPromise(
+          Effect.fail(
+            messagingLifecycleError(
+              `${options.requestTopic}:${options.responseTopic}`,
+              "request",
+              "RequestResponse not started",
+            ),
+          ),
         );
       }
 
       const timeoutMs = requestOptions?.timeoutMs ?? 300_000;
       const recipient = requestOptions?.recipient;
 
-      return await Effect.runPromise(
+      return Effect.runPromise(
         current.requestor.request(request, {
           timeoutMs,
           ...(recipient === undefined

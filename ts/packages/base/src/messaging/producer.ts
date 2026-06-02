@@ -8,6 +8,7 @@ import type { PubSubBackend } from "../backend/types.js";
 import type { ProducerMetrics } from "../metrics/prometheus.js";
 import { Effect } from "effect";
 import { makeEffectProducerHandle, type EffectProducer } from "./runtime.js";
+import { messagingLifecycleError } from "../errors.js";
 
 export interface Producer<T> {
   readonly start: () => Promise<void>;
@@ -23,28 +24,38 @@ export function makeProducer<T>(
   let effectProducer: EffectProducer<T> | null = null;
 
   return {
-    start: async () => {
-      const backend = await pubsub.createProducer<T>({ topic });
-      effectProducer = makeEffectProducerHandle(backend, {
-        topic,
-        ...(metrics === undefined ? {} : { metrics }),
-      });
-    },
-    send: async (id, message) => {
-      if (effectProducer === null) throw new Error("Producer not started");
-
-      await Effect.runPromise(effectProducer.send(id, message));
-    },
-    stop: async () => {
-      if (effectProducer !== null) {
-        const producer = effectProducer;
-        await Effect.runPromise(
-          producer.flush.pipe(
-            Effect.flatMap(() => producer.close),
-          ),
-        );
-        effectProducer = null;
-      }
-    },
+    start: () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const backend = yield* Effect.tryPromise({
+            try: () => pubsub.createProducer<T>({ topic }),
+            catch: (error) => messagingLifecycleError(topic, "create-producer", error),
+          });
+          effectProducer = makeEffectProducerHandle(backend, {
+            topic,
+            ...(metrics === undefined ? {} : { metrics }),
+          });
+        }),
+      ),
+    send: (id, message) =>
+      effectProducer === null
+        ? Effect.runPromise(Effect.fail(messagingLifecycleError(topic, "send", "Producer not started")))
+        : Effect.runPromise(effectProducer.send(id, message)),
+    stop: () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          if (effectProducer !== null) {
+            const producer = effectProducer;
+            yield* producer.flush.pipe(
+              Effect.flatMap(() => producer.close),
+              Effect.ensuring(
+                Effect.sync(() => {
+                  effectProducer = null;
+                }),
+              ),
+            );
+          }
+        }),
+      ),
   };
 }

@@ -26,7 +26,7 @@ import {
 } from "@trustgraph/base";
 import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Duration, Effect, Option } from "effect";
+import { Context, Duration, Effect, Option } from "effect";
 import * as S from "effect/Schema";
 
 // ---------- Internal state types ----------
@@ -158,7 +158,7 @@ export type FlowManagerService = AsyncProcessorRuntime & Record<string, any>;
 
 export function makeFlowManagerService(config: ProcessorConfig): FlowManagerService {
   const service = makeAsyncProcessor(config, {
-    run: () => service.run(),
+    run: () => service.run(Context.empty()),
   }) as FlowManagerService;
   const baseStop = service.stop;
   service.flows = new Map<string, FlowInstance>();

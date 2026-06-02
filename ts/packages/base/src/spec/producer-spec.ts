@@ -9,7 +9,6 @@ import type { Spec } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 import {
   ProducerFactory,
-  type EffectProducer,
 } from "../messaging/runtime.js";
 
 declare const ProducerSpecType: unique symbol;
@@ -26,14 +25,13 @@ export function makeProducerSpec<T>(name: string): ProducerSpec<T> {
       const topic = definition.topics?.[name] ?? name;
       const factory = yield* ProducerFactory;
       const producer = yield* factory.make<T>({ topic });
-      flow.registerProducer(name, producer as EffectProducer<unknown>);
+      flow.registerProducer(name, producer);
   });
 
   return {
     name,
     addEffect,
-    add: async (flow, pubsub, definition) => {
-      await flow.runInCompatibilityScope(addEffect(flow, definition), pubsub);
-    },
+    add: (flow, pubsub, definition, context) =>
+      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }

@@ -5,21 +5,20 @@
  */
 
 import type { Command } from "commander";
-import { createSocket, getOpts } from "./util.js";
+import { Effect } from "effect";
+import { cliCommandError, withSocket } from "./util.js";
 
 export function registerAgentCommands(program: Command): void {
   program
     .command("agent")
     .description("Ask the TrustGraph agent a question")
     .argument("<question>", "Question to ask")
-    .action(async (question: string, _opts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((question: string, _opts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket, opts) =>
+        Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
 
-        await new Promise<void>((resolve, reject) => {
+          yield* Effect.callback<void, ReturnType<typeof cliCommandError>>((resume) => {
           flow.agent(
             question,
             (chunk) => {
@@ -35,14 +34,13 @@ export function registerAgentCommands(program: Command): void {
               if (chunk.length > 0) process.stdout.write(chunk);
               if (complete) {
                 process.stdout.write("\n");
-                resolve();
+                  resume(Effect.void);
               }
             },
-            (err) => reject(new Error(err)),
+              (err) => resume(Effect.fail(cliCommandError("agent", err))),
           );
         });
-      } finally {
-        socket.close();
-      }
-    });
+        }),
+      )),
+    );
 }

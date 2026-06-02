@@ -4,7 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/base/llm_service.py
  */
 
-import { Context, Effect } from "effect";
+import { Context, Effect, Stream } from "effect";
 import * as S from "effect/Schema";
 import {
   errorMessage,
@@ -69,7 +69,7 @@ export class Llm extends Context.Service<Llm, LlmServiceShape>()(
 ) {}
 
 const llmServiceError = (operation: string, cause: unknown) =>
-  new LlmServiceError({
+  LlmServiceError.make({
     operation,
     message: errorMessage(cause),
   });
@@ -135,22 +135,19 @@ const sendStreamingResponse = Effect.fn("LlmService.sendStreamingResponse")(func
     ) => Effect.Effect<void, MessagingDeliveryError>;
   },
 ) {
-  const context = yield* Effect.context<never>();
-  yield* Effect.tryPromise({
-    try: async () => {
-      for await (const chunk of llm.generateContentStream(
-        msg.system,
-        msg.prompt,
-        msg.model,
-        msg.temperature,
-      )) {
-        await Effect.runPromiseWith(context)(
-          responseProducer.send(requestId, chunkToResponse(chunk)),
-        );
-      }
-    },
-    catch: (cause) => llmServiceError("generate-content-stream", cause),
-  });
+  yield* Stream.fromAsyncIterable(
+    llm.generateContentStream(
+      msg.system,
+      msg.prompt,
+      msg.model,
+      msg.temperature,
+    ),
+    (cause) => llmServiceError("generate-content-stream", cause),
+  ).pipe(
+    Stream.runForEach((chunk) =>
+      responseProducer.send(requestId, chunkToResponse(chunk)),
+    ),
+  );
 });
 
 const onLlmRequest = Effect.fn("LlmService.onRequest")(function* (
@@ -168,16 +165,22 @@ const onLlmRequest = Effect.fn("LlmService.onRequest")(function* (
 
   if (msg.streaming === true && llm.supportsStreaming()) {
     yield* sendStreamingResponse(llm, requestId, msg, responseProducer).pipe(
-      Effect.catch((error) =>
-        Effect.logError("[LlmService] Error processing streaming request", {
-          error: error.message,
-          operation: error.operation,
-        }).pipe(
-          Effect.flatMap(() =>
-            responseProducer.send(requestId, llmErrorResponse(error)),
+      Effect.catchTags({
+        LlmServiceError: (error) =>
+          Effect.logError("[LlmService] Error processing streaming request", {
+            error: error.message,
+            operation: error.operation,
+          }).pipe(
+            Effect.flatMap(() =>
+              responseProducer.send(requestId, llmErrorResponse(error)),
+            ),
           ),
-        ),
-      ),
+        MessagingDeliveryError: (error) =>
+          Effect.logError("[LlmService] Error sending streaming response", {
+            error: error.message,
+            operation: error.operation,
+          }),
+      }),
     );
     return;
   }

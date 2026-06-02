@@ -20,8 +20,6 @@ export function makeParameterSpec(name: string): ParameterSpec {
   return {
     name,
     addEffect,
-    add: async (flow, _pubsub, definition) => {
-      await Effect.runPromise(addEffect(flow, definition));
-    },
+    add: (flow, _pubsub, definition) => Effect.runPromise(addEffect(flow, definition)),
   };
 }

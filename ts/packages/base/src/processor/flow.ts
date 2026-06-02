@@ -4,7 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/base/flow.py
  */
 
-import { Effect, Exit, Scope } from "effect";
+import { Context, Effect, Exit, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
 import { makePubSubService } from "../backend/pubsub.js";
 import {
@@ -64,19 +64,20 @@ export function makeFlow<Requirements = never>(
   definition: FlowDefinition,
   specifications: ReadonlyArray<Spec<Requirements>>,
 ) {
-  const producers = new Map<string, EffectProducer<unknown>>();
+  const producers = new Map<string, EffectProducer<never>>();
   const consumers = new Map<string, EffectConsumer>();
-  const requestors = new Map<string, EffectRequestResponse<unknown, unknown>>();
+  const requestors = new Map<string, EffectRequestResponse<never, unknown>>();
   const parameters = new Map<string, unknown>();
   let compatibilityScope: Scope.Closeable | null = null;
 
-  const ensureCompatibilityScope = async (): Promise<Scope.Closeable> => {
+  const ensureCompatibilityScopeEffect = Effect.fn("Flow.ensureCompatibilityScope")(function* () {
     if (compatibilityScope !== null) {
       return compatibilityScope;
     }
-    compatibilityScope = await Effect.runPromise(Scope.make());
-    return compatibilityScope;
-  };
+    const scope = yield* Scope.make();
+    compatibilityScope = scope;
+    return scope;
+  });
 
   const toEffectRequestOptions = <TRes>(
     options: FlowRequestOptions<TRes> | undefined,
@@ -105,41 +106,58 @@ export function makeFlow<Requirements = never>(
         }
       });
     },
-    async start(): Promise<void> {
-      if (compatibilityScope !== null) {
-        await flow.stop();
-      }
-      await flow.runInCompatibilityScope(
-        flow.startEffect() as Effect.Effect<void, PubSubError, SpecRuntimeRequirements>,
-        pubsub,
+    start(context: Context.Context<Requirements>): Promise<void> {
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          if (compatibilityScope !== null) {
+            yield* flow.stopEffect();
+          }
+          yield* flow.runInCompatibilityScopeEffect(flow.startEffect(), pubsub, context);
+        }),
       );
     },
-    async stop(): Promise<void> {
-      const scope = compatibilityScope;
-      compatibilityScope = null;
-      if (scope !== null) {
-        await Effect.runPromise(Scope.close(scope, Exit.void));
-      }
-      flow.clearResources();
+    stop(): Promise<void> {
+      return Effect.runPromise(flow.stopEffect());
     },
-    async runInCompatibilityScope<A, E>(
-      effect: Effect.Effect<A, E, SpecRuntimeRequirements>,
+    stopEffect(): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        const scope = compatibilityScope;
+        compatibilityScope = null;
+        if (scope !== null) {
+          yield* Scope.close(scope, Exit.void);
+        }
+        flow.clearResources();
+      });
+    },
+    runInCompatibilityScopeEffect<A, E>(
+      effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
       runtimePubsub: PubSubBackend,
-    ): Promise<A> {
-      const scope = await ensureCompatibilityScope();
-      const pubsubService = makePubSubService(runtimePubsub);
-      const messagingConfig = await Effect.runPromise(loadMessagingRuntimeConfig());
-      return await Effect.runPromise(
-        effect.pipe(
-          Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsubService))),
-          Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsubService, messagingConfig))),
-          Effect.provideService(
-            RequestResponseFactory,
-            RequestResponseFactory.of(makeRequestResponseFactoryService(pubsubService, messagingConfig)),
+      context: Context.Context<Requirements>,
+    ) {
+      return Effect.gen(function* () {
+        const scope = yield* ensureCompatibilityScopeEffect();
+        const pubsubService = makePubSubService(runtimePubsub);
+        const messagingConfig = yield* loadMessagingRuntimeConfig();
+        return yield* Effect.provide(
+          effect.pipe(
+            Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsubService))),
+            Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsubService, messagingConfig))),
+            Effect.provideService(
+              RequestResponseFactory,
+              RequestResponseFactory.of(makeRequestResponseFactoryService(pubsubService, messagingConfig)),
+            ),
+            Scope.provide(scope),
           ),
-          Scope.provide(scope),
-        ),
-      );
+          context,
+        );
+      });
+    },
+    runInCompatibilityScope<A, E>(
+      effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
+      runtimePubsub: PubSubBackend,
+      context: Context.Context<Requirements>,
+    ): Promise<A> {
+      return Effect.runPromise(flow.runInCompatibilityScopeEffect(effect, runtimePubsub, context));
     },
     clearResources(): void {
       producers.clear();
@@ -147,13 +165,13 @@ export function makeFlow<Requirements = never>(
       requestors.clear();
       parameters.clear();
     },
-    registerProducer(registerName: string, producer: EffectProducer<unknown>): void {
+    registerProducer<T>(registerName: string, producer: EffectProducer<T>): void {
       producers.set(registerName, producer);
     },
     registerConsumer(registerName: string, consumer: EffectConsumer): void {
       consumers.set(registerName, consumer);
     },
-    registerRequestor(registerName: string, rr: EffectRequestResponse<unknown, unknown>): void {
+    registerRequestor<TReq, TRes>(registerName: string, rr: EffectRequestResponse<TReq, TRes>): void {
       requestors.set(registerName, rr);
     },
     setParameter(parameterName: string, value: unknown): void {

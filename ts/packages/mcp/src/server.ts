@@ -1,16 +1,77 @@
 /**
- * TrustGraph MCP server.
+ * TrustGraph MCP stdio compatibility server.
  *
- * Exposes TrustGraph capabilities as MCP tools for AI assistants.
- * Uses the vendored @trustgraph/client for all gateway communication.
- *
- * Python reference: trustgraph-mcp/trustgraph/mcp_server/mcp.py
+ * This keeps the original @modelcontextprotocol/sdk entry points available,
+ * while moving gateway calls, callback bridging, JSON encoding, and config
+ * reads behind Effect values.
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { createTrustGraphSocket, type BaseApi, type Term } from "@trustgraph/client";
+import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
+import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
+import {NodeRuntime} from "@effect/platform-node";
+import {createTrustGraphSocket, type BaseApi, type Term} from "@trustgraph/client";
+import {Effect, Layer, ManagedRuntime} from "effect";
+import * as Predicate from "effect/Predicate";
+import * as S from "effect/Schema";
+import {z} from "zod";
+import {loadTrustGraphMcpConfig} from "./server-effect.js";
+
+interface ToolTextContent {
+  readonly type: "text"
+  readonly text: string
+}
+
+interface ToolTextResult extends Record<string, unknown> {
+  readonly content: Array<ToolTextContent>
+}
+
+class StdioMcpError extends S.TaggedErrorClass<StdioMcpError>()(
+  "StdioMcpError",
+  {
+    cause: S.DefectWithStack,
+    message: S.String,
+  },
+) {
+}
+
+const encodeJsonText = S.encodeUnknownEffect(S.UnknownFromJsonString);
+
+const toErrorMessage = (cause: unknown): string => {
+  if (Predicate.isError(cause) && cause.message.length > 0) {
+    return cause.message;
+  }
+  if (Predicate.isString(cause) && cause.length > 0) {
+    return cause;
+  }
+  if (Predicate.isObject(cause) && Predicate.hasProperty(cause, "message") && Predicate.isString(cause.message) && cause.message.length > 0) {
+    return cause.message;
+  }
+  return "TrustGraph MCP stdio operation failed";
+};
+
+const stdioMcpError = (cause: unknown) =>
+  StdioMcpError.make({cause, message: toErrorMessage(cause)});
+
+const textResult = (text: string): ToolTextResult => ({
+  content: [{type: "text", text}],
+});
+
+const gatewayRequest = <A>(request: () => Promise<A>) =>
+  Effect.tryPromise({
+    try: request,
+    catch: stdioMcpError,
+  });
+
+const jsonText = (value: unknown) =>
+  encodeJsonText(value).pipe(
+    Effect.mapError(stdioMcpError),
+  );
+
+const runTextTool = (effect: Effect.Effect<string, StdioMcpError>) =>
+  Effect.runPromise(effect.pipe(Effect.map(textResult)));
+
+const runJsonTool = (effect: Effect.Effect<unknown, StdioMcpError>) =>
+  Effect.runPromise(effect.pipe(Effect.flatMap(jsonText), Effect.map(textResult)));
 
 export function createMcpServer(config: {
   gatewayUrl: string;
@@ -34,7 +95,6 @@ export function createMcpServer(config: {
 
   // ===================== Flow-scoped tools =====================
 
-  // --- Text Completion ---
   server.tool(
     "text_completion",
     "Run a text completion using the configured LLM",
@@ -42,14 +102,10 @@ export function createMcpServer(config: {
       system: z.string().describe("System prompt"),
       prompt: z.string().describe("User prompt"),
     },
-    async ({ system, prompt }) => {
-      const flow = socket.flow(flowId);
-      const response = await flow.textCompletion(system, prompt);
-      return { content: [{ type: "text" as const, text: response }] };
-    },
+    ({system, prompt}) =>
+      runTextTool(gatewayRequest(() => socket.flow(flowId).textCompletion(system, prompt))),
   );
 
-  // --- Graph RAG ---
   server.tool(
     "graph_rag",
     "Query the knowledge graph using RAG",
@@ -59,21 +115,21 @@ export function createMcpServer(config: {
       triple_limit: z.number().optional().describe("Max triples per entity"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ query, entity_limit, triple_limit, collection }) => {
-      const flow = socket.flow(flowId);
-      const response = await flow.graphRag(
-        query,
-        {
-          ...(entity_limit !== undefined ? { entityLimit: entity_limit } : {}),
-          ...(triple_limit !== undefined ? { tripleLimit: triple_limit } : {}),
-        },
-        collection,
-      );
-      return { content: [{ type: "text" as const, text: response }] };
-    },
+    ({query, entity_limit, triple_limit, collection}) =>
+      runTextTool(
+        gatewayRequest(() =>
+          socket.flow(flowId).graphRag(
+            query,
+            {
+              ...(entity_limit !== undefined ? {entityLimit: entity_limit} : {}),
+              ...(triple_limit !== undefined ? {tripleLimit: triple_limit} : {}),
+            },
+            collection,
+          )
+        ),
+      ),
   );
 
-  // --- Document RAG ---
   server.tool(
     "document_rag",
     "Query documents using RAG",
@@ -82,56 +138,45 @@ export function createMcpServer(config: {
       doc_limit: z.number().optional().describe("Max documents to retrieve"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ query, doc_limit, collection }) => {
-      const flow = socket.flow(flowId);
-      const response = await flow.documentRag(query, doc_limit, collection);
-      return { content: [{ type: "text" as const, text: response }] };
-    },
+    ({query, doc_limit, collection}) =>
+      runTextTool(gatewayRequest(() => socket.flow(flowId).documentRag(query, doc_limit, collection))),
   );
 
-  // --- Agent ---
   server.tool(
     "agent",
     "Ask the TrustGraph agent a question",
     {
       question: z.string().describe("Question for the agent"),
     },
-    async ({ question }) => {
-      const flow = socket.flow(flowId);
-      let fullAnswer = "";
-
-      await new Promise<void>((resolve, reject) => {
-        flow.agent(
-          question,
-          () => {}, // think — ignore for MCP
-          () => {}, // observe — ignore for MCP
-          (chunk, complete) => {
-            fullAnswer += chunk;
-            if (complete) resolve();
-          },
-          (err) => reject(new Error(err)),
-        );
-      });
-
-      return { content: [{ type: "text" as const, text: fullAnswer }] };
-    },
+    ({question}) =>
+      runTextTool(
+        Effect.callback<string, StdioMcpError>((resume) => {
+          let fullAnswer = "";
+          socket.flow(flowId).agent(
+            question,
+            () => {},
+            () => {},
+            (chunk, complete) => {
+              fullAnswer += chunk;
+              if (complete) {
+                resume(Effect.succeed(fullAnswer));
+              }
+            },
+            (cause) => resume(Effect.fail(stdioMcpError(cause))),
+          );
+        }),
+      ),
   );
 
-  // --- Embeddings ---
   server.tool(
     "embeddings",
     "Generate text embeddings",
     {
       text: z.array(z.string()).describe("Texts to embed"),
     },
-    async ({ text }) => {
-      const flow = socket.flow(flowId);
-      const vectors = await flow.embeddings(text);
-      return { content: [{ type: "text" as const, text: JSON.stringify(vectors) }] };
-    },
+    ({text}) => runJsonTool(gatewayRequest(() => socket.flow(flowId).embeddings(text))),
   );
 
-  // --- Triples Query ---
   server.tool(
     "triples_query",
     "Query the knowledge graph for triples matching a pattern",
@@ -142,17 +187,16 @@ export function createMcpServer(config: {
       limit: z.number().optional().describe("Max results"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ s, p, o, limit, collection }) => {
-      const flow = socket.flow(flowId);
-      const sTerm: Term | undefined = s !== undefined && s.length > 0 ? { t: "i", i: s } : undefined;
-      const pTerm: Term | undefined = p !== undefined && p.length > 0 ? { t: "i", i: p } : undefined;
-      const oTerm: Term | undefined = o !== undefined && o.length > 0 ? { t: "i", i: o } : undefined;
-      const triples = await flow.triplesQuery(sTerm, pTerm, oTerm, limit, collection);
-      return { content: [{ type: "text" as const, text: JSON.stringify(triples, null, 2) }] };
+    ({s, p, o, limit, collection}) => {
+      const sTerm: Term | undefined = s !== undefined && s.length > 0 ? {t: "i", i: s} : undefined;
+      const pTerm: Term | undefined = p !== undefined && p.length > 0 ? {t: "i", i: p} : undefined;
+      const oTerm: Term | undefined = o !== undefined && o.length > 0 ? {t: "i", i: o} : undefined;
+      return runJsonTool(
+        gatewayRequest(() => socket.flow(flowId).triplesQuery(sTerm, pTerm, oTerm, limit, collection)),
+      );
     },
   );
 
-  // --- Graph Embeddings Query ---
   server.tool(
     "graph_embeddings_query",
     "Find entities similar to a text query using vector embeddings",
@@ -161,17 +205,20 @@ export function createMcpServer(config: {
       limit: z.number().optional().describe("Max results"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ query, limit, collection }) => {
-      const flow = socket.flow(flowId);
-      // First embed the query, then search
-      const vectors = await flow.embeddings([query]);
-      const entities = await flow.graphEmbeddingsQuery(
-        vectors[0],
-        limit ?? 10,
-        collection,
-      );
-      return { content: [{ type: "text" as const, text: JSON.stringify(entities, null, 2) }] };
-    },
+    ({query, limit, collection}) =>
+      runJsonTool(
+        gatewayRequest(() => socket.flow(flowId).embeddings([query])).pipe(
+          Effect.flatMap((vectors) =>
+            gatewayRequest(() =>
+              socket.flow(flowId).graphEmbeddingsQuery(
+                vectors[0] ?? [],
+                limit ?? 10,
+                collection,
+              )
+            )
+          ),
+        ),
+      ),
   );
 
   // ===================== Config tools =====================
@@ -180,11 +227,7 @@ export function createMcpServer(config: {
     "get_config_all",
     "Get all configuration values",
     {},
-    async () => {
-      const cfg = socket.config();
-      const resp = await cfg.getConfigAll();
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp, null, 2) }] };
-    },
+    () => runJsonTool(gatewayRequest(() => socket.config().getConfigAll())),
   );
 
   server.tool(
@@ -198,11 +241,7 @@ export function createMcpServer(config: {
         }),
       ).describe("Config keys to retrieve"),
     },
-    async ({ keys }) => {
-      const cfg = socket.config();
-      const resp = await cfg.getConfig(keys);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp, null, 2) }] };
-    },
+    ({keys}) => runJsonTool(gatewayRequest(() => socket.config().getConfig(keys))),
   );
 
   server.tool(
@@ -217,11 +256,7 @@ export function createMcpServer(config: {
         }),
       ).describe("Key-value entries to set"),
     },
-    async ({ values }) => {
-      const cfg = socket.config();
-      const resp = await cfg.putConfig(values);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp) }] };
-    },
+    ({values}) => runJsonTool(gatewayRequest(() => socket.config().putConfig(values))),
   );
 
   server.tool(
@@ -231,11 +266,7 @@ export function createMcpServer(config: {
       type: z.string().describe("Config type"),
       key: z.string().describe("Config key"),
     },
-    async ({ type, key }) => {
-      const cfg = socket.config();
-      const resp = await cfg.deleteConfig({ type, key });
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp) }] };
-    },
+    ({type, key}) => runJsonTool(gatewayRequest(() => socket.config().deleteConfig({type, key}))),
   );
 
   // ===================== Flow management tools =====================
@@ -244,11 +275,7 @@ export function createMcpServer(config: {
     "get_flows",
     "List all available flows",
     {},
-    async () => {
-      const flows = socket.flows();
-      const ids = await flows.getFlows();
-      return { content: [{ type: "text" as const, text: JSON.stringify(ids, null, 2) }] };
-    },
+    () => runJsonTool(gatewayRequest(() => socket.flows().getFlows())),
   );
 
   server.tool(
@@ -257,11 +284,7 @@ export function createMcpServer(config: {
     {
       flow_id: z.string().describe("Flow ID to retrieve"),
     },
-    async ({ flow_id }) => {
-      const flows = socket.flows();
-      const def = await flows.getFlow(flow_id);
-      return { content: [{ type: "text" as const, text: JSON.stringify(def, null, 2) }] };
-    },
+    ({flow_id}) => runJsonTool(gatewayRequest(() => socket.flows().getFlow(flow_id))),
   );
 
   server.tool(
@@ -273,11 +296,10 @@ export function createMcpServer(config: {
       description: z.string().describe("Flow description"),
       parameters: z.record(z.unknown()).optional().describe("Optional flow parameters"),
     },
-    async ({ flow_id, blueprint_name, description, parameters }) => {
-      const flows = socket.flows();
-      const resp = await flows.startFlow(flow_id, blueprint_name, description, parameters);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp, null, 2) }] };
-    },
+    ({flow_id, blueprint_name, description, parameters}) =>
+      runJsonTool(
+        gatewayRequest(() => socket.flows().startFlow(flow_id, blueprint_name, description, parameters)),
+      ),
   );
 
   server.tool(
@@ -286,11 +308,7 @@ export function createMcpServer(config: {
     {
       flow_id: z.string().describe("Flow ID to stop"),
     },
-    async ({ flow_id }) => {
-      const flows = socket.flows();
-      const resp = await flows.stopFlow(flow_id);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp, null, 2) }] };
-    },
+    ({flow_id}) => runJsonTool(gatewayRequest(() => socket.flows().stopFlow(flow_id))),
   );
 
   // ===================== Library (document) tools =====================
@@ -299,11 +317,7 @@ export function createMcpServer(config: {
     "get_documents",
     "List all documents in the library",
     {},
-    async () => {
-      const lib = socket.librarian();
-      const docs = await lib.getDocuments();
-      return { content: [{ type: "text" as const, text: JSON.stringify(docs, null, 2) }] };
-    },
+    () => runJsonTool(gatewayRequest(() => socket.librarian().getDocuments())),
   );
 
   server.tool(
@@ -317,18 +331,19 @@ export function createMcpServer(config: {
       tags: z.array(z.string()).optional().describe("Document tags"),
       id: z.string().optional().describe("Optional document ID"),
     },
-    async ({ document, mime_type, title, comments, tags, id }) => {
-      const lib = socket.librarian();
-      const resp = await lib.loadDocument(
-        document,
-        mime_type,
-        title,
-        comments ?? "",
-        tags ?? [],
-        id,
-      );
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp, null, 2) }] };
-    },
+    ({document, mime_type, title, comments, tags, id}) =>
+      runJsonTool(
+        gatewayRequest(() =>
+          socket.librarian().loadDocument(
+            document,
+            mime_type,
+            title,
+            comments ?? "",
+            tags ?? [],
+            id,
+          )
+        ),
+      ),
   );
 
   server.tool(
@@ -338,11 +353,7 @@ export function createMcpServer(config: {
       id: z.string().describe("Document ID to remove"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ id, collection }) => {
-      const lib = socket.librarian();
-      const resp = await lib.removeDocument(id, collection);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp) }] };
-    },
+    ({id, collection}) => runJsonTool(gatewayRequest(() => socket.librarian().removeDocument(id, collection))),
   );
 
   // ===================== Prompt tools =====================
@@ -351,11 +362,7 @@ export function createMcpServer(config: {
     "get_prompts",
     "List available prompt templates",
     {},
-    async () => {
-      const cfg = socket.config();
-      const prompts = await cfg.getPrompts();
-      return { content: [{ type: "text" as const, text: JSON.stringify(prompts, null, 2) }] };
-    },
+    () => runJsonTool(gatewayRequest(() => socket.config().getPrompts())),
   );
 
   server.tool(
@@ -364,11 +371,7 @@ export function createMcpServer(config: {
     {
       id: z.string().describe("Prompt template ID"),
     },
-    async ({ id }) => {
-      const cfg = socket.config();
-      const prompt = await cfg.getPrompt(id);
-      return { content: [{ type: "text" as const, text: JSON.stringify(prompt, null, 2) }] };
-    },
+    ({id}) => runJsonTool(gatewayRequest(() => socket.config().getPrompt(id))),
   );
 
   // ===================== Knowledge core tools =====================
@@ -377,11 +380,7 @@ export function createMcpServer(config: {
     "get_knowledge_cores",
     "List available knowledge graph cores",
     {},
-    async () => {
-      const knowledge = socket.knowledge();
-      const cores = await knowledge.getKnowledgeCores();
-      return { content: [{ type: "text" as const, text: JSON.stringify(cores, null, 2) }] };
-    },
+    () => runJsonTool(gatewayRequest(() => socket.knowledge().getKnowledgeCores())),
   );
 
   server.tool(
@@ -391,11 +390,7 @@ export function createMcpServer(config: {
       id: z.string().describe("Knowledge core ID"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ id, collection }) => {
-      const knowledge = socket.knowledge();
-      const resp = await knowledge.deleteKgCore(id, collection);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp) }] };
-    },
+    ({id, collection}) => runJsonTool(gatewayRequest(() => socket.knowledge().deleteKgCore(id, collection))),
   );
 
   server.tool(
@@ -406,31 +401,42 @@ export function createMcpServer(config: {
       flow: z.string().describe("Flow to use for loading"),
       collection: z.string().optional().describe("Collection name"),
     },
-    async ({ id, flow, collection }) => {
-      const knowledge = socket.knowledge();
-      const resp = await knowledge.loadKgCore(id, flow, collection);
-      return { content: [{ type: "text" as const, text: JSON.stringify(resp) }] };
-    },
+    ({id, flow, collection}) => runJsonTool(gatewayRequest(() => socket.knowledge().loadKgCore(id, flow, collection))),
   );
 
-  return { server, socket };
+  return {server, socket};
 }
 
-export async function run(): Promise<void> {
-  const { server, socket } = createMcpServer({
-    gatewayUrl: process.env.GATEWAY_URL ?? "ws://localhost:8088/api/v1/rpc",
-    user: process.env.USER_ID ?? "mcp",
-    flowId: process.env.FLOW_ID ?? "default",
-    ...(process.env.GATEWAY_SECRET !== undefined
-      ? { token: process.env.GATEWAY_SECRET }
-      : {}),
-  });
-
+export const runProgram = Effect.gen(function*() {
+  const config = yield* loadTrustGraphMcpConfig();
+  const serverConfig = {
+    gatewayUrl: config.gatewayUrl,
+    user: config.user,
+    flowId: config.flowId,
+    ...(config.token === undefined ? {} : {token: config.token}),
+  };
+  const {server, socket} = createMcpServer(serverConfig);
   const transport = new StdioServerTransport();
-  await server.connect(transport);
 
-  process.on("SIGINT", () => {
-    socket.close();
-    process.exit(0);
+  yield* Effect.tryPromise({
+    try: () => server.connect(transport),
+    catch: stdioMcpError,
   });
+
+  yield* Effect.sync(() => {
+    process.on("SIGINT", () => {
+      socket.close();
+      process.exit(0);
+    });
+  });
+});
+
+const stdioRuntime = ManagedRuntime.make(Layer.empty);
+
+export function run(): Promise<void> {
+  return stdioRuntime.runPromise(runProgram);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(runProgram);
 }

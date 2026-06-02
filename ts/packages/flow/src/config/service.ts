@@ -11,7 +11,7 @@
  * Python reference: trustgraph-flow/trustgraph/config/service/service.py
  */
 
-import { Duration, Effect } from "effect";
+import { Context, Duration, Effect } from "effect";
 import * as S from "effect/Schema";
 import {
   makeAsyncProcessor,
@@ -148,7 +148,7 @@ export type ConfigService = AsyncProcessorRuntime & Record<string, any>;
 
 export function makeConfigService(config: ConfigServiceConfig): ConfigService {
   const service = makeAsyncProcessor(config, {
-    run: () => service.run(),
+    run: () => service.run(Context.empty()),
   }) as ConfigService;
   const baseStop = service.stop;
   service.store = new Map<string, WorkspaceStore>();

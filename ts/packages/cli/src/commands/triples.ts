@@ -6,7 +6,8 @@
 
 import type { Command } from "commander";
 import type { Term } from "@trustgraph/client";
-import { createSocket, getOpts } from "./util.js";
+import { Effect } from "effect";
+import { cliCommandError, withSocket, writeJson } from "./util.js";
 
 export function registerTriplesCommands(program: Command): void {
   program
@@ -17,11 +18,9 @@ export function registerTriplesCommands(program: Command): void {
     .option("-o, --object <iri>", "Object IRI or literal")
     .option("-l, --limit <n>", "Max results", "20")
     .option("--collection <name>", "Collection name")
-    .action(async (cmdOpts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((cmdOpts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket, opts) =>
+        Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
         const subject = cmdOpts.subject as string | undefined;
         const predicate = cmdOpts.predicate as string | undefined;
@@ -36,16 +35,19 @@ export function registerTriplesCommands(program: Command): void {
           ? { t: "i", i: object }
           : undefined;
 
-        const triples = await flow.triplesQuery(
-          s,
-          p,
-          o,
-          parseInt(cmdOpts.limit as string, 10),
-          cmdOpts.collection as string | undefined,
-        );
-        console.log(JSON.stringify(triples, null, 2));
-      } finally {
-        socket.close();
-      }
-    });
+          const triples = yield* Effect.tryPromise({
+            try: () =>
+              flow.triplesQuery(
+                s,
+                p,
+                o,
+                parseInt(cmdOpts.limit as string, 10),
+                cmdOpts.collection as string | undefined,
+              ),
+            catch: (error) => cliCommandError("triples", error),
+          });
+          yield* writeJson(triples);
+        }),
+      )),
+    );
 }

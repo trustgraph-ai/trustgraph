@@ -5,6 +5,8 @@
  */
 
 import type { PubSubBackend, BackendConsumer } from "../backend/types.js";
+import { Duration, Effect, Fiber } from "effect";
+import { messagingDeliveryError, messagingLifecycleError, messagingTimeoutError } from "../errors.js";
 
 type Resolver<T> = {
   queue: AsyncQueue<T>;
@@ -32,28 +34,33 @@ export function makeAsyncQueue<T>(): AsyncQueue<T> {
         buffer.push(item);
       }
     },
-    pop: async (timeoutMs) => {
+    pop: (timeoutMs) => {
       const buffered = buffer.shift();
-      if (buffered !== undefined) return buffered;
+      if (buffered !== undefined) return Promise.resolve(buffered);
 
-      return new Promise<T>((resolve, reject) => {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-
+      const take = Effect.callback<T>((resume) => {
         const waiter = (value: T) => {
-          if (timer !== undefined) clearTimeout(timer);
-          resolve(value);
+          resume(Effect.succeed(value));
         };
 
         waiters.push(waiter);
 
-        if (timeoutMs !== undefined) {
-          timer = setTimeout(() => {
-            const idx = waiters.indexOf(waiter);
-            if (idx !== -1) waiters.splice(idx, 1);
-            reject(new Error(`Queue.pop timed out after ${timeoutMs}ms`));
-          }, timeoutMs);
-        }
+        return Effect.sync(() => {
+          const idx = waiters.indexOf(waiter);
+          if (idx !== -1) waiters.splice(idx, 1);
+        });
       });
+
+      return Effect.runPromise(
+        timeoutMs === undefined
+          ? take
+          : take.pipe(
+              Effect.timeout(Duration.millis(timeoutMs)),
+              Effect.catchTag("TimeoutError", () =>
+                Effect.fail(messagingTimeoutError("queue.pop", timeoutMs)),
+              ),
+            ),
+      );
     },
     get length() {
       return buffer.length;
@@ -77,76 +84,113 @@ export function makeSubscriber<T>(
 ): Subscriber<T> {
   let backend: BackendConsumer<T> | null = null;
   let running = false;
+  let fiber: Fiber.Fiber<void, never> | null = null;
 
   // ID-specific subscriptions (request/response correlation)
   const idSubscribers = new Map<string, Resolver<T>>();
   // Wildcard subscribers (receive all messages)
   const allSubscribers = new Map<string, Resolver<T>>();
 
-  const dispatchLoop = async (): Promise<void> => {
+  const dispatchLoop = Effect.fn("Subscriber.dispatchLoop")(function* () {
     let consecutiveErrors = 0;
-    while (running) {
-      try {
-        const currentBackend = backend;
-        if (currentBackend === null) throw new Error("Subscriber backend not started");
+    const dispatchOnce = Effect.fn("Subscriber.dispatchOnce")(function* () {
+          const currentBackend = backend;
+          if (currentBackend === null) {
+            return yield* messagingLifecycleError(
+              `${topic}:${subscription}`,
+              "dispatch",
+              "Subscriber backend not started",
+            );
+          }
 
-        const msg = await currentBackend.receive(2000);
-        if (msg === null) continue;
+          const msg = yield* Effect.tryPromise({
+            try: () => currentBackend.receive(2000),
+            catch: (error) => messagingDeliveryError(topic, "receive", error),
+          });
+          if (msg === null) return;
 
-        consecutiveErrors = 0;
+          consecutiveErrors = 0;
 
-        const props = msg.properties();
-        const id = props.id;
-        const value = msg.value();
+          const props = msg.properties();
+          const id = props.id;
+          const value = msg.value();
 
-        // Route to ID-specific subscriber
-        if (id !== undefined && id.length > 0) {
-          const sub = idSubscribers.get(id);
-          if (sub !== undefined) {
+          // Route to ID-specific subscriber
+          if (id !== undefined && id.length > 0) {
+            const sub = idSubscribers.get(id);
+            if (sub !== undefined) {
+              sub.queue.push(value);
+            }
+          }
+
+          // Broadcast to all-subscribers
+          for (const sub of allSubscribers.values()) {
             sub.queue.push(value);
           }
-        }
 
-        // Broadcast to all-subscribers
-        for (const sub of allSubscribers.values()) {
-          sub.queue.push(value);
-        }
+          yield* Effect.tryPromise({
+            try: () => currentBackend.acknowledge(msg),
+            catch: (error) => messagingDeliveryError(topic, "acknowledge", error),
+          });
+    });
 
-        await currentBackend.acknowledge(msg);
-      } catch (err) {
-        if (!running) break;
-        consecutiveErrors++;
-        if (consecutiveErrors <= 3) {
-          console.error("[Subscriber] Error:", err);
-        } else if (consecutiveErrors === 4) {
-          console.error("[Subscriber] Suppressing further errors (will retry with backoff)");
-        }
-        // Exponential backoff: 1s, 2s, 4s, max 10s
-        const delay = Math.min(1000 * Math.pow(2, consecutiveErrors - 1), 10_000);
-        await new Promise((r) => setTimeout(r, delay));
-      }
-    }
-  };
+    yield* Effect.whileLoop({
+      while: () => running,
+      body: () =>
+        dispatchOnce().pipe(
+          Effect.catch((error) => {
+            if (!running) return Effect.void;
+            consecutiveErrors++;
+            const logEffect = consecutiveErrors <= 3
+              ? Effect.logError("[Subscriber] Error", { error })
+              : consecutiveErrors === 4
+                ? Effect.logError("[Subscriber] Suppressing further errors (will retry with backoff)", { error })
+                : Effect.void;
+            const delay = Math.min(1000 * 2 ** (consecutiveErrors - 1), 10_000);
+            return logEffect.pipe(Effect.flatMap(() => Effect.sleep(Duration.millis(delay))));
+          }),
+        ),
+      step: () => undefined,
+    });
+  });
 
   return {
-    start: async () => {
-      backend = await pubsub.createConsumer<T>({
-        topic,
-        subscription,
-      });
-      running = true;
-      // Start the dispatch loop (fire and forget; runs until stop).
-      dispatchLoop().catch((err) => {
-        if (running === true) console.error("[Subscriber] dispatch loop error:", err);
-      });
-    },
-    stop: async () => {
-      running = false;
-      if (backend !== null) {
-        await backend.close();
-        backend = null;
-      }
-    },
+    start: () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          backend = yield* Effect.tryPromise({
+            try: () =>
+              pubsub.createConsumer<T>({
+                topic,
+                subscription,
+              }),
+            catch: (error) =>
+              messagingLifecycleError(`${topic}:${subscription}`, "create-consumer", error),
+          });
+          running = true;
+          fiber = yield* dispatchLoop().pipe(Effect.forkDetach);
+        }),
+      ),
+    stop: () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          running = false;
+          const activeFiber = fiber;
+          fiber = null;
+          if (activeFiber !== null) {
+            yield* Fiber.interrupt(activeFiber);
+          }
+          const currentBackend = backend;
+          if (currentBackend !== null) {
+            backend = null;
+            yield* Effect.tryPromise({
+              try: () => currentBackend.close(),
+              catch: (error) =>
+                messagingLifecycleError(`${topic}:${subscription}`, "close-consumer", error),
+            });
+          }
+        }),
+      ),
     subscribe: (id) => {
       const queue = makeAsyncQueue<T>();
       idSubscribers.set(id, { queue });

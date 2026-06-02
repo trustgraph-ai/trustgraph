@@ -4,9 +4,16 @@
  * Python reference: trustgraph-base/trustgraph/base/consumer.py
  */
 
-import type { PubSubBackend, BackendConsumer, Message } from "../backend/types.js";
+import type { BackendConsumer, Message, PubSubBackend } from "../backend/types.js";
 import type { Flow } from "../processor/flow.js";
-import { TooManyRequestsError } from "../errors.js";
+import {
+  MessagingHandlerError,
+  TooManyRequestsError,
+  messagingDeliveryError,
+  messagingHandlerError,
+  messagingLifecycleError,
+} from "../errors.js";
+import { Duration, Effect } from "effect";
 import * as S from "effect/Schema";
 
 export type MessageHandler<T> = (
@@ -44,83 +51,140 @@ export interface Consumer<T> {
 export function makeConsumer<T>(options: ConsumerOptions<T>): Consumer<T> {
   let backend: BackendConsumer<T> | null = null;
   let running = false;
-  let abortController = new AbortController();
+  const isTooManyRequestsError = S.is(TooManyRequestsError);
   const concurrency = options.concurrency ?? 1;
   const rateLimitRetryMs = options.rateLimitRetryMs ?? 10_000;
 
-  const handleWithRetry = async (msg: Message<T>, flow: FlowContext): Promise<void> => {
-    try {
-      await options.handler(msg.value(), msg.properties(), flow);
-    } catch (err) {
-      if (S.is(TooManyRequestsError)(err)) {
-        console.warn(`[Consumer] Rate limited, retrying in ${rateLimitRetryMs}ms`);
-        await sleep(rateLimitRetryMs);
-        await options.handler(msg.value(), msg.properties(), flow);
-      } else {
-        throw err;
-      }
+  const runHandler = (
+    message: T,
+    properties: Record<string, string>,
+    flow: FlowContext,
+  ): Effect.Effect<void, TooManyRequestsError | MessagingHandlerError> =>
+    Effect.tryPromise({
+      try: () => options.handler(message, properties, flow),
+      catch: (error) =>
+        isTooManyRequestsError(error)
+          ? error
+          : messagingHandlerError(options.topic, options.subscription, error),
+    });
+
+  const handleWithRetry = Effect.fn("Consumer.handleWithRetry")(function* (
+    message: Message<T>,
+    flow: FlowContext,
+  ) {
+    const callHandler = runHandler(message.value(), message.properties(), flow);
+    yield* callHandler.pipe(
+      Effect.catchTag("TooManyRequestsError", () =>
+        Effect.logWarning("[Consumer] Rate limited, retrying", {
+          topic: options.topic,
+          subscription: options.subscription,
+          retryMs: rateLimitRetryMs,
+        }).pipe(
+          Effect.flatMap(() => Effect.sleep(Duration.millis(rateLimitRetryMs))),
+          Effect.flatMap(() => callHandler),
+        ),
+      ),
+    );
+  });
+
+  const consumeOnce = Effect.fn("Consumer.consumeOnce")(function* (flow: FlowContext) {
+    const currentBackend = backend;
+    if (currentBackend === null) {
+      return yield* messagingLifecycleError(
+        `${options.topic}:${options.subscription}`,
+        "receive",
+        "Consumer backend not started",
+      );
     }
-  };
 
-  const consumeLoop = async (flow: FlowContext): Promise<void> => {
-    while (running) {
-      let msg: Message<T> | null = null;
-      try {
-        const currentBackend = backend;
-        if (currentBackend === null) throw new Error("Consumer backend not started");
+    const message = yield* Effect.tryPromise({
+      try: () => currentBackend.receive(2000),
+      catch: (error) => messagingDeliveryError(options.topic, "receive", error),
+    });
+    if (message === null) return;
 
-        msg = await currentBackend.receive(2000);
-        if (msg === null) continue;
+    yield* handleWithRetry(message, flow).pipe(
+      Effect.flatMap(() =>
+        Effect.tryPromise({
+          try: () => currentBackend.acknowledge(message),
+          catch: (error) => messagingDeliveryError(options.topic, "acknowledge", error),
+        }),
+      ),
+      Effect.catch((error) =>
+        Effect.tryPromise({
+          try: () => currentBackend.negativeAcknowledge(message),
+          catch: (nakError) => messagingDeliveryError(options.topic, "negative-acknowledge", nakError),
+        }).pipe(
+          Effect.catch((nakError) =>
+            Effect.logError("[Consumer] Failed to negative-acknowledge message", {
+              error: nakError.message,
+              topic: nakError.topic,
+            }),
+          ),
+          Effect.flatMap(() => Effect.fail(error)),
+        ),
+      ),
+    );
+  });
 
-        await handleWithRetry(msg, flow);
-        await currentBackend.acknowledge(msg);
-      } catch (err) {
-        if (!running) break;
-        console.error("[Consumer] Error in consume loop:", err);
-        if (msg !== null) {
-          try {
-            const currentBackend = backend;
-            if (currentBackend !== null) {
-              await currentBackend.negativeAcknowledge(msg);
-            }
-          } catch (nakErr) {
-            console.error("[Consumer] Failed to nak message:", nakErr);
-          }
-        }
-        await sleep(1000);
-      }
-    }
-  };
+  const consumeLoop = Effect.fn("Consumer.consumeLoop")(function* (flow: FlowContext) {
+    yield* Effect.whileLoop({
+      while: () => running,
+      body: () =>
+        consumeOnce(flow).pipe(
+          Effect.catch((error) => {
+            if (!running) return Effect.void;
+            return Effect.logError("[Consumer] Error in consume loop", {
+              error: error.message,
+              topic: options.topic,
+              subscription: options.subscription,
+            }).pipe(
+              Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
+            );
+          }),
+        ),
+      step: () => undefined,
+    });
+  });
 
   return {
-    start: async (flow) => {
-      backend = await options.pubsub.createConsumer<T>({
-        topic: options.topic,
-        subscription: options.subscription,
-        initialPosition: options.initialPosition ?? "latest",
-      });
+    start: (flow) =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          backend = yield* Effect.tryPromise({
+            try: () =>
+              options.pubsub.createConsumer<T>({
+                topic: options.topic,
+                subscription: options.subscription,
+                initialPosition: options.initialPosition ?? "latest",
+              }),
+            catch: (error) =>
+              messagingLifecycleError(`${options.topic}:${options.subscription}`, "create-consumer", error),
+          });
 
-      running = true;
+          running = true;
 
-      // Spawn concurrent consumer tasks.
-      const tasks = Array.from({ length: concurrency }, () =>
-        consumeLoop(flow),
-      );
-      // Run all concurrently: first rejection stops all.
-      await Promise.all(tasks);
-    },
-    stop: async () => {
-      running = false;
-      abortController.abort();
-      abortController = new AbortController();
-      if (backend !== null) {
-        await backend.close();
-        backend = null;
-      }
-    },
+          const workerIndexes = Array.from({ length: concurrency }, (_value, index) => index);
+          yield* Effect.forEach(workerIndexes, () => consumeLoop(flow), {
+            concurrency: "unbounded",
+            discard: true,
+          });
+        }),
+      ),
+    stop: () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          running = false;
+          const currentBackend = backend;
+          backend = null;
+          if (currentBackend !== null) {
+            yield* Effect.tryPromise({
+              try: () => currentBackend.close(),
+              catch: (error) =>
+                messagingLifecycleError(`${options.topic}:${options.subscription}`, "close-consumer", error),
+            });
+          }
+        }),
+      ),
   };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

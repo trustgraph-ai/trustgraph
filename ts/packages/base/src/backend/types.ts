@@ -29,21 +29,21 @@ export interface BackendConsumer<T = unknown> {
 export type ConsumerType = "shared" | "exclusive" | "failover";
 export type InitialPosition = "latest" | "earliest";
 
-export interface CreateProducerOptions {
+export interface CreateProducerOptions<T = unknown> {
   topic: string;
-  schema?: S.Top;
+  schema?: S.Codec<T, unknown>;
 }
 
-export interface CreateConsumerOptions {
+export interface CreateConsumerOptions<T = unknown> {
   topic: string;
   subscription: string;
   initialPosition?: InitialPosition;
   consumerType?: ConsumerType;
-  schema?: S.Top;
+  schema?: S.Codec<T, unknown>;
 }
 
 export interface PubSubBackend {
-  createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>>;
-  createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>>;
+  createProducer<T>(options: CreateProducerOptions<T>): Promise<BackendProducer<T>>;
+  createConsumer<T>(options: CreateConsumerOptions<T>): Promise<BackendConsumer<T>>;
   close(): Promise<void>;
 }

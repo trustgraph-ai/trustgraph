@@ -25,7 +25,7 @@ import {
   type ProcessingMetadata,
 } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Clock, Config, DateTime, Duration, Effect, Random } from "effect";
+import { Clock, Config, Context, DateTime, Duration, Effect, Random } from "effect";
 import * as S from "effect/Schema";
 import { makeCollectionManager } from "./collection-manager.js";
 import {
@@ -139,7 +139,7 @@ export type LibrarianService = AsyncProcessorRuntime & Record<string, any>;
 
 export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianService {
   const service = makeAsyncProcessor(config, {
-    run: () => service.run(),
+    run: () => service.run(Context.empty()),
   }) as LibrarianService;
   const baseStop = service.stop;
   service.documents = new Map<string, DocumentMetadata>();

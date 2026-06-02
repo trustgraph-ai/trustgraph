@@ -5,7 +5,8 @@
  */
 
 import type { Command } from "commander";
-import { createSocket, getOpts } from "./util.js";
+import { Effect } from "effect";
+import { cliCommandError, withSocket, writeLine } from "./util.js";
 
 export function registerGraphRagCommands(program: Command): void {
   program
@@ -15,26 +16,27 @@ export function registerGraphRagCommands(program: Command): void {
     .option("--entity-limit <n>", "Max entities", "50")
     .option("--triple-limit <n>", "Max triples per entity", "30")
     .option("--collection <name>", "Collection name")
-    .action(async (query: string, cmdOpts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((query: string, cmdOpts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket, opts) =>
+        Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
         const collection = cmdOpts.collection as string | undefined;
-        const response = await flow.graphRag(
-          query,
-          {
-            entityLimit: parseInt(cmdOpts.entityLimit, 10),
-            tripleLimit: parseInt(cmdOpts.tripleLimit, 10),
-          },
-          collection,
-        );
-        console.log(response);
-      } finally {
-        socket.close();
-      }
-    });
+          const response = yield* Effect.tryPromise({
+            try: () =>
+              flow.graphRag(
+                query,
+                {
+                  entityLimit: parseInt(cmdOpts.entityLimit, 10),
+                  tripleLimit: parseInt(cmdOpts.tripleLimit, 10),
+                },
+                collection,
+              ),
+            catch: (error) => cliCommandError("graph-rag", error),
+          });
+          yield* writeLine(response);
+        }),
+      )),
+    );
 
   program
     .command("document-rag")
@@ -42,24 +44,25 @@ export function registerGraphRagCommands(program: Command): void {
     .argument("<query>", "Natural language query")
     .option("--doc-limit <n>", "Max documents", "20")
     .option("--collection <name>", "Collection name")
-    .action(async (query: string, cmdOpts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((query: string, cmdOpts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket, opts) =>
+        Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
         const docLimit = cmdOpts.docLimit as string | undefined;
         const collection = cmdOpts.collection as string | undefined;
-        const response = await flow.documentRag(
-          query,
-          docLimit !== undefined && docLimit.length > 0
-            ? parseInt(docLimit, 10)
-            : undefined,
-          collection,
-        );
-        console.log(response);
-      } finally {
-        socket.close();
-      }
-    });
+          const response = yield* Effect.tryPromise({
+            try: () =>
+              flow.documentRag(
+                query,
+                docLimit !== undefined && docLimit.length > 0
+                  ? parseInt(docLimit, 10)
+                  : undefined,
+                collection,
+              ),
+            catch: (error) => cliCommandError("document-rag", error),
+          });
+          yield* writeLine(response);
+        }),
+      )),
+    );
 }

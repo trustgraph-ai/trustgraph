@@ -23,7 +23,7 @@ import {
   errorMessage,
 } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Config, Duration, Effect } from "effect";
+import { Config, Context, Duration, Effect } from "effect";
 import * as S from "effect/Schema";
 import { ensureDirectory, joinPath, readTextFile, writeTextFile } from "../runtime/effect-files.js";
 
@@ -118,7 +118,7 @@ const closeResource = (
 
 export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): KnowledgeCoreService {
   const service = makeAsyncProcessor(config, {
-    run: () => service.run(),
+    run: () => service.run(Context.empty()),
   }) as KnowledgeCoreService;
   const baseStop = service.stop;
   service.cores = new Map<string, KnowledgeCore>();

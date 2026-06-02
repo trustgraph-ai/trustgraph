@@ -4,7 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/base/spec.py and siblings
  */
 
-import type { Effect, Scope } from "effect";
+import type { Context, Effect, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
 import type {
   ConsumerFactory,
@@ -28,5 +28,10 @@ export interface Spec<Requirements = never> {
     flow: Flow<Requirements>,
     definition: FlowDefinition,
   ): Effect.Effect<void, SpecRuntimeError, SpecRuntimeRequirements | Requirements>;
-  add(flow: Flow, pubsub: PubSubBackend, definition: FlowDefinition): Promise<void>;
+  add(
+    flow: Flow<Requirements>,
+    pubsub: PubSubBackend,
+    definition: FlowDefinition,
+    context: Context.Context<Requirements>,
+  ): Promise<void>;
 }

@@ -44,9 +44,9 @@ export type EffectMessageHandler<T, E = never, R = never> = (
   flow: FlowContext<R>,
 ) => Effect.Effect<void, E, R>;
 
-export interface EffectProducerOptions {
+export interface EffectProducerOptions<T = unknown> {
   readonly topic: string;
-  readonly schema?: S.Top;
+  readonly schema?: S.Codec<T, unknown>;
   readonly metrics?: ProducerMetrics;
 }
 
@@ -62,7 +62,7 @@ export interface EffectConsumerOptions<T, E = never, R = never> {
   readonly handler: EffectMessageHandler<T, E, R>;
   readonly concurrency?: number;
   readonly initialPosition?: "latest" | "earliest";
-  readonly schema?: S.Top;
+  readonly schema?: S.Codec<T, unknown>;
   readonly receiveTimeoutMs?: number;
   readonly errorBackoffMs?: number;
   readonly rateLimitRetryMs?: number;
@@ -73,12 +73,12 @@ export interface EffectConsumer {
   readonly fibers: ReadonlyArray<Fiber.Fiber<void, never>>;
 }
 
-export interface EffectRequestResponseOptions {
+export interface EffectRequestResponseOptions<TReq = unknown, TRes = unknown> {
   readonly requestTopic: string;
   readonly responseTopic: string;
   readonly subscription: string;
-  readonly requestSchema?: S.Top;
-  readonly responseSchema?: S.Top;
+  readonly requestSchema?: S.Codec<TReq, unknown>;
+  readonly responseSchema?: S.Codec<TRes, unknown>;
 }
 
 export interface EffectRequestOptions<TRes, E = never, R = never> {
@@ -96,7 +96,7 @@ export interface EffectRequestResponse<TReq, TRes> {
 
 export interface ProducerFactoryService {
   readonly make: <T>(
-    options: EffectProducerOptions,
+    options: EffectProducerOptions<T>,
   ) => Effect.Effect<EffectProducer<T>, PubSubError, Scope.Scope>;
 }
 
@@ -109,7 +109,7 @@ export interface ConsumerFactoryService {
 
 export interface RequestResponseFactoryService {
   readonly make: <TReq, TRes>(
-    options: EffectRequestResponseOptions,
+    options: EffectRequestResponseOptions<TReq, TRes>,
   ) => Effect.Effect<EffectRequestResponse<TReq, TRes>, PubSubError, Scope.Scope>;
 }
 
@@ -138,7 +138,7 @@ export class FlowRuntime extends Context.Service<FlowRuntime, FlowRuntimeService
 
 export function makeEffectProducerHandle<T>(
   backend: BackendProducer<T>,
-  options: EffectProducerOptions,
+  options: EffectProducerOptions<T>,
 ): EffectProducer<T> {
   return {
     send: Effect.fn(`Producer.send:${options.topic}`)((id: string, message: T) =>
@@ -168,9 +168,9 @@ export function makeEffectProducerHandle<T>(
 
 export const makeEffectProducerFromPubSub = Effect.fn("makeEffectProducerFromPubSub")(function* <T>(
   pubsub: PubSubService,
-  options: EffectProducerOptions,
+  options: EffectProducerOptions<T>,
 ) {
-  const createOptions: CreateProducerOptions = options.schema === undefined
+  const createOptions: CreateProducerOptions<T> = options.schema === undefined
     ? { topic: options.topic }
     : { topic: options.topic, schema: options.schema };
   const backend = yield* pubsub.createProducer<T>(createOptions);
@@ -326,7 +326,7 @@ export const makeEffectConsumerFromPubSub = Effect.fn("makeEffectConsumerFromPub
   options: EffectConsumerOptions<T, E, R>,
   flow: FlowContext<R>,
 ) {
-  const createOptions: CreateConsumerOptions = {
+  const createOptions: CreateConsumerOptions<T> = {
     topic: options.topic,
     subscription: options.subscription,
     ...(options.initialPosition === undefined ? {} : { initialPosition: options.initialPosition }),
@@ -422,9 +422,9 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
 >(
   pubsub: PubSubService,
   config: MessagingRuntimeConfig,
-  options: EffectRequestResponseOptions,
+  options: EffectRequestResponseOptions<TReq, TRes>,
 ) {
-  const producerOptions: CreateProducerOptions = options.requestSchema === undefined
+  const producerOptions: CreateProducerOptions<TReq> = options.requestSchema === undefined
     ? { topic: options.requestTopic }
     : { topic: options.requestTopic, schema: options.requestSchema };
   const producerBackend = yield* pubsub.createProducer<TReq>(producerOptions);
@@ -432,7 +432,7 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
     topic: options.requestTopic,
     ...(options.requestSchema === undefined ? {} : { schema: options.requestSchema }),
   });
-  const createOptions: CreateConsumerOptions = {
+  const createOptions: CreateConsumerOptions<TRes> = {
     topic: options.responseTopic,
     subscription: options.subscription,
     ...(options.responseSchema === undefined ? {} : { schema: options.responseSchema }),
@@ -502,7 +502,7 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
 
 export function makeProducerFactoryService(pubsub: PubSubService): ProducerFactoryService {
   return {
-    make: Effect.fn("ProducerFactory.make")(<T>(options: EffectProducerOptions) =>
+    make: Effect.fn("ProducerFactory.make")(<T>(options: EffectProducerOptions<T>) =>
       makeEffectProducerFromPubSub<T>(pubsub, options),
     ),
   };
@@ -526,13 +526,11 @@ export function makeRequestResponseFactoryService(
   pubsub: PubSubService,
   config: MessagingRuntimeConfig,
 ): RequestResponseFactoryService {
-  const make = Effect.fn("RequestResponseFactory.make")(function* <TReq, TRes>(
-    options: EffectRequestResponseOptions,
-  ) {
-    return yield* makeEffectRequestResponseFromPubSub<TReq, TRes>(pubsub, config, options);
-  }) as RequestResponseFactoryService["make"];
-
-  return { make };
+  return {
+    make: Effect.fn("RequestResponseFactory.make")(<TReq, TRes>(
+      options: EffectRequestResponseOptions<TReq, TRes>,
+    ) => makeEffectRequestResponseFromPubSub<TReq, TRes>(pubsub, config, options)),
+  };
 }
 
 export const ProducerFactoryLive = Layer.effect(
@@ -589,7 +587,7 @@ export const MessagingRuntimeLive = Layer.mergeAll(
 );
 
 export const runEffectProducerScoped = Effect.fn("runEffectProducerScoped")(function* <T>(
-  options: EffectProducerOptions,
+  options: EffectProducerOptions<T>,
 ) {
   const pubsub = yield* PubSub;
   return yield* makeEffectProducerFromPubSub<T>(pubsub, options);
@@ -605,7 +603,7 @@ export const runEffectConsumerScoped = Effect.fn("runEffectConsumerScoped")(func
 });
 
 export const runEffectRequestResponseScoped = Effect.fn("runEffectRequestResponseScoped")(function* <TReq, TRes>(
-  options: EffectRequestResponseOptions,
+  options: EffectRequestResponseOptions<TReq, TRes>,
 ) {
   const pubsub = yield* PubSub;
   const config = yield* loadMessagingRuntimeConfig();

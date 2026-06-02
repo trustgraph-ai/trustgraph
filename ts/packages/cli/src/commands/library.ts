@@ -5,7 +5,8 @@
  */
 
 import type { Command } from "commander";
-import { createSocket, getOpts } from "./util.js";
+import { Effect } from "effect";
+import { cliCommandError, withSocket, writeJson } from "./util.js";
 
 function basenamePath(filepath: string): string {
   const normalized = filepath.replace(/\/+$/, "");
@@ -45,18 +46,18 @@ export function registerLibraryCommands(program: Command): void {
   library
     .command("list")
     .description("List documents in the library")
-    .action(async (_opts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((_opts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket) =>
+        Effect.gen(function* () {
         const lib = socket.librarian();
-        const docs = await lib.getDocuments();
-        console.log(JSON.stringify(docs, null, 2));
-      } finally {
-        socket.close();
-      }
-    });
+          const docs = yield* Effect.tryPromise({
+            try: () => lib.getDocuments(),
+            catch: (error) => cliCommandError("library.list", error),
+          });
+          yield* writeJson(docs);
+        }),
+      )),
+    );
 
   library
     .command("load")
@@ -67,64 +68,68 @@ export function registerLibraryCommands(program: Command): void {
     .option("-c, --comments <text>", "Comments", "")
     .option("--tags <tags...>", "Document tags")
     .option("--id <id>", "Optional document ID")
-    .action(async (file: string, cmdOpts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((file: string, cmdOpts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket) =>
+        Effect.gen(function* () {
         const lib = socket.librarian();
-        const data = new Uint8Array(await Bun.file(file).arrayBuffer());
+          const data = new Uint8Array(yield* Effect.tryPromise({
+            try: () => Bun.file(file).arrayBuffer(),
+            catch: (error) => cliCommandError("library.load.read-file", error),
+          }));
         const b64 = Buffer.from(data).toString("base64");
         const mimeType = (cmdOpts.mimeType as string | undefined) ?? guessMimeType(file);
         const title = (cmdOpts.title as string | undefined) ?? basenamePath(file);
         const comments = cmdOpts.comments as string;
         const tags: string[] = (cmdOpts.tags as string[] | undefined) ?? [];
 
-        const resp = await lib.loadDocument(
-          b64,
-          mimeType,
-          title,
-          comments,
-          tags,
-          cmdOpts.id as string | undefined,
-        );
-        console.log(JSON.stringify(resp, null, 2));
-      } finally {
-        socket.close();
-      }
-    });
+          const resp = yield* Effect.tryPromise({
+            try: () =>
+              lib.loadDocument(
+                b64,
+                mimeType,
+                title,
+                comments,
+                tags,
+                cmdOpts.id as string | undefined,
+              ),
+            catch: (error) => cliCommandError("library.load", error),
+          });
+          yield* writeJson(resp);
+        }),
+      )),
+    );
 
   library
     .command("remove")
     .description("Remove a document from the library")
     .argument("<id>", "Document ID to remove")
     .option("--collection <name>", "Collection name")
-    .action(async (id: string, cmdOpts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((id: string, cmdOpts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket) =>
+        Effect.gen(function* () {
         const lib = socket.librarian();
-        const resp = await lib.removeDocument(id, cmdOpts.collection as string | undefined);
-        console.log(JSON.stringify(resp, null, 2));
-      } finally {
-        socket.close();
-      }
-    });
+          const resp = yield* Effect.tryPromise({
+            try: () => lib.removeDocument(id, cmdOpts.collection as string | undefined),
+            catch: (error) => cliCommandError("library.remove", error),
+          });
+          yield* writeJson(resp);
+        }),
+      )),
+    );
 
   library
     .command("processing")
     .description("List documents currently being processed")
-    .action(async (_opts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((_opts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket) =>
+        Effect.gen(function* () {
         const lib = socket.librarian();
-        const items = await lib.getProcessing();
-        console.log(JSON.stringify(items, null, 2));
-      } finally {
-        socket.close();
-      }
-    });
+          const items = yield* Effect.tryPromise({
+            try: () => lib.getProcessing(),
+            catch: (error) => cliCommandError("library.processing", error),
+          });
+          yield* writeJson(items);
+        }),
+      )),
+    );
 }

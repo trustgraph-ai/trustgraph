@@ -5,23 +5,24 @@
  */
 
 import type { Command } from "commander";
-import { createSocket, getOpts } from "./util.js";
+import { Effect } from "effect";
+import { cliCommandError, withSocket, writeJson } from "./util.js";
 
 export function registerEmbeddingsCommands(program: Command): void {
   program
     .command("embeddings")
     .description("Generate text embeddings")
     .argument("<text...>", "Text(s) to embed")
-    .action(async (texts: string[], _opts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
+    .action((texts: string[], _opts, cmd) =>
+      Effect.runPromise(withSocket(cmd, (socket, opts) =>
+        Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
-        const vectors = await flow.embeddings(texts);
-        console.log(JSON.stringify(vectors, null, 2));
-      } finally {
-        socket.close();
-      }
-    });
+          const vectors = yield* Effect.tryPromise({
+            try: () => flow.embeddings(texts),
+            catch: (error) => cliCommandError("embeddings", error),
+          });
+          yield* writeJson(vectors);
+        }),
+      )),
+    );
 }

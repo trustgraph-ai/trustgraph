@@ -5,7 +5,7 @@
  * executable path while the processor internals remain Promise-based.
  */
 
-import { Config as EffectConfig, Effect, Layer, Scope } from "effect";
+import { Config as EffectConfig, Effect, Layer } from "effect";
 import {
   processorLifecycleError,
   type FlowRuntimeError,
@@ -37,18 +37,16 @@ import type {
 import { runFlowProcessorDefinitionScoped } from "./flow-processor.js";
 import type { Spec } from "../spec/types.js";
 
-type ProcessorRunError<Processor> = Processor extends ProcessorRuntime<infer Error, unknown> ? Error : never;
-type ProcessorRunRequirements<Processor> = Processor extends ProcessorRuntime<unknown, infer Requirements> ? Requirements : never;
-
 export interface ProcessorProgramOptions<
   Config extends ProcessorConfig,
-  Error,
-  Requirements,
-  Processor extends ProcessorRuntime<unknown, unknown>,
+  LoadError,
+  LoadRequirements,
+  RunError,
+  RunRequirements,
 > {
   readonly id: string;
-  readonly make: (config: Config) => Processor;
-  readonly loadConfig?: Effect.Effect<Config, Error, Requirements>;
+  readonly make: (config: Config) => ProcessorRuntime<RunError, RunRequirements>;
+  readonly loadConfig?: Effect.Effect<Config, LoadError, LoadRequirements>;
 }
 
 export interface FlowProcessorProgramOptions<
@@ -68,18 +66,14 @@ export interface FlowProcessorProgramOptions<
   ) => Layer.Layer<FlowRequirements, Error, LayerRequirements>;
 }
 
-export function runProcessorScoped<
+export const runProcessorScoped = Effect.fn("runProcessorScoped")(function* <
   Config extends ProcessorConfig,
-  Processor extends ProcessorRuntime<unknown, unknown>,
+  RunError,
+  RunRequirements,
 >(
   config: Config,
-  make: (config: Config) => Processor,
-): Effect.Effect<
-  void,
-  ProcessorRunError<Processor> | ProcessorLifecycleError,
-  PubSub | Scope.Scope | ProcessorRunRequirements<Processor>
-> {
-  return Effect.gen(function* () {
+  make: (config: Config) => ProcessorRuntime<RunError, RunRequirements>,
+) {
     const pubsub = yield* PubSub;
     const runtimeConfig = {
       ...config,
@@ -103,23 +97,17 @@ export function runProcessorScoped<
       ),
     );
 
-    yield* (
-      processor.startEffect() as Effect.Effect<
-        void,
-        ProcessorRunError<Processor> | ProcessorLifecycleError,
-        ProcessorRunRequirements<Processor>
-      >
-    );
-  });
-}
+    yield* processor.startEffect;
+});
 
 export function makeProcessorProgram<
   Config extends ProcessorConfig,
-  Error = never,
-  Requirements = never,
-  Processor extends ProcessorRuntime<unknown, unknown> = ProcessorRuntime,
+  LoadError = never,
+  LoadRequirements = never,
+  RunError = ProcessorLifecycleError,
+  RunRequirements = never,
 >(
-  options: ProcessorProgramOptions<Config, Error, Requirements, Processor>,
+  options: ProcessorProgramOptions<Config, LoadError, LoadRequirements, RunError, RunRequirements>,
 ) {
   return Effect.scoped(
     Effect.gen(function* () {
@@ -147,7 +135,7 @@ export function makeProcessorProgram<
           ),
         ),
       );
-      const processorEffect = runProcessorScoped<Config, Processor>(
+      const processorEffect = runProcessorScoped<Config, RunError, RunRequirements>(
         runtimeConfig,
         options.make,
       );
@@ -173,12 +161,37 @@ export function makeFlowProcessorProgram<
   FlowRequirements = never,
   LayerRequirements = never,
 >(
-  options: FlowProcessorProgramOptions<Config, Error, FlowRequirements, LayerRequirements>,
+  options: FlowProcessorProgramOptions<Config, Error, FlowRequirements, LayerRequirements> & {
+    readonly layer: (config: Config) => Layer.Layer<FlowRequirements, Error, LayerRequirements>;
+  },
 ): Effect.Effect<
-  void,
+  never,
   Error | EffectConfig.ConfigError | PubSubError | FlowRuntimeError,
   LayerRequirements
-> {
+>;
+
+export function makeFlowProcessorProgram<
+  Config extends ProcessorConfig,
+  Error = never,
+  FlowRequirements = never,
+>(
+  options: FlowProcessorProgramOptions<Config, Error, FlowRequirements, FlowRequirements> & {
+    readonly layer?: undefined;
+  },
+): Effect.Effect<
+  never,
+  Error | EffectConfig.ConfigError | PubSubError | FlowRuntimeError,
+  FlowRequirements
+>;
+
+export function makeFlowProcessorProgram<
+  Config extends ProcessorConfig,
+  Error = never,
+  FlowRequirements = never,
+  LayerRequirements = never,
+>(
+  options: FlowProcessorProgramOptions<Config, Error, FlowRequirements, LayerRequirements>,
+) {
   return Effect.scoped(
     Effect.gen(function* () {
       const config = yield* (
@@ -226,14 +239,16 @@ export function makeFlowProcessorProgram<
         ),
         Layer.succeed(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
       );
-      const dependencyLayer = options.layer?.(runtimeConfig) ??
-        (Layer.empty as unknown as Layer.Layer<FlowRequirements, Error, LayerRequirements>);
-      const providedProcessorLayer = processorLayer.pipe(
-        Layer.provide(dependencyLayer),
-        Layer.provide(runtimeLayer),
-      );
+      if (options.layer !== undefined) {
+        return yield* Layer.launch(
+          processorLayer.pipe(
+            Layer.provide(options.layer(runtimeConfig)),
+            Layer.provide(runtimeLayer),
+          ),
+        );
+      }
 
-      return yield* Layer.launch(providedProcessorLayer);
+      return yield* Layer.launch(processorLayer.pipe(Layer.provide(runtimeLayer)));
     }),
   );
 }

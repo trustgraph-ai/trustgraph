@@ -1,14 +1,21 @@
 import {OpenAiClient, OpenAiLanguageModel} from "@effect/ai-openai";
 import {BunHttpServer, BunRuntime} from "@effect/platform-bun";
 import {createTrustGraphSocket, type BaseApi, type Term as ClientTerm} from "@trustgraph/client";
-import {Context, Effect, Layer, Redacted} from "effect";
+import {Config, Context, Effect, Layer, Redacted} from "effect";
+import * as O from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import {LanguageModel, McpServer, Prompt, Tool, Toolkit} from "effect/unstable/ai";
 import {FetchHttpClient, HttpRouter} from "effect/unstable/http";
 import {HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi} from "effect/unstable/httpapi";
 import * as S from "effect/Schema";
 
-const annotateTool = <T extends Tool.Any>(
-  tool: T,
+const annotateTool = <Name extends string, Config extends {
+  readonly parameters: S.Top
+  readonly success: S.Top
+  readonly failure: S.Top
+  readonly failureMode: Tool.FailureMode
+}, Requirements>(
+  tool: Tool.Tool<Name, Config, Requirements>,
   annotations: {
     readonly title: string
     readonly readOnly: boolean
@@ -17,14 +24,14 @@ const annotateTool = <T extends Tool.Any>(
     readonly openWorld: boolean
     readonly strict?: boolean
   },
-): T =>
+): Tool.Tool<Name, Config, Requirements> =>
   tool
     .annotate(Tool.Title, annotations.title)
     .annotate(Tool.Readonly, annotations.readOnly)
     .annotate(Tool.Destructive, annotations.destructive)
     .annotate(Tool.Idempotent, annotations.idempotent)
     .annotate(Tool.OpenWorld, annotations.openWorld)
-    .annotate(Tool.Strict, annotations.strict ?? true) as T
+    .annotate(Tool.Strict, annotations.strict ?? true)
 
 class PromptSummary extends S.Class<PromptSummary>("PromptSummary")(
   {
@@ -1217,18 +1224,14 @@ export interface TrustGraphMcpConfigShape {
   readonly version: string
   readonly mcpPath: HttpRouter.PathInput
   readonly openAiModel: string
-  readonly openAiApiKey: string | undefined
+  readonly openAiApiKey: Redacted.Redacted | undefined
   readonly port: number
 }
 
 const readNonEmpty = (value: string | undefined): string | undefined =>
   value !== undefined && value.length > 0 ? value : undefined
 
-const resolvePort = (value: number | undefined): number => {
-  if (value !== undefined) {
-    return value
-  }
-  const raw = readNonEmpty(process.env.PORT)
+const parsePort = (raw: string | undefined): number => {
   if (raw === undefined) {
     return 3000
   }
@@ -1236,28 +1239,46 @@ const resolvePort = (value: number | undefined): number => {
   return Number.isFinite(parsed) ? parsed : 3000
 }
 
+export const loadTrustGraphMcpConfig = Effect.fn("loadTrustGraphMcpConfig")(function*(
+  options: TrustGraphMcpOptions = {},
+) {
+  const gatewayUrl = O.getOrUndefined(yield* Config.string("GATEWAY_URL").pipe(Config.option))
+  const user = O.getOrUndefined(yield* Config.string("USER_ID").pipe(Config.option))
+  const gatewaySecret = O.getOrUndefined(yield* Config.string("GATEWAY_SECRET").pipe(Config.option))
+  const token = readNonEmpty(gatewaySecret)
+  const flowId = O.getOrUndefined(yield* Config.string("FLOW_ID").pipe(Config.option))
+  const openAiModel = O.getOrUndefined(yield* Config.string("OPENAI_MODEL").pipe(Config.option))
+  const openAiApiKey = O.getOrUndefined(yield* Config.redacted("OPENAI_API_KEY").pipe(Config.option))
+  const openAiToken = O.getOrUndefined(yield* Config.redacted("OPENAI_TOKEN").pipe(Config.option))
+  const port = O.getOrUndefined(yield* Config.string("PORT").pipe(Config.option))
+
+  return {
+    gatewayUrl: options.gatewayUrl ?? gatewayUrl ?? "ws://localhost:8088/api/v1/rpc",
+    user: options.user ?? user ?? "mcp",
+    token: options.token ?? token,
+    flowId: options.flowId ?? flowId ?? "default",
+    name: options.name ?? "trustgraph",
+    version: options.version ?? "0.1.0",
+    mcpPath: options.mcpPath ?? "/mcp",
+    openAiModel: options.openAiModel ?? openAiModel ?? "gpt-4.1",
+    openAiApiKey: options.openAiApiKey === undefined
+      ? openAiApiKey ?? openAiToken
+      : Redacted.make(options.openAiApiKey),
+    port: options.port ?? parsePort(readNonEmpty(port)),
+  }
+})
+
 export const resolveTrustGraphMcpConfig = (
   options: TrustGraphMcpOptions = {},
-): TrustGraphMcpConfigShape => ({
-  gatewayUrl: options.gatewayUrl ?? process.env.GATEWAY_URL ?? "ws://localhost:8088/api/v1/rpc",
-  user: options.user ?? process.env.USER_ID ?? "mcp",
-  token: options.token ?? readNonEmpty(process.env.GATEWAY_SECRET),
-  flowId: options.flowId ?? process.env.FLOW_ID ?? "default",
-  name: options.name ?? "trustgraph",
-  version: options.version ?? "0.1.0",
-  mcpPath: options.mcpPath ?? "/mcp",
-  openAiModel: options.openAiModel ?? process.env.OPENAI_MODEL ?? "gpt-4.1",
-  openAiApiKey: options.openAiApiKey ?? readNonEmpty(process.env.OPENAI_API_KEY) ?? readNonEmpty(process.env.OPENAI_TOKEN),
-  port: resolvePort(options.port),
-})
+): TrustGraphMcpConfigShape => Effect.runSync(loadTrustGraphMcpConfig(options))
 
 export class TrustGraphMcpConfig extends Context.Service<TrustGraphMcpConfig, TrustGraphMcpConfigShape>()(
   "@trustgraph/mcp/server-effect/TrustGraphMcpConfig",
 ) {
   static readonly layer = (options: TrustGraphMcpOptions = {}) =>
-    Layer.succeed(
+    Layer.effect(
       TrustGraphMcpConfig,
-      TrustGraphMcpConfig.of(resolveTrustGraphMcpConfig(options)),
+      loadTrustGraphMcpConfig(options).pipe(Effect.map(TrustGraphMcpConfig.of)),
     )
 }
 
@@ -1278,17 +1299,14 @@ export class TrustGraphSocket extends Context.Service<TrustGraphSocket, BaseApi>
 }
 
 const toErrorMessage = (cause: unknown): string => {
-  if (cause instanceof Error && cause.message.length > 0) {
+  if (Predicate.isError(cause) && cause.message.length > 0) {
     return cause.message
   }
   if (typeof cause === "string" && cause.length > 0) {
     return cause
   }
-  if (cause !== null && typeof cause === "object" && "message" in cause) {
-    const message = (cause as { readonly message?: unknown }).message
-    if (typeof message === "string" && message.length > 0) {
-      return message
-    }
+  if (Predicate.isObject(cause) && Predicate.hasProperty(cause, "message") && Predicate.isString(cause.message) && cause.message.length > 0) {
+    return cause.message
   }
   return "TrustGraph MCP tool failed"
 }
@@ -1313,16 +1331,15 @@ const decodeJsonArrayOrFail = <E>(
 const asIriTerm = (value: string | undefined): ClientTerm | undefined =>
   value !== undefined && value.length > 0 ? {t: "i", i: value} : undefined
 
-const openAiApiKeyOptions = (apiKey: string | undefined) =>
+const openAiApiKeyOptions = (apiKey: Redacted.Redacted | undefined) =>
   apiKey === undefined
     ? {}
-    : {apiKey: Redacted.make(apiKey)}
+    : {apiKey}
 
-export const makeOpenAiProviderLayer = (
-  options: TrustGraphMcpOptions = {},
-) => {
-  const config = resolveTrustGraphMcpConfig(options)
-  return OpenAiLanguageModel.layer({
+const makeOpenAiProviderLayerFromConfig = (
+  config: TrustGraphMcpConfigShape,
+) =>
+  OpenAiLanguageModel.layer({
     model: config.openAiModel,
     config: {
       strictJsonSchema: true,
@@ -1331,7 +1348,15 @@ export const makeOpenAiProviderLayer = (
     Layer.provide(OpenAiClient.layer(openAiApiKeyOptions(config.openAiApiKey))),
     Layer.provide(FetchHttpClient.layer),
   )
-}
+
+export const makeOpenAiProviderLayer = (
+  options: TrustGraphMcpOptions = {},
+) =>
+  Layer.unwrap(
+    loadTrustGraphMcpConfig(options).pipe(
+      Effect.map(makeOpenAiProviderLayerFromConfig),
+    ),
+  )
 
 export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
   Effect.gen(function*() {
@@ -1344,33 +1369,32 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         const response = yield* model.generateText({
           prompt: Prompt.make(prompt).pipe(Prompt.setSystem(system)),
         })
-        return new TextCompletionSuccess({text: response.text})
+        return TextCompletionSuccess.make({text: response.text})
       }),
 
       graph_rag: ({query, entity_limit, triple_limit, collection}) =>
         Effect.tryPromise({
-          try: async () => {
-            const response = await socket.flow(config.flowId).graphRag(
+          try: () =>
+            socket.flow(config.flowId).graphRag(
               query,
               {
                 ...(entity_limit !== undefined ? {entityLimit: entity_limit} : {}),
                 ...(triple_limit !== undefined ? {tripleLimit: triple_limit} : {}),
               },
               collection,
-            )
-            return new GraphRagSuccess({text: response})
-          },
-          catch: (cause) => new GraphRagError({cause, message: toErrorMessage(cause)}),
-        }),
+            ),
+          catch: (cause) => GraphRagError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((text) => GraphRagSuccess.make({text})),
+        ),
 
       document_rag: ({query, doc_limit, collection}) =>
         Effect.tryPromise({
-          try: async () => {
-            const response = await socket.flow(config.flowId).documentRag(query, doc_limit, collection)
-            return new DocumentRagSuccess({text: response})
-          },
-          catch: (cause) => new DocumentRagError({cause, message: toErrorMessage(cause)}),
-        }),
+          try: () => socket.flow(config.flowId).documentRag(query, doc_limit, collection),
+          catch: (cause) => DocumentRagError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((text) => DocumentRagSuccess.make({text})),
+        ),
 
       agent: ({question}) =>
         Effect.callback<AgentSuccess, AgentError>((resume) => {
@@ -1382,62 +1406,65 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
             (chunk, complete) => {
               fullAnswer += chunk
               if (complete) {
-                resume(Effect.succeed(new AgentSuccess({text: fullAnswer})))
+                resume(Effect.succeed(AgentSuccess.make({text: fullAnswer})))
               }
             },
-            (cause) => resume(Effect.fail(new AgentError({cause, message: toErrorMessage(cause)}))),
+            (cause) => resume(Effect.fail(AgentError.make({cause, message: toErrorMessage(cause)}))),
           )
         }),
 
       embeddings: ({text}) =>
         Effect.tryPromise({
-          try: async () => {
-            const vectors = await socket.flow(config.flowId).embeddings([...text])
-            return new EmbeddingsSuccess({vectors})
-          },
-          catch: (cause) => new EmbeddingsError({cause, message: toErrorMessage(cause)}),
-        }),
+          try: () => socket.flow(config.flowId).embeddings([...text]),
+          catch: (cause) => EmbeddingsError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((vectors) => EmbeddingsSuccess.make({vectors})),
+        ),
 
       triples_query: ({s, p, o, limit, collection}) =>
         Effect.tryPromise({
-          try: async () => {
-            const triples = await socket.flow(config.flowId).triplesQuery(
+          try: () =>
+            socket.flow(config.flowId).triplesQuery(
               asIriTerm(s),
               asIriTerm(p),
               asIriTerm(o),
               limit,
               collection,
-            )
-            return new TriplesQuerySuccess({triples})
-          },
-          catch: (cause) => new TriplesQueryError({cause, message: toErrorMessage(cause)}),
-        }),
+            ),
+          catch: (cause) => TriplesQueryError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((triples) => TriplesQuerySuccess.make({triples})),
+        ),
 
       graph_embeddings_query: ({query, limit, collection}) =>
         Effect.tryPromise({
-          try: async () => {
-            const vectors = await socket.flow(config.flowId).embeddings([query])
-            const entities = await socket.flow(config.flowId).graphEmbeddingsQuery(
-              vectors[0] ?? [],
-              limit ?? 10,
-              collection,
-            )
-            return new GraphEmbeddingsQuerySuccess({entities})
-          },
-          catch: (cause) => new GraphEmbeddingsQueryError({cause, message: toErrorMessage(cause)}),
-        }),
+          try: () => socket.flow(config.flowId).embeddings([query]),
+          catch: (cause) => GraphEmbeddingsQueryError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.flatMap((vectors) =>
+            Effect.tryPromise({
+              try: () => socket.flow(config.flowId).graphEmbeddingsQuery(
+                vectors[0] ?? [],
+                limit ?? 10,
+                collection,
+              ),
+              catch: (cause) => GraphEmbeddingsQueryError.make({cause, message: toErrorMessage(cause)}),
+            })
+          ),
+          Effect.map((entities) => GraphEmbeddingsQuerySuccess.make({entities})),
+        ),
 
       get_config_all: () =>
         Effect.tryPromise({
           try: () => socket.config().getConfigAll(),
-          catch: (cause) => new GetConfigAllError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetConfigAllError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new GetConfigAllError({cause, message: toErrorMessage(cause)}),
+              (cause) => GetConfigAllError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((config) => new GetConfigAllSuccess({config})),
+              Effect.map((config) => GetConfigAllSuccess.make({config})),
             )
           ),
         ),
@@ -1445,14 +1472,14 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_config: ({keys}) =>
         Effect.tryPromise({
           try: () => socket.config().getConfig(keys.map(({type, key}) => ({type, key}))),
-          catch: (cause) => new GetConfigError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetConfigError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new GetConfigError({cause, message: toErrorMessage(cause)}),
+              (cause) => GetConfigError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((config) => new GetConfigSuccess({config})),
+              Effect.map((config) => GetConfigSuccess.make({config})),
             )
           ),
         ),
@@ -1460,14 +1487,14 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       put_config: ({values}) =>
         Effect.tryPromise({
           try: () => socket.config().putConfig(values.map(({type, key, value}) => ({type, key, value}))),
-          catch: (cause) => new PutConfigError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => PutConfigError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new PutConfigError({cause, message: toErrorMessage(cause)}),
+              (cause) => PutConfigError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new PutConfigSuccess({response})),
+              Effect.map((response) => PutConfigSuccess.make({response})),
             )
           ),
         ),
@@ -1475,56 +1502,58 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       delete_config: ({type, key}) =>
         Effect.tryPromise({
           try: () => socket.config().deleteConfig({type, key}),
-          catch: (cause) => new DeleteConfigError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => DeleteConfigError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new DeleteConfigError({cause, message: toErrorMessage(cause)}),
+              (cause) => DeleteConfigError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new DeleteConfigSuccess({response})),
+              Effect.map((response) => DeleteConfigSuccess.make({response})),
             )
           ),
         ),
 
       get_flows: () =>
         Effect.tryPromise({
-          try: async () => new GetFlowsSuccess({flow_ids: await socket.flows().getFlows()}),
-          catch: (cause) => new GetFlowsError({cause, message: toErrorMessage(cause)}),
-        }),
+          try: () => socket.flows().getFlows(),
+          catch: (cause) => GetFlowsError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((flow_ids) => GetFlowsSuccess.make({flow_ids})),
+        ),
 
       get_flow: ({flow_id}) =>
         Effect.tryPromise({
           try: () => socket.flows().getFlow(flow_id),
-          catch: (cause) => new GetFlowError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetFlowError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new GetFlowError({cause, message: toErrorMessage(cause)}),
+              (cause) => GetFlowError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((flow) => new GetFlowSuccess({flow})),
+              Effect.map((flow) => GetFlowSuccess.make({flow})),
             )
           ),
         ),
 
       start_flow: ({flow_id, blueprint_name, description, parameters}) =>
         Effect.tryPromise({
-          try: async () =>
+          try: () =>
             socket.flows().startFlow(
               flow_id,
               blueprint_name,
               description,
               parameters === undefined ? undefined : {...parameters},
             ),
-          catch: (cause) => new StartFlowError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => StartFlowError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new StartFlowError({cause, message: toErrorMessage(cause)}),
+              (cause) => StartFlowError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new StartFlowSuccess({response})),
+              Effect.map((response) => StartFlowSuccess.make({response})),
             )
           ),
         ),
@@ -1532,14 +1561,14 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       stop_flow: ({flow_id}) =>
         Effect.tryPromise({
           try: () => socket.flows().stopFlow(flow_id),
-          catch: (cause) => new StopFlowError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => StopFlowError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new StopFlowError({cause, message: toErrorMessage(cause)}),
+              (cause) => StopFlowError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new StopFlowSuccess({response})),
+              Effect.map((response) => StopFlowSuccess.make({response})),
             )
           ),
         ),
@@ -1547,21 +1576,21 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_documents: () =>
         Effect.tryPromise({
           try: () => socket.librarian().getDocuments(),
-          catch: (cause) => new GetDocumentsError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetDocumentsError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonArrayOrFail(
               value,
-              (cause) => new GetDocumentsError({cause, message: toErrorMessage(cause)}),
+              (cause) => GetDocumentsError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((documents) => new GetDocumentsSuccess({documents})),
+              Effect.map((documents) => GetDocumentsSuccess.make({documents})),
             )
           ),
         ),
 
       load_document: ({document, mime_type, title, comments, tags, id}) =>
         Effect.tryPromise({
-          try: async () =>
+          try: () =>
             socket.librarian().loadDocument(
               document,
               mime_type,
@@ -1570,14 +1599,14 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
               tags === undefined ? [] : [...tags],
               id,
             ),
-          catch: (cause) => new LoadDocumentError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => LoadDocumentError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new LoadDocumentError({cause, message: toErrorMessage(cause)}),
+              (cause) => LoadDocumentError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new LoadDocumentSuccess({response})),
+              Effect.map((response) => LoadDocumentSuccess.make({response})),
             )
           ),
         ),
@@ -1585,56 +1614,60 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       remove_document: ({id, collection}) =>
         Effect.tryPromise({
           try: () => socket.librarian().removeDocument(id, collection),
-          catch: (cause) => new RemoveDocumentError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => RemoveDocumentError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new RemoveDocumentError({cause, message: toErrorMessage(cause)}),
+              (cause) => RemoveDocumentError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new RemoveDocumentSuccess({response})),
+              Effect.map((response) => RemoveDocumentSuccess.make({response})),
             )
           ),
         ),
 
       get_prompts: () =>
         Effect.tryPromise({
-          try: async () => new GetPromptsSuccess({prompts: await socket.config().getPrompts()}),
-          catch: (cause) => new GetPromptsError({cause, message: toErrorMessage(cause)}),
-        }),
+          try: () => socket.config().getPrompts(),
+          catch: (cause) => GetPromptsError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((prompts) => GetPromptsSuccess.make({prompts})),
+        ),
 
       get_prompt: ({id}) =>
         Effect.tryPromise({
           try: () => socket.config().getPrompt(id),
-          catch: (cause) => new GetPromptError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetPromptError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new GetPromptError({cause, message: toErrorMessage(cause)}),
+              (cause) => GetPromptError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((prompt) => new GetPromptSuccess({prompt})),
+              Effect.map((prompt) => GetPromptSuccess.make({prompt})),
             )
           ),
         ),
 
       get_knowledge_cores: () =>
         Effect.tryPromise({
-          try: async () => new GetKnowledgeCoresSuccess({ids: await socket.knowledge().getKnowledgeCores()}),
-          catch: (cause) => new GetKnowledgeCoresError({cause, message: toErrorMessage(cause)}),
-        }),
+          try: () => socket.knowledge().getKnowledgeCores(),
+          catch: (cause) => GetKnowledgeCoresError.make({cause, message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((ids) => GetKnowledgeCoresSuccess.make({ids})),
+        ),
 
       delete_kg_core: ({id, collection}) =>
         Effect.tryPromise({
           try: () => socket.knowledge().deleteKgCore(id, collection),
-          catch: (cause) => new DeleteKgCoreError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => DeleteKgCoreError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new DeleteKgCoreError({cause, message: toErrorMessage(cause)}),
+              (cause) => DeleteKgCoreError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new DeleteKgCoreSuccess({response})),
+              Effect.map((response) => DeleteKgCoreSuccess.make({response})),
             )
           ),
         ),
@@ -1642,14 +1675,14 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       load_kg_core: ({id, flow, collection}) =>
         Effect.tryPromise({
           try: () => socket.knowledge().loadKgCore(id, flow, collection),
-          catch: (cause) => new LoadKgCoreError({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => LoadKgCoreError.make({cause, message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => new LoadKgCoreError({cause, message: toErrorMessage(cause)}),
+              (cause) => LoadKgCoreError.make({cause, message: toErrorMessage(cause)}),
             ).pipe(
-              Effect.map((response) => new LoadKgCoreSuccess({response})),
+              Effect.map((response) => LoadKgCoreSuccess.make({response})),
             )
           ),
         ),
@@ -1689,13 +1722,12 @@ export const TrustGraphMcpHttpApiRoutes = HttpApiBuilder.layer(
   Layer.provide(TrustGraphMcpHttpApiHandlers),
 )
 
-export const makeTrustGraphMcpHttpLayer = (
-  options: TrustGraphMcpOptions = {},
+const makeTrustGraphMcpHttpLayerFromConfig = (
+  config: TrustGraphMcpConfigShape,
 ) => {
-  const config = resolveTrustGraphMcpConfig(options)
   const tools = McpServer.toolkit(TrustGraphMcpToolkit).pipe(
     Layer.provide(TrustGraphMcpToolkitLive),
-    Layer.provide(makeOpenAiProviderLayer(config)),
+    Layer.provide(makeOpenAiProviderLayerFromConfig(config)),
   )
 
   return Layer.mergeAll(
@@ -1708,18 +1740,31 @@ export const makeTrustGraphMcpHttpLayer = (
       path: config.mcpPath,
     })),
     Layer.provide(TrustGraphSocket.layer),
-    Layer.provide(TrustGraphMcpConfig.layer(config)),
+    Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
   )
 }
 
 export const makeTrustGraphMcpHttpServerLayer = (
   options: TrustGraphMcpOptions = {},
-) => {
-  const config = resolveTrustGraphMcpConfig(options)
-  return HttpRouter.serve(makeTrustGraphMcpHttpLayer(config)).pipe(
-    Layer.provide(BunHttpServer.layer({port: config.port})),
+) =>
+  Layer.unwrap(
+    loadTrustGraphMcpConfig(options).pipe(
+      Effect.map((config) =>
+        HttpRouter.serve(makeTrustGraphMcpHttpLayerFromConfig(config)).pipe(
+          Layer.provide(BunHttpServer.layer({port: config.port})),
+        )
+      ),
+    ),
   )
-}
+
+export const makeTrustGraphMcpHttpLayer = (
+  options: TrustGraphMcpOptions = {},
+) =>
+  Layer.unwrap(
+    loadTrustGraphMcpConfig(options).pipe(
+      Effect.map(makeTrustGraphMcpHttpLayerFromConfig),
+    ),
+  )
 
 export const runHttp = (options: TrustGraphMcpOptions = {}): void => {
   Layer.launch(makeTrustGraphMcpHttpServerLayer(options)).pipe(BunRuntime.runMain)

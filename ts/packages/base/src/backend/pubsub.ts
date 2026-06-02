@@ -20,10 +20,10 @@ import { pubSubError } from "../errors.js";
 export interface PubSubService {
   readonly backend: PubSubBackend;
   readonly createProducer: <T>(
-    options: CreateProducerOptions,
+    options: CreateProducerOptions<T>,
   ) => Effect.Effect<BackendProducer<T>, ReturnType<typeof pubSubError>>;
   readonly createConsumer: <T>(
-    options: CreateConsumerOptions,
+    options: CreateConsumerOptions<T>,
   ) => Effect.Effect<BackendConsumer<T>, ReturnType<typeof pubSubError>>;
   readonly close: Effect.Effect<void, ReturnType<typeof pubSubError>>;
 }
@@ -41,12 +41,12 @@ export class PubSub extends Context.Service<PubSub, PubSubService>()("@trustgrap
 export function makePubSubService(backend: PubSubBackend): PubSubService {
   return {
     backend,
-    createProducer: <T>(options: CreateProducerOptions) =>
+    createProducer: <T>(options: CreateProducerOptions<T>) =>
       Effect.tryPromise({
         try: () => backend.createProducer<T>(options),
         catch: (error) => pubSubError(`createProducer:${options.topic}`, error),
       }),
-    createConsumer: <T>(options: CreateConsumerOptions) =>
+    createConsumer: <T>(options: CreateConsumerOptions<T>) =>
       Effect.tryPromise({
         try: () => backend.createConsumer<T>(options),
         catch: (error) => pubSubError(`createConsumer:${options.topic}`, error),

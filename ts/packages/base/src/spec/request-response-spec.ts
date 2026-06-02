@@ -12,7 +12,6 @@ import type { Spec } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 import {
   RequestResponseFactory,
-  type EffectRequestResponse,
 } from "../messaging/runtime.js";
 
 declare const RequestResponseSpecType: unique symbol;
@@ -41,14 +40,13 @@ export function makeRequestResponseSpec<TReq, TRes>(
         responseTopic,
         subscription: `${flow.processorId}-${flow.name}-${name}`,
       });
-      flow.registerRequestor(name, requestor as EffectRequestResponse<unknown, unknown>);
+      flow.registerRequestor(name, requestor);
   });
 
   return {
     name,
     addEffect,
-    add: async (flow, pubsub, definition) => {
-      await flow.runInCompatibilityScope(addEffect(flow, definition), pubsub);
-    },
+    add: (flow, pubsub, definition, context) =>
+      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }

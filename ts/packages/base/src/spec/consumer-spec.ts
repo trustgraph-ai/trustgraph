@@ -62,14 +62,8 @@ export function makeConsumerSpec<T, E = never, R = never>(
   return {
     name,
     addEffect,
-    add: async (flow, pubsub, definition) => {
-      const effect = addEffect(flow as Flow<R>, definition) as Effect.Effect<
-        void,
-        PubSubError,
-        SpecRuntimeRequirements
-      >;
-      await flow.runInCompatibilityScope(effect, pubsub);
-    },
+    add: (flow, pubsub, definition, context) =>
+      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }
 

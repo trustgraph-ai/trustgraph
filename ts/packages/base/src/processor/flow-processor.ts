@@ -38,6 +38,7 @@ import {
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
 import { Duration, Effect, Exit, Scope } from "effect";
+import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
 interface ConfigPush {
@@ -88,9 +89,7 @@ export interface FlowProcessorRuntime<FlowRequirements = never>
   readonly configHandlers: ConfigHandler[];
   readonly isRunning: () => boolean;
   readonly registerConfigHandler: (handler: ConfigHandler) => void;
-  readonly registerSpecification: <Requirements extends FlowRequirements>(
-    spec: Spec<Requirements>,
-  ) => void;
+  readonly registerSpecification: (spec: Spec<FlowRequirements>) => void;
   readonly specifications: ReadonlyArray<Spec<FlowRequirements>>;
 }
 
@@ -105,6 +104,20 @@ const ConfigPushSchema = S.Struct({
   version: S.Number,
   config: S.Record(S.String, S.Unknown),
 });
+
+const isStringRecord = (value: unknown): value is Record<string, unknown> =>
+  Predicate.isObject(value) && !Array.isArray(value);
+
+const isTopicsRecord = (value: unknown): value is Record<string, string> =>
+  isStringRecord(value) && Object.values(value).every((item) => typeof item === "string");
+
+const isFlowDefinition = (value: unknown): value is FlowDefinition => {
+  if (!isStringRecord(value)) return false;
+  const topics = value.topics;
+  const parameters = value.parameters;
+  return (topics === undefined || isTopicsRecord(topics)) &&
+    (parameters === undefined || isStringRecord(parameters));
+};
 
 export function runFlowProcessorDefinitionScoped<
   FlowRequirements = never,
@@ -202,9 +215,13 @@ export function runFlowProcessorDefinitionScoped<
     FlowRuntime | ProducerFactory | ConsumerFactory | RequestResponseFactory | FlowRequirements
   > =>
     Effect.gen(function* () {
-      const flowDefs = config.flows as Record<string, FlowDefinition> | undefined;
+      const flowDefs = config.flows;
       if (flowDefs === undefined) {
         yield* Effect.log(`[${options.id}] No flows in config push, skipping`);
+        return;
+      }
+      if (!isStringRecord(flowDefs)) {
+        yield* Effect.logWarning(`[${options.id}] Skipping config push: flows is not an object`);
         return;
       }
 
@@ -226,7 +243,7 @@ export function runFlowProcessorDefinitionScoped<
       }
 
       for (const [name, defn] of Object.entries(flowDefs)) {
-        if (typeof defn !== "object" || defn === null) {
+        if (!isFlowDefinition(defn)) {
           yield* Effect.logWarning(`[${options.id}] Skipping flow "${name}": definition is not an object`);
           continue;
         }
@@ -353,8 +370,8 @@ export function makeFlowProcessor<FlowRequirements = never>(
     },
   });
 
-  const startEffect = (): FlowProcessorStartEffect<FlowRequirements> => {
-    const effect = base.startEffect() as FlowProcessorStartEffect<FlowRequirements>;
+  const makeStartEffect = (): FlowProcessorStartEffect<FlowRequirements> => {
+    const effect = base.startEffect;
     return options.provide?.(effect) ?? effect;
   };
 
@@ -362,24 +379,29 @@ export function makeFlowProcessor<FlowRequirements = never>(
     ...base,
     specifications,
     registerSpecification: (spec) => {
-      specifications.push(spec as Spec<FlowRequirements>);
+      specifications.push(spec);
     },
-    startEffect,
-    start: async () => {
-      const pubsub = makePubSubService(base.pubsub);
-      const messagingConfig = await Effect.runPromise(loadMessagingRuntimeConfig());
-      const start = startEffect().pipe(
-        Effect.provideService(PubSub, pubsub),
-        Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
-        Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
-        Effect.provideService(
-          RequestResponseFactory,
-          RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
-        ),
-        Effect.provideService(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
-      ) as Effect.Effect<void, PubSubError | FlowRuntimeError | ProcessorLifecycleError>;
-      await Effect.runPromise(Effect.scoped(start));
+    get startEffect() {
+      return makeStartEffect();
     },
+    start: (context) =>
+      Effect.runPromiseWith(context)(
+        Effect.gen(function* () {
+          const pubsub = makePubSubService(base.pubsub);
+          const messagingConfig = yield* loadMessagingRuntimeConfig();
+          const start = processor.startEffect.pipe(
+            Effect.provideService(PubSub, pubsub),
+            Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
+            Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
+            Effect.provideService(
+              RequestResponseFactory,
+              RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
+            ),
+            Effect.provideService(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
+          );
+          yield* Effect.scoped(start);
+        }),
+      ),
   };
 
   return processor;

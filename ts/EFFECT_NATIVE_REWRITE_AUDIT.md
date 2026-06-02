@@ -1,9 +1,8 @@
 # TrustGraph Effect-Native Rewrite Opportunity Audit
 
-This is the first ranked audit produced from the playbook in
-`ts/EFFECT_NATIVE_REWRITE_PLAYBOOK.md`. It is an opportunity map, not a code
-rewrite. The branch was `ts-port-effect-v4`; the only unrelated local file seen
-during the audit was `.idea/effect.intellij.xml`.
+This is the current backlog snapshot for the playbook in
+`ts/EFFECT_NATIVE_REWRITE_PLAYBOOK.md`. The branch is `ts-port-effect-v4`.
+The unrelated local file `.idea/effect.intellij.xml` must stay uncommitted.
 
 ## Inputs
 
@@ -11,27 +10,38 @@ Verified source roots:
 
 - TrustGraph TS port: `/home/elpresidank/YeeBois/dev/trustgraph/ts`
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
-- Reactivity fallback: `ts/node_modules/effect/src/unstable/reactivity`
-- Atom React fallback: `ts/packages/workbench/node_modules/@effect/atom-react`
+- Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Signal counts from `ts/packages`:
+Current signal counts from `ts/packages` after the 2026-06-02 strict tsgo
+slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 71 |
-| `Map<` | 54 |
-| `JSON.stringify` | 50 |
+| `Effect.runPromise` | 208 |
+| `Map<` | 58 |
 | `WebSocket` | 45 |
-| `process.env` | 44 |
-| `new Map` | 42 |
+| `new Map` | 45 |
 | `toPromiseRequestor` | 19 |
 | `makeAsyncProcessor` | 19 |
-| `new Promise` | 18 |
-| `JSON.parse` | 16 |
-| `receive(` | 16 |
-| `setTimeout` | 13 |
-| `while (` | 10 |
+| `receive(` | 18 |
+| `while (` | 13 |
+| `new Error` | 14 |
+| `new Promise` | 10 |
+| `JSON.parse` | 8 |
 | `localStorage` | 8 |
+| `JSON.stringify` | 6 |
+| `setTimeout` | 4 |
+| `process.env` | 3 |
+
+Notes:
+
+- The remaining `process.env` hits are in `packages/workbench/playwright.config.ts`.
+- In production `packages/base`, `packages/cli`, and `packages/mcp` sources,
+  the strict scans for `new Error`, `new Promise`, `setTimeout`,
+  `JSON.parse`, `JSON.stringify`, and direct `process.env` reads are clean.
+- `Effect.runPromise` is expected at external Promise compatibility
+  boundaries, but each match should still be audited for avoidable internal
+  runtime ownership.
 
 ## Loop Passes
 
@@ -39,356 +49,256 @@ Signal counts from `ts/packages`:
 
 - Status: migrated and verified.
 - Completed:
-  - `ts/packages/base/src/messaging/request-response.ts:50` now creates an
-    explicit `Scope.Closeable` and `:55` builds the existing
-    `EffectRequestResponse` runtime.
-  - `ts/packages/base/src/messaging/request-response.ts:91` rejects
-    not-started calls with `MessagingLifecycleError`, and `:108` maps
-    recipient callback failures into `MessagingDeliveryError`. It no longer
-    constructs normal `Error` values.
-  - `ts/packages/base/src/messaging/runtime.ts:427` now lets
-    request/response own its producer directly, `:442` runs the response
-    dispatcher with `Effect.forkScoped`, and `:445` makes shutdown idempotent.
-  - `ts/packages/base/src/__tests__/request-response.test.ts:115` covers the
-    Promise facade over the Effect runtime, `:143` asserts tagged timeout
-    errors, and `:164` asserts tagged lifecycle errors.
+  - Request/response startup now owns a scoped Effect runtime handle and maps
+    failures to TrustGraph tagged messaging errors.
+  - Runtime shutdown is idempotent and uses scoped fibers.
+  - Tests cover Promise compatibility, tagged timeout errors, and tagged
+    lifecycle errors.
 - Verification:
   - `bun run --cwd ts/packages/base test`
   - `bun run --cwd ts/packages/base build`
   - `bun run --cwd ts check:tsgo`
   - `bun run --cwd ts build`
   - `bun run --cwd ts test`
-- Remaining base evidence:
-  - `makeSubscriber(` has no current `ts/packages` call sites after this slice,
-    but `ts/packages/base/src/messaging/index.ts` still exports
-    `makeAsyncQueue`, `makeSubscriber`, and related types.
-  - `ts/packages/base/src/messaging/consumer.ts` still has a Promise polling
-    loop and a normal `Error` constructor.
-  - `ts/packages/base/src/messaging/producer.ts` still throws a normal
-    not-started `Error`.
-- Decision:
-  - Normal `Error` construction in library internals is migration evidence.
-    Prefer existing `S.TaggedErrorClass` errors from
-    `ts/packages/base/src/errors.ts`, adding new tagged errors when needed.
-  - `try`/`catch` blocks are also migration evidence. Prefer `Effect.try`,
-    `Effect.tryPromise`, or `Result.try` unless the block is a host/tool
-    boundary or test-only helper.
 
 ### 2026-06-02: Gateway Dispatcher Requestor Cache
 
 - Status: migrated and package-verified.
 - Completed:
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts:121` centralizes
-    streaming completion detection as `dispatcherManagerIsCompleteResponse`.
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts:137` stores requestors
-    as `EffectRequestResponse` handles, not `Promise<RequestResponse>` values.
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts:152` starts the manager
-    through an Effect program, `:157` creates a `SynchronizedRef` cache, and
-    `:164` uses `Effect.onError` for scope cleanup instead of a `try`/`catch`
-    block.
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts:200` uses
-    `SynchronizedRef.modifyEffect` so lazy requestor creation and caching are
-    serialized under the manager scope.
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts:267` and `:312` keep
-    Fastify/RPC as Promise boundaries via `Effect.runPromise`; streaming
-    responder failures are mapped with `MessagingDeliveryError` at `:290` and
-    `:340`.
-  - `ts/packages/flow/src/gateway/server.ts:25` accepts an optional injected
-    `PubSubBackend` for tests without changing production NATS defaults.
-  - `ts/packages/flow/src/__tests__/gateway-dispatcher.test.ts:150` verifies
-    scoped requestor reuse and shutdown, `:172` verifies streaming through the
-    centralized completion predicate, and `:192` table-tests all final markers.
+  - Gateway dispatcher caches scoped `EffectRequestResponse` handles instead
+    of `Promise<RequestResponse>` values.
+  - Lazy requestor creation is serialized with `SynchronizedRef.modifyEffect`.
+  - Streaming final-marker detection is centralized.
+  - Dispatcher cleanup uses Effect scope/error handling instead of manual
+    `try`/`catch`.
 - Verification:
   - `bun run --cwd ts/packages/flow test`
   - `bun run --cwd ts/packages/flow build`
   - `bun run --cwd ts check:tsgo`
-- Remaining gateway evidence:
-  - `ts/packages/flow/src/gateway/rpc-server.ts` still has Promise callbacks
-    around Effect RPC queues.
-  - `ts/packages/flow/src/gateway/server.ts` still has Fastify route
-    `try`/`catch` blocks. These are boundary code, but should still be audited
-    for `Effect.tryPromise` wrapping where it improves consistency.
-  - `ts/packages/client/src/socket/trustgraph-socket.ts` still duplicates some
-    streaming final-marker detection on the client side.
+
+### 2026-06-02: Strict Base, CLI, MCP, And tsgo Slice
+
+- Status: migrated, root-verified, ready to commit.
+- Completed:
+  - Base messaging, NATS backend, producer, consumer, subscriber,
+    request/response, runtime factories, processor programs, flow specs, and
+    LLM service now use Effect-native boundaries, schema codecs, scoped
+    cleanup, and `S.TaggedErrorClass.make(...)` errors.
+  - CLI commands now run Effect programs at the command boundary, wrap socket
+    lifecycle with `Effect.acquireUseRelease`, encode JSON through Effect
+    Schema, and write output without `console.log`.
+  - MCP Effect server now loads env/config through `Config`, wraps gateway
+    calls with `Effect.tryPromise`, constructs schema classes with `.make`, and
+    uses tagged errors.
+  - MCP stdio compatibility server keeps `createMcpServer` and `run`, but uses
+    Effect callbacks/tryPromise/schema encoding internally. `run()` uses
+    `ManagedRuntime`; `runMain()` uses `NodeRuntime.runMain`.
+  - Flow stateful service launch sites now pass an explicit `Context.Context`
+    into the base processor runtime instead of hiding requirements behind
+    assertions.
+- Verification:
+  - `cd ts && bun run check`
+  - `cd ts && bun run test`
+  - `cd ts && bun run build`
+  - `git diff --check`
+
+## Subagent Findings To Preserve
+
+- MCP/workbench:
+  - Make the Effect MCP server the canonical implementation. The old stdio
+    server should remain only as compatibility while parity is needed.
+  - Workbench BaseApi atoms can move toward `AtomRpc` or `AtomHttpApi` after
+    the client API is less Promise-first.
+  - MCP env is now Config-backed; continue that policy for future MCP settings.
+- Flow stateful services:
+  - Config, librarian, cores, and flow-manager still have mutable poller
+    service objects. These remain good candidates for `Context` services,
+    scoped layers, `Ref`/`SynchronizedRef`, `Schedule`, and managed
+    persistence.
+  - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
+    the installed beta has the needed provider surface.
+- Base messaging/processors:
+  - Subscriber queues/maps, processor/flow Promise compatibility, and dynamic
+    flow state should continue moving toward `Queue`, `Deferred`,
+    `SynchronizedRef`, `Schedule`, and scoped layers.
+  - Existing constructor shims and typed registries in base processors still
+    use type assertions; they need a typed factory/registry redesign rather
+    than more assertions.
+- Gateway/client:
+  - Knowledge streams still duplicate legacy end-of-stream handling.
+  - Effect RPC client remains Promise-first internally in places and should be
+    turned into a managed runtime or scoped layer.
+  - WebSocket adapter shims still contain host-boundary `try`/`catch` and
+    normal `Error` construction.
+- RAG/providers/storage:
+  - RAG and agent helpers still adapt Effect requestors back to Promise
+    requestors.
+  - Provider SDKs and storage clients should become managed resources where
+    they have meaningful lifecycle.
+  - FalkorDB/Qdrant/Ollama/OpenAI-compatible surfaces still need config,
+    schema, and scope audits.
 
 ## Ranked Findings
 
-### P0: Collapse Base Messaging Promise Facades
-
-- Impact: 5
-- Risk: 4
-- Confidence: 4
-- TrustGraph evidence:
-  - `ts/packages/base/src/messaging/runtime.ts` already defines Effect
-    producer, consumer, request/response factories, queues, fibers, and scopes.
-  - `ts/packages/base/src/messaging/consumer.ts` still has a manual
-    `while (running)` receive loop, `sleep`, and Promise delay helpers.
-  - `ts/packages/base/src/messaging/subscriber.ts` still manages resolver maps
-    and timeout promises.
-  - `ts/packages/base/src/processor/flow.ts` exposes compatibility scope
-    helpers and converts Effect handles back into Promise-style handles.
-- Effect evidence:
-  - `effect/Queue`, `effect/PubSub`, `effect/Stream`, `effect/Scope`,
-    `effect/Layer`, `effect/Schedule`, `effect/Ref`.
-  - Sources: `packages/effect/src/Queue.ts`, `PubSub.ts`, `Stream.ts`,
-    `Scope.ts`, `Layer.ts`, `Schedule.ts`, `Ref.ts`.
-- Rewrite shape:
-  - Make the Effect runtime factories the canonical internal surface.
-  - Keep Promise adapters only at external compatibility boundaries. Rejected
-    values at those boundaries should still be tagged TrustGraph errors.
-  - Replace polling sleep loops with scheduled scoped consumers where possible.
-  - Replace resolver maps with `Queue`, `Deferred`, or `PubSub`-backed routing.
-- Tests:
-  - `cd ts && bun run --cwd packages/base test`
-  - Existing runtime tests around request/response, flow specs, and consumers
-    should be expanded before removing compatibility behavior.
-- Blockers:
-  - Public package exports may still expect Promise-shaped producer, consumer,
-    and request/response handles. Inventory callers before changing exports.
-  - First slice completed request/response facade migration. Next base follow-up
-    is either an Effect-backed consumer facade or a public export decision for
-    `subscriber.ts`.
-
 ### P0: Convert Stateful Flow Services To Scoped Effect Services
 
-- Impact: 5
-- Risk: 4
-- Confidence: 4
 - TrustGraph evidence:
-  - `ts/packages/flow/src/config/service.ts` uses `makeAsyncProcessor`,
-    mutable nested `Map` state, `while (this.running)`, `receive(2000)`,
-    `sleep`, JSON persistence, and direct `process.env`.
-  - `ts/packages/flow/src/librarian/service.ts`, `cores/service.ts`, and
-    `flow-manager/service.ts` repeat the same service-object pattern.
-- Effect evidence:
+  - `ts/packages/flow/src/config/service.ts`
+  - `ts/packages/flow/src/librarian/service.ts`
+  - `ts/packages/flow/src/cores/service.ts`
+  - `ts/packages/flow/src/flow-manager/service.ts`
+- Effect primitives:
   - `Context`, `Layer.scoped`, `Ref`, `SynchronizedRef`, `Schedule`,
-    `Effect.addFinalizer`, `Config`, `Schema`, `effect/FileSystem`,
-    `effect/unstable/persistence/KeyValueStore`.
-  - Sources: `packages/effect/src/Context.ts`, `Layer.ts`, `Ref.ts`,
-    `SynchronizedRef.ts`, `Schedule.ts`, `Config.ts`, `Schema.ts`,
-    `ts/node_modules/effect/src/FileSystem.ts`,
-    `ts/node_modules/effect/src/unstable/persistence/KeyValueStore.ts`.
+    `Effect.addFinalizer`, `Config`, `Schema`, `FileSystem`,
+    `KeyValueStore`.
 - Rewrite shape:
-  - Model each service as a `Context` service plus a scoped layer.
-  - Store service state in `Ref` or `SynchronizedRef`, not mutable object fields.
-  - Express persistence with `effect/FileSystem` or
-    `KeyValueStore.layerFileSystem` when the installed beta exposes the needed
-    provider.
+  - Model one service at a time as a `Context` service plus scoped layer.
+  - Store mutable service state in `Ref` or `SynchronizedRef`.
+  - Replace polling sleep loops with schedules where behavior allows.
   - Decode persisted payloads and config with schemas at boundaries.
 - Tests:
   - Service-specific tests plus `cd ts && bun run --cwd packages/flow test`.
-  - Add persistence round-trip tests before replacing file IO.
-- Blockers:
-  - These services are behavior-heavy. Do one service per PR after the shared
-    runtime surface is stable.
 
-### P0: Make Gateway Dispatcher Effect-Native
+### P0: Remove RAG And Agent `toPromiseRequestor` Bridges
 
-- Impact: 5
-- Risk: 3
-- Confidence: 4
-- TrustGraph evidence:
-  - `ts/packages/flow/src/gateway/server.ts` already builds RPC/WebSocket
-    pieces with Effect.
-  - `ts/packages/flow/src/gateway/rpc-server.ts` uses `Queue` and RPC layers.
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts` still keeps
-    `Map<string, Promise<RequestResponse<unknown, unknown>>>`, manual
-    streaming completion checks, and per-publish producer construction.
-- Effect evidence:
-  - `effect/unstable/rpc` `RpcClient`, `RpcServer`, `RpcSerialization`.
-  - `effect/unstable/socket` `Socket`.
-  - `effect/Queue`, `Stream`, `Scope`, `Layer`.
-  - Sources: `ts/node_modules/effect/src/unstable/rpc/RpcClient.ts`,
-    `RpcServer.ts`, `RpcSerialization.ts`, and
-    `ts/node_modules/effect/src/unstable/socket/Socket.ts`.
-- Rewrite shape:
-  - Convert dispatcher manager methods to Effect-returning functions internally.
-  - Cache requestors as scoped resources instead of Promise values.
-  - Represent streaming dispatch as `Stream` or `Queue` instead of callback
-    completion detection where the wire protocol allows it.
-  - Keep Fastify route handlers as Promise boundaries.
-- Tests:
-  - Gateway dispatch tests with fake pubsub.
-  - `cd ts && SKIP_LLM=1 bun run test:pipeline` after implementation.
-- Blockers:
-  - The gateway is an integration boundary. Preserve current HTTP and WebSocket
-    wire behavior during the first rewrite.
-  - First dispatcher-cache slice is complete. Follow-up gateway work should
-    target RPC server Promise callbacks and client-side streaming completion
-    duplication, not recreate the requestor cache migration.
-
-### P1: Remove RAG And Agent `toPromiseRequestor` Bridges
-
-- Impact: 4
-- Risk: 3
-- Confidence: 5
 - TrustGraph evidence:
   - `ts/packages/flow/src/retrieval/document-rag-service.ts`
   - `ts/packages/flow/src/retrieval/graph-rag-service.ts`
   - `ts/packages/flow/src/agent/react/service.ts`
-  - All define `toPromiseRequestor` and then immediately adapt Effect
-    requestors back to Promise-style clients.
-- Effect evidence:
-  - Existing TrustGraph `EffectRequestResponse` in
-    `ts/packages/base/src/messaging/runtime.ts`.
-  - `effect/Stream`, `Effect.fn`, `Effect.runPromiseWith` for boundary-only
-    execution.
+- Effect primitives:
+  - Existing `EffectRequestResponse`, `Effect.fn`, `Stream`,
+    `Effect.runPromiseWith` at true external boundaries only.
 - Rewrite shape:
-  - Update RAG engines and agent helpers to accept Effect requestors or
-    functions returning `Effect`.
-  - Keep Promise wrappers only for old public APIs or tests that explicitly
+  - Update engines and agent helpers to accept Effect requestors or
+    Effect-returning functions directly.
+  - Preserve Promise wrappers only for old public APIs or tests that explicitly
     verify compatibility.
-  - Convert streaming agent flows to `Stream` where possible.
 - Tests:
   - Existing RAG and agent service tests.
   - Add tests that assert requestor errors stay typed through the Effect path.
-- Blockers:
-  - Engine call signatures need a small design pass so RAG and agent rewrite in
-    the same direction.
 
 ### P1: Finish Client RPC Boundary Modernization
 
-- Impact: 4
-- Risk: 3
-- Confidence: 4
 - TrustGraph evidence:
-  - `ts/packages/client/src/socket/effect-rpc-client.ts` already uses
-    `Socket.makeWebSocket`, `RpcClient.layerProtocolSocket`, and
-    `RpcSerialization.layerNdjson`.
-  - The same file still owns `scopePromise`, `clientPromise`, repeated
-    `Effect.runPromise`, listener sets, a WebSocket constructor shim, and a
-    Promise facade.
-  - `ts/packages/client/src/socket/trustgraph-socket.ts` is mostly a
-    compatibility API over the Effect RPC client.
-- Effect evidence:
-  - `effect/unstable/socket/Socket`: `makeWebSocket`, `fromWebSocket`,
+  - `ts/packages/client/src/socket/effect-rpc-client.ts`
+  - `ts/packages/client/src/socket/trustgraph-socket.ts`
+  - `ts/packages/client/src/socket/websocket-adapter.ts`
+- Effect primitives:
+  - `effect/unstable/socket` `Socket.makeWebSocket`, `fromWebSocket`,
     `toChannel`, `layerWebSocket`.
-  - `effect/unstable/rpc/RpcClient`: `layerProtocolSocket`.
-  - `effect/unstable/rpc/RpcSerialization`: `layerNdjson`, `layerNdJsonRpc`.
+  - `effect/unstable/rpc/RpcClient.layerProtocolSocket`.
+  - `effect/unstable/rpc/RpcSerialization.layerNdjson` or `layerNdJsonRpc`.
+  - `ManagedRuntime` for compatibility facades when a Promise API must remain.
 - Rewrite shape:
   - Treat `EffectRpcClient` as an internal managed runtime or scoped layer.
-  - Expose Promise-returning methods only through a thin compatibility adapter.
-  - Move browser vs Node WebSocket constructor selection into platform layers.
+  - Expose Promise-returning methods through a thin adapter.
+  - Replace normal client `Error` constructors with tagged errors before they
+    cross into shared Effect code.
 - Tests:
   - `cd ts && bun run --cwd packages/client test`
-  - Keep timeout/retry tests around `withDispatchRequestPolicy`.
-- Blockers:
-  - Workbench and CLI still consume Promise-shaped client APIs.
+
+### P1: Base Processor Registry And Constructor Shims
+
+- TrustGraph evidence:
+  - `ts/packages/base/src/processor/async-processor.ts`
+  - `ts/packages/base/src/processor/flow.ts`
+  - `ts/packages/base/src/processor/flow-processor.ts`
+- Effect primitives:
+  - Schema-backed registries, `Context`, `Layer`, `Effect.fn`, `Option`,
+    `Predicate`.
+- Rewrite shape:
+  - Replace constructor `as unknown as` shims with typed factory exports.
+  - Replace resource lookup casts with schema-backed typed registry helpers.
+  - Do not add assertions to quiet Effect channel inference problems.
+- Tests:
+  - `cd ts && bun run --cwd packages/base test`
+  - Root `cd ts && bun run check` because this surface easily pollutes Effect
+    error and requirement channels.
 
 ### P1: Make SDK, Storage, And Provider Layers Managed Resources
 
-- Impact: 4
-- Risk: 3
-- Confidence: 3
 - TrustGraph evidence:
   - `ts/packages/flow/src/storage/triples/falkordb.ts`
   - `ts/packages/flow/src/storage/embeddings/qdrant-graph.ts`
   - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts`
   - `ts/packages/flow/src/model/text-completion/*.ts`
-  - These files create direct SDK clients and read `process.env` in live
-    constructors.
-- Effect evidence:
+  - `ts/packages/flow/src/embeddings/ollama.ts`
+- Effect primitives:
   - `Effect.acquireRelease`, `Layer.scoped`, `Config`, `ConfigProvider`,
-    `effect/FileSystem`, `effect/unstable/persistence/KeyValueStore`,
-    `Metric`, `Logger`.
-  - AI provider modules from installed provider packages, with subtree source
-    proof under `packages/ai/*/src`, including `OpenAiLanguageModel.ts`,
-    `AnthropicLanguageModel.ts`, and `OpenRouterLanguageModel.ts`.
+    `Metric`, `Logger`, Effect AI provider layers.
 - Rewrite shape:
-  - Move env reading into `Config` loaders and provider-specific layers.
+  - Move env/config reading into `Config` loaders and provider-specific layers.
   - Scope SDK clients that need explicit close/disconnect.
-  - Replace `console` or ad hoc logging with `Effect.log*` and metrics where
-    useful.
+  - Remove `Effect.void as Effect.Effect<undefined>` stream assertions by
+    letting branch return types infer or by restructuring the stream parser.
 - Tests:
   - Provider config tests with `ConfigProvider.fromMap`.
   - Storage tests with fake clients before changing real resource lifetimes.
-- Blockers:
-  - Some third-party SDK clients may not have meaningful finalizers. Mark those
-    no-op after proof instead of forcing fake lifecycle code.
 
 ### P2: Canonicalize MCP Around The Effect Server
 
-- Impact: 3
-- Risk: 2
-- Confidence: 5
-- TrustGraph evidence:
-  - `ts/packages/mcp/src/server.ts` is the old SDK/Zod server.
-  - `ts/packages/mcp/src/server-effect.ts` has Effect AI tools, schemas,
-    `McpServer`, HTTP API integration, and provider layers.
-- Effect evidence:
-  - `effect/unstable/ai` `Tool`, `Toolkit`, `McpServer`, `McpSchema`,
-    `LanguageModel`.
-  - Sources: `ts/node_modules/effect/src/unstable/ai/Tool.ts`,
-    `Toolkit.ts`, `McpServer.ts`, `McpSchema.ts`, `LanguageModel.ts`.
-- Rewrite shape:
-  - Do not rewrite the Effect server from scratch.
-  - Make the Effect server canonical after parity checks.
-  - Keep the old server only as compatibility or delete it once entrypoints and
-    tests prove the Effect path is complete.
+- Status:
+  - First blocker slice complete: MCP now builds under strict tsgo and the
+    stdio server has an Effect-backed compatibility implementation.
+- Remaining shape:
+  - Decide whether the old SDK/Zod stdio compatibility surface should stay as
+    a wrapper or be removed.
+  - Add parity tests before deleting any public entry point.
 - Tests:
-  - MCP package build/test.
-  - Tool parity diff against `server.ts` before removal.
-- Blockers:
-  - Needs a policy decision about old SDK server lifetime.
+  - `cd ts && bun run --cwd packages/mcp build`
+  - Root `cd ts && bun run check`
 
 ### P2: Tighten Workbench Platform And Reactivity Usage
 
-- Impact: 3
-- Risk: 2
-- Confidence: 4
 - TrustGraph evidence:
-  - `ts/packages/workbench/src/atoms/workbench.ts` already uses Atom,
-    AsyncResult, Reactivity, browser layers, and metrics.
-  - Remaining direct browser state includes `localStorage` reads/writes and DOM
-    theme inspection.
-- Effect evidence:
+  - `ts/packages/workbench/src/atoms/workbench.ts`
+  - Remaining direct browser state includes `localStorage` and DOM theme
+    inspection.
+- Effect primitives:
   - `BrowserKeyValueStore.layerLocalStorage`,
     `BrowserKeyValueStore.layerSessionStorage`, `BrowserHttpClient`,
-    `Clipboard`.
-  - `AtomRpc`, `AtomHttpApi`, `AtomRegistry`, `AsyncResult`, `Reactivity`.
+    `Clipboard`, `AtomRpc`, `AtomHttpApi`, `AtomRegistry`, `AsyncResult`,
+    `Reactivity`.
 - Rewrite shape:
-  - Leave the workbench out of the first rewrite wave.
-  - Later, move persistent UI state through `BrowserKeyValueStore` and keep
-    remote state in Atom RPC/HTTP API families if the client API becomes fully
-    typed Effect RPC.
+  - Leave workbench out of the next backend/runtime rewrite wave.
+  - Move persistent UI state through browser platform services later.
 - Tests:
-  - `cd ts && bun run workbench:qa`.
-- Blockers:
-  - Workbench is already the most modern surface. Backend/runtime wins should
-    happen first.
+  - `cd ts && bun run workbench:qa`
 
 ## Recommended PR Order
 
 1. Config service scoped state migration.
 2. RAG and agent requestor bridge removal.
-3. Base consumer facade and subscriber export cleanup.
-4. Client compatibility facade tightening.
+3. Client RPC managed runtime/scoped layer cleanup.
+4. Base processor registry and constructor shim redesign.
 5. Gateway RPC callback and client streaming completion cleanup.
 6. Storage/provider managed resource cleanup.
-7. MCP canonicalization and Workbench polish.
+7. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 
 Do not flag these as rewrite blockers without additional proof:
 
-- Promise-returning CLI actions and Fastify route handlers at external
-  boundaries. This does not exempt normal `Error` construction inside shared
-  library code.
+- Promise-returning CLI actions, MCP SDK callbacks, client compatibility
+  methods, and Fastify route handlers at true external boundaries. Boundary
+  code still must map failures into typed errors or wire errors.
 - `try`/`catch` blocks at host/tool boundaries only when the catch maps into a
-  typed error or wire error. Internal exception capture should use `Effect.try`,
-  `Effect.tryPromise`, or `Result.try`.
+  typed error or a wire-contract error. Internal exception capture should use
+  `Effect.try`, `Effect.tryPromise`, or `Result.try`.
 - `S.Class`, `S.TaggedErrorClass`, `Context.Service`, `Rpc.make`, and
   `HttpApi.make` when they are required or idiomatic for the Effect API.
 - Plain `Map` usage for local pure transformations, such as graph utility
-  construction, unless the state is long-lived, mutable service state.
-- JSON stringification that is part of the TrustGraph wire contract, unless a
-  schema codec can preserve the exact encoded form.
+  construction, unless the state is long-lived mutable service state.
+- JSON stringification in tests or wire-contract fixtures. Production JSON
+  encode/decode should prefer schema codecs when the encoded form can be
+  preserved.
 
-## Acceptance
+## Acceptance For Final Loop Completion
 
-This audit is complete when:
+The overall playbook loop is complete only when:
 
-- `ts/EFFECT_NATIVE_REWRITE_PLAYBOOK.md` exists.
-- This ranked audit exists and cites concrete TrustGraph and Effect surfaces.
-- `git diff --check` passes for both files.
-- No code rewrite is mixed into this audit.
+- All remaining playbook signal matches are migrated or documented as no-op
+  external-boundary cases with concrete evidence.
+- No P0/P1/P2 migration item remains in this audit.
+- `cd ts && bun run check`, `cd ts && bun run build`, `cd ts && bun run test`,
+  and `git diff --check` pass after the final migration slice.

@@ -168,11 +168,11 @@ export type MessagingRuntimeError =
   | FlowResourceNotFoundError;
 
 export function tooManyRequestsError(message = "Rate limit exceeded"): TooManyRequestsError {
-  return new TooManyRequestsError({ message });
+  return TooManyRequestsError.make({ message });
 }
 
 export function llmError(message: string, errorType = "llm-error"): LlmError {
-  return new LlmError({ message, errorType });
+  return LlmError.make({ message, errorType });
 }
 
 export function embeddingsError(
@@ -180,7 +180,7 @@ export function embeddingsError(
   error: unknown,
   provider?: string,
 ): EmbeddingsError {
-  return new EmbeddingsError({
+  return EmbeddingsError.make({
     operation,
     message: errorMessage(error),
     ...(provider === undefined ? {} : { provider }),
@@ -188,11 +188,11 @@ export function embeddingsError(
 }
 
 export function parseError(message: string): ParseError {
-  return new ParseError({ message });
+  return ParseError.make({ message });
 }
 
 export function pubSubError(operation: string, error: unknown): PubSubError {
-  return new PubSubError({ operation, message: errorMessage(error) });
+  return PubSubError.make({ operation, message: errorMessage(error) });
 }
 
 export function processorLifecycleError(
@@ -200,7 +200,7 @@ export function processorLifecycleError(
   operation: string,
   error: unknown,
 ): ProcessorLifecycleError {
-  return new ProcessorLifecycleError({
+  return ProcessorLifecycleError.make({
     processorId,
     operation,
     message: errorMessage(error),
@@ -212,7 +212,7 @@ export function messagingLifecycleError(
   operation: string,
   error: unknown,
 ): MessagingLifecycleError {
-  return new MessagingLifecycleError({
+  return MessagingLifecycleError.make({
     resource,
     operation,
     message: errorMessage(error),
@@ -224,7 +224,7 @@ export function messagingDeliveryError(
   operation: string,
   error: unknown,
 ): MessagingDeliveryError {
-  return new MessagingDeliveryError({
+  return MessagingDeliveryError.make({
     topic,
     operation,
     message: errorMessage(error),
@@ -236,7 +236,7 @@ export function messagingDecodeError(
   error: unknown,
   topic?: string,
 ): MessagingDecodeError {
-  return new MessagingDecodeError({
+  return MessagingDecodeError.make({
     operation,
     message: errorMessage(error),
     ...(topic === undefined ? {} : { topic }),
@@ -247,7 +247,7 @@ export function messagingTimeoutError(
   operation: string,
   timeoutMs: number,
 ): MessagingTimeoutError {
-  return new MessagingTimeoutError({
+  return MessagingTimeoutError.make({
     operation,
     timeoutMs,
     message: `${operation} timed out after ${timeoutMs}ms`,
@@ -259,7 +259,7 @@ export function messagingHandlerError(
   subscription: string,
   error: unknown,
 ): MessagingHandlerError {
-  return new MessagingHandlerError({
+  return MessagingHandlerError.make({
     topic,
     subscription,
     message: errorMessage(error),
@@ -271,7 +271,7 @@ export function flowRuntimeError(
   operation: string,
   error: unknown,
 ): FlowRuntimeError {
-  return new FlowRuntimeError({
+  return FlowRuntimeError.make({
     flowName,
     operation,
     message: errorMessage(error),
@@ -283,7 +283,7 @@ export function flowResourceNotFoundError(
   resourceType: FlowResourceNotFoundError["resourceType"],
   resourceName: string,
 ): FlowResourceNotFoundError {
-  return new FlowResourceNotFoundError({
+  return FlowResourceNotFoundError.make({
     flowName,
     resourceType,
     resourceName,
