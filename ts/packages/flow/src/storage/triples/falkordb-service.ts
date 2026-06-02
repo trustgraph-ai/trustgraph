@@ -17,8 +17,9 @@ import {
   type Triples,
   type Spec,
 } from "@trustgraph/base";
+import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   FalkorDBTriplesStoreLive,
   FalkorDBTriplesStoreService,
@@ -78,6 +79,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBConfig
   layer: (config) => FalkorDBTriplesStoreLive(config),
 });
 
+const triplesStoreRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return triplesStoreRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

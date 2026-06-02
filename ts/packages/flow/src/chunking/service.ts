@@ -24,8 +24,9 @@ import {
   type Triples,
   type Spec,
 } from "@trustgraph/base";
+import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import { recursiveSplit } from "./recursive-splitter.js";
 
 const DEFAULT_CHUNK_SIZE = 2000;
@@ -102,6 +103,12 @@ export const program = makeFlowProcessorProgram({
   specs: () => makeChunkingSpecs(),
 });
 
+const chunkingRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return chunkingRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

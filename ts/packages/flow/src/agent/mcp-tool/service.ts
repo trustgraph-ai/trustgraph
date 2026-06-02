@@ -12,6 +12,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { NodeRuntime } from "@effect/platform-node";
 
 import {
   makeFlowProcessor,
@@ -29,7 +30,7 @@ import {
   type MessagingDeliveryError,
   type Spec,
 } from "@trustgraph/base";
-import { Context, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Layer, ManagedRuntime, Ref } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -315,6 +316,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, McpToolR
   layer: () => McpToolRuntimeLive,
 });
 
+const mcpToolRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return mcpToolRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

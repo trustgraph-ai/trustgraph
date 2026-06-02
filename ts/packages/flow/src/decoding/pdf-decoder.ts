@@ -36,8 +36,9 @@ import {
   type Spec,
   errorMessage,
 } from "@trustgraph/base";
+import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Clock, Effect } from "effect";
+import { Clock, Effect, Layer, ManagedRuntime } from "effect";
 import * as S from "effect/Schema";
 
 export class PdfDecoderError extends S.TaggedErrorClass<PdfDecoderError>()(
@@ -252,6 +253,12 @@ export const program = makeFlowProcessorProgram({
   specs: () => makePdfDecoderSpecs(),
 });
 
+const pdfDecoderRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return pdfDecoderRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

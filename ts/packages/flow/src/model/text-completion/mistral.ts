@@ -7,6 +7,7 @@
  */
 
 import { Mistral } from "@mistralai/mistralai";
+import { NodeRuntime } from "@effect/platform-node";
 import {
   Llm,
   makeLlmService,
@@ -18,7 +19,7 @@ import {
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   optionalStringConfig,
   providerStatusError,
@@ -208,6 +209,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
+const mistralTextCompletionRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return mistralTextCompletionRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

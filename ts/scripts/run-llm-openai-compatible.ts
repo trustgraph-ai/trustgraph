@@ -9,9 +9,6 @@
  *   OPENAI_COMPAT_KEY   (default: sk-no-key-required)
  *   OPENAI_COMPAT_MODEL (default: default)
  */
-import { run } from "../packages/flow/src/model/text-completion/openai-compatible.js";
+import { runMain } from "../packages/flow/src/model/text-completion/openai-compatible.js";
 
-run().catch((err) => {
-  console.error("OpenAI-compatible LLM service failed:", err);
-  process.exit(1);
-});
+runMain();

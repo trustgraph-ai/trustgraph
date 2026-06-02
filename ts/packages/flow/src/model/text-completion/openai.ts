@@ -5,6 +5,7 @@
  */
 
 import OpenAI from "openai";
+import { NodeRuntime } from "@effect/platform-node";
 import {
   Llm,
   makeLlmService,
@@ -16,7 +17,7 @@ import {
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   optionalStringConfig,
   providerStatusError,
@@ -211,6 +212,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
+const openAITextCompletionRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return openAITextCompletionRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

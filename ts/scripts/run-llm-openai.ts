@@ -8,9 +8,6 @@
  *   OPENAI_TOKEN  (required)
  *   OPENAI_BASE_URL (optional)
  */
-import { run } from "../packages/flow/src/model/text-completion/openai.js";
+import { runMain } from "../packages/flow/src/model/text-completion/openai.js";
 
-run().catch((err) => {
-  console.error("OpenAI LLM service failed:", err);
-  process.exit(1);
-});
+runMain();

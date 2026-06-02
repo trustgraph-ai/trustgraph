@@ -8,9 +8,6 @@
  *   GATEWAY_PORT (default: 8088)
  *   GATEWAY_SECRET (optional)
  */
-import { run } from "../packages/flow/src/gateway/server.js";
+import { runMain } from "../packages/flow/src/gateway/server.js";
 
-run().catch((err) => {
-  console.error("Gateway failed to start:", err);
-  process.exit(1);
-});
+runMain();

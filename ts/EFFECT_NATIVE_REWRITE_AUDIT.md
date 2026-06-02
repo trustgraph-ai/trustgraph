@@ -12,12 +12,12 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Client socket
-tagged error slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Service
+entrypoint runtime slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 203 |
+| `Effect.runPromise` | 185 |
 | `Map<` | 88 |
 | `WebSocket` | 72 |
 | `new Map` | 62 |
@@ -58,6 +58,10 @@ Notes:
   `trustgraph-socket.ts` normal `Error`, raw `JSON.parse`, and listener
   `try`/`catch` matches. The remaining client socket modernization signal is
   the shared `newableFactory` constructor assertion pattern.
+- The service entrypoint runtime slice dropped the `Effect.runPromise` count by
+  replacing remaining flow service `run()` program facades with
+  `ManagedRuntime` and routing local `ts/scripts/run-*` launchers through
+  `runMain()`/`NodeRuntime.runMain`.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -457,6 +461,30 @@ Notes:
   - Current client/root verification from the tagged error slice covers this
     no-op decision.
 
+### 2026-06-02: Service Entrypoint Runtime Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Remaining flow service `run(): Promise<void>` program facades now use
+    `ManagedRuntime.make(Layer.empty)` instead of direct
+    `Effect.runPromise(program)`.
+  - Remaining flow service modules now expose `runMain()` through
+    `NodeRuntime.runMain(program)`.
+  - Local `ts/scripts/run-*` launchers for gateway, prompt, chunker,
+    extractor, PDF decoder, embeddings, triples, graph/document embeddings,
+    text-completion providers, and MCP tool service now delegate directly to
+    `runMain()`.
+  - Direct `Effect.runPromise(program)` matches in `ts/packages/flow/src` are
+    clean. Remaining `Effect.runPromise` matches are callback/Promise
+    compatibility boundaries for later slices.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `git diff --check`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -470,6 +498,9 @@ Notes:
     ref-backed state slices are complete. Follow-up service work should focus
     on scoped layers, schedules where polling semantics allow, and managed
     persistence providers rather than direct mutable service fields.
+  - Flow service startup facades now consistently use `ManagedRuntime`, and
+    local scripts should delegate to `runMain()` instead of adding local
+    `.catch(console.error/process.exit)` wrappers.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
 - Base messaging/processors:

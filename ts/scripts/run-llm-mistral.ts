@@ -8,9 +8,6 @@
  *   MISTRAL_TOKEN (required)
  *   MISTRAL_MODEL (default: ministral-8b-latest)
  */
-import { run } from "../packages/flow/src/model/text-completion/mistral.js";
+import { runMain } from "../packages/flow/src/model/text-completion/mistral.js";
 
-run().catch((err) => {
-  console.error("Mistral LLM service failed:", err);
-  process.exit(1);
-});
+runMain();

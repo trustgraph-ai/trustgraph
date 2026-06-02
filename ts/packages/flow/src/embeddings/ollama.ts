@@ -4,7 +4,8 @@
  * Python reference: trustgraph-flow/trustgraph/embeddings/ollama/processor.py
  */
 
-import { Config, Effect, Layer } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+import { Config, Effect, Layer, ManagedRuntime } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import {
@@ -154,6 +155,12 @@ export const program = makeFlowProcessorProgram<OllamaEmbeddingsConfig, never, E
   layer: (config) => OllamaEmbeddingsLive(config),
 });
 
+const ollamaEmbeddingsRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return ollamaEmbeddingsRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

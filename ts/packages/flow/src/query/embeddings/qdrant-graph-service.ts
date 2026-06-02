@@ -20,8 +20,9 @@ import {
   type GraphEmbeddingsResponse,
   type Spec,
 } from "@trustgraph/base";
+import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   QdrantGraphEmbeddingsQueryLive,
   QdrantGraphEmbeddingsQueryService,
@@ -114,6 +115,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantGraphQue
   layer: (config) => QdrantGraphEmbeddingsQueryLive(config),
 });
 
+const graphEmbeddingsQueryRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return graphEmbeddingsQueryRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

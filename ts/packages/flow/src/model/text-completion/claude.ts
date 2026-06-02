@@ -5,6 +5,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { NodeRuntime } from "@effect/platform-node";
 import {
   Llm,
   makeLlmService,
@@ -16,7 +17,7 @@ import {
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   optionalStringConfig,
   providerStatusError,
@@ -209,6 +210,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
+const claudeTextCompletionRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return claudeTextCompletionRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

@@ -9,7 +9,8 @@
 
 import Fastify, { type FastifyReply } from "fastify";
 import websocketPlugin from "@fastify/websocket";
-import { Clock, Config, Effect, Exit, Random, Scope } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+import { Clock, Config, Effect, Exit, Layer, ManagedRuntime, Random, Scope } from "effect";
 import * as O from "effect/Option";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as EffectSocket from "effect/unstable/socket/Socket";
@@ -258,7 +259,11 @@ function headersFrom(headers: Record<string, string | string[] | number | undefi
 }
 
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return gatewayRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }
 
 export const loadGatewayConfig = Effect.fn("loadGatewayConfig")(function* () {
@@ -291,3 +296,5 @@ export const program = Effect.scoped(
     return yield* Effect.never;
   }),
 );
+
+const gatewayRuntime = ManagedRuntime.make(Layer.empty);

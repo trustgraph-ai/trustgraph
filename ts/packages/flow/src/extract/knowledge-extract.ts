@@ -34,7 +34,8 @@ import {
   type EffectRequestResponse,
   type Spec,
 } from "@trustgraph/base";
-import { Effect } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -386,6 +387,12 @@ export const program = makeFlowProcessorProgram({
   specs: () => makeKnowledgeExtractSpecs(),
 });
 
+const knowledgeExtractRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return knowledgeExtractRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

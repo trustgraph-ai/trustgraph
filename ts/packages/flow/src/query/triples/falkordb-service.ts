@@ -20,8 +20,9 @@ import {
   type TriplesQueryResponse,
   type Spec,
 } from "@trustgraph/base";
+import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   FalkorDBTriplesQueryLive,
   FalkorDBTriplesQueryService,
@@ -100,6 +101,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBQueryC
   layer: (config) => FalkorDBTriplesQueryLive(config),
 });
 
+const triplesQueryRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return triplesQueryRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

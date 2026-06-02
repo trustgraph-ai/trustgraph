@@ -38,8 +38,9 @@ import {
   type PromptResponse,
   type Spec,
 } from "@trustgraph/base";
+import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import * as S from "effect/Schema";
 
 export interface PromptTemplate {
@@ -195,6 +196,12 @@ export const program = makeFlowProcessorProgram({
   configHandlers: (config: PromptTemplateConfig) => promptTemplateRuntime(config).configHandlers,
 });
 
+const promptRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return promptRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

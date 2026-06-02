@@ -10,9 +10,6 @@
  *   AZURE_MODEL       (default: gpt-4o)
  *   AZURE_API_VERSION (default: 2024-12-01-preview)
  */
-import { run } from "../packages/flow/src/model/text-completion/azure-openai.js";
+import { runMain } from "../packages/flow/src/model/text-completion/azure-openai.js";
 
-run().catch((err) => {
-  console.error("Azure OpenAI LLM service failed:", err);
-  process.exit(1);
-});
+runMain();
