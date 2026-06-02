@@ -86,16 +86,16 @@ export const toAsyncGenerator = (
   const iterator = iterable[Symbol.asyncIterator]();
   let generator: AsyncGenerator<LlmChunk>;
   generator = {
-    next: (value?: unknown) => iterator.next(value as never),
+    next: (value?: unknown) => iterator.next(value),
     return: (value?: unknown) =>
       iterator.return === undefined
-        ? Promise.resolve({ done: true, value: value as LlmChunk })
-        : iterator.return(value as never) as Promise<IteratorResult<LlmChunk>>,
+        ? Promise.resolve({ done: true, value })
+        : iterator.return(value),
     throw: (error?: unknown) =>
       iterator.throw === undefined
-        ? Effect.runPromise(Effect.fail(mapError(error))) as Promise<IteratorResult<LlmChunk>>
-        : iterator.throw(error) as Promise<IteratorResult<LlmChunk>>,
+        ? Promise.reject(mapError(error))
+        : iterator.throw(error),
     [Symbol.asyncIterator]: () => generator,
-  } as AsyncGenerator<LlmChunk>;
+  };
   return generator;
 };

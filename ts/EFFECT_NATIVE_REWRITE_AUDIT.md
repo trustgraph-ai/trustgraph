@@ -13,11 +13,11 @@ Verified source roots:
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
 Current signal counts from `ts/packages` after the 2026-06-02 Text completion
-stream sentinel slice:
+generator boundary slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 169 |
+| `Effect.runPromise` | 168 |
 | `Map<` | 88 |
 | `WebSocket` | 72 |
 | `new Map` | 62 |
@@ -72,6 +72,10 @@ Notes:
   `Effect.void as Effect.Effect<undefined>` assertions from provider stream
   unfold branches. Counts are unchanged because this was an Effect diagnostic
   and type-channel cleanup.
+- The text completion generator boundary slice removed the
+  `Effect.runPromise(Effect.fail(...))` fallback and the related
+  `AsyncGenerator`/`IteratorResult` assertions from
+  `model/text-completion/common.ts`.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -558,6 +562,26 @@ Notes:
     replacing them with `Effect.succeed(undefined)`, which `@effect/tsgo`
     flags as a diagnostic.
 - Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Text Completion Generator Boundary Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/model/text-completion/common.ts` now rejects
+    fallback `AsyncGenerator.throw(...)` calls with the mapped tagged provider
+    error directly instead of running `Effect.fail(...)` through
+    `Effect.runPromise`.
+  - The custom generator object no longer uses `as AsyncGenerator`,
+    `as Promise<IteratorResult<LlmChunk>>`, or `as LlmChunk` assertions.
+  - Added a focused unit test for fallback throw mapping.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/text-completion-common.test.ts`
   - `bun run --cwd ts/packages/flow build`
   - `cd ts && bun run check`
   - `bun run --cwd ts/packages/flow test`
