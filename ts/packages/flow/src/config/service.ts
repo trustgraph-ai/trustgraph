@@ -11,7 +11,7 @@
  * Python reference: trustgraph-flow/trustgraph/config/service/service.py
  */
 
-import { Effect } from "effect";
+import { Duration, Effect } from "effect";
 import * as S from "effect/Schema";
 import {
   makeAsyncProcessor,
@@ -45,6 +45,20 @@ const ConfigPushSchema = S.Struct({
   config: S.Record(S.String, S.Unknown),
 });
 
+export class ConfigServiceError extends S.TaggedErrorClass<ConfigServiceError>()(
+  "ConfigServiceError",
+  {
+    message: S.String,
+    operation: S.String,
+  },
+) {}
+
+const configServiceError = (operation: string, cause: unknown): ConfigServiceError =>
+  ConfigServiceError.make({
+    operation,
+    message: errorMessage(cause),
+  });
+
 const DEFAULT_WORKSPACE = "default";
 
 interface ConfigKeyLike {
@@ -62,6 +76,14 @@ interface ConfigValueLike {
 type NamespaceStore = Map<string, unknown>;
 type WorkspaceStore = Map<string, NamespaceStore>;
 
+const PersistedConfigSchema = S.Struct({
+  version: S.optionalKey(S.Number),
+  data: S.optionalKey(S.Record(S.String, S.Record(S.String, S.Unknown))),
+  workspaces: S.optionalKey(S.Record(S.String, S.Record(S.String, S.Record(S.String, S.Unknown)))),
+});
+const PersistedConfigJsonSchema = PersistedConfigSchema.pipe(S.fromJsonString);
+type PersistedConfig = typeof PersistedConfigSchema.Type;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -70,13 +92,63 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function toPersistedWorkspaces(
+  store: Map<string, WorkspaceStore>,
+): Record<string, Record<string, Record<string, unknown>>> {
+  const workspaces: Record<string, Record<string, Record<string, unknown>>> = {};
+
+  for (const [workspace, ws] of store) {
+    const workspaceData: Record<string, Record<string, unknown>> = {};
+    for (const [namespace, subMap] of ws) {
+      const obj: Record<string, unknown> = {};
+      for (const [k, v] of subMap) {
+        obj[k] = v;
+      }
+      workspaceData[namespace] = obj;
+    }
+    workspaces[workspace] = workspaceData;
+  }
+
+  return workspaces;
+}
+
+function hydratePersistedConfig(
+  store: Map<string, WorkspaceStore>,
+  parsed: PersistedConfig,
+): void {
+  store.clear();
+
+  if (parsed.workspaces !== undefined) {
+    for (const [workspace, namespaces] of Object.entries(parsed.workspaces)) {
+      const ws = new Map<string, NamespaceStore>();
+      for (const [namespace, obj] of Object.entries(namespaces)) {
+        const subMap = new Map<string, unknown>();
+        for (const [k, v] of Object.entries(obj)) {
+          subMap.set(k, v);
+        }
+        ws.set(namespace, subMap);
+      }
+      store.set(workspace, ws);
+    }
+    return;
+  }
+
+  const ws = new Map<string, NamespaceStore>();
+  for (const [namespace, obj] of Object.entries(parsed.data ?? {})) {
+    const subMap = new Map<string, unknown>();
+    for (const [k, v] of Object.entries(obj)) {
+      subMap.set(k, v);
+    }
+    ws.set(namespace, subMap);
+  }
+  store.set(DEFAULT_WORKSPACE, ws);
+}
+
 export type ConfigService = AsyncProcessorRuntime & Record<string, any>;
 
 export function makeConfigService(config: ConfigServiceConfig): ConfigService {
   const service = makeAsyncProcessor(config, {
-    run: async () => {
-      await service.run();
-    },
+    run: () => service.run(),
   }) as ConfigService;
   const baseStop = service.stop;
   service.store = new Map<string, WorkspaceStore>();
@@ -88,115 +160,183 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
   Object.assign(service, {
 
 
-      run: async function(this: ConfigService): Promise<void> {
-        // Optionally load persisted state
-        if (this.persistPath !== null) {
-          await this.loadFromDisk();
-        }
+      run: function(this: ConfigService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            // Optionally load persisted state
+            if (service.persistPath !== null) {
+              yield* Effect.tryPromise({
+                try: () => service.loadFromDisk(),
+                catch: (cause) => configServiceError("load", cause),
+              });
+            }
 
-        // Create producers
-        this.responseProducer = await this.pubsub.createProducer<ConfigResponse>({
-          topic: topics.configResponse,
-          schema: ConfigResponseSchema,
-        });
-        this.pushProducer = await this.pubsub.createProducer<ConfigPush>({
-          topic: topics.configPush,
-          schema: ConfigPushSchema,
-        });
+            // Create producers
+            service.responseProducer = yield* Effect.tryPromise({
+              try: () =>
+                service.pubsub.createProducer<ConfigResponse>({
+                  topic: topics.configResponse,
+                  schema: ConfigResponseSchema,
+                }),
+              catch: (cause) => configServiceError("response-producer", cause),
+            });
+            service.pushProducer = yield* Effect.tryPromise({
+              try: () =>
+                service.pubsub.createProducer<ConfigPush>({
+                  topic: topics.configPush,
+                  schema: ConfigPushSchema,
+                }),
+              catch: (cause) => configServiceError("push-producer", cause),
+            });
 
-        // Create consumer for config requests
-        this.consumer = await this.pubsub.createConsumer<ConfigRequest>({
-          topic: topics.configRequest,
-          subscription: `${this.config.id}-config-request`,
-          schema: ConfigRequestSchema,
-        });
+            // Create consumer for config requests
+            service.consumer = yield* Effect.tryPromise({
+              try: () =>
+                service.pubsub.createConsumer<ConfigRequest>({
+                  topic: topics.configRequest,
+                  subscription: `${service.config.id}-config-request`,
+                  schema: ConfigRequestSchema,
+                }),
+              catch: (cause) => configServiceError("consumer", cause),
+            });
 
-        // Push initial config
-        await this.pushConfig();
+            // Push initial config
+            yield* Effect.tryPromise({
+              try: () => service.pushConfig(),
+              catch: (cause) => configServiceError("push-initial-config", cause),
+            });
 
-        console.log(`[ConfigService] Listening on ${topics.configRequest}`);
+            yield* Effect.log(`[ConfigService] Listening on ${topics.configRequest}`);
 
-        // Main consume loop
-        while (this.running) {
-          try {
-            const consumer = this.consumer;
-            if (consumer === null) throw new Error("Config consumer not started");
+            // Main consume loop
+            while (service.running) {
+              const shouldContinue = yield* Effect.gen(function* () {
+              const consumer = service.consumer;
+              if (consumer === null) {
+                return yield* configServiceError("consume", "Config consumer not started");
+              }
 
-            const msg = await consumer.receive(2000);
-            if (msg === null) continue;
+              const msg = yield* Effect.tryPromise({
+                try: () => consumer.receive(2000),
+                catch: (cause) => configServiceError("consume-receive", cause),
+              });
+              if (msg === null) return true;
 
-            await this.handleMessage(msg);
-            await consumer.acknowledge(msg);
-          } catch (err) {
-            if (!this.running) break;
-            console.error("[ConfigService] Error in consume loop:", err);
-            await sleep(1000);
-          }
-        }
+              yield* Effect.tryPromise({
+                try: () => service.handleMessage(msg),
+                catch: (cause) => configServiceError("consume-handle", cause),
+              });
+              yield* Effect.tryPromise({
+                try: () => consumer.acknowledge(msg),
+                catch: (cause) => configServiceError("consume-acknowledge", cause),
+              });
+
+              return true;
+            }).pipe(
+              Effect.catch((err) => {
+                if (!service.running) return Effect.succeed(false);
+                return Effect.logError("[ConfigService] Error in consume loop", { error: err.message }).pipe(
+                  Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
+                  Effect.as(true),
+                );
+              }),
+            );
+              if (!shouldContinue) break;
+            }
+          }),
+        );
 
         },
 
 
 
-      handleMessage: async function(this: ConfigService, msg: Message<ConfigRequest>): Promise<void> {
-        const request = await Effect.runPromise(S.decodeUnknownEffect(ConfigRequestSchema)(msg.value()));
-        const props = msg.properties();
-        const requestId = props.id;
+      handleMessage: function(this: ConfigService, msg: Message<ConfigRequest>): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const request = yield* S.decodeUnknownEffect(ConfigRequestSchema)(msg.value()).pipe(
+              Effect.mapError((cause) => configServiceError("decode", cause)),
+            );
+            const props = msg.properties();
+            const requestId = props.id;
 
-        if (requestId === undefined || requestId.length === 0) {
-          console.warn("[ConfigService] Received request without id, ignoring");
-          return;
-        }
+            if (requestId === undefined || requestId.length === 0) {
+              yield* Effect.logWarning("[ConfigService] Received request without id, ignoring");
+              return;
+            }
 
-        try {
-          const response = await this.handleOperation(request);
-          const responseProducer = this.responseProducer;
-          if (responseProducer === null) throw new Error("Config response producer not started");
-          await responseProducer.send(response, { id: requestId });
-        } catch (err) {
-          const message = errorMessage(err);
-          const responseProducer = this.responseProducer;
-          if (responseProducer === null) throw new Error("Config response producer not started");
-          await responseProducer.send(
-            {
-              error: { type: "config-error", message },
-            },
-            { id: requestId },
-          );
-        }
+            const sendResponse = (response: ConfigResponse): Effect.Effect<void, ConfigServiceError> =>
+              Effect.gen(function* () {
+                const responseProducer = service.responseProducer;
+                if (responseProducer === null) {
+                  return yield* configServiceError("respond", "Config response producer not started");
+                }
+                yield* Effect.tryPromise({
+                  try: () => responseProducer.send(response, { id: requestId }),
+                  catch: (cause) => configServiceError("respond", cause),
+                });
+              });
+
+            yield* Effect.gen(function* () {
+              const response = yield* Effect.tryPromise<ConfigResponse, ConfigServiceError>({
+                try: () => service.handleOperation(request),
+                catch: (cause) => configServiceError("operation", cause),
+              });
+              yield* sendResponse(response);
+            }).pipe(
+              Effect.catch((err) =>
+                sendResponse({
+                  error: { type: "config-error", message: err.message },
+                }),
+              ),
+            );
+          }),
+        );
 
         },
 
 
 
-      handleOperation: async function(this: ConfigService, request: ConfigRequest): Promise<ConfigResponse> {
-        const op: ConfigOperation = request.operation;
+      handleOperation: function(this: ConfigService, request: ConfigRequest): Promise<ConfigResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const op: ConfigOperation = request.operation;
 
-        switch (op) {
-          case "get":
-            return this.handleGet(request);
+            switch (op) {
+              case "get":
+                return service.handleGet(request);
 
-          case "put":
-            return await this.handlePut(request);
+              case "put":
+                return yield* Effect.tryPromise<ConfigResponse, ConfigServiceError>({
+                  try: () => service.handlePut(request),
+                  catch: (cause) => configServiceError("put", cause),
+                });
 
-          case "delete":
-            return await this.handleDelete(request);
+              case "delete":
+                return yield* Effect.tryPromise<ConfigResponse, ConfigServiceError>({
+                  try: () => service.handleDelete(request),
+                  catch: (cause) => configServiceError("delete", cause),
+                });
 
-          case "list":
-            return this.handleList(request);
+              case "list":
+                return service.handleList(request);
 
-          case "config":
-            return this.handleConfigDump(request);
+              case "config":
+                return service.handleConfigDump(request);
 
-          case "getvalues":
-            return this.handleGetValues(request);
+              case "getvalues":
+                return service.handleGetValues(request);
 
-          case "getvalues-all-ws":
-            return this.handleGetValuesAllWorkspaces(request);
+              case "getvalues-all-ws":
+                return service.handleGetValuesAllWorkspaces(request);
 
-          default:
-            throw new Error(`Unknown config operation: ${op as string}`);
-        }
+              default:
+                return yield* configServiceError("operation", `Unknown config operation: ${op as string}`);
+            }
+          }),
+        );
 
         },
 
@@ -364,76 +504,104 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
 
 
 
-      handlePut: async function(this: ConfigService, request: ConfigRequest): Promise<ConfigResponse> {
-        const values = this.configValues(request);
-        if (values.length === 0) throw new Error("Put requires config values");
+      handlePut: function(this: ConfigService, request: ConfigRequest): Promise<ConfigResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const values = service.configValues(request);
+            if (values.length === 0) return yield* configServiceError("put", "Put requires config values");
 
-        for (const item of values) {
-          this.namespaceStore(item.workspace ?? DEFAULT_WORKSPACE, item.type, true)?.set(item.key, item.value);
-        }
+            for (const item of values) {
+              service.namespaceStore(item.workspace ?? DEFAULT_WORKSPACE, item.type, true)?.set(item.key, item.value);
+            }
 
-        this.version++;
-        await this.persist();
-        await this.pushConfig();
+            service.version++;
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => configServiceError("persist", cause),
+            });
+            yield* Effect.tryPromise({
+              try: () => service.pushConfig(),
+              catch: (cause) => configServiceError("push-config", cause),
+            });
 
-        return { version: this.version };
+            return { version: service.version };
+          }),
+        );
 
         },
 
 
 
-      handleDelete: async function(this: ConfigService, request: ConfigRequest): Promise<ConfigResponse> {
-        const workspace = this.workspaceFor(request);
-        const objectKeys = this.objectKeys(request);
-        if (objectKeys.length > 0) {
-          for (const key of objectKeys) {
-            const ws = this.workspaceStore(workspace, false);
-            if (ws === undefined) continue;
-            if (key.key === undefined) {
-              ws.delete(key.type);
-            } else {
-              const ns = ws.get(key.type);
-              ns?.delete(key.key);
-              if (ns !== undefined && ns.size === 0) ws.delete(key.type);
+      handleDelete: function(this: ConfigService, request: ConfigRequest): Promise<ConfigResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const workspace = service.workspaceFor(request);
+            const objectKeys = service.objectKeys(request);
+            if (objectKeys.length > 0) {
+              for (const key of objectKeys) {
+                const ws = service.workspaceStore(workspace, false);
+                if (ws === undefined) continue;
+                if (key.key === undefined) {
+                  ws.delete(key.type);
+                } else {
+                  const ns = ws.get(key.type);
+                  ns?.delete(key.key);
+                  if (ns !== undefined && ns.size === 0) ws.delete(key.type);
+                }
+              }
+
+              service.version++;
+              yield* Effect.tryPromise({
+                try: () => service.persist(),
+                catch: (cause) => configServiceError("persist", cause),
+              });
+              yield* Effect.tryPromise({
+                try: () => service.pushConfig(),
+                catch: (cause) => configServiceError("push-config", cause),
+              });
+              return { version: service.version };
             }
-          }
 
-          this.version++;
-          await this.persist();
-          await this.pushConfig();
-          return { version: this.version };
-        }
-
-        const keys = this.stringKeys(request);
-        if (keys.length === 0) {
-          throw new Error("Delete requires at least one key");
-        }
-
-        const namespace = keys[0];
-        const ws = this.workspaceStore(workspace, false);
-        if (ws === undefined) return { version: this.version };
-
-        if (keys.length === 1) {
-          // Delete entire namespace
-          ws.delete(namespace);
-        } else {
-          // Delete specific keys within namespace
-          const subMap = ws.get(namespace);
-          if (subMap !== undefined) {
-            for (let i = 1; i < keys.length; i++) {
-              subMap.delete(keys[i]);
+            const keys = service.stringKeys(request);
+            if (keys.length === 0) {
+              return yield* configServiceError("delete", "Delete requires at least one key");
             }
-            if (subMap.size === 0) {
+
+            const namespace = keys[0];
+            const ws = service.workspaceStore(workspace, false);
+            if (ws === undefined) return { version: service.version };
+
+            if (keys.length === 1) {
+              // Delete entire namespace
               ws.delete(namespace);
+            } else {
+              // Delete specific keys within namespace
+              const subMap = ws.get(namespace);
+              if (subMap !== undefined) {
+                for (let i = 1; i < keys.length; i++) {
+                  subMap.delete(keys[i]);
+                }
+                if (subMap.size === 0) {
+                  ws.delete(namespace);
+                }
+              }
             }
-          }
-        }
 
-        this.version++;
-        await this.persist();
-        await this.pushConfig();
+            service.version++;
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => configServiceError("persist", cause),
+            });
+            yield* Effect.tryPromise({
+              try: () => service.pushConfig(),
+              catch: (cause) => configServiceError("push-config", cause),
+            });
 
-        return { version: this.version };
+            return { version: service.version };
+          }),
+        );
 
         },
 
@@ -528,130 +696,140 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
 
 
 
-      pushConfig: async function(this: ConfigService): Promise<void> {
-        const pushProducer = this.pushProducer;
-        if (pushProducer === null) return;
+      pushConfig: function(this: ConfigService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const pushProducer = service.pushProducer;
+            if (pushProducer === null) return;
 
-        const config: Record<string, unknown> = {};
-        const ws = this.workspaceStore(DEFAULT_WORKSPACE, false);
-        for (const [namespace, subMap] of ws ?? new Map<string, NamespaceStore>()) {
-          const obj: Record<string, unknown> = {};
-          for (const [k, v] of subMap) {
-            obj[k] = v;
-          }
-          config[namespace] = obj;
-        }
-
-        await pushProducer.send({
-          version: this.version,
-          config,
-        });
-
-        console.log(`[ConfigService] Pushed configuration version ${this.version}`);
-
-        },
-
-
-
-      persist: async function(this: ConfigService): Promise<void> {
-        const persistPath = this.persistPath;
-        if (persistPath === null) return;
-
-        try {
-          const workspaces: Record<string, Record<string, Record<string, unknown>>> = {};
-
-          for (const [workspace, ws] of this.store) {
-            const workspaceData: Record<string, Record<string, unknown>> = {};
-            for (const [namespace, subMap] of ws) {
+            const config: Record<string, unknown> = {};
+            const ws = service.workspaceStore(DEFAULT_WORKSPACE, false);
+            for (const [namespace, subMap] of ws ?? new Map<string, NamespaceStore>()) {
               const obj: Record<string, unknown> = {};
               for (const [k, v] of subMap) {
                 obj[k] = v;
               }
-              workspaceData[namespace] = obj;
+              config[namespace] = obj;
             }
-            workspaces[workspace] = workspaceData;
-          }
 
-          const json = JSON.stringify(
-            { version: this.version, workspaces },
-            null,
-            2,
-          );
+            yield* Effect.tryPromise({
+              try: () =>
+                pushProducer.send({
+                  version: service.version,
+                  config,
+                }),
+              catch: (cause) => configServiceError("push-config", cause),
+            });
 
-          await writeTextFile(persistPath, json);
-        } catch (err) {
-          await Effect.runPromise(Effect.logError("[ConfigService] Failed to persist config", { error: errorMessage(err) }));
-        }
+            yield* Effect.log(`[ConfigService] Pushed configuration version ${service.version}`);
+          }),
+        );
 
         },
 
 
 
-      loadFromDisk: async function(this: ConfigService): Promise<void> {
-        const persistPath = this.persistPath;
-        if (persistPath === null) return;
+      persist: function(this: ConfigService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const persistPath = service.persistPath;
+            if (persistPath === null) return;
+            const payload = {
+              version: service.version,
+              workspaces: toPersistedWorkspaces(service.store),
+            };
 
-        try {
-          const raw = await readTextFile(persistPath);
-          const parsed = JSON.parse(raw) as {
-            version: number;
-            data?: Record<string, Record<string, unknown>>;
-            workspaces?: Record<string, Record<string, Record<string, unknown>>>;
-          };
+            const json = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(payload).pipe(
+              Effect.mapError((cause) => configServiceError("persist-encode", cause)),
+            );
 
-          this.version = parsed.version ?? 0;
-          this.store.clear();
-
-          if (parsed.workspaces !== undefined) {
-            for (const [workspace, namespaces] of Object.entries(parsed.workspaces)) {
-              const ws = new Map<string, NamespaceStore>();
-              for (const [namespace, obj] of Object.entries(namespaces)) {
-                const subMap = new Map<string, unknown>();
-                for (const [k, v] of Object.entries(obj)) {
-                  subMap.set(k, v);
-                }
-                ws.set(namespace, subMap);
-              }
-              this.store.set(workspace, ws);
-            }
-          } else {
-            const ws = new Map<string, NamespaceStore>();
-            for (const [namespace, obj] of Object.entries(parsed.data ?? {})) {
-              const subMap = new Map<string, unknown>();
-              for (const [k, v] of Object.entries(obj)) {
-                subMap.set(k, v);
-              }
-              ws.set(namespace, subMap);
-            }
-            this.store.set(DEFAULT_WORKSPACE, ws);
-          }
-
-          console.log(
-            `[ConfigService] Loaded persisted config (version=${this.version}, workspaces=${this.store.size})`,
-          );
-        } catch {
-          // File doesn't exist yet or is invalid — start fresh
-          await Effect.runPromise(Effect.log("[ConfigService] No persisted config found, starting fresh"));
-        }
+            yield* Effect.tryPromise({
+              try: () => writeTextFile(persistPath, json),
+              catch: (cause) => configServiceError("persist-write", cause),
+            });
+          }).pipe(
+            Effect.catch((err) =>
+              Effect.logError("[ConfigService] Failed to persist config", { error: err.message }),
+            ),
+          ),
+        );
 
         },
 
 
 
-      stop: async function(this: ConfigService): Promise<void> {
-        if (this.consumer !== null) {
-          await this.consumer.close();
-          this.consumer = null;
-        }
-        if (this.responseProducer !== null) {
-          await this.responseProducer.close();
-          this.responseProducer = null;
-        }
-        if (this.pushProducer !== null) {
-          await this.pushProducer.close();
-          this.pushProducer = null;
-        }
-        await baseStop();
+      loadFromDisk: function(this: ConfigService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const persistPath = service.persistPath;
+            if (persistPath === null) return;
+
+            const parsed = yield* Effect.gen(function* () {
+              const raw = yield* Effect.tryPromise({
+                try: () => readTextFile(persistPath),
+                catch: (cause) => configServiceError("persist-read", cause),
+              });
+              return yield* S.decodeUnknownEffect(PersistedConfigJsonSchema)(raw).pipe(
+                Effect.mapError((cause) => configServiceError("persist-decode", cause)),
+              );
+            }).pipe(
+              Effect.catch(() =>
+                Effect.log("[ConfigService] No persisted config found, starting fresh").pipe(
+                  Effect.as(null as PersistedConfig | null),
+                ),
+              ),
+            );
+
+            if (parsed === null) return;
+
+            service.version = parsed.version ?? 0;
+            hydratePersistedConfig(service.store, parsed);
+
+            yield* Effect.log(`[ConfigService] Loaded persisted config (version=${service.version}, workspaces=${service.store.size})`);
+          }),
+        );
+
+        },
+
+
+
+      stop: function(this: ConfigService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const consumer = service.consumer;
+            if (consumer !== null) {
+              yield* Effect.tryPromise({
+                try: () => consumer.close(),
+                catch: (cause) => configServiceError("close-consumer", cause),
+              });
+              service.consumer = null;
+            }
+            const responseProducer = service.responseProducer;
+            if (responseProducer !== null) {
+              yield* Effect.tryPromise({
+                try: () => responseProducer.close(),
+                catch: (cause) => configServiceError("close-response-producer", cause),
+              });
+              service.responseProducer = null;
+            }
+            const pushProducer = service.pushProducer;
+            if (pushProducer !== null) {
+              yield* Effect.tryPromise({
+                try: () => pushProducer.close(),
+                catch: (cause) => configServiceError("close-push-producer", cause),
+              });
+              service.pushProducer = null;
+            }
+            yield* Effect.tryPromise({
+              try: () => baseStop(),
+              catch: (cause) => configServiceError("stop", cause),
+            });
+          }),
+        );
 
         }
   });
@@ -659,10 +837,6 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
 }
 
 export const ConfigService = makeConfigService;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export const loadConfigServiceRuntimeConfig = Effect.fn("loadConfigServiceRuntimeConfig")(function* () {
   const processorConfig = yield* loadProcessorRuntimeConfig("config-svc", {
@@ -681,6 +855,6 @@ export const program = makeProcessorProgram({
   make: (config) => makeConfigService(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

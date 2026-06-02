@@ -1,5 +1,5 @@
 import { makeBaseApiWithRpc, type BaseApi, type DocumentMetadata, type ProcessingMetadata, type StreamingMetadata, type Triple } from "@trustgraph/client";
-import { Option, Schema as S } from "effect";
+import { Clock, Effect, Option, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;
 
@@ -268,12 +268,13 @@ function configValues(state: MockState, type: string) {
 
 function addDocument(state: MockState, metadata: DocumentMetadata): DocumentMetadata {
   const id = metadata.id ?? `qa-doc-${state.library.documents.length + 1}`;
+  const currentTimeSeconds = Math.floor(Effect.runSync(Clock.currentTimeMillis) / 1000);
   const document = {
     ...metadata,
     id,
     title: metadata.title ?? id,
     kind: metadata.kind ?? metadata["document-type"] ?? "text/plain",
-    time: metadata.time ?? Math.floor(Date.now() / 1000),
+    time: metadata.time ?? currentTimeSeconds,
     user: metadata.user ?? state.settings.user,
     tags: metadata.tags ?? [],
   };
@@ -526,16 +527,14 @@ export function makeMockBaseApi(fixture: MockWorkbenchFixture = {}): BaseApi {
           input.flow,
         ),
       ),
-    dispatchStream: async (input, receiver) => {
-      await dispatchStream(state, input.service, (message) => {
+    dispatchStream: (input, receiver) =>
+      dispatchStream(state, input.service, (message) => {
         const chunk = message as { response?: unknown; complete?: boolean };
         return receiver({
           response: chunk.response,
           complete: chunk.complete === true,
         });
-      });
-      return undefined;
-    },
+      }).then(() => undefined),
     subscribe: (listener) => {
       listener({ status: token === undefined ? "connected" : "connected" });
       return () => {};

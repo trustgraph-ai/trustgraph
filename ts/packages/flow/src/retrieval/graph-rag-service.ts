@@ -192,6 +192,6 @@ export const program = makeFlowProcessorProgram({
   layer: () => GraphRagLive,
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

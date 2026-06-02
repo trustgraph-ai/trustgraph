@@ -19,9 +19,15 @@ import {
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
-  tooManyRequestsError,
 } from "@trustgraph/base";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import {
+  optionalStringConfig,
+  providerStatusError,
+  requiredString,
+  toAsyncGenerator,
+  type TextCompletionRuntimeError,
+} from "./common.ts";
 
 export type AzureOpenAIProcessorConfig = ProcessorConfig & {
   model?: string;
@@ -32,32 +38,65 @@ export type AzureOpenAIProcessorConfig = ProcessorConfig & {
   maxOutput?: number;
 };
 
-export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): LlmProvider {
-  const defaultModel = config.model ?? process.env.AZURE_MODEL ?? "gpt-4o";
-  const defaultTemperature = config.temperature ?? 0.0;
-  const maxOutput = config.maxOutput ?? 4096;
+type ResolvedAzureOpenAIConfig = {
+  readonly defaultModel: string;
+  readonly defaultTemperature: number;
+  readonly maxOutput: number;
+  readonly apiKey: string;
+  readonly endpoint: string;
+  readonly apiVersion: string;
+};
 
-    const apiKey = config.apiKey ?? process.env.AZURE_TOKEN;
-    if (apiKey === undefined || apiKey.length === 0) {
-      throw new Error("Azure OpenAI API key not specified");
-    }
-
-    const endpoint = config.endpoint ?? process.env.AZURE_ENDPOINT;
-    if (endpoint === undefined || endpoint.length === 0) {
-      throw new Error("Azure OpenAI endpoint not specified");
-    }
-
+const loadAzureOpenAIConfig = Effect.fn("loadAzureOpenAIConfig")(function* (
+  config: AzureOpenAIProcessorConfig,
+) {
+    const defaultModel =
+      config.model ?? (yield* optionalStringConfig("AzureOpenAI", "AZURE_MODEL")) ?? "gpt-4o";
+    const apiKey = yield* requiredString(
+      config.apiKey ?? (yield* optionalStringConfig("AzureOpenAI", "AZURE_TOKEN")),
+      "AzureOpenAI",
+      "AZURE_TOKEN",
+      "Azure OpenAI API key not specified",
+    );
+    const endpoint = yield* requiredString(
+      config.endpoint ?? (yield* optionalStringConfig("AzureOpenAI", "AZURE_ENDPOINT")),
+      "AzureOpenAI",
+      "AZURE_ENDPOINT",
+      "Azure OpenAI endpoint not specified",
+    );
     const apiVersion =
       config.apiVersion ??
-      process.env.AZURE_API_VERSION ??
+      (yield* optionalStringConfig("AzureOpenAI", "AZURE_API_VERSION")) ??
       "2024-12-01-preview";
 
+    return {
+      defaultModel,
+      defaultTemperature: config.temperature ?? 0.0,
+      maxOutput: config.maxOutput ?? 4096,
+      apiKey,
+      endpoint,
+      apiVersion,
+    };
+});
+
+const mapAzureOpenAIError = (error: unknown): TextCompletionRuntimeError =>
+  providerStatusError("AzureOpenAI", error);
+
+export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): LlmProvider {
+  const {
+    defaultModel,
+    defaultTemperature,
+    maxOutput,
+    apiKey,
+    endpoint,
+    apiVersion,
+  } = Effect.runSync(loadAzureOpenAIConfig(config)) satisfies ResolvedAzureOpenAIConfig;
   const client = new AzureOpenAI({ apiKey, apiVersion, endpoint });
 
-    console.log("[AzureOpenAI] LLM service initialized");
+  Effect.runSync(Effect.log("[AzureOpenAI] LLM service initialized"));
 
   return {
-    generateContent: async (
+    generateContent: (
       system: string,
       prompt: string,
       model?: string,
@@ -66,87 +105,106 @@ export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): Llm
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      try {
-        const resp = await client.chat.completions.create({
-          model: modelName,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-          ],
-          temperature: temp,
-          max_completion_tokens: maxOutput,
-        });
-
-        return {
-          text: resp.choices[0].message.content ?? "",
-          inToken: resp.usage?.prompt_tokens ?? 0,
-          outToken: resp.usage?.completion_tokens ?? 0,
-          model: modelName,
-        };
-      } catch (err) {
-        if ((err as any)?.status === 429) {
-          throw tooManyRequestsError();
-        }
-        throw err;
-      }
+      return Effect.runPromise(
+        Effect.tryPromise({
+          try: () =>
+            client.chat.completions.create({
+              model: modelName,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+              temperature: temp,
+              max_completion_tokens: maxOutput,
+            }),
+          catch: mapAzureOpenAIError,
+        }).pipe(
+          Effect.map((resp): LlmResult => ({
+            text: resp.choices[0].message.content ?? "",
+            inToken: resp.usage?.prompt_tokens ?? 0,
+            outToken: resp.usage?.completion_tokens ?? 0,
+            model: modelName,
+          })),
+        ),
+      );
     },
     supportsStreaming: () => true,
-    generateContentStream: async function* (
+    generateContentStream: (
       system: string,
       prompt: string,
       model?: string,
       temperature?: number,
-    ): AsyncGenerator<LlmChunk> {
+    ): AsyncGenerator<LlmChunk> => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      try {
-        const stream = await client.chat.completions.create({
-          model: modelName,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-          ],
-          temperature: temp,
-          max_completion_tokens: maxOutput,
-          stream: true,
-          stream_options: { include_usage: true },
-        });
-
+      const stream = Stream.fromEffect(
+        Effect.tryPromise({
+          try: () =>
+            client.chat.completions.create({
+              model: modelName,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+              temperature: temp,
+              max_completion_tokens: maxOutput,
+              stream: true,
+              stream_options: { include_usage: true },
+            }),
+          catch: mapAzureOpenAIError,
+        }),
+      ).pipe(
+        Stream.flatMap((openAIStream) => {
+          const iterator = openAIStream[Symbol.asyncIterator]();
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
 
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content;
-          if (content !== null && content !== undefined && content.length > 0) {
-            yield {
-              text: content,
-              inToken: null,
-              outToken: null,
-              model: modelName,
-              isFinal: false,
-            };
-          }
+          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
+            "pulling",
+            (state) => {
+              if (state === "done") return Effect.void as Effect.Effect<undefined>;
 
-          if (chunk.usage !== null && chunk.usage !== undefined) {
-            totalInputTokens = chunk.usage.prompt_tokens;
-            totalOutputTokens = chunk.usage.completion_tokens;
-          }
-        }
+              return Effect.gen(function* () {
+                while (true) {
+                  const next = yield* Effect.tryPromise({
+                    try: () => iterator.next(),
+                    catch: mapAzureOpenAIError,
+                  });
 
-        yield {
-          text: "",
-          inToken: totalInputTokens,
-          outToken: totalOutputTokens,
-          model: modelName,
-          isFinal: true,
-        };
-      } catch (err) {
-        if ((err as any)?.status === 429) {
-          throw tooManyRequestsError();
-        }
-        throw err;
-      }
+                  if (next.done === true) {
+                    return [{
+                      text: "",
+                      inToken: totalInputTokens,
+                      outToken: totalOutputTokens,
+                      model: modelName,
+                      isFinal: true,
+                    }, "done"] as const;
+                  }
+
+                  const chunk = next.value;
+                  const content = chunk.choices[0]?.delta?.content;
+                  if (chunk.usage !== null && chunk.usage !== undefined) {
+                    totalInputTokens = chunk.usage.prompt_tokens;
+                    totalOutputTokens = chunk.usage.completion_tokens;
+                  }
+                  if (content !== null && content !== undefined && content.length > 0) {
+                    return [{
+                      text: content,
+                      inToken: null,
+                      outToken: null,
+                      model: modelName,
+                      isFinal: false,
+                    }, "pulling"] as const;
+                  }
+                }
+              });
+            },
+          );
+        }),
+      );
+
+      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapAzureOpenAIError);
     },
   };
 }
@@ -171,6 +229,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

@@ -21,7 +21,14 @@ import {
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import {
+  optionalStringConfig,
+  providerStatusError,
+  requiredString,
+  toAsyncGenerator,
+  type TextCompletionRuntimeError,
+} from "./common.ts";
 
 export type OpenAICompatibleProcessorConfig = ProcessorConfig & {
   model?: string;
@@ -31,30 +38,57 @@ export type OpenAICompatibleProcessorConfig = ProcessorConfig & {
   maxOutput?: number;
 };
 
+type ResolvedOpenAICompatibleConfig = {
+  readonly defaultModel: string;
+  readonly defaultTemperature: number;
+  readonly maxOutput: number;
+  readonly apiKey: string;
+  readonly baseURL: string;
+};
+
+const loadOpenAICompatibleConfig = Effect.fn("loadOpenAICompatibleConfig")(function*(
+  config: OpenAICompatibleProcessorConfig,
+) {
+    const defaultModel =
+      config.model ?? (yield* optionalStringConfig("OpenAI-Compatible", "OPENAI_COMPAT_MODEL")) ?? "default";
+    const baseURL = yield* requiredString(
+      config.baseUrl ?? (yield* optionalStringConfig("OpenAI-Compatible", "OPENAI_COMPAT_URL")),
+      "OpenAI-Compatible",
+      "OPENAI_COMPAT_URL",
+      "OpenAI-compatible server URL not specified (set OPENAI_COMPAT_URL)",
+    );
+    const apiKey =
+      config.apiKey ?? (yield* optionalStringConfig("OpenAI-Compatible", "OPENAI_COMPAT_KEY")) ?? "sk-no-key-required";
+
+    return {
+      defaultModel,
+      defaultTemperature: config.temperature ?? 0.0,
+      maxOutput: config.maxOutput ?? 4096,
+      apiKey,
+      baseURL,
+    } satisfies ResolvedOpenAICompatibleConfig;
+});
+
+const mapOpenAICompatibleError = (error: unknown): TextCompletionRuntimeError =>
+  providerStatusError("OpenAI-Compatible", error);
+
 export function makeOpenAICompatibleProvider(
   config: OpenAICompatibleProcessorConfig,
 ): LlmProvider {
-  const defaultModel =
-    config.model ?? process.env.OPENAI_COMPAT_MODEL ?? "default";
-  const defaultTemperature = config.temperature ?? 0.0;
-  const maxOutput = config.maxOutput ?? 4096;
-
-    const baseURL = config.baseUrl ?? process.env.OPENAI_COMPAT_URL;
-    if (baseURL === undefined || baseURL.length === 0) {
-      throw new Error(
-        "OpenAI-compatible server URL not specified (set OPENAI_COMPAT_URL)",
-      );
-    }
-
-    const apiKey =
-      config.apiKey ?? process.env.OPENAI_COMPAT_KEY ?? "sk-no-key-required";
+  const {
+    defaultModel,
+    defaultTemperature,
+    maxOutput,
+    apiKey,
+    baseURL,
+  } = Effect.runSync(loadOpenAICompatibleConfig(config)) satisfies ResolvedOpenAICompatibleConfig;
 
   const client = new OpenAI({ baseURL, apiKey });
 
-    console.log("[OpenAI-Compatible] LLM service initialized");
+  Effect.runSync(Effect.log("[OpenAI-Compatible] LLM service initialized"));
 
   return {
-    generateContent: async (
+    generateContent: (
       system: string,
       prompt: string,
       model?: string,
@@ -63,72 +97,105 @@ export function makeOpenAICompatibleProvider(
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      const resp = await client.chat.completions.create({
-        model: modelName,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: prompt },
-        ],
-        temperature: temp,
-        max_tokens: maxOutput,
-      });
-
-      return {
-        text: resp.choices[0].message.content ?? "",
-        inToken: resp.usage?.prompt_tokens ?? 0,
-        outToken: resp.usage?.completion_tokens ?? 0,
-        model: modelName,
-      };
+      return Effect.runPromise(
+        Effect.tryPromise({
+          try: () =>
+            client.chat.completions.create({
+              model: modelName,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+              temperature: temp,
+              max_tokens: maxOutput,
+            }),
+          catch: mapOpenAICompatibleError,
+        }).pipe(
+          Effect.map((resp): LlmResult => ({
+            text: resp.choices[0].message.content ?? "",
+            inToken: resp.usage?.prompt_tokens ?? 0,
+            outToken: resp.usage?.completion_tokens ?? 0,
+            model: modelName,
+          })),
+        ),
+      );
     },
     supportsStreaming: () => true,
-    generateContentStream: async function* (
+    generateContentStream: (
       system: string,
       prompt: string,
       model?: string,
       temperature?: number,
-    ): AsyncGenerator<LlmChunk> {
+    ): AsyncGenerator<LlmChunk> => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      const stream = await client.chat.completions.create({
-        model: modelName,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: prompt },
-        ],
-        temperature: temp,
-        max_tokens: maxOutput,
-        stream: true,
-      });
-
+      const stream = Stream.fromEffect(
+        Effect.tryPromise({
+          try: () =>
+            client.chat.completions.create({
+              model: modelName,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+              temperature: temp,
+              max_tokens: maxOutput,
+              stream: true,
+            }),
+          catch: mapOpenAICompatibleError,
+        }),
+      ).pipe(
+        Stream.flatMap((openAIStream) => {
+          const iterator = openAIStream[Symbol.asyncIterator]();
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
 
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content;
-        if (content !== null && content !== undefined && content.length > 0) {
-          yield {
-            text: content,
-            inToken: null,
-            outToken: null,
-            model: modelName,
-            isFinal: false,
-          };
-        }
+          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
+            "pulling",
+            (state) => {
+              if (state === "done") return Effect.void as Effect.Effect<undefined>;
 
-        if (chunk.usage !== null && chunk.usage !== undefined) {
-          totalInputTokens = chunk.usage.prompt_tokens;
-          totalOutputTokens = chunk.usage.completion_tokens;
-        }
-      }
+              return Effect.gen(function* () {
+                while (true) {
+                  const next = yield* Effect.tryPromise({
+                    try: () => iterator.next(),
+                    catch: mapOpenAICompatibleError,
+                  });
 
-      yield {
-        text: "",
-        inToken: totalInputTokens,
-        outToken: totalOutputTokens,
-        model: modelName,
-        isFinal: true,
-      };
+                  if (next.done === true) {
+                    return [{
+                      text: "",
+                      inToken: totalInputTokens,
+                      outToken: totalOutputTokens,
+                      model: modelName,
+                      isFinal: true,
+                    }, "done"] as const;
+                  }
+
+                  const chunk = next.value;
+                  const content = chunk.choices[0]?.delta?.content;
+                  if (chunk.usage !== null && chunk.usage !== undefined) {
+                    totalInputTokens = chunk.usage.prompt_tokens;
+                    totalOutputTokens = chunk.usage.completion_tokens;
+                  }
+                  if (content !== null && content !== undefined && content.length > 0) {
+                    return [{
+                      text: content,
+                      inToken: null,
+                      outToken: null,
+                      model: modelName,
+                      isFinal: false,
+                    }, "pulling"] as const;
+                  }
+                }
+              });
+            },
+          );
+        }),
+      );
+
+      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOpenAICompatibleError);
     },
   };
 }
@@ -153,6 +220,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

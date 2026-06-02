@@ -12,6 +12,7 @@
 
 import {
   makeAsyncProcessor,
+  makeProcessorProgram,
   type ProcessorConfig,
   type AsyncProcessorRuntime,
   topics,
@@ -19,10 +20,11 @@ import {
   type KnowledgeResponse,
   type Triple,
   type Term,
+  errorMessage,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Config, Duration, Effect } from "effect";
+import * as S from "effect/Schema";
 import { ensureDirectory, joinPath, readTextFile, writeTextFile } from "../runtime/effect-files.js";
 
 export interface KnowledgeCoreServiceConfig extends ProcessorConfig {
@@ -42,18 +44,88 @@ interface DocumentEmbeddingsCore {
 
 export type KnowledgeCoreService = AsyncProcessorRuntime & Record<string, any>;
 
+export class KnowledgeCoreServiceError extends S.TaggedErrorClass<KnowledgeCoreServiceError>()(
+  "KnowledgeCoreServiceError",
+  {
+    message: S.String,
+    operation: S.String,
+  },
+) {}
+
+interface KnowledgeResponseProducer {
+  send(response: KnowledgeResponse, properties: { id: string }): Promise<void>;
+  close(): Promise<void>;
+}
+
+interface CloseableResource {
+  close(): Promise<void>;
+}
+
+const knowledgeCoreServiceError = (operation: string, cause: unknown): KnowledgeCoreServiceError =>
+  KnowledgeCoreServiceError.make({
+    operation,
+    message: errorMessage(cause),
+  });
+
+const tryPromise = <A>(
+  operation: string,
+  evaluate: () => Promise<A>,
+): Effect.Effect<A, KnowledgeCoreServiceError> =>
+  Effect.tryPromise({
+    try: evaluate,
+    catch: (cause) => knowledgeCoreServiceError(operation, cause),
+  });
+
+const trySync = <A>(
+  operation: string,
+  evaluate: () => A,
+): Effect.Effect<A, KnowledgeCoreServiceError> =>
+  Effect.try({
+    try: evaluate,
+    catch: (cause) => knowledgeCoreServiceError(operation, cause),
+  });
+
+const failPromise = (operation: string, cause: unknown): Promise<never> =>
+  Effect.runPromise(Effect.fail(knowledgeCoreServiceError(operation, cause)));
+
+const sendResponse = (
+  service: KnowledgeCoreService,
+  response: KnowledgeResponse,
+  requestId: string,
+  operation = "respond",
+): Effect.Effect<void, KnowledgeCoreServiceError> =>
+  Effect.gen(function* () {
+    const responseProducer = service.responseProducer as KnowledgeResponseProducer | null | undefined;
+    if (responseProducer === null || responseProducer === undefined) {
+      return yield* knowledgeCoreServiceError(operation, "Knowledge response producer not started");
+    }
+
+    yield* tryPromise(operation, () => responseProducer.send(response, { id: requestId }));
+  });
+
+const closeResource = (
+  resource: CloseableResource,
+  operation: string,
+): Effect.Effect<void> =>
+  tryPromise(operation, () => resource.close()).pipe(
+    Effect.catch((error) =>
+      Effect.logError("[KnowledgeCoreService] Failed to close resource", {
+        error: error.message,
+        operation: error.operation,
+      }),
+    ),
+  );
+
 export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): KnowledgeCoreService {
   const service = makeAsyncProcessor(config, {
-    run: async () => {
-      await service.run();
-    },
+    run: () => service.run(),
   }) as KnowledgeCoreService;
   const baseStop = service.stop;
   service.cores = new Map<string, KnowledgeCore>();
   service.deCores = new Map<string, DocumentEmbeddingsCore[]>();
   service.consumer = null;
   service.responseProducer = null;
-  const dataDir = config.dataDir ?? process.env.KNOWLEDGE_DATA_DIR ?? "./data/knowledge";
+  const dataDir = config.dataDir ?? "./data/knowledge";
   service.dataDir = dataDir;
   service.persistPath = joinPath(dataDir, "knowledge-state.json");
   Object.assign(service, {
@@ -66,68 +138,106 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
 
 
 
-      run: async function(this: KnowledgeCoreService): Promise<void> {
-        await ensureDirectory(this.dataDir);
-        // Load persisted state
-        await this.loadFromDisk();
+      run: function(this: KnowledgeCoreService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            if (config.dataDir === undefined) {
+              const configuredDataDir = yield* Config.string("KNOWLEDGE_DATA_DIR").pipe(
+                Config.withDefault("./data/knowledge"),
+              );
+              service.dataDir = configuredDataDir;
+              service.persistPath = joinPath(configuredDataDir, "knowledge-state.json");
+            }
 
-        // Create producer
-        this.responseProducer = await this.pubsub.createProducer<KnowledgeResponse>({
-          topic: topics.knowledgeResponse,
-        });
+            yield* tryPromise("ensure-directory", () => ensureDirectory(service.dataDir));
+            // Load persisted state
+            yield* tryPromise("load", () => service.loadFromDisk());
 
-        // Create consumer
-        this.consumer = await this.pubsub.createConsumer<KnowledgeRequest>({
-          topic: topics.knowledgeRequest,
-          subscription: `${this.config.id}-knowledge-request`,
-        });
+            // Create producer
+            service.responseProducer = yield* tryPromise("response-producer", () =>
+              service.pubsub.createProducer<KnowledgeResponse>({
+                topic: topics.knowledgeResponse,
+              }),
+            );
 
-        console.log(`[KnowledgeCoreService] Listening on ${topics.knowledgeRequest}`);
+            // Create consumer
+            service.consumer = yield* tryPromise("consumer", () =>
+              service.pubsub.createConsumer<KnowledgeRequest>({
+                topic: topics.knowledgeRequest,
+                subscription: `${service.config.id}-knowledge-request`,
+              }),
+            );
 
-        // Main consume loop
-        while (this.running) {
-          try {
-            const msg = await this.consumer.receive(2000);
-            if (msg === null) continue;
+            yield* Effect.log(`[KnowledgeCoreService] Listening on ${topics.knowledgeRequest}`);
 
-            await this.handleMessage(msg);
-            await this.consumer.acknowledge(msg);
-          } catch (err) {
-            if (!this.running) break;
-            console.error("[KnowledgeCoreService] Error in consume loop:", err);
-            await sleep(1000);
-          }
-        }
+            // Main consume loop
+            while (service.running) {
+              const shouldContinue = yield* Effect.gen(function* () {
+                const consumer = service.consumer;
+                if (consumer === null || consumer === undefined) {
+                  return yield* knowledgeCoreServiceError("consume", "Knowledge request consumer not started");
+                }
+
+                const msg = yield* tryPromise("consume-receive", () => consumer.receive(2000));
+                if (msg === null) return true;
+
+                yield* tryPromise("consume-handle", () => service.handleMessage(msg));
+                yield* tryPromise("consume-acknowledge", () => consumer.acknowledge(msg));
+
+                return true;
+              }).pipe(
+                Effect.catch((error) => {
+                  if (!service.running) return Effect.succeed(false);
+                  return Effect.logError("[KnowledgeCoreService] Error in consume loop", {
+                    error: error.message,
+                  }).pipe(
+                    Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
+                    Effect.as(true),
+                  );
+                }),
+              );
+
+              if (!shouldContinue) break;
+            }
+          }),
+        );
 
         },
 
 
 
-      handleMessage: async function(this: KnowledgeCoreService, msg: Message<KnowledgeRequest>): Promise<void> {
-        const request = msg.value();
-        const props = msg.properties();
-        const requestId = props.id;
+      handleMessage: function(this: KnowledgeCoreService, msg: Message<KnowledgeRequest>): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const request = msg.value();
+            const props = msg.properties();
+            const requestId = props.id;
 
-        if (requestId === undefined || requestId.length === 0) {
-          console.warn("[KnowledgeCoreService] Received request without id, ignoring");
-          return;
-        }
+            if (requestId === undefined || requestId.length === 0) {
+              yield* Effect.logWarning("[KnowledgeCoreService] Received request without id, ignoring");
+              return;
+            }
 
-        try {
-          await this.handleOperation(request, requestId);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          await this.responseProducer!.send(
-            { error: { type: "knowledge-error", message } },
-            { id: requestId },
-          );
-        }
+            yield* tryPromise("operation", () => service.handleOperation(request, requestId)).pipe(
+              Effect.catch((error) =>
+                sendResponse(
+                  service,
+                  { error: { type: "knowledge-error", message: error.message } },
+                  requestId,
+                  "respond-error",
+                ),
+              ),
+            );
+          }),
+        );
 
         },
 
 
 
-      handleOperation: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+      handleOperation: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
         switch (request.operation) {
           case "list-kg-cores":
             return this.listKgCores(request, requestId);
@@ -152,7 +262,7 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
           case "load-de-core":
             return this.loadDeCore(request, requestId);
           default:
-            throw new Error(`Unknown knowledge operation: ${request.operation as string}`);
+            return failPromise("operation", `Unknown knowledge operation: ${request.operation as string}`);
         }
 
         },
@@ -185,231 +295,297 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
 
 
 
-      listKgCores: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const prefix = user.length > 0 ? `${user}:` : "";
+      listKgCores: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const prefix = user.length > 0 ? `${user}:` : "";
 
-        const ids: string[] = [];
-        for (const key of (this.cores as Map<string, KnowledgeCore>).keys()) {
-          if (prefix.length === 0 || key.startsWith(prefix)) {
-            // Extract the ID portion after the user prefix
-            const id = key.slice(prefix.length);
-            ids.push(id);
-          }
-        }
+            const ids: string[] = [];
+            for (const key of (service.cores as Map<string, KnowledgeCore>).keys()) {
+              if (prefix.length === 0 || key.startsWith(prefix)) {
+                // Extract the ID portion after the user prefix
+                const id = key.slice(prefix.length);
+                ids.push(id);
+              }
+            }
 
-        await this.responseProducer!.send({ ids }, { id: requestId });
-
-        },
-
-
-
-      getKgCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
-
-        const core = this.cores.get(key);
-        if (core === undefined) {
-          throw new Error(`Knowledge core not found: ${key}`);
-        }
-
-        // Send triples and embeddings in batches
-        const BATCH_SIZE = 100;
-
-        // Send triples in batches
-        for (let i = 0; i < core.triples.length; i += BATCH_SIZE) {
-          const batch = core.triples.slice(i, i + BATCH_SIZE);
-          const isLast = i + BATCH_SIZE >= core.triples.length && core.graphEmbeddings.length === 0;
-
-          await this.responseProducer!.send(
-            { triples: batch, eos: isLast },
-            { id: requestId },
-          );
-        }
-
-        // Send graph embeddings in batches
-        for (let i = 0; i < core.graphEmbeddings.length; i += BATCH_SIZE) {
-          const batch = core.graphEmbeddings.slice(i, i + BATCH_SIZE);
-          const isLast = i + BATCH_SIZE >= core.graphEmbeddings.length;
-
-          await this.responseProducer!.send(
-            { graphEmbeddings: batch, "graph-embeddings": batch, eos: isLast } as KnowledgeResponse,
-            { id: requestId },
-          );
-        }
-
-        // If core was empty, send a final eos
-        if (core.triples.length === 0 && core.graphEmbeddings.length === 0) {
-          await this.responseProducer!.send({ eos: true }, { id: requestId });
-        }
-
-        },
-
-
-
-      deleteKgCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
-
-        this.cores.delete(key);
-        await this.persist();
-
-        console.log(`[KnowledgeCoreService] Deleted core: ${key}`);
-        await this.responseProducer!.send({}, { id: requestId });
-
-        },
-
-
-
-      putKgCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
-
-        let core = this.cores.get(key);
-        if (core === undefined) {
-          core = { triples: [], graphEmbeddings: [] };
-          this.cores.set(key, core);
-        }
-
-        // Append triples if provided
-        if (request.triples !== undefined && request.triples.length > 0) {
-          core.triples.push(...request.triples);
-        }
-
-        // Append graph embeddings if provided
-        const graphEmbeddings = this.graphEmbeddings(request);
-        if (graphEmbeddings.length > 0) {
-          core.graphEmbeddings.push(...graphEmbeddings);
-        }
-
-        await this.persist();
-
-        console.log(
-          `[KnowledgeCoreService] Updated core ${key}: triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length}`,
+            yield* sendResponse(service, { ids }, requestId);
+          }),
         );
-        await this.responseProducer!.send({}, { id: requestId });
 
         },
 
 
 
-      loadKgCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
+      getKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
 
-        const core = this.cores.get(key);
-        if (core === undefined) {
-          throw new Error(`Knowledge core not found: ${key}`);
-        }
+            const core = service.cores.get(key);
+            if (core === undefined) {
+              return yield* knowledgeCoreServiceError("get-kg-core", `Knowledge core not found: ${key}`);
+            }
 
-        if (core.triples.length > 0) {
-          const producer = await this.pubsub.createProducer<unknown>({ topic: "tg.flow.triples" });
-          try {
-            await producer.send({
-              metadata: {
-                id: coreId,
-                root: coreId,
-                user,
-                collection: request.collection ?? "default",
-              },
-              triples: core.triples,
-            });
-          } finally {
-            await producer.close();
-          }
-        }
+            // Send triples and embeddings in batches
+            const BATCH_SIZE = 100;
 
-        console.log(
-          `[KnowledgeCoreService] Loaded core ${key} (triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length})`,
+            // Send triples in batches
+            for (let i = 0; i < core.triples.length; i += BATCH_SIZE) {
+              const batch = core.triples.slice(i, i + BATCH_SIZE);
+              const isLast = i + BATCH_SIZE >= core.triples.length && core.graphEmbeddings.length === 0;
+
+              yield* sendResponse(
+                service,
+                { triples: batch, eos: isLast },
+                requestId,
+                "respond-kg-triples",
+              );
+            }
+
+            // Send graph embeddings in batches
+            for (let i = 0; i < core.graphEmbeddings.length; i += BATCH_SIZE) {
+              const batch = core.graphEmbeddings.slice(i, i + BATCH_SIZE);
+              const isLast = i + BATCH_SIZE >= core.graphEmbeddings.length;
+
+              yield* sendResponse(
+                service,
+                { graphEmbeddings: batch, "graph-embeddings": batch, eos: isLast } as KnowledgeResponse,
+                requestId,
+                "respond-kg-embeddings",
+              );
+            }
+
+            // If core was empty, send a final eos
+            if (core.triples.length === 0 && core.graphEmbeddings.length === 0) {
+              yield* sendResponse(service, { eos: true }, requestId, "respond-kg-empty");
+            }
+          }),
         );
-        await this.responseProducer!.send({}, { id: requestId });
 
         },
 
 
 
-      unloadKgCore: async function(this: KnowledgeCoreService, _request: KnowledgeRequest, requestId: string): Promise<void> {
-        await this.responseProducer!.send({}, { id: requestId });
+      deleteKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
+
+            service.cores.delete(key);
+            yield* tryPromise("persist-delete-kg-core", () => service.persist());
+
+            yield* Effect.log(`[KnowledgeCoreService] Deleted core: ${key}`);
+            yield* sendResponse(service, {}, requestId);
+          }),
+        );
 
         },
 
 
 
-      listDeCores: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const prefix = user.length > 0 ? `${user}:` : "";
-        const ids = [...this.deCores.keys()]
-          .filter((key) => prefix.length === 0 || key.startsWith(prefix))
-          .map((key) => key.slice(prefix.length));
-        await this.responseProducer!.send({ ids }, { id: requestId });
+      putKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
+
+            let core = service.cores.get(key);
+            if (core === undefined) {
+              core = { triples: [], graphEmbeddings: [] };
+              service.cores.set(key, core);
+            }
+
+            // Append triples if provided
+            if (request.triples !== undefined && request.triples.length > 0) {
+              core.triples.push(...request.triples);
+            }
+
+            // Append graph embeddings if provided
+            const graphEmbeddings = service.graphEmbeddings(request);
+            if (graphEmbeddings.length > 0) {
+              core.graphEmbeddings.push(...graphEmbeddings);
+            }
+
+            yield* tryPromise("persist-put-kg-core", () => service.persist());
+
+            yield* Effect.log(
+              `[KnowledgeCoreService] Updated core ${key}: triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length}`,
+            );
+            yield* sendResponse(service, {}, requestId);
+          }),
+        );
 
         },
 
 
 
-      getDeCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
-        const core = this.deCores.get(key);
-        if (core === undefined) throw new Error(`Document embeddings core not found: ${key}`);
+      loadKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
 
-        for (let i = 0; i < core.length; i++) {
-          const isLast = i === core.length - 1;
-          await this.responseProducer!.send(
-            {
-              documentEmbeddings: core[i],
-              "document-embeddings": core[i],
-              eos: isLast,
-            } as KnowledgeResponse,
-            { id: requestId },
-          );
-        }
-        if (core.length === 0) {
-          await this.responseProducer!.send({ eos: true }, { id: requestId });
-        }
+            const core = service.cores.get(key);
+            if (core === undefined) {
+              return yield* knowledgeCoreServiceError("load-kg-core", `Knowledge core not found: ${key}`);
+            }
 
-        },
+            if (core.triples.length > 0) {
+              yield* Effect.acquireUseRelease(
+                tryPromise("triples-producer", () =>
+                  service.pubsub.createProducer<unknown>({ topic: "tg.flow.triples" }),
+                ),
+                (producer) =>
+                  tryPromise("send-triples", () =>
+                    producer.send({
+                      metadata: {
+                        id: coreId,
+                        root: coreId,
+                        user,
+                        collection: request.collection ?? "default",
+                      },
+                      triples: core.triples,
+                    }),
+                  ),
+                (producer) => closeResource(producer, "close-triples-producer"),
+              );
+            }
 
-
-
-      deleteDeCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        this.deCores.delete(this.coreKey(user, coreId));
-        await this.persist();
-        await this.responseProducer!.send({}, { id: requestId });
-
-        },
-
-
-
-      putDeCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
-        const item = this.documentEmbeddings(request);
-        if (item === undefined) throw new Error("put-de-core requires document-embeddings");
-        const core = this.deCores.get(key) ?? [];
-        core.push(item);
-        this.deCores.set(key, core);
-        await this.persist();
-        await this.responseProducer!.send({}, { id: requestId });
+            yield* Effect.log(
+              `[KnowledgeCoreService] Loaded core ${key} (triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length})`,
+            );
+            yield* sendResponse(service, {}, requestId);
+          }),
+        );
 
         },
 
 
 
-      loadDeCore: async function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const user = request.user ?? "";
-        const coreId = request.id ?? "";
-        const key = this.coreKey(user, coreId);
-        if (!(this.deCores as Map<string, DocumentEmbeddingsCore[]>).has(key)) throw new Error(`Document embeddings core not found: ${key}`);
-        await this.responseProducer!.send({}, { id: requestId });
+      unloadKgCore: function(this: KnowledgeCoreService, _request: KnowledgeRequest, requestId: string): Promise<void> {
+        return Effect.runPromise(sendResponse(this, {}, requestId));
+
+        },
+
+
+
+      listDeCores: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const prefix = user.length > 0 ? `${user}:` : "";
+            const ids = [...service.deCores.keys()]
+              .filter((key) => prefix.length === 0 || key.startsWith(prefix))
+              .map((key) => key.slice(prefix.length));
+            yield* sendResponse(service, { ids }, requestId);
+          }),
+        );
+
+        },
+
+
+
+      getDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
+            const core = service.deCores.get(key);
+            if (core === undefined) {
+              return yield* knowledgeCoreServiceError("get-de-core", `Document embeddings core not found: ${key}`);
+            }
+
+            for (let i = 0; i < core.length; i++) {
+              const isLast = i === core.length - 1;
+              yield* sendResponse(
+                service,
+                {
+                  documentEmbeddings: core[i],
+                  "document-embeddings": core[i],
+                  eos: isLast,
+                } as KnowledgeResponse,
+                requestId,
+                "respond-de-core",
+              );
+            }
+            if (core.length === 0) {
+              yield* sendResponse(service, { eos: true }, requestId, "respond-de-empty");
+            }
+          }),
+        );
+
+        },
+
+
+
+      deleteDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            service.deCores.delete(service.coreKey(user, coreId));
+            yield* tryPromise("persist-delete-de-core", () => service.persist());
+            yield* sendResponse(service, {}, requestId);
+          }),
+        );
+
+        },
+
+
+
+      putDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
+            const item = service.documentEmbeddings(request);
+            if (item === undefined) {
+              return yield* knowledgeCoreServiceError("put-de-core", "put-de-core requires document-embeddings");
+            }
+            const core = service.deCores.get(key) ?? [];
+            core.push(item);
+            service.deCores.set(key, core);
+            yield* tryPromise("persist-put-de-core", () => service.persist());
+            yield* sendResponse(service, {}, requestId);
+          }),
+        );
+
+        },
+
+
+
+      loadDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = request.user ?? "";
+            const coreId = request.id ?? "";
+            const key = service.coreKey(user, coreId);
+            if (!(service.deCores as Map<string, DocumentEmbeddingsCore[]>).has(key)) {
+              return yield* knowledgeCoreServiceError("load-de-core", `Document embeddings core not found: ${key}`);
+            }
+            yield* sendResponse(service, {}, requestId);
+          }),
+        );
 
         },
 
@@ -417,69 +593,88 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
 
       // ---------- Persistence ----------
 
-      persist: async function(this: KnowledgeCoreService): Promise<void> {
-        try {
-          // Serialize Map to object
-          const data: {
-            kg: Record<string, KnowledgeCore>;
-            de: Record<string, DocumentEmbeddingsCore[]>;
-          } = { kg: {}, de: {} };
-          for (const [key, core] of this.cores) {
-            data.kg[key] = core;
-          }
-          for (const [key, core] of this.deCores) {
-            data.de[key] = core;
-          }
-
-          const json = JSON.stringify(data, null, 2);
-          await writeTextFile(this.persistPath, json);
-        } catch (err) {
-          console.error("[KnowledgeCoreService] Failed to persist state:", err);
-        }
-
-        },
-
-
-
-      loadFromDisk: async function(this: KnowledgeCoreService): Promise<void> {
-        try {
-          const raw = await readTextFile(this.persistPath);
-          const parsed = JSON.parse(raw) as Record<string, KnowledgeCore> | {
-            kg?: Record<string, KnowledgeCore>;
-            de?: Record<string, DocumentEmbeddingsCore[]>;
-          };
-
-          this.cores.clear();
-          this.deCores.clear();
-          const kg = "kg" in parsed && parsed.kg !== undefined ? parsed.kg : parsed as Record<string, KnowledgeCore>;
-          for (const [key, core] of Object.entries(kg)) {
-            this.cores.set(key, core);
-          }
-          if ("de" in parsed && parsed.de !== undefined) {
-            for (const [key, core] of Object.entries(parsed.de)) {
-              this.deCores.set(key, core);
+      persist: function(this: KnowledgeCoreService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            // Serialize Map to object
+            const data: {
+              kg: Record<string, KnowledgeCore>;
+              de: Record<string, DocumentEmbeddingsCore[]>;
+            } = { kg: {}, de: {} };
+            for (const [key, core] of service.cores) {
+              data.kg[key] = core;
             }
-          }
+            for (const [key, core] of service.deCores) {
+              data.de[key] = core;
+            }
 
-          console.log(`[KnowledgeCoreService] Loaded persisted state (kg=${this.cores.size}, de=${this.deCores.size})`);
-        } catch {
-          console.log("[KnowledgeCoreService] No persisted state found, starting fresh");
-        }
+            const json = yield* trySync("persist-serialize", () => JSON.stringify(data, null, 2));
+            yield* tryPromise("persist-write", () => writeTextFile(service.persistPath, json));
+          }).pipe(
+            Effect.catch((error) =>
+              Effect.logError("[KnowledgeCoreService] Failed to persist state", {
+                error: error.message,
+              }),
+            ),
+          ),
+        );
 
         },
 
 
 
-      stop: async function(this: KnowledgeCoreService): Promise<void> {
-        if (this.consumer !== null) {
-          await this.consumer.close();
-          this.consumer = null;
-        }
-        if (this.responseProducer !== null) {
-          await this.responseProducer.close();
-          this.responseProducer = null;
-        }
-        await baseStop();
+      loadFromDisk: function(this: KnowledgeCoreService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const raw = yield* tryPromise("load-read", () => readTextFile(service.persistPath));
+            const parsed = yield* trySync("load-parse", () =>
+              JSON.parse(raw) as Record<string, KnowledgeCore> | {
+                kg?: Record<string, KnowledgeCore>;
+                de?: Record<string, DocumentEmbeddingsCore[]>;
+              },
+            );
+
+            service.cores.clear();
+            service.deCores.clear();
+            const kg = "kg" in parsed && parsed.kg !== undefined ? parsed.kg : parsed as Record<string, KnowledgeCore>;
+            for (const [key, core] of Object.entries(kg)) {
+              service.cores.set(key, core);
+            }
+            if ("de" in parsed && parsed.de !== undefined) {
+              for (const [key, core] of Object.entries(parsed.de)) {
+                service.deCores.set(key, core);
+              }
+            }
+
+            yield* Effect.log(`[KnowledgeCoreService] Loaded persisted state (kg=${service.cores.size}, de=${service.deCores.size})`);
+          }).pipe(
+            Effect.catch(() =>
+              Effect.log("[KnowledgeCoreService] No persisted state found, starting fresh"),
+            ),
+          ),
+        );
+
+        },
+
+
+
+      stop: function(this: KnowledgeCoreService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            if (service.consumer !== null) {
+              yield* tryPromise("close-consumer", () => service.consumer.close());
+              service.consumer = null;
+            }
+            if (service.responseProducer !== null) {
+              yield* tryPromise("close-response-producer", () => service.responseProducer.close());
+              service.responseProducer = null;
+            }
+            yield* tryPromise("base-stop", () => baseStop());
+          }),
+        );
 
         }
   });
@@ -488,15 +683,11 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
 
 export const KnowledgeCoreService = makeKnowledgeCoreService;
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export const program = makeProcessorProgram({
   id: "knowledge-svc",
   make: (config) => makeKnowledgeCoreService(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

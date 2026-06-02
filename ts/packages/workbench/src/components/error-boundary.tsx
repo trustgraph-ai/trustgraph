@@ -4,6 +4,7 @@ import {
   type FallbackProps,
 } from "react-error-boundary";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Effect } from "effect";
 
 interface Props {
   children: ReactNode;
@@ -12,7 +13,9 @@ interface Props {
 }
 
 const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : "An unexpected error occurred.";
+  typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+    ? error.message
+    : "An unexpected error occurred.";
 
 function DefaultFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
@@ -42,7 +45,7 @@ export function ErrorBoundary({ children, fallback }: Props) {
     <ReactErrorBoundary
       fallbackRender={(props) => fallback ?? <DefaultFallback {...props} />}
       onError={(error, info) => {
-        console.error("[ErrorBoundary]", error, info.componentStack);
+        Effect.runSync(Effect.logError("[ErrorBoundary]", { error, componentStack: info.componentStack }));
       }}
     >
       {children}

@@ -132,79 +132,80 @@ const toPromiseRequestor = <TReq, TRes>(
 const buildConfiguredTool = (
   toolId: string,
   data: ToolConfigEntry,
-): AgentTool | null => {
-  const implType = data.type ?? "";
-  const name = data.name ?? "";
-  const description = data.description ?? "";
-  const config = { ...data } as Record<string, unknown>;
+): Effect.Effect<AgentTool | null> =>
+  Effect.gen(function* () {
+    const implType = data.type ?? "";
+    const name = data.name ?? "";
+    const description = data.description ?? "";
+    const config = { ...data } as Record<string, unknown>;
 
-  if (name.length === 0) {
-    console.warn(`[AgentService] Skipping tool with no name: ${toolId}`);
-    return null;
-  }
-
-  switch (implType) {
-    case "knowledge-query":
-      return {
-        name,
-        description:
-          description.length > 0
-            ? description
-            : "Query the knowledge graph for information about entities and their relationships.",
-        args: [{ name: "question", type: "string", description: "The question to ask" }],
-        config,
-        execute: async () => "",
-      };
-
-    case "document-query":
-      return {
-        name,
-        description:
-          description.length > 0
-            ? description
-            : "Search documents for relevant information.",
-        args: [{ name: "question", type: "string", description: "The question to search for" }],
-        config,
-        execute: async () => "",
-      };
-
-    case "triples-query":
-      return {
-        name,
-        description:
-          description.length > 0
-            ? description
-            : "Query for specific triples in the knowledge graph.",
-        args: [
-          { name: "subject", type: "string", description: "Subject entity (optional)" },
-          { name: "predicate", type: "string", description: "Predicate/relationship (optional)" },
-          { name: "object", type: "string", description: "Object entity (optional)" },
-        ],
-        config,
-        execute: async () => "",
-      };
-
-    case "mcp-tool": {
-      const args: ToolArg[] = (data.arguments ?? []).map((arg) => ({
-        name: arg.name ?? "",
-        type: arg.type ?? "string",
-        description: arg.description ?? "",
-      }));
-
-      return {
-        name,
-        description,
-        args,
-        config,
-        execute: async () => "",
-      };
+    if (name.length === 0) {
+      yield* Effect.logWarning(`[AgentService] Skipping tool with no name: ${toolId}`);
+      return null;
     }
 
-    default:
-      console.warn(`[AgentService] Unknown tool type "${implType}" for ${name}`);
-      return null;
-  }
-};
+    switch (implType) {
+      case "knowledge-query":
+        return {
+          name,
+          description:
+            description.length > 0
+              ? description
+              : "Query the knowledge graph for information about entities and their relationships.",
+          args: [{ name: "question", type: "string", description: "The question to ask" }],
+          config,
+          execute: () => Promise.resolve(""),
+        };
+
+      case "document-query":
+        return {
+          name,
+          description:
+            description.length > 0
+              ? description
+              : "Search documents for relevant information.",
+          args: [{ name: "question", type: "string", description: "The question to search for" }],
+          config,
+          execute: () => Promise.resolve(""),
+        };
+
+      case "triples-query":
+        return {
+          name,
+          description:
+            description.length > 0
+              ? description
+              : "Query for specific triples in the knowledge graph.",
+          args: [
+            { name: "subject", type: "string", description: "Subject entity (optional)" },
+            { name: "predicate", type: "string", description: "Predicate/relationship (optional)" },
+            { name: "object", type: "string", description: "Object entity (optional)" },
+          ],
+          config,
+          execute: () => Promise.resolve(""),
+        };
+
+      case "mcp-tool": {
+        const args: ToolArg[] = (data.arguments ?? []).map((arg) => ({
+          name: arg.name ?? "",
+          type: arg.type ?? "string",
+          description: arg.description ?? "",
+        }));
+
+        return {
+          name,
+          description,
+          args,
+          config,
+          execute: () => Promise.resolve(""),
+        };
+      }
+
+      default:
+        yield* Effect.logWarning(`[AgentService] Unknown tool type "${implType}" for ${name}`);
+        return null;
+    }
+  });
 
 const loadConfiguredTools = Effect.fn("AgentRuntime.loadConfiguredTools")(function* (
   config: Record<string, unknown>,
@@ -231,7 +232,7 @@ const loadConfiguredTools = Effect.fn("AgentRuntime.loadConfiguredTools")(functi
       continue;
     }
 
-    const tool = buildConfiguredTool(toolId, decoded.value);
+    const tool = yield* buildConfiguredTool(toolId, decoded.value);
     if (tool === null) continue;
 
     tools.push(tool);
@@ -348,7 +349,7 @@ const executeTool = (
 ): Effect.Effect<string> =>
   Effect.tryPromise({
     try: () => tool.execute(input),
-    catch: (cause) => new AgentToolExecutionError({ message: errorMessage(cause) }),
+    catch: (cause) => AgentToolExecutionError.make({ message: errorMessage(cause) }),
   }).pipe(
     Effect.catch((error: AgentToolExecutionError) =>
       Effect.succeed(`Error executing tool: ${error.message}`),
@@ -473,12 +474,12 @@ const onAgentRequest = Effect.fn("AgentService.onRequest")(function* (
   }).pipe(
     Effect.catch((error: unknown) =>
       Effect.logError(`[AgentService] Error processing request ${requestId}`, {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       }).pipe(
         Effect.flatMap(() =>
           responseProducer.send(requestId, {
             chunk_type: "error",
-            content: `Agent error: ${error instanceof Error ? error.message : String(error)}`,
+            content: `Agent error: ${errorMessage(error)}`,
             end_of_message: true,
             end_of_dialog: true,
           }),
@@ -538,7 +539,7 @@ export function makeAgentService(config: ProcessorConfig): AgentService {
       Effect.provideService(AgentRuntime, runtime),
     )),
   );
-  console.log("[AgentService] Service initialized");
+  Effect.runSync(Effect.log("[AgentService] Service initialized"));
   return service;
 }
 
@@ -629,6 +630,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, AgentRun
   layer: () => AgentRuntimeLive,
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

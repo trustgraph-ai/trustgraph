@@ -23,8 +23,8 @@ export function readTextFile(path: string): Promise<string> {
   return Bun.file(path).text();
 }
 
-export async function readBinaryFile(path: string): Promise<Uint8Array> {
-  return new Uint8Array(await Bun.file(path).arrayBuffer());
+export function readBinaryFile(path: string): Promise<Uint8Array> {
+  return Bun.file(path).arrayBuffer().then((buffer) => new Uint8Array(buffer));
 }
 
 export function writeTextFile(path: string, data: string): Promise<void> {

@@ -101,7 +101,7 @@ export function makeDocEmbeddingsQueryService(config: ProcessorConfig): DocEmbed
         ),
       ),
   });
-  console.log("[DocEmbeddingsQuery] Service initialized");
+  Effect.runSync(Effect.log("[DocEmbeddingsQuery] Service initialized"));
   return service;
 }
 
@@ -113,6 +113,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantDocQuery
   layer: (config) => QdrantDocEmbeddingsQueryLive(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

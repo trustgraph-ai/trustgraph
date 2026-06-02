@@ -11,7 +11,9 @@
  */
 
 import {
+  errorMessage,
   makeAsyncProcessor,
+  makeProcessorProgram,
   type ProcessorConfig,
   type AsyncProcessorRuntime,
   topics,
@@ -22,9 +24,9 @@ import {
   type DocumentMetadata,
   type ProcessingMetadata,
 } from "@trustgraph/base";
-import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Clock, Config, DateTime, Duration, Effect, Random } from "effect";
+import * as S from "effect/Schema";
 import { makeCollectionManager } from "./collection-manager.js";
 import {
   ensureDirectory,
@@ -51,6 +53,20 @@ interface UploadSession {
   user: string;
 }
 
+type PersistedCollection = {
+  user: string;
+  collection: string;
+  name: string;
+  description: string;
+  tags: string[];
+};
+
+type PersistedLibrarianState = {
+  documents?: Record<string, DocumentMetadata>;
+  processing?: Record<string, ProcessingMetadata>;
+  collections?: PersistedCollection[];
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -59,13 +75,71 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+export class LibrarianServiceError extends S.TaggedErrorClass<LibrarianServiceError>()(
+  "LibrarianServiceError",
+  {
+    message: S.String,
+    operation: S.String,
+  },
+) {}
+
+const librarianServiceError = (operation: string, cause: unknown): LibrarianServiceError =>
+  LibrarianServiceError.make({
+    operation,
+    message: errorMessage(cause),
+  });
+
+function throwLibrarianServiceError(operation: string, cause: unknown): never {
+  throw librarianServiceError(operation, cause);
+}
+
+function resolveDataDir(config: LibrarianServiceConfig): string {
+  return config.dataDir ?? Effect.runSync(
+    Config.string("LIBRARIAN_DATA_DIR").pipe(Config.withDefault("./data/librarian")),
+  );
+}
+
+const currentEpochSeconds: Effect.Effect<number> = Clock.currentTimeMillis.pipe(
+  Effect.map((millis) => Math.floor(millis / 1000)),
+);
+
+const currentIsoString: Effect.Effect<string> = DateTime.now.pipe(Effect.map(DateTime.formatIso));
+
+const encodeJsonString = (operation: string, value: unknown): Effect.Effect<string, LibrarianServiceError> =>
+  S.encodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.mapError((cause) => librarianServiceError(operation, cause)),
+  );
+
+const decodeJsonString = <A>(operation: string, value: string): Effect.Effect<A, LibrarianServiceError> =>
+  S.decodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.map((decoded) => decoded as A),
+    Effect.mapError((cause) => librarianServiceError(operation, cause)),
+  );
+
+const randomUuid: Effect.Effect<string> = Effect.gen(function* () {
+  const bytes: number[] = [];
+  for (let index = 0; index < 16; index += 1) {
+    bytes.push(yield* Random.nextIntBetween(0, 255));
+  }
+
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+
+  const hex = bytes.map((byte) => byte.toString(16).padStart(2, "0"));
+  return [
+    hex.slice(0, 4).join(""),
+    hex.slice(4, 6).join(""),
+    hex.slice(6, 8).join(""),
+    hex.slice(8, 10).join(""),
+    hex.slice(10, 16).join(""),
+  ].join("-");
+});
+
 export type LibrarianService = AsyncProcessorRuntime & Record<string, any>;
 
 export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianService {
   const service = makeAsyncProcessor(config, {
-    run: async () => {
-      await service.run();
-    },
+    run: () => service.run(),
   }) as LibrarianService;
   const baseStop = service.stop;
   service.documents = new Map<string, DocumentMetadata>();
@@ -76,60 +150,115 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
   service.libProducer = null;
   service.colConsumer = null;
   service.colProducer = null;
-  service.dataDir = config.dataDir ?? process.env.LIBRARIAN_DATA_DIR ?? "./data/librarian";
+  service.dataDir = resolveDataDir(config);
   service.persistPath = joinPath(service.dataDir, "librarian-state.json");
   Object.assign(service, {
 
 
-      run: async function(this: LibrarianService): Promise<void> {
-        // Ensure directories exist
-        await ensureDirectory(joinPath(this.dataDir, "docs"));
+      run: function(this: LibrarianService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            // Ensure directories exist
+            yield* Effect.tryPromise({
+              try: () => ensureDirectory(joinPath(service.dataDir, "docs")),
+              catch: (cause) => librarianServiceError("ensure-data-dir", cause),
+            });
 
-        // Load persisted state
-        await this.loadFromDisk();
+            // Load persisted state
+            yield* Effect.tryPromise({
+              try: () => service.loadFromDisk(),
+              catch: (cause) => librarianServiceError("load", cause),
+            });
 
-        // Create producers
-        this.libProducer = await this.pubsub.createProducer<LibrarianResponse>({
-          topic: topics.librarianResponse,
-        });
-        this.colProducer = await this.pubsub.createProducer<CollectionManagementResponse>({
-          topic: topics.collectionManagementResponse,
-        });
+            // Create producers
+            service.libProducer = yield* Effect.tryPromise({
+              try: () => service.pubsub.createProducer<LibrarianResponse>({
+                topic: topics.librarianResponse,
+              }),
+              catch: (cause) => librarianServiceError("librarian-producer", cause),
+            });
+            service.colProducer = yield* Effect.tryPromise({
+              try: () => service.pubsub.createProducer<CollectionManagementResponse>({
+                topic: topics.collectionManagementResponse,
+              }),
+              catch: (cause) => librarianServiceError("collection-producer", cause),
+            });
 
-        // Create consumers
-        this.libConsumer = await this.pubsub.createConsumer<LibrarianRequest>({
-          topic: topics.librarianRequest,
-          subscription: `${this.config.id}-librarian-request`,
-        });
-        this.colConsumer = await this.pubsub.createConsumer<CollectionManagementRequest>({
-          topic: topics.collectionManagementRequest,
-          subscription: `${this.config.id}-collection-management-request`,
-        });
+            // Create consumers
+            service.libConsumer = yield* Effect.tryPromise({
+              try: () => service.pubsub.createConsumer<LibrarianRequest>({
+                topic: topics.librarianRequest,
+                subscription: `${service.config.id}-librarian-request`,
+              }),
+              catch: (cause) => librarianServiceError("librarian-consumer", cause),
+            });
+            service.colConsumer = yield* Effect.tryPromise({
+              try: () => service.pubsub.createConsumer<CollectionManagementRequest>({
+                topic: topics.collectionManagementRequest,
+                subscription: `${service.config.id}-collection-management-request`,
+              }),
+              catch: (cause) => librarianServiceError("collection-consumer", cause),
+            });
 
-        console.log(`[LibrarianService] Listening on ${topics.librarianRequest} and ${topics.collectionManagementRequest}`);
+            yield* Effect.log(`[LibrarianService] Listening on ${topics.librarianRequest} and ${topics.collectionManagementRequest}`);
 
-        // Main consume loop — poll both consumers
-        while (this.running) {
-          try {
-            // Poll librarian requests
-            const libMsg = await this.libConsumer.receive(2000);
-            if (libMsg !== null) {
-              await this.handleLibrarianMessage(libMsg);
-              await this.libConsumer.acknowledge(libMsg);
+            // Main consume loop -- poll both consumers
+            while (service.running) {
+              const shouldContinue = yield* Effect.gen(function* () {
+                const libConsumer = service.libConsumer;
+                if (libConsumer === null) {
+                  return yield* librarianServiceError("consume", "Librarian consumer not started");
+                }
+                const colConsumer = service.colConsumer;
+                if (colConsumer === null) {
+                  return yield* librarianServiceError("consume", "Collection consumer not started");
+                }
+
+                const libMsg = yield* Effect.tryPromise({
+                  try: () => libConsumer.receive(2000),
+                  catch: (cause) => librarianServiceError("librarian-receive", cause),
+                });
+                if (libMsg !== null) {
+                  yield* Effect.tryPromise({
+                    try: () => service.handleLibrarianMessage(libMsg),
+                    catch: (cause) => librarianServiceError("librarian-handle", cause),
+                  });
+                  yield* Effect.tryPromise({
+                    try: () => libConsumer.acknowledge(libMsg),
+                    catch: (cause) => librarianServiceError("librarian-acknowledge", cause),
+                  });
+                }
+
+                const colMsg = yield* Effect.tryPromise({
+                  try: () => colConsumer.receive(2000),
+                  catch: (cause) => librarianServiceError("collection-receive", cause),
+                });
+                if (colMsg !== null) {
+                  yield* Effect.tryPromise({
+                    try: () => service.handleCollectionMessage(colMsg),
+                    catch: (cause) => librarianServiceError("collection-handle", cause),
+                  });
+                  yield* Effect.tryPromise({
+                    try: () => colConsumer.acknowledge(colMsg),
+                    catch: (cause) => librarianServiceError("collection-acknowledge", cause),
+                  });
+                }
+
+                return true;
+              }).pipe(
+                Effect.catch((err) => {
+                  if (!service.running) return Effect.succeed(false);
+                  return Effect.logError("[LibrarianService] Error in consume loop", { error: err.message }).pipe(
+                    Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
+                    Effect.as(true),
+                  );
+                }),
+              );
+              if (!shouldContinue) break;
             }
-
-            // Poll collection management requests
-            const colMsg = await this.colConsumer.receive(2000);
-            if (colMsg !== null) {
-              await this.handleCollectionMessage(colMsg);
-              await this.colConsumer.acknowledge(colMsg);
-            }
-          } catch (err) {
-            if (!this.running) break;
-            console.error("[LibrarianService] Error in consume loop:", err);
-            await sleep(1000);
-          }
-        }
+          }),
+        );
 
         },
 
@@ -160,52 +289,65 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      documentMetadata: function(this: LibrarianService, request: LibrarianRequest): DocumentMetadata | undefined {
+      documentMetadata: function(this: LibrarianService, request: LibrarianRequest): Promise<DocumentMetadata | undefined> {
         const req = this.requestRecord(request);
         const value = req.documentMetadata ?? req["document-metadata"];
-        return isRecord(value) ? this.normaliseDocumentMetadata(value) : undefined;
+        if (!isRecord(value)) return Promise.resolve(undefined);
+        return this.normaliseDocumentMetadata(value);
 
         },
 
 
 
-      processingMetadata: function(this: LibrarianService, request: LibrarianRequest): ProcessingMetadata | undefined {
-        const req = this.requestRecord(request);
-        const value = req.processingMetadata ?? req["processing-metadata"];
-        if (!isRecord(value)) return undefined;
-        const documentId = optionalString(value.documentId) ?? optionalString(value["document-id"]) ?? "";
-        return {
-          id: optionalString(value.id) ?? crypto.randomUUID(),
-          documentId,
-          "document-id": documentId,
-          time: typeof value.time === "number" ? value.time : Math.floor(Date.now() / 1000),
-          flow: optionalString(value.flow) ?? "default",
-          user: optionalString(value.user) ?? optionalString(this.requestRecord(request).user) ?? "default",
-          collection: optionalString(value.collection) ?? optionalString(this.requestRecord(request).collection) ?? "default",
-          tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
-        };
+      processingMetadata: function(this: LibrarianService, request: LibrarianRequest): Promise<ProcessingMetadata | undefined> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const req = service.requestRecord(request);
+            const value = req.processingMetadata ?? req["processing-metadata"];
+            if (!isRecord(value)) return undefined;
+            const documentId = optionalString(value.documentId) ?? optionalString(value["document-id"]) ?? "";
+            const id = optionalString(value.id) ?? (yield* randomUuid);
+            const time = typeof value.time === "number" ? value.time : yield* currentEpochSeconds;
+            return {
+              id,
+              documentId,
+              "document-id": documentId,
+              time,
+              flow: optionalString(value.flow) ?? "default",
+              user: optionalString(value.user) ?? optionalString(service.requestRecord(request).user) ?? "default",
+              collection: optionalString(value.collection) ?? optionalString(service.requestRecord(request).collection) ?? "default",
+              tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
+            };
+          }),
+        );
 
         },
 
 
 
-      normaliseDocumentMetadata: function(this: LibrarianService, value: Record<string, unknown>): DocumentMetadata {
-        const id = optionalString(value.id) ?? crypto.randomUUID();
-        const parentId = optionalString(value.parentId) ?? optionalString(value["parent-id"]);
-        const documentType = optionalString(value.documentType) ?? optionalString(value["document-type"]) ?? "source";
-        return {
-          id,
-          time: typeof value.time === "number" ? value.time : Math.floor(Date.now() / 1000),
-          kind: optionalString(value.kind) ?? "application/octet-stream",
-          title: optionalString(value.title) ?? "",
-          comments: optionalString(value.comments) ?? "",
-          user: optionalString(value.user) ?? "default",
-          tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
-          ...(parentId !== undefined ? { parentId, "parent-id": parentId } : {}),
-          documentType,
-          "document-type": documentType,
-          ...(Array.isArray(value.metadata) ? { metadata: value.metadata as NonNullable<DocumentMetadata["metadata"]> } : {}),
-        };
+      normaliseDocumentMetadata: function(this: LibrarianService, value: Record<string, unknown>): Promise<DocumentMetadata> {
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const id = optionalString(value.id) ?? (yield* randomUuid);
+            const parentId = optionalString(value.parentId) ?? optionalString(value["parent-id"]);
+            const documentType = optionalString(value.documentType) ?? optionalString(value["document-type"]) ?? "source";
+            const time = typeof value.time === "number" ? value.time : yield* currentEpochSeconds;
+            return {
+              id,
+              time,
+              kind: optionalString(value.kind) ?? "application/octet-stream",
+              title: optionalString(value.title) ?? "",
+              comments: optionalString(value.comments) ?? "",
+              user: optionalString(value.user) ?? "default",
+              tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
+              ...(parentId !== undefined ? { parentId, "parent-id": parentId } : {}),
+              documentType,
+              "document-type": documentType,
+              ...(Array.isArray(value.metadata) ? { metadata: value.metadata as NonNullable<DocumentMetadata["metadata"]> } : {}),
+            };
+          }),
+        );
 
         },
 
@@ -271,181 +413,293 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      handleLibrarianMessage: async function(this: LibrarianService, msg: Message<LibrarianRequest>): Promise<void> {
-        const request = msg.value();
-        const props = msg.properties();
-        const requestId = props.id;
+      handleLibrarianMessage: function(this: LibrarianService, msg: Message<LibrarianRequest>): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const request = msg.value();
+            const props = msg.properties();
+            const requestId = props.id;
 
-        if (requestId === undefined || requestId.length === 0) {
-          console.warn("[LibrarianService] Received request without id, ignoring");
-          return;
-        }
-
-        try {
-          if (request.operation === "stream-document") {
-            for (const response of await this.streamDocument(request)) {
-              await this.libProducer!.send(response, { id: requestId });
+            if (requestId === undefined || requestId.length === 0) {
+              yield* Effect.logWarning("[LibrarianService] Received request without id, ignoring");
+              return;
             }
-            return;
-          }
-          const response = await this.handleLibrarianOperation(request);
-          await this.libProducer!.send(response, { id: requestId });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          await this.libProducer!.send(
-            { error: { type: "librarian-error", message } },
-            { id: requestId },
-          );
-        }
+
+            const sendResponse = (response: LibrarianResponse): Effect.Effect<void, LibrarianServiceError> =>
+              Effect.gen(function* () {
+                const producer = service.libProducer;
+                if (producer === null) {
+                  return yield* librarianServiceError("librarian-respond", "Librarian producer not started");
+                }
+                yield* Effect.tryPromise({
+                  try: () => producer.send(response, { id: requestId }),
+                  catch: (cause) => librarianServiceError("librarian-respond", cause),
+                });
+              });
+
+            yield* Effect.gen(function* () {
+              if (request.operation === "stream-document") {
+                const responses = yield* Effect.tryPromise<LibrarianResponse[], LibrarianServiceError>({
+                  try: () => service.streamDocument(request),
+                  catch: (cause) => librarianServiceError("stream-document", cause),
+                });
+                for (const response of responses) {
+                  yield* sendResponse(response);
+                }
+                return;
+              }
+
+              const response = yield* Effect.tryPromise<LibrarianResponse, LibrarianServiceError>({
+                try: () => service.handleLibrarianOperation(request),
+                catch: (cause) => librarianServiceError("librarian-operation", cause),
+              });
+              yield* sendResponse(response);
+            }).pipe(
+              Effect.catch((err) =>
+                sendResponse({
+                  error: { type: "librarian-error", message: err.message },
+                }),
+              ),
+            );
+          }),
+        );
 
         },
 
 
 
-      handleLibrarianOperation: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        switch (request.operation) {
-          case "add-document":
-            return this.addDocument(request);
-          case "remove-document":
-            return this.removeDocument(request);
-          case "update-document":
-            return this.updateDocument(request);
-          case "list-documents":
-            return this.listDocuments(request);
-          case "get-document-metadata":
-            return this.getDocumentMetadata(request);
-          case "get-document-content":
-            return this.getDocumentContent(request);
-          case "add-child-document":
-            return this.addChildDocument(request);
-          case "list-children":
-            return this.listChildren(request);
-          case "add-processing":
-            return this.addProcessing(request);
-          case "remove-processing":
-            return this.removeProcessing(request);
-          case "list-processing":
-            return this.listProcessing(request);
-          case "begin-upload":
-            return this.beginUpload(request);
-          case "upload-chunk":
-            return this.uploadChunk(request);
-          case "complete-upload":
-            return this.completeUpload(request);
-          case "get-upload-status":
-            return this.getUploadStatus(request);
-          case "abort-upload":
-            return this.abortUpload(request);
-          case "list-uploads":
-            return this.listUploads(request);
-          case "stream-document":
-            throw new Error("stream-document must be handled as a streaming operation");
-          default:
-            throw new Error(`Unknown librarian operation: ${request.operation as string}`);
-        }
+      handleLibrarianOperation: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            switch (request.operation) {
+              case "add-document":
+                return yield* Effect.tryPromise({
+                  try: () => service.addDocument(request),
+                  catch: (cause) => librarianServiceError("add-document", cause),
+                });
+              case "remove-document":
+                return yield* Effect.tryPromise({
+                  try: () => service.removeDocument(request),
+                  catch: (cause) => librarianServiceError("remove-document", cause),
+                });
+              case "update-document":
+                return yield* Effect.tryPromise({
+                  try: () => service.updateDocument(request),
+                  catch: (cause) => librarianServiceError("update-document", cause),
+                });
+              case "list-documents":
+                return yield* Effect.try({
+                  try: () => service.listDocuments(request),
+                  catch: (cause) => librarianServiceError("list-documents", cause),
+                });
+              case "get-document-metadata":
+                return yield* Effect.try({
+                  try: () => service.getDocumentMetadata(request),
+                  catch: (cause) => librarianServiceError("get-document-metadata", cause),
+                });
+              case "get-document-content":
+                return yield* Effect.tryPromise({
+                  try: () => service.getDocumentContent(request),
+                  catch: (cause) => librarianServiceError("get-document-content", cause),
+                });
+              case "add-child-document":
+                return yield* Effect.tryPromise({
+                  try: () => service.addChildDocument(request),
+                  catch: (cause) => librarianServiceError("add-child-document", cause),
+                });
+              case "list-children":
+                return yield* Effect.try({
+                  try: () => service.listChildren(request),
+                  catch: (cause) => librarianServiceError("list-children", cause),
+                });
+              case "add-processing":
+                return yield* Effect.tryPromise({
+                  try: () => service.addProcessing(request),
+                  catch: (cause) => librarianServiceError("add-processing", cause),
+                });
+              case "remove-processing":
+                return yield* Effect.tryPromise({
+                  try: () => service.removeProcessing(request),
+                  catch: (cause) => librarianServiceError("remove-processing", cause),
+                });
+              case "list-processing":
+                return yield* Effect.try({
+                  try: () => service.listProcessing(request),
+                  catch: (cause) => librarianServiceError("list-processing", cause),
+                });
+              case "begin-upload":
+                return yield* Effect.tryPromise({
+                  try: () => service.beginUpload(request),
+                  catch: (cause) => librarianServiceError("begin-upload", cause),
+                });
+              case "upload-chunk":
+                return yield* Effect.try({
+                  try: () => service.uploadChunk(request),
+                  catch: (cause) => librarianServiceError("upload-chunk", cause),
+                });
+              case "complete-upload":
+                return yield* Effect.tryPromise({
+                  try: () => service.completeUpload(request),
+                  catch: (cause) => librarianServiceError("complete-upload", cause),
+                });
+              case "get-upload-status":
+                return yield* Effect.try({
+                  try: () => service.getUploadStatus(request),
+                  catch: (cause) => librarianServiceError("get-upload-status", cause),
+                });
+              case "abort-upload":
+                return yield* Effect.try({
+                  try: () => service.abortUpload(request),
+                  catch: (cause) => librarianServiceError("abort-upload", cause),
+                });
+              case "list-uploads":
+                return yield* Effect.tryPromise({
+                  try: () => service.listUploads(request),
+                  catch: (cause) => librarianServiceError("list-uploads", cause),
+                });
+              case "stream-document":
+                return yield* librarianServiceError("stream-document", "stream-document must be handled as a streaming operation");
+              default:
+                return yield* librarianServiceError("operation", `Unknown librarian operation: ${request.operation as string}`);
+            }
+          }),
+        );
 
         },
 
 
 
-      addDocument: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const meta = this.documentMetadata(request);
-        if (meta === undefined) throw new Error("add-document requires documentMetadata");
+      addDocument: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const meta = yield* Effect.tryPromise<DocumentMetadata | undefined, LibrarianServiceError>({
+              try: () => service.documentMetadata(request),
+              catch: (cause) => librarianServiceError("add-document-metadata", cause),
+            });
+            if (meta === undefined) return yield* librarianServiceError("add-document", "add-document requires documentMetadata");
 
-        const id = meta.id;
-        const now = Math.floor(Date.now() / 1000);
+            const id = meta.id;
+            const now = yield* currentEpochSeconds;
 
-        const doc: DocumentMetadata = {
-          ...meta,
-          id,
-          time: now,
-        };
+            const doc: DocumentMetadata = {
+              ...meta,
+              id,
+              time: now,
+            };
 
-        this.documents.set(id, doc);
+            service.documents.set(id, doc);
 
-        // Store file content if provided
-        if (request.content !== undefined && request.content.length > 0) {
-          const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
-          const buf = Buffer.from(request.content, "base64");
-          await writeBinaryFile(filePath, buf);
-        }
+            // Store file content if provided
+            if (request.content !== undefined && request.content.length > 0) {
+              const filePath = joinPath(service.dataDir, "docs", `${id}.bin`);
+              const buf = Buffer.from(request.content, "base64");
+              yield* Effect.tryPromise({
+                try: () => writeBinaryFile(filePath, buf),
+                catch: (cause) => librarianServiceError("add-document-write", cause),
+              });
+            }
 
-        await this.persist();
-        console.log(`[LibrarianService] Added document ${id}: ${doc.title}`);
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => librarianServiceError("add-document-persist", cause),
+            });
+            yield* Effect.log(`[LibrarianService] Added document ${id}: ${doc.title}`);
 
-        return this.documentResponse(doc);
-
-        },
-
-
-
-      removeDocument: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const id = this.documentId(request);
-        if (id === undefined || id.length === 0) {
-          throw new Error("remove-document requires documentId");
-        }
-
-        // Remove the document itself
-        this.documents.delete(id);
-
-        // Remove the file
-        try {
-          await removePath(joinPath(this.dataDir, "docs", `${id}.bin`));
-        } catch {
-          // File may not exist — that's fine
-        }
-
-        // Cascade: remove children
-        const childIds = [...this.documents.entries()]
-          .filter(([, doc]) => doc.parentId === id)
-          .map(([childId]) => childId);
-
-        for (const childId of childIds) {
-          this.documents.delete(childId);
-          try {
-            await removePath(joinPath(this.dataDir, "docs", `${childId}.bin`));
-          } catch {
-            // ignore
-          }
-        }
-
-        // Remove associated processing records
-        const procIds = [...this.processing.entries()]
-          .filter(([, proc]) => proc.documentId === id)
-          .map(([procId]) => procId);
-
-        for (const procId of procIds) {
-          this.processing.delete(procId);
-        }
-
-        await this.persist();
-        console.log(`[LibrarianService] Removed document ${id} (cascade: ${childIds.length} children, ${procIds.length} processing)`);
-
-        return {};
+            return service.documentResponse(doc);
+          }),
+        );
 
         },
 
 
 
-      updateDocument: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const id = this.documentId(request) ?? this.documentMetadata(request)?.id;
-        if (id === undefined || id.length === 0) {
-          throw new Error("update-document requires documentId");
-        }
-        const existing = this.documents.get(id);
-        if (existing === undefined) throw new Error(`Document not found: ${id}`);
-        const meta = this.documentMetadata(request);
-        if (meta === undefined) throw new Error("update-document requires documentMetadata");
+      removeDocument: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const id = service.documentId(request);
+            if (id === undefined || id.length === 0) {
+              return yield* librarianServiceError("remove-document", "remove-document requires documentId");
+            }
 
-        const doc: DocumentMetadata = this.publicDocument({
-          ...existing,
-          ...meta,
-          id,
-          time: meta.time ?? existing.time,
-        });
-        this.documents.set(id, doc);
-        await this.persist();
-        return this.documentResponse(doc);
+            // Remove the document itself
+            service.documents.delete(id);
+
+            // Remove the file
+            yield* Effect.tryPromise({
+              try: () => removePath(joinPath(service.dataDir, "docs", `${id}.bin`)),
+              catch: (cause) => librarianServiceError("remove-document-file", cause),
+            }).pipe(Effect.orElseSucceed(() => undefined));
+
+            // Cascade: remove children
+            const childIds = [...service.documents.entries()]
+              .filter(([, doc]) => doc.parentId === id)
+              .map(([childId]) => childId);
+
+            for (const childId of childIds) {
+              service.documents.delete(childId);
+              yield* Effect.tryPromise({
+                try: () => removePath(joinPath(service.dataDir, "docs", `${childId}.bin`)),
+                catch: (cause) => librarianServiceError("remove-child-file", cause),
+              }).pipe(Effect.orElseSucceed(() => undefined));
+            }
+
+            // Remove associated processing records
+            const procIds = [...service.processing.entries()]
+              .filter(([, proc]) => proc.documentId === id)
+              .map(([procId]) => procId);
+
+            for (const procId of procIds) {
+              service.processing.delete(procId);
+            }
+
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => librarianServiceError("remove-document-persist", cause),
+            });
+            yield* Effect.log(`[LibrarianService] Removed document ${id} (cascade: ${childIds.length} children, ${procIds.length} processing)`);
+
+            return {};
+          }),
+        );
+
+        },
+
+
+
+      updateDocument: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const meta = yield* Effect.tryPromise<DocumentMetadata | undefined, LibrarianServiceError>({
+              try: () => service.documentMetadata(request),
+              catch: (cause) => librarianServiceError("update-document-metadata", cause),
+            });
+            const id = service.documentId(request) ?? meta?.id;
+            if (id === undefined || id.length === 0) {
+              return yield* librarianServiceError("update-document", "update-document requires documentId");
+            }
+            const existing = service.documents.get(id);
+            if (existing === undefined) return yield* librarianServiceError("update-document", `Document not found: ${id}`);
+            if (meta === undefined) return yield* librarianServiceError("update-document", "update-document requires documentMetadata");
+
+            const doc: DocumentMetadata = service.publicDocument({
+              ...existing,
+              ...meta,
+              id,
+              time: meta.time ?? existing.time,
+            });
+            service.documents.set(id, doc);
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => librarianServiceError("update-document-persist", cause),
+            });
+            return service.documentResponse(doc);
+          }),
+        );
 
         },
 
@@ -473,11 +727,11 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       getDocumentMetadata: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
         const id = this.documentId(request);
         if (id === undefined || id.length === 0) {
-          throw new Error("get-document-metadata requires documentId");
+          throwLibrarianServiceError("get-document-metadata", "get-document-metadata requires documentId");
         }
 
         const doc = this.documents.get(id);
-        if (doc === undefined) throw new Error(`Document not found: ${id}`);
+        if (doc === undefined) throwLibrarianServiceError("get-document-metadata", `Document not found: ${id}`);
 
         return this.documentResponse(doc);
 
@@ -485,64 +739,82 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      getDocumentContent: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const id = this.documentId(request);
-        if (id === undefined || id.length === 0) {
-          throw new Error("get-document-content requires documentId");
-        }
+      getDocumentContent: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const id = service.documentId(request);
+            if (id === undefined || id.length === 0) {
+              return yield* librarianServiceError("get-document-content", "get-document-content requires documentId");
+            }
 
-        const doc = this.documents.get(id);
-        if (doc === undefined) throw new Error(`Document not found: ${id}`);
+            const doc = service.documents.get(id);
+            if (doc === undefined) return yield* librarianServiceError("get-document-content", `Document not found: ${id}`);
 
-        try {
-          const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
-          const buf = await readBinaryFile(filePath);
-          const content = Buffer.from(buf).toString("base64");
-          return { ...this.documentResponse(doc), content };
-        } catch {
-          throw new Error(`Document content not found on disk: ${id}`);
-        }
+            const filePath = joinPath(service.dataDir, "docs", `${id}.bin`);
+            const buf = yield* Effect.tryPromise({
+              try: () => readBinaryFile(filePath),
+              catch: () => librarianServiceError("get-document-content", `Document content not found on disk: ${id}`),
+            });
+            const content = Buffer.from(buf).toString("base64");
+            return { ...service.documentResponse(doc), content };
+          }),
+        );
 
         },
 
 
 
-      addChildDocument: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const meta = this.documentMetadata(request);
-        if (meta === undefined) {
-          throw new Error("add-child-document requires documentMetadata");
-        }
-        if (meta.parentId === undefined || meta.parentId.length === 0) {
-          throw new Error("add-child-document requires parentId in metadata");
-        }
+      addChildDocument: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const meta = yield* Effect.tryPromise<DocumentMetadata | undefined, LibrarianServiceError>({
+              try: () => service.documentMetadata(request),
+              catch: (cause) => librarianServiceError("add-child-document-metadata", cause),
+            });
+            if (meta === undefined) {
+              return yield* librarianServiceError("add-child-document", "add-child-document requires documentMetadata");
+            }
+            if (meta.parentId === undefined || meta.parentId.length === 0) {
+              return yield* librarianServiceError("add-child-document", "add-child-document requires parentId in metadata");
+            }
 
-        // Verify parent exists
-        if (!(this.documents as Map<string, DocumentMetadata>).has(meta.parentId)) {
-          throw new Error(`Parent document not found: ${meta.parentId}`);
-        }
+            // Verify parent exists
+            if (!(service.documents as Map<string, DocumentMetadata>).has(meta.parentId)) {
+              return yield* librarianServiceError("add-child-document", `Parent document not found: ${meta.parentId}`);
+            }
 
-        const id = meta.id;
-        const now = Math.floor(Date.now() / 1000);
+            const id = meta.id;
+            const now = yield* currentEpochSeconds;
 
-        const doc: DocumentMetadata = {
-          ...meta,
-          id,
-          time: now,
-        };
+            const doc: DocumentMetadata = {
+              ...meta,
+              id,
+              time: now,
+            };
 
-        this.documents.set(id, doc);
+            service.documents.set(id, doc);
 
-        // Store file content if provided
-        if (request.content !== undefined && request.content.length > 0) {
-          const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
-          const buf = Buffer.from(request.content, "base64");
-          await writeBinaryFile(filePath, buf);
-        }
+            // Store file content if provided
+            if (request.content !== undefined && request.content.length > 0) {
+              const filePath = joinPath(service.dataDir, "docs", `${id}.bin`);
+              const buf = Buffer.from(request.content, "base64");
+              yield* Effect.tryPromise({
+                try: () => writeBinaryFile(filePath, buf),
+                catch: (cause) => librarianServiceError("add-child-document-write", cause),
+              });
+            }
 
-        await this.persist();
-        console.log(`[LibrarianService] Added child document ${id} (parent: ${meta.parentId})`);
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => librarianServiceError("add-child-document-persist", cause),
+            });
+            yield* Effect.log(`[LibrarianService] Added child document ${id} (parent: ${meta.parentId})`);
 
-        return this.documentResponse(doc);
+            return service.documentResponse(doc);
+          }),
+        );
 
         },
 
@@ -551,7 +823,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       listChildren: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
         const parentId = this.documentId(request);
         if (parentId === undefined || parentId.length === 0) {
-          throw new Error("list-children requires documentId");
+          throwLibrarianServiceError("list-children", "list-children requires documentId");
         }
 
         const children: DocumentMetadata[] = [];
@@ -567,39 +839,58 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      addProcessing: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const proc = this.processingMetadata(request);
-        if (proc === undefined) throw new Error("add-processing requires processingMetadata");
+      addProcessing: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const proc = yield* Effect.tryPromise<ProcessingMetadata | undefined, LibrarianServiceError>({
+              try: () => service.processingMetadata(request),
+              catch: (cause) => librarianServiceError("add-processing-metadata", cause),
+            });
+            if (proc === undefined) return yield* librarianServiceError("add-processing", "add-processing requires processingMetadata");
 
-        const id = proc.id;
-        const now = Math.floor(Date.now() / 1000);
+            const id = proc.id;
+            const now = yield* currentEpochSeconds;
 
-        const record: ProcessingMetadata = {
-          ...proc,
-          id,
-          time: now,
-        };
+            const record: ProcessingMetadata = {
+              ...proc,
+              id,
+              time: now,
+            };
 
-        this.processing.set(id, record);
-        await this.persist();
+            service.processing.set(id, record);
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => librarianServiceError("add-processing-persist", cause),
+            });
 
-        console.log(`[LibrarianService] Added processing ${id} for document ${proc.documentId}`);
-        return this.processingResponse([record]);
+            yield* Effect.log(`[LibrarianService] Added processing ${id} for document ${proc.documentId}`);
+            return service.processingResponse([record]);
+          }),
+        );
 
         },
 
 
 
-      removeProcessing: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const id = this.processingId(request);
-        if (id === undefined || id.length === 0) {
-          throw new Error("remove-processing requires processingId");
-        }
+      removeProcessing: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const id = service.processingId(request);
+            if (id === undefined || id.length === 0) {
+              return yield* librarianServiceError("remove-processing", "remove-processing requires processingId");
+            }
 
-        this.processing.delete(id);
-        await this.persist();
+            service.processing.delete(id);
+            yield* Effect.tryPromise({
+              try: () => service.persist(),
+              catch: (cause) => librarianServiceError("remove-processing-persist", cause),
+            });
 
-        return {};
+            return {};
+          }),
+        );
 
         },
 
@@ -623,34 +914,43 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      beginUpload: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const meta = this.documentMetadata(request);
-        if (meta === undefined) throw new Error("begin-upload requires documentMetadata");
-        const req = this.requestRecord(request);
-        const totalSize = typeof req["total-size"] === "number" ? req["total-size"] : 0;
-        if (totalSize <= 0) throw new Error("begin-upload requires total-size");
-        const chunkSize = typeof req["chunk-size"] === "number" && req["chunk-size"] > 0
-          ? req["chunk-size"]
-          : 3 * 1024 * 1024;
-        const totalChunks = Math.max(1, Math.ceil(totalSize / chunkSize));
-        const uploadId = crypto.randomUUID();
+      beginUpload: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const meta = yield* Effect.tryPromise<DocumentMetadata | undefined, LibrarianServiceError>({
+              try: () => service.documentMetadata(request),
+              catch: (cause) => librarianServiceError("begin-upload-metadata", cause),
+            });
+            if (meta === undefined) return yield* librarianServiceError("begin-upload", "begin-upload requires documentMetadata");
+            const req = service.requestRecord(request);
+            const totalSize = typeof req["total-size"] === "number" ? req["total-size"] : 0;
+            if (totalSize <= 0) return yield* librarianServiceError("begin-upload", "begin-upload requires total-size");
+            const chunkSize = typeof req["chunk-size"] === "number" && req["chunk-size"] > 0
+              ? req["chunk-size"]
+              : 3 * 1024 * 1024;
+            const totalChunks = Math.max(1, Math.ceil(totalSize / chunkSize));
+            const uploadId = yield* randomUuid;
+            const createdAt = yield* currentIsoString;
 
-        this.uploads.set(uploadId, {
-          id: uploadId,
-          documentMetadata: meta,
-          totalSize,
-          chunkSize,
-          totalChunks,
-          createdAt: new Date().toISOString(),
-          chunks: new Map<number, string>(),
-          user: meta.user ?? optionalString(req.user) ?? "default",
-        });
+            service.uploads.set(uploadId, {
+              id: uploadId,
+              documentMetadata: meta,
+              totalSize,
+              chunkSize,
+              totalChunks,
+              createdAt,
+              chunks: new Map<number, string>(),
+              user: meta.user ?? optionalString(req.user) ?? "default",
+            });
 
-        return {
-          "upload-id": uploadId,
-          "chunk-size": chunkSize,
-          "total-chunks": totalChunks,
-        } as LibrarianResponse;
+            return {
+              "upload-id": uploadId,
+              "chunk-size": chunkSize,
+              "total-chunks": totalChunks,
+            } as LibrarianResponse;
+          }),
+        );
 
         },
 
@@ -659,15 +959,15 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       uploadChunk: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
         const req = this.requestRecord(request);
         const uploadId = optionalString(req["upload-id"]);
-        if (uploadId === undefined) throw new Error("upload-chunk requires upload-id");
+        if (uploadId === undefined) throwLibrarianServiceError("upload-chunk", "upload-chunk requires upload-id");
         const session = this.uploads.get(uploadId);
-        if (session === undefined) throw new Error(`Upload not found: ${uploadId}`);
+        if (session === undefined) throwLibrarianServiceError("upload-chunk", `Upload not found: ${uploadId}`);
         const chunkIndex = typeof req["chunk-index"] === "number" ? req["chunk-index"] : -1;
         if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= session.totalChunks) {
-          throw new Error("upload-chunk requires a valid chunk-index");
+          throwLibrarianServiceError("upload-chunk", "upload-chunk requires a valid chunk-index");
         }
         const content = optionalString(req.content);
-        if (content === undefined) throw new Error("upload-chunk requires content");
+        if (content === undefined) throwLibrarianServiceError("upload-chunk", "upload-chunk requires content");
         session.chunks.set(chunkIndex, content);
 
         const bytesReceived = [...session.chunks.values()].reduce((sum, chunk) => sum + chunk.length, 0);
@@ -684,30 +984,38 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      completeUpload: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
-        const uploadId = optionalString(this.requestRecord(request)["upload-id"]);
-        if (uploadId === undefined) throw new Error("complete-upload requires upload-id");
-        const session = this.uploads.get(uploadId);
-        if (session === undefined) throw new Error(`Upload not found: ${uploadId}`);
-        if (session.chunks.size !== session.totalChunks) {
-          throw new Error(`Upload incomplete: ${session.chunks.size}/${session.totalChunks} chunks received`);
-        }
+      completeUpload: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const uploadId = optionalString(service.requestRecord(request)["upload-id"]);
+            if (uploadId === undefined) return yield* librarianServiceError("complete-upload", "complete-upload requires upload-id");
+            const session = service.uploads.get(uploadId);
+            if (session === undefined) return yield* librarianServiceError("complete-upload", `Upload not found: ${uploadId}`);
+            if (session.chunks.size !== session.totalChunks) {
+              return yield* librarianServiceError("complete-upload", `Upload incomplete: ${session.chunks.size}/${session.totalChunks} chunks received`);
+            }
 
-        const content = Array.from({ length: session.totalChunks }, (_, i) => session.chunks.get(i) ?? "").join("");
-        const response = await this.addDocument({
-          operation: "add-document",
-          documentMetadata: session.documentMetadata,
-          "document-metadata": session.documentMetadata,
-          content,
-          user: session.user,
-        } as LibrarianRequest);
-        this.uploads.delete(uploadId);
-        const documentId = response.documentMetadata?.id ?? response["document-metadata"]?.id ?? session.documentMetadata.id;
-        return {
-          ...response,
-          "document-id": documentId,
-          "object-id": documentId,
-        } as LibrarianResponse;
+            const content = Array.from({ length: session.totalChunks }, (_, i) => session.chunks.get(i) ?? "").join("");
+            const response = yield* Effect.tryPromise<LibrarianResponse, LibrarianServiceError>({
+              try: () => service.addDocument({
+                operation: "add-document",
+                documentMetadata: session.documentMetadata,
+                "document-metadata": session.documentMetadata,
+                content,
+                user: session.user,
+              } as LibrarianRequest),
+              catch: (cause) => librarianServiceError("complete-upload-add-document", cause),
+            });
+            service.uploads.delete(uploadId);
+            const documentId = response.documentMetadata?.id ?? response["document-metadata"]?.id ?? session.documentMetadata.id;
+            return {
+              ...response,
+              "document-id": documentId,
+              "object-id": documentId,
+            } as LibrarianResponse;
+          }),
+        );
 
         },
 
@@ -715,9 +1023,9 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
       getUploadStatus: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
         const uploadId = optionalString(this.requestRecord(request)["upload-id"]);
-        if (uploadId === undefined) throw new Error("get-upload-status requires upload-id");
+        if (uploadId === undefined) throwLibrarianServiceError("get-upload-status", "get-upload-status requires upload-id");
         const session = this.uploads.get(uploadId);
-        if (session === undefined) throw new Error(`Upload not found: ${uploadId}`);
+        if (session === undefined) throwLibrarianServiceError("get-upload-status", `Upload not found: ${uploadId}`);
         const receivedChunks = [...session.chunks.keys()].sort((a, b) => a - b);
         const receivedSet = new Set(receivedChunks);
         const missingChunks = Array.from({ length: session.totalChunks }, (_, i) => i).filter((i) => !receivedSet.has(i));
@@ -739,7 +1047,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
       abortUpload: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
         const uploadId = optionalString(this.requestRecord(request)["upload-id"]);
-        if (uploadId === undefined) throw new Error("abort-upload requires upload-id");
+        if (uploadId === undefined) throwLibrarianServiceError("abort-upload", "abort-upload requires upload-id");
         this.uploads.delete(uploadId);
         return {};
 
@@ -747,47 +1055,66 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      listUploads: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const user = optionalString(this.requestRecord(request).user);
-        const sessions = [...this.uploads.values()]
-          .filter((session) => user === undefined || session.user === user)
-          .map((session) => ({
-            "upload-id": session.id,
-            "document-id": session.documentMetadata.id,
-            "document-metadata-json": JSON.stringify(this.publicDocument(session.documentMetadata)),
-            "total-size": session.totalSize,
-            "chunk-size": session.chunkSize,
-            "total-chunks": session.totalChunks,
-            "chunks-received": session.chunks.size,
-            "created-at": session.createdAt,
-          }));
-        return { "upload-sessions": sessions } as LibrarianResponse;
+      listUploads: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const user = optionalString(service.requestRecord(request).user);
+            const sessions = [];
+            for (const session of service.uploads.values()) {
+              if (user !== undefined && session.user !== user) continue;
+              const documentMetadataJson = yield* encodeJsonString(
+                "list-uploads-document-metadata",
+                service.publicDocument(session.documentMetadata),
+              );
+              sessions.push({
+                "upload-id": session.id,
+                "document-id": session.documentMetadata.id,
+                "document-metadata-json": documentMetadataJson,
+                "total-size": session.totalSize,
+                "chunk-size": session.chunkSize,
+                "total-chunks": session.totalChunks,
+                "chunks-received": session.chunks.size,
+                "created-at": session.createdAt,
+              });
+            }
+            return { "upload-sessions": sessions } as LibrarianResponse;
+          }),
+        );
 
         },
 
 
 
-      streamDocument: async function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse[]> {
-        const id = this.documentId(request);
-        if (id === undefined) throw new Error("stream-document requires documentId");
-        const req = this.requestRecord(request);
-        const chunkSize = typeof req["chunk-size"] === "number" && req["chunk-size"] > 0
-          ? req["chunk-size"]
-          : 1024 * 1024;
-        const filePath = joinPath(this.dataDir, "docs", `${id}.bin`);
-        const buf = await readBinaryFile(filePath);
-        const base64 = Buffer.from(buf).toString("base64");
-        const totalChunks = Math.max(1, Math.ceil(base64.length / chunkSize));
-        return Array.from({ length: totalChunks }, (_, index) => {
-          const start = index * chunkSize;
-          const content = base64.slice(start, start + chunkSize);
-          return {
-            content,
-            "chunk-index": index,
-            "total-chunks": totalChunks,
-            eos: index === totalChunks - 1,
-          } as LibrarianResponse;
-        });
+      streamDocument: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse[]> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const id = service.documentId(request);
+            if (id === undefined) return yield* librarianServiceError("stream-document", "stream-document requires documentId");
+            const req = service.requestRecord(request);
+            const chunkSize = typeof req["chunk-size"] === "number" && req["chunk-size"] > 0
+              ? req["chunk-size"]
+              : 1024 * 1024;
+            const filePath = joinPath(service.dataDir, "docs", `${id}.bin`);
+            const buf = yield* Effect.tryPromise({
+              try: () => readBinaryFile(filePath),
+              catch: (cause) => librarianServiceError("stream-document-read", cause),
+            });
+            const base64 = Buffer.from(buf).toString("base64");
+            const totalChunks = Math.max(1, Math.ceil(base64.length / chunkSize));
+            return Array.from({ length: totalChunks }, (_, index) => {
+              const start = index * chunkSize;
+              const content = base64.slice(start, start + chunkSize);
+              return {
+                content,
+                "chunk-index": index,
+                "total-chunks": totalChunks,
+                eos: index === totalChunks - 1,
+              } as LibrarianResponse;
+            });
+          }),
+        );
 
         },
 
@@ -795,67 +1122,97 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
       // ---------- Collection management ----------
 
-      handleCollectionMessage: async function(this: LibrarianService, msg: Message<CollectionManagementRequest>): Promise<void> {
-        const request = msg.value();
-        const props = msg.properties();
-        const requestId = props.id;
+      handleCollectionMessage: function(this: LibrarianService, msg: Message<CollectionManagementRequest>): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const request = msg.value();
+            const props = msg.properties();
+            const requestId = props.id;
 
-        if (requestId === undefined || requestId.length === 0) {
-          console.warn("[LibrarianService] Received collection request without id, ignoring");
-          return;
-        }
+            if (requestId === undefined || requestId.length === 0) {
+              yield* Effect.logWarning("[LibrarianService] Received collection request without id, ignoring");
+              return;
+            }
 
-        try {
-          const response = this.handleCollectionOperation(request);
-          await this.colProducer!.send(response, { id: requestId });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          await this.colProducer!.send(
-            { error: { type: "collection-error", message } },
-            { id: requestId },
-          );
-        }
+            const sendResponse = (response: CollectionManagementResponse): Effect.Effect<void, LibrarianServiceError> =>
+              Effect.gen(function* () {
+                const producer = service.colProducer;
+                if (producer === null) {
+                  return yield* librarianServiceError("collection-respond", "Collection producer not started");
+                }
+                yield* Effect.tryPromise({
+                  try: () => producer.send(response, { id: requestId }),
+                  catch: (cause) => librarianServiceError("collection-respond", cause),
+                });
+              });
+
+            yield* Effect.gen(function* () {
+              const response = yield* Effect.tryPromise<CollectionManagementResponse, LibrarianServiceError>({
+                try: () => service.handleCollectionOperation(request),
+                catch: (cause) => librarianServiceError("collection-operation", cause),
+              });
+              yield* sendResponse(response);
+            }).pipe(
+              Effect.catch((err) =>
+                sendResponse({
+                  error: { type: "collection-error", message: err.message },
+                }),
+              ),
+            );
+          }),
+        );
 
         },
 
 
 
-      handleCollectionOperation: function(this: LibrarianService, request: CollectionManagementRequest): CollectionManagementResponse {
-        switch (request.operation) {
-          case "list-collections": {
-            const user = request.user ?? "";
-            const collections = this.collectionManager.listCollections(user);
-            return { collections };
-          }
+      handleCollectionOperation: function(this: LibrarianService, request: CollectionManagementRequest): Promise<CollectionManagementResponse> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            switch (request.operation) {
+              case "list-collections": {
+                const user = request.user ?? "";
+                const collections = service.collectionManager.listCollections(user);
+                return { collections };
+              }
 
-          case "update-collection": {
-            const user = request.user ?? "";
-            const collection = request.collection ?? "";
-            const name = request.name ?? collection;
-            const description = request.description ?? "";
-            const tags = request.tags ?? [];
+              case "update-collection": {
+                const user = request.user ?? "";
+                const collection = request.collection ?? "";
+                const name = request.name ?? collection;
+                const description = request.description ?? "";
+                const tags = request.tags ?? [];
 
-            this.collectionManager.updateCollection(user, collection, name, description, tags);
-            // Persist after mutation
-            this.persist().catch((err: unknown) => console.error("[LibrarianService] Persist failed:", err));
+                service.collectionManager.updateCollection(user, collection, name, description, tags);
+                yield* Effect.tryPromise({
+                  try: () => service.persist(),
+                  catch: (cause) => librarianServiceError("update-collection-persist", cause),
+                });
 
-            const collections = this.collectionManager.listCollections(user);
-            return { collections };
-          }
+                const collections = service.collectionManager.listCollections(user);
+                return { collections };
+              }
 
-          case "delete-collection": {
-            const user = request.user ?? "";
-            const collection = request.collection ?? "";
+              case "delete-collection": {
+                const user = request.user ?? "";
+                const collection = request.collection ?? "";
 
-            this.collectionManager.deleteCollection(user, collection);
-            this.persist().catch((err: unknown) => console.error("[LibrarianService] Persist failed:", err));
+                service.collectionManager.deleteCollection(user, collection);
+                yield* Effect.tryPromise({
+                  try: () => service.persist(),
+                  catch: (cause) => librarianServiceError("delete-collection-persist", cause),
+                });
 
-            return {};
-          }
+                return {};
+              }
 
-          default:
-            throw new Error(`Unknown collection operation: ${request.operation as string}`);
-        }
+              default:
+                return yield* librarianServiceError("collection-operation", `Unknown collection operation: ${request.operation as string}`);
+            }
+          }),
+        );
 
         },
 
@@ -863,80 +1220,122 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
       // ---------- Persistence ----------
 
-      persist: async function(this: LibrarianService): Promise<void> {
-        try {
-          const data = {
-            documents: Object.fromEntries(this.documents),
-            processing: Object.fromEntries(this.processing),
-            collections: this.collectionManager.toJSON(),
-          };
+      persist: function(this: LibrarianService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const data = {
+              documents: Object.fromEntries(service.documents),
+              processing: Object.fromEntries(service.processing),
+              collections: service.collectionManager.toJSON(),
+            };
 
-          const json = JSON.stringify(data, null, 2);
-          await writeTextFile(this.persistPath, json);
-        } catch (err) {
-          console.error("[LibrarianService] Failed to persist state:", err);
-        }
-
-        },
-
-
-
-      loadFromDisk: async function(this: LibrarianService): Promise<void> {
-        try {
-          const raw = await readTextFile(this.persistPath);
-          const parsed = JSON.parse(raw) as {
-            documents?: Record<string, DocumentMetadata>;
-            processing?: Record<string, ProcessingMetadata>;
-            collections?: Array<{ user: string; collection: string; name: string; description: string; tags: string[] }>;
-          };
-
-          this.documents.clear();
-          if (parsed.documents !== undefined) {
-            for (const [id, doc] of Object.entries(parsed.documents)) {
-              this.documents.set(id, this.publicDocument(doc));
-            }
-          }
-
-          this.processing.clear();
-          if (parsed.processing !== undefined) {
-            for (const [id, proc] of Object.entries(parsed.processing)) {
-              this.processing.set(id, this.publicProcessing(proc));
-            }
-          }
-
-          if (parsed.collections !== undefined) {
-            this.collectionManager.loadFromJSON(parsed.collections);
-          }
-
-          console.log(
-            `[LibrarianService] Loaded persisted state (documents=${this.documents.size}, processing=${this.processing.size})`,
-          );
-        } catch {
-          console.log("[LibrarianService] No persisted state found, starting fresh");
-        }
+            const json = yield* encodeJsonString("persist-encode", data);
+            yield* Effect.tryPromise({
+              try: () => writeTextFile(service.persistPath, json),
+              catch: (cause) => librarianServiceError("persist-write", cause),
+            });
+          }).pipe(
+            Effect.catch((err) =>
+              Effect.logError("[LibrarianService] Failed to persist state", { error: err.message }),
+            ),
+          ),
+        );
 
         },
 
 
 
-      stop: async function(this: LibrarianService): Promise<void> {
-        if (this.libConsumer !== null) {
-          await this.libConsumer.close();
-          this.libConsumer = null;
-        }
-        if (this.libProducer !== null) {
-          await this.libProducer.close();
-          this.libProducer = null;
-        }
-        if (this.colConsumer !== null) {
-          await this.colConsumer.close();
-          this.colConsumer = null;
-        }
-        if (this.colProducer !== null) {
-          await this.colProducer.close();
-          this.colProducer = null;
-        }
-        await baseStop();
+      loadFromDisk: function(this: LibrarianService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const parsed = yield* Effect.gen(function* () {
+              const raw = yield* Effect.tryPromise({
+                try: () => readTextFile(service.persistPath),
+                catch: (cause) => librarianServiceError("persist-read", cause),
+              });
+              return yield* decodeJsonString<PersistedLibrarianState>("persist-decode", raw);
+            }).pipe(
+              Effect.catch(() =>
+                Effect.log("[LibrarianService] No persisted state found, starting fresh").pipe(
+                  Effect.as(null as PersistedLibrarianState | null),
+                ),
+              ),
+            );
+
+            if (parsed === null) return;
+
+            service.documents.clear();
+            if (parsed.documents !== undefined) {
+              for (const [id, doc] of Object.entries(parsed.documents)) {
+                service.documents.set(id, service.publicDocument(doc));
+              }
+            }
+
+            service.processing.clear();
+            if (parsed.processing !== undefined) {
+              for (const [id, proc] of Object.entries(parsed.processing)) {
+                service.processing.set(id, service.publicProcessing(proc));
+              }
+            }
+
+            if (parsed.collections !== undefined) {
+              service.collectionManager.loadFromJSON(parsed.collections);
+            }
+
+            yield* Effect.log(
+              `[LibrarianService] Loaded persisted state (documents=${service.documents.size}, processing=${service.processing.size})`,
+            );
+          }),
+        );
+
+        },
+
+
+
+      stop: function(this: LibrarianService): Promise<void> {
+        const service = this;
+        return Effect.runPromise(
+          Effect.gen(function* () {
+            const libConsumer = service.libConsumer;
+            if (libConsumer !== null) {
+              yield* Effect.tryPromise({
+                try: () => libConsumer.close(),
+                catch: (cause) => librarianServiceError("close-librarian-consumer", cause),
+              });
+              service.libConsumer = null;
+            }
+            const libProducer = service.libProducer;
+            if (libProducer !== null) {
+              yield* Effect.tryPromise({
+                try: () => libProducer.close(),
+                catch: (cause) => librarianServiceError("close-librarian-producer", cause),
+              });
+              service.libProducer = null;
+            }
+            const colConsumer = service.colConsumer;
+            if (colConsumer !== null) {
+              yield* Effect.tryPromise({
+                try: () => colConsumer.close(),
+                catch: (cause) => librarianServiceError("close-collection-consumer", cause),
+              });
+              service.colConsumer = null;
+            }
+            const colProducer = service.colProducer;
+            if (colProducer !== null) {
+              yield* Effect.tryPromise({
+                try: () => colProducer.close(),
+                catch: (cause) => librarianServiceError("close-collection-producer", cause),
+              });
+              service.colProducer = null;
+            }
+            yield* Effect.tryPromise({
+              try: () => baseStop(),
+              catch: (cause) => librarianServiceError("stop", cause),
+            });
+          }),
+        );
 
         }
   });
@@ -945,15 +1344,11 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 export const LibrarianService = makeLibrarianService;
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export const program = makeProcessorProgram({
   id: "librarian-svc",
   make: (config) => makeLibrarianService(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

@@ -88,7 +88,7 @@ export function makeTriplesQueryService(config: ProcessorConfig): TriplesQuerySe
         ),
       ),
   });
-  console.log("[TriplesQuery] Service initialized");
+  void Effect.runPromise(Effect.log("[TriplesQuery] Service initialized"));
   return service;
 }
 
@@ -100,6 +100,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBQueryC
   layer: (config) => FalkorDBTriplesQueryLive(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

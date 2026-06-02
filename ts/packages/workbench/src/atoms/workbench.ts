@@ -2,7 +2,7 @@ import { Clipboard as BrowserClipboard } from "@effect/platform-browser";
 import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore";
 import { BaseApi, type ConnectionState, type DocumentMetadata, type ExplainEvent, type StreamingMetadata, type Term, type Triple } from "@trustgraph/client";
-import { Cause, Context, Data, Effect, Layer, Metric, Option, Schema as S } from "effect";
+import { Cause, Clock, Context, Effect, Layer, Metric, Option, Random, Schema as S } from "effect";
 import * as Otlp from "effect/unstable/observability/Otlp";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
@@ -29,23 +29,31 @@ const browserObservabilityLayer = Otlp.layerJson({
   shutdownTimeout: "1 second",
 });
 
-class WorkbenchPromiseError extends Data.TaggedError("WorkbenchPromiseError")<{
-  readonly cause: unknown;
-  readonly message: string;
-}> {}
+class WorkbenchPromiseError extends S.TaggedErrorClass<WorkbenchPromiseError>()(
+  "WorkbenchPromiseError",
+  {
+    cause: S.Unknown,
+    message: S.String,
+  },
+) {}
 
 type WorkbenchError = WorkbenchPromiseError;
 
+const isWorkbenchPromiseError = S.is(WorkbenchPromiseError);
+
 function errorMessage(error: unknown): string {
-  if (error instanceof WorkbenchPromiseError) return error.message;
-  if (error instanceof Error) return error.message;
+  if (isWorkbenchPromiseError(error)) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
   return String(error);
 }
 
 function promiseBoundary<A>(evaluate: () => Promise<A>): Effect.Effect<A, WorkbenchPromiseError> {
   return Effect.tryPromise({
     try: evaluate,
-    catch: (cause) => new WorkbenchPromiseError({ cause, message: errorMessage(cause) }),
+    catch: (cause) => WorkbenchPromiseError.make({ cause, message: errorMessage(cause) }),
   });
 }
 
@@ -73,7 +81,7 @@ export class WorkbenchFiles extends Context.Service<
           Effect.flatMap((buffer) =>
             Effect.try({
               try: () => base64FromArrayBuffer(buffer),
-              catch: (cause) => new WorkbenchPromiseError({ cause, message: errorMessage(cause) }),
+              catch: (cause) => WorkbenchPromiseError.make({ cause, message: errorMessage(cause) }),
             })
           ),
         );
@@ -480,12 +488,12 @@ export function resultError<A, E>(result: AsyncResult.AsyncResult<A, E>): string
   return resultErrorMessage(result);
 }
 
-function nextMessageId(): string {
-  return `msg-${crypto.randomUUID()}`;
-}
-
-function nextNotificationId(): string {
-  return `notif-${crypto.randomUUID()}`;
+function randomId(prefix: string): Effect.Effect<string> {
+  return Effect.gen(function*() {
+    const left = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+    const right = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+    return `${prefix}-${left.toString(36).padStart(6, "0")}${right.toString(36).padStart(6, "0")}`;
+  });
 }
 
 function metadataFrom(metadata: StreamingMetadata | undefined): ChatMessage["metadata"] | undefined {
@@ -520,7 +528,7 @@ function parseConfigEntries<T>(raw: unknown, label: string): T[] {
   for (const item of mapConfigEntries(raw)) {
     const config = parseJsonUnknown(item.value);
     if (config === undefined) {
-      console.warn(`[workbench-atoms] Failed to parse ${label}: ${item.key}`);
+      Effect.runSync(Effect.logWarning(`[workbench-atoms] Failed to parse ${label}: ${item.key}`));
     } else {
       entries.push({ key: item.key, config } as T);
     }
@@ -743,7 +751,7 @@ export const clearMessagesAtom = Atom.writable(
 export const pushNotificationAtom = localCommandAtom<Omit<Notification, "id">, void>(
   "pushNotification",
   Effect.fn("trustgraph.workbench.pushNotification")(function*(input, get) {
-    const id = nextNotificationId();
+    const id = yield* randomId("notif");
     const notification: Notification = { id, ...input };
     get.set(notificationsAtom, [...get(notificationsAtom), notification]);
     yield* Effect.sleep("5 seconds");
@@ -1307,9 +1315,11 @@ const uploadDocumentChunkedEffect = Effect.fn("trustgraph.workbench.uploadDocume
       bytesUploaded: 0,
     } });
     const lib = api.librarian();
+    const documentId = yield* randomId("upload");
+    const timestamp = yield* Clock.currentTimeMillis;
     const beginResp = yield* promiseBoundary(() => lib.beginUpload({
-      id: crypto.randomUUID(),
-      time: Math.floor(Date.now() / 1000),
+      id: documentId,
+      time: Math.floor(timestamp / 1000),
       kind: input.mimeType,
       title: input.title,
       comments: input.comments,
@@ -1478,7 +1488,7 @@ export const deleteCollectionAtom = commandAtom<string, void>("deleteCollection"
 
 export const submitMessageAtom = commandAtom<{ input: string }, void>(
   "submitMessage",
-  Effect.fn("trustgraph.workbench.submitMessage")(({ input }, get, api) => Effect.sync(() => {
+  Effect.fn("trustgraph.workbench.submitMessage")(function*({ input }, get, api) {
   const trimmed = input.trim();
   if (trimmed.length === 0) return;
 
@@ -1488,7 +1498,8 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
   const chatMode = get(conversationAtom).chatMode;
   const flow = api.flow(flowId);
   const explainEvents: ExplainEvent[] = [];
-  const requestId = crypto.randomUUID();
+  const requestId = yield* randomId("chat");
+  const timestamp = yield* Clock.currentTimeMillis;
   const isActiveRequest = () => get(activeChatRequestAtom) === requestId;
   const finishRequest = () => {
     if (isActiveRequest()) {
@@ -1498,16 +1509,16 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
   };
 
   const userMsg: ChatMessage = {
-    id: nextMessageId(),
+    id: yield* randomId("msg"),
     role: "user",
     content: input,
-    timestamp: Date.now(),
+    timestamp,
   };
   const assistantMsg: ChatMessage = {
-    id: nextMessageId(),
+    id: yield* randomId("msg"),
     role: "assistant",
     content: "",
-    timestamp: Date.now(),
+    timestamp,
     isStreaming: true,
     ...(chatMode === "agent"
       ? {
@@ -1625,7 +1636,7 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
       );
       break;
   }
-  })),
+  }),
 );
 
 export const cancelChatAtom = Atom.writable(

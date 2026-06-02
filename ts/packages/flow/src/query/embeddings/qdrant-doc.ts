@@ -9,7 +9,8 @@
 
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { errorMessage } from "@trustgraph/base";
-import { Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer } from "effect";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
 export interface QdrantDocQueryConfig {
@@ -30,24 +31,58 @@ export interface DocEmbeddingsQueryRequest {
   limit: number;
 }
 
+export class QdrantDocEmbeddingsQueryError extends S.TaggedErrorClass<QdrantDocEmbeddingsQueryError>()(
+  "QdrantDocEmbeddingsQueryError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+const qdrantDocEmbeddingsQueryError = (operation: string, cause: unknown) =>
+  QdrantDocEmbeddingsQueryError.make({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+interface ResolvedQdrantDocQueryConfig {
+  readonly url: string;
+  readonly apiKey?: string;
+}
+
+const loadQdrantDocQueryConfig = Effect.fn("QdrantDocEmbeddingsQuery.loadConfig")(function* (
+  config: QdrantDocQueryConfig,
+) {
+  const envApiKey = O.getOrUndefined(yield* Config.string("QDRANT_API_KEY").pipe(Config.option));
+  const apiKey = config.apiKey ?? envApiKey;
+  return {
+    url: config.url ?? (yield* Config.string("QDRANT_URL").pipe(Config.withDefault("http://localhost:6333"))),
+    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+  } satisfies ResolvedQdrantDocQueryConfig;
+});
+
 export interface QdrantDocEmbeddingsQuery {
   readonly query: (request: DocEmbeddingsQueryRequest) => Promise<ChunkMatch[]>;
+  readonly queryEffect: (
+    request: DocEmbeddingsQueryRequest,
+  ) => Effect.Effect<ReadonlyArray<ChunkMatch>, QdrantDocEmbeddingsQueryError>;
 }
 
 export function makeQdrantDocEmbeddingsQuery(
   config: QdrantDocQueryConfig = {},
 ): QdrantDocEmbeddingsQuery {
-  const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
-  const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
+  const resolved = Effect.runSync(loadQdrantDocQueryConfig(config));
 
   const client = new QdrantClient({
-    url,
-    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+    url: resolved.url,
+    ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
   });
 
-  console.log("[QdrantDocQuery] Query service initialized");
+  Effect.runSync(Effect.log("[QdrantDocQuery] Query service initialized"));
 
-  const query = async (request: DocEmbeddingsQueryRequest): Promise<ChunkMatch[]> => {
+  const queryEffect = Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request: DocEmbeddingsQueryRequest) {
     const { vector, user, collection, limit } = request;
 
     if (vector.length === 0) {
@@ -58,18 +93,25 @@ export function makeQdrantDocEmbeddingsQuery(
     const collectionName = `d_${user}_${collection}_${dim}`;
 
     // Check if collection exists -- return empty if not
-    const exists = await client.collectionExists(collectionName);
+    const exists = yield* Effect.tryPromise({
+      try: () => client.collectionExists(collectionName),
+      catch: (cause) => qdrantDocEmbeddingsQueryError("collection-exists", cause),
+    });
     if (!exists.exists) {
-      console.log(
+      yield* Effect.log(
         `[QdrantDocQuery] Collection ${collectionName} does not exist, returning empty results`,
       );
       return [];
     }
 
-    const searchResult = await client.search(collectionName, {
-      vector,
-      limit,
-      with_payload: true,
+    const searchResult = yield* Effect.tryPromise({
+      try: () =>
+        client.search(collectionName, {
+          vector,
+          limit,
+          with_payload: true,
+        }),
+      catch: (cause) => qdrantDocEmbeddingsQueryError("search", cause),
     });
 
     const chunks: ChunkMatch[] = [];
@@ -86,19 +128,13 @@ export function makeQdrantDocEmbeddingsQuery(
     }
 
     return chunks;
+  });
+
+  return {
+    query: (request) => Effect.runPromise(queryEffect(request)),
+    queryEffect,
   };
-
-  return { query };
 }
-
-export class QdrantDocEmbeddingsQueryError extends S.TaggedErrorClass<QdrantDocEmbeddingsQueryError>()(
-  "QdrantDocEmbeddingsQueryError",
-  {
-    message: S.String,
-    operation: S.String,
-    cause: S.DefectWithStack,
-  },
-) {}
 
 export interface QdrantDocEmbeddingsQueryServiceShape {
   readonly query: (
@@ -113,24 +149,12 @@ export class QdrantDocEmbeddingsQueryService extends Context.Service<
   "@trustgraph/flow/query/embeddings/qdrant-doc/QdrantDocEmbeddingsQueryService",
 ) {}
 
-const qdrantDocEmbeddingsQueryError = (operation: string, cause: unknown) =>
-  new QdrantDocEmbeddingsQueryError({
-    operation,
-    message: errorMessage(cause),
-    cause,
-  });
-
 export const makeQdrantDocEmbeddingsQueryService = (
   config: QdrantDocQueryConfig = {},
 ): QdrantDocEmbeddingsQueryServiceShape => {
   const query = makeQdrantDocEmbeddingsQuery(config);
   return {
-    query: Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request) {
-      return yield* Effect.tryPromise({
-        try: () => query.query(request),
-        catch: (cause) => qdrantDocEmbeddingsQueryError("query", cause),
-      });
-    }),
+    query: query.queryEffect,
   };
 };
 

@@ -18,32 +18,51 @@ import {
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import {
+  optionalStringConfig,
+  providerRuntimeError,
+  toAsyncGenerator,
+  type TextCompletionRuntimeError,
+} from "./common.ts";
 
 export type OllamaProcessorConfig = ProcessorConfig & {
   model?: string;
   ollamaUrl?: string;
 };
 
-export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
-  const defaultModel =
-      config.model ??
-      process.env.OLLAMA_MODEL ??
-      "qwen2.5:0.5b";
+type ResolvedOllamaConfig = {
+  readonly defaultModel: string;
+  readonly host: string;
+};
 
-    const host =
-      config.ollamaUrl ??
-      process.env.OLLAMA_URL ??
-      "http://localhost:11434";
+const loadOllamaConfig = Effect.fn("loadOllamaConfig")(function*(config: OllamaProcessorConfig) {
+    return {
+      defaultModel:
+        config.model ??
+        (yield* optionalStringConfig("Ollama", "OLLAMA_MODEL")) ??
+        "qwen2.5:0.5b",
+      host:
+        config.ollamaUrl ??
+        (yield* optionalStringConfig("Ollama", "OLLAMA_URL")) ??
+        "http://localhost:11434",
+    } satisfies ResolvedOllamaConfig;
+});
+
+const mapOllamaError = (error: unknown): TextCompletionRuntimeError =>
+  providerRuntimeError("Ollama", error);
+
+export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
+  const { defaultModel, host } = Effect.runSync(loadOllamaConfig(config)) satisfies ResolvedOllamaConfig;
 
   const client = new Ollama({ host });
 
-    console.log(
+  Effect.runSync(Effect.log(
     `[Ollama] LLM service initialized (host=${host}, model=${defaultModel})`,
-    );
+  ));
 
   return {
-    generateContent: async (
+    generateContent: (
       system: string,
       prompt: string,
       model?: string,
@@ -52,73 +71,107 @@ export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
       const modelName = model ?? defaultModel;
       const fullPrompt = system + "\n\n" + prompt;
 
-      const resp = await client.generate({
-        model: modelName,
-        prompt: fullPrompt,
-        stream: false,
-      });
-
-      return {
-        text: resp.response,
-        inToken: resp.prompt_eval_count ?? 0,
-        outToken: resp.eval_count ?? 0,
-        model: modelName,
-      };
+      return Effect.runPromise(
+        Effect.tryPromise({
+          try: () =>
+            client.generate({
+              model: modelName,
+              prompt: fullPrompt,
+              stream: false,
+            }),
+          catch: mapOllamaError,
+        }).pipe(
+          Effect.map((resp): LlmResult => ({
+            text: resp.response,
+            inToken: resp.prompt_eval_count ?? 0,
+            outToken: resp.eval_count ?? 0,
+            model: modelName,
+          })),
+        ),
+      );
     },
     supportsStreaming: () => true,
-    generateContentStream: async function* (
+    generateContentStream: (
       system: string,
       prompt: string,
       model?: string,
       _temperature?: number,
-    ): AsyncGenerator<LlmChunk> {
+    ): AsyncGenerator<LlmChunk> => {
       const modelName = model ?? defaultModel;
       const fullPrompt = system + "\n\n" + prompt;
 
-      const stream = await client.generate({
-        model: modelName,
-        prompt: fullPrompt,
-        stream: true,
-      });
-
+      const stream = Stream.fromEffect(
+        Effect.tryPromise({
+          try: () =>
+            client.generate({
+              model: modelName,
+              prompt: fullPrompt,
+              stream: true,
+            }),
+          catch: mapOllamaError,
+        }),
+      ).pipe(
+        Stream.flatMap((ollamaStream) => {
+          const iterator = ollamaStream[Symbol.asyncIterator]();
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
 
-      for await (const chunk of stream) {
-      // Token counts accumulate across chunks; keep the latest values
-        if (chunk.prompt_eval_count !== undefined) {
-          totalInputTokens = chunk.prompt_eval_count;
-        }
-        if (chunk.eval_count !== undefined) {
-          totalOutputTokens = chunk.eval_count;
-        }
+          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
+            "pulling",
+            (state) => {
+              if (state === "done") return Effect.void as Effect.Effect<undefined>;
 
-        if (chunk.response.length > 0) {
-          yield {
-            text: chunk.response,
-            inToken: null,
-            outToken: null,
-            model: modelName,
-            isFinal: false,
-          };
-        }
-      }
+              return Effect.gen(function* () {
+                while (true) {
+                  const next = yield* Effect.tryPromise({
+                    try: () => iterator.next(),
+                    catch: mapOllamaError,
+                  });
 
-    // Final chunk with accumulated token counts
-      yield {
-        text: "",
-        inToken: totalInputTokens,
-        outToken: totalOutputTokens,
-        model: modelName,
-        isFinal: true,
-      };
+                  if (next.done === true) {
+                    return [{
+                      text: "",
+                      inToken: totalInputTokens,
+                      outToken: totalOutputTokens,
+                      model: modelName,
+                      isFinal: true,
+                    }, "done"] as const;
+                  }
+
+                  const chunk = next.value;
+                  if (chunk.prompt_eval_count !== undefined) {
+                    totalInputTokens = chunk.prompt_eval_count;
+                  }
+                  if (chunk.eval_count !== undefined) {
+                    totalOutputTokens = chunk.eval_count;
+                  }
+
+                  if (chunk.response.length > 0) {
+                    return [{
+                      text: chunk.response,
+                      inToken: null,
+                      outToken: null,
+                      model: modelName,
+                      isFinal: false,
+                    }, "pulling"] as const;
+                  }
+                }
+              });
+            },
+          );
+        }),
+      );
+
+      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOllamaError);
     },
   };
 }
 
 export type OllamaProcessor = ReturnType<typeof makeOllamaProcessor>;
 
-export function makeOllamaProcessor(config: OllamaProcessorConfig): ReturnType<typeof makeLlmService> {
+export function makeOllamaProcessor(
+  config: OllamaProcessorConfig,
+): ReturnType<typeof makeLlmService> {
   return makeLlmService(config, makeOllamaProvider(config));
 }
 
@@ -134,6 +187,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

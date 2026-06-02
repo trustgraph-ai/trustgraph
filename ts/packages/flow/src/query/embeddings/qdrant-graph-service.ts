@@ -102,7 +102,7 @@ export function makeGraphEmbeddingsQueryService(config: ProcessorConfig): GraphE
         ),
       ),
   });
-  console.log("[GraphEmbeddingsQuery] Service initialized");
+  Effect.runSync(Effect.log("[GraphEmbeddingsQuery] Service initialized"));
   return service;
 }
 
@@ -114,6 +114,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantGraphQue
   layer: (config) => QdrantGraphEmbeddingsQueryLive(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

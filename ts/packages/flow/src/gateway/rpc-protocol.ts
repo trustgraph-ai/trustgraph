@@ -34,37 +34,44 @@ export const makeSocketRpcProtocol = Effect.gen(function* () {
     });
 
     const writeRaw = yield* socket.writer;
-    const write = (response: RpcMessage.FromServerEncoded) => {
-      try {
-        const encoded = parser.encode(response);
-        if (encoded === undefined) return Effect.void;
-        return Effect.orDie(writeRaw(encoded));
-      } catch (cause) {
-        return Effect.orDie(
-          writeRaw(parser.encode(RpcMessage.ResponseDefectEncoded(cause))!),
-        );
-      }
-    };
+    const encodeDefect = (cause: unknown) =>
+      Effect.sync(() => parser.encode(RpcMessage.ResponseDefectEncoded(cause))!);
+    const write = (response: RpcMessage.FromServerEncoded) =>
+      Effect.sync(() => parser.encode(response)).pipe(
+        Effect.flatMap((encoded) =>
+          encoded === undefined ? Effect.void : Effect.orDie(writeRaw(encoded)),
+        ),
+        Effect.catchDefect((cause: unknown) =>
+          encodeDefect(cause).pipe(
+            Effect.flatMap((encoded) => Effect.orDie(writeRaw(encoded))),
+            Effect.orDie,
+          ),
+        ),
+      );
 
     clients.set(clientId, { write });
     clientIds.add(clientId);
 
-    yield* socket.runRaw((data) => {
-      try {
-        const decoded = parser.decode(data) as ReadonlyArray<RpcMessage.FromClientEncoded>;
-        return Effect.forEach(decoded, (message) => {
-          if (message._tag === "Request" && headers !== undefined) {
-            return writeRequest(clientId, {
-              ...message,
-              headers: headers.concat(message.headers),
-            });
-          }
-          return writeRequest(clientId, message);
-        }, { discard: true });
-      } catch (cause) {
-        return writeRaw(parser.encode(RpcMessage.ResponseDefectEncoded(cause))!);
-      }
-    }).pipe(
+    yield* socket.runRaw((data) =>
+      Effect.sync(() => parser.decode(data) as ReadonlyArray<RpcMessage.FromClientEncoded>).pipe(
+        Effect.flatMap((decoded) =>
+          Effect.forEach(decoded, (message) => {
+            if (message._tag === "Request" && headers !== undefined) {
+              return writeRequest(clientId, {
+                ...message,
+                headers: headers.concat(message.headers),
+              });
+            }
+            return writeRequest(clientId, message);
+          }, { discard: true }),
+        ),
+        Effect.catchDefect((cause: unknown) =>
+          encodeDefect(cause).pipe(
+            Effect.flatMap((encoded) => writeRaw(encoded)),
+          ),
+        ),
+      )
+    ).pipe(
       Effect.catchReason("SocketError", "SocketCloseError", () => Effect.void),
       Effect.orDie,
     );

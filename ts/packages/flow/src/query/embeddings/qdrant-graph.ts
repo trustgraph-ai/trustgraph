@@ -12,7 +12,8 @@
 
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { errorMessage, type Term } from "@trustgraph/base";
-import { Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer } from "effect";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
 export interface QdrantGraphQueryConfig {
@@ -32,6 +33,38 @@ export interface GraphEmbeddingsQueryRequest {
   limit: number;
 }
 
+export class QdrantGraphEmbeddingsQueryError extends S.TaggedErrorClass<QdrantGraphEmbeddingsQueryError>()(
+  "QdrantGraphEmbeddingsQueryError",
+  {
+    message: S.String,
+    operation: S.String,
+    cause: S.DefectWithStack,
+  },
+) {}
+
+const qdrantGraphEmbeddingsQueryError = (operation: string, cause: unknown) =>
+  QdrantGraphEmbeddingsQueryError.make({
+    operation,
+    message: errorMessage(cause),
+    cause,
+  });
+
+interface ResolvedQdrantGraphQueryConfig {
+  readonly url: string;
+  readonly apiKey?: string;
+}
+
+const loadQdrantGraphQueryConfig = Effect.fn("QdrantGraphEmbeddingsQuery.loadConfig")(function* (
+  config: QdrantGraphQueryConfig,
+) {
+  const envApiKey = O.getOrUndefined(yield* Config.string("QDRANT_API_KEY").pipe(Config.option));
+  const apiKey = config.apiKey ?? envApiKey;
+  return {
+    url: config.url ?? (yield* Config.string("QDRANT_URL").pipe(Config.withDefault("http://localhost:6333"))),
+    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+  } satisfies ResolvedQdrantGraphQueryConfig;
+});
+
 function createTerm(value: string): Term {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return { type: "IRI", iri: value };
@@ -41,22 +74,26 @@ function createTerm(value: string): Term {
 
 export interface QdrantGraphEmbeddingsQuery {
   readonly query: (request: GraphEmbeddingsQueryRequest) => Promise<EntityMatch[]>;
+  readonly queryEffect: (
+    request: GraphEmbeddingsQueryRequest,
+  ) => Effect.Effect<ReadonlyArray<EntityMatch>, QdrantGraphEmbeddingsQueryError>;
 }
 
 export function makeQdrantGraphEmbeddingsQuery(
   config: QdrantGraphQueryConfig = {},
 ): QdrantGraphEmbeddingsQuery {
-  const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
-  const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
+  const resolved = Effect.runSync(loadQdrantGraphQueryConfig(config));
 
   const client = new QdrantClient({
-    url,
-    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+    url: resolved.url,
+    ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
   });
 
-  console.log("[QdrantGraphQuery] Query service initialized");
+  Effect.runSync(Effect.log("[QdrantGraphQuery] Query service initialized"));
 
-  const query = async (request: GraphEmbeddingsQueryRequest): Promise<EntityMatch[]> => {
+  const queryEffect = Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (
+    request: GraphEmbeddingsQueryRequest,
+  ) {
     const { vector, user, collection, limit } = request;
 
     if (vector.length === 0) {
@@ -67,9 +104,12 @@ export function makeQdrantGraphEmbeddingsQuery(
     const collectionName = `t_${user}_${collection}_${dim}`;
 
     // Check if collection exists -- return empty if not
-    const exists = await client.collectionExists(collectionName);
+    const exists = yield* Effect.tryPromise({
+      try: () => client.collectionExists(collectionName),
+      catch: (cause) => qdrantGraphEmbeddingsQueryError("collection-exists", cause),
+    });
     if (!exists.exists) {
-      console.log(
+      yield* Effect.log(
         `[QdrantGraphQuery] Collection ${collectionName} does not exist, returning empty results`,
       );
       return [];
@@ -77,10 +117,14 @@ export function makeQdrantGraphEmbeddingsQuery(
 
     // Query 2x the limit so we have a better chance of getting `limit`
     // unique entities after deduplication (same heuristic as Python impl)
-    const searchResult = await client.search(collectionName, {
-      vector,
-      limit: limit * 2,
-      with_payload: true,
+    const searchResult = yield* Effect.tryPromise({
+      try: () =>
+        client.search(collectionName, {
+          vector,
+          limit: limit * 2,
+          with_payload: true,
+        }),
+      catch: (cause) => qdrantGraphEmbeddingsQueryError("search", cause),
     });
 
     const entitySet = new Set<string>();
@@ -106,19 +150,13 @@ export function makeQdrantGraphEmbeddingsQuery(
     }
 
     return entities;
+  });
+
+  return {
+    query: (request) => Effect.runPromise(queryEffect(request)),
+    queryEffect,
   };
-
-  return { query };
 }
-
-export class QdrantGraphEmbeddingsQueryError extends S.TaggedErrorClass<QdrantGraphEmbeddingsQueryError>()(
-  "QdrantGraphEmbeddingsQueryError",
-  {
-    message: S.String,
-    operation: S.String,
-    cause: S.DefectWithStack,
-  },
-) {}
 
 export interface QdrantGraphEmbeddingsQueryServiceShape {
   readonly query: (
@@ -133,24 +171,12 @@ export class QdrantGraphEmbeddingsQueryService extends Context.Service<
   "@trustgraph/flow/query/embeddings/qdrant-graph/QdrantGraphEmbeddingsQueryService",
 ) {}
 
-const qdrantGraphEmbeddingsQueryError = (operation: string, cause: unknown) =>
-  new QdrantGraphEmbeddingsQueryError({
-    operation,
-    message: errorMessage(cause),
-    cause,
-  });
-
 export const makeQdrantGraphEmbeddingsQueryService = (
   config: QdrantGraphQueryConfig = {},
 ): QdrantGraphEmbeddingsQueryServiceShape => {
   const query = makeQdrantGraphEmbeddingsQuery(config);
   return {
-    query: Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (request) {
-      return yield* Effect.tryPromise({
-        try: () => query.query(request),
-        catch: (cause) => qdrantGraphEmbeddingsQueryError("query", cause),
-      });
-    }),
+    query: query.queryEffect,
   };
 };
 

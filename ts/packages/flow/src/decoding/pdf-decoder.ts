@@ -37,7 +37,7 @@ import {
   errorMessage,
 } from "@trustgraph/base";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect } from "effect";
+import { Clock, Effect } from "effect";
 import * as S from "effect/Schema";
 
 export class PdfDecoderError extends S.TaggedErrorClass<PdfDecoderError>()(
@@ -63,7 +63,7 @@ const pdfDecoderError = (
   documentId: string,
   cause: unknown,
 ) =>
-  new PdfDecoderError({
+  PdfDecoderError.make({
     operation,
     documentId,
     message: errorMessage(cause),
@@ -76,18 +76,24 @@ const loadPdf = (documentId: string, pdfBuffer: Buffer) =>
     catch: (cause) => pdfDecoderError("load-pdf", documentId, cause),
   });
 
-const loadPageText = (documentId: string, pageNumber: number, pdf: PdfDocument) =>
-  Effect.tryPromise({
-    try: async () => {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      return textContent.items
-        .filter((item): item is TextItem => "str" in item)
-        .map((item) => item.str)
-        .join(" ");
-    },
-    catch: (cause) => pdfDecoderError("load-page-text", documentId, cause),
-  });
+const loadPageText = Effect.fn("loadPageText")(function*(
+  documentId: string,
+  pageNumber: number,
+  pdf: PdfDocument,
+) {
+    const page = yield* Effect.tryPromise({
+      try: () => pdf.getPage(pageNumber),
+      catch: (cause) => pdfDecoderError("load-page", documentId, cause),
+    });
+    const textContent = yield* Effect.tryPromise({
+      try: () => page.getTextContent(),
+      catch: (cause) => pdfDecoderError("load-page-text", documentId, cause),
+    });
+    return textContent.items
+      .filter((item): item is TextItem => "str" in item)
+      .map((item) => item.str)
+      .join(" ");
+});
 
 const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
   msg: Document,
@@ -156,6 +162,7 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
       continue;
     }
 
+    const timestamp = yield* Clock.currentTimeMillis;
     const childResp = yield* librarian.request({
       operation: "add-child-document",
       documentMetadata: {
@@ -165,7 +172,7 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
         title: `Page ${i}`,
         parentId: documentId,
         documentType: "page",
-        time: Date.now(),
+        time: timestamp,
         comments: "",
         tags: [],
       },
@@ -226,7 +233,7 @@ export function makePdfDecoderService(config: ProcessorConfig): PdfDecoderServic
   const service = makeFlowProcessor(config, {
     specifications: makePdfDecoderSpecs(),
   });
-  console.log("[PdfDecoder] Service initialized");
+  Effect.runSync(Effect.log("[PdfDecoder] Service initialized"));
   return service;
 }
 
@@ -245,6 +252,6 @@ export const program = makeFlowProcessorProgram({
   specs: () => makePdfDecoderSpecs(),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

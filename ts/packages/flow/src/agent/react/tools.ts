@@ -18,8 +18,13 @@ import type {
   Term,
   Triple,
 } from "@trustgraph/base";
+import { Effect } from "effect";
+import * as O from "effect/Option";
+import * as S from "effect/Schema";
 
 import type { AgentTool, ToolArg } from "./types.js";
+
+const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
 
 /**
  * Format a Term to a human-readable string.
@@ -41,17 +46,15 @@ function termToString(term: Term): string {
  * Parse tool input -- accepts either raw JSON or a plain string question.
  */
 function parseQuestion(input: string): string {
-  try {
-    const parsed = JSON.parse(input) as Record<string, unknown>;
-    if (typeof parsed === "object" && parsed !== null && "question" in parsed) {
-      return String(parsed.question);
-    }
-    // If it's a string JSON value, use it directly
-    if (typeof parsed === "string") {
-      return parsed;
-    }
-  } catch {
-    // Not valid JSON -- treat as plain text
+  const decoded = decodeJsonUnknown(input);
+  if (O.isNone(decoded)) return input;
+
+  const parsed = decoded.value;
+  if (typeof parsed === "object" && parsed !== null && "question" in parsed) {
+    return String(parsed.question);
+  }
+  if (typeof parsed === "string") {
+    return parsed;
   }
   return input;
 }
@@ -83,15 +86,15 @@ export function createKnowledgeQueryTool(
         description: "The question to ask the knowledge graph",
       },
     ],
-    async execute(input: string): Promise<string> {
+    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
       const question = parseQuestion(input);
-      console.log(`[KnowledgeQuery] Executing: "${question.slice(0, 60)}..." collection=${collection}`);
+      yield* Effect.log(`[KnowledgeQuery] Executing: "${question.slice(0, 60)}..." collection=${collection}`);
       const request: GraphRagRequest = {
         query: question,
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = await client.request(request);
-      console.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error !== undefined ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
+      const res = yield* Effect.tryPromise(() => client.request(request));
+      yield* Effect.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error !== undefined ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
 
       // Extract explain data if embedded in the response
       const rawRes = res as Record<string, unknown>;
@@ -100,15 +103,15 @@ export function createKnowledgeQueryTool(
         rawRes.explain_triples !== undefined &&
         onExplain !== undefined
       ) {
-        onExplain({
+        yield* Effect.sync(() => onExplain({
           explainId: (rawRes.explain_id as string) ?? "",
           triples: rawRes.explain_triples as Triple[],
-        });
+        }));
       }
 
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
-    },
+    })),
   };
 }
 
@@ -130,16 +133,16 @@ export function createDocumentQueryTool(
         description: "The question to search documents for",
       },
     ],
-    async execute(input: string): Promise<string> {
+    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
       const question = parseQuestion(input);
       const request: DocumentRagRequest = {
         query: question,
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = await client.request(request);
+      const res = yield* Effect.tryPromise(() => client.request(request));
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
-    },
+    })),
   };
 }
 
@@ -152,39 +155,42 @@ function parseTriplesInput(input: string): {
   o?: Term;
   limit?: number;
 } {
-  try {
-    const parsed = JSON.parse(input) as Record<string, unknown>;
-
-    const toTerm = (val: unknown): Term | undefined => {
-      if (typeof val === "string") {
-        return { type: "LITERAL", value: val };
-      }
-      if (typeof val === "object" && val !== null && "type" in val) {
-        return val as Term;
-      }
-      return undefined;
-    };
-
-    const result: {
-      s?: Term;
-      p?: Term;
-      o?: Term;
-      limit?: number;
-    } = {};
-    const s = toTerm(parsed.subject ?? parsed.s);
-    const p = toTerm(parsed.predicate ?? parsed.p);
-    const o = toTerm(parsed.object ?? parsed.o);
-    if (s !== undefined) result.s = s;
-    if (p !== undefined) result.p = p;
-    if (o !== undefined) result.o = o;
-    if (typeof parsed.limit === "number") result.limit = parsed.limit;
-    return result;
-  } catch {
-    // If not valid JSON, treat as a subject search
+  const decoded = decodeJsonUnknown(input);
+  if (
+    O.isNone(decoded) ||
+    typeof decoded.value !== "object" ||
+    decoded.value === null
+  ) {
     return {
       s: { type: "LITERAL", value: input },
     };
   }
+
+  const parsed = decoded.value as Record<string, unknown>;
+  const toTerm = (val: unknown): Term | undefined => {
+    if (typeof val === "string") {
+      return { type: "LITERAL", value: val };
+    }
+    if (typeof val === "object" && val !== null && "type" in val) {
+      return val as Term;
+    }
+    return undefined;
+  };
+
+  const result: {
+    s?: Term;
+    p?: Term;
+    o?: Term;
+    limit?: number;
+  } = {};
+  const s = toTerm(parsed.subject ?? parsed.s);
+  const p = toTerm(parsed.predicate ?? parsed.p);
+  const o = toTerm(parsed.object ?? parsed.o);
+  if (s !== undefined) result.s = s;
+  if (p !== undefined) result.p = p;
+  if (o !== undefined) result.o = o;
+  if (typeof parsed.limit === "number") result.limit = parsed.limit;
+  return result;
 }
 
 /**
@@ -216,7 +222,7 @@ export function createTriplesQueryTool(
         description: "The object entity to search for (optional)",
       },
     ],
-    async execute(input: string): Promise<string> {
+    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
       const { s, p, o, limit } = parseTriplesInput(input);
       const request: TriplesQueryRequest = {
         limit: limit ?? 20,
@@ -225,7 +231,7 @@ export function createTriplesQueryTool(
         ...(o !== undefined ? { o } : {}),
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = await client.request(request);
+      const res = yield* Effect.tryPromise(() => client.request(request));
 
       if (res.error !== undefined) return `Error: ${res.error.message}`;
 
@@ -238,7 +244,7 @@ export function createTriplesQueryTool(
           `(${termToString(t.s)}) -[${termToString(t.p)}]-> (${termToString(t.o)})`,
       );
       return lines.join("\n");
-    },
+    })),
   };
 }
 
@@ -258,12 +264,12 @@ export function createMcpTool(
     name: toolName,
     description,
     args,
-    async execute(input: string): Promise<string> {
-      const res = await client.request({ name: toolName, parameters: input });
+    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
+      const res = yield* Effect.tryPromise(() => client.request({ name: toolName, parameters: input }));
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       if (res.text !== undefined) return res.text;
       if (res.object !== undefined) return res.object;
       return "No content";
-    },
+    })),
   };
 }

@@ -66,7 +66,7 @@ export function makeTriplesStoreService(config: ProcessorConfig): TriplesStoreSe
         ),
       ),
   });
-  console.log("[TriplesStore] Service initialized");
+  void Effect.runPromise(Effect.log("[TriplesStore] Service initialized"));
   return service;
 }
 
@@ -78,6 +78,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBConfig
   layer: (config) => FalkorDBTriplesStoreLive(config),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

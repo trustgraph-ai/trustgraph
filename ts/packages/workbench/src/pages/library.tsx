@@ -36,6 +36,7 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { DocumentMetadata } from "@trustgraph/client";
+import { DateTime } from "effect";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -51,6 +52,10 @@ function guessKind(doc: DocumentMetadata): string {
   if (kind.includes("html")) return "HTML";
   if (kind.includes("json")) return "JSON";
   return kind.length > 0 ? kind : "--";
+}
+
+function formatUnixTimestamp(seconds: number): string {
+  return DateTime.formatLocal(DateTime.makeUnsafe(seconds * 1000));
 }
 
 function resetUploadForm(form: UploadForm): UploadForm {
@@ -242,7 +247,7 @@ function DocumentDetailDialog() {
             <h3 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fg-subtle">
               <Clock className="h-3 w-3" /> Created
             </h3>
-            <p className="text-sm text-fg-muted">{new Date(doc.time * 1000).toLocaleString()}</p>
+            <p className="text-sm text-fg-muted">{formatUnixTimestamp(doc.time)}</p>
           </div>
         )}
         {doc.metadata !== undefined && doc.metadata.length > 0 && (

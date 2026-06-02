@@ -56,7 +56,7 @@ export class DocumentRagEngine extends Context.Service<DocumentRagEngine, Docume
 ) {}
 
 const documentRagError = (operation: string, cause: unknown) =>
-  new DocumentRagEngineError({
+  DocumentRagEngineError.make({
     operation,
     cause,
     message: errorMessage(cause),
@@ -68,11 +68,7 @@ export function makeDocumentRagEngine(): DocumentRagEngineShape {
       clients: DocumentRagClients,
       queryText: string,
       options?: DocumentRagQueryOptions,
-    ) =>
-      Effect.tryPromise({
-        try: () => queryDocumentRag(clients, queryText, options),
-        catch: (cause) => documentRagError("query", cause),
-      }),
+    ) => queryDocumentRag(clients, queryText, options),
     ),
   };
 }
@@ -97,40 +93,54 @@ export function makeDocumentRag(clients: DocumentRagClients): DocumentRag {
   };
 }
 
-async function queryDocumentRag(
+function queryDocumentRag(
   clients: DocumentRagClients,
   queryText: string,
   options?: DocumentRagQueryOptions,
-): Promise<string> {
-  const collection = options?.collection ?? "default";
+): Effect.Effect<string, DocumentRagEngineError> {
+  return Effect.gen(function* () {
+    const collection = options?.collection ?? "default";
 
-  const embResp = await clients.embeddings.request({ text: [queryText] });
-  const vectors = embResp.vectors;
+    const embResp = yield* Effect.tryPromise({
+      try: () => clients.embeddings.request({ text: [queryText] }),
+      catch: (cause) => documentRagError("embeddings", cause),
+    });
+    const vectors = embResp.vectors;
 
-  const docResp = await clients.docEmbeddings.request({
-    vectors,
-    limit: 10,
-    collection,
-    user: "default",
+    const docResp = yield* Effect.tryPromise({
+      try: () => clients.docEmbeddings.request({
+        vectors,
+        limit: 10,
+        collection,
+        user: "default",
+      }),
+      catch: (cause) => documentRagError("document-embeddings", cause),
+    });
+    const chunks = docResp.chunks ?? [];
+    yield* Effect.log(`[DocumentRag] Found ${chunks.length} matching chunks`);
+
+    const context = chunks
+      .flatMap((chunk) =>
+        chunk.content !== undefined && chunk.content.length > 0 ? [chunk.content] : [],
+      )
+      .join("\n\n---\n\n");
+
+    const promptResp = yield* Effect.tryPromise({
+      try: () => clients.prompt.request({
+        name: "document-rag-synthesize",
+        variables: { query: queryText, context },
+      }),
+      catch: (cause) => documentRagError("prompt", cause),
+    });
+
+    const resp = yield* Effect.tryPromise({
+      try: () => clients.llm.request({
+        system: promptResp.system,
+        prompt: promptResp.prompt,
+      }),
+      catch: (cause) => documentRagError("llm", cause),
+    });
+
+    return resp.response;
   });
-  const chunks = docResp.chunks ?? [];
-  console.log(`[DocumentRag] Found ${chunks.length} matching chunks`);
-
-  const context = chunks
-    .flatMap((chunk) =>
-      chunk.content !== undefined && chunk.content.length > 0 ? [chunk.content] : [],
-    )
-    .join("\n\n---\n\n");
-
-  const promptResp = await clients.prompt.request({
-    name: "document-rag-synthesize",
-    variables: { query: queryText, context },
-  });
-
-  const resp = await clients.llm.request({
-    system: promptResp.system,
-    prompt: promptResp.prompt,
-  });
-
-  return resp.response;
 }

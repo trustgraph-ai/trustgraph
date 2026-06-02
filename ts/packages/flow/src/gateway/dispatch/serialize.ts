@@ -19,6 +19,7 @@
  */
 
 import type { Term, Triple } from "@trustgraph/base";
+import * as S from "effect/Schema";
 
 // ---------- Client wire format type definitions ----------
 
@@ -46,6 +47,14 @@ interface ClientTripleTerm {
 
 type ClientTerm = ClientIriTerm | ClientBlankTerm | ClientLiteralTerm | ClientTripleTerm;
 
+export class DispatchSerializationError extends S.TaggedErrorClass<DispatchSerializationError>()(
+  "DispatchSerializationError",
+  {
+    message: S.String,
+    operation: S.String,
+  },
+) {}
+
 interface ClientTriple {
   s: ClientTerm;
   p: ClientTerm;
@@ -70,7 +79,10 @@ export function clientTermToInternal(wire: ClientTerm): Term {
       };
     case "t": {
       if (wire.tr === undefined) {
-        throw new Error("Client triple term is missing tr");
+        throw DispatchSerializationError.make({
+          operation: "client-term-to-internal",
+          message: "Client triple term is missing tr",
+        });
       }
       return {
         type: "TRIPLE",

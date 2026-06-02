@@ -75,7 +75,7 @@ const mcpToolError = (
   cause: unknown,
   tool?: string,
 ): McpToolError =>
-  new McpToolError({
+  McpToolError.make({
     operation,
     message: errorMessage(cause),
     ...(tool === undefined ? {} : { tool }),
@@ -166,12 +166,9 @@ const invokeConfiguredTool = Effect.fn("McpToolRuntime.invokeTool")(function* (
 
   const result = yield* Effect.acquireUseRelease(
     Effect.tryPromise({
-      try: async () => {
-        await client.connect(transport as unknown as Parameters<Client["connect"]>[0]);
-        return client;
-      },
+      try: () => client.connect(transport as unknown as Parameters<Client["connect"]>[0]),
       catch: (cause) => mcpToolError("connect", cause, name),
-    }),
+    }).pipe(Effect.as(client)),
     (connectedClient) =>
       Effect.tryPromise({
         try: () =>
@@ -318,6 +315,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, McpToolR
   layer: () => McpToolRuntimeLive,
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

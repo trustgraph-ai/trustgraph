@@ -42,7 +42,7 @@ const makeGatewayRpcHandlers = (dispatcher: DispatcherManager) =>
       Dispatch: (payload) =>
         Effect.tryPromise({
           try: () => dispatchOne(dispatcher, payload),
-          catch: (cause) => new DispatchError({ message: errorMessage(cause) }),
+          catch: (cause) => DispatchError.make({ message: errorMessage(cause) }),
         }),
       DispatchStream: Effect.fn("GatewayRpc.DispatchStream")(function* (payload) {
         const context = yield* Effect.context<never>();
@@ -52,11 +52,10 @@ const makeGatewayRpcHandlers = (dispatcher: DispatcherManager) =>
 
         yield* Effect.tryPromise({
           try: () =>
-            dispatchStream(dispatcher, payload, async (response, complete) => {
-              await runPromise(Queue.offer(queue, new DispatchStreamChunk({ response, complete })));
-              return complete;
-            }),
-          catch: (cause) => new DispatchError({ message: errorMessage(cause) }),
+            dispatchStream(dispatcher, payload, (response, complete) =>
+              runPromise(Queue.offer(queue, DispatchStreamChunk.make({ response, complete }))).then(() => complete),
+            ),
+          catch: (cause) => DispatchError.make({ message: errorMessage(cause) }),
         }).pipe(
           Effect.flatMap(() => Queue.end(queue)),
           Effect.catch((error) => Queue.fail(queue, error)),
@@ -82,26 +81,24 @@ function dispatchOne(
   return dispatcher.dispatchGlobalService(payload.service, payload.request);
 }
 
-async function dispatchStream(
+function dispatchStream(
   dispatcher: DispatcherManager,
   payload: DispatchPayload,
   responder: (response: unknown, complete: boolean) => Promise<boolean>,
 ): Promise<void> {
-  const send = async (response: unknown, complete: boolean) => {
-    await responder(response, complete);
-  };
+  const send = (response: unknown, complete: boolean): Promise<void> =>
+    responder(response, complete).then(() => undefined);
 
   if (payload.scope === "flow") {
-    await dispatcher.dispatchFlowServiceStreaming(
+    return dispatcher.dispatchFlowServiceStreaming(
       payload.flow ?? "default",
       payload.service,
       payload.request,
       send,
     );
-    return;
   }
 
-  await dispatcher.dispatchGlobalServiceStreaming(
+  return dispatcher.dispatchGlobalServiceStreaming(
     payload.service,
     payload.request,
     send,

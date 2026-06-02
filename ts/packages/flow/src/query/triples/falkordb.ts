@@ -1,5 +1,5 @@
 /**
- * FalkorDB triples query service — queries RDF triples from FalkorDB.
+ * FalkorDB triples query service - queries RDF triples from FalkorDB.
  *
  * Implements all SPO query patterns (S, P, O, SP, SO, PO, SPO, *).
  *
@@ -8,7 +8,7 @@
 
 import { createClient, Graph } from "falkordb";
 import { errorMessage, type Term, type Triple } from "@trustgraph/base";
-import { Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer } from "effect";
 import * as S from "effect/Schema";
 
 export interface FalkorDBQueryConfig {
@@ -19,10 +19,14 @@ export interface FalkorDBQueryConfig {
 function termToValue(term: Term | undefined): string | null {
   if (term === undefined) return null;
   switch (term.type) {
-    case "IRI": return term.iri;
-    case "LITERAL": return term.value;
-    case "BLANK": return term.id;
-    default: return null;
+    case "IRI":
+      return term.iri;
+    case "LITERAL":
+      return term.value;
+    case "BLANK":
+      return term.id;
+    default:
+      return null;
   }
 }
 
@@ -36,7 +40,6 @@ function createTerm(value: string): Term {
   return { type: "LITERAL", value };
 }
 
-/** Extract a string field from a FalkorDB result row (returns object with named keys). */
 function field(row: unknown, key: string): string {
   return (row as Record<string, unknown>)?.[key] as string ?? "";
 }
@@ -48,231 +51,6 @@ export interface FalkorDBTriplesQuery {
     o?: Term,
     limit?: number,
   ) => Promise<Triple[]>;
-}
-
-export function makeFalkorDBTriplesQuery(
-  config: FalkorDBQueryConfig = {},
-): FalkorDBTriplesQuery {
-  const url = config.url ?? process.env.FALKORDB_URL ?? "redis://localhost:6379";
-  const database = config.database ?? "falkordb";
-
-  const client = createClient({ url });
-  const graph = new Graph(client, database);
-  const connectPromise = client.connect().then(() => {
-    console.log(`[FalkorDBTriplesQuery] Connected to ${url}, graph: ${database}`);
-  }).catch((err) => {
-    console.error(`[FalkorDBTriplesQuery] Connection failed:`, err);
-    throw err;
-  });
-
-  const ensureConnected = async (): Promise<void> => {
-    await connectPromise;
-  };
-
-  const matchPattern = async (
-    out: [string, string, string][],
-    sv: string, pv: string, ov: string, limit: number,
-  ): Promise<void> => {
-    for (const destType of ["Literal", "Node"] as const) {
-      const destKey = destType === "Literal" ? "value" : "uri";
-      const result = await graph.query(
-        `MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:${destType} {${destKey}: $dest}) ` +
-        `RETURN src.uri LIMIT ${limit}`,
-        { params: { src: sv, rel: pv, dest: ov } },
-      );
-      for (const _rec of (result.data ?? [])) {
-        out.push([sv, pv, ov]);
-      }
-    }
-  };
-
-  const matchSP = async (
-    out: [string, string, string][],
-    sv: string, pv: string, limit: number,
-  ): Promise<void> => {
-    // Literals
-    const litResult = await graph.query(
-      `MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) ` +
-      `RETURN dest.value as dest LIMIT ${limit}`,
-      { params: { src: sv, rel: pv } },
-    );
-    for (const rec of (litResult.data ?? [])) {
-      out.push([sv, pv, field(rec, "dest")]);
-    }
-    // Nodes
-    const nodeResult = await graph.query(
-      `MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) ` +
-      `RETURN dest.uri as dest LIMIT ${limit}`,
-      { params: { src: sv, rel: pv } },
-    );
-    for (const rec of (nodeResult.data ?? [])) {
-      out.push([sv, pv, field(rec, "dest")]);
-    }
-  };
-
-  const matchSO = async (
-    out: [string, string, string][],
-    sv: string, ov: string, limit: number,
-  ): Promise<void> => {
-    for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
-      const result = await graph.query(
-        `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:${destType} {${destKey}: $dest}) ` +
-        `RETURN rel.uri as rel LIMIT ${limit}`,
-        { params: { src: sv, dest: ov } },
-      );
-      for (const rec of (result.data ?? [])) {
-        out.push([sv, field(rec, "rel"), ov]);
-      }
-    }
-  };
-
-  const matchPO = async (
-    out: [string, string, string][],
-    pv: string, ov: string, limit: number,
-  ): Promise<void> => {
-    for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
-      const result = await graph.query(
-        `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:${destType} {${destKey}: $dest}) ` +
-        `RETURN src.uri as src LIMIT ${limit}`,
-        { params: { rel: pv, dest: ov } },
-      );
-      for (const rec of (result.data ?? [])) {
-        out.push([field(rec, "src"), pv, ov]);
-      }
-    }
-  };
-
-  const matchS = async (
-    out: [string, string, string][],
-    sv: string, limit: number,
-  ): Promise<void> => {
-    const litResult = await graph.query(
-      `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) ` +
-      `RETURN rel.uri as rel, dest.value as dest LIMIT ${limit}`,
-      { params: { src: sv } },
-    );
-    for (const rec of (litResult.data ?? [])) {
-      out.push([sv, field(rec, "rel"), field(rec, "dest")]);
-    }
-    const nodeResult = await graph.query(
-      `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) ` +
-      `RETURN rel.uri as rel, dest.uri as dest LIMIT ${limit}`,
-      { params: { src: sv } },
-    );
-    for (const rec of (nodeResult.data ?? [])) {
-      out.push([sv, field(rec, "rel"), field(rec, "dest")]);
-    }
-  };
-
-  const matchP = async (
-    out: [string, string, string][],
-    pv: string, limit: number,
-  ): Promise<void> => {
-    const litResult = await graph.query(
-      `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:Literal) ` +
-      `RETURN src.uri as src, dest.value as dest LIMIT ${limit}`,
-      { params: { rel: pv } },
-    );
-    for (const rec of (litResult.data ?? [])) {
-      out.push([field(rec, "src"), pv, field(rec, "dest")]);
-    }
-    const nodeResult = await graph.query(
-      `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:Node) ` +
-      `RETURN src.uri as src, dest.uri as dest LIMIT ${limit}`,
-      { params: { rel: pv } },
-    );
-    for (const rec of (nodeResult.data ?? [])) {
-      out.push([field(rec, "src"), pv, field(rec, "dest")]);
-    }
-  };
-
-  const matchO = async (
-    out: [string, string, string][],
-    ov: string, limit: number,
-  ): Promise<void> => {
-    for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
-      const result = await graph.query(
-        `MATCH (src:Node)-[rel:Rel]->(dest:${destType} {${destKey}: $dest}) ` +
-        `RETURN src.uri as src, rel.uri as rel LIMIT ${limit}`,
-        { params: { dest: ov } },
-      );
-      for (const rec of (result.data ?? [])) {
-        out.push([field(rec, "src"), field(rec, "rel"), ov]);
-      }
-    }
-  };
-
-  const matchAll = async (
-    out: [string, string, string][],
-    limit: number,
-  ): Promise<void> => {
-    const litResult = await graph.query(
-      `MATCH (src:Node)-[rel:Rel]->(dest:Literal) ` +
-      `RETURN src.uri as src, rel.uri as rel, dest.value as dest LIMIT ${limit}`,
-    );
-    for (const rec of (litResult.data ?? [])) {
-      out.push([field(rec, "src"), field(rec, "rel"), field(rec, "dest")]);
-    }
-    const nodeResult = await graph.query(
-      `MATCH (src:Node)-[rel:Rel]->(dest:Node) ` +
-      `RETURN src.uri as src, rel.uri as rel, dest.uri as dest LIMIT ${limit}`,
-    );
-    for (const rec of (nodeResult.data ?? [])) {
-      out.push([field(rec, "src"), field(rec, "rel"), field(rec, "dest")]);
-    }
-  };
-
-  const queryTriples = async (
-    s?: Term,
-    p?: Term,
-    o?: Term,
-    limit = 100,
-  ): Promise<Triple[]> => {
-    await ensureConnected();
-    const sv = termToValue(s);
-    const pv = termToValue(p);
-    const ov = termToValue(o);
-
-    const rawTriples: [string, string, string][] = [];
-
-    // Query both Node and Literal targets for each pattern
-    if (sv !== null && pv !== null && ov !== null) {
-      // SPO — exact match
-      await matchPattern(rawTriples, sv, pv, ov, limit);
-    } else if (sv !== null && pv !== null) {
-      // SP — known subject + predicate
-      await matchSP(rawTriples, sv, pv, limit);
-    } else if (sv !== null && ov !== null) {
-      // SO — known subject + object
-      await matchSO(rawTriples, sv, ov, limit);
-    } else if (pv !== null && ov !== null) {
-      // PO — known predicate + object
-      await matchPO(rawTriples, pv, ov, limit);
-    } else if (sv !== null) {
-      // S only
-      await matchS(rawTriples, sv, limit);
-    } else if (pv !== null) {
-      // P only
-      await matchP(rawTriples, pv, limit);
-    } else if (ov !== null) {
-      // O only
-      await matchO(rawTriples, ov, limit);
-    } else {
-      // Wildcard — all triples
-      await matchAll(rawTriples, limit);
-    }
-
-    return rawTriples
-      .filter(([s, p, o]) => s !== null && p !== null && o !== null)
-      .slice(0, limit)
-      .map(([s, p, o]) => ({
-        s: createTerm(s),
-        p: createTerm(p),
-        o: createTerm(o),
-      }));
-  };
-
-  return { queryTriples };
 }
 
 export class FalkorDBTriplesQueryError extends S.TaggedErrorClass<FalkorDBTriplesQueryError>()(
@@ -300,30 +78,357 @@ export class FalkorDBTriplesQueryService extends Context.Service<
   "@trustgraph/flow/query/triples/falkordb/FalkorDBTriplesQueryService",
 ) {}
 
-const falkorDBTriplesQueryError = (operation: string, cause: unknown) =>
-  new FalkorDBTriplesQueryError({
+const falkorDBTriplesQueryError = (operation: string, cause: unknown): FalkorDBTriplesQueryError =>
+  FalkorDBTriplesQueryError.make({
     operation,
     message: errorMessage(cause),
     cause,
   });
 
-export const makeFalkorDBTriplesQueryService = (
+interface FalkorDBQueryConnection {
+  readonly graph: Graph;
+}
+
+type FalkorDBQueryOptions = Parameters<Graph["query"]>[1];
+
+const resolveFalkorDBQueryConfig = Effect.fn("FalkorDBTriplesQuery.resolveConfig")(function* (
+  config: FalkorDBQueryConfig,
+) {
+  const url = config.url ?? (yield* Config.string("FALKORDB_URL").pipe(
+    Config.withDefault("redis://localhost:6379"),
+    Effect.mapError((cause) => falkorDBTriplesQueryError("config", cause)),
+  ));
+  return {
+    url,
+    database: config.database ?? "falkordb",
+  };
+});
+
+const connectFalkorDBTriplesQuery = (
+  config: FalkorDBQueryConfig,
+): Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    const { url, database } = yield* resolveFalkorDBQueryConfig(config);
+    const { client, graph } = yield* Effect.try({
+      try: () => {
+        const client = createClient({ url });
+        return { client, graph: new Graph(client, database) };
+      },
+      catch: (cause) => falkorDBTriplesQueryError("create-client", cause),
+    });
+
+    yield* Effect.tryPromise({
+      try: () => client.connect(),
+      catch: (cause) => falkorDBTriplesQueryError("connect", cause),
+    }).pipe(
+      Effect.tapError((error) =>
+        Effect.logError("[FalkorDBTriplesQuery] Connection failed", {
+          error: error.message,
+          operation: error.operation,
+        })
+      ),
+    );
+
+    yield* Effect.log(`[FalkorDBTriplesQuery] Connected to ${url}, graph: ${database}`);
+    return { graph };
+  });
+
+const queryRows = (
+  graph: Graph,
+  operation: string,
+  query: string,
+  options?: FalkorDBQueryOptions,
+): Effect.Effect<ReadonlyArray<unknown>, FalkorDBTriplesQueryError> =>
+  Effect.tryPromise({
+    try: () => graph.query<unknown>(query, options),
+    catch: (cause) => falkorDBTriplesQueryError(operation, cause),
+  }).pipe(
+    Effect.map((result) => result.data ?? []),
+  );
+
+const matchPattern = (
+  graph: Graph,
+  out: [string, string, string][],
+  sv: string,
+  pv: string,
+  ov: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    for (const destType of ["Literal", "Node"] as const) {
+      const destKey = destType === "Literal" ? "value" : "uri";
+      const rows = yield* queryRows(
+        graph,
+        "match-spo",
+        `MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:${destType} {${destKey}: $dest}) ` +
+          `RETURN src.uri LIMIT ${limit}`,
+        { params: { src: sv, rel: pv, dest: ov } },
+      );
+      for (const _rec of rows) {
+        out.push([sv, pv, ov]);
+      }
+    }
+  });
+
+const matchSP = (
+  graph: Graph,
+  out: [string, string, string][],
+  sv: string,
+  pv: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    const litRows = yield* queryRows(
+      graph,
+      "match-sp-literal",
+      `MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) ` +
+        `RETURN dest.value as dest LIMIT ${limit}`,
+      { params: { src: sv, rel: pv } },
+    );
+    for (const rec of litRows) {
+      out.push([sv, pv, field(rec, "dest")]);
+    }
+
+    const nodeRows = yield* queryRows(
+      graph,
+      "match-sp-node",
+      `MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) ` +
+        `RETURN dest.uri as dest LIMIT ${limit}`,
+      { params: { src: sv, rel: pv } },
+    );
+    for (const rec of nodeRows) {
+      out.push([sv, pv, field(rec, "dest")]);
+    }
+  });
+
+const matchSO = (
+  graph: Graph,
+  out: [string, string, string][],
+  sv: string,
+  ov: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
+      const rows = yield* queryRows(
+        graph,
+        "match-so",
+        `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:${destType} {${destKey}: $dest}) ` +
+          `RETURN rel.uri as rel LIMIT ${limit}`,
+        { params: { src: sv, dest: ov } },
+      );
+      for (const rec of rows) {
+        out.push([sv, field(rec, "rel"), ov]);
+      }
+    }
+  });
+
+const matchPO = (
+  graph: Graph,
+  out: [string, string, string][],
+  pv: string,
+  ov: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
+      const rows = yield* queryRows(
+        graph,
+        "match-po",
+        `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:${destType} {${destKey}: $dest}) ` +
+          `RETURN src.uri as src LIMIT ${limit}`,
+        { params: { rel: pv, dest: ov } },
+      );
+      for (const rec of rows) {
+        out.push([field(rec, "src"), pv, ov]);
+      }
+    }
+  });
+
+const matchS = (
+  graph: Graph,
+  out: [string, string, string][],
+  sv: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    const litRows = yield* queryRows(
+      graph,
+      "match-s-literal",
+      `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) ` +
+        `RETURN rel.uri as rel, dest.value as dest LIMIT ${limit}`,
+      { params: { src: sv } },
+    );
+    for (const rec of litRows) {
+      out.push([sv, field(rec, "rel"), field(rec, "dest")]);
+    }
+
+    const nodeRows = yield* queryRows(
+      graph,
+      "match-s-node",
+      `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) ` +
+        `RETURN rel.uri as rel, dest.uri as dest LIMIT ${limit}`,
+      { params: { src: sv } },
+    );
+    for (const rec of nodeRows) {
+      out.push([sv, field(rec, "rel"), field(rec, "dest")]);
+    }
+  });
+
+const matchP = (
+  graph: Graph,
+  out: [string, string, string][],
+  pv: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    const litRows = yield* queryRows(
+      graph,
+      "match-p-literal",
+      `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:Literal) ` +
+        `RETURN src.uri as src, dest.value as dest LIMIT ${limit}`,
+      { params: { rel: pv } },
+    );
+    for (const rec of litRows) {
+      out.push([field(rec, "src"), pv, field(rec, "dest")]);
+    }
+
+    const nodeRows = yield* queryRows(
+      graph,
+      "match-p-node",
+      `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:Node) ` +
+        `RETURN src.uri as src, dest.uri as dest LIMIT ${limit}`,
+      { params: { rel: pv } },
+    );
+    for (const rec of nodeRows) {
+      out.push([field(rec, "src"), pv, field(rec, "dest")]);
+    }
+  });
+
+const matchO = (
+  graph: Graph,
+  out: [string, string, string][],
+  ov: string,
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
+      const rows = yield* queryRows(
+        graph,
+        "match-o",
+        `MATCH (src:Node)-[rel:Rel]->(dest:${destType} {${destKey}: $dest}) ` +
+          `RETURN src.uri as src, rel.uri as rel LIMIT ${limit}`,
+        { params: { dest: ov } },
+      );
+      for (const rec of rows) {
+        out.push([field(rec, "src"), field(rec, "rel"), ov]);
+      }
+    }
+  });
+
+const matchAll = (
+  graph: Graph,
+  out: [string, string, string][],
+  limit: number,
+): Effect.Effect<void, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    const litRows = yield* queryRows(
+      graph,
+      "match-all-literal",
+      `MATCH (src:Node)-[rel:Rel]->(dest:Literal) ` +
+        `RETURN src.uri as src, rel.uri as rel, dest.value as dest LIMIT ${limit}`,
+    );
+    for (const rec of litRows) {
+      out.push([field(rec, "src"), field(rec, "rel"), field(rec, "dest")]);
+    }
+
+    const nodeRows = yield* queryRows(
+      graph,
+      "match-all-node",
+      `MATCH (src:Node)-[rel:Rel]->(dest:Node) ` +
+        `RETURN src.uri as src, rel.uri as rel, dest.uri as dest LIMIT ${limit}`,
+    );
+    for (const rec of nodeRows) {
+      out.push([field(rec, "src"), field(rec, "rel"), field(rec, "dest")]);
+    }
+  });
+
+const queryTriplesEffect = (
+  getConnection: () => Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError>,
+  s: Term | undefined,
+  p: Term | undefined,
+  o: Term | undefined,
+  limit: number,
+): Effect.Effect<ReadonlyArray<Triple>, FalkorDBTriplesQueryError> =>
+  Effect.gen(function* () {
+    const { graph } = yield* getConnection();
+    const sv = termToValue(s);
+    const pv = termToValue(p);
+    const ov = termToValue(o);
+    const rawTriples: [string, string, string][] = [];
+
+    if (sv !== null && pv !== null && ov !== null) {
+      yield* matchPattern(graph, rawTriples, sv, pv, ov, limit);
+    } else if (sv !== null && pv !== null) {
+      yield* matchSP(graph, rawTriples, sv, pv, limit);
+    } else if (sv !== null && ov !== null) {
+      yield* matchSO(graph, rawTriples, sv, ov, limit);
+    } else if (pv !== null && ov !== null) {
+      yield* matchPO(graph, rawTriples, pv, ov, limit);
+    } else if (sv !== null) {
+      yield* matchS(graph, rawTriples, sv, limit);
+    } else if (pv !== null) {
+      yield* matchP(graph, rawTriples, pv, limit);
+    } else if (ov !== null) {
+      yield* matchO(graph, rawTriples, ov, limit);
+    } else {
+      yield* matchAll(graph, rawTriples, limit);
+    }
+
+    return rawTriples
+      .slice(0, limit)
+      .map(([subject, predicate, object]) => ({
+        s: createTerm(subject),
+        p: createTerm(predicate),
+        o: createTerm(object),
+      }));
+  });
+
+const makeFalkorDBTriplesQueryEffect = (
   config: FalkorDBQueryConfig = {},
 ): FalkorDBTriplesQueryServiceShape => {
-  const query = makeFalkorDBTriplesQuery(config);
+  let cachedConnection: Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError> | undefined;
+
+  const getConnection = Effect.fn("FalkorDBTriplesQuery.connection")(function* () {
+    if (cachedConnection === undefined) {
+      cachedConnection = yield* Effect.cached(connectFalkorDBTriplesQuery(config));
+    }
+    return yield* cachedConnection;
+  });
+
   return {
     queryTriples: Effect.fn("FalkorDBTriplesQuery.queryTriples")((
       s: Term | undefined,
       p: Term | undefined,
       o: Term | undefined,
       limit: number,
-    ) =>
-      Effect.tryPromise({
-        try: () => query.queryTriples(s, p, o, limit),
-        catch: (cause) => falkorDBTriplesQueryError("query-triples", cause),
-      })),
+    ) => queryTriplesEffect(getConnection, s, p, o, limit)),
   };
 };
+
+export function makeFalkorDBTriplesQuery(
+  config: FalkorDBQueryConfig = {},
+): FalkorDBTriplesQuery {
+  const query = makeFalkorDBTriplesQueryEffect(config);
+  return {
+    queryTriples: (s, p, o, limit = 100) =>
+      Effect.runPromise(query.queryTriples(s, p, o, limit)).then((triples) => Array.from(triples)),
+  };
+}
+
+export const makeFalkorDBTriplesQueryService = (
+  config: FalkorDBQueryConfig = {},
+): FalkorDBTriplesQueryServiceShape => makeFalkorDBTriplesQueryEffect(config);
 
 export const FalkorDBTriplesQueryLive = (
   config: FalkorDBQueryConfig = {},

@@ -167,7 +167,7 @@ export function makePromptTemplateService(config: PromptTemplateConfig): PromptT
       Effect.runPromise(handler(pushedConfig, version)),
     );
   }
-  console.log("[PromptTemplate] Service initialized");
+  Effect.runSync(Effect.log("[PromptTemplate] Service initialized"));
   return service;
 }
 
@@ -195,6 +195,6 @@ export const program = makeFlowProcessorProgram({
   configHandlers: (config: PromptTemplateConfig) => promptTemplateRuntime(config).configHandlers,
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

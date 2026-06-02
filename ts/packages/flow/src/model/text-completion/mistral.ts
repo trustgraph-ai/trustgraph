@@ -17,9 +17,15 @@ import {
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
-  tooManyRequestsError,
 } from "@trustgraph/base";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import {
+  optionalStringConfig,
+  providerStatusError,
+  requiredString,
+  toAsyncGenerator,
+  type TextCompletionRuntimeError,
+} from "./common.ts";
 
 export type MistralProcessorConfig = ProcessorConfig & {
   model?: string;
@@ -28,22 +34,49 @@ export type MistralProcessorConfig = ProcessorConfig & {
   maxOutput?: number;
 };
 
+type ResolvedMistralConfig = {
+  readonly defaultModel: string;
+  readonly defaultTemperature: number;
+  readonly maxOutput: number;
+  readonly apiKey: string;
+};
+
+const loadMistralConfig = Effect.fn("loadMistralConfig")(function*(config: MistralProcessorConfig) {
+    const apiKey = yield* requiredString(
+      config.apiKey ?? (yield* optionalStringConfig("Mistral", "MISTRAL_TOKEN")),
+      "Mistral",
+      "MISTRAL_TOKEN",
+      "Mistral API key not specified",
+    );
+
+    return {
+      defaultModel:
+        config.model ??
+        (yield* optionalStringConfig("Mistral", "MISTRAL_MODEL")) ??
+        "ministral-8b-latest",
+      defaultTemperature: config.temperature ?? 0.0,
+      maxOutput: config.maxOutput ?? 4096,
+      apiKey,
+    } satisfies ResolvedMistralConfig;
+});
+
+const mapMistralError = (error: unknown): TextCompletionRuntimeError =>
+  providerStatusError("Mistral", error);
+
 export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider {
-  const defaultModel =
-    config.model ?? process.env.MISTRAL_MODEL ?? "ministral-8b-latest";
-  const defaultTemperature = config.temperature ?? 0.0;
-  const maxOutput = config.maxOutput ?? 4096;
-    const apiKey = config.apiKey ?? process.env.MISTRAL_TOKEN;
-    if (apiKey === undefined || apiKey.length === 0) {
-      throw new Error("Mistral API key not specified");
-    }
+  const {
+    defaultModel,
+    defaultTemperature,
+    maxOutput,
+    apiKey,
+  } = Effect.runSync(loadMistralConfig(config)) satisfies ResolvedMistralConfig;
 
   const client = new Mistral({ apiKey });
 
-    console.log("[Mistral] LLM service initialized");
+  Effect.runSync(Effect.log("[Mistral] LLM service initialized"));
 
   return {
-    generateContent: async (
+    generateContent: (
       system: string,
       prompt: string,
       model?: string,
@@ -52,93 +85,114 @@ export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      try {
-        const resp = await client.chat.complete({
-          model: modelName,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-          ],
-          temperature: temp,
-          maxTokens: maxOutput,
-        });
-
-        return {
-          text: (resp.choices?.[0]?.message?.content as string) ?? "",
-          inToken: resp.usage?.promptTokens ?? 0,
-          outToken: resp.usage?.completionTokens ?? 0,
-          model: modelName,
-        };
-      } catch (err) {
-        if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
-          throw tooManyRequestsError();
-        }
-        throw err;
-      }
+      return Effect.runPromise(
+        Effect.tryPromise({
+          try: () =>
+            client.chat.complete({
+              model: modelName,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+              temperature: temp,
+              maxTokens: maxOutput,
+            }),
+          catch: mapMistralError,
+        }).pipe(
+          Effect.map((resp): LlmResult => ({
+            text: (resp.choices?.[0]?.message?.content as string) ?? "",
+            inToken: resp.usage?.promptTokens ?? 0,
+            outToken: resp.usage?.completionTokens ?? 0,
+            model: modelName,
+          })),
+        ),
+      );
     },
     supportsStreaming: () => true,
-    generateContentStream: async function* (
+    generateContentStream: (
       system: string,
       prompt: string,
       model?: string,
       temperature?: number,
-    ): AsyncGenerator<LlmChunk> {
+    ): AsyncGenerator<LlmChunk> => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      try {
-        const stream = await client.chat.stream({
-          model: modelName,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-          ],
-          temperature: temp,
-          maxTokens: maxOutput,
-        });
-
+      const stream = Stream.fromEffect(
+        Effect.tryPromise({
+          try: () =>
+            client.chat.stream({
+              model: modelName,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+              temperature: temp,
+              maxTokens: maxOutput,
+            }),
+          catch: mapMistralError,
+        }),
+      ).pipe(
+        Stream.flatMap((mistralStream) => {
+          const iterator = mistralStream[Symbol.asyncIterator]();
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
 
-        for await (const chunk of stream) {
-          const delta = chunk.data?.choices?.[0]?.delta;
-          const content = delta?.content;
-          if (typeof content === "string" && content.length > 0) {
-            yield {
-              text: content,
-              inToken: null,
-              outToken: null,
-              model: modelName,
-              isFinal: false,
-            };
-          }
+          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
+            "pulling",
+            (state) => {
+              if (state === "done") return Effect.void as Effect.Effect<undefined>;
 
-          if (chunk.data?.usage !== undefined) {
-            totalInputTokens = chunk.data.usage.promptTokens ?? 0;
-            totalOutputTokens = chunk.data.usage.completionTokens ?? 0;
-          }
-        }
+              return Effect.gen(function* () {
+                while (true) {
+                  const next = yield* Effect.tryPromise({
+                    try: () => iterator.next(),
+                    catch: mapMistralError,
+                  });
 
-        yield {
-          text: "",
-          inToken: totalInputTokens,
-          outToken: totalOutputTokens,
-          model: modelName,
-          isFinal: true,
-        };
-      } catch (err) {
-        if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
-          throw tooManyRequestsError();
-        }
-        throw err;
-      }
+                  if (next.done === true) {
+                    return [{
+                      text: "",
+                      inToken: totalInputTokens,
+                      outToken: totalOutputTokens,
+                      model: modelName,
+                      isFinal: true,
+                    }, "done"] as const;
+                  }
+
+                  const chunk = next.value;
+                  const delta = chunk.data?.choices?.[0]?.delta;
+                  const content = delta?.content;
+                  if (chunk.data?.usage !== undefined) {
+                    totalInputTokens = chunk.data.usage.promptTokens ?? 0;
+                    totalOutputTokens = chunk.data.usage.completionTokens ?? 0;
+                  }
+                  if (typeof content === "string" && content.length > 0) {
+                    return [{
+                      text: content,
+                      inToken: null,
+                      outToken: null,
+                      model: modelName,
+                      isFinal: false,
+                    }, "pulling"] as const;
+                  }
+                }
+              });
+            },
+          );
+        }),
+      );
+
+      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapMistralError);
     },
   };
 }
 
 export type MistralProcessor = ReturnType<typeof makeMistralProcessor>;
 
-export function makeMistralProcessor(config: MistralProcessorConfig): ReturnType<typeof makeLlmService> {
+export function makeMistralProcessor(
+  config: MistralProcessorConfig,
+): ReturnType<typeof makeLlmService> {
   return makeLlmService(config, makeMistralProvider(config));
 }
 
@@ -154,6 +208,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
     ),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

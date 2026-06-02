@@ -86,7 +86,7 @@ export class GraphRagEngine extends Context.Service<GraphRagEngine, GraphRagEngi
 ) {}
 
 const graphRagError = (operation: string, cause: unknown) =>
-  new GraphRagEngineError({
+  GraphRagEngineError.make({
     operation,
     cause,
     message: errorMessage(cause),
@@ -110,11 +110,7 @@ export function makeGraphRagEngine(): GraphRagEngineShape {
       queryText: string,
       options?: GraphRagQueryOptions,
       config?: GraphRagConfig,
-    ) =>
-      Effect.tryPromise({
-        try: () => queryGraphRag(clients, queryText, options, config),
-        catch: (cause) => graphRagError("query", cause),
-      }),
+    ) => queryGraphRag(clients, queryText, options, config),
     ),
   };
 }
@@ -142,239 +138,283 @@ export function makeGraphRag(
   };
 }
 
-async function queryGraphRag(
+function queryGraphRag(
   clients: GraphRagClients,
   queryText: string,
   options?: GraphRagQueryOptions,
   rawConfig?: GraphRagConfig,
-): Promise<GraphRagResult> {
-  const config = normalizeGraphRagConfig(rawConfig);
-  console.log(`[GraphRag] Query: "${queryText.slice(0, 80)}..."`);
+): Effect.Effect<GraphRagResult, GraphRagEngineError> {
+  return Effect.gen(function* () {
+    const config = normalizeGraphRagConfig(rawConfig);
+    yield* Effect.log(`[GraphRag] Query: "${queryText.slice(0, 80)}..."`);
 
-  const concepts = await extractConcepts(clients, queryText);
-  console.log(`[GraphRag] Step 1: extracted ${concepts.length} concepts: ${concepts.slice(0, 5).join(", ")}`);
+    const concepts = yield* extractConcepts(clients, queryText);
+    yield* Effect.log(`[GraphRag] Step 1: extracted ${concepts.length} concepts: ${concepts.slice(0, 5).join(", ")}`);
 
-  const vectors = await getVectors(clients, concepts);
-  console.log(`[GraphRag] Step 2: got ${vectors.length} vectors (dim=${vectors[0]?.length ?? 0})`);
+    const vectors = yield* getVectors(clients, concepts);
+    yield* Effect.log(`[GraphRag] Step 2: got ${vectors.length} vectors (dim=${vectors[0]?.length ?? 0})`);
 
-  const entities = await getEntities(clients, config, vectors, options?.collection);
-  console.log(`[GraphRag] Step 3: found ${entities.length} matching entities`);
+    const entities = yield* getEntities(clients, config, vectors, options?.collection);
+    yield* Effect.log(`[GraphRag] Step 3: found ${entities.length} matching entities`);
 
-  const subgraph = await followEdges(clients, config, entities, options?.collection);
-  console.log(`[GraphRag] Step 4: traversed graph, ${subgraph.length} triples in subgraph`);
+    const subgraph = yield* followEdges(clients, config, entities, options?.collection);
+    yield* Effect.log(`[GraphRag] Step 4: traversed graph, ${subgraph.length} triples in subgraph`);
 
-  const scoredEdges = await scoreEdges(clients, config, queryText, subgraph);
-  console.log(`[GraphRag] Step 5: scored down to ${scoredEdges.length} edges`);
+    const scoredEdges = yield* scoreEdges(clients, config, queryText, subgraph);
+    yield* Effect.log(`[GraphRag] Step 5: scored down to ${scoredEdges.length} edges`);
 
-  console.log(`[GraphRag] Step 6: synthesizing answer from ${scoredEdges.length} edges...`);
-  const answer = await synthesize(
-    clients,
-    queryText,
-    scoredEdges,
-    options?.chunkCallback,
-  );
-  console.log(`[GraphRag] Step 6: done (${answer.length} chars)`);
+    yield* Effect.log(`[GraphRag] Step 6: synthesizing answer from ${scoredEdges.length} edges...`);
+    const answer = yield* synthesize(
+      clients,
+      queryText,
+      scoredEdges,
+      options?.chunkCallback,
+    );
+    yield* Effect.log(`[GraphRag] Step 6: done (${answer.length} chars)`);
 
-  return { answer, subgraph: scoredEdges };
-}
-
-async function extractConcepts(clients: GraphRagClients, query: string): Promise<string[]> {
-  const promptResp = await clients.prompt.request({
-    name: "extract-concepts",
-    variables: { query },
+    return { answer, subgraph: scoredEdges };
   });
+}
 
-  const llmResp = await clients.llm.request({
-    system: promptResp.system,
-    prompt: promptResp.prompt,
+function extractConcepts(clients: GraphRagClients, query: string): Effect.Effect<string[], GraphRagEngineError> {
+  return Effect.gen(function* () {
+    const promptResp = yield* Effect.tryPromise({
+      try: () => clients.prompt.request({
+        name: "extract-concepts",
+        variables: { query },
+      }),
+      catch: (cause) => graphRagError("extract-concepts-prompt", cause),
+    });
+
+    const llmResp = yield* Effect.tryPromise({
+      try: () => clients.llm.request({
+        system: promptResp.system,
+        prompt: promptResp.prompt,
+      }),
+      catch: (cause) => graphRagError("extract-concepts-llm", cause),
+    });
+
+    return llmResp.response
+      .split("\n")
+      .map((concept) => concept.trim())
+      .filter((concept) => concept.length > 0);
   });
-
-  return llmResp.response
-    .split("\n")
-    .map((concept) => concept.trim())
-    .filter((concept) => concept.length > 0);
 }
 
-async function getVectors(clients: GraphRagClients, concepts: string[]): Promise<number[][]> {
-  const resp = await clients.embeddings.request({ text: concepts });
-  return resp.vectors;
+function getVectors(clients: GraphRagClients, concepts: string[]): Effect.Effect<number[][], GraphRagEngineError> {
+  return Effect.gen(function* () {
+    const resp = yield* Effect.tryPromise({
+      try: () => clients.embeddings.request({ text: concepts }),
+      catch: (cause) => graphRagError("get-vectors", cause),
+    });
+    return resp.vectors;
+  });
 }
 
-async function getEntities(
+function getEntities(
   clients: GraphRagClients,
   config: NormalizedGraphRagConfig,
   vectors: number[][],
   collection?: string,
-): Promise<Term[]> {
-  const resp = await clients.graphEmbeddings.request({
-    vectors,
-    user: "default",
-    collection: collection ?? "default",
-    limit: config.entityLimit,
+): Effect.Effect<Term[], GraphRagEngineError> {
+  return Effect.gen(function* () {
+    const resp = yield* Effect.tryPromise({
+      try: () => clients.graphEmbeddings.request({
+        vectors,
+        user: "default",
+        collection: collection ?? "default",
+        limit: config.entityLimit,
+      }),
+      catch: (cause) => graphRagError("get-entities", cause),
+    });
+    return resp.entities;
   });
-  return resp.entities;
 }
 
-async function followEdges(
+function followEdges(
   clients: GraphRagClients,
   config: NormalizedGraphRagConfig,
   entities: Term[],
   collection?: string,
-): Promise<Triple[]> {
-  const visited = new Set<string>();
-  const subgraph: Triple[] = [];
-  let currentLevel = new Set<string>(
-    entities.map((entity) => termToString(entity)),
-  );
+): Effect.Effect<Triple[], GraphRagEngineError> {
+  return Effect.gen(function* () {
+    const visited = new Set<string>();
+    const subgraph: Triple[] = [];
+    let currentLevel = new Set<string>(
+      entities.map((entity) => termToString(entity)),
+    );
 
-  for (let depth = 0; depth < config.maxPathLength; depth++) {
-    if (currentLevel.size === 0 || subgraph.length >= config.maxSubgraphSize) {
-      break;
-    }
+    for (let depth = 0; depth < config.maxPathLength; depth++) {
+      if (currentLevel.size === 0 || subgraph.length >= config.maxSubgraphSize) {
+        break;
+      }
 
-    const unvisited = [...currentLevel].filter((entity) => !visited.has(entity));
-    if (unvisited.length === 0) break;
+      const unvisited = [...currentLevel].filter((entity) => !visited.has(entity));
+      if (unvisited.length === 0) break;
 
-    const queries = unvisited.map((entityStr) => {
-      const term = stringToTerm(entityStr);
-      const request: TriplesQueryRequest = {
-        s: term,
-        limit: config.tripleLimit,
-        ...(collection !== undefined ? { collection } : {}),
-      };
-      return clients.triples.request(request);
-    });
+      const queries = unvisited.map((entityStr) => {
+        const term = stringToTerm(entityStr);
+        const request: TriplesQueryRequest = {
+          s: term,
+          limit: config.tripleLimit,
+          ...(collection !== undefined ? { collection } : {}),
+        };
+        return Effect.tryPromise({
+          try: () => clients.triples.request(request),
+          catch: (cause) => graphRagError("follow-edges-query", cause),
+        });
+      });
 
-    const results = await Promise.all(queries);
-    const nextLevel = new Set<string>();
+      const results = yield* Effect.all(queries);
+      const nextLevel = new Set<string>();
 
-    for (const result of results) {
-      for (const triple of result.triples) {
-        subgraph.push(triple);
+      for (const result of results) {
+        for (const triple of result.triples) {
+          subgraph.push(triple);
 
-        if (depth < config.maxPathLength - 1) {
-          const objStr = termToString(triple.o);
-          if (!visited.has(objStr)) {
-            nextLevel.add(objStr);
+          if (depth < config.maxPathLength - 1) {
+            const objStr = termToString(triple.o);
+            if (!visited.has(objStr)) {
+              nextLevel.add(objStr);
+            }
+          }
+
+          if (subgraph.length >= config.maxSubgraphSize) {
+            return subgraph;
           }
         }
-
-        if (subgraph.length >= config.maxSubgraphSize) {
-          return subgraph;
-        }
       }
+
+      for (const entity of currentLevel) {
+        visited.add(entity);
+      }
+      currentLevel = nextLevel;
     }
 
-    for (const entity of currentLevel) {
-      visited.add(entity);
-    }
-    currentLevel = nextLevel;
-  }
-
-  return subgraph.slice(0, config.maxSubgraphSize);
+    return subgraph.slice(0, config.maxSubgraphSize);
+  });
 }
 
-async function scoreEdges(
+function scoreEdges(
   clients: GraphRagClients,
   config: NormalizedGraphRagConfig,
   query: string,
   triples: Triple[],
-): Promise<Triple[]> {
-  if (triples.length === 0) return [];
+): Effect.Effect<Triple[], GraphRagEngineError> {
+  return Effect.gen(function* () {
+    if (triples.length === 0) return [];
 
-  if (triples.length <= 500) {
-    console.log(`[GraphRag] Skipping edge scoring - ${triples.length} triples fits in context directly`);
-    return triples;
-  }
-
-  const edgeDescriptions = triples.map((triple, index) => ({
-    id: String(index),
-    s: termToString(triple.s),
-    p: termToString(triple.p),
-    o: termToString(triple.o),
-  }));
-
-  const toScore = edgeDescriptions.slice(0, config.edgeScoreLimit);
-  const knowledgeJson = JSON.stringify(toScore, null, 2);
-
-  const promptResp = await clients.prompt.request({
-    name: "kg-edge-scoring",
-    variables: {
-      query,
-      knowledge: knowledgeJson,
-    },
-  });
-
-  const llmResp = await clients.llm.request({
-    system: promptResp.system,
-    prompt: promptResp.prompt,
-  });
-
-  console.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${llmResp.response.slice(0, 500)}`);
-
-  const scored = parseScoredEdges(llmResp.response);
-  scored.sort((a, b) => b.score - a.score);
-  const topN = scored.slice(0, config.edgeLimit);
-
-  const result: Triple[] = [];
-  for (const entry of topN) {
-    const idx = Number.parseInt(entry.id, 10);
-    if (!Number.isNaN(idx) && idx >= 0 && idx < triples.length) {
-      result.push(triples[idx]);
+    if (triples.length <= 500) {
+      yield* Effect.log(`[GraphRag] Skipping edge scoring - ${triples.length} triples fits in context directly`);
+      return triples;
     }
-  }
 
-  console.log(`[GraphRag] Edge scoring: LLM returned ${scored.length} scores, keeping top ${topN.length}, mapped ${result.length} triples`);
+    const edgeDescriptions = triples.map((triple, index) => ({
+      id: String(index),
+      s: termToString(triple.s),
+      p: termToString(triple.p),
+      o: termToString(triple.o),
+    }));
 
-  if (result.length === 0) {
-    return triples.slice(0, config.edgeLimit);
-  }
+    const toScore = edgeDescriptions.slice(0, config.edgeScoreLimit);
+    const knowledgeJson = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(toScore).pipe(
+      Effect.mapError((cause) => graphRagError("edge-score-encode", cause)),
+    );
 
-  return result;
+    const promptResp = yield* Effect.tryPromise({
+      try: () => clients.prompt.request({
+        name: "kg-edge-scoring",
+        variables: {
+          query,
+          knowledge: knowledgeJson,
+        },
+      }),
+      catch: (cause) => graphRagError("edge-score-prompt", cause),
+    });
+
+    const llmResp = yield* Effect.tryPromise({
+      try: () => clients.llm.request({
+        system: promptResp.system,
+        prompt: promptResp.prompt,
+      }),
+      catch: (cause) => graphRagError("edge-score-llm", cause),
+    });
+
+    yield* Effect.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${llmResp.response.slice(0, 500)}`);
+
+    const scored = parseScoredEdges(llmResp.response);
+    scored.sort((a, b) => b.score - a.score);
+    const topN = scored.slice(0, config.edgeLimit);
+
+    const result: Triple[] = [];
+    for (const entry of topN) {
+      const idx = Number.parseInt(entry.id, 10);
+      if (!Number.isNaN(idx) && idx >= 0 && idx < triples.length) {
+        result.push(triples[idx]);
+      }
+    }
+
+    yield* Effect.log(`[GraphRag] Edge scoring: LLM returned ${scored.length} scores, keeping top ${topN.length}, mapped ${result.length} triples`);
+
+    if (result.length === 0) {
+      return triples.slice(0, config.edgeLimit);
+    }
+
+    return result;
+  });
 }
 
-async function synthesize(
+function synthesize(
   clients: GraphRagClients,
   query: string,
   edges: Triple[],
   chunkCallback?: ChunkCallback,
-): Promise<string> {
-  const context = edges
-    .map((triple) => `${termToString(triple.s)} -> ${termToString(triple.p)} -> ${termToString(triple.o)}`)
-    .join("\n");
+): Effect.Effect<string, GraphRagEngineError> {
+  return Effect.gen(function* () {
+    const context = edges
+      .map((triple) => `${termToString(triple.s)} -> ${termToString(triple.p)} -> ${termToString(triple.o)}`)
+      .join("\n");
 
-  const promptResp = await clients.prompt.request({
-    name: "graph-rag-synthesize",
-    variables: { query, context },
-  });
+    const promptResp = yield* Effect.tryPromise({
+      try: () => clients.prompt.request({
+        name: "graph-rag-synthesize",
+        variables: { query, context },
+      }),
+      catch: (cause) => graphRagError("synthesize-prompt", cause),
+    });
 
-  if (chunkCallback !== undefined) {
-    let fullText = "";
-    await clients.llm.request(
-      {
+    if (chunkCallback !== undefined) {
+      let fullText = "";
+      yield* Effect.tryPromise({
+        try: () => clients.llm.request(
+          {
+            system: promptResp.system,
+            prompt: promptResp.prompt,
+            streaming: true,
+          },
+          {
+            recipient: (resp) => {
+              if (resp.response.length === 0) return Promise.resolve(resp.endOfStream === true);
+              fullText += resp.response;
+              return chunkCallback(resp.response, resp.endOfStream === true).then(() => resp.endOfStream === true);
+            },
+          },
+        ),
+        catch: (cause) => graphRagError("synthesize-stream", cause),
+      });
+      return fullText;
+    }
+
+    const resp = yield* Effect.tryPromise({
+      try: () => clients.llm.request({
         system: promptResp.system,
         prompt: promptResp.prompt,
-        streaming: true,
-      },
-      {
-        recipient: async (resp) => {
-          if (resp.response.length > 0) {
-            fullText += resp.response;
-            await chunkCallback(resp.response, resp.endOfStream === true);
-          }
-          return resp.endOfStream === true;
-        },
-      },
-    );
-    return fullText;
-  }
+      }),
+      catch: (cause) => graphRagError("synthesize-llm", cause),
+    });
 
-  const resp = await clients.llm.request({
-    system: promptResp.system,
-    prompt: promptResp.prompt,
+    return resp.response;
   });
-
-  return resp.response;
 }
 
 const ScoredEdge = S.Struct({

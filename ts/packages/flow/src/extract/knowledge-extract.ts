@@ -289,7 +289,7 @@ export function makeKnowledgeExtractService(config: ProcessorConfig): KnowledgeE
   const service = makeFlowProcessor(config, {
     specifications: makeKnowledgeExtractSpecs(),
   });
-  console.log("[KnowledgeExtract] Service initialized");
+  Effect.runSync(Effect.log("[KnowledgeExtract] Service initialized"));
   return service;
 }
 
@@ -324,7 +324,9 @@ export function parseJsonResponse<T>(raw: string): T | null {
     if (O.isSome(decoded)) return decoded.value as T;
   }
 
-  console.warn("[KnowledgeExtract] Failed to parse JSON from LLM response:", raw.slice(0, 300));
+  Effect.runSync(Effect.logWarning("[KnowledgeExtract] Failed to parse JSON from LLM response", {
+    response: raw.slice(0, 300),
+  }));
   return null;
 }
 
@@ -333,7 +335,9 @@ function parseRelationshipsResponse(raw: string): ReadonlyArray<ExtractedRelatio
     const decoded = decodeExtractedRelationships(candidate);
     if (O.isSome(decoded)) return decoded.value;
   }
-  console.warn("[KnowledgeExtract] Failed to parse relationships from LLM response:", raw.slice(0, 300));
+  Effect.runSync(Effect.logWarning("[KnowledgeExtract] Failed to parse relationships from LLM response", {
+    response: raw.slice(0, 300),
+  }));
   return null;
 }
 
@@ -342,7 +346,9 @@ function parseDefinitionsResponse(raw: string): ReadonlyArray<ExtractedDefinitio
     const decoded = decodeExtractedDefinitions(candidate);
     if (O.isSome(decoded)) return decoded.value;
   }
-  console.warn("[KnowledgeExtract] Failed to parse definitions from LLM response:", raw.slice(0, 300));
+  Effect.runSync(Effect.logWarning("[KnowledgeExtract] Failed to parse definitions from LLM response", {
+    response: raw.slice(0, 300),
+  }));
   return null;
 }
 
@@ -380,6 +386,6 @@ export const program = makeFlowProcessorProgram({
   specs: () => makeKnowledgeExtractSpecs(),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

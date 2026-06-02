@@ -91,7 +91,7 @@ export function makeChunkingService(config: ProcessorConfig): ChunkingService {
   const service = makeFlowProcessor(config, {
     specifications: makeChunkingSpecs(),
   });
-  console.log("[ChunkingService] Service initialized");
+  Effect.runSync(Effect.log("[ChunkingService] Service initialized"));
   return service;
 }
 
@@ -102,6 +102,6 @@ export const program = makeFlowProcessorProgram({
   specs: () => makeChunkingSpecs(),
 });
 
-export async function run(): Promise<void> {
-  await Effect.runPromise(program);
+export function run(): Promise<void> {
+  return Effect.runPromise(program);
 }

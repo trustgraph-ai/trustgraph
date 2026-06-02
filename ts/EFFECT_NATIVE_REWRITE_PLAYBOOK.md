@@ -13,6 +13,7 @@ Verify these paths at the start of every audit run:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect fallback: `ts/node_modules/effect`
 - Installed Atom React fallback: `ts/packages/workbench/node_modules/@effect/atom-react`
+- Native TypeScript checker: `ts/node_modules/.bin/tsgo`
 
 The prompt typo path `~/YeeBois/projecects/...` is not valid on this machine.
 Use `~/YeeBois/projects/...`.
@@ -28,6 +29,23 @@ Important import rule: the Effect v4 subtree contains separate packages such as
 resolves many beta APIs through `effect/unstable/*` import paths. Prefer the
 installed TrustGraph import path when it exists; use the subtree package path as
 source proof, not as an automatic import recommendation.
+
+TrustGraph's TypeScript check must use `@typescript/native-preview` patched by
+`@effect/tsgo`. The expected local version line is currently:
+
+```sh
+cd ts && ./node_modules/.bin/tsgo --version
+# Version 7.0.0-dev+effect-tsgo.0.13.0
+```
+
+The root `ts/tsconfig.base.json` language-service plugin should stay aligned
+with `/home/elpresidank/YeeBois/projects/beep-effect/tsconfig.base.json`,
+using the same diagnostic severities and no test-only diagnostic downgrades.
+The repo-specific `namespaceImportPackages` entry should use `@trustgraph/*`.
+The root `check` script should delegate to `check:tsgo`, and `check:tsgo` must
+run `effect-tsgo patch` before `tsgo -b` so agents get Effect diagnostics
+instead of plain TypeScript. Treat every `effect(...)` diagnostic as a hard
+blocker.
 
 ## Primitive Map
 
@@ -84,18 +102,25 @@ Known concrete exports useful to scouts:
    especially `.idea/effect.intellij.xml`.
 2. Refresh the source baseline above. If a path moved, record the corrected path
    in the report before making any recommendations.
-3. Run quick signal scans:
+3. Verify the tsgo baseline:
+
+   ```sh
+   cd ts && ./node_modules/.bin/tsgo --version
+   bun run check
+   ```
+
+4. Run quick signal scans:
 
    ```sh
    rg -n "try \\{|new Error|new Promise|setTimeout|while \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
    ```
 
-4. Split scouts by lane. If the thread cannot spawn every scout in parallel,
+5. Split scouts by lane. If the thread cannot spawn every scout in parallel,
    run them in batches using the same report schema.
-5. Every finding must include both:
+6. Every finding must include both:
    - Evidence of the handrolled TrustGraph pattern.
    - Evidence of the exact Effect primitive that could replace it.
-6. Do not rewrite code in this audit. The output is a ranked opportunity map and
+7. Do not rewrite code in this audit. The output is a ranked opportunity map and
    a recommended PR order.
 
 ## Agent Lanes
@@ -186,7 +211,7 @@ git diff --check -- ts/EFFECT_NATIVE_REWRITE_PLAYBOOK.md ts/EFFECT_NATIVE_REWRIT
 For any later implementation PR, rerun the relevant package tests and at least:
 
 ```sh
-cd ts && bun run check:tsgo
+cd ts && bun run check
 cd ts && bun run build
 cd ts && bun run test
 ```
