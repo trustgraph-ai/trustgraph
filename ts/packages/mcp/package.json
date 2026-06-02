@@ -8,7 +8,7 @@
     "build": "bunx --bun tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "bunx --bun vitest run --passWithNoTests"
+    "test": "bunx --bun vitest run --passWithNoTests --exclude=dist/**"
   },
   "dependencies": {
     "@trustgraph/base": "workspace:*",

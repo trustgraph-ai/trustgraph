@@ -58,6 +58,7 @@ primitive exists.
 | Promise loops, top-level async orchestration | `Effect`, `Effect.fn`, `Effect.scoped`, `Effect.runPromiseWith` at boundaries | `effect` | `packages/effect/src/Effect.ts` |
 | Resource construction and teardown | `Layer`, `Scope`, `Effect.acquireRelease`, `Effect.addFinalizer` | `effect` | `packages/effect/src/Layer.ts`, `packages/effect/src/Scope.ts` |
 | Mutable service state | `Ref`, `SynchronizedRef`, `SubscriptionRef` | `effect` | `packages/effect/src/Ref.ts`, `packages/effect/src/SynchronizedRef.ts` |
+| Long-lived keyed state and set membership | `HashMap`, `MutableHashMap`, `HashSet`, `MutableHashSet` | `effect` | `packages/effect/src/HashMap.ts`, `packages/effect/src/MutableHashMap.ts`, `packages/effect/src/HashSet.ts`, `packages/effect/src/MutableHashSet.ts` |
 | Polling, delays, retry/backoff | `Schedule`, `Effect.sleep`, `Effect.retry` | `effect` | `packages/effect/src/Schedule.ts`, `packages/effect/src/Effect.ts` |
 | Callback queues and streaming fanout | `Queue`, `PubSub`, `Stream`, `Channel` | `effect` | `packages/effect/src/Queue.ts`, `packages/effect/src/PubSub.ts`, `packages/effect/src/Stream.ts`, `packages/effect/src/Channel.ts` |
 | Env/config decoding | `Config`, `ConfigProvider`, platform config providers | `effect`, `effect/ConfigProvider`, provider packages | `packages/effect/src/Config.ts`, `packages/effect/src/ConfigProvider.ts`, `packages/platform/src/PlatformConfigProvider.ts` |
@@ -95,6 +96,10 @@ Known concrete exports useful to scouts:
 - `Effect.try`, `Effect.tryPromise`, and `Result.try` for exception capture.
   Treat `try`/`catch` blocks as migration evidence unless they are host/tool
   boundaries or test-only helpers.
+- `S.toTaggedUnion(...).match` and `effect/Match` discriminator helpers for
+  discriminated unions. Treat native `switch` statements as migration evidence
+  unless the code is a host parser/traversal boundary with no useful Effect
+  schema or match primitive.
 
 ## Scout Workflow
 
@@ -112,7 +117,7 @@ Known concrete exports useful to scouts:
 4. Run quick signal scans:
 
    ```sh
-   rg -n "try \\{|new Error|new Promise|setTimeout|while \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
+   rg -n "S\\.ErrorClass|try \\{|catch \\(|new Error|new Promise|setTimeout|while \\(|switch \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|new Set|Map<|Set<|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
    ```
 
 5. Split scouts by lane. If the thread cannot spawn every scout in parallel,

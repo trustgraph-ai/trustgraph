@@ -1,5 +1,6 @@
 import {OpenAiClient, OpenAiLanguageModel} from "@effect/ai-openai";
 import {BunHttpServer, BunRuntime} from "@effect/platform-bun";
+import {NodeRuntime, NodeStdio} from "@effect/platform-node";
 import {createTrustGraphSocket, type BaseApi, type Term as ClientTerm} from "@trustgraph/client";
 import {Config, Context, Effect, Layer, Redacted} from "effect";
 import * as O from "effect/Option";
@@ -1725,10 +1726,7 @@ export const TrustGraphMcpHttpApiRoutes = HttpApiBuilder.layer(
 const makeTrustGraphMcpHttpLayerFromConfig = (
   config: TrustGraphMcpConfigShape,
 ) => {
-  const tools = McpServer.toolkit(TrustGraphMcpToolkit).pipe(
-    Layer.provide(TrustGraphMcpToolkitLive),
-    Layer.provide(makeOpenAiProviderLayerFromConfig(config)),
-  )
+  const tools = makeTrustGraphMcpToolkitLayerFromConfig(config)
 
   return Layer.mergeAll(
     TrustGraphMcpHttpApiRoutes,
@@ -1743,6 +1741,27 @@ const makeTrustGraphMcpHttpLayerFromConfig = (
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
   )
 }
+
+const makeTrustGraphMcpToolkitLayerFromConfig = (
+  config: TrustGraphMcpConfigShape,
+) =>
+  McpServer.toolkit(TrustGraphMcpToolkit).pipe(
+    Layer.provide(TrustGraphMcpToolkitLive),
+    Layer.provide(makeOpenAiProviderLayerFromConfig(config)),
+  )
+
+const makeTrustGraphMcpStdioLayerFromConfig = (
+  config: TrustGraphMcpConfigShape,
+) =>
+  makeTrustGraphMcpToolkitLayerFromConfig(config).pipe(
+    Layer.provide(McpServer.layerStdio({
+      name: config.name,
+      version: config.version,
+    })),
+    Layer.provide(NodeStdio.layer),
+    Layer.provide(TrustGraphSocket.layer),
+    Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
+  )
 
 export const makeTrustGraphMcpHttpServerLayer = (
   options: TrustGraphMcpOptions = {},
@@ -1766,6 +1785,19 @@ export const makeTrustGraphMcpHttpLayer = (
     ),
   )
 
+export const makeTrustGraphMcpStdioLayer = (
+  options: TrustGraphMcpOptions = {},
+) =>
+  Layer.unwrap(
+    loadTrustGraphMcpConfig(options).pipe(
+      Effect.map(makeTrustGraphMcpStdioLayerFromConfig),
+    ),
+  )
+
 export const runHttp = (options: TrustGraphMcpOptions = {}): void => {
   Layer.launch(makeTrustGraphMcpHttpServerLayer(options)).pipe(BunRuntime.runMain)
+}
+
+export const runStdio = (options: TrustGraphMcpOptions = {}): void => {
+  Layer.launch(makeTrustGraphMcpStdioLayer(options)).pipe(NodeRuntime.runMain)
 }

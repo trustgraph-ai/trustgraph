@@ -1477,13 +1477,45 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-02: MCP Effect Stdio Entrypoint Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Added an Effect-native stdio layer and process entrypoint with
+    `McpServer.layerStdio`, `NodeStdio.layer`, and `NodeRuntime.runMain`.
+  - Reused the same `TrustGraphMcpToolkitLive` path for HTTP and stdio through
+    a shared toolkit-layer helper.
+  - Kept the legacy SDK/Zod stdio export as a compatibility surface until
+    protocol-level `tools/list` and `tools/call` parity tests prove it can be
+    flipped or removed.
+  - Added focused coverage that the Effect toolkit names remain stable and
+    the stdio layer/entrypoint are exported.
+  - Updated the MCP test script to ignore compiled `dist/**` output so root
+    builds do not cause duplicate Vitest runs from generated tests.
+- Scratch-note triage:
+  - Metrics, in-process PubSub fanout, Claude Effect AI, RPC
+    `S.TaggedErrorClass`, and `@effect/tsgo` setup are already migrated.
+  - Remaining valid scratch targets are MCP protocol parity/flip, Duration
+    config cleanup, Term/ClientTerm tagged-union matching, service
+    `Effect.fn` normalization, `@effect/cli`, stream/RPC follow-ups, chunking
+    `Chunk`, cores Promise APIs, and long-lived `Map`/`Set` state.
+- Verification:
+  - `cd ts/packages/mcp && bun run test`
+  - `cd ts/packages/mcp && bun run build`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
-  - Make the Effect MCP server the canonical implementation. The old stdio
-    server should remain only as compatibility while parity tests and an
-    Effect `McpServer.layerStdio` entrypoint are missing. Do not delete
-    `server.ts` until stdio `tools/list`/`tools/call` parity is proved.
+  - Make the Effect MCP server the canonical implementation. An Effect
+    `McpServer.layerStdio` entrypoint now exists; the old stdio server should
+    remain only as compatibility until protocol-level `tools/list` and
+    `tools/call` parity is proved. Do not delete `server.ts` until that parity
+    coverage exists, with special attention to `text_completion` behavior.
   - Workbench BaseApi atoms can move toward `AtomRpc` or `AtomHttpApi` after
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
@@ -1701,13 +1733,13 @@ Notes:
 ### P2: Canonicalize MCP Around The Effect Server
 
 - Status:
-  - First blocker slice complete: MCP now builds under strict tsgo and the
-    stdio server has an Effect-backed compatibility implementation.
+  - MCP now builds under strict tsgo, the stdio server has an Effect-backed
+    compatibility implementation, and an Effect `McpServer.layerStdio`
+    entrypoint exists.
 - Remaining shape:
   - Keep the old SDK/Zod stdio compatibility surface for now.
-  - Add an Effect stdio entrypoint with `McpServer.layerStdio`, then prove
-    `tools/list` and `tools/call` parity before deleting any public entry
-    point or dropping `zod`/server-side MCP SDK dependencies.
+  - Prove `tools/list` and `tools/call` parity before deleting any public
+    entry point or dropping `zod`/server-side MCP SDK dependencies.
   - Pay special attention to `text_completion`: legacy calls the TrustGraph
     gateway, while the Effect server currently uses an Effect AI
     `LanguageModel`/OpenAI layer.
@@ -1733,7 +1765,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. MCP Effect stdio parity and canonicalization.
+1. MCP protocol parity tests and legacy stdio flip/removal decision.
 2. Term/ClientTerm Schema tagged-union and Match normalization.
 3. FlowManager/service `Effect.fn` normalization.
 4. Messaging runtime `Config.duration` / `Duration` cleanup.
