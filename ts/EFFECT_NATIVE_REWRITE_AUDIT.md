@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Qdrant
-config/schema/fakeability slice:
+Current signal counts from `ts/packages` after the 2026-06-02 client streaming
+facade normalization slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -114,6 +114,11 @@ Notes:
   scoped finalizer slice. `Effect.runPromise` increased because the new tests
   and legacy service initialization logs run Effects at compatibility
   boundaries.
+- The client streaming facade slice did not change signal counts. It
+  centralized the legacy streaming `{ response, complete, error }` envelope
+  decode in `trustgraph-socket.ts`, uses Schema plus `effect/Predicate`
+  property narrowing for streaming payload reads, and leaves service-specific
+  legacy completion markers only where they preserve public callback behavior.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -465,6 +470,7 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
   - `git diff --check`
+  - `git diff --check`
 
 ### 2026-06-02: Client Socket Tagged Error And JSON Slice
 
@@ -758,9 +764,6 @@ Notes:
   - Gateway dispatcher tests now exercise both the Promise compatibility
     streaming path and the Effect-native responder path.
 - Remaining:
-  - Client facade methods still duplicate some per-service streaming envelope
-    completion checks. Centralize these around `DispatchStreamChunk.complete`
-    in a later client API cleanup.
   - `ts/packages/flow/src/gateway/rpc-protocol.ts` remains a Fastify socket
     compatibility bridge, not a direct replacement target for Effect RPC
     server layers yet.
@@ -773,6 +776,32 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
   - `git diff --check`
+
+### 2026-06-02: Client Streaming Facade Normalization Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` now decodes the
+    legacy streaming envelope with Schema before service-specific callback
+    handling.
+  - Streaming payload reads now use `effect/Predicate` property narrowing
+    helpers instead of repeated response-wrapper assertions.
+  - Graph RAG, document RAG, text completion, prompt, agent, and document
+    stream callbacks now use a shared `streamComplete(...)` helper. The RPC
+    `DispatchStreamChunk.complete` bit is the default transport completion
+    source, with legacy service markers preserved for public compatibility.
+  - Explainability triples are decoded through a recursive Schema instead of
+    `as Triple[]`.
+  - The focused client test now proves normalized `DispatchStreamChunk`
+    completion flows through `graphRagStreaming` and final metadata.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/rpc-timeout.test.ts`
+  - `bun run --cwd ts/packages/client build`
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/client test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
 
 ### 2026-06-02: FalkorDB Scoped Client Lifecycle Slice
 
@@ -871,9 +900,9 @@ Notes:
     The remaining client `newableFactory` assertions are documented as public
     API compatibility boundaries for this loop.
   - Gateway `DispatchStream` now uses Effect-native dispatcher streaming
-    callbacks instead of nested `Effect.runPromiseWith`; the remaining client
-    streaming cleanup is facade-level completion normalization around
-    `DispatchStreamChunk.complete`.
+    callbacks instead of nested `Effect.runPromiseWith`, and client streaming
+    facade callbacks now decode the legacy envelope through Schema before
+    applying service-specific public callback semantics.
   - Do not make `gateway/rpc-protocol.ts` the next cleanup target: it is a
     Fastify socket compatibility bridge while the public Effect RPC server
     layers require SocketServer or Effect HTTP routing.
@@ -948,9 +977,8 @@ Notes:
 
 ## Recommended PR Order
 
-1. Client streaming facade completion normalization.
-2. Provider layer and Effect AI cleanup.
-3. MCP parity/deletion decision and workbench platform polish.
+1. Provider layer and Effect AI cleanup.
+2. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 

@@ -9,6 +9,7 @@ import {
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
 import { Clock, Effect, Option, Result, Schema as S } from "effect";
+import * as Predicate from "effect/Predicate";
 
 // Import all message types for different services
 import type {
@@ -154,24 +155,23 @@ function dispatchOptions(
   return options;
 }
 
-function streamingMetadataFrom(source: {
-  in_token?: number;
-  out_token?: number;
-  model?: string;
-}): StreamingMetadata | undefined {
+function streamingMetadataFrom(source: unknown): StreamingMetadata | undefined {
   const metadata: StreamingMetadata = {};
   let hasMetadata = false;
 
-  if (source.in_token !== undefined) {
-    metadata.in_token = source.in_token;
+  const inToken = numberProperty(source, "in_token");
+  if (inToken !== undefined) {
+    metadata.in_token = inToken;
     hasMetadata = true;
   }
-  if (source.out_token !== undefined) {
-    metadata.out_token = source.out_token;
+  const outToken = numberProperty(source, "out_token");
+  if (outToken !== undefined) {
+    metadata.out_token = outToken;
     hasMetadata = true;
   }
-  if (source.model !== undefined) {
-    metadata.model = source.model;
+  const model = stringProperty(source, "model");
+  if (model !== undefined) {
+    metadata.model = model;
     hasMetadata = true;
   }
 
@@ -232,6 +232,92 @@ const logClientInfo = (message: string): void => {
 const logClientError = (message: string, error: unknown): void => {
   Effect.runFork(Effect.logError(message, { error: toErrorMessage(error, message) }));
 };
+
+const StreamingEnvelopeSchema = S.Struct({
+  response: S.optionalKey(S.Unknown),
+  complete: S.optionalKey(S.Boolean),
+  error: S.optionalKey(S.String),
+});
+type StreamingEnvelope = typeof StreamingEnvelopeSchema.Type;
+
+const ClientTripleSchema: S.Codec<Triple, Triple> = S.suspend(() =>
+  S.Struct({
+    s: ClientTermSchema,
+    p: ClientTermSchema,
+    o: ClientTermSchema,
+    g: S.optionalKey(S.String),
+  })
+);
+
+const ClientTermSchema: S.Codec<Term, Term> = S.suspend(() =>
+  S.Union([
+    S.Struct({
+      t: S.Literal("i"),
+      i: S.String,
+    }),
+    S.Struct({
+      t: S.Literal("b"),
+      d: S.String,
+    }),
+    S.Struct({
+      t: S.Literal("l"),
+      v: S.String,
+      dt: S.optionalKey(S.String),
+      ln: S.optionalKey(S.String),
+    }),
+    S.Struct({
+      t: S.Literal("t"),
+      tr: S.optionalKey(ClientTripleSchema),
+    }),
+  ])
+);
+
+const decodeStreamingEnvelope = S.decodeUnknownOption(StreamingEnvelopeSchema);
+const decodeClientTriples = S.decodeUnknownOption(S.Array(ClientTripleSchema).pipe(S.mutable));
+
+function streamingEnvelopeFrom(message: unknown): StreamingEnvelope {
+  return Option.getOrElse(decodeStreamingEnvelope(message), () => ({
+    complete: true,
+    error: "Streaming message could not be decoded",
+  }));
+}
+
+function propertyValue(source: unknown, key: string): unknown | undefined {
+  return Predicate.hasProperty(source, key) ? source[key] : undefined;
+}
+
+function stringProperty(source: unknown, key: string): string | undefined {
+  const value = propertyValue(source, key);
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberProperty(source: unknown, key: string): number | undefined {
+  const value = propertyValue(source, key);
+  return typeof value === "number" ? value : undefined;
+}
+
+function booleanProperty(source: unknown, key: string): boolean | undefined {
+  const value = propertyValue(source, key);
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function responseErrorMessage(source: unknown): string | undefined {
+  const error = propertyValue(source, "error");
+  if (typeof error === "string") return error;
+  return stringProperty(error, "message");
+}
+
+function streamComplete(
+  envelope: StreamingEnvelope,
+  response: unknown,
+  responseMarkers: ReadonlyArray<string> = [],
+): boolean {
+  return envelope.complete === true || responseMarkers.some((key) => booleanProperty(response, key) === true);
+}
+
+function explainTriplesFrom(source: unknown): Triple[] | undefined {
+  return Option.getOrUndefined(decodeClientTriples(propertyValue(source, "explain_triples")));
+}
 
 /**
  * Socket interface defining all available operations for the TrustGraph API
@@ -978,7 +1064,7 @@ export function makeLibrarianApi(api: BaseApi) {
         chunkSize?: number,
       ): void {
         const receiver = (message: unknown): boolean => {
-          const msg = message as { response?: StreamDocumentResponse; complete?: boolean; error?: string };
+          const msg = streamingEnvelopeFrom(message);
 
           // Check for top-level error
           if (msg.error !== undefined) {
@@ -988,17 +1074,23 @@ export function makeLibrarianApi(api: BaseApi) {
 
           const resp = msg.response;
           if (resp === undefined) {
-            return msg.complete === true;
+            return streamComplete(msg, resp);
           }
 
           // Check for response-level error
-          if (resp.error !== undefined) {
-            onError(resp.error.message);
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
             return true;
           }
 
-          const complete = msg.complete === true;
-          onChunk(resp.content, resp["chunk-index"], resp["total-chunks"], complete);
+          const complete = streamComplete(msg, resp);
+          onChunk(
+            stringProperty(resp, "content") ?? "",
+            numberProperty(resp, "chunk-index") ?? 0,
+            numberProperty(resp, "total-chunks") ?? 0,
+            complete,
+          );
 
           return complete;
         };
@@ -1393,7 +1485,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
         collection?: string,
       ) {
         const receiver = (message: unknown) => {
-          const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
+          const msg = streamingEnvelopeFrom(message);
 
           // Check for top-level error
           if (msg.error !== undefined) {
@@ -1404,36 +1496,41 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           const resp = msg.response ?? {};
 
           // Check for errors in response
-          if (resp.chunk_type === "error" || resp.error !== undefined) {
-            error(resp.error?.message ?? "Unknown agent error");
+          const responseError = responseErrorMessage(resp);
+          if (stringProperty(resp, "chunk_type") === "error" || responseError !== undefined) {
+            error(responseError ?? "Unknown agent error");
             return true; // End streaming on error
           }
 
           // Handle explainability events (agent uses chunk_type="explain")
+          const chunkType = stringProperty(resp, "chunk_type");
+          const messageType = stringProperty(resp, "message_type");
+          const explainId = stringProperty(resp, "explain_id");
+          const explainTriples = explainTriplesFrom(resp);
           if (
-            (resp.chunk_type === "explain" || resp.message_type === "explain") &&
-            (resp.explain_id !== undefined || resp.explain_triples !== undefined)
+            (chunkType === "explain" || messageType === "explain") &&
+            (explainId !== undefined || explainTriples !== undefined)
           ) {
             const event: ExplainEvent = {
-              explainId: resp.explain_id ?? "",
-              explainGraph: resp.explain_graph ?? "",
+              explainId: explainId ?? "",
+              explainGraph: stringProperty(resp, "explain_graph") ?? "",
             };
-            if (resp.explain_triples !== undefined) {
-              event.explainTriples = resp.explain_triples as Triple[];
+            if (explainTriples !== undefined) {
+              event.explainTriples = explainTriples;
             }
             onExplain?.(event);
             return false;
           }
 
           // Handle streaming chunks by chunk_type
-          const content = resp.content ?? "";
-          const messageComplete = resp.end_of_message === true;
-          const dialogComplete = msg.complete === true || resp.end_of_dialog === true;
+          const content = stringProperty(resp, "content") ?? "";
+          const messageComplete = booleanProperty(resp, "end_of_message") === true;
+          const dialogComplete = streamComplete(msg, resp, ["end_of_dialog"]);
 
           // Extract metadata from final message
           const metadata = dialogComplete ? streamingMetadataFrom(resp) : undefined;
 
-          switch (resp.chunk_type) {
+          switch (chunkType) {
             case "thought":
               think(content, messageComplete, metadata);
               break;
@@ -1493,7 +1590,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
         onExplain?: (event: ExplainEvent) => void,
       ): void {
         const recv = (message: unknown): boolean => {
-          const msg = message as { response?: GraphRagResponse; complete?: boolean; error?: string };
+          const msg = streamingEnvelopeFrom(message);
 
           // Check for top-level error
           if (msg.error !== undefined) {
@@ -1501,37 +1598,45 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             return true;
           }
 
-          const resp = (msg.response ?? {}) as GraphRagResponse;
+          const resp = msg.response ?? {};
 
           // Check for response-level error
-          if (resp.error !== undefined) {
-            onError(resp.error.message);
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
             return true;
           }
 
           // Extract explain data if present (may be embedded in the answer message)
+          const messageType = stringProperty(resp, "message_type");
+          const explainId = stringProperty(resp, "explain_id");
+          const explainTriples = explainTriplesFrom(resp);
           if (
-            resp.message_type === "explain" &&
-            (resp.explain_id !== undefined || resp.explain_triples !== undefined)
+            messageType === "explain" &&
+            (explainId !== undefined || explainTriples !== undefined)
           ) {
             const event: ExplainEvent = {
-              explainId: resp.explain_id ?? "",
-              explainGraph: resp.explain_graph ?? "",
+              explainId: explainId ?? "",
+              explainGraph: stringProperty(resp, "explain_graph") ?? "",
             };
-            if (resp.explain_triples !== undefined) {
-              event.explainTriples = resp.explain_triples as Triple[];
+            if (explainTriples !== undefined) {
+              event.explainTriples = explainTriples;
             }
             onExplain?.(event);
             // If this message also carries answer text, fall through to chunk handling.
             // If it's a standalone explain event (no answer text), stop here.
-            if (resp.response === undefined && resp.endOfStream !== true && resp.end_of_session !== true) {
+            if (
+              stringProperty(resp, "response") === undefined &&
+              booleanProperty(resp, "endOfStream") !== true &&
+              booleanProperty(resp, "end_of_session") !== true
+            ) {
               return false;
             }
           }
 
           // Handle chunk messages (default behavior)
-          const chunk = resp.response ?? resp.chunk ?? "";
-          const complete = resp.end_of_session === true || resp.endOfStream === true || msg.complete === true;
+          const chunk = stringProperty(resp, "response") ?? stringProperty(resp, "chunk") ?? "";
+          const complete = streamComplete(msg, resp, ["end_of_session", "endOfStream"]);
 
           // Extract metadata from final message
           const metadata = complete ? streamingMetadataFrom(resp) : undefined;
@@ -1592,7 +1697,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
         onExplain?: (event: ExplainEvent) => void,
       ): void {
         const recv = (message: unknown): boolean => {
-          const msg = message as { response?: DocumentRagResponse; complete?: boolean; error?: string };
+          const msg = streamingEnvelopeFrom(message);
 
           // Check for top-level error
           if (msg.error !== undefined) {
@@ -1600,29 +1705,32 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             return true;
           }
 
-          const resp = (msg.response ?? {}) as DocumentRagResponse;
+          const resp = msg.response ?? {};
 
           // Check for response-level error
-          if (resp.error !== undefined) {
-            onError(resp.error.message);
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
             return true;
           }
 
           // Handle explainability events
+          const explainId = stringProperty(resp, "explain_id");
+          const explainGraph = stringProperty(resp, "explain_graph");
           if (
-            resp.message_type === "explain" &&
-            resp.explain_id !== undefined &&
-            resp.explain_graph !== undefined
+            stringProperty(resp, "message_type") === "explain" &&
+            explainId !== undefined &&
+            explainGraph !== undefined
           ) {
             onExplain?.({
-              explainId: resp.explain_id,
-              explainGraph: resp.explain_graph,
+              explainId,
+              explainGraph,
             });
             return false;
           }
 
-          const chunk = resp.response ?? resp.chunk ?? "";
-          const complete = resp.end_of_session === true || resp.endOfStream === true || msg.complete === true;
+          const chunk = stringProperty(resp, "response") ?? stringProperty(resp, "chunk") ?? "";
+          const complete = streamComplete(msg, resp, ["end_of_session", "endOfStream"]);
 
           // Extract metadata from final message
           const metadata = complete ? streamingMetadataFrom(resp) : undefined;
@@ -1671,7 +1779,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
         onError: (error: string) => void,
       ): void {
         const recv = (message: unknown): boolean => {
-          const msg = message as { response?: TextCompletionResponse; complete?: boolean; error?: string };
+          const msg = streamingEnvelopeFrom(message);
 
           // Check for top-level error
           if (msg.error !== undefined) {
@@ -1679,17 +1787,18 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             return true;
           }
 
-          const resp = (msg.response ?? {}) as TextCompletionResponse;
+          const resp = msg.response ?? {};
 
           // Check for response-level error
-          if (resp.error !== undefined) {
-            onError(resp.error.message);
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
             return true;
           }
 
           // Text completion uses 'response' field for chunks
-          const chunk = resp.response ?? "";
-          const complete = msg.complete === true;
+          const chunk = stringProperty(resp, "response") ?? "";
+          const complete = streamComplete(msg, resp);
 
           // Extract metadata from final message
           const metadata = complete ? streamingMetadataFrom(resp) : undefined;
@@ -1729,7 +1838,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
         onError: (error: string) => void,
       ): void {
         const recv = (message: unknown): boolean => {
-          const msg = message as { response?: PromptResponse; complete?: boolean; error?: string };
+          const msg = streamingEnvelopeFrom(message);
 
           // Check for top-level error
           if (msg.error !== undefined) {
@@ -1737,17 +1846,18 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             return true;
           }
 
-          const resp = (msg.response ?? {}) as PromptResponse;
+          const resp = msg.response ?? {};
 
           // Check for response-level error
-          if (resp.error !== undefined) {
-            onError(resp.error.message);
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
             return true;
           }
 
           // Prompt service uses 'text' field for chunks
-          const chunk = resp.text ?? "";
-          const complete = msg.complete === true;
+          const chunk = stringProperty(resp, "text") ?? "";
+          const complete = streamComplete(msg, resp);
 
           // Extract metadata from final message
           const metadata = complete ? streamingMetadataFrom(resp) : undefined;

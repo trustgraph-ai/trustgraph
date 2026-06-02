@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
-import { DispatchError } from "../rpc/contract";
+import { DispatchError, DispatchStreamChunk } from "../rpc/contract";
 import { type DispatchInput, withDispatchRequestPolicy } from "../socket/effect-rpc-client";
 import { makeBaseApiWithRpc } from "../socket/trustgraph-socket";
 
@@ -57,5 +57,76 @@ describe("Effect RPC request policy", () => {
     ).resolves.toEqual({ ok: true });
 
     expect(attempts).toBe(3);
+  });
+
+  it("forwards normalized stream completion to flow streaming facades", () => {
+    const dispatchStream = vi.fn((_input: DispatchInput, receiver: (chunk: DispatchStreamChunk) => boolean) => {
+      const firstComplete = receiver(DispatchStreamChunk.make({
+        response: { response: "alpha" },
+        complete: false,
+      }));
+      const secondComplete = receiver(DispatchStreamChunk.make({
+        response: {
+          response: "omega",
+          in_token: 1,
+          out_token: 2,
+          model: "test-model",
+        },
+        complete: true,
+      }));
+      return Promise.resolve(
+        DispatchStreamChunk.make({
+          response: { response: "omega" },
+          complete: true,
+        }),
+      ).then((chunk) => {
+        expect(firstComplete).toBe(false);
+        expect(secondComplete).toBe(true);
+        return chunk;
+      });
+    });
+    const api = makeBaseApiWithRpc("alice", undefined, "ws://example.test/rpc", {
+      dispatch: vi.fn(() => Promise.resolve({ ok: true })),
+      dispatchStream,
+      close: vi.fn(() => Promise.resolve()),
+      subscribe: vi.fn(() => () => {}),
+    });
+    const chunks: Array<{
+      readonly chunk: string;
+      readonly complete: boolean;
+      readonly metadata?: { readonly in_token?: number; readonly out_token?: number; readonly model?: string };
+    }> = [];
+
+    api.flow("flow-a").graphRagStreaming(
+      "hello",
+      (chunk, complete, metadata) => {
+        chunks.push(metadata === undefined ? { chunk, complete } : { chunk, complete, metadata });
+      },
+      () => undefined,
+    );
+
+    expect(dispatchStream).toHaveBeenCalledWith(
+      {
+        scope: "flow",
+        service: "graph-rag",
+        flow: "flow-a",
+        request: {
+          query: "hello",
+          user: "alice",
+          collection: "default",
+          streaming: true,
+        },
+      },
+      expect.any(Function),
+      { timeoutMs: 60000 },
+    );
+    expect(chunks).toEqual([
+      { chunk: "alpha", complete: false },
+      {
+        chunk: "omega",
+        complete: true,
+        metadata: { in_token: 1, out_token: 2, model: "test-model" },
+      },
+    ]);
   });
 });
