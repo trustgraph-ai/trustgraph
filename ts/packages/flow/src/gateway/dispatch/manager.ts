@@ -25,7 +25,11 @@ import {
   type RequestResponseFactoryService,
 } from "@trustgraph/base";
 import type { GatewayConfig } from "../server.js";
-import { translateRequest, translateResponse } from "./serialize.js";
+import {
+  translateRequestEffect,
+  translateResponseEffect,
+  type DispatchSerializationError,
+} from "./serialize.js";
 
 export type Responder = (response: unknown, complete: boolean) => Promise<void>;
 export type EffectResponder<E = never, R = never> = (
@@ -37,6 +41,7 @@ export type DispatcherStreamError<E = never> =
   | MessagingLifecycleError
   | MessagingDeliveryError
   | MessagingTimeoutError
+  | DispatchSerializationError
   | E;
 
 // ---------- Service registry ----------
@@ -169,6 +174,7 @@ interface DispatcherRuntime {
 
 export function makeDispatcherManager(config: GatewayConfig): DispatcherManager {
   const pubsub: PubSubBackend = config.pubsub ?? makeNatsBackend(config.natsUrl ?? "nats://localhost:4222");
+  const ownsPubSub = config.pubsub === undefined;
   let runtime: DispatcherRuntime | null = null;
 
   const startEffect = Effect.fn("DispatcherManager.start")(function* () {
@@ -207,10 +213,12 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
       yield* Scope.close(current.scope, Exit.void);
     }
 
-    yield* Effect.tryPromise({
-      try: () => pubsub.close(),
-      catch: (cause) => messagingLifecycleError("gateway-dispatcher", "close-pubsub", cause),
-    });
+    if (ownsPubSub) {
+      yield* Effect.tryPromise({
+        try: () => pubsub.close(),
+        catch: (cause) => messagingLifecycleError("gateway-dispatcher", "close-pubsub", cause),
+      });
+    }
   });
 
   const stop = (): Promise<void> => Effect.runPromise(stopEffect());
@@ -306,11 +314,11 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     request: Record<string, unknown>,
   ) {
     const { requestTopic, responseTopic } = resolveGlobalTopics(kind);
+    const translated = yield* translateRequestEffect(kind, request);
     const rr = yield* getRequestorEffect(requestTopic, responseTopic, `global:${kind}`);
 
-    const translated = translateRequest(kind, request);
     const response = yield* rr.request(translated);
-    return translateResponse(kind, response);
+    return yield* translateResponseEffect(kind, response);
   });
 
   const dispatchGlobalServiceStreamingEffect = Effect.fn("DispatcherManager.dispatchGlobalServiceStreaming")(function* <
@@ -322,15 +330,15 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     responder: EffectResponder<E, R>,
   ) {
     const { requestTopic, responseTopic } = resolveGlobalTopics(kind);
+    const translated = yield* translateRequestEffect(kind, request);
     const rr = yield* getRequestorEffect(requestTopic, responseTopic, `global:${kind}`);
-    const translated = translateRequest(kind, request);
 
     yield* rr.request(translated, {
-      recipient: (response) => {
-        const translatedRes = translateResponse(kind, response);
+      recipient: Effect.fn("DispatcherManager.dispatchGlobalServiceStreaming.recipient")(function* (response) {
+        const translatedRes = yield* translateResponseEffect(kind, response);
         const complete = dispatcherManagerIsCompleteResponse(translatedRes);
-        return responder(translatedRes, complete).pipe(Effect.as(complete));
-      },
+        return yield* responder(translatedRes, complete).pipe(Effect.as(complete));
+      }),
     });
   });
 
@@ -367,15 +375,15 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     request: Record<string, unknown>,
   ) {
     const { requestTopic, responseTopic } = resolveFlowTopics(kind);
+    const translated = yield* translateRequestEffect(kind, request);
     const rr = yield* getRequestorEffect(
       requestTopic,
       responseTopic,
       `flow:${flow}:${kind}`,
     );
 
-    const translated = translateRequest(kind, request);
     const response = yield* rr.request(translated);
-    return translateResponse(kind, response);
+    return yield* translateResponseEffect(kind, response);
   });
 
   const dispatchFlowServiceStreamingEffect = Effect.fn("DispatcherManager.dispatchFlowServiceStreaming")(function* <
@@ -388,19 +396,19 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     responder: EffectResponder<E, R>,
   ) {
     const { requestTopic, responseTopic } = resolveFlowTopics(kind);
+    const translated = yield* translateRequestEffect(kind, request);
     const rr = yield* getRequestorEffect(
       requestTopic,
       responseTopic,
       `flow:${flow}:${kind}`,
     );
-    const translated = translateRequest(kind, request);
 
     yield* rr.request(translated, {
-      recipient: (response) => {
-        const translatedRes = translateResponse(kind, response);
+      recipient: Effect.fn("DispatcherManager.dispatchFlowServiceStreaming.recipient")(function* (response) {
+        const translatedRes = yield* translateResponseEffect(kind, response);
         const complete = dispatcherManagerIsCompleteResponse(translatedRes);
-        return responder(translatedRes, complete).pipe(Effect.as(complete));
-      },
+        return yield* responder(translatedRes, complete).pipe(Effect.as(complete));
+      }),
     });
   });
 
@@ -431,24 +439,27 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
    */
   const publishToTopic = (topic: string, message: unknown, id?: string): Promise<void> =>
     Effect.runPromise(
-      Effect.gen(function* () {
-        const producer = yield* Effect.tryPromise({
+      Effect.acquireUseRelease(
+        Effect.tryPromise({
           try: () => pubsub.createProducer<unknown>({ topic }),
           catch: (cause) => messagingDeliveryError(topic, "create-producer", cause),
-        });
-        const timestamp = yield* Clock.currentTimeMillis;
-        const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
-        const messageId = id ?? `pub-${timestamp}-${suffix.toString(36).padStart(6, "0")}`;
+        }),
+        (producer) =>
+          Effect.gen(function* () {
+            const timestamp = yield* Clock.currentTimeMillis;
+            const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+            const messageId = id ?? `pub-${timestamp}-${suffix.toString(36).padStart(6, "0")}`;
 
-        yield* Effect.tryPromise({
-          try: () => producer.send(message, { id: messageId }),
-          catch: (cause) => messagingDeliveryError(topic, "send", cause),
-        });
-        yield* Effect.tryPromise({
+            yield* Effect.tryPromise({
+              try: () => producer.send(message, { id: messageId }),
+              catch: (cause) => messagingDeliveryError(topic, "send", cause),
+            });
+          }),
+        (producer) => Effect.tryPromise({
           try: () => producer.close(),
           catch: (cause) => messagingDeliveryError(topic, "close-producer", cause),
-        });
-      }),
+        }),
+      ),
     );
 
   return {

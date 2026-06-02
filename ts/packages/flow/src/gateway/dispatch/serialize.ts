@@ -18,7 +18,8 @@
  * Python reference: trustgraph-base/trustgraph/messaging/translators/primitives.py
  */
 
-import type { Term, Triple } from "@trustgraph/base";
+import { errorMessage, type Term, type Triple } from "@trustgraph/base";
+import { Effect } from "effect";
 import * as S from "effect/Schema";
 
 // ---------- Client wire format type definitions ----------
@@ -54,6 +55,8 @@ export class DispatchSerializationError extends S.TaggedErrorClass<DispatchSeria
     operation: S.String,
   },
 ) {}
+
+const isDispatchSerializationError = S.is(DispatchSerializationError);
 
 interface ClientTriple {
   s: ClientTerm;
@@ -280,6 +283,21 @@ export function translateRequest(service: string, body: unknown): unknown {
   return body;
 }
 
+export const translateRequestEffect = (
+  service: string,
+  body: unknown,
+): Effect.Effect<unknown, DispatchSerializationError> =>
+  Effect.try({
+    try: () => translateRequest(service, body),
+    catch: (cause) =>
+      isDispatchSerializationError(cause)
+        ? cause
+        : DispatchSerializationError.make({
+            operation: `translate-request:${service}`,
+            message: errorMessage(cause),
+          }),
+  });
+
 /**
  * Translate an internal response body to client wire format.
  *
@@ -293,3 +311,18 @@ export function translateResponse(service: string, response: unknown): unknown {
   }
   return response;
 }
+
+export const translateResponseEffect = (
+  service: string,
+  response: unknown,
+): Effect.Effect<unknown, DispatchSerializationError> =>
+  Effect.try({
+    try: () => translateResponse(service, response),
+    catch: (cause) =>
+      isDispatchSerializationError(cause)
+        ? cause
+        : DispatchSerializationError.make({
+            operation: `translate-response:${service}`,
+            message: errorMessage(cause),
+          }),
+  });

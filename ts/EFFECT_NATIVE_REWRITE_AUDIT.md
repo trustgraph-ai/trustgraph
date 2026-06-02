@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 text completion
-provider effectful layer slice:
+Current signal counts from `ts/packages` after the 2026-06-02 gateway dispatcher
+ownership and serialization slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -157,6 +157,11 @@ Notes:
   `makeTextCompletionLayer(makeXProviderEffect(config))`. SDK construction and
   config lookup now live in Effect; sync `makeXProvider` exports remain
   compatibility facades.
+- The gateway dispatcher ownership and serialization slice did not change broad
+  signal counts. It stopped closing injected pubsub backends, brackets
+  one-shot publish producers with `Effect.acquireUseRelease`, and routes
+  gateway request/response translation through `Effect.try` wrappers returning
+  tagged `DispatchSerializationError` failures.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -1098,6 +1103,31 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Gateway Dispatcher Ownership And Serialization Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `makeDispatcherManager` now tracks whether it owns the pubsub backend and
+    no longer closes injected `PubSubBackend` instances on `stop()`.
+  - `publishToTopic` now uses `Effect.acquireUseRelease` so the one-shot
+    producer is closed even when `send` fails.
+  - Gateway dispatch paths now call `translateRequestEffect` and
+    `translateResponseEffect`, which wrap serialization with `Effect.try` and
+    return tagged `DispatchSerializationError` failures.
+  - Streaming dispatch recipients are named `Effect.fn` callbacks, satisfying
+    strict Effect diagnostics while preserving responder behavior.
+  - Tests cover injected backend ownership, typed serialization failure before
+    requestor startup, and producer close on send failure.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/gateway-dispatcher.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1140,6 +1170,10 @@ Notes:
     callbacks instead of nested `Effect.runPromiseWith`, and client streaming
     facade callbacks now decode the legacy envelope through Schema before
     applying service-specific public callback semantics.
+  - Gateway dispatcher ownership and serialization cleanup is complete:
+    injected pubsub backends are not closed by the manager, one-shot producers
+    are acquire/use/release bracketed, and serialization failures are typed
+    Effect errors.
   - Do not make `gateway/rpc-protocol.ts` the next cleanup target: it is a
     Fastify socket compatibility bridge while the public Effect RPC server
     layers require SocketServer or Effect HTTP routing.
@@ -1192,28 +1226,6 @@ Notes:
   - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
     config-push stream tests.
 
-### P1: Gateway Dispatcher Ownership And Serialization
-
-- TrustGraph evidence:
-  - `ts/packages/flow/src/gateway/dispatch/manager.ts`
-  - `ts/packages/flow/src/gateway/dispatch/serialize.ts`
-  - `ts/packages/flow/src/gateway/server.ts`
-- Effect primitives:
-  - `Layer`, `Scope`, `Effect.acquireUseRelease`, `Effect.try`, `Result.try`,
-    and typed dispatch errors.
-- Rewrite shape:
-  - Track whether the dispatcher owns `PubSubBackend` so injected backends are
-    not closed.
-  - Use `Effect.acquireUseRelease` for one-shot gateway producers so producer
-    close runs even when send fails.
-  - Replace throwing gateway serialization helpers with Effect/Result-returning
-    helpers mapped to typed dispatch or wire errors.
-  - Longer term, move `createGateway` to a scoped `createGatewayEffect` while
-    keeping Fastify route `Effect.runPromise` calls as host boundaries.
-- Tests:
-  - Injected pubsub is not closed, one-shot producer closes on send failure,
-    and malformed gateway payloads return typed dispatch errors.
-
 ### P2: Effect AI Provider Adapter Cleanup
 
 - TrustGraph evidence:
@@ -1265,10 +1277,9 @@ Notes:
 
 ## Recommended PR Order
 
-1. Gateway dispatcher ownership and serialization.
-2. Broker backend Effect-native runtime.
-3. Effect AI provider adapter cleanup.
-4. MCP parity/deletion decision and workbench platform polish.
+1. Broker backend Effect-native runtime.
+2. Effect AI provider adapter cleanup.
+3. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 

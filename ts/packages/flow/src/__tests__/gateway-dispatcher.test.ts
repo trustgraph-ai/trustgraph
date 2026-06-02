@@ -96,6 +96,7 @@ class DispatchBackend implements PubSubBackend {
   readonly consumerOptions: CreateConsumerOptions[] = [];
   readonly producersByTopic = new Map<string, RecordingProducer<unknown>>();
   readonly consumersByTopic = new Map<string, TopicConsumer<unknown>>();
+  readonly failSendTopics = new Set<string>();
 
   async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
     this.producerOptions.push(options);
@@ -124,6 +125,10 @@ class DispatchBackend implements PubSubBackend {
   }
 
   private handleSend(topic: string, message: unknown, properties?: Record<string, string>): void {
+    if (this.failSendTopics.has(topic)) {
+      throw "send failed";
+    }
+
     const id = properties?.id ?? "";
     if (topic === "tg.flow.config-request") {
       this.push("tg.flow.config-response", { ok: true, echo: message }, id);
@@ -167,7 +172,49 @@ describe("gateway dispatcher manager", () => {
     expect(backend.consumerOptions.filter((options) => options.topic === "tg.flow.config-response")).toHaveLength(1);
     expect(backend.producersByTopic.get("tg.flow.config-request")?.closeCount).toBe(1);
     expect(backend.consumersByTopic.get("tg.flow.config-response")?.closeCount).toBe(1);
-    expect(backend.closeCount).toBe(1);
+    expect(backend.closeCount).toBe(0);
+  });
+
+  it("does not start requestors when request serialization fails", async () => {
+    const backend = new DispatchBackend();
+    const manager = makeDispatcherManager({
+      port: 0,
+      metricsPort: 0,
+      pubsub: backend,
+    });
+
+    await expect(
+      manager.dispatchGlobalService("knowledge", { term: { t: "t" } }),
+    ).rejects.toMatchObject({
+      _tag: "DispatchSerializationError",
+      operation: "client-term-to-internal",
+    });
+    await manager.stop();
+
+    expect(backend.producerOptions).toHaveLength(0);
+    expect(backend.consumerOptions).toHaveLength(0);
+    expect(backend.closeCount).toBe(0);
+  });
+
+  it("closes one-shot publish producers when send fails", async () => {
+    const backend = new DispatchBackend();
+    backend.failSendTopics.add("tg.flow.ingest");
+    const manager = makeDispatcherManager({
+      port: 0,
+      metricsPort: 0,
+      pubsub: backend,
+    });
+
+    await expect(
+      manager.publishToTopic("tg.flow.ingest", { text: "hello" }, "msg-1"),
+    ).rejects.toMatchObject({
+      _tag: "MessagingDeliveryError",
+      operation: "send",
+    });
+    await manager.stop();
+
+    expect(backend.producersByTopic.get("tg.flow.ingest")?.closeCount).toBe(1);
+    expect(backend.closeCount).toBe(0);
   });
 
   it("streams responses until the centralized completion predicate is true", async () => {
