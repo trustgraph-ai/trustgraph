@@ -12,18 +12,18 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Base
-producer/requestor spec accessor slice:
+Current signal counts from `ts/packages` after the 2026-06-02 native PubSub
+boundary slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 168 |
-| `Map<` | 84 |
+| `Effect.runPromise` | 165 |
+| `Map<` | 82 |
 | `WebSocket` | 62 |
-| `new Map` | 62 |
+| `new Map` | 60 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
-| `receive(` | 18 |
+| `receive(` | 17 |
 | `while (` | 9 |
 | `new Error` | 8 |
 | `new Promise` | 10 |
@@ -88,6 +88,11 @@ Notes:
   migrated flow service producer/requestor lookups off caller-chosen generic
   string calls. Spec object handles are scoped per `Flow` through WeakMaps and
   finalizers delete only the handle they registered.
+- The native PubSub boundary slice removed the unused legacy
+  `messaging/subscriber.ts` async queue/fanout implementation. Effect's native
+  `PubSub` is an in-process hub and does not replace the broker-backed
+  `PubSubBackend`/NATS boundary, but it should be preferred for future
+  in-process broadcast/fanout needs.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -688,6 +693,31 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Native PubSub Boundary Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - Confirmed Effect's native `PubSub` module is an in-process asynchronous hub
+    with scoped subscriptions, not a NATS/Pulsar-compatible broker boundary.
+  - Kept TrustGraph's `PubSubBackend` and `PubSub` service as the broker
+    adapter layer because it owns topics, broker producers/consumers,
+    acknowledgement, schema codecs, and backend lifecycle.
+  - Removed the unused legacy `ts/packages/base/src/messaging/subscriber.ts`
+    implementation, which duplicated in-process async queue/fanout behavior.
+  - Removed the corresponding `makeAsyncQueue`, `makeSubscriber`,
+    `Subscriber`, and `AsyncQueue` barrel exports from
+    `ts/packages/base/src/messaging/index.ts`.
+- Remaining:
+  - Future in-process fanout or request-streaming code should use
+    `effect/PubSub`, `Queue`, `Stream.fromPubSub`, or `Channel.fromPubSub`
+    rather than adding another local async queue implementation.
+  - Do not replace `PubSubBackend` with `effect/PubSub` unless the code path is
+    explicitly local-only and does not need broker semantics.
+- Verification:
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -712,6 +742,9 @@ Notes:
   - Subscriber queues/maps and dynamic flow state should continue moving
     toward `Queue`, `Deferred`, `SynchronizedRef`, `Schedule`, and scoped
     layers.
+  - The legacy `messaging/subscriber.ts` async queue/fanout implementation is
+    removed. Use native `effect/PubSub` for future in-process fanout, while
+    keeping `PubSubBackend` for broker-backed messaging.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -813,6 +846,10 @@ Do not flag these as rewrite blockers without additional proof:
 - Base `AsyncProcessor`, `Flow`, and `FlowProcessor` callable-plus-newable
   export assertions are compatibility boundaries unless the public constructor
   API is intentionally redesigned.
+- TrustGraph `PubSubBackend` / backend `PubSub` service is a broker adapter
+  boundary for NATS/Pulsar-style topics, acknowledgement, schema codecs, and
+  backend lifecycle. Effect's native `PubSub` can replace in-process fanout
+  helpers, but not the distributed broker abstraction by itself.
 
 ## Acceptance For Final Loop Completion
 
