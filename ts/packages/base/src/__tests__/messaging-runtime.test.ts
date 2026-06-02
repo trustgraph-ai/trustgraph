@@ -115,6 +115,41 @@ class RuntimeBackend implements PubSubBackend {
   }
 }
 
+class ConsumerHandle {
+  closeCount = 0;
+}
+
+class ConcurrentConsumerBackend implements PubSubBackend {
+  readonly consumerOptions: Array<CreateConsumerOptions> = [];
+  readonly consumers: Array<ConsumerHandle> = [];
+
+  async createProducer<T>(_options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
+    return {
+      send: async () => {},
+      flush: async () => {},
+      close: async () => {},
+    };
+  }
+
+  async createConsumer<T>(options: CreateConsumerOptions<T>): Promise<BackendConsumer<T>> {
+    const handle = new ConsumerHandle();
+    this.consumerOptions.push(options);
+    this.consumers.push(handle);
+
+    return {
+      receive: async () => null,
+      acknowledge: async () => {},
+      negativeAcknowledge: async () => {},
+      unsubscribe: async () => {},
+      close: async () => {
+        handle.closeCount += 1;
+      },
+    };
+  }
+
+  async close(): Promise<void> {}
+}
+
 const flowContext: FlowContext = {
   id: "processor",
   name: "default",
@@ -176,6 +211,34 @@ describe("Effect-native messaging runtime", () => {
       expect(consumer.acknowledged).toEqual([message]);
       expect(consumer.nacked).toEqual([]);
       expect(consumer.closeCount).toBeGreaterThan(0);
+    }),
+  );
+
+  it.effect(
+    "creates and closes one backend consumer per concurrency worker",
+    Effect.fnUntraced(function* () {
+      const backend = new ConcurrentConsumerBackend();
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const consumer = yield* runEffectConsumerScoped<string>(
+            {
+              topic: "tg.test.consumer",
+              subscription: "sub",
+              concurrency: 3,
+              receiveTimeoutMs: 1,
+              errorBackoffMs: 1,
+              handler: () => Effect.void,
+            },
+            flowContext,
+          );
+          yield* consumer.stop;
+          yield* consumer.stop;
+        }).pipe(Effect.provide(PubSub.layer(backend))),
+      );
+
+      expect(backend.consumerOptions).toHaveLength(3);
+      expect(backend.consumers.map((consumer) => consumer.closeCount)).toEqual([1, 1, 1]);
     }),
   );
 

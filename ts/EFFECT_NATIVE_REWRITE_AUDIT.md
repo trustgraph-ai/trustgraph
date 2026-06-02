@@ -13,7 +13,7 @@ Verified source roots:
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
 Current signal counts from `ts/packages` after the 2026-06-02 consumer
-rate-limit retry slice:
+concurrency ownership slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -116,6 +116,11 @@ Notes:
   now retry with `Schedule.spaced` until success or a tagged rate-limit timeout.
   The `new Error` count dropped by one because a touched consumer test fixture
   no longer uses a normal `Error`.
+- The consumer concurrency ownership slice changed the Effect-native consumer
+  runtime so `concurrency > 1` allocates one backend consumer per worker instead
+  of sharing a single `BackendConsumer.receive()` handle. `stop` is now
+  idempotent through `Ref`, so explicit stop and scoped finalizers do not close
+  workers twice.
 - The gateway streaming callback slice added Effect-returning dispatcher
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
@@ -1238,6 +1243,26 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: Consumer Concurrency Ownership Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `makeEffectConsumerFromPubSub` now creates one backend consumer per
+    concurrency worker rather than sharing a single backend consumer across
+    parallel receive loops.
+  - Consumer runtime `stop` is idempotent via `Ref.getAndSet`, so explicit
+    `consumer.stop` and scope finalization do not double-close worker handles.
+  - Added Effect-native runtime coverage proving `concurrency: 3` creates and
+    closes three independent backend consumers exactly once.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/messaging-runtime.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1273,9 +1298,10 @@ Notes:
     behavior now stay typed. Remaining NATS work is scoped backend/layer
     construction and stream/consumer state ownership.
   - Consumer rate-limit retry timeout behavior is now wired in both legacy and
-    Effect-native consumer paths. Remaining consumer runtime work should focus
-    on per-worker backend consumer ownership and request/response pending
-    shutdown semantics.
+    Effect-native consumer paths. Effect-native consumer concurrency now owns
+    one backend consumer per worker. Remaining consumer runtime work should
+    focus on request/response pending shutdown semantics and the legacy
+    consumer facade's blocking compatibility shape.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -1350,7 +1376,10 @@ Notes:
     create-on-failure behavior. Future backend slices should move
     connection/stream state into scoped Effect services.
   - Treat rate-limit retry timeout semantics as complete; next consumer slices
-    should focus on concurrency ownership and shutdown, not retry policy.
+    should focus on shutdown, not retry policy.
+  - Treat Effect-native per-worker consumer ownership as complete; do not flag
+    `makeEffectConsumerFromPubSub` concurrency for shared backend receive
+    handles.
 - Tests:
   - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
     config-push stream tests.

@@ -3,7 +3,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Context, Duration, Effect, Fiber, Layer, Queue, Result, Schedule, Scope, Stream } from "effect";
+import { Context, Duration, Effect, Fiber, Layer, Queue, Ref, Result, Schedule, Scope, Stream } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type {
@@ -346,20 +346,32 @@ export const makeEffectConsumerFromPubSub = Effect.fn("makeEffectConsumerFromPub
     ...(options.initialPosition === undefined ? {} : { initialPosition: options.initialPosition }),
     ...(options.schema === undefined ? {} : { schema: options.schema }),
   };
-  const backend = yield* pubsub.createConsumer<T>(createOptions);
   const concurrency = Math.max(1, options.concurrency ?? 1);
   const workerIndexes = Array.from({ length: concurrency }, (_value, index) => index);
-  const fibers = yield* Effect.forEach(workerIndexes, () =>
-    consumerLoop(backend, options, flow, {
-      ...config,
-      rateLimitRetryMs: options.rateLimitRetryMs ?? config.rateLimitRetryMs,
-      rateLimitTimeoutMs: options.rateLimitTimeoutMs ?? config.rateLimitTimeoutMs,
-    }).pipe(Effect.forkChild),
+  const workerConfig = {
+    ...config,
+    rateLimitRetryMs: options.rateLimitRetryMs ?? config.rateLimitRetryMs,
+    rateLimitTimeoutMs: options.rateLimitTimeoutMs ?? config.rateLimitTimeoutMs,
+  };
+  const workers = yield* Effect.forEach(workerIndexes, () =>
+    Effect.gen(function* () {
+      const backend = yield* pubsub.createConsumer<T>(createOptions);
+      const fiber = yield* consumerLoop(backend, options, flow, workerConfig).pipe(Effect.forkChild);
+      return { backend, fiber };
+    }),
   );
+  const stopped = yield* Ref.make(false);
 
   const stop = Effect.fn(`Consumer.stop:${options.topic}`)(function* () {
-    yield* Effect.forEach(fibers, Fiber.interrupt, { discard: true });
-    yield* closeConsumerBackend(backend, options.topic, options.subscription);
+    const alreadyStopped = yield* Ref.getAndSet(stopped, true);
+    if (alreadyStopped) return;
+
+    yield* Effect.forEach(workers, (worker) => Fiber.interrupt(worker.fiber), { discard: true });
+    yield* Effect.forEach(
+      workers,
+      (worker) => closeConsumerBackend(worker.backend, options.topic, options.subscription),
+      { discard: true },
+    );
   });
 
   yield* Effect.addFinalizer(() =>
@@ -375,7 +387,7 @@ export const makeEffectConsumerFromPubSub = Effect.fn("makeEffectConsumerFromPub
   );
 
   return {
-    fibers,
+    fibers: workers.map((worker) => worker.fiber),
     stop: stop(),
   } satisfies EffectConsumer;
 });
