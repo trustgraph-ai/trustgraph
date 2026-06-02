@@ -3,7 +3,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Context, Duration, Effect, Fiber, Layer, Queue, Ref, Result, Schedule, Scope, Stream } from "effect";
+import { Context, Deferred, Duration, Effect, Fiber, Layer, Queue, Ref, Result, Schedule, Scope, Stream } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type {
@@ -92,7 +92,7 @@ export interface EffectRequestResponse<TReq, TRes> {
   readonly request: <E = never, R = never>(
     request: TReq,
     options?: EffectRequestOptions<TRes, E, R>,
-  ) => Effect.Effect<TRes, MessagingDeliveryError | MessagingTimeoutError | E, R>;
+  ) => Effect.Effect<TRes, MessagingDeliveryError | MessagingLifecycleError | MessagingTimeoutError | E, R>;
   readonly stop: Effect.Effect<void, MessagingLifecycleError | MessagingDeliveryError>;
 }
 
@@ -476,12 +476,17 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
   };
   const backend = yield* pubsub.createConsumer<TRes>(createOptions);
   const subscribers = new Map<string, Queue.Queue<TRes>>();
+  const stoppedSignal = yield* Deferred.make<never, MessagingLifecycleError>();
   const fiber = yield* dispatchResponseLoop(backend, options.responseTopic, subscribers, config).pipe(Effect.forkScoped);
   let stopped = false;
 
   const stop = Effect.fn(`RequestResponse.stop:${options.requestTopic}`)(function* () {
     if (stopped) return;
     stopped = true;
+    yield* Deferred.fail(
+      stoppedSignal,
+      messagingLifecycleError(`${options.requestTopic}:${options.responseTopic}`, "stop", "RequestResponse stopped"),
+    ).pipe(Effect.ignore);
     yield* Fiber.interrupt(fiber);
     yield* producer.close;
     yield* closeConsumerBackend(backend, options.responseTopic, options.subscription);
@@ -517,6 +522,7 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
           Effect.gen(function* () {
             yield* producer.send(id, request);
             const result = yield* waitForResponse(queue, requestOptions).pipe(
+              Effect.raceFirst(Deferred.await(stoppedSignal)),
               Effect.timeoutOption(Duration.millis(timeoutMs)),
             );
             return yield* O.match(result, {

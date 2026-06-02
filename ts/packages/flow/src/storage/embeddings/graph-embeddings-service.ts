@@ -20,6 +20,7 @@ import {
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
+  type MessagingLifecycleError,
   type MessagingTimeoutError,
   type EntityContexts,
   type EmbeddingsRequest,
@@ -41,6 +42,7 @@ type GraphEmbeddingsStoreRequirements = QdrantGraphEmbeddingsStoreService;
 type GraphEmbeddingsStoreError =
   | FlowResourceNotFoundError
   | MessagingDeliveryError
+  | MessagingLifecycleError
   | MessagingTimeoutError
   | QdrantGraphEmbeddingsStoreError;
 

@@ -32,6 +32,7 @@ import {
   type LibrarianRequest,
   type LibrarianResponse,
   type MessagingDeliveryError,
+  type MessagingLifecycleError,
   type MessagingTimeoutError,
   type Spec,
   errorMessage,
@@ -54,6 +55,7 @@ export class PdfDecoderError extends S.TaggedErrorClass<PdfDecoderError>()(
 type PdfDecoderHandlerError =
   | FlowResourceNotFoundError
   | MessagingDeliveryError
+  | MessagingLifecycleError
   | MessagingTimeoutError
   | PdfDecoderError;
 

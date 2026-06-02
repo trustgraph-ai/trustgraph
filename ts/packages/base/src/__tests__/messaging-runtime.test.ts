@@ -408,8 +408,8 @@ describe("Effect-native messaging runtime", () => {
   it.effect(
     "fails request-response calls with a typed timeout",
     Effect.fnUntraced(function* () {
-      const responseConsumer = new ScriptedConsumer<string>();
-      const backend = new RuntimeBackend(responseConsumer as BackendConsumer<unknown>);
+      const responseConsumer = new ScriptedConsumer<unknown>();
+      const backend = new RuntimeBackend(responseConsumer);
 
       const error = yield* Effect.scoped(
         Effect.gen(function* () {
@@ -437,6 +437,41 @@ describe("Effect-native messaging runtime", () => {
       expect(error._tag).toBe("MessagingTimeoutError");
       expect(error.operation).toBe("request-response");
       expect(error.timeoutMs).toBe(5);
+    }),
+  );
+
+  it.effect(
+    "fails pending request-response calls when the runtime stops",
+    Effect.fnUntraced(function* () {
+      const responseConsumer = new ScriptedConsumer<string>();
+      const backend = new RuntimeBackend(responseConsumer as BackendConsumer<unknown>);
+
+      const error = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const requestor = yield* makeEffectRequestResponseFromPubSub<string, string>(
+            PubSub.fromBackend(backend),
+            {
+              ...defaultMessagingRuntimeConfig,
+              consumerReceiveTimeoutMs: 1,
+            },
+            {
+              requestTopic: "tg.test.request",
+              responseTopic: "tg.test.response",
+              subscription: "sub",
+            },
+          );
+          const fiber = yield* requestor.request("request", { timeoutMs: 1_000 }).pipe(Effect.forkChild);
+          yield* TestClock.adjust(Duration.millis(5));
+          yield* requestor.stop;
+          return yield* Fiber.join(fiber).pipe(Effect.flip);
+        }),
+      );
+
+      expect(error).toMatchObject({
+        _tag: "MessagingLifecycleError",
+        operation: "stop",
+        resource: "tg.test.request:tg.test.response",
+      });
     }),
   );
 
