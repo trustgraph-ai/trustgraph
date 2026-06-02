@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { FlowsApi } from "../socket/trustgraph-socket";
+import { FlowsApi, TrustGraphSocketError } from "../socket/trustgraph-socket";
 import { FlowResponse } from "../models/messages";
 
 describe("FlowsApi", () => {
@@ -194,6 +194,15 @@ describe("FlowsApi", () => {
       );
       expect(result).toEqual(flowDefinition); // Result should be parsed JSON
     });
+
+    it("rejects invalid flow JSON with a tagged socket error", async () => {
+      const mockResponse: FlowResponse = {
+        flow: "not json",
+      };
+      mockApi.makeRequest.mockResolvedValue(mockResponse);
+
+      await expect(flowsApi.getFlow("broken-flow")).rejects.toBeInstanceOf(TrustGraphSocketError);
+    });
   });
 
   describe("getFlowBlueprint", () => {
@@ -216,6 +225,29 @@ describe("FlowsApi", () => {
         60000,
       );
       expect(result).toEqual(blueprintDefinition); // Result should be parsed JSON
+    });
+
+    it("rejects invalid blueprint JSON with a tagged socket error", async () => {
+      const mockResponse: FlowResponse = {
+        "blueprint-definition": "not json",
+      };
+      mockApi.makeRequest.mockResolvedValue(mockResponse);
+
+      await expect(flowsApi.getFlowBlueprint("broken-blueprint")).rejects.toBeInstanceOf(TrustGraphSocketError);
+    });
+  });
+
+  describe("flow errors", () => {
+    it("rejects start-flow response errors with a tagged socket error", async () => {
+      const mockResponse: FlowResponse = {
+        error: {
+          type: "flow-error",
+          message: "nope",
+        },
+      };
+      mockApi.makeRequest.mockResolvedValue(mockResponse);
+
+      await expect(flowsApi.startFlow("id", "default", "desc")).rejects.toBeInstanceOf(TrustGraphSocketError);
     });
   });
 });

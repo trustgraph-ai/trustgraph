@@ -8,7 +8,7 @@ import {
   makeEffectRpcClient,
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
-import { Clock, Effect } from "effect";
+import { Clock, Effect, Option, Result, Schema as S } from "effect";
 
 // Import all message types for different services
 import type {
@@ -127,6 +127,21 @@ function toErrorMessage(value: unknown, fallback: string): string {
   return fallback;
 }
 
+export class TrustGraphSocketError extends S.TaggedErrorClass<TrustGraphSocketError>()(
+  "TrustGraphSocketError",
+  {
+    message: S.String,
+    operation: S.String,
+  },
+) {}
+
+const socketError = (operation: string, message: string): TrustGraphSocketError =>
+  TrustGraphSocketError.make({ operation, message });
+
+function throwSocketError(operation: string, message: string): never {
+  throw socketError(operation, message);
+}
+
 function dispatchOptions(
   timeoutMs: number | undefined,
   retries: number | undefined,
@@ -165,9 +180,11 @@ function streamingMetadataFrom(source: {
 
 function throwIfResponseError(error: ResponseError | undefined): void {
   if (error !== undefined) {
-    throw new Error(error.message);
+    throwSocketError("response-error", error.message);
   }
 }
+
+const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
 
 export interface ConfigValueEntry {
   workspace?: string;
@@ -194,11 +211,15 @@ function asConfigValues(response: unknown): ConfigValueEntry[] {
 
 function parseConfigJson(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
+  return Option.getOrElse(decodeJsonUnknown(value), () => value);
+}
+
+function parseResponseJson(value: string | undefined, operation: string): unknown {
+  const parsed = Option.getOrUndefined(decodeJsonUnknown(value ?? "{}"));
+  if (parsed === undefined) {
+    return throwSocketError(operation, "Response JSON could not be decoded");
   }
+  return parsed;
 }
 
 const currentEpochSeconds = (): number =>
@@ -526,10 +547,16 @@ export function makeBaseApi(
   const notifyStateChange = () => {
     const state = getConnectionState();
     connectionStateListeners.forEach((listener) => {
-      try {
-        listener(state);
-      } catch (error) {
-        logClientError("Error in connection state listener", error);
+      const result = Result.try({
+        try: () => listener(state),
+        catch: (error) =>
+          socketError(
+            "connection-state-listener",
+            toErrorMessage(error, "Error in connection state listener"),
+          ),
+      });
+      if (Result.isFailure(result)) {
+        logClientError("Error in connection state listener", result.failure);
       }
     });
   };
@@ -1038,7 +1065,7 @@ export function makeFlowsApi(api: BaseApi) {
             },
             60000,
           )
-          .then((r) => JSON.parse(r.flow ?? "{}")); // Parse JSON flow definition
+          .then((r) => parseResponseJson(r.flow, "get-flow"));
       },
 
 
@@ -1188,7 +1215,7 @@ export function makeFlowsApi(api: BaseApi) {
             },
             60000,
           )
-          .then((r) => JSON.parse(r["blueprint-definition"] ?? "{}"));
+          .then((r) => parseResponseJson(r["blueprint-definition"], "get-blueprint"));
       },
 
 
@@ -1236,7 +1263,7 @@ export function makeFlowsApi(api: BaseApi) {
           .makeRequest<FlowRequest, FlowResponse>("flow", request, 30000)
           .then((response) => {
             if (response.error !== undefined) {
-              throw new Error(toErrorMessage(response.error, "Flow start failed"));
+              throwSocketError("start-flow", toErrorMessage(response.error, "Flow start failed"));
             }
             return response;
           });
@@ -2023,7 +2050,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           )
           .then((r) => {
             if (r.error !== undefined) {
-              throw new Error(r.error.message);
+              throwSocketError("row-embeddings-query", r.error.message);
             }
             return r.matches ?? [];
           });
@@ -2475,7 +2502,7 @@ export function makeCollectionManagementApi(api: BaseApi) {
             ) {
               return r.collections[0];
             }
-            throw new Error("Failed to update collection");
+            return throwSocketError("update-collection", "Failed to update collection");
           });
       },
 

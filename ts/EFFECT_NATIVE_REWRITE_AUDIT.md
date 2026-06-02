@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Client
-WebSocket adapter slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Client socket
+tagged error slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -25,9 +25,9 @@ WebSocket adapter slice:
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
 | `while (` | 9 |
-| `new Error` | 12 |
+| `new Error` | 8 |
 | `new Promise` | 10 |
-| `JSON.parse` | 7 |
+| `JSON.parse` | 4 |
 | `localStorage` | 8 |
 | `JSON.stringify` | 6 |
 | `setTimeout` | 4 |
@@ -54,6 +54,10 @@ Notes:
   the previous constructor assertions.
 - The `new Error` count dropped because `websocket-adapter.ts` now throws
   `S.TaggedErrorClass` adapter errors.
+- The latest client socket slice removed the remaining production
+  `trustgraph-socket.ts` normal `Error`, raw `JSON.parse`, and listener
+  `try`/`catch` matches. The remaining client socket modernization signal is
+  the shared `newableFactory` constructor assertion pattern.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -406,6 +410,30 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Client Socket Tagged Error And JSON Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` now models socket API
+    failures with `TrustGraphSocketError` via `S.TaggedErrorClass`.
+  - Flow/blueprint JSON response parsing now uses Schema decoding through
+    `S.UnknownFromJsonString` instead of raw `JSON.parse`.
+  - Token-cost config JSON keeps the previous invalid-string fallback behavior
+    while decoding through Schema/Option.
+  - Connection-state listener isolation now uses `Result.try` and typed socket
+    errors instead of a local `try`/`catch`.
+  - Flow start, row embeddings, collection update, and response-error
+    failures now reject with tagged socket errors instead of normal `Error`.
+  - Flow API tests cover invalid JSON and response-error rejections.
+- Verification:
+  - `bun run --cwd ts/packages/client build`
+  - `bun run --cwd ts/packages/client test -- src/__tests__/flows-api.test.ts`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/client test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -431,8 +459,7 @@ Notes:
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
     Remaining client cleanup should focus on `trustgraph-socket.ts`
-    higher-level normal `Error` throws/JSON parsing and the client newable
-    factory assertions.
+    and `effect-rpc-client.ts` newable factory assertions.
   - Knowledge streams still duplicate legacy end-of-stream handling.
   - WebSocket adapter host fallbacks now use `Result.try` and tagged adapter
     errors while preserving sync exports.
@@ -461,8 +488,6 @@ Notes:
   - `EffectRpcClient` is now an internal managed runtime with Promise
     compatibility facades.
   - Expose Promise-returning methods through a thin adapter.
-  - Finish replacing remaining normal client `Error` constructors with tagged
-    errors before they cross into shared Effect code.
   - Replace remaining client newable factory assertions with a typed factory
     shape that preserves current constructor/function compatibility.
 - Tests:
