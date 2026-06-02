@@ -337,7 +337,7 @@ class Api:
             from . bulk_client import BulkClient
             # Extract base URL (remove api/v1/ suffix)
             base_url = self.url.rsplit("api/v1/", 1)[0].rstrip("/")
-            self._bulk_client = BulkClient(base_url, self.timeout, self.token)
+            self._bulk_client = BulkClient(base_url, self.timeout, self.token, workspace=self.workspace)
         return self._bulk_client
 
     def metrics(self):
@@ -462,7 +462,7 @@ class Api:
             from . async_bulk_client import AsyncBulkClient
             # Extract base URL (remove api/v1/ suffix)
             base_url = self.url.rsplit("api/v1/", 1)[0].rstrip("/")
-            self._async_bulk_client = AsyncBulkClient(base_url, self.timeout, self.token)
+            self._async_bulk_client = AsyncBulkClient(base_url, self.timeout, self.token, workspace=self.workspace)
         return self._async_bulk_client
 
     def async_metrics(self):
