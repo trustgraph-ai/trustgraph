@@ -459,6 +459,28 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: FlowManager Effect.fn Normalization Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/flow-manager/service.ts` no longer defines
+    reusable helpers as arrow functions that immediately return
+    `Effect.gen(...)`.
+  - Config request, blueprint refresh, flow refresh, blueprint handlers, flow
+    handlers, config push/delete, resource close, consume, run, and local
+    operation handling now use named `Effect.fn` providers.
+  - Hot local helpers for one-message consumption and response sending use
+    `Effect.fnUntraced`.
+  - `pushFlowsConfigEffect` keeps its best-effort logging/swallowing contract
+    through the `Effect.fn` pipeable form instead of a wrapper generator.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/flow-manager-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ### 2026-06-02: Librarian Schema And Assertion Cleanup Slice
 
 - Status: migrated and root-verified.
@@ -1750,9 +1772,9 @@ Notes:
     `MutableHashSet<string>`. Short-lived local traversal sets remain no-ops.
   - Gateway dispatcher static service registries, streaming membership, and
     scoped requestor cache now use Effect `HashMap`/`HashSet`.
-  - FlowManager and sibling service `() => Effect.gen(...)` factories remain a
-    broad mechanical `Effect.fn` / `Effect.fnUntraced` cleanup, best handled
-    after Duration and small collection slices.
+  - FlowManager `() => Effect.gen(...)` factories are normalized to
+    `Effect.fn` / `Effect.fnUntraced`. Sibling service factories still need a
+    focused scan before treating them as valid migration targets.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
     Effect collections later; local pure traversal maps/sets remain no-ops.
 
@@ -1935,9 +1957,10 @@ Notes:
 ## Recommended PR Order
 
 1. MCP protocol parity tests and legacy stdio flip/removal decision.
-2. FlowManager/service `Effect.fn` normalization.
-3. Flow/client RPC stream and remaining service operation `Match` follow-ups.
-4. Long-lived ref-backed `HashMap` state cleanup where clone helpers remain.
+2. Flow/client RPC stream and remaining service operation `Match` follow-ups.
+3. Long-lived ref-backed `HashMap` state cleanup where clone helpers remain.
+4. Sibling service `Effect.fn` normalization where arrow-returned generators
+   still appear.
 
 ## No-Op Rules
 
