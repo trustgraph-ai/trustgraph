@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 gateway dispatcher
-ownership and serialization slice:
+Current signal counts from `ts/packages` after the 2026-06-02 base producer
+scoped runtime slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -21,8 +21,8 @@ ownership and serialization slice:
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
 | `Layer.succeed` | 12 |
-| `Map<` | 88 |
-| `WebSocket` | 74 |
+| `Map<` | 82 |
+| `WebSocket` | 64 |
 | `new Map` | 60 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
@@ -96,6 +96,11 @@ Notes:
   `PubSub` is an in-process hub and does not replace the broker-backed
   `PubSubBackend`/NATS boundary, but it should be preferred for future
   in-process broadcast/fanout needs.
+- The base producer scoped runtime slice moved the legacy `makeProducer`
+  Promise facade onto the existing `makeEffectProducerFromPubSub` scoped
+  factory. Public `start`/`send`/`stop` remain Promise compatibility
+  boundaries, while producer allocation, flush, and finalizer close now go
+  through the Effect runtime path.
 - The gateway streaming callback slice added Effect-returning dispatcher
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
@@ -1128,6 +1133,29 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Base Producer Scoped Runtime Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Kept `PubSubBackend` as the broker adapter boundary; Effect native
+    `PubSub` remains an in-process primitive and is not a replacement for
+    broker-backed topics, subscriptions, acknowledgements, codecs, or backend
+    lifecycle.
+  - Reworked `makeProducer` so the legacy Promise facade allocates producers
+    through `makeEffectProducerFromPubSub` inside a closeable `Scope`.
+  - `stop()` now flushes the Effect producer and closes the scope with the
+    registered producer finalizer, including the flush-failure path.
+  - Added focused producer facade coverage for send routing, idempotent stop,
+    tagged not-started lifecycle errors, and close-on-flush-failure behavior.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/base build`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/producer.test.ts`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1155,6 +1183,10 @@ Notes:
   - The legacy `messaging/subscriber.ts` async queue/fanout implementation is
     removed. Use native `effect/PubSub` for future in-process fanout, while
     keeping `PubSubBackend` for broker-backed messaging.
+  - The legacy producer facade now delegates to the scoped Effect producer
+    runtime. Remaining broker P0 work should focus on native backend/NATS
+    runtime shape and consumer polling, not replacing `PubSubBackend` with
+    `effect/PubSub`.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -1222,6 +1254,9 @@ Notes:
     acquisition and stream/schedule-based consumer loops.
   - Keep `PubSubBackend` as the compatibility adapter boundary; Effect native
     `PubSub` remains in-process only.
+  - Treat the producer Promise facade as a completed compatibility wrapper;
+    avoid reopening it unless backend runtime changes require a narrower
+    adapter.
 - Tests:
   - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
     config-push stream tests.
