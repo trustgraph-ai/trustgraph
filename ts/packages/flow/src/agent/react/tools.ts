@@ -6,7 +6,7 @@
  */
 
 import type {
-  FlowRequestor,
+  EffectRequestResponse,
   GraphRagRequest,
   GraphRagResponse,
   DocumentRagRequest,
@@ -18,13 +18,16 @@ import type {
   Term,
   Triple,
 } from "@trustgraph/base";
+import {Term as TermSchema} from "@trustgraph/base";
 import { Effect } from "effect";
 import * as O from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
 import type { AgentTool, ToolArg } from "./types.js";
 
 const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
+const decodeTerm = S.decodeUnknownOption(TermSchema);
 
 /**
  * Format a Term to a human-readable string.
@@ -71,7 +74,7 @@ export interface ExplainData {
  * Query the knowledge graph for information about entities and their relationships.
  */
 export function createKnowledgeQueryTool(
-  client: FlowRequestor<GraphRagRequest, GraphRagResponse>,
+  client: EffectRequestResponse<GraphRagRequest, GraphRagResponse>,
   collection?: string,
   onExplain?: (data: ExplainData) => void,
 ): AgentTool {
@@ -93,19 +96,14 @@ export function createKnowledgeQueryTool(
         query: question,
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = yield* Effect.tryPromise(() => client.request(request));
+      const res = yield* client.request(request);
       yield* Effect.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error !== undefined ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
 
-      // Extract explain data if embedded in the response
-      const rawRes = res as Record<string, unknown>;
-      if (
-        rawRes.message_type === "explain" &&
-        rawRes.explain_triples !== undefined &&
-        onExplain !== undefined
-      ) {
+      const explainTriples = res.explain_triples;
+      if (res.message_type === "explain" && explainTriples !== undefined && onExplain !== undefined) {
         yield* Effect.sync(() => onExplain({
-          explainId: (rawRes.explain_id as string) ?? "",
-          triples: rawRes.explain_triples as Triple[],
+          explainId: res.explain_id ?? "",
+          triples: Array.from(explainTriples),
         }));
       }
 
@@ -119,7 +117,7 @@ export function createKnowledgeQueryTool(
  * Search documents for relevant information.
  */
 export function createDocumentQueryTool(
-  client: FlowRequestor<DocumentRagRequest, DocumentRagResponse>,
+  client: EffectRequestResponse<DocumentRagRequest, DocumentRagResponse>,
   collection?: string,
 ): AgentTool {
   return {
@@ -139,12 +137,23 @@ export function createDocumentQueryTool(
         query: question,
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = yield* Effect.tryPromise(() => client.request(request));
+      const res = yield* client.request(request);
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
     })),
   };
 }
+
+const objectProperty = (value: object, key: string): unknown =>
+  Predicate.hasProperty(value, key) ? value[key] : undefined;
+
+const termFromUnknown = (value: unknown): Term | undefined => {
+  if (Predicate.isString(value)) {
+    return { type: "LITERAL", value };
+  }
+  const decoded = decodeTerm(value);
+  return O.isSome(decoded) ? decoded.value : undefined;
+};
 
 /**
  * Parse triples query input. Accepts JSON with optional s, p, o fields.
@@ -166,30 +175,21 @@ function parseTriplesInput(input: string): {
     };
   }
 
-  const parsed = decoded.value as Record<string, unknown>;
-  const toTerm = (val: unknown): Term | undefined => {
-    if (typeof val === "string") {
-      return { type: "LITERAL", value: val };
-    }
-    if (typeof val === "object" && val !== null && "type" in val) {
-      return val as Term;
-    }
-    return undefined;
-  };
-
   const result: {
     s?: Term;
     p?: Term;
     o?: Term;
     limit?: number;
   } = {};
-  const s = toTerm(parsed.subject ?? parsed.s);
-  const p = toTerm(parsed.predicate ?? parsed.p);
-  const o = toTerm(parsed.object ?? parsed.o);
+  const parsed = decoded.value;
+  const s = termFromUnknown(objectProperty(parsed, "subject") ?? objectProperty(parsed, "s"));
+  const p = termFromUnknown(objectProperty(parsed, "predicate") ?? objectProperty(parsed, "p"));
+  const o = termFromUnknown(objectProperty(parsed, "object") ?? objectProperty(parsed, "o"));
+  const limit = objectProperty(parsed, "limit");
   if (s !== undefined) result.s = s;
   if (p !== undefined) result.p = p;
   if (o !== undefined) result.o = o;
-  if (typeof parsed.limit === "number") result.limit = parsed.limit;
+  if (Predicate.isNumber(limit)) result.limit = limit;
   return result;
 }
 
@@ -197,7 +197,7 @@ function parseTriplesInput(input: string): {
  * Query for specific triples (subject-predicate-object relationships) in the knowledge graph.
  */
 export function createTriplesQueryTool(
-  client: FlowRequestor<TriplesQueryRequest, TriplesQueryResponse>,
+  client: EffectRequestResponse<TriplesQueryRequest, TriplesQueryResponse>,
   collection?: string,
 ): AgentTool {
   return {
@@ -231,7 +231,7 @@ export function createTriplesQueryTool(
         ...(o !== undefined ? { o } : {}),
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = yield* Effect.tryPromise(() => client.request(request));
+      const res = yield* client.request(request);
 
       if (res.error !== undefined) return `Error: ${res.error.message}`;
 
@@ -255,7 +255,7 @@ export function createTriplesQueryTool(
  * this function just wraps it as an AgentTool the ReAct agent can invoke.
  */
 export function createMcpTool(
-  client: FlowRequestor<ToolRequest, ToolResponse>,
+  client: EffectRequestResponse<ToolRequest, ToolResponse>,
   toolName: string,
   description: string,
   args: ToolArg[],
@@ -265,7 +265,7 @@ export function createMcpTool(
     description,
     args,
     execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
-      const res = yield* Effect.tryPromise(() => client.request({ name: toolName, parameters: input }));
+      const res = yield* client.request({ name: toolName, parameters: input });
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       if (res.text !== undefined) return res.text;
       if (res.object !== undefined) return res.object;

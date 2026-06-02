@@ -5,7 +5,7 @@ import type {
   DocumentEmbeddingsResponse,
   EmbeddingsRequest,
   EmbeddingsResponse,
-  FlowRequestor,
+  EffectRequestResponse,
   GraphEmbeddingsRequest,
   GraphEmbeddingsResponse,
   PromptRequest,
@@ -19,10 +19,10 @@ import { makeDocumentRagEngine, type DocumentRagClients } from "../retrieval/doc
 import { makeGraphRagEngine, type GraphRagClients } from "../retrieval/graph-rag.js";
 
 const requestor = <TReq, TRes>(
-  handler: (request: TReq) => TRes | Promise<TRes>,
-): FlowRequestor<TReq, TRes> => ({
-  request: async (request) => handler(request),
-  stop: async () => undefined,
+  handler: (request: TReq) => TRes,
+): EffectRequestResponse<TReq, TRes> => ({
+  request: (request) => Effect.succeed(handler(request)),
+  stop: Effect.void,
 });
 
 describe("RAG engines", () => {

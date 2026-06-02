@@ -12,16 +12,16 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 config service
-runtime slice:
+Current signal counts from `ts/packages` after the 2026-06-02 RAG and agent
+requestor bridge slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 207 |
+| `Effect.runPromise` | 198 |
 | `Map<` | 65 |
 | `WebSocket` | 51 |
 | `new Map` | 47 |
-| `toPromiseRequestor` | 19 |
+| `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
 | `while (` | 12 |
@@ -133,6 +133,36 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: RAG And Agent Requestor Bridge Slice
+
+- Status: migrated, root-verified, and ready to commit.
+- Completed:
+  - `ts/packages/flow/src/retrieval/graph-rag.ts` and
+    `ts/packages/flow/src/retrieval/document-rag.ts` now accept
+    `EffectRequestResponse` clients directly. The engines no longer adapt
+    Effect requestors back to Promise requestors and then wrap those calls in
+    `Effect.tryPromise`.
+  - `ts/packages/flow/src/retrieval/graph-rag-service.ts` and
+    `ts/packages/flow/src/retrieval/document-rag-service.ts` now pass native
+    flow requestors directly into the engines.
+  - `ts/packages/flow/src/agent/react/tools.ts` now accepts
+    `EffectRequestResponse` clients directly for graph RAG, document RAG,
+    triples, and MCP tool calls. Tool input narrowing uses Schema and
+    `effect/Predicate` rather than local request/response type assertions.
+  - `ts/packages/flow/src/agent/react/service.ts` wires default and configured
+    tools with native Effect requestors instead of `toPromiseRequestor`.
+  - Graph RAG, document RAG, and agent service startup now expose `runMain()`
+    through `NodeRuntime.runMain`; their legacy `run()` Promise facades use
+    `ManagedRuntime`.
+  - `ts/scripts/run-graph-rag.ts`, `ts/scripts/run-document-rag.ts`, and
+    `ts/scripts/run-agent.ts` now delegate to `runMain()`.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -163,8 +193,8 @@ Notes:
   - WebSocket adapter shims still contain host-boundary `try`/`catch` and
     normal `Error` construction.
 - RAG/providers/storage:
-  - RAG and agent helpers still adapt Effect requestors back to Promise
-    requestors.
+  - RAG and agent requestor bridges are complete: `toPromiseRequestor` has no
+    remaining `ts/packages` matches.
   - Provider SDKs and storage clients should become managed resources where
     they have meaningful lifecycle.
   - FalkorDB/Qdrant/Ollama/OpenAI-compatible surfaces still need config,
@@ -193,24 +223,6 @@ Notes:
   - Decode persisted payloads and config with schemas at boundaries.
 - Tests:
   - Service-specific tests plus `cd ts && bun run --cwd packages/flow test`.
-
-### P0: Remove RAG And Agent `toPromiseRequestor` Bridges
-
-- TrustGraph evidence:
-  - `ts/packages/flow/src/retrieval/document-rag-service.ts`
-  - `ts/packages/flow/src/retrieval/graph-rag-service.ts`
-  - `ts/packages/flow/src/agent/react/service.ts`
-- Effect primitives:
-  - Existing `EffectRequestResponse`, `Effect.fn`, `Stream`,
-    `Effect.runPromiseWith` at true external boundaries only.
-- Rewrite shape:
-  - Update engines and agent helpers to accept Effect requestors or
-    Effect-returning functions directly.
-  - Preserve Promise wrappers only for old public APIs or tests that explicitly
-    verify compatibility.
-- Tests:
-  - Existing RAG and agent service tests.
-  - Add tests that assert requestor errors stay typed through the Effect path.
 
 ### P1: Finish Client RPC Boundary Modernization
 
@@ -302,13 +314,12 @@ Notes:
 
 ## Recommended PR Order
 
-1. RAG and agent requestor bridge removal.
-2. Librarian, cores, or flow-manager scoped state migration.
-3. Client RPC managed runtime/scoped layer cleanup.
-4. Base processor registry and constructor shim redesign.
-5. Gateway RPC callback and client streaming completion cleanup.
-6. Storage/provider managed resource cleanup.
-7. MCP parity/deletion decision and workbench platform polish.
+1. Librarian, cores, or flow-manager scoped state migration.
+2. Client RPC managed runtime/scoped layer cleanup.
+3. Base processor registry and constructor shim redesign.
+4. Gateway RPC callback and client streaming completion cleanup.
+5. Storage/provider managed resource cleanup.
+6. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 

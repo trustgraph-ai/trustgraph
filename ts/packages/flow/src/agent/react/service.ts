@@ -17,6 +17,9 @@
  */
 
 import {
+  NodeRuntime,
+} from "@effect/platform-node";
+import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
@@ -39,16 +42,13 @@ import {
   type ToolRequest,
   type ToolResponse,
   type EffectConfigHandler,
-  type EffectRequestOptions,
-  type EffectRequestResponse,
-  type FlowRequestOptions,
-  type FlowRequestor,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
   type Spec,
 } from "@trustgraph/base";
-import { Context, Effect, Layer, Ref } from "effect";
+import {Context, Effect, Layer, ManagedRuntime, Ref} from "effect";
 import * as O from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
 import {
@@ -106,29 +106,6 @@ export class AgentRuntime extends Context.Service<AgentRuntime, AgentRuntimeServ
   "@trustgraph/flow/agent/react/service/AgentRuntime",
 ) {}
 
-const toEffectRequestOptions = <TRes>(
-  options: FlowRequestOptions<TRes> | undefined,
-): EffectRequestOptions<TRes> | undefined => {
-  if (options === undefined) return undefined;
-  return {
-    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
-    ...(options.recipient === undefined
-      ? {}
-      : {
-          recipient: (response: TRes) =>
-            Effect.promise(() => options.recipient?.(response) ?? Promise.resolve(true)),
-        }),
-  };
-};
-
-const toPromiseRequestor = <TReq, TRes>(
-  requestor: EffectRequestResponse<TReq, TRes>,
-): FlowRequestor<TReq, TRes> => ({
-  request: (request, options) =>
-    Effect.runPromise(requestor.request(request, toEffectRequestOptions(options))),
-  stop: () => Effect.runPromise(requestor.stop),
-});
-
 const buildConfiguredTool = (
   toolId: string,
   data: ToolConfigEntry,
@@ -137,7 +114,7 @@ const buildConfiguredTool = (
     const implType = data.type ?? "";
     const name = data.name ?? "";
     const description = data.description ?? "";
-    const config = { ...data } as Record<string, unknown>;
+    const config: Record<string, unknown> = { ...data };
 
     if (name.length === 0) {
       yield* Effect.logWarning(`[AgentService] Skipping tool with no name: ${toolId}`);
@@ -277,12 +254,13 @@ const wireTools = Effect.fn("AgentService.wireTools")(function* (
   const mcpTool = yield* flowCtx.flow.requestorEffect<ToolRequest, ToolResponse>("mcp-tool");
 
   return tools.map((tool) => {
-    const implType = tool.config?.type as string | undefined;
+    const rawImplType = tool.config?.type;
+    const implType = Predicate.isString(rawImplType) ? rawImplType : undefined;
 
     switch (implType) {
       case "knowledge-query": {
         const live = createKnowledgeQueryTool(
-          toPromiseRequestor(graphRag),
+          graphRag,
           collection,
           onExplain,
         );
@@ -290,21 +268,21 @@ const wireTools = Effect.fn("AgentService.wireTools")(function* (
       }
       case "document-query": {
         const live = createDocumentQueryTool(
-          toPromiseRequestor(docRag),
+          docRag,
           collection,
         );
         return { ...tool, execute: live.execute };
       }
       case "triples-query": {
         const live = createTriplesQueryTool(
-          toPromiseRequestor(triples),
+          triples,
           collection,
         );
         return { ...tool, execute: live.execute };
       }
       case "mcp-tool": {
         const live = createMcpTool(
-          toPromiseRequestor(mcpTool),
+          mcpTool,
           tool.name,
           tool.description,
           tool.args,
@@ -328,16 +306,16 @@ const defaultTools = Effect.fn("AgentService.defaultTools")(function* (
 
   return [
     createKnowledgeQueryTool(
-      toPromiseRequestor(graphRag),
+      graphRag,
       collection,
       onExplain,
     ),
     createDocumentQueryTool(
-      toPromiseRequestor(docRag),
+      docRag,
       collection,
     ),
     createTriplesQueryTool(
-      toPromiseRequestor(triples),
+      triples,
       collection,
     ),
   ];
@@ -433,7 +411,7 @@ const onAgentRequest = Effect.fn("AgentService.onRequest")(function* (
             content: "",
             explain_id: explain.explainId,
             explain_triples: explain.triples,
-          } as AgentResponse);
+          });
         }
 
         yield* responseProducer.send(requestId, {
@@ -630,6 +608,12 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, AgentRun
   layer: () => AgentRuntimeLive,
 });
 
+const agentRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return agentRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

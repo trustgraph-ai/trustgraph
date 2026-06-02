@@ -9,7 +9,7 @@ import type {
   DocumentEmbeddingsResponse,
   EmbeddingsRequest,
   EmbeddingsResponse,
-  FlowRequestor,
+  EffectRequestResponse,
   PromptRequest,
   PromptResponse,
   TextCompletionRequest,
@@ -20,10 +20,10 @@ import { Context, Effect, Layer } from "effect";
 import * as S from "effect/Schema";
 
 export interface DocumentRagClients {
-  llm: FlowRequestor<TextCompletionRequest, TextCompletionResponse>;
-  embeddings: FlowRequestor<EmbeddingsRequest, EmbeddingsResponse>;
-  docEmbeddings: FlowRequestor<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>;
-  prompt: FlowRequestor<PromptRequest, PromptResponse>;
+  llm: EffectRequestResponse<TextCompletionRequest, TextCompletionResponse>;
+  embeddings: EffectRequestResponse<EmbeddingsRequest, EmbeddingsResponse>;
+  docEmbeddings: EffectRequestResponse<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>;
+  prompt: EffectRequestResponse<PromptRequest, PromptResponse>;
 }
 
 export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
@@ -101,21 +101,19 @@ function queryDocumentRag(
   return Effect.gen(function* () {
     const collection = options?.collection ?? "default";
 
-    const embResp = yield* Effect.tryPromise({
-      try: () => clients.embeddings.request({ text: [queryText] }),
-      catch: (cause) => documentRagError("embeddings", cause),
-    });
+    const embResp = yield* clients.embeddings.request({ text: [queryText] }).pipe(
+      Effect.mapError((cause) => documentRagError("embeddings", cause)),
+    );
     const vectors = embResp.vectors;
 
-    const docResp = yield* Effect.tryPromise({
-      try: () => clients.docEmbeddings.request({
+    const docResp = yield* clients.docEmbeddings.request({
         vectors,
         limit: 10,
         collection,
         user: "default",
-      }),
-      catch: (cause) => documentRagError("document-embeddings", cause),
-    });
+      }).pipe(
+        Effect.mapError((cause) => documentRagError("document-embeddings", cause)),
+      );
     const chunks = docResp.chunks ?? [];
     yield* Effect.log(`[DocumentRag] Found ${chunks.length} matching chunks`);
 
@@ -125,21 +123,19 @@ function queryDocumentRag(
       )
       .join("\n\n---\n\n");
 
-    const promptResp = yield* Effect.tryPromise({
-      try: () => clients.prompt.request({
+    const promptResp = yield* clients.prompt.request({
         name: "document-rag-synthesize",
         variables: { query: queryText, context },
-      }),
-      catch: (cause) => documentRagError("prompt", cause),
-    });
+      }).pipe(
+        Effect.mapError((cause) => documentRagError("prompt", cause)),
+      );
 
-    const resp = yield* Effect.tryPromise({
-      try: () => clients.llm.request({
+    const resp = yield* clients.llm.request({
         system: promptResp.system,
         prompt: promptResp.prompt,
-      }),
-      catch: (cause) => documentRagError("llm", cause),
-    });
+      }).pipe(
+        Effect.mapError((cause) => documentRagError("llm", cause)),
+      );
 
     return resp.response;
   });

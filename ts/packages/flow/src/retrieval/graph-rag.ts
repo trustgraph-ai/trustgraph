@@ -7,7 +7,8 @@
 import type {
   EmbeddingsRequest,
   EmbeddingsResponse,
-  FlowRequestor,
+  EffectRequestOptions,
+  EffectRequestResponse,
   GraphEmbeddingsRequest,
   GraphEmbeddingsResponse,
   PromptRequest,
@@ -34,11 +35,11 @@ export interface GraphRagConfig {
 }
 
 export interface GraphRagClients {
-  llm: FlowRequestor<TextCompletionRequest, TextCompletionResponse>;
-  embeddings: FlowRequestor<EmbeddingsRequest, EmbeddingsResponse>;
-  graphEmbeddings: FlowRequestor<GraphEmbeddingsRequest, GraphEmbeddingsResponse>;
-  triples: FlowRequestor<TriplesQueryRequest, TriplesQueryResponse>;
-  prompt: FlowRequestor<PromptRequest, PromptResponse>;
+  llm: EffectRequestResponse<TextCompletionRequest, TextCompletionResponse>;
+  embeddings: EffectRequestResponse<EmbeddingsRequest, EmbeddingsResponse>;
+  graphEmbeddings: EffectRequestResponse<GraphEmbeddingsRequest, GraphEmbeddingsResponse>;
+  triples: EffectRequestResponse<TriplesQueryRequest, TriplesQueryResponse>;
+  prompt: EffectRequestResponse<PromptRequest, PromptResponse>;
 }
 
 export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
@@ -91,6 +92,16 @@ const graphRagError = (operation: string, cause: unknown) =>
     cause,
     message: errorMessage(cause),
   });
+
+const requestClient = <TReq, TRes>(
+  requestor: EffectRequestResponse<TReq, TRes>,
+  operation: string,
+  request: TReq,
+  options?: EffectRequestOptions<TRes, GraphRagEngineError>,
+): Effect.Effect<TRes, GraphRagEngineError> =>
+  requestor.request(request, options).pipe(
+    Effect.mapError((cause) => graphRagError(operation, cause)),
+  );
 
 export function normalizeGraphRagConfig(config: GraphRagConfig = {}): NormalizedGraphRagConfig {
   return {
@@ -178,21 +189,23 @@ function queryGraphRag(
 
 function extractConcepts(clients: GraphRagClients, query: string): Effect.Effect<string[], GraphRagEngineError> {
   return Effect.gen(function* () {
-    const promptResp = yield* Effect.tryPromise({
-      try: () => clients.prompt.request({
+    const promptResp = yield* requestClient(
+      clients.prompt,
+      "extract-concepts-prompt",
+      {
         name: "extract-concepts",
         variables: { query },
-      }),
-      catch: (cause) => graphRagError("extract-concepts-prompt", cause),
-    });
+      },
+    );
 
-    const llmResp = yield* Effect.tryPromise({
-      try: () => clients.llm.request({
+    const llmResp = yield* requestClient(
+      clients.llm,
+      "extract-concepts-llm",
+      {
         system: promptResp.system,
         prompt: promptResp.prompt,
-      }),
-      catch: (cause) => graphRagError("extract-concepts-llm", cause),
-    });
+      },
+    );
 
     return llmResp.response
       .split("\n")
@@ -203,10 +216,7 @@ function extractConcepts(clients: GraphRagClients, query: string): Effect.Effect
 
 function getVectors(clients: GraphRagClients, concepts: string[]): Effect.Effect<number[][], GraphRagEngineError> {
   return Effect.gen(function* () {
-    const resp = yield* Effect.tryPromise({
-      try: () => clients.embeddings.request({ text: concepts }),
-      catch: (cause) => graphRagError("get-vectors", cause),
-    });
+    const resp = yield* requestClient(clients.embeddings, "get-vectors", { text: concepts });
     return resp.vectors;
   });
 }
@@ -218,15 +228,16 @@ function getEntities(
   collection?: string,
 ): Effect.Effect<Term[], GraphRagEngineError> {
   return Effect.gen(function* () {
-    const resp = yield* Effect.tryPromise({
-      try: () => clients.graphEmbeddings.request({
+    const resp = yield* requestClient(
+      clients.graphEmbeddings,
+      "get-entities",
+      {
         vectors,
         user: "default",
         collection: collection ?? "default",
         limit: config.entityLimit,
-      }),
-      catch: (cause) => graphRagError("get-entities", cause),
-    });
+      },
+    );
     return resp.entities;
   });
 }
@@ -259,10 +270,7 @@ function followEdges(
           limit: config.tripleLimit,
           ...(collection !== undefined ? { collection } : {}),
         };
-        return Effect.tryPromise({
-          try: () => clients.triples.request(request),
-          catch: (cause) => graphRagError("follow-edges-query", cause),
-        });
+        return requestClient(clients.triples, "follow-edges-query", request);
       });
 
       const results = yield* Effect.all(queries);
@@ -321,24 +329,26 @@ function scoreEdges(
       Effect.mapError((cause) => graphRagError("edge-score-encode", cause)),
     );
 
-    const promptResp = yield* Effect.tryPromise({
-      try: () => clients.prompt.request({
+    const promptResp = yield* requestClient(
+      clients.prompt,
+      "edge-score-prompt",
+      {
         name: "kg-edge-scoring",
         variables: {
           query,
           knowledge: knowledgeJson,
         },
-      }),
-      catch: (cause) => graphRagError("edge-score-prompt", cause),
-    });
+      },
+    );
 
-    const llmResp = yield* Effect.tryPromise({
-      try: () => clients.llm.request({
+    const llmResp = yield* requestClient(
+      clients.llm,
+      "edge-score-llm",
+      {
         system: promptResp.system,
         prompt: promptResp.prompt,
-      }),
-      catch: (cause) => graphRagError("edge-score-llm", cause),
-    });
+      },
+    );
 
     yield* Effect.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${llmResp.response.slice(0, 500)}`);
 
@@ -375,43 +385,49 @@ function synthesize(
       .map((triple) => `${termToString(triple.s)} -> ${termToString(triple.p)} -> ${termToString(triple.o)}`)
       .join("\n");
 
-    const promptResp = yield* Effect.tryPromise({
-      try: () => clients.prompt.request({
+    const promptResp = yield* requestClient(
+      clients.prompt,
+      "synthesize-prompt",
+      {
         name: "graph-rag-synthesize",
         variables: { query, context },
-      }),
-      catch: (cause) => graphRagError("synthesize-prompt", cause),
-    });
+      },
+    );
 
     if (chunkCallback !== undefined) {
       let fullText = "";
-      yield* Effect.tryPromise({
-        try: () => clients.llm.request(
-          {
-            system: promptResp.system,
-            prompt: promptResp.prompt,
-            streaming: true,
+      yield* requestClient(
+        clients.llm,
+        "synthesize-stream",
+        {
+          system: promptResp.system,
+          prompt: promptResp.prompt,
+          streaming: true,
+        },
+        {
+          recipient: (resp) => {
+            if (resp.response.length === 0) {
+              return Effect.succeed(resp.endOfStream === true);
+            }
+            fullText += resp.response;
+            return Effect.tryPromise({
+              try: () => chunkCallback(resp.response, resp.endOfStream === true).then(() => resp.endOfStream === true),
+              catch: (cause) => graphRagError("synthesize-stream-callback", cause),
+            });
           },
-          {
-            recipient: (resp) => {
-              if (resp.response.length === 0) return Promise.resolve(resp.endOfStream === true);
-              fullText += resp.response;
-              return chunkCallback(resp.response, resp.endOfStream === true).then(() => resp.endOfStream === true);
-            },
-          },
-        ),
-        catch: (cause) => graphRagError("synthesize-stream", cause),
-      });
+        },
+      );
       return fullText;
     }
 
-    const resp = yield* Effect.tryPromise({
-      try: () => clients.llm.request({
+    const resp = yield* requestClient(
+      clients.llm,
+      "synthesize-llm",
+      {
         system: promptResp.system,
         prompt: promptResp.prompt,
-      }),
-      catch: (cause) => graphRagError("synthesize-llm", cause),
-    });
+      },
+    );
 
     return resp.response;
   });

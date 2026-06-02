@@ -7,6 +7,7 @@
  * Python reference: trustgraph-flow/trustgraph/retrieval/document_rag/
  */
 
+import {NodeRuntime} from "@effect/platform-node";
 import {
   makeConsumerSpec,
   makeFlowProcessor,
@@ -17,14 +18,10 @@ import {
   type DocumentEmbeddingsResponse,
   type DocumentRagRequest,
   type DocumentRagResponse,
-  type EffectRequestOptions,
-  type EffectRequestResponse,
   type EmbeddingsRequest,
   type EmbeddingsResponse,
   type FlowContext,
   type FlowProcessorRuntime,
-  type FlowRequestOptions,
-  type FlowRequestor,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
   type ProcessorConfig,
@@ -34,7 +31,7 @@ import {
   type TextCompletionRequest,
   type TextCompletionResponse,
 } from "@trustgraph/base";
-import { Effect } from "effect";
+import {Effect, Layer, ManagedRuntime} from "effect";
 import {
   DocumentRagEngine,
   DocumentRagEngineError,
@@ -42,29 +39,6 @@ import {
   makeDocumentRagEngine,
   type DocumentRagClients,
 } from "./document-rag.js";
-
-const toEffectRequestOptions = <TRes>(
-  options: FlowRequestOptions<TRes> | undefined,
-): EffectRequestOptions<TRes> | undefined => {
-  if (options === undefined) return undefined;
-  return {
-    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
-    ...(options.recipient === undefined
-      ? {}
-      : {
-          recipient: (response: TRes) =>
-            Effect.promise(() => options.recipient?.(response) ?? Promise.resolve(true)),
-        }),
-  };
-};
-
-const toPromiseRequestor = <TReq, TRes>(
-  requestor: EffectRequestResponse<TReq, TRes>,
-): FlowRequestor<TReq, TRes> => ({
-  request: (request, options) =>
-    Effect.runPromise(requestor.request(request, toEffectRequestOptions(options))),
-  stop: () => Effect.runPromise(requestor.stop),
-});
 
 const onDocumentRagRequest = Effect.fn("DocumentRagService.onRequest")(function* (
   msg: DocumentRagRequest,
@@ -78,12 +52,10 @@ const onDocumentRagRequest = Effect.fn("DocumentRagService.onRequest")(function*
   const engine = yield* DocumentRagEngine;
 
   const clients: DocumentRagClients = {
-    llm: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm")),
-    embeddings: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings")),
-    docEmbeddings: toPromiseRequestor(
-      yield* flowCtx.flow.requestorEffect<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>("doc-embeddings"),
-    ),
-    prompt: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt")),
+    llm: yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm"),
+    embeddings: yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings"),
+    docEmbeddings: yield* flowCtx.flow.requestorEffect<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>("doc-embeddings"),
+    prompt: yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt"),
   };
 
   const response = yield* engine.query(
@@ -161,6 +133,12 @@ export const program = makeFlowProcessorProgram({
   layer: () => DocumentRagLive,
 });
 
+const documentRagRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return documentRagRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

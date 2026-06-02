@@ -7,18 +7,15 @@
  * Python reference: trustgraph-flow/trustgraph/retrieval/graph_rag/rag.py
  */
 
+import {NodeRuntime} from "@effect/platform-node";
 import {
   makeConsumerSpec,
   makeFlowProcessor,
   makeProducerSpec,
   makeRequestResponseSpec,
   makeFlowProcessorProgram,
-  type EffectRequestOptions,
-  type EffectRequestResponse,
   type FlowContext,
   type FlowProcessorRuntime,
-  type FlowRequestOptions,
-  type FlowRequestor,
   type FlowResourceNotFoundError,
   type GraphEmbeddingsRequest,
   type GraphEmbeddingsResponse,
@@ -36,7 +33,7 @@ import {
   type TriplesQueryRequest,
   type TriplesQueryResponse,
 } from "@trustgraph/base";
-import { Effect } from "effect";
+import {Effect, Layer, ManagedRuntime} from "effect";
 import {
   GraphRagEngine,
   GraphRagEngineError,
@@ -45,29 +42,6 @@ import {
   type GraphRagClients,
   type GraphRagConfig,
 } from "./graph-rag.js";
-
-const toEffectRequestOptions = <TRes>(
-  options: FlowRequestOptions<TRes> | undefined,
-): EffectRequestOptions<TRes> | undefined => {
-  if (options === undefined) return undefined;
-  return {
-    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
-    ...(options.recipient === undefined
-      ? {}
-      : {
-          recipient: (response: TRes) =>
-            Effect.promise(() => options.recipient?.(response) ?? Promise.resolve(true)),
-        }),
-  };
-};
-
-const toPromiseRequestor = <TReq, TRes>(
-  requestor: EffectRequestResponse<TReq, TRes>,
-): FlowRequestor<TReq, TRes> => ({
-  request: (request, options) =>
-    Effect.runPromise(requestor.request(request, toEffectRequestOptions(options))),
-  stop: () => Effect.runPromise(requestor.stop),
-});
 
 const graphRagConfigFromRequest = (msg: GraphRagRequest): GraphRagConfig => ({
   ...(msg.entityLimit !== undefined ? { entityLimit: msg.entityLimit } : {}),
@@ -90,13 +64,11 @@ const onGraphRagRequest = Effect.fn("GraphRagService.onRequest")(function* (
   yield* Effect.log(`[GraphRagService] Received request ${requestId}: "${msg.query?.slice(0, 60)}..." collection=${msg.collection}`);
 
   const clients: GraphRagClients = {
-    llm: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm")),
-    embeddings: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings")),
-    graphEmbeddings: toPromiseRequestor(
-      yield* flowCtx.flow.requestorEffect<GraphEmbeddingsRequest, GraphEmbeddingsResponse>("graph-embeddings"),
-    ),
-    triples: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<TriplesQueryRequest, TriplesQueryResponse>("triples")),
-    prompt: toPromiseRequestor(yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt")),
+    llm: yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm"),
+    embeddings: yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings"),
+    graphEmbeddings: yield* flowCtx.flow.requestorEffect<GraphEmbeddingsRequest, GraphEmbeddingsResponse>("graph-embeddings"),
+    triples: yield* flowCtx.flow.requestorEffect<TriplesQueryRequest, TriplesQueryResponse>("triples"),
+    prompt: yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt"),
   };
 
   const result = yield* engine.query(
@@ -125,16 +97,18 @@ const onGraphRagRequest = Effect.fn("GraphRagService.onRequest")(function* (
 
   if (result === undefined) return;
 
-  const response: GraphRagResponse = {
-    response: result.answer,
-    endOfStream: true,
-  };
-
-  if (result.subgraph.length > 0) {
-    (response as Record<string, unknown>).message_type = "explain";
-    (response as Record<string, unknown>).explain_id = `explain-${requestId}`;
-    (response as Record<string, unknown>).explain_triples = result.subgraph;
-  }
+  const response: GraphRagResponse = result.subgraph.length === 0
+    ? {
+        response: result.answer,
+        endOfStream: true,
+      }
+    : {
+        response: result.answer,
+        endOfStream: true,
+        message_type: "explain",
+        explain_id: `explain-${requestId}`,
+        explain_triples: result.subgraph,
+      };
 
   yield* producer.send(requestId, response);
 });
@@ -192,6 +166,12 @@ export const program = makeFlowProcessorProgram({
   layer: () => GraphRagLive,
 });
 
+const graphRagRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return graphRagRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }
