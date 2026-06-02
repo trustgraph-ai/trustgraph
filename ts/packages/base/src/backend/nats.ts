@@ -24,7 +24,7 @@ import {
   DeliverPolicy,
 } from "nats";
 import { Effect } from "effect";
-import * as Predicate from "effect/Predicate";
+import * as P from "effect/Predicate";
 import * as S from "effect/Schema";
 
 import type {
@@ -64,7 +64,7 @@ function makeNatsMessage<T>(msg: JsMsg, decoded: T): NatsMessage<T> {
   };
 }
 
-const hasJsMsg = Predicate.hasProperty("_jsMsg");
+const hasJsMsg = P.hasProperty("_jsMsg");
 
 class NatsLookupError extends S.TaggedErrorClass<NatsLookupError>()(
   "NatsLookupError",
@@ -79,9 +79,9 @@ function natsLookupError(operation: string, cause: unknown): NatsLookupError {
 }
 
 function isAckableJsMsg(value: unknown): value is Pick<JsMsg, "ack" | "nak"> {
-  if (!Predicate.isObject(value)) return false;
-  if (!Predicate.hasProperty(value, "ack")) return false;
-  if (!Predicate.hasProperty(value, "nak")) return false;
+  if (!P.isObject(value)) return false;
+  if (!P.hasProperty(value, "ack")) return false;
+  if (!P.hasProperty(value, "nak")) return false;
   return typeof value.ack === "function" && typeof value.nak === "function";
 }
 

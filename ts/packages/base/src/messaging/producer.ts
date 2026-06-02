@@ -5,7 +5,7 @@
  */
 
 import type { PubSubBackend } from "../backend/types.js";
-import type { ProducerMetrics } from "../metrics/prometheus.js";
+import type { ProducerMetrics } from "../metrics/index.ts";
 import { Effect, Exit, Scope } from "effect";
 import { PubSub } from "../backend/pubsub.js";
 import { makeEffectProducerFromPubSub, type EffectProducer } from "./runtime.js";

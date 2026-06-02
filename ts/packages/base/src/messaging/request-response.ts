@@ -11,7 +11,7 @@ import { Effect, Exit, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
 import { PubSub } from "../backend/pubsub.js";
 import { messagingDeliveryError, messagingLifecycleError } from "../errors.js";
-import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
+import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
 import { makeEffectRequestResponseFromPubSub, type EffectRequestResponse } from "./runtime.js";
 
 export interface RequestResponseOptions {
@@ -85,8 +85,8 @@ export function makeRequestResponse<TReq, TRes>(
      * Send a request and wait for responses.
      *
      * @param request - The request payload
-     * @param options.timeoutMs - Total timeout in milliseconds (default: 300s)
-     * @param options.recipient - Optional callback for streaming responses.
+     * @param requestOptions.timeoutMs - Total timeout in milliseconds (default: 300s)
+     * @param requestOptions.recipient - Optional callback for streaming responses.
      *   Return `true` to indicate the final response has been received.
      *   If omitted, returns the first response.
      */

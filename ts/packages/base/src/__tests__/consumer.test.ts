@@ -56,6 +56,16 @@ function createFlowContext(): FlowContext {
   };
 }
 
+async function advanceUntil(
+  predicate: () => boolean,
+  totalMs = 1_000,
+  stepMs = 10,
+): Promise<void> {
+  for (let elapsed = 0; elapsed < totalMs && !predicate(); elapsed += stepMs) {
+    await vi.advanceTimersByTimeAsync(stepMs);
+  }
+}
+
 describe("Consumer", () => {
   let backendConsumer: ReturnType<typeof createMockBackendConsumer>;
   let pubsub: PubSubBackend;
@@ -106,19 +116,9 @@ describe("Consumer", () => {
   });
 
   // ── start() creates consumer and calls handler ─────────────────
-  it("creates a backend consumer and invokes handler for received messages", async () => {
+  it("starts a scoped consumer and invokes handler for received messages", async () => {
     const handler = vi.fn().mockResolvedValue(undefined);
     const msg = createMockMessage({ data: "hello" }, { id: "1" });
-
-    // First call returns a message, second call triggers stop
-    let callCount = 0;
-    backendConsumer.receive.mockImplementation(async () => {
-      callCount++;
-      if (callCount === 1) return msg;
-      // Stop the consumer on second receive
-      await consumer.stop();
-      return null;
-    });
 
     const consumer = makeConsumer({
       pubsub,
@@ -127,8 +127,11 @@ describe("Consumer", () => {
       handler,
     });
 
-    // start() blocks until the consume loop ends, so we don't need to await separately
+    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+
     await consumer.start(flowCtx);
+    await advanceUntil(() => handler.mock.calls.length > 0);
+    await consumer.stop();
 
     expect(pubsub.createConsumer).toHaveBeenCalledWith({
       topic: "topic-a",
@@ -143,14 +146,6 @@ describe("Consumer", () => {
     const handler = vi.fn().mockResolvedValue(undefined);
     const msg = createMockMessage("payload");
 
-    let callCount = 0;
-    backendConsumer.receive.mockImplementation(async () => {
-      callCount++;
-      if (callCount === 1) return msg;
-      await consumer.stop();
-      return null;
-    });
-
     const consumer = makeConsumer({
       pubsub,
       topic: "t",
@@ -158,7 +153,11 @@ describe("Consumer", () => {
       handler,
     });
 
+    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+
     await consumer.start(flowCtx);
+    await advanceUntil(() => backendConsumer.acknowledge.mock.calls.length > 0);
+    await consumer.stop();
 
     expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
     expect(backendConsumer.negativeAcknowledge).not.toHaveBeenCalled();
@@ -169,15 +168,6 @@ describe("Consumer", () => {
     const handler = vi.fn().mockRejectedValue("handler boom");
     const msg = createMockMessage("bad-payload");
 
-    let callCount = 0;
-    backendConsumer.receive.mockImplementation(async () => {
-      callCount++;
-      if (callCount === 1) return msg;
-      // Stop on second call (after the 1s sleep from error handling)
-      await consumer.stop();
-      return null;
-    });
-
     const consumer = makeConsumer({
       pubsub,
       topic: "t",
@@ -185,19 +175,14 @@ describe("Consumer", () => {
       handler,
     });
 
-    // Suppress console.error noise
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
 
-    // start() will block; the error path sleeps 1s, so we need to advance timers
-    const startPromise = consumer.start(flowCtx);
-    // Advance past the 1s sleep in the error handler
-    await vi.advanceTimersByTimeAsync(1500);
-    await startPromise;
+    await consumer.start(flowCtx);
+    await advanceUntil(() => backendConsumer.negativeAcknowledge.mock.calls.length > 0);
+    await consumer.stop();
 
     expect(backendConsumer.negativeAcknowledge).toHaveBeenCalledWith(msg);
     expect(backendConsumer.acknowledge).not.toHaveBeenCalled();
-
-    errorSpy.mockRestore();
   });
 
   // ── TooManyRequestsError triggers retry ────────────────────────
@@ -213,14 +198,6 @@ describe("Consumer", () => {
 
     const msg = createMockMessage("rate-limited-payload");
 
-    let receiveCount = 0;
-    backendConsumer.receive.mockImplementation(async () => {
-      receiveCount++;
-      if (receiveCount === 1) return msg;
-      await consumer.stop();
-      return null;
-    });
-
     const consumer = makeConsumer({
       pubsub,
       topic: "t",
@@ -229,12 +206,14 @@ describe("Consumer", () => {
       rateLimitRetryMs: 500,
     });
 
+    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const startPromise = consumer.start(flowCtx);
-    // Advance past the rate-limit retry delay (500ms)
+    await consumer.start(flowCtx);
     await vi.advanceTimersByTimeAsync(600);
-    await startPromise;
+    await advanceUntil(() => handler.mock.calls.length >= 2);
+    await consumer.stop();
 
     // Handler called twice: first throws TooManyRequestsError, second succeeds
     expect(handler).toHaveBeenCalledTimes(2);
@@ -255,14 +234,6 @@ describe("Consumer", () => {
 
     const msg = createMockMessage("rate-limited-payload");
 
-    let receiveCount = 0;
-    backendConsumer.receive.mockImplementation(async () => {
-      receiveCount++;
-      if (receiveCount === 1) return msg;
-      await consumer.stop();
-      return null;
-    });
-
     const consumer = makeConsumer({
       pubsub,
       topic: "t",
@@ -272,9 +243,12 @@ describe("Consumer", () => {
       rateLimitTimeoutMs: 2_000,
     });
 
-    const startPromise = consumer.start(flowCtx);
+    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+
+    await consumer.start(flowCtx);
     await vi.advanceTimersByTimeAsync(1_100);
-    await startPromise;
+    await advanceUntil(() => backendConsumer.acknowledge.mock.calls.length > 0);
+    await consumer.stop();
 
     expect(handler).toHaveBeenCalledTimes(3);
     expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
@@ -287,13 +261,6 @@ describe("Consumer", () => {
     });
     const msg = createMockMessage("rate-limited-payload");
 
-    let receiveCount = 0;
-    backendConsumer.receive.mockImplementation(async () => {
-      receiveCount++;
-      if (receiveCount === 1) return msg;
-      return null;
-    });
-
     const consumer = makeConsumer({
       pubsub,
       topic: "t",
@@ -303,11 +270,12 @@ describe("Consumer", () => {
       rateLimitTimeoutMs: 1_000,
     });
 
-    const startPromise = consumer.start(flowCtx);
+    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+
+    await consumer.start(flowCtx);
     await vi.advanceTimersByTimeAsync(1_100);
+    await advanceUntil(() => backendConsumer.negativeAcknowledge.mock.calls.length > 0);
     await consumer.stop();
-    await vi.advanceTimersByTimeAsync(1_100);
-    await startPromise;
 
     expect(handler).toHaveBeenCalledTimes(2);
     expect(backendConsumer.negativeAcknowledge).toHaveBeenCalledWith(msg);
@@ -316,12 +284,7 @@ describe("Consumer", () => {
 
   // ── stop() closes the backend ──────────────────────────────────
   it("stop() sets running=false and closes the backend", async () => {
-    // Make receive block forever (returns null) until stopped
-    backendConsumer.receive.mockImplementation(async () => {
-      // Yield control so stop() can run
-      await new Promise((r) => setTimeout(r, 100));
-      return null;
-    });
+    backendConsumer.receive.mockResolvedValue(null);
 
     const consumer = makeConsumer({
       pubsub,
@@ -330,16 +293,8 @@ describe("Consumer", () => {
       handler: vi.fn(),
     });
 
-    const startPromise = consumer.start(flowCtx);
-
-    // Advance timers to let the consume loop iterate once
-    await vi.advanceTimersByTimeAsync(200);
-
+    await consumer.start(flowCtx);
     await consumer.stop();
-
-    // Advance timers further so the loop can exit
-    await vi.advanceTimersByTimeAsync(200);
-    await startPromise;
 
     expect(backendConsumer.close).toHaveBeenCalled();
     await expect(consumer.stop()).resolves.toBeUndefined();

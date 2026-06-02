@@ -356,7 +356,7 @@ export const makeEffectConsumerFromPubSub = Effect.fn("makeEffectConsumerFromPub
   const workers = yield* Effect.forEach(workerIndexes, () =>
     Effect.gen(function* () {
       const backend = yield* pubsub.createConsumer<T>(createOptions);
-      const fiber = yield* consumerLoop(backend, options, flow, workerConfig).pipe(Effect.forkChild);
+      const fiber = yield* consumerLoop(backend, options, flow, workerConfig).pipe(Effect.forkScoped);
       return { backend, fiber };
     }),
   );

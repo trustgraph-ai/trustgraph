@@ -12,12 +12,12 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02
-request-response stop signal slice:
+Current signal counts from `ts/packages` after the 2026-06-02 legacy consumer
+facade slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 172 |
+| `Effect.runPromise` | 170 |
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
 | `Layer.succeed` | 12 |
@@ -26,14 +26,14 @@ request-response stop signal slice:
 | `new Map` | 60 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
-| `receive(` | 18 |
+| `receive(` | 17 |
 | `while (` | 2 |
 | `new Error` | 7 |
-| `new Promise` | 10 |
+| `new Promise` | 9 |
 | `JSON.parse` | 4 |
 | `localStorage` | 9 |
 | `JSON.stringify` | 8 |
-| `setTimeout` | 4 |
+| `setTimeout` | 3 |
 | `process.env` | 3 |
 
 Notes:
@@ -125,6 +125,17 @@ Notes:
   `makeEffectRequestResponseFromPubSub`. Pending requests now race response
   waiting against runtime stop and fail promptly with a tagged
   `MessagingLifecycleError` instead of waiting for timeout.
+- The legacy consumer facade slice moved `makeConsumer` onto
+  `makeEffectConsumerFromPubSub` with a `ManagedRuntime` Promise boundary and a
+  closeable `Scope`. Consumer workers now use `Effect.forkScoped` so their
+  lifetime is owned by the caller scope rather than the parent fiber. The
+  `Effect.runPromise`, `receive(`, `new Promise`, and `setTimeout` counts
+  dropped because the old blocking facade loop and its test timer shim were
+  removed.
+- A focused broker-backend scout found no remaining P0 broker runtime rewrite
+  after the producer, NATS, consumer concurrency, rate-limit, and
+  request-response stop slices. `PubSubBackend` remains an intentional
+  Promise-returning adapter boundary wrapped by `PubSub`/Effect services.
 - The gateway streaming callback slice added Effect-returning dispatcher
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
@@ -1293,6 +1304,34 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: Legacy Consumer Facade Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `makeConsumer` is now a Promise compatibility facade over
+    `makeEffectConsumerFromPubSub` instead of owning a separate mutable
+    backend, `running` flag, retry loop, and direct `BackendConsumer.receive`.
+  - The facade uses a module `ManagedRuntime`, `Scope.make`, `Scope.provide`,
+    and `Scope.close` to keep public `start()`/`stop()` Promises at the
+    boundary while the actual consumer lifetime stays scoped.
+  - Legacy Promise handlers are adapted with `Effect.tryPromise` and preserve
+    `TooManyRequestsError` as a typed retry signal.
+  - `makeEffectConsumerFromPubSub` now forks workers with `Effect.forkScoped`,
+    so a caller-owned scope keeps workers alive until stop/finalization.
+  - `consumer.test.ts` no longer encodes `start()` as the blocking consume-loop
+    join; it waits for observable handler/ack/nak effects and then stops the
+    scoped consumer.
+- Verification:
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/consumer.test.ts`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/messaging-runtime.test.ts src/__tests__/flow-spec-runtime.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1320,19 +1359,18 @@ Notes:
   - The legacy `messaging/subscriber.ts` async queue/fanout implementation is
     removed. Use native `effect/PubSub` for future in-process fanout, while
     keeping `PubSubBackend` for broker-backed messaging.
-  - The legacy producer facade now delegates to the scoped Effect producer
-    runtime. Remaining broker P0 work should focus on native backend/NATS
-    runtime shape and consumer polling, not replacing `PubSubBackend` with
-    `effect/PubSub`.
+  - The legacy producer and consumer facades now delegate to scoped Effect
+    runtime factories. Public `start()`/`send()`/`stop()` Promises remain
+    compatibility boundaries.
   - NATS header construction, ack/nak operations, and lookup create-on-missing
-    behavior now stay typed. Remaining NATS work is scoped backend/layer
-    construction and stream/consumer state ownership.
+    behavior now stay typed. `PubSubBackend` remains an intentional broker
+    adapter contract rather than a direct `effect/PubSub` replacement target.
   - Consumer rate-limit retry timeout behavior is now wired in both legacy and
     Effect-native consumer paths. Effect-native consumer concurrency now owns
     one backend consumer per worker, and request-response pending shutdown now
-    fails through a tagged lifecycle error. Remaining consumer runtime work
-    should focus on the legacy consumer facade's blocking compatibility shape
-    and scoped backend/layer construction.
+    fails through a tagged lifecycle error. The legacy consumer facade blocking
+    shape is complete; do not reopen it unless a public API compatibility
+    issue appears.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -1385,19 +1423,29 @@ Notes:
 
 ## Ranked Findings
 
-### P0: Broker Backend Effect-Native Runtime
+### No-op: Broker Backend Adapter Boundary
 
+- Status:
+  - Closed as a P0 rewrite item after the 2026-06-02 broker scout and the
+    legacy consumer facade slice.
 - TrustGraph evidence:
   - `ts/packages/base/src/backend/types.ts`
   - `ts/packages/base/src/backend/nats.ts`
+  - `ts/packages/base/src/backend/pubsub.ts`
   - `ts/packages/base/src/messaging/runtime.ts`
-  - `ts/packages/base/src/processor/flow-processor.ts`
 - Effect primitives:
   - `Layer`, `Scope`, `Stream`, `Schedule`, `Queue`,
     `Effect.acquireRelease`, and `Effect.tryPromise`.
-- Rewrite shape:
-  - Introduce an Effect-native broker service/layer with scoped NATS
-    acquisition and stream/schedule-based consumer loops.
+- Evidence:
+  - `BackendProducer`, `BackendConsumer`, and `PubSubBackend` are the external
+    Promise broker adapter contract. `backend/pubsub.ts` wraps that contract in
+    Effect through `Context.Service`, `Layer`, `Effect.tryPromise`, and scoped
+    finalizers.
+  - NATS boundary failures, selective stream/consumer lookup recovery,
+    producer sends, ack/nak, and close paths are typed with Effect wrappers.
+  - Producer, consumer, and request-response runtime ownership now live in
+    scoped Effect factories.
+- Rule:
   - Keep `PubSubBackend` as the compatibility adapter boundary; Effect native
     `PubSub` remains in-process only.
   - Treat the producer Promise facade as a completed compatibility wrapper;
@@ -1414,9 +1462,8 @@ Notes:
     handles.
   - Treat request-response pending shutdown semantics as complete; do not flag
     `waitForResponse` timeout behavior for stopped runtimes.
-- Tests:
-  - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
-    config-push stream tests.
+  - Treat the legacy consumer facade as a completed compatibility wrapper over
+    `makeEffectConsumerFromPubSub`; do not flag blocking `start()` semantics.
 
 ### P2: Effect AI Provider Adapter Cleanup
 
@@ -1469,9 +1516,8 @@ Notes:
 
 ## Recommended PR Order
 
-1. Broker backend Effect-native runtime.
-2. Effect AI provider adapter cleanup.
-3. MCP parity/deletion decision and workbench platform polish.
+1. Effect AI provider adapter cleanup.
+2. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 
@@ -1510,6 +1556,9 @@ Do not flag these as rewrite blockers without additional proof:
   `makeEffectRequestResponseFromPubSub`: pending calls race response waiting
   against a `Deferred` stop signal and fail with tagged
   `MessagingLifecycleError`.
+- Legacy `makeConsumer` facade blocking-loop ownership is complete:
+  `start()` now initializes scoped Effect consumers and returns after startup,
+  while `stop()` closes the native consumer scope.
 - `ts/packages/flow/src/gateway/rpc-protocol.ts` is a Fastify socket
   compatibility bridge. Do not flag its internal connection maps/sets as a
   standalone replacement target until the gateway is ready to move onto Effect
