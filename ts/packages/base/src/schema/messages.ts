@@ -381,7 +381,9 @@ export const KnowledgeRequest = S.Struct({
   collection: S.optionalKey(S.String),
   triples: OptionalMutableArray(Triple),
   graphEmbeddings: OptionalMutableArray(GraphEmbedding),
+  "graph-embeddings": OptionalMutableArray(GraphEmbedding),
   documentEmbeddings: S.optionalKey(DocumentEmbeddingsCore),
+  "document-embeddings": S.optionalKey(DocumentEmbeddingsCore),
 });
 export type KnowledgeRequest = typeof KnowledgeRequest.Type;
 
@@ -391,7 +393,9 @@ export const KnowledgeResponse = S.Struct({
   eos: S.optionalKey(S.Boolean),
   triples: OptionalMutableArray(Triple),
   graphEmbeddings: OptionalMutableArray(GraphEmbedding),
+  "graph-embeddings": OptionalMutableArray(GraphEmbedding),
   documentEmbeddings: S.optionalKey(DocumentEmbeddingsCore),
+  "document-embeddings": S.optionalKey(DocumentEmbeddingsCore),
 });
 export type KnowledgeResponse = typeof KnowledgeResponse.Type;
 

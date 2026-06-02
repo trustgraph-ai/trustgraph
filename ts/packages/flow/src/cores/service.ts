@@ -1,48 +1,71 @@
 /**
- * Knowledge core service — manages stored knowledge graph cores (triples + embeddings).
- *
- * An AsyncProcessor (NOT FlowProcessor) that:
- * 1. Listens on knowledge-request topic
- * 2. Handles CRUD operations for knowledge graph cores
- * 3. Each core stores triples and graph embeddings keyed by user:id
- * 4. Persists state to JSON
+ * Knowledge core service — manages stored knowledge graph cores.
  *
  * Python reference: trustgraph-flow/trustgraph/knowledge/service/service.py
  */
 
+import {NodeRuntime} from "@effect/platform-node";
 import {
+  KnowledgeRequest as KnowledgeRequestSchema,
+  KnowledgeResponse as KnowledgeResponseSchema,
+  Term as TermSchema,
+  Triple as TripleSchema,
+  errorMessage,
+  loadProcessorRuntimeConfig,
   makeAsyncProcessor,
   makeProcessorProgram,
-  type ProcessorConfig,
-  type AsyncProcessorRuntime,
+  optionalStringConfig,
   topics,
+  type AsyncProcessorRuntime,
+  type BackendConsumer,
+  type BackendProducer,
+  type KnowledgeOperation,
   type KnowledgeRequest,
   type KnowledgeResponse,
-  type Triple,
-  type Term,
-  errorMessage,
+  type Message,
+  type ProcessorConfig,
 } from "@trustgraph/base";
-import type { Message } from "@trustgraph/base";
-import { Config, Context, Duration, Effect } from "effect";
+import {Duration, Effect, Layer, ManagedRuntime, SynchronizedRef} from "effect";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
-import { ensureDirectory, joinPath, readTextFile, writeTextFile } from "../runtime/effect-files.js";
+import {ensureDirectory, joinPath, readTextFile, writeTextFile} from "../runtime/effect-files.js";
 
 export interface KnowledgeCoreServiceConfig extends ProcessorConfig {
-  dataDir?: string;
+  readonly dataDir?: string;
 }
 
-interface KnowledgeCore {
-  triples: Triple[];
-  graphEmbeddings: { entity: Term; vectors: number[][] }[];
-}
+const NumberArray = S.Array(S.Number).pipe(S.mutable);
+const NumberArrays = S.Array(NumberArray).pipe(S.mutable);
 
-interface DocumentEmbeddingsCore {
-  metadata?: Record<string, unknown>;
-  chunks?: unknown[];
-  [key: string]: unknown;
-}
+const GraphEmbeddingSchema = S.Struct({
+  entity: TermSchema,
+  vectors: NumberArrays,
+});
+type GraphEmbedding = typeof GraphEmbeddingSchema.Type;
 
-export type KnowledgeCoreService = AsyncProcessorRuntime & Record<string, any>;
+const DocumentEmbeddingsCoreSchema = S.StructWithRest(
+  S.Struct({
+    metadata: S.optionalKey(S.Record(S.String, S.Unknown)),
+    chunks: S.optionalKey(S.Unknown.pipe(S.Array, S.mutable)),
+  }),
+  [S.Record(S.String, S.Unknown)],
+);
+type DocumentEmbeddingsCore = typeof DocumentEmbeddingsCoreSchema.Type;
+
+const KnowledgeCoreSchema = S.Struct({
+  triples: S.Array(TripleSchema).pipe(S.mutable),
+  graphEmbeddings: S.Array(GraphEmbeddingSchema).pipe(S.mutable),
+});
+type KnowledgeCore = typeof KnowledgeCoreSchema.Type;
+
+const PersistedKnowledgeSnapshotSchema = S.Struct({
+  kg: S.Record(S.String, KnowledgeCoreSchema),
+  de: S.optionalKey(S.Record(S.String, S.Array(DocumentEmbeddingsCoreSchema).pipe(S.mutable))),
+});
+const PersistedKnowledgeSnapshotJsonSchema = PersistedKnowledgeSnapshotSchema.pipe(S.fromJsonString);
+const LegacyKnowledgeSnapshotJsonSchema = S.Record(S.String, KnowledgeCoreSchema).pipe(S.fromJsonString);
+type PersistedKnowledgeSnapshot = typeof PersistedKnowledgeSnapshotSchema.Type;
+type LegacyKnowledgeSnapshot = typeof LegacyKnowledgeSnapshotJsonSchema.Type;
 
 export class KnowledgeCoreServiceError extends S.TaggedErrorClass<KnowledgeCoreServiceError>()(
   "KnowledgeCoreServiceError",
@@ -52,20 +75,144 @@ export class KnowledgeCoreServiceError extends S.TaggedErrorClass<KnowledgeCoreS
   },
 ) {}
 
-interface KnowledgeResponseProducer {
-  send(response: KnowledgeResponse, properties: { id: string }): Promise<void>;
-  close(): Promise<void>;
-}
-
-interface CloseableResource {
-  close(): Promise<void>;
-}
-
 const knowledgeCoreServiceError = (operation: string, cause: unknown): KnowledgeCoreServiceError =>
   KnowledgeCoreServiceError.make({
     operation,
     message: errorMessage(cause),
   });
+
+type KnowledgeCoreStore = Map<string, KnowledgeCore>;
+type DocumentCoreStore = Map<string, Array<DocumentEmbeddingsCore>>;
+
+interface KnowledgeCoreServiceState {
+  readonly kgCores: KnowledgeCoreStore;
+  readonly deCores: DocumentCoreStore;
+  readonly consumer: BackendConsumer<KnowledgeRequest> | null;
+  readonly responseProducer: BackendProducer<KnowledgeResponse> | null;
+}
+
+export interface KnowledgeCoreService extends AsyncProcessorRuntime<KnowledgeCoreServiceError> {
+  readonly state: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>;
+  readonly dataDir: string;
+  readonly persistPath: string;
+  readonly coreKey: (user: string, id: string) => string;
+  readonly graphEmbeddings: (request: KnowledgeRequest) => ReadonlyArray<GraphEmbedding>;
+  readonly documentEmbeddings: (request: KnowledgeRequest) => DocumentEmbeddingsCore | undefined;
+  readonly handleMessage: (msg: Message<KnowledgeRequest>) => Promise<void>;
+  readonly handleMessageEffect: (msg: Message<KnowledgeRequest>) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly handleOperation: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly handleOperationEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly listKgCores: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly listKgCoresEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly getKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly getKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly deleteKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly deleteKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly putKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly putKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly loadKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly loadKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly unloadKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly unloadKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly listDeCores: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly listDeCoresEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly getDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly getDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly deleteDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly deleteDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly putDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly putDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly loadDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
+  readonly loadDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
+  readonly persist: () => Promise<void>;
+  readonly persistEffect: Effect.Effect<void, never>;
+  readonly loadFromDisk: () => Promise<void>;
+  readonly loadFromDiskEffect: Effect.Effect<void, never>;
+}
+
+const initialState = (): KnowledgeCoreServiceState => ({
+  kgCores: new Map<string, KnowledgeCore>(),
+  deCores: new Map<string, Array<DocumentEmbeddingsCore>>(),
+  consumer: null,
+  responseProducer: null,
+});
+
+const cloneKnowledgeCore = (core: KnowledgeCore): KnowledgeCore => ({
+  triples: Array.from(core.triples),
+  graphEmbeddings: core.graphEmbeddings.map((entry) => ({
+    entity: entry.entity,
+    vectors: entry.vectors.map((vector) => Array.from(vector)),
+  })),
+});
+
+const cloneKgStore = (store: KnowledgeCoreStore): KnowledgeCoreStore => {
+  const next = new Map<string, KnowledgeCore>();
+  for (const [key, core] of store) {
+    next.set(key, cloneKnowledgeCore(core));
+  }
+  return next;
+};
+
+const cloneDeStore = (store: DocumentCoreStore): DocumentCoreStore => {
+  const next = new Map<string, Array<DocumentEmbeddingsCore>>();
+  for (const [key, cores] of store) {
+    next.set(key, Array.from(cores));
+  }
+  return next;
+};
+
+const toPersistedSnapshot = (state: KnowledgeCoreServiceState): PersistedKnowledgeSnapshot => {
+  const kg: Record<string, KnowledgeCore> = {};
+  const de: Record<string, Array<DocumentEmbeddingsCore>> = {};
+
+  for (const [key, core] of state.kgCores) {
+    kg[key] = cloneKnowledgeCore(core);
+  }
+  for (const [key, core] of state.deCores) {
+    de[key] = Array.from(core);
+  }
+
+  return {kg, de};
+};
+
+const kgStoreFromRecord = (record: LegacyKnowledgeSnapshot): KnowledgeCoreStore => {
+  const store = new Map<string, KnowledgeCore>();
+  for (const [key, core] of Object.entries(record)) {
+    store.set(key, cloneKnowledgeCore(core));
+  }
+  return store;
+};
+
+const deStoreFromRecord = (
+  record: Record<string, Array<DocumentEmbeddingsCore>> | undefined,
+): DocumentCoreStore => {
+  const store = new Map<string, Array<DocumentEmbeddingsCore>>();
+  for (const [key, core] of Object.entries(record ?? {})) {
+    store.set(key, Array.from(core));
+  }
+  return store;
+};
+
+const coreKey = (user: string, id: string): string => `${user}:${id}`;
+
+const graphEmbeddingsFor = (request: KnowledgeRequest): ReadonlyArray<GraphEmbedding> =>
+  request.graphEmbeddings ?? request["graph-embeddings"] ?? [];
+
+const documentEmbeddingsFor = (request: KnowledgeRequest): DocumentEmbeddingsCore | undefined =>
+  request.documentEmbeddings ?? request["document-embeddings"];
+
+const updateHandles = (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  handles: {
+    readonly consumer?: BackendConsumer<KnowledgeRequest> | null;
+    readonly responseProducer?: BackendProducer<KnowledgeResponse> | null;
+  },
+) =>
+  SynchronizedRef.updateAndGet(stateRef, (state) => ({
+    ...state,
+    consumer: handles.consumer === undefined ? state.consumer : handles.consumer,
+    responseProducer: handles.responseProducer === undefined ? state.responseProducer : handles.responseProducer,
+  }));
 
 const tryPromise = <A>(
   operation: string,
@@ -76,35 +223,8 @@ const tryPromise = <A>(
     catch: (cause) => knowledgeCoreServiceError(operation, cause),
   });
 
-const trySync = <A>(
-  operation: string,
-  evaluate: () => A,
-): Effect.Effect<A, KnowledgeCoreServiceError> =>
-  Effect.try({
-    try: evaluate,
-    catch: (cause) => knowledgeCoreServiceError(operation, cause),
-  });
-
-const failPromise = (operation: string, cause: unknown): Promise<never> =>
-  Effect.runPromise(Effect.fail(knowledgeCoreServiceError(operation, cause)));
-
-const sendResponse = (
-  service: KnowledgeCoreService,
-  response: KnowledgeResponse,
-  requestId: string,
-  operation = "respond",
-): Effect.Effect<void, KnowledgeCoreServiceError> =>
-  Effect.gen(function* () {
-    const responseProducer = service.responseProducer as KnowledgeResponseProducer | null | undefined;
-    if (responseProducer === null || responseProducer === undefined) {
-      return yield* knowledgeCoreServiceError(operation, "Knowledge response producer not started");
-    }
-
-    yield* tryPromise(operation, () => responseProducer.send(response, { id: requestId }));
-  });
-
 const closeResource = (
-  resource: CloseableResource,
+  resource: {readonly close: () => Promise<void>},
   operation: string,
 ): Effect.Effect<void> =>
   tryPromise(operation, () => resource.close()).pipe(
@@ -116,578 +236,566 @@ const closeResource = (
     ),
   );
 
-export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): KnowledgeCoreService {
-  const service = makeAsyncProcessor(config, {
-    run: () => service.run(Context.empty()),
-  }) as KnowledgeCoreService;
-  const baseStop = service.stop;
-  service.cores = new Map<string, KnowledgeCore>();
-  service.deCores = new Map<string, DocumentEmbeddingsCore[]>();
-  service.consumer = null;
-  service.responseProducer = null;
-  const dataDir = config.dataDir ?? "./data/knowledge";
-  service.dataDir = dataDir;
-  service.persistPath = joinPath(dataDir, "knowledge-state.json");
-  Object.assign(service, {
-
-
-      coreKey: function(this: KnowledgeCoreService, user: string, id: string): string {
-        return `${user}:${id}`;
-
-        },
-
-
-
-      run: function(this: KnowledgeCoreService): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            if (config.dataDir === undefined) {
-              const configuredDataDir = yield* Config.string("KNOWLEDGE_DATA_DIR").pipe(
-                Config.withDefault("./data/knowledge"),
-              );
-              service.dataDir = configuredDataDir;
-              service.persistPath = joinPath(configuredDataDir, "knowledge-state.json");
-            }
-
-            yield* tryPromise("ensure-directory", () => ensureDirectory(service.dataDir));
-            // Load persisted state
-            yield* tryPromise("load", () => service.loadFromDisk());
-
-            // Create producer
-            service.responseProducer = yield* tryPromise("response-producer", () =>
-              service.pubsub.createProducer<KnowledgeResponse>({
-                topic: topics.knowledgeResponse,
-              }),
-            );
-
-            // Create consumer
-            service.consumer = yield* tryPromise("consumer", () =>
-              service.pubsub.createConsumer<KnowledgeRequest>({
-                topic: topics.knowledgeRequest,
-                subscription: `${service.config.id}-knowledge-request`,
-              }),
-            );
-
-            yield* Effect.log(`[KnowledgeCoreService] Listening on ${topics.knowledgeRequest}`);
-
-            // Main consume loop
-            while (service.running) {
-              const shouldContinue = yield* Effect.gen(function* () {
-                const consumer = service.consumer;
-                if (consumer === null || consumer === undefined) {
-                  return yield* knowledgeCoreServiceError("consume", "Knowledge request consumer not started");
-                }
-
-                const msg = yield* tryPromise("consume-receive", () => consumer.receive(2000));
-                if (msg === null) return true;
-
-                yield* tryPromise("consume-handle", () => service.handleMessage(msg));
-                yield* tryPromise("consume-acknowledge", () => consumer.acknowledge(msg));
-
-                return true;
-              }).pipe(
-                Effect.catch((error) => {
-                  if (!service.running) return Effect.succeed(false);
-                  return Effect.logError("[KnowledgeCoreService] Error in consume loop", {
-                    error: error.message,
-                  }).pipe(
-                    Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
-                    Effect.as(true),
-                  );
-                }),
-              );
-
-              if (!shouldContinue) break;
-            }
-          }),
-        );
-
-        },
-
-
-
-      handleMessage: function(this: KnowledgeCoreService, msg: Message<KnowledgeRequest>): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const request = msg.value();
-            const props = msg.properties();
-            const requestId = props.id;
-
-            if (requestId === undefined || requestId.length === 0) {
-              yield* Effect.logWarning("[KnowledgeCoreService] Received request without id, ignoring");
-              return;
-            }
-
-            yield* tryPromise("operation", () => service.handleOperation(request, requestId)).pipe(
-              Effect.catch((error) =>
-                sendResponse(
-                  service,
-                  { error: { type: "knowledge-error", message: error.message } },
-                  requestId,
-                  "respond-error",
-                ),
-              ),
-            );
-          }),
-        );
-
-        },
-
-
-
-      handleOperation: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        switch (request.operation) {
-          case "list-kg-cores":
-            return this.listKgCores(request, requestId);
-          case "get-kg-core":
-            return this.getKgCore(request, requestId);
-          case "delete-kg-core":
-            return this.deleteKgCore(request, requestId);
-          case "put-kg-core":
-            return this.putKgCore(request, requestId);
-          case "load-kg-core":
-            return this.loadKgCore(request, requestId);
-          case "unload-kg-core":
-            return this.unloadKgCore(request, requestId);
-          case "list-de-cores":
-            return this.listDeCores(request, requestId);
-          case "get-de-core":
-            return this.getDeCore(request, requestId);
-          case "delete-de-core":
-            return this.deleteDeCore(request, requestId);
-          case "put-de-core":
-            return this.putDeCore(request, requestId);
-          case "load-de-core":
-            return this.loadDeCore(request, requestId);
-          default:
-            return failPromise("operation", `Unknown knowledge operation: ${request.operation as string}`);
-        }
-
-        },
-
-
-
-      requestRecord: function(this: KnowledgeCoreService, request: KnowledgeRequest): Record<string, unknown> {
-        return request as Record<string, unknown>;
-
-        },
-
-
-
-      graphEmbeddings: function(this: KnowledgeCoreService, request: KnowledgeRequest): { entity: Term; vectors: number[][] }[] {
-        const req = this.requestRecord(request);
-        const value = request.graphEmbeddings ?? req["graph-embeddings"];
-        return Array.isArray(value) ? value as { entity: Term; vectors: number[][] }[] : [];
-
-        },
-
-
-
-      documentEmbeddings: function(this: KnowledgeCoreService, request: KnowledgeRequest): DocumentEmbeddingsCore | undefined {
-        const req = this.requestRecord(request);
-        const value = request.documentEmbeddings ?? req["document-embeddings"];
-        if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-        return value as DocumentEmbeddingsCore;
-
-        },
-
-
-
-      listKgCores: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const prefix = user.length > 0 ? `${user}:` : "";
-
-            const ids: string[] = [];
-            for (const key of (service.cores as Map<string, KnowledgeCore>).keys()) {
-              if (prefix.length === 0 || key.startsWith(prefix)) {
-                // Extract the ID portion after the user prefix
-                const id = key.slice(prefix.length);
-                ids.push(id);
-              }
-            }
-
-            yield* sendResponse(service, { ids }, requestId);
-          }),
-        );
-
-        },
-
-
-
-      getKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-
-            const core = service.cores.get(key);
-            if (core === undefined) {
-              return yield* knowledgeCoreServiceError("get-kg-core", `Knowledge core not found: ${key}`);
-            }
-
-            // Send triples and embeddings in batches
-            const BATCH_SIZE = 100;
-
-            // Send triples in batches
-            for (let i = 0; i < core.triples.length; i += BATCH_SIZE) {
-              const batch = core.triples.slice(i, i + BATCH_SIZE);
-              const isLast = i + BATCH_SIZE >= core.triples.length && core.graphEmbeddings.length === 0;
-
-              yield* sendResponse(
-                service,
-                { triples: batch, eos: isLast },
-                requestId,
-                "respond-kg-triples",
-              );
-            }
-
-            // Send graph embeddings in batches
-            for (let i = 0; i < core.graphEmbeddings.length; i += BATCH_SIZE) {
-              const batch = core.graphEmbeddings.slice(i, i + BATCH_SIZE);
-              const isLast = i + BATCH_SIZE >= core.graphEmbeddings.length;
-
-              yield* sendResponse(
-                service,
-                { graphEmbeddings: batch, "graph-embeddings": batch, eos: isLast } as KnowledgeResponse,
-                requestId,
-                "respond-kg-embeddings",
-              );
-            }
-
-            // If core was empty, send a final eos
-            if (core.triples.length === 0 && core.graphEmbeddings.length === 0) {
-              yield* sendResponse(service, { eos: true }, requestId, "respond-kg-empty");
-            }
-          }),
-        );
-
-        },
-
-
-
-      deleteKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-
-            service.cores.delete(key);
-            yield* tryPromise("persist-delete-kg-core", () => service.persist());
-
-            yield* Effect.log(`[KnowledgeCoreService] Deleted core: ${key}`);
-            yield* sendResponse(service, {}, requestId);
-          }),
-        );
-
-        },
-
-
-
-      putKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-
-            let core = service.cores.get(key);
-            if (core === undefined) {
-              core = { triples: [], graphEmbeddings: [] };
-              service.cores.set(key, core);
-            }
-
-            // Append triples if provided
-            if (request.triples !== undefined && request.triples.length > 0) {
-              core.triples.push(...request.triples);
-            }
-
-            // Append graph embeddings if provided
-            const graphEmbeddings = service.graphEmbeddings(request);
-            if (graphEmbeddings.length > 0) {
-              core.graphEmbeddings.push(...graphEmbeddings);
-            }
-
-            yield* tryPromise("persist-put-kg-core", () => service.persist());
-
-            yield* Effect.log(
-              `[KnowledgeCoreService] Updated core ${key}: triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length}`,
-            );
-            yield* sendResponse(service, {}, requestId);
-          }),
-        );
-
-        },
-
-
-
-      loadKgCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-
-            const core = service.cores.get(key);
-            if (core === undefined) {
-              return yield* knowledgeCoreServiceError("load-kg-core", `Knowledge core not found: ${key}`);
-            }
-
-            if (core.triples.length > 0) {
-              yield* Effect.acquireUseRelease(
-                tryPromise("triples-producer", () =>
-                  service.pubsub.createProducer<unknown>({ topic: "tg.flow.triples" }),
-                ),
-                (producer) =>
-                  tryPromise("send-triples", () =>
-                    producer.send({
-                      metadata: {
-                        id: coreId,
-                        root: coreId,
-                        user,
-                        collection: request.collection ?? "default",
-                      },
-                      triples: core.triples,
-                    }),
-                  ),
-                (producer) => closeResource(producer, "close-triples-producer"),
-              );
-            }
-
-            yield* Effect.log(
-              `[KnowledgeCoreService] Loaded core ${key} (triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length})`,
-            );
-            yield* sendResponse(service, {}, requestId);
-          }),
-        );
-
-        },
-
-
-
-      unloadKgCore: function(this: KnowledgeCoreService, _request: KnowledgeRequest, requestId: string): Promise<void> {
-        return Effect.runPromise(sendResponse(this, {}, requestId));
-
-        },
-
-
-
-      listDeCores: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const prefix = user.length > 0 ? `${user}:` : "";
-            const ids = [...service.deCores.keys()]
-              .filter((key) => prefix.length === 0 || key.startsWith(prefix))
-              .map((key) => key.slice(prefix.length));
-            yield* sendResponse(service, { ids }, requestId);
-          }),
-        );
-
-        },
-
-
-
-      getDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-            const core = service.deCores.get(key);
-            if (core === undefined) {
-              return yield* knowledgeCoreServiceError("get-de-core", `Document embeddings core not found: ${key}`);
-            }
-
-            for (let i = 0; i < core.length; i++) {
-              const isLast = i === core.length - 1;
-              yield* sendResponse(
-                service,
-                {
-                  documentEmbeddings: core[i],
-                  "document-embeddings": core[i],
-                  eos: isLast,
-                } as KnowledgeResponse,
-                requestId,
-                "respond-de-core",
-              );
-            }
-            if (core.length === 0) {
-              yield* sendResponse(service, { eos: true }, requestId, "respond-de-empty");
-            }
-          }),
-        );
-
-        },
-
-
-
-      deleteDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            service.deCores.delete(service.coreKey(user, coreId));
-            yield* tryPromise("persist-delete-de-core", () => service.persist());
-            yield* sendResponse(service, {}, requestId);
-          }),
-        );
-
-        },
-
-
-
-      putDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-            const item = service.documentEmbeddings(request);
-            if (item === undefined) {
-              return yield* knowledgeCoreServiceError("put-de-core", "put-de-core requires document-embeddings");
-            }
-            const core = service.deCores.get(key) ?? [];
-            core.push(item);
-            service.deCores.set(key, core);
-            yield* tryPromise("persist-put-de-core", () => service.persist());
-            yield* sendResponse(service, {}, requestId);
-          }),
-        );
-
-        },
-
-
-
-      loadDeCore: function(this: KnowledgeCoreService, request: KnowledgeRequest, requestId: string): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const user = request.user ?? "";
-            const coreId = request.id ?? "";
-            const key = service.coreKey(user, coreId);
-            if (!(service.deCores as Map<string, DocumentEmbeddingsCore[]>).has(key)) {
-              return yield* knowledgeCoreServiceError("load-de-core", `Document embeddings core not found: ${key}`);
-            }
-            yield* sendResponse(service, {}, requestId);
-          }),
-        );
-
-        },
-
-
-
-      // ---------- Persistence ----------
-
-      persist: function(this: KnowledgeCoreService): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            // Serialize Map to object
-            const data: {
-              kg: Record<string, KnowledgeCore>;
-              de: Record<string, DocumentEmbeddingsCore[]>;
-            } = { kg: {}, de: {} };
-            for (const [key, core] of service.cores) {
-              data.kg[key] = core;
-            }
-            for (const [key, core] of service.deCores) {
-              data.de[key] = core;
-            }
-
-            const json = yield* trySync("persist-serialize", () => JSON.stringify(data, null, 2));
-            yield* tryPromise("persist-write", () => writeTextFile(service.persistPath, json));
-          }).pipe(
-            Effect.catch((error) =>
-              Effect.logError("[KnowledgeCoreService] Failed to persist state", {
-                error: error.message,
-              }),
-            ),
-          ),
-        );
-
-        },
-
-
-
-      loadFromDisk: function(this: KnowledgeCoreService): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            const raw = yield* tryPromise("load-read", () => readTextFile(service.persistPath));
-            const parsed = yield* trySync("load-parse", () =>
-              JSON.parse(raw) as Record<string, KnowledgeCore> | {
-                kg?: Record<string, KnowledgeCore>;
-                de?: Record<string, DocumentEmbeddingsCore[]>;
-              },
-            );
-
-            service.cores.clear();
-            service.deCores.clear();
-            const kg = "kg" in parsed && parsed.kg !== undefined ? parsed.kg : parsed as Record<string, KnowledgeCore>;
-            for (const [key, core] of Object.entries(kg)) {
-              service.cores.set(key, core);
-            }
-            if ("de" in parsed && parsed.de !== undefined) {
-              for (const [key, core] of Object.entries(parsed.de)) {
-                service.deCores.set(key, core);
-              }
-            }
-
-            yield* Effect.log(`[KnowledgeCoreService] Loaded persisted state (kg=${service.cores.size}, de=${service.deCores.size})`);
-          }).pipe(
-            Effect.catch(() =>
-              Effect.log("[KnowledgeCoreService] No persisted state found, starting fresh"),
-            ),
-          ),
-        );
-
-        },
-
-
-
-      stop: function(this: KnowledgeCoreService): Promise<void> {
-        const service = this;
-        return Effect.runPromise(
-          Effect.gen(function* () {
-            if (service.consumer !== null) {
-              yield* tryPromise("close-consumer", () => service.consumer.close());
-              service.consumer = null;
-            }
-            if (service.responseProducer !== null) {
-              yield* tryPromise("close-response-producer", () => service.responseProducer.close());
-              service.responseProducer = null;
-            }
-            yield* tryPromise("base-stop", () => baseStop());
-          }),
-        );
-
-        }
+const sendResponse = (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  response: KnowledgeResponse,
+  requestId: string,
+  operation = "respond",
+): Effect.Effect<void, KnowledgeCoreServiceError> =>
+  Effect.gen(function* () {
+    const responseProducer = (yield* SynchronizedRef.get(stateRef)).responseProducer;
+    if (responseProducer === null) {
+      return yield* knowledgeCoreServiceError(operation, "Knowledge response producer not started");
+    }
+
+    yield* tryPromise(operation, () => responseProducer.send(response, {id: requestId}));
   });
+
+const readPersistedKnowledgeEffect = (
+  persistPath: string,
+): Effect.Effect<{
+  readonly kgCores: KnowledgeCoreStore;
+  readonly deCores: DocumentCoreStore;
+} | null, never> =>
+  Effect.gen(function* () {
+    const raw = yield* tryPromise("load-read", () => readTextFile(persistPath));
+    const current = S.decodeUnknownOption(PersistedKnowledgeSnapshotJsonSchema)(raw);
+    if (O.isSome(current)) {
+      return {
+        kgCores: kgStoreFromRecord(current.value.kg),
+        deCores: deStoreFromRecord(current.value.de),
+      };
+    }
+
+    const legacy = S.decodeUnknownOption(LegacyKnowledgeSnapshotJsonSchema)(raw);
+    if (O.isSome(legacy)) {
+      return {
+        kgCores: kgStoreFromRecord(legacy.value),
+        deCores: new Map<string, Array<DocumentEmbeddingsCore>>(),
+      };
+    }
+
+    return yield* knowledgeCoreServiceError("load-decode", "Persisted knowledge state did not match any known shape");
+  }).pipe(
+    Effect.catch(() =>
+      Effect.log("[KnowledgeCoreService] No persisted state found, starting fresh").pipe(
+        Effect.flatMap(() =>
+          Effect.succeed<{
+            readonly kgCores: KnowledgeCoreStore;
+            readonly deCores: DocumentCoreStore;
+          } | null>(null)
+        ),
+      )
+    ),
+  );
+
+const persistStateEffect = (
+  persistPath: string,
+  state: KnowledgeCoreServiceState,
+): Effect.Effect<void, never> =>
+  Effect.gen(function* () {
+    const snapshot = toPersistedSnapshot(state);
+    const json = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(snapshot).pipe(
+      Effect.mapError((cause) => knowledgeCoreServiceError("persist-encode", cause)),
+    );
+    yield* tryPromise("persist-write", () => writeTextFile(persistPath, json));
+  }).pipe(
+    Effect.catch((error) =>
+      Effect.logError("[KnowledgeCoreService] Failed to persist state", {
+        error: error.message,
+      }),
+    ),
+  );
+
+const listIds = (
+  store: ReadonlyMap<string, unknown>,
+  user: string,
+): Array<string> => {
+  const prefix = user.length > 0 ? `${user}:` : "";
+  const ids: Array<string> = [];
+
+  for (const key of store.keys()) {
+    if (prefix.length === 0 || key.startsWith(prefix)) {
+      ids.push(key.slice(prefix.length));
+    }
+  }
+
+  return ids;
+};
+
+const closeKnowledgeResourcesEffect = (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+): Effect.Effect<void, KnowledgeCoreServiceError> =>
+  Effect.gen(function* () {
+    const state = yield* SynchronizedRef.get(stateRef);
+
+    const consumer = state.consumer;
+    if (consumer !== null) {
+      yield* tryPromise("close-consumer", () => consumer.close());
+    }
+
+    const responseProducer = state.responseProducer;
+    if (responseProducer !== null) {
+      yield* tryPromise("close-response-producer", () => responseProducer.close());
+    }
+
+    yield* updateHandles(stateRef, {
+      consumer: null,
+      responseProducer: null,
+    });
+  });
+
+const consumeOnceEffect = (
+  service: KnowledgeCoreService,
+): Effect.Effect<void, KnowledgeCoreServiceError> =>
+  Effect.gen(function* () {
+    const consumer = (yield* SynchronizedRef.get(service.state)).consumer;
+    if (consumer === null) {
+      return yield* knowledgeCoreServiceError("consume", "Knowledge request consumer not started");
+    }
+
+    const msg = yield* tryPromise("consume-receive", () => consumer.receive(2000));
+    if (msg === null) return;
+
+    yield* service.handleMessageEffect(msg);
+    yield* tryPromise("consume-acknowledge", () => consumer.acknowledge(msg));
+  });
+
+const runKnowledgeCoreServiceEffect = (
+  service: KnowledgeCoreService,
+): Effect.Effect<void, KnowledgeCoreServiceError> =>
+  Effect.gen(function* () {
+    yield* tryPromise("ensure-directory", () => ensureDirectory(service.dataDir));
+    yield* service.loadFromDiskEffect;
+
+    const responseProducer = yield* tryPromise("response-producer", () =>
+      service.pubsub.createProducer<KnowledgeResponse>({
+        topic: topics.knowledgeResponse,
+        schema: KnowledgeResponseSchema,
+      }),
+    );
+    yield* updateHandles(service.state, {responseProducer});
+
+    const consumer = yield* tryPromise("consumer", () =>
+      service.pubsub.createConsumer<KnowledgeRequest>({
+        topic: topics.knowledgeRequest,
+        subscription: `${service.config.id}-knowledge-request`,
+        schema: KnowledgeRequestSchema,
+      }),
+    );
+    yield* updateHandles(service.state, {consumer});
+
+    yield* Effect.log(`[KnowledgeCoreService] Listening on ${topics.knowledgeRequest}`);
+
+    yield* Effect.whileLoop({
+      while: () => service.running,
+      body: () =>
+        consumeOnceEffect(service).pipe(
+          Effect.catch((error) => {
+            if (!service.running) return Effect.void;
+            return Effect.logError("[KnowledgeCoreService] Error in consume loop", {
+              error: error.message,
+            }).pipe(
+              Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
+            );
+          }),
+        ),
+      step: () => undefined,
+    });
+  });
+
+const listKgCoresEffect = (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  request: KnowledgeRequest,
+  requestId: string,
+) =>
+  SynchronizedRef.get(stateRef).pipe(
+    Effect.flatMap((state) => sendResponse(stateRef, {ids: listIds(state.kgCores, request.user ?? "")}, requestId)),
+  );
+
+const getKgCoreEffect = Effect.fn("getKgCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const core = (yield* SynchronizedRef.get(stateRef)).kgCores.get(key);
+    if (core === undefined) {
+      return yield* knowledgeCoreServiceError("get-kg-core", `Knowledge core not found: ${key}`);
+    }
+
+    const batchSize = 100;
+    for (let i = 0; i < core.triples.length; i += batchSize) {
+      const batch = core.triples.slice(i, i + batchSize);
+      const isLast = i + batchSize >= core.triples.length && core.graphEmbeddings.length === 0;
+      yield* sendResponse(stateRef, {triples: batch, eos: isLast}, requestId, "respond-kg-triples");
+    }
+
+    for (let i = 0; i < core.graphEmbeddings.length; i += batchSize) {
+      const batch = core.graphEmbeddings.slice(i, i + batchSize);
+      const isLast = i + batchSize >= core.graphEmbeddings.length;
+      yield* sendResponse(
+        stateRef,
+        {
+          graphEmbeddings: batch,
+          "graph-embeddings": batch,
+          eos: isLast,
+        },
+        requestId,
+        "respond-kg-embeddings",
+      );
+    }
+
+    if (core.triples.length === 0 && core.graphEmbeddings.length === 0) {
+      yield* sendResponse(stateRef, {eos: true}, requestId, "respond-kg-empty");
+    }
+});
+
+const deleteKgCoreEffect = Effect.fn("deleteKgCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  persistPath: string,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
+      const kgCores = cloneKgStore(state.kgCores);
+      kgCores.delete(key);
+      return {...state, kgCores};
+    });
+
+    yield* persistStateEffect(persistPath, next);
+    yield* Effect.log(`[KnowledgeCoreService] Deleted core: ${key}`);
+    yield* sendResponse(stateRef, {}, requestId);
+});
+
+const putKgCoreEffect = Effect.fn("putKgCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  persistPath: string,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
+      const kgCores = cloneKgStore(state.kgCores);
+      const existing = kgCores.get(key) ?? {triples: [], graphEmbeddings: []};
+      const core: KnowledgeCore = {
+        triples: [
+          ...existing.triples,
+          ...Array.from(request.triples ?? []),
+        ],
+        graphEmbeddings: [
+          ...existing.graphEmbeddings,
+          ...graphEmbeddingsFor(request).map((entry) => ({
+            entity: entry.entity,
+            vectors: entry.vectors.map((vector) => Array.from(vector)),
+          })),
+        ],
+      };
+      kgCores.set(key, core);
+      return {...state, kgCores};
+    });
+
+    const core = next.kgCores.get(key);
+    yield* persistStateEffect(persistPath, next);
+    yield* Effect.log(
+      `[KnowledgeCoreService] Updated core ${key}: triples=${core?.triples.length ?? 0}, embeddings=${core?.graphEmbeddings.length ?? 0}`,
+    );
+    yield* sendResponse(stateRef, {}, requestId);
+});
+
+const loadKgCoreEffect = Effect.fn("loadKgCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  service: KnowledgeCoreService,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const user = request.user ?? "";
+    const coreId = request.id ?? "";
+    const key = coreKey(user, coreId);
+    const core = (yield* SynchronizedRef.get(stateRef)).kgCores.get(key);
+    if (core === undefined) {
+      return yield* knowledgeCoreServiceError("load-kg-core", `Knowledge core not found: ${key}`);
+    }
+
+    if (core.triples.length > 0) {
+      yield* Effect.acquireUseRelease(
+        tryPromise("triples-producer", () =>
+          service.pubsub.createProducer<unknown>({topic: "tg.flow.triples"}),
+        ),
+        (producer) =>
+          tryPromise("send-triples", () =>
+            producer.send({
+              metadata: {
+                id: coreId,
+                root: coreId,
+                user,
+                collection: request.collection ?? "default",
+              },
+              triples: core.triples,
+            }),
+          ),
+        (producer) => closeResource(producer, "close-triples-producer"),
+      );
+    }
+
+    yield* Effect.log(
+      `[KnowledgeCoreService] Loaded core ${key} (triples=${core.triples.length}, embeddings=${core.graphEmbeddings.length})`,
+    );
+    yield* sendResponse(stateRef, {}, requestId);
+});
+
+const listDeCoresEffect = (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  request: KnowledgeRequest,
+  requestId: string,
+) =>
+  SynchronizedRef.get(stateRef).pipe(
+    Effect.flatMap((state) => sendResponse(stateRef, {ids: listIds(state.deCores, request.user ?? "")}, requestId)),
+  );
+
+const getDeCoreEffect = Effect.fn("getDeCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const core = (yield* SynchronizedRef.get(stateRef)).deCores.get(key);
+    if (core === undefined) {
+      return yield* knowledgeCoreServiceError("get-de-core", `Document embeddings core not found: ${key}`);
+    }
+
+    for (const [index, item] of core.entries()) {
+      yield* sendResponse(
+        stateRef,
+        {
+          documentEmbeddings: item,
+          "document-embeddings": item,
+          eos: index === core.length - 1,
+        },
+        requestId,
+        "respond-de-core",
+      );
+    }
+
+    if (core.length === 0) {
+      yield* sendResponse(stateRef, {eos: true}, requestId, "respond-de-empty");
+    }
+});
+
+const deleteDeCoreEffect = Effect.fn("deleteDeCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  persistPath: string,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
+      const deCores = cloneDeStore(state.deCores);
+      deCores.delete(key);
+      return {...state, deCores};
+    });
+
+    yield* persistStateEffect(persistPath, next);
+    yield* sendResponse(stateRef, {}, requestId);
+});
+
+const putDeCoreEffect = Effect.fn("putDeCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  persistPath: string,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const item = documentEmbeddingsFor(request);
+    if (item === undefined) {
+      return yield* knowledgeCoreServiceError("put-de-core", "put-de-core requires document-embeddings");
+    }
+
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
+      const deCores = cloneDeStore(state.deCores);
+      deCores.set(key, [...(deCores.get(key) ?? []), item]);
+      return {...state, deCores};
+    });
+
+    yield* persistStateEffect(persistPath, next);
+    yield* sendResponse(stateRef, {}, requestId);
+});
+
+const loadDeCoreEffect = Effect.fn("loadDeCoreEffect")(function* (
+  stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
+  request: KnowledgeRequest,
+  requestId: string,
+) {
+    const key = coreKey(request.user ?? "", request.id ?? "");
+    const exists = (yield* SynchronizedRef.get(stateRef)).deCores.has(key);
+    if (!exists) {
+      return yield* knowledgeCoreServiceError("load-de-core", `Document embeddings core not found: ${key}`);
+    }
+    yield* sendResponse(stateRef, {}, requestId);
+});
+
+export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): KnowledgeCoreService {
+  const dataDir = config.dataDir ?? "./data/knowledge";
+  const persistPath = joinPath(dataDir, "knowledge-state.json");
+  const state = SynchronizedRef.makeUnsafe(initialState());
+  let service: KnowledgeCoreService | undefined;
+
+  const getService = Effect.sync(() => service).pipe(
+    Effect.flatMap((current) =>
+      current === undefined
+        ? Effect.fail(knowledgeCoreServiceError("service", "Knowledge core service not initialized"))
+        : Effect.succeed(current)
+    ),
+  );
+
+  const base = makeAsyncProcessor<KnowledgeCoreServiceError>(config, {
+    runEffect: () => getService.pipe(Effect.flatMap(runKnowledgeCoreServiceEffect)),
+  });
+  const baseStop = base.stop;
+
+  const handleOperationEffect = (request: KnowledgeRequest, requestId: string) => {
+    const operation: KnowledgeOperation = request.operation;
+
+    switch (operation) {
+      case "list-kg-cores":
+        return listKgCoresEffect(state, request, requestId);
+      case "get-kg-core":
+        return getKgCoreEffect(state, request, requestId);
+      case "delete-kg-core":
+        return deleteKgCoreEffect(state, persistPath, request, requestId);
+      case "put-kg-core":
+        return putKgCoreEffect(state, persistPath, request, requestId);
+      case "load-kg-core":
+        return getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId)));
+      case "unload-kg-core":
+        return sendResponse(state, {}, requestId);
+      case "list-de-cores":
+        return listDeCoresEffect(state, request, requestId);
+      case "get-de-core":
+        return getDeCoreEffect(state, request, requestId);
+      case "delete-de-core":
+        return deleteDeCoreEffect(state, persistPath, request, requestId);
+      case "put-de-core":
+        return putDeCoreEffect(state, persistPath, request, requestId);
+      case "load-de-core":
+        return loadDeCoreEffect(state, request, requestId);
+    }
+  };
+
+  const handleMessageEffect = Effect.fn("KnowledgeCoreService.handleMessage")(function* (msg: Message<KnowledgeRequest>) {
+    const request = yield* S.decodeUnknownEffect(KnowledgeRequestSchema)(msg.value()).pipe(
+      Effect.mapError((cause) => knowledgeCoreServiceError("decode", cause)),
+    );
+    const requestId = msg.properties().id;
+
+    if (requestId === undefined || requestId.length === 0) {
+      yield* Effect.logWarning("[KnowledgeCoreService] Received request without id, ignoring");
+      return;
+    }
+
+    yield* handleOperationEffect(request, requestId).pipe(
+      Effect.catch((error) =>
+        sendResponse(
+          state,
+          {error: {type: "knowledge-error", message: error.message}},
+          requestId,
+          "respond-error",
+        )
+      ),
+    );
+  });
+
+  const loadFromDiskEffect = Effect.fn("KnowledgeCoreService.loadFromDisk")(function* () {
+    const loaded = yield* readPersistedKnowledgeEffect(persistPath);
+    if (loaded === null) return;
+
+    const next = yield* SynchronizedRef.updateAndGet(state, (current) => ({
+      ...current,
+      kgCores: loaded.kgCores,
+      deCores: loaded.deCores,
+    }));
+
+    yield* Effect.log(`[KnowledgeCoreService] Loaded persisted state (kg=${next.kgCores.size}, de=${next.deCores.size})`);
+  });
+
+  service = Object.assign(base, {
+    state,
+    dataDir,
+    persistPath,
+    coreKey,
+    graphEmbeddings: graphEmbeddingsFor,
+    documentEmbeddings: documentEmbeddingsFor,
+    handleMessage: (msg: Message<KnowledgeRequest>) => Effect.runPromise(handleMessageEffect(msg)),
+    handleMessageEffect,
+    handleOperation: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(handleOperationEffect(request, requestId)),
+    handleOperationEffect,
+    listKgCores: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(listKgCoresEffect(state, request, requestId)),
+    listKgCoresEffect: (request: KnowledgeRequest, requestId: string) => listKgCoresEffect(state, request, requestId),
+    getKgCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(getKgCoreEffect(state, request, requestId)),
+    getKgCoreEffect: (request: KnowledgeRequest, requestId: string) => getKgCoreEffect(state, request, requestId),
+    deleteKgCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(deleteKgCoreEffect(state, persistPath, request, requestId)),
+    deleteKgCoreEffect: (request: KnowledgeRequest, requestId: string) => deleteKgCoreEffect(state, persistPath, request, requestId),
+    putKgCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(putKgCoreEffect(state, persistPath, request, requestId)),
+    putKgCoreEffect: (request: KnowledgeRequest, requestId: string) => putKgCoreEffect(state, persistPath, request, requestId),
+    loadKgCore: (request: KnowledgeRequest, requestId: string) =>
+      Effect.runPromise(getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId)))),
+    loadKgCoreEffect: (request: KnowledgeRequest, requestId: string) =>
+      getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId))),
+    unloadKgCore: (_request: KnowledgeRequest, requestId: string) => Effect.runPromise(sendResponse(state, {}, requestId)),
+    unloadKgCoreEffect: (_request: KnowledgeRequest, requestId: string) => sendResponse(state, {}, requestId),
+    listDeCores: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(listDeCoresEffect(state, request, requestId)),
+    listDeCoresEffect: (request: KnowledgeRequest, requestId: string) => listDeCoresEffect(state, request, requestId),
+    getDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(getDeCoreEffect(state, request, requestId)),
+    getDeCoreEffect: (request: KnowledgeRequest, requestId: string) => getDeCoreEffect(state, request, requestId),
+    deleteDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(deleteDeCoreEffect(state, persistPath, request, requestId)),
+    deleteDeCoreEffect: (request: KnowledgeRequest, requestId: string) => deleteDeCoreEffect(state, persistPath, request, requestId),
+    putDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(putDeCoreEffect(state, persistPath, request, requestId)),
+    putDeCoreEffect: (request: KnowledgeRequest, requestId: string) => putDeCoreEffect(state, persistPath, request, requestId),
+    loadDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(loadDeCoreEffect(state, request, requestId)),
+    loadDeCoreEffect: (request: KnowledgeRequest, requestId: string) => loadDeCoreEffect(state, request, requestId),
+    persist: () => Effect.runPromise(SynchronizedRef.get(state).pipe(Effect.flatMap((current) => persistStateEffect(persistPath, current)))),
+    persistEffect: SynchronizedRef.get(state).pipe(Effect.flatMap((current) => persistStateEffect(persistPath, current))),
+    loadFromDisk: () => Effect.runPromise(loadFromDiskEffect()),
+    loadFromDiskEffect: loadFromDiskEffect(),
+    stop: () =>
+      Effect.runPromise(
+        closeKnowledgeResourcesEffect(state).pipe(
+          Effect.flatMap(() =>
+            tryPromise("base-stop", () => baseStop())
+          ),
+        ),
+      ),
+  });
+
   return service;
 }
 
 export const KnowledgeCoreService = makeKnowledgeCoreService;
 
+export const loadKnowledgeCoreServiceRuntimeConfig = Effect.fn("loadKnowledgeCoreServiceRuntimeConfig")(function* () {
+  const processorConfig = yield* loadProcessorRuntimeConfig("knowledge-svc", {
+    manageProcessSignals: false,
+  });
+  const dataDir = yield* optionalStringConfig("KNOWLEDGE_DATA_DIR");
+  return {
+    ...processorConfig,
+    ...(dataDir !== undefined ? {dataDir} : {}),
+  } satisfies KnowledgeCoreServiceConfig;
+});
+
 export const program = makeProcessorProgram({
   id: "knowledge-svc",
+  loadConfig: loadKnowledgeCoreServiceRuntimeConfig(),
   make: (config) => makeKnowledgeCoreService(config),
 });
 
+const knowledgeCoreRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return knowledgeCoreRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

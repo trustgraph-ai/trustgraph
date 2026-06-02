@@ -12,22 +12,22 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 RAG and agent
-requestor bridge slice:
+Current signal counts from `ts/packages` after the 2026-06-02 KnowledgeCore
+ref-backed state slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 198 |
-| `Map<` | 65 |
+| `Effect.runPromise` | 200 |
+| `Map<` | 72 |
 | `WebSocket` | 51 |
-| `new Map` | 47 |
+| `new Map` | 53 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
-| `while (` | 12 |
+| `while (` | 11 |
 | `new Error` | 14 |
 | `new Promise` | 10 |
-| `JSON.parse` | 8 |
+| `JSON.parse` | 7 |
 | `localStorage` | 9 |
 | `JSON.stringify` | 6 |
 | `setTimeout` | 4 |
@@ -135,7 +135,7 @@ Notes:
 
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
-- Status: migrated, root-verified, and ready to commit.
+- Status: migrated, root-verified, committed, and pushed.
 - Completed:
   - `ts/packages/flow/src/retrieval/graph-rag.ts` and
     `ts/packages/flow/src/retrieval/document-rag.ts` now accept
@@ -163,6 +163,39 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: KnowledgeCore Ref-Backed State Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/cores/service.ts` now exposes a typed
+    `KnowledgeCoreService` instead of `AsyncProcessorRuntime & Record<string,
+    any>`.
+  - Runtime state now lives in
+    `SynchronizedRef<KnowledgeCoreServiceState>` with `kgCores`, `deCores`,
+    the request consumer, and response producer.
+  - Knowledge operations now have Effect-returning handlers with Promise
+    facades only on exported compatibility methods.
+  - Persistence now decodes legacy and current snapshot shapes with Effect
+    Schema and encodes JSON through Schema rather than raw
+    `JSON.parse`/`JSON.stringify` plus assertions.
+  - The consume loop now uses `Effect.whileLoop`; the remaining
+    `consumer.receive(2000)` call is a pubsub boundary for this service.
+  - The service exposes `runMain()` through `NodeRuntime.runMain`; legacy
+    `run()` uses `ManagedRuntime`, and `ts/scripts/run-knowledge.ts` delegates
+    to `runMain()`.
+  - `ts/packages/base/src/schema/messages.ts` now models legacy hyphenated
+    knowledge request/response aliases so the service can preserve the wire
+    shape without response type assertions.
+  - New knowledge-core tests cover ref-backed mutation, graph embedding alias
+    responses, concurrent state updates, and legacy persistence loading.
+- Verification:
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -172,8 +205,9 @@ Notes:
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
 - Flow stateful services:
-  - Config service ref-backed state is complete. Librarian, cores, and
-    flow-manager still have mutable poller service objects. These remain good
+  - Config service and KnowledgeCore service ref-backed state are complete.
+    Librarian and flow-manager still have mutable poller service objects.
+    These remain good
     candidates for `Context` services,
     scoped layers, `Ref`/`SynchronizedRef`, `Schedule`, and managed
     persistence.
@@ -206,7 +240,6 @@ Notes:
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/librarian/service.ts`
-  - `ts/packages/flow/src/cores/service.ts`
   - `ts/packages/flow/src/flow-manager/service.ts`
 - Effect primitives:
   - `Context`, `Layer.scoped`, `Ref`, `SynchronizedRef`, `Schedule`,
@@ -314,7 +347,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. Librarian, cores, or flow-manager scoped state migration.
+1. Librarian or flow-manager scoped state migration.
 2. Client RPC managed runtime/scoped layer cleanup.
 3. Base processor registry and constructor shim redesign.
 4. Gateway RPC callback and client streaming completion cleanup.
