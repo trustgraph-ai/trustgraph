@@ -3,7 +3,7 @@ import {
   errorMessage,
   type LlmChunk,
 } from "@trustgraph/base";
-import { Config, Effect } from "effect";
+import { Config, Effect, Ref, Result, Stream } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
@@ -28,6 +28,112 @@ export class TextCompletionProviderError extends S.TaggedErrorClass<TextCompleti
 export type TextCompletionRuntimeError =
   | TextCompletionProviderError
   | TooManyRequestsError;
+
+type StreamingTokenTotals = {
+  readonly inToken: number;
+  readonly outToken: number;
+};
+
+type LlmStreamPart = {
+  readonly text: O.Option<string>;
+  readonly inToken: O.Option<number>;
+  readonly outToken: O.Option<number>;
+};
+
+const initialTokenTotals = {
+  inToken: 0,
+  outToken: 0,
+} satisfies StreamingTokenTotals;
+
+const updateTokenTotals = (
+  current: StreamingTokenTotals,
+  part: LlmStreamPart,
+): StreamingTokenTotals => ({
+  inToken: O.getOrElse(part.inToken, () => current.inToken),
+  outToken: O.getOrElse(part.outToken, () => current.outToken),
+});
+
+const finalChunk = (model: string, totals: StreamingTokenTotals): LlmChunk => ({
+  text: "",
+  inToken: totals.inToken,
+  outToken: totals.outToken,
+  model,
+  isFinal: true,
+});
+
+const textChunk = (model: string, text: string): LlmChunk => ({
+  text,
+  inToken: null,
+  outToken: null,
+  model,
+  isFinal: false,
+});
+
+const contentPartText = (part: unknown): O.Option<string> =>
+  Predicate.isObject(part) &&
+    Predicate.hasProperty(part, "text") &&
+    Predicate.isString(part.text)
+    ? O.some(part.text)
+    : O.none();
+
+export const textFromContent = (content: unknown): string => {
+  if (Predicate.isString(content)) {
+    return content;
+  }
+
+  return Array.isArray(content)
+    ? content.flatMap((part) => O.toArray(contentPartText(part))).join("")
+    : "";
+};
+
+export const llmStreamPart = (part: {
+  readonly text?: string | null | undefined;
+  readonly inToken?: number | null | undefined;
+  readonly outToken?: number | null | undefined;
+}): LlmStreamPart => ({
+  text: O.fromNullishOr(part.text),
+  inToken: O.fromNullishOr(part.inToken),
+  outToken: O.fromNullishOr(part.outToken),
+});
+
+export const streamTextCompletionChunks = <A>(
+  iterable: AsyncIterable<A>,
+  options: {
+    readonly model: string;
+    readonly mapError: (error: unknown) => TextCompletionRuntimeError;
+    readonly extract: (chunk: A) => LlmStreamPart;
+    readonly finalTokens?: Effect.Effect<StreamingTokenTotals, TextCompletionRuntimeError>;
+  },
+): Stream.Stream<LlmChunk, TextCompletionRuntimeError> =>
+  Stream.unwrap(Effect.gen(function* () {
+    const totals = yield* Ref.make(initialTokenTotals);
+
+    const chunks = Stream.fromAsyncIterable(iterable, options.mapError).pipe(
+      Stream.mapEffect((chunk) =>
+        Effect.gen(function* () {
+          const part = options.extract(chunk);
+          yield* Ref.update(totals, (current) => updateTokenTotals(current, part));
+          return O.map(
+            O.filter(part.text, (text) => text.length > 0),
+            (text) => textChunk(options.model, text),
+          );
+        })
+      ),
+      Stream.filterMap((chunk) =>
+        O.match(chunk, {
+          onNone: () => Result.fail(undefined),
+          onSome: Result.succeed,
+        })
+      ),
+    );
+
+    const tokenTotals = options.finalTokens ?? Ref.get(totals);
+    return chunks.pipe(
+      Stream.concat(Stream.fromEffect(tokenTotals.pipe(
+        Effect.map((tokens) => finalChunk(options.model, tokens)),
+      ))),
+    );
+  }));
 
 export const optionalStringConfig = Effect.fn("TextCompletion.optionalStringConfig")(function*(
   provider: string,

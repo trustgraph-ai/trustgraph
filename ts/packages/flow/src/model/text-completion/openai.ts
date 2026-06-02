@@ -19,9 +19,11 @@ import {
 } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
+  llmStreamPart,
   optionalStringConfig,
   providerStatusError,
   requiredString,
+  streamTextCompletionChunks,
   toAsyncGenerator,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -138,53 +140,18 @@ export function makeOpenAIProvider(config: OpenAIProcessorConfig): LlmProvider {
           catch: mapOpenAIError,
         }),
       ).pipe(
-        Stream.flatMap((openAIStream) => {
-          const iterator = openAIStream[Symbol.asyncIterator]();
-        let totalInputTokens = 0;
-        let totalOutputTokens = 0;
-
-          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
-            "pulling",
-            (state) => {
-              if (state === "done") return Effect.as(Effect.void, undefined);
-
-              return Effect.gen(function* () {
-                while (true) {
-                  const next = yield* Effect.tryPromise({
-                    try: () => iterator.next(),
-                    catch: mapOpenAIError,
-                  });
-
-                  if (next.done === true) {
-                    return [{
-                      text: "",
-                      inToken: totalInputTokens,
-                      outToken: totalOutputTokens,
-                      model: modelName,
-                      isFinal: true,
-                    }, "done"] as const;
-                  }
-
-                  const chunk = next.value;
-                  const content = chunk.choices[0]?.delta?.content;
-                  if (chunk.usage !== null && chunk.usage !== undefined) {
-                    totalInputTokens = chunk.usage.prompt_tokens;
-                    totalOutputTokens = chunk.usage.completion_tokens;
-                  }
-                  if (content !== null && content !== undefined && content.length > 0) {
-                    return [{
-                      text: content,
-                      inToken: null,
-                      outToken: null,
-                      model: modelName,
-                      isFinal: false,
-                    }, "pulling"] as const;
-                  }
-                }
-              });
-            },
-          );
-        }),
+        Stream.flatMap((openAIStream) =>
+          streamTextCompletionChunks(openAIStream, {
+            model: modelName,
+            mapError: mapOpenAIError,
+            extract: (chunk) =>
+              llmStreamPart({
+                text: chunk.choices[0]?.delta?.content,
+                inToken: chunk.usage?.prompt_tokens,
+                outToken: chunk.usage?.completion_tokens,
+              }),
+          })
+        ),
       );
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOpenAIError);

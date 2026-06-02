@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Ollama
-embeddings effectful layer slice:
+Current signal counts from `ts/packages` after the 2026-06-02 text completion
+provider stream helper slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -27,7 +27,7 @@ embeddings effectful layer slice:
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 17 |
-| `while (` | 9 |
+| `while (` | 3 |
 | `new Error` | 8 |
 | `new Promise` | 10 |
 | `JSON.parse` | 4 |
@@ -123,6 +123,12 @@ Notes:
   match by making `OllamaEmbeddingsLive` effectful and mapping config/load
   failures to `EmbeddingsError`. The `JSON.stringify` count increased by one
   because the new layer test uses a JSON response fixture.
+- The text completion provider stream helper slice removed all provider-local
+  `Stream.unfold` pull loops, dropped the `while (` count from 9 to 3, and
+  removed the Mistral `content as string` assertion. The only remaining
+  text-completion `iterator.next` match is the `toAsyncGenerator`
+  compatibility adapter that exposes Effect streams through the public
+  `AsyncGenerator<LlmChunk>` provider contract.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -892,6 +898,39 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Text Completion Provider Stream Helper Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/model/text-completion/common.ts` now exposes
+    `streamTextCompletionChunks`, an Effect-native helper built on
+    `Stream.fromAsyncIterable`, `Ref`, `Stream.filterMap`/`Result`, and a final
+    token chunk append.
+  - OpenAI, Azure OpenAI, OpenAI-compatible, Mistral, Ollama, and Claude
+    streaming providers now share the helper instead of each hand-rolling
+    `Stream.unfold` plus `iterator.next` loops.
+  - Mistral non-streaming and streaming content normalization now uses
+    `effect/Predicate` and `Option` narrowing through `textFromContent`, removing
+    the prior `content as string` assertion.
+  - The helper uses the installed Effect beta's `Option.fromNullishOr` and
+    Result-shaped `Stream.filterMap` API, verified by `check:tsgo`.
+  - `ts/packages/flow/src/__tests__/text-completion-common.test.ts` covers
+    token accumulation/final chunk emission and non-string content narrowing.
+- Remaining:
+  - Full Effect AI provider swaps still need parity tests first; current OpenAI
+    and Azure behavior is Chat Completions based, no installed
+    Azure/Mistral/Ollama Effect AI provider exists, and Anthropic needs explicit
+    text/token/streaming/rate-limit parity coverage before replacement.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/text-completion-common.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -959,8 +998,9 @@ Notes:
     store/query modules. Qdrant still has no close/disconnect surface in the
     installed client, so do not reopen it as an `acquireRelease` close slice
     without new SDK evidence.
-  - The next safe provider cleanup is shared text-completion stream iteration
-    and assertion removal, not a direct SDK swap.
+  - Shared text-completion stream iteration and the Mistral content assertion are
+    complete. The remaining provider-layer item is parity-backed Effect AI
+    adapter work, not a direct SDK swap.
 
 ## Ranked Findings
 
@@ -973,10 +1013,6 @@ Notes:
     `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
     Effect AI OpenAI/Anthropic provider layers.
 - Rewrite shape:
-  - Consolidate duplicated text-completion stream iterator plumbing and error
-    conversion in a shared helper.
-  - Remove remaining provider assertions such as the Mistral content cast using
-    guards or Schema-backed normalization.
   - Add an Effect AI adapter layer beside the current `LlmProvider` contract
     before flipping any public provider interface.
   - Use Effect AI provider layers only where parity is proven.

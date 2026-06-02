@@ -19,9 +19,11 @@ import {
 } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
+  llmStreamPart,
   optionalStringConfig,
   providerStatusError,
   requiredString,
+  streamTextCompletionChunks,
   toAsyncGenerator,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -136,53 +138,25 @@ export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
           catch: mapClaudeError,
         }),
       ).pipe(
-        Stream.flatMap((anthropicStream) => {
-          const iterator = anthropicStream[Symbol.asyncIterator]();
-
-          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
-            "pulling",
-            (state) => {
-              if (state === "done") return Effect.as(Effect.void, undefined);
-
-              return Effect.gen(function* () {
-                while (true) {
-                  const next = yield* Effect.tryPromise({
-                    try: () => iterator.next(),
-                    catch: mapClaudeError,
-                  });
-
-                  if (next.done === true) {
-                    const finalMessage = yield* Effect.tryPromise({
-                      try: () => anthropicStream.finalMessage(),
-                      catch: mapClaudeError,
-                    });
-                    return [{
-                      text: "",
-                      inToken: finalMessage.usage.input_tokens,
-                      outToken: finalMessage.usage.output_tokens,
-                      model: modelName,
-                      isFinal: true,
-                    }, "done"] as const;
-                  }
-
-                  const event = next.value;
-                  if (
-                    event.type === "content_block_delta" &&
-                    event.delta.type === "text_delta"
-                  ) {
-                    return [{
-                      text: event.delta.text,
-                      inToken: null,
-                      outToken: null,
-                      model: modelName,
-                      isFinal: false,
-                    }, "pulling"] as const;
-                  }
-                }
-              });
-            },
-          );
-        }),
+        Stream.flatMap((anthropicStream) =>
+          streamTextCompletionChunks(anthropicStream, {
+            model: modelName,
+            mapError: mapClaudeError,
+            extract: (event) =>
+              event.type === "content_block_delta" && event.delta.type === "text_delta"
+                ? llmStreamPart({ text: event.delta.text })
+                : llmStreamPart({}),
+            finalTokens: Effect.tryPromise({
+              try: () => anthropicStream.finalMessage(),
+              catch: mapClaudeError,
+            }).pipe(
+              Effect.map((finalMessage) => ({
+                inToken: finalMessage.usage.input_tokens,
+                outToken: finalMessage.usage.output_tokens,
+              })),
+            ),
+          })
+        ),
       );
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapClaudeError);

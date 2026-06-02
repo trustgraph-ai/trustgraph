@@ -21,8 +21,10 @@ import {
 } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
+  llmStreamPart,
   optionalStringConfig,
   providerRuntimeError,
+  streamTextCompletionChunks,
   toAsyncGenerator,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -112,55 +114,18 @@ export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
           catch: mapOllamaError,
         }),
       ).pipe(
-        Stream.flatMap((ollamaStream) => {
-          const iterator = ollamaStream[Symbol.asyncIterator]();
-      let totalInputTokens = 0;
-      let totalOutputTokens = 0;
-
-          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
-            "pulling",
-            (state) => {
-              if (state === "done") return Effect.as(Effect.void, undefined);
-
-              return Effect.gen(function* () {
-                while (true) {
-                  const next = yield* Effect.tryPromise({
-                    try: () => iterator.next(),
-                    catch: mapOllamaError,
-                  });
-
-                  if (next.done === true) {
-                    return [{
-                      text: "",
-                      inToken: totalInputTokens,
-                      outToken: totalOutputTokens,
-                      model: modelName,
-                      isFinal: true,
-                    }, "done"] as const;
-                  }
-
-                  const chunk = next.value;
-                  if (chunk.prompt_eval_count !== undefined) {
-                    totalInputTokens = chunk.prompt_eval_count;
-                  }
-                  if (chunk.eval_count !== undefined) {
-                    totalOutputTokens = chunk.eval_count;
-                  }
-
-                  if (chunk.response.length > 0) {
-                    return [{
-                      text: chunk.response,
-                      inToken: null,
-                      outToken: null,
-                      model: modelName,
-                      isFinal: false,
-                    }, "pulling"] as const;
-                  }
-                }
-              });
-            },
-          );
-        }),
+        Stream.flatMap((ollamaStream) =>
+          streamTextCompletionChunks(ollamaStream, {
+            model: modelName,
+            mapError: mapOllamaError,
+            extract: (chunk) =>
+              llmStreamPart({
+                text: chunk.response,
+                inToken: chunk.prompt_eval_count,
+                outToken: chunk.eval_count,
+              }),
+          })
+        ),
       );
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOllamaError);

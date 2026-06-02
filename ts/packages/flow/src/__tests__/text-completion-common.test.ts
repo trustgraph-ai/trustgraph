@@ -1,6 +1,14 @@
 import { describe, expect, it } from "@effect/vitest";
 import type { LlmChunk } from "@trustgraph/base";
-import { providerRuntimeError, providerStatusError, toAsyncGenerator } from "../model/text-completion/common.js";
+import { Effect, Stream } from "effect";
+import {
+  llmStreamPart,
+  providerRuntimeError,
+  providerStatusError,
+  streamTextCompletionChunks,
+  textFromContent,
+  toAsyncGenerator,
+} from "../model/text-completion/common.js";
 
 const emptyChunkIterator = (): AsyncIterable<LlmChunk> => ({
   [Symbol.asyncIterator]: () => ({
@@ -32,5 +40,48 @@ describe("text completion common helpers", () => {
       provider: "test-provider",
       message: "provider failed",
     });
+  });
+
+  it.effect(
+    "builds streaming chunks from async iterables with final token totals",
+    Effect.fnUntraced(function* () {
+      const chunks = yield* Stream.runCollect(
+        streamTextCompletionChunks(
+          Stream.toAsyncIterable(Stream.fromArray([
+            { text: "", inToken: 3 },
+            { text: "hello" },
+            { outToken: 5 },
+          ])),
+          {
+            model: "unit-model",
+            mapError: (error) => providerRuntimeError("test-provider", error),
+            extract: (chunk) => llmStreamPart(chunk),
+          },
+        ),
+      );
+
+      expect(Array.from(chunks)).toEqual([
+        {
+          text: "hello",
+          inToken: null,
+          outToken: null,
+          model: "unit-model",
+          isFinal: false,
+        },
+        {
+          text: "",
+          inToken: 3,
+          outToken: 5,
+          model: "unit-model",
+          isFinal: true,
+        },
+      ]);
+    }),
+  );
+
+  it("narrows provider content payloads without type assertions", () => {
+    expect(textFromContent("direct")).toBe("direct");
+    expect(textFromContent([{ text: "a" }, { text: "b" }, { wrong: "skip" }])).toBe("ab");
+    expect(textFromContent([{ text: 1 }])).toBe("");
   });
 });

@@ -21,9 +21,12 @@ import {
 } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
+  llmStreamPart,
   optionalStringConfig,
   providerStatusError,
   requiredString,
+  streamTextCompletionChunks,
+  textFromContent,
   toAsyncGenerator,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -101,7 +104,7 @@ export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider
           catch: mapMistralError,
         }).pipe(
           Effect.map((resp): LlmResult => ({
-            text: (resp.choices?.[0]?.message?.content as string) ?? "",
+            text: textFromContent(resp.choices?.[0]?.message?.content),
             inToken: resp.usage?.promptTokens ?? 0,
             outToken: resp.usage?.completionTokens ?? 0,
             model: modelName,
@@ -134,54 +137,18 @@ export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider
           catch: mapMistralError,
         }),
       ).pipe(
-        Stream.flatMap((mistralStream) => {
-          const iterator = mistralStream[Symbol.asyncIterator]();
-        let totalInputTokens = 0;
-        let totalOutputTokens = 0;
-
-          return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
-            "pulling",
-            (state) => {
-              if (state === "done") return Effect.as(Effect.void, undefined);
-
-              return Effect.gen(function* () {
-                while (true) {
-                  const next = yield* Effect.tryPromise({
-                    try: () => iterator.next(),
-                    catch: mapMistralError,
-                  });
-
-                  if (next.done === true) {
-                    return [{
-                      text: "",
-                      inToken: totalInputTokens,
-                      outToken: totalOutputTokens,
-                      model: modelName,
-                      isFinal: true,
-                    }, "done"] as const;
-                  }
-
-                  const chunk = next.value;
-                  const delta = chunk.data?.choices?.[0]?.delta;
-                  const content = delta?.content;
-                  if (chunk.data?.usage !== undefined) {
-                    totalInputTokens = chunk.data.usage.promptTokens ?? 0;
-                    totalOutputTokens = chunk.data.usage.completionTokens ?? 0;
-                  }
-                  if (typeof content === "string" && content.length > 0) {
-                    return [{
-                      text: content,
-                      inToken: null,
-                      outToken: null,
-                      model: modelName,
-                      isFinal: false,
-                    }, "pulling"] as const;
-                  }
-                }
-              });
-            },
-          );
-        }),
+        Stream.flatMap((mistralStream) =>
+          streamTextCompletionChunks(mistralStream, {
+            model: modelName,
+            mapError: mapMistralError,
+            extract: (chunk) =>
+              llmStreamPart({
+                text: textFromContent(chunk.data?.choices?.[0]?.delta?.content),
+                inToken: chunk.data?.usage?.promptTokens,
+                outToken: chunk.data?.usage?.completionTokens,
+              }),
+          })
+        ),
       );
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapMistralError);
