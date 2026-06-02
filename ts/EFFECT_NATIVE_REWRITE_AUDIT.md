@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 client RPC
-acquisition cause tap slice:
+Current signal counts from `ts/packages` after the 2026-06-02 client socket
+close Effect boundary slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -142,6 +142,10 @@ Notes:
   only to update connection state on runtime/client acquisition failure.
   `effect-rpc-client.ts` now uses `Effect.tapCause` and `Cause.pretty` before
   the public Promise boundary.
+- The client socket close Effect boundary slice removed the Promise `.catch`
+  from `BaseApi.close()`. The void public facade now runs `rpc.close()` through
+  `Effect.tryPromise` and logs the tagged socket close error through
+  `Effect.catch`.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -1001,6 +1005,26 @@ Notes:
   - Removed the local `errorMessage` helper and its message-field assertion.
   - Public `dispatch`, `dispatchStream`, and `close` Promise facades remain
     compatibility boundaries.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/client build`
+  - `bun run --cwd ts/packages/client test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Client Socket Close Effect Boundary Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` now wraps
+    `rpc.close()` with `Effect.tryPromise` inside the public `close(): void`
+    facade.
+  - Close failures are mapped to the existing tagged `TrustGraphSocketError`
+    shape and logged through `Effect.catch` instead of a Promise `.catch`.
+  - The remaining client socket Promise `.catch` matches are streaming callback
+    compatibility bridges that route failures to legacy `onError` callbacks.
 - Verification:
   - `cd ts && bun run check:tsgo`
   - `bun run --cwd ts/packages/client build`

@@ -504,9 +504,14 @@ export function makeBaseApi(
      * Closes the WebSocket connection and cleans up
      */
     close() {
-      rpc.close().catch((err) => {
-        logClientError("[socket close error]", err);
-      });
+      Effect.runFork(
+        Effect.tryPromise({
+          try: () => rpc.close(),
+          catch: (error) => socketError("socket-close", toErrorMessage(error, "Socket close failed")),
+        }).pipe(
+          Effect.catch((error) => Effect.sync(() => logClientError("[socket close error]", error))),
+        ),
+      );
     },
 
     /**
