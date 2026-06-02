@@ -83,4 +83,35 @@ describe("text completion provider construction", () => {
       });
     }),
   );
+
+  it.effect(
+    "loads Claude API key from config provider",
+    Effect.fnUntraced(function* () {
+      const provider = yield* makeClaudeProviderEffect({ id: "claude" }).pipe(
+        Effect.provide(
+          ConfigProvider.layer(
+            ConfigProvider.fromEnv({ env: { CLAUDE_KEY: "env-key" } }),
+          ),
+        ),
+      );
+
+      expect(provider.supportsStreaming()).toBe(true);
+    }),
+  );
+
+  it.effect(
+    "fails missing Claude API key as a tagged config error",
+    Effect.fnUntraced(function* () {
+      const error = yield* makeClaudeProviderEffect({ id: "claude" }).pipe(
+        Effect.flip,
+        Effect.provide(emptyConfig),
+      );
+
+      expect(error).toMatchObject({
+        _tag: "TextCompletionConfigError",
+        provider: "Claude",
+        key: "CLAUDE_KEY",
+      });
+    }),
+  );
 });

@@ -4,7 +4,7 @@
  * Python reference: trustgraph-flow/trustgraph/model/text_completion/claude/llm.py
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { NodeRuntime } from "@effect/platform-node";
 import {
   makeLlmService,
@@ -13,18 +13,14 @@ import {
   type Llm,
   type LlmProvider,
   type ProcessorConfig,
-  type LlmResult,
-  type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Redacted } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 import {
-  llmStreamPart,
+  makeLanguageModelProvider,
   makeTextCompletionLayer,
   optionalStringConfig,
-  providerStatusError,
   requiredString,
-  streamTextCompletionChunks,
-  toAsyncGenerator,
   type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -43,141 +39,55 @@ type ResolvedClaudeConfig = {
   readonly apiKey: string;
 };
 
-const loadClaudeConfig = Effect.fn("loadClaudeConfig")(function*(config: ClaudeProcessorConfig) {
-    const apiKey = yield* requiredString(
-      config.apiKey ?? (yield* optionalStringConfig("Claude", "CLAUDE_KEY")),
-      "Claude",
-      "CLAUDE_KEY",
-      "Claude API key not specified",
-    );
-
-    return {
-      defaultModel: config.model ?? "claude-sonnet-4-20250514",
-      defaultTemperature: config.temperature ?? 0.0,
-      maxOutput: config.maxOutput ?? 8192,
-      apiKey,
-    } satisfies ResolvedClaudeConfig;
-});
-
-const mapClaudeError = (error: unknown): TextCompletionRuntimeError =>
-  providerStatusError("Claude", error);
-
-const makeClaudeProviderFromClient = (
-  resolved: ResolvedClaudeConfig,
-  client: Anthropic,
-): LlmProvider => {
-  const {
-    defaultModel,
-    defaultTemperature,
-    maxOutput,
-  } = resolved;
+const loadClaudeConfig = Effect.fn("loadClaudeConfig")(function* (config: ClaudeProcessorConfig) {
+  const apiKey = yield* requiredString(
+    config.apiKey ?? (yield* optionalStringConfig("Claude", "CLAUDE_KEY")),
+    "Claude",
+    "CLAUDE_KEY",
+    "Claude API key not specified",
+  );
 
   return {
-    generateContent: (
-      system: string,
-      prompt: string,
-      model?: string,
-      temperature?: number,
-    ): Promise<LlmResult> => {
-      const modelName = model ?? defaultModel;
-      const temp = temperature ?? defaultTemperature;
+    defaultModel: config.model ?? "claude-sonnet-4-20250514",
+    defaultTemperature: config.temperature ?? 0.0,
+    maxOutput: config.maxOutput ?? 8192,
+    apiKey,
+  } satisfies ResolvedClaudeConfig;
+});
 
-      return Effect.runPromise(
-        Effect.tryPromise({
-          try: () =>
-            client.messages.create({
-              model: modelName,
-              max_tokens: maxOutput,
-              temperature: temp,
-              system,
-              messages: [
-                { role: "user", content: prompt },
-              ],
-            }),
-          catch: mapClaudeError,
-        }).pipe(
-          Effect.map((response): LlmResult => {
-            const firstContent = response.content[0];
-            const text = firstContent?.type === "text"
-              ? firstContent.text
-              : "";
-
-            return {
-              text,
-              inToken: response.usage.input_tokens,
-              outToken: response.usage.output_tokens,
-              model: modelName,
-            };
-          }),
-        ),
-      );
-    },
-    supportsStreaming: () => true,
-    generateContentStream: (
-      system: string,
-      prompt: string,
-      model?: string,
-      temperature?: number,
-    ): AsyncGenerator<LlmChunk> => {
-      const modelName = model ?? defaultModel;
-      const temp = temperature ?? defaultTemperature;
-
-      const stream = Stream.fromEffect(
-        Effect.try({
-          try: () =>
-            client.messages.stream({
-              model: modelName,
-              max_tokens: maxOutput,
-              temperature: temp,
-              system,
-              messages: [
-                { role: "user", content: prompt },
-              ],
-            }),
-          catch: mapClaudeError,
-        }),
-      ).pipe(
-        Stream.flatMap((anthropicStream) =>
-          streamTextCompletionChunks(anthropicStream, {
-            model: modelName,
-            mapError: mapClaudeError,
-            extract: (event) =>
-              event.type === "content_block_delta" && event.delta.type === "text_delta"
-                ? llmStreamPart({ text: event.delta.text })
-                : llmStreamPart({}),
-            finalTokens: Effect.tryPromise({
-              try: () => anthropicStream.finalMessage(),
-              catch: mapClaudeError,
-            }).pipe(
-              Effect.map((finalMessage) => ({
-                inToken: finalMessage.usage.input_tokens,
-                outToken: finalMessage.usage.output_tokens,
-              })),
-            ),
-          })
-        ),
-      );
-
-      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapClaudeError);
-    },
-  } satisfies LlmProvider;
-};
+const makeClaudeRuntime = (apiKey: string) =>
+  ManagedRuntime.make(
+    AnthropicClient.layer({
+      apiKey: Redacted.make(apiKey),
+    }).pipe(
+      Layer.provide(FetchHttpClient.layer),
+    ),
+  );
 
 export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
   return Effect.runSync(makeClaudeProviderEffect(config));
 }
 
-export const makeClaudeProviderEffect = Effect.fn("makeClaudeProvider")(function*(
+export const makeClaudeProviderEffect = Effect.fn("makeClaudeProvider")(function* (
   config: ClaudeProcessorConfig,
 ) {
   const resolved = yield* loadClaudeConfig(config);
-  const client = yield* Effect.try({
-    try: () => new Anthropic({ apiKey: resolved.apiKey }),
-    catch: mapClaudeError,
-  });
 
   yield* Effect.log("[Claude] LLM service initialized");
-  return makeClaudeProviderFromClient(resolved, client);
+  return makeLanguageModelProvider({
+    provider: "Claude",
+    defaultModel: resolved.defaultModel,
+    defaultTemperature: resolved.defaultTemperature,
+    runtime: makeClaudeRuntime(resolved.apiKey),
+    makeLanguageModel: ({ model, temperature }) =>
+      AnthropicLanguageModel.make({
+        model,
+        config: {
+          max_tokens: resolved.maxOutput,
+          temperature,
+        },
+      }),
+  });
 });
 
 export type ClaudeProcessor = ReturnType<typeof makeClaudeProcessor>;

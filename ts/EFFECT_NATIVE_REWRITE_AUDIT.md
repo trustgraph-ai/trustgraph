@@ -17,7 +17,7 @@ adapter and native request/response PubSub slices:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 170 |
+| `Effect.runPromise` | 169 |
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
 | `Layer.succeed` | 12 |
@@ -150,6 +150,10 @@ Notes:
   `{ id, value }` envelopes through native `effect/PubSub`, and each request
   uses a scoped `PubSub.Subscription` plus `Stream.fromSubscription` to wait
   for its matching response.
+- The Claude Effect AI slice moved the Claude provider off the direct
+  `@anthropic-ai/sdk` wrapper and onto `@effect/ai-anthropic`
+  `AnthropicLanguageModel` through `makeLanguageModelProvider`. The direct SDK
+  dependency was removed from `@trustgraph/flow`.
 - A focused broker-backend scout found no remaining P0 broker runtime rewrite
   after the producer, NATS, consumer concurrency, rate-limit, and
   request-response stop slices. `PubSubBackend` remains an intentional
@@ -1402,6 +1406,29 @@ Notes:
   - `cd ts && bun run check:tsgo`
   - `cd ts/packages/base && bunx --bun vitest run src/__tests__/messaging-runtime.test.ts src/__tests__/request-response.test.ts src/__tests__/flow-spec-runtime.test.ts`
 
+### 2026-06-02: Claude Effect AI Provider Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - Replaced the direct `@anthropic-ai/sdk` provider implementation with
+    `@effect/ai-anthropic` `AnthropicLanguageModel` plus the shared
+    `makeLanguageModelProvider` adapter.
+  - Preserved `CLAUDE_KEY`, default model, temperature, max output, processor,
+    and public `LlmProvider` compatibility behavior.
+  - Added Claude provider config coverage for `CLAUDE_KEY` env fallback and the
+    missing-key tagged config error.
+  - Removed the direct `@anthropic-ai/sdk` dependency and its lockfile entries
+    from `@trustgraph/flow`.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/text-completion-providers.test.ts src/__tests__/text-completion-common.test.ts`
+  - `cd ts/packages/flow && bun run build`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1487,10 +1514,9 @@ Notes:
     local provider layer-construction cleanup is complete; remaining provider
     work is adapter/parity work, not `Layer.succeed` cleanup.
   - The `effect/unstable/ai/LanguageModel` to TrustGraph `LlmProvider` adapter
-    baseline is complete. The next provider PR should migrate Claude through
-    that adapter with provider-specific parity tests. Direct OpenAI, Azure, and
-    OpenAI-compatible swaps are no-ops until Responses-vs-Chat-Completions
-    parity is proven.
+    baseline is complete, and Claude now uses `@effect/ai-anthropic` through
+    that adapter. Direct OpenAI, Azure, and OpenAI-compatible swaps are no-ops
+    until Responses-vs-Chat-Completions parity is proven.
   - FalkorDB scoped lifecycle is complete for triples query/store. Use the
     fakeable client/graph factory pattern from that slice for future storage
     client tests.
@@ -1549,7 +1575,7 @@ Notes:
   - Treat the legacy consumer facade as a completed compatibility wrapper over
     `makeEffectConsumerFromPubSub`; do not flag blocking `start()` semantics.
 
-### P2: Effect AI Provider Adapter Cleanup
+### No-op: Remaining Effect AI Provider Swaps
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/model/text-completion/*.ts`
@@ -1559,10 +1585,12 @@ Notes:
 - Rewrite shape:
   - Adapter baseline is complete: `makeLanguageModelProvider` bridges
     `LanguageModel` into `LlmProvider`.
-  - Claude is the first plausible provider migration through the adapter.
+  - Claude migration is complete through `@effect/ai-anthropic`.
   - Do not directly swap OpenAI, Azure, or OpenAI-compatible providers yet:
     current TrustGraph code uses Chat Completions/local-server semantics while
     `@effect/ai-openai` is Responses API backed.
+  - Do not directly swap Mistral or Ollama until an installed Effect provider
+    package exists or a parity-backed local Effect wrapper is designed.
 - Tests:
   - Provider parity for `LlmResult`, final streaming chunk token counts, 429
     mapping, missing-token config failures, and OpenAI-compatible local-server
@@ -1603,8 +1631,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. Claude provider parity through the Effect AI `LanguageModel` adapter.
-2. MCP Effect stdio parity and canonicalization.
+1. MCP Effect stdio parity and canonicalization.
 
 ## No-Op Rules
 
