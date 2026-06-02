@@ -11,11 +11,10 @@
 import { AzureOpenAI } from "openai";
 import { NodeRuntime } from "@effect/platform-node";
 import {
-  Llm,
   makeLlmService,
   makeFlowProcessorProgram,
-  makeLlmServiceShape,
   makeLlmSpecs,
+  type Llm,
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
@@ -24,11 +23,13 @@ import {
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   llmStreamPart,
+  makeTextCompletionLayer,
   optionalStringConfig,
   providerStatusError,
   requiredString,
   streamTextCompletionChunks,
   toAsyncGenerator,
+  type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
 
@@ -79,24 +80,21 @@ const loadAzureOpenAIConfig = Effect.fn("loadAzureOpenAIConfig")(function* (
       apiKey,
       endpoint,
       apiVersion,
-    };
+    } satisfies ResolvedAzureOpenAIConfig;
 });
 
 const mapAzureOpenAIError = (error: unknown): TextCompletionRuntimeError =>
   providerStatusError("AzureOpenAI", error);
 
-export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): LlmProvider {
+const makeAzureOpenAIProviderFromClient = (
+  resolved: ResolvedAzureOpenAIConfig,
+  client: AzureOpenAI,
+): LlmProvider => {
   const {
     defaultModel,
     defaultTemperature,
     maxOutput,
-    apiKey,
-    endpoint,
-    apiVersion,
-  } = Effect.runSync(loadAzureOpenAIConfig(config)) satisfies ResolvedAzureOpenAIConfig;
-  const client = new AzureOpenAI({ apiKey, apiVersion, endpoint });
-
-  Effect.runSync(Effect.log("[AzureOpenAI] LLM service initialized"));
+  } = resolved;
 
   return {
     generateContent: (
@@ -174,8 +172,30 @@ export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): Llm
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapAzureOpenAIError);
     },
-  };
+  } satisfies LlmProvider;
+};
+
+export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): LlmProvider {
+  return Effect.runSync(makeAzureOpenAIProviderEffect(config));
 }
+
+export const makeAzureOpenAIProviderEffect = Effect.fn("makeAzureOpenAIProvider")(function*(
+  config: AzureOpenAIProcessorConfig,
+) {
+  const resolved = yield* loadAzureOpenAIConfig(config);
+  const client = yield* Effect.try({
+    try: () =>
+      new AzureOpenAI({
+        apiKey: resolved.apiKey,
+        apiVersion: resolved.apiVersion,
+        endpoint: resolved.endpoint,
+      }),
+    catch: mapAzureOpenAIError,
+  });
+
+  yield* Effect.log("[AzureOpenAI] LLM service initialized");
+  return makeAzureOpenAIProviderFromClient(resolved, client);
+});
 
 export type AzureOpenAIProcessor = ReturnType<typeof makeAzureOpenAIProcessor>;
 
@@ -187,14 +207,14 @@ export function makeAzureOpenAIProcessor(
 
 export const AzureOpenAIProcessor = makeAzureOpenAIProcessor;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
+export const program = makeFlowProcessorProgram<
+  AzureOpenAIProcessorConfig,
+  TextCompletionConfigError | TextCompletionRuntimeError,
+  Llm
+>({
   id: "text-completion",
   specs: () => makeLlmSpecs(),
-  layer: (config) =>
-    Layer.succeed(
-      Llm,
-      Llm.of(makeLlmServiceShape(makeAzureOpenAIProvider(config))),
-    ),
+  layer: (config) => makeTextCompletionLayer(makeAzureOpenAIProviderEffect(config)),
 });
 
 const azureOpenAITextCompletionRuntime = ManagedRuntime.make(Layer.empty);

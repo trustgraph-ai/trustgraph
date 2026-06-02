@@ -9,11 +9,10 @@
 import { Ollama } from "ollama";
 import { NodeRuntime } from "@effect/platform-node";
 import {
-  Llm,
   makeLlmService,
   makeFlowProcessorProgram,
-  makeLlmServiceShape,
   makeLlmSpecs,
+  type Llm,
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
@@ -22,10 +21,12 @@ import {
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   llmStreamPart,
+  makeTextCompletionLayer,
   optionalStringConfig,
   providerRuntimeError,
   streamTextCompletionChunks,
   toAsyncGenerator,
+  type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
 
@@ -55,14 +56,11 @@ const loadOllamaConfig = Effect.fn("loadOllamaConfig")(function*(config: OllamaP
 const mapOllamaError = (error: unknown): TextCompletionRuntimeError =>
   providerRuntimeError("Ollama", error);
 
-export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
-  const { defaultModel, host } = Effect.runSync(loadOllamaConfig(config)) satisfies ResolvedOllamaConfig;
-
-  const client = new Ollama({ host });
-
-  Effect.runSync(Effect.log(
-    `[Ollama] LLM service initialized (host=${host}, model=${defaultModel})`,
-  ));
+const makeOllamaProviderFromClient = (
+  resolved: ResolvedOllamaConfig,
+  client: Ollama,
+): LlmProvider => {
+  const { defaultModel } = resolved;
 
   return {
     generateContent: (
@@ -130,8 +128,27 @@ export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOllamaError);
     },
-  };
+  } satisfies LlmProvider;
+};
+
+export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
+  return Effect.runSync(makeOllamaProviderEffect(config));
 }
+
+export const makeOllamaProviderEffect = Effect.fn("makeOllamaProvider")(function*(
+  config: OllamaProcessorConfig,
+) {
+  const resolved = yield* loadOllamaConfig(config);
+  const client = yield* Effect.try({
+    try: () => new Ollama({ host: resolved.host }),
+    catch: mapOllamaError,
+  });
+
+  yield* Effect.log(
+    `[Ollama] LLM service initialized (host=${resolved.host}, model=${resolved.defaultModel})`,
+  );
+  return makeOllamaProviderFromClient(resolved, client);
+});
 
 export type OllamaProcessor = ReturnType<typeof makeOllamaProcessor>;
 
@@ -143,14 +160,14 @@ export function makeOllamaProcessor(
 
 export const OllamaProcessor = makeOllamaProcessor;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
+export const program = makeFlowProcessorProgram<
+  OllamaProcessorConfig,
+  TextCompletionConfigError | TextCompletionRuntimeError,
+  Llm
+>({
   id: "text-completion",
   specs: () => makeLlmSpecs(),
-  layer: (config) =>
-    Layer.succeed(
-      Llm,
-      Llm.of(makeLlmServiceShape(makeOllamaProvider(config))),
-    ),
+  layer: (config) => makeTextCompletionLayer(makeOllamaProviderEffect(config)),
 });
 
 const ollamaTextCompletionRuntime = ManagedRuntime.make(Layer.empty);

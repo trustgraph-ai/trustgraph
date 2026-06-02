@@ -9,11 +9,10 @@
 import { Mistral } from "@mistralai/mistralai";
 import { NodeRuntime } from "@effect/platform-node";
 import {
-  Llm,
   makeLlmService,
   makeFlowProcessorProgram,
-  makeLlmServiceShape,
   makeLlmSpecs,
+  type Llm,
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
@@ -22,12 +21,14 @@ import {
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   llmStreamPart,
+  makeTextCompletionLayer,
   optionalStringConfig,
   providerStatusError,
   requiredString,
   streamTextCompletionChunks,
   textFromContent,
   toAsyncGenerator,
+  type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
 
@@ -67,17 +68,15 @@ const loadMistralConfig = Effect.fn("loadMistralConfig")(function*(config: Mistr
 const mapMistralError = (error: unknown): TextCompletionRuntimeError =>
   providerStatusError("Mistral", error);
 
-export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider {
+const makeMistralProviderFromClient = (
+  resolved: ResolvedMistralConfig,
+  client: Mistral,
+): LlmProvider => {
   const {
     defaultModel,
     defaultTemperature,
     maxOutput,
-    apiKey,
-  } = Effect.runSync(loadMistralConfig(config)) satisfies ResolvedMistralConfig;
-
-  const client = new Mistral({ apiKey });
-
-  Effect.runSync(Effect.log("[Mistral] LLM service initialized"));
+  } = resolved;
 
   return {
     generateContent: (
@@ -153,8 +152,25 @@ export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapMistralError);
     },
-  };
+  } satisfies LlmProvider;
+};
+
+export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider {
+  return Effect.runSync(makeMistralProviderEffect(config));
 }
+
+export const makeMistralProviderEffect = Effect.fn("makeMistralProvider")(function*(
+  config: MistralProcessorConfig,
+) {
+  const resolved = yield* loadMistralConfig(config);
+  const client = yield* Effect.try({
+    try: () => new Mistral({ apiKey: resolved.apiKey }),
+    catch: mapMistralError,
+  });
+
+  yield* Effect.log("[Mistral] LLM service initialized");
+  return makeMistralProviderFromClient(resolved, client);
+});
 
 export type MistralProcessor = ReturnType<typeof makeMistralProcessor>;
 
@@ -166,14 +182,14 @@ export function makeMistralProcessor(
 
 export const MistralProcessor = makeMistralProcessor;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
+export const program = makeFlowProcessorProgram<
+  MistralProcessorConfig,
+  TextCompletionConfigError | TextCompletionRuntimeError,
+  Llm
+>({
   id: "text-completion",
   specs: () => makeLlmSpecs(),
-  layer: (config) =>
-    Layer.succeed(
-      Llm,
-      Llm.of(makeLlmServiceShape(makeMistralProvider(config))),
-    ),
+  layer: (config) => makeTextCompletionLayer(makeMistralProviderEffect(config)),
 });
 
 const mistralTextCompletionRuntime = ManagedRuntime.make(Layer.empty);

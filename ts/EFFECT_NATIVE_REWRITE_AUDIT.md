@@ -12,15 +12,15 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 client streaming
-callback Effect boundary slice:
+Current signal counts from `ts/packages` after the 2026-06-02 text completion
+provider effectful layer slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 172 |
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
-| `Layer.succeed` | 18 |
+| `Layer.succeed` | 12 |
 | `Map<` | 88 |
 | `WebSocket` | 74 |
 | `new Map` | 60 |
@@ -151,6 +151,12 @@ Notes:
   centralizing legacy callback request failures in `runLegacyStreamingRequest`.
   The public callback facades still return/ignore Promises where required, but
   failure mapping now uses `Effect.tryPromise` and `Effect.catch`.
+- The text completion provider effectful layer slice dropped six
+  `Layer.succeed` matches by moving OpenAI, OpenAI-compatible, Azure OpenAI,
+  Claude, Mistral, and Ollama processor layers onto
+  `makeTextCompletionLayer(makeXProviderEffect(config))`. SDK construction and
+  config lookup now live in Effect; sync `makeXProvider` exports remain
+  compatibility facades.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -1065,6 +1071,33 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Text Completion Provider Effectful Layer Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Added shared `makeTextCompletionLayer` for constructing `Llm` from an
+    effectful `LlmProvider`.
+  - Added `makeOpenAIProviderEffect`,
+    `makeOpenAICompatibleProviderEffect`, `makeAzureOpenAIProviderEffect`,
+    `makeClaudeProviderEffect`, `makeMistralProviderEffect`, and
+    `makeOllamaProviderEffect`.
+  - Processor `program.layer` definitions now use `Layer.effect` via the
+    shared helper instead of constructing providers inside `Layer.succeed`.
+  - Provider object assembly is split into pure `makeXProviderFromClient`
+    helpers so Promise-returning provider methods remain external
+    compatibility facades and do not trigger `effect(runEffectInsideEffect)`.
+  - Added tests for explicit provider config, shared `Llm` layer provisioning,
+    and tagged missing-config errors.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/text-completion-providers.test.ts src/__tests__/text-completion-common.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1124,7 +1157,9 @@ Notes:
     Azure currently use Chat Completions while `@effect/ai-openai` is Responses
     API oriented, and no installed Azure/Mistral/Ollama Effect AI provider is
     available. Anthropic is the closest direct provider swap, but must preserve
-    text, token counts, streaming final usage, and rate-limit mapping.
+    text, token counts, streaming final usage, and rate-limit mapping. The
+    local provider layer-construction cleanup is complete; remaining provider
+    work is adapter/parity work, not `Layer.succeed` cleanup.
   - FalkorDB scoped lifecycle is complete for triples query/store. Use the
     fakeable client/graph factory pattern from that slice for future storage
     client tests.
@@ -1138,13 +1173,53 @@ Notes:
 
 ## Ranked Findings
 
-### P2: Provider Layer And Effect AI Cleanup
+### P0: Broker Backend Effect-Native Runtime
+
+- TrustGraph evidence:
+  - `ts/packages/base/src/backend/types.ts`
+  - `ts/packages/base/src/backend/nats.ts`
+  - `ts/packages/base/src/messaging/runtime.ts`
+  - `ts/packages/base/src/processor/flow-processor.ts`
+- Effect primitives:
+  - `Layer`, `Scope`, `Stream`, `Schedule`, `Queue`,
+    `Effect.acquireRelease`, and `Effect.tryPromise`.
+- Rewrite shape:
+  - Introduce an Effect-native broker service/layer with scoped NATS
+    acquisition and stream/schedule-based consumer loops.
+  - Keep `PubSubBackend` as the compatibility adapter boundary; Effect native
+    `PubSub` remains in-process only.
+- Tests:
+  - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
+    config-push stream tests.
+
+### P1: Gateway Dispatcher Ownership And Serialization
+
+- TrustGraph evidence:
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts`
+  - `ts/packages/flow/src/gateway/dispatch/serialize.ts`
+  - `ts/packages/flow/src/gateway/server.ts`
+- Effect primitives:
+  - `Layer`, `Scope`, `Effect.acquireUseRelease`, `Effect.try`, `Result.try`,
+    and typed dispatch errors.
+- Rewrite shape:
+  - Track whether the dispatcher owns `PubSubBackend` so injected backends are
+    not closed.
+  - Use `Effect.acquireUseRelease` for one-shot gateway producers so producer
+    close runs even when send fails.
+  - Replace throwing gateway serialization helpers with Effect/Result-returning
+    helpers mapped to typed dispatch or wire errors.
+  - Longer term, move `createGateway` to a scoped `createGatewayEffect` while
+    keeping Fastify route `Effect.runPromise` calls as host boundaries.
+- Tests:
+  - Injected pubsub is not closed, one-shot producer closes on send failure,
+    and malformed gateway payloads return typed dispatch errors.
+
+### P2: Effect AI Provider Adapter Cleanup
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/model/text-completion/*.ts`
 - Effect primitives:
-  - `Config`, `ConfigProvider`, `Metric`, `Logger`,
-    `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
+  - `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
     Effect AI OpenAI/Anthropic provider layers.
 - Rewrite shape:
   - Add an Effect AI adapter layer beside the current `LlmProvider` contract
@@ -1190,8 +1265,10 @@ Notes:
 
 ## Recommended PR Order
 
-1. Provider layer and Effect AI cleanup.
-2. MCP parity/deletion decision and workbench platform polish.
+1. Gateway dispatcher ownership and serialization.
+2. Broker backend Effect-native runtime.
+3. Effect AI provider adapter cleanup.
+4. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 

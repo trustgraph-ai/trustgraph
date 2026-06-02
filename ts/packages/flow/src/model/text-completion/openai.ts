@@ -7,11 +7,10 @@
 import OpenAI from "openai";
 import { NodeRuntime } from "@effect/platform-node";
 import {
-  Llm,
   makeLlmService,
   makeFlowProcessorProgram,
-  makeLlmServiceShape,
   makeLlmSpecs,
+  type Llm,
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
@@ -20,11 +19,13 @@ import {
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   llmStreamPart,
+  makeTextCompletionLayer,
   optionalStringConfig,
   providerStatusError,
   requiredString,
   streamTextCompletionChunks,
   toAsyncGenerator,
+  type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
 
@@ -64,21 +65,15 @@ const loadOpenAIConfig = Effect.fn("loadOpenAIConfig")(function*(config: OpenAIP
 const mapOpenAIError = (error: unknown): TextCompletionRuntimeError =>
   providerStatusError("OpenAI", error);
 
-export function makeOpenAIProvider(config: OpenAIProcessorConfig): LlmProvider {
+const makeOpenAIProviderFromClient = (
+  resolved: ResolvedOpenAIConfig,
+  client: OpenAI,
+): LlmProvider => {
   const {
     defaultModel,
     defaultTemperature,
     maxOutput,
-    apiKey,
-    baseURL,
-  } = Effect.runSync(loadOpenAIConfig(config)) satisfies ResolvedOpenAIConfig;
-
-  const client = new OpenAI({
-    apiKey,
-    baseURL,
-  });
-
-  Effect.runSync(Effect.log("[OpenAI] LLM service initialized"));
+  } = resolved;
 
   return {
     generateContent: (
@@ -156,8 +151,29 @@ export function makeOpenAIProvider(config: OpenAIProcessorConfig): LlmProvider {
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOpenAIError);
     },
-  };
+  } satisfies LlmProvider;
+};
+
+export function makeOpenAIProvider(config: OpenAIProcessorConfig): LlmProvider {
+  return Effect.runSync(makeOpenAIProviderEffect(config));
 }
+
+export const makeOpenAIProviderEffect = Effect.fn("makeOpenAIProvider")(function*(
+  config: OpenAIProcessorConfig,
+) {
+  const resolved = yield* loadOpenAIConfig(config);
+  const client = yield* Effect.try({
+    try: () =>
+      new OpenAI({
+        apiKey: resolved.apiKey,
+        baseURL: resolved.baseURL,
+      }),
+    catch: mapOpenAIError,
+  });
+
+  yield* Effect.log("[OpenAI] LLM service initialized");
+  return makeOpenAIProviderFromClient(resolved, client);
+});
 
 export type OpenAIProcessor = ReturnType<typeof makeOpenAIProcessor>;
 
@@ -169,14 +185,14 @@ export function makeOpenAIProcessor(
 
 export const OpenAIProcessor = makeOpenAIProcessor;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
+export const program = makeFlowProcessorProgram<
+  OpenAIProcessorConfig,
+  TextCompletionConfigError | TextCompletionRuntimeError,
+  Llm
+>({
   id: "text-completion",
   specs: () => makeLlmSpecs(),
-  layer: (config) =>
-    Layer.succeed(
-      Llm,
-      Llm.of(makeLlmServiceShape(makeOpenAIProvider(config))),
-    ),
+  layer: (config) => makeTextCompletionLayer(makeOpenAIProviderEffect(config)),
 });
 
 const openAITextCompletionRuntime = ManagedRuntime.make(Layer.empty);

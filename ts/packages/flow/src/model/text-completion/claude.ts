@@ -7,11 +7,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NodeRuntime } from "@effect/platform-node";
 import {
-  Llm,
   makeLlmService,
   makeFlowProcessorProgram,
-  makeLlmServiceShape,
   makeLlmSpecs,
+  type Llm,
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
@@ -20,11 +19,13 @@ import {
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   llmStreamPart,
+  makeTextCompletionLayer,
   optionalStringConfig,
   providerStatusError,
   requiredString,
   streamTextCompletionChunks,
   toAsyncGenerator,
+  type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
 
@@ -61,17 +62,15 @@ const loadClaudeConfig = Effect.fn("loadClaudeConfig")(function*(config: ClaudeP
 const mapClaudeError = (error: unknown): TextCompletionRuntimeError =>
   providerStatusError("Claude", error);
 
-export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
+const makeClaudeProviderFromClient = (
+  resolved: ResolvedClaudeConfig,
+  client: Anthropic,
+): LlmProvider => {
   const {
     defaultModel,
     defaultTemperature,
     maxOutput,
-    apiKey,
-  } = Effect.runSync(loadClaudeConfig(config)) satisfies ResolvedClaudeConfig;
-
-  const client = new Anthropic({ apiKey });
-
-  Effect.runSync(Effect.log("[Claude] LLM service initialized"));
+  } = resolved;
 
   return {
     generateContent: (
@@ -161,8 +160,25 @@ export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapClaudeError);
     },
-  };
+  } satisfies LlmProvider;
+};
+
+export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
+  return Effect.runSync(makeClaudeProviderEffect(config));
 }
+
+export const makeClaudeProviderEffect = Effect.fn("makeClaudeProvider")(function*(
+  config: ClaudeProcessorConfig,
+) {
+  const resolved = yield* loadClaudeConfig(config);
+  const client = yield* Effect.try({
+    try: () => new Anthropic({ apiKey: resolved.apiKey }),
+    catch: mapClaudeError,
+  });
+
+  yield* Effect.log("[Claude] LLM service initialized");
+  return makeClaudeProviderFromClient(resolved, client);
+});
 
 export type ClaudeProcessor = ReturnType<typeof makeClaudeProcessor>;
 
@@ -174,14 +190,14 @@ export function makeClaudeProcessor(
 
 export const ClaudeProcessor = makeClaudeProcessor;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
+export const program = makeFlowProcessorProgram<
+  ClaudeProcessorConfig,
+  TextCompletionConfigError | TextCompletionRuntimeError,
+  Llm
+>({
   id: "text-completion",
   specs: () => makeLlmSpecs(),
-  layer: (config) =>
-    Layer.succeed(
-      Llm,
-      Llm.of(makeLlmServiceShape(makeClaudeProvider(config))),
-    ),
+  layer: (config) => makeTextCompletionLayer(makeClaudeProviderEffect(config)),
 });
 
 const claudeTextCompletionRuntime = ManagedRuntime.make(Layer.empty);

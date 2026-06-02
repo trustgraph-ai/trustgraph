@@ -12,11 +12,10 @@
 import OpenAI from "openai";
 import { NodeRuntime } from "@effect/platform-node";
 import {
-  Llm,
   makeLlmService,
   makeFlowProcessorProgram,
-  makeLlmServiceShape,
   makeLlmSpecs,
+  type Llm,
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
@@ -25,11 +24,13 @@ import {
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
 import {
   llmStreamPart,
+  makeTextCompletionLayer,
   optionalStringConfig,
   providerStatusError,
   requiredString,
   streamTextCompletionChunks,
   toAsyncGenerator,
+  type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
 
@@ -75,20 +76,15 @@ const loadOpenAICompatibleConfig = Effect.fn("loadOpenAICompatibleConfig")(funct
 const mapOpenAICompatibleError = (error: unknown): TextCompletionRuntimeError =>
   providerStatusError("OpenAI-Compatible", error);
 
-export function makeOpenAICompatibleProvider(
-  config: OpenAICompatibleProcessorConfig,
-): LlmProvider {
+const makeOpenAICompatibleProviderFromClient = (
+  resolved: ResolvedOpenAICompatibleConfig,
+  client: OpenAI,
+): LlmProvider => {
   const {
     defaultModel,
     defaultTemperature,
     maxOutput,
-    apiKey,
-    baseURL,
-  } = Effect.runSync(loadOpenAICompatibleConfig(config)) satisfies ResolvedOpenAICompatibleConfig;
-
-  const client = new OpenAI({ baseURL, apiKey });
-
-  Effect.runSync(Effect.log("[OpenAI-Compatible] LLM service initialized"));
+  } = resolved;
 
   return {
     generateContent: (
@@ -165,8 +161,27 @@ export function makeOpenAICompatibleProvider(
 
       return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOpenAICompatibleError);
     },
-  };
+  } satisfies LlmProvider;
+};
+
+export function makeOpenAICompatibleProvider(
+  config: OpenAICompatibleProcessorConfig,
+): LlmProvider {
+  return Effect.runSync(makeOpenAICompatibleProviderEffect(config));
 }
+
+export const makeOpenAICompatibleProviderEffect = Effect.fn("makeOpenAICompatibleProvider")(function*(
+  config: OpenAICompatibleProcessorConfig,
+) {
+  const resolved = yield* loadOpenAICompatibleConfig(config);
+  const client = yield* Effect.try({
+    try: () => new OpenAI({ baseURL: resolved.baseURL, apiKey: resolved.apiKey }),
+    catch: mapOpenAICompatibleError,
+  });
+
+  yield* Effect.log("[OpenAI-Compatible] LLM service initialized");
+  return makeOpenAICompatibleProviderFromClient(resolved, client);
+});
 
 export type OpenAICompatibleProcessor = ReturnType<typeof makeOpenAICompatibleProcessor>;
 
@@ -178,14 +193,14 @@ export function makeOpenAICompatibleProcessor(
 
 export const OpenAICompatibleProcessor = makeOpenAICompatibleProcessor;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
+export const program = makeFlowProcessorProgram<
+  OpenAICompatibleProcessorConfig,
+  TextCompletionConfigError | TextCompletionRuntimeError,
+  Llm
+>({
   id: "text-completion",
   specs: () => makeLlmSpecs(),
-  layer: (config) =>
-    Layer.succeed(
-      Llm,
-      Llm.of(makeLlmServiceShape(makeOpenAICompatibleProvider(config))),
-    ),
+  layer: (config) => makeTextCompletionLayer(makeOpenAICompatibleProviderEffect(config)),
 });
 
 const openAICompatibleTextCompletionRuntime = ManagedRuntime.make(Layer.empty);

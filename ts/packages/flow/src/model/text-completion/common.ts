@@ -1,9 +1,12 @@
 import {
+  Llm,
   TooManyRequestsError,
   errorMessage,
+  makeLlmServiceShape,
   type LlmChunk,
+  type LlmProvider,
 } from "@trustgraph/base";
-import { Config, Effect, Ref, Result, Stream } from "effect";
+import { Config, Effect, Layer, Ref, Result, Stream } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
@@ -28,6 +31,17 @@ export class TextCompletionProviderError extends S.TaggedErrorClass<TextCompleti
 export type TextCompletionRuntimeError =
   | TextCompletionProviderError
   | TooManyRequestsError;
+
+export const makeTextCompletionLayer = <E, R>(
+  provider: Effect.Effect<LlmProvider, E, R>,
+): Layer.Layer<Llm, E, R> =>
+  Layer.effect(Llm)(
+    provider.pipe(
+      Effect.map((resolvedProvider) =>
+        Llm.of(makeLlmServiceShape(resolvedProvider))
+      ),
+    ),
+  );
 
 type StreamingTokenTotals = {
   readonly inToken: number;
