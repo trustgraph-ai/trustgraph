@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 legacy consumer
-facade slice:
+Current signal counts from `ts/packages` after the 2026-06-02 workbench theme
+storage slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -21,8 +21,8 @@ facade slice:
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
 | `Layer.succeed` | 12 |
-| `Map<` | 88 |
-| `WebSocket` | 74 |
+| `Map<` | 38 |
+| `WebSocket` | 72 |
 | `new Map` | 60 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
@@ -132,6 +132,12 @@ Notes:
   `Effect.runPromise`, `receive(`, `new Promise`, and `setTimeout` counts
   dropped because the old blocking facade loop and its test timer shim were
   removed.
+- The workbench theme storage slice stopped mirroring `themeAtom` into the
+  legacy `tg-theme` localStorage key. The canonical
+  `trustgraph-workbench-theme-v1` value remains owned by `Atom.kvs` over
+  `BrowserKeyValueStore.layerLocalStorage`; the first-paint host script reads
+  that JSON-encoded key before React mounts and falls back to `tg-theme` only
+  for legacy installs.
 - A focused broker-backend scout found no remaining P0 broker runtime rewrite
   after the producer, NATS, consumer concurrency, rate-limit, and
   request-response stop slices. `PubSubBackend` remains an intentional
@@ -1332,14 +1338,40 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Workbench Theme KeyValueStore Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `themeClassAtom` no longer writes the legacy `tg-theme` localStorage
+    mirror. Theme persistence stays in the canonical
+    `trustgraph-workbench-theme-v1` `Atom.kvs` entry backed by
+    `BrowserKeyValueStore.layerLocalStorage`.
+  - The pre-paint host script in `index.html` now restores the canonical
+    JSON-encoded theme key before React mounts, with `tg-theme` retained only
+    as a legacy fallback.
+  - Workbench QA now asserts that changing theme writes the canonical key and
+    does not recreate `tg-theme`.
+- Verification:
+  - `cd ts && bun run check`
+  - `cd ts && bun run workbench:qa`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
   - Make the Effect MCP server the canonical implementation. The old stdio
-    server should remain only as compatibility while parity is needed.
+    server should remain only as compatibility while parity tests and an
+    Effect `McpServer.layerStdio` entrypoint are missing. Do not delete
+    `server.ts` until stdio `tools/list`/`tools/call` parity is proved.
   - Workbench BaseApi atoms can move toward `AtomRpc` or `AtomHttpApi` after
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
+  - Workbench persistent theme storage is now canonicalized through
+    `Atom.kvs`/`BrowserKeyValueStore`. Remaining workbench `localStorage`
+    matches are legacy migration fallbacks, QA assertions, or the pre-paint
+    host script.
 - Flow stateful services:
   - Config service, KnowledgeCore service, FlowManager, and Librarian
     ref-backed state slices are complete. Follow-up service work should focus
@@ -1410,6 +1442,11 @@ Notes:
     text, token counts, streaming final usage, and rate-limit mapping. The
     local provider layer-construction cleanup is complete; remaining provider
     work is adapter/parity work, not `Layer.succeed` cleanup.
+  - The next provider PR should add a small `effect/unstable/ai/LanguageModel`
+    to TrustGraph `LlmProvider` adapter and prove it with fake
+    `LanguageModel` parts before migrating Claude. Direct OpenAI, Azure, and
+    OpenAI-compatible swaps are no-ops until Responses-vs-Chat-Completions
+    parity is proven.
   - FalkorDB scoped lifecycle is complete for triples query/store. Use the
     fakeable client/graph factory pattern from that slice for future storage
     client tests.
@@ -1473,12 +1510,16 @@ Notes:
   - `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
     Effect AI OpenAI/Anthropic provider layers.
 - Rewrite shape:
-  - Add an Effect AI adapter layer beside the current `LlmProvider` contract
-    before flipping any public provider interface.
-  - Use Effect AI provider layers only where parity is proven.
-  - Keep OpenAI-compatible/Azure-compatible behavior behind parity tests
-    because current code uses chat-completions style APIs while the Effect
-    OpenAI language model is Responses API backed.
+  - Add an Effect AI `LanguageModel` to `LlmProvider` adapter beside the
+    current `LlmProvider` contract before flipping any public provider
+    interface.
+  - Prove `LlmResult`, streaming `text-delta` plus final `finish.usage`,
+    `AiError.RateLimitError` mapping, and missing-token config behavior with
+    fake Effect `LanguageModel` tests.
+  - Claude is the first plausible provider migration after the adapter.
+  - Do not directly swap OpenAI, Azure, or OpenAI-compatible providers yet:
+    current TrustGraph code uses Chat Completions/local-server semantics while
+    `@effect/ai-openai` is Responses API backed.
 - Tests:
   - Provider parity for `LlmResult`, final streaming chunk token counts, 429
     mapping, missing-token config failures, and OpenAI-compatible local-server
@@ -1490,34 +1531,37 @@ Notes:
   - First blocker slice complete: MCP now builds under strict tsgo and the
     stdio server has an Effect-backed compatibility implementation.
 - Remaining shape:
-  - Decide whether the old SDK/Zod stdio compatibility surface should stay as
-    a wrapper or be removed.
-  - Add parity tests before deleting any public entry point.
+  - Keep the old SDK/Zod stdio compatibility surface for now.
+  - Add an Effect stdio entrypoint with `McpServer.layerStdio`, then prove
+    `tools/list` and `tools/call` parity before deleting any public entry
+    point or dropping `zod`/server-side MCP SDK dependencies.
+  - Pay special attention to `text_completion`: legacy calls the TrustGraph
+    gateway, while the Effect server currently uses an Effect AI
+    `LanguageModel`/OpenAI layer.
 - Tests:
   - `cd ts && bun run --cwd packages/mcp build`
   - Root `cd ts && bun run check`
 
-### P2: Tighten Workbench Platform And Reactivity Usage
+### No-op: Workbench Theme And Browser Storage Boundaries
 
-- TrustGraph evidence:
-  - `ts/packages/workbench/src/atoms/workbench.ts`
-  - Remaining direct browser state includes `localStorage` and DOM theme
-    inspection.
-- Effect primitives:
-  - `BrowserKeyValueStore.layerLocalStorage`,
-    `BrowserKeyValueStore.layerSessionStorage`, `BrowserHttpClient`,
-    `Clipboard`, `AtomRpc`, `AtomHttpApi`, `AtomRegistry`, `AsyncResult`,
-    `Reactivity`.
-- Rewrite shape:
-  - Leave workbench out of the next backend/runtime rewrite wave.
-  - Move persistent UI state through browser platform services later.
-- Tests:
-  - `cd ts && bun run workbench:qa`
+- Status: migrated and documented no-op for remaining direct browser matches.
+- Evidence:
+  - `settingsAtom`, `themeAtom`, `flowIdAtom`, and `conversationAtom` are
+    canonical `Atom.kvs` entries backed by
+    `BrowserKeyValueStore.layerLocalStorage`.
+  - The only remaining `tg-theme` production read is a legacy migration
+    fallback. The pre-paint `index.html` script is a host boundary that restores
+    the canonical key before React and Effect services mount.
+  - Graph canvas DOM/class inspection remains render-only host behavior.
+- Rule:
+  - Do not reopen workbench `localStorage` as a backend/runtime blocker unless
+    a canonical `Atom.kvs` entry is bypassed or a legacy migration fallback can
+    be intentionally removed.
 
 ## Recommended PR Order
 
-1. Effect AI provider adapter cleanup.
-2. MCP parity/deletion decision and workbench platform polish.
+1. Effect AI `LanguageModel` to `LlmProvider` adapter, then Claude parity.
+2. MCP Effect stdio parity and canonicalization.
 
 ## No-Op Rules
 
@@ -1539,6 +1583,12 @@ Do not flag these as rewrite blockers without additional proof:
 - JSON stringification in tests or wire-contract fixtures. Production JSON
   encode/decode should prefer schema codecs when the encoded form can be
   preserved.
+- Workbench pre-paint `index.html` storage reads are host-boundary code used
+  before React and Effect services mount. Keep canonical workbench state in
+  `Atom.kvs`/`BrowserKeyValueStore`, and treat old-key reads as migration
+  fallbacks unless backward compatibility is intentionally dropped.
+- The old MCP SDK/Zod stdio server is compatibility code until an Effect stdio
+  entrypoint plus parity tests prove the same public protocol behavior.
 - Client `newableFactory` assertions that preserve vendored callable-plus-new
   API facades are compatibility boundaries unless the public constructor API is
   intentionally redesigned.

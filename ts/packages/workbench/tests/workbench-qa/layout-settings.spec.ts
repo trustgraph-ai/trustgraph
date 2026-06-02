@@ -34,6 +34,12 @@ test("settings persist view state and drive feature switches", async ({ page }) 
 
   await page.getByText("Theme").click();
   await expect.poll(() => page.evaluate(() => document.body.classList.contains("light"))).toBe(true);
+  await expect.poll(() =>
+    page.evaluate(() => ({
+      canonical: window.localStorage.getItem("trustgraph-workbench-theme-v1"),
+      legacy: window.localStorage.getItem("tg-theme"),
+    }))
+  ).toEqual({ canonical: "\"light\"", legacy: null });
 
   await page.getByLabel("Create collection").click();
   const collectionDialog = page.getByRole("dialog", { name: "Create Collection" });

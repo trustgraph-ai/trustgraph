@@ -447,8 +447,8 @@ function legacyConversation(): ConversationState {
 
 function defaultTheme(): Theme {
   if (typeof localStorage !== "undefined") {
-    const saved = localStorage.getItem("tg-theme");
-    if (saved === "dark" || saved === "light") return saved;
+    const legacyTheme = localStorage.getItem("tg-theme");
+    if (legacyTheme === "dark" || legacyTheme === "light") return legacyTheme;
   }
   if (typeof document !== "undefined" && document.documentElement.classList.contains("light")) {
     return "light";
@@ -773,7 +773,6 @@ export const themeClassAtom = Atom.make((get) => {
     document.documentElement.classList.toggle("light", theme === "light");
     document.body.classList.toggle("light", theme === "light");
     document.body.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("tg-theme", theme);
   }
   return theme;
 }).pipe(Atom.keepAlive);

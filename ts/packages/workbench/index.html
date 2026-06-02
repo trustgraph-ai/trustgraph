@@ -82,7 +82,16 @@
     <script>
       // Restore theme preference before first paint
       (function() {
-        var theme = localStorage.getItem('tg-theme');
+        var rawTheme = localStorage.getItem('trustgraph-workbench-theme-v1');
+        var theme = null;
+        if (rawTheme === '"light"') {
+          theme = 'light';
+        } else if (rawTheme === '"dark"') {
+          theme = 'dark';
+        }
+        if (theme !== 'dark' && theme !== 'light') {
+          theme = localStorage.getItem('tg-theme');
+        }
         if (theme === 'light') {
           document.body.classList.remove('dark');
           document.body.classList.add('light');
