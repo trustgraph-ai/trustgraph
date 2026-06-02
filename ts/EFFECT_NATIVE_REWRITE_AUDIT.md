@@ -12,12 +12,12 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Service
-entrypoint runtime slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Base processor
+compatibility runtime slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 185 |
+| `Effect.runPromise` | 169 |
 | `Map<` | 88 |
 | `WebSocket` | 72 |
 | `new Map` | 62 |
@@ -62,6 +62,9 @@ Notes:
   replacing remaining flow service `run()` program facades with
   `ManagedRuntime` and routing local `ts/scripts/run-*` launchers through
   `runMain()`/`NodeRuntime.runMain`.
+- The base processor compatibility runtime slice dropped the
+  `Effect.runPromise` count again by moving `AsyncProcessor`, `Flow`, and
+  `FlowProcessor` Promise compatibility facades onto `ManagedRuntime`.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -485,6 +488,38 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: Base Processor Compatibility Runtime Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/base/src/processor/async-processor.ts` now uses a
+    `ManagedRuntime` for Promise compatibility methods, signal-shutdown
+    execution, and legacy `AsyncProcessor.launch`.
+  - `ts/packages/base/src/processor/flow.ts` now owns a per-flow
+    `ManagedRuntime` for `start`, `stop`, `runInCompatibilityScope`, and
+    Promise resource facades.
+  - `ts/packages/base/src/processor/flow-processor.ts` now uses a
+    `ManagedRuntime` for the public `start(context)` facade instead of a local
+    `Effect.runPromiseWith` runner.
+  - `ts/packages/base/src/spec/parameter-spec.ts` now routes legacy `add`
+    through `flow.runInCompatibilityScope(...)`, matching the other specs.
+  - Subagent checks confirmed `NodeRuntime` is process-entrypoint-only here;
+    `@trustgraph/base` should not add an `@effect/platform-node` dependency
+    for these compatibility facades.
+- Remaining:
+  - Constructor `as unknown as` shims in base processors preserve
+    callable-plus-newable public exports and are compatibility boundaries for
+    this loop.
+  - Typed string lookup casts in `Flow` need a real typed-spec/key redesign;
+    `HashMap`/`MutableHashMap` alone cannot infer `T` from a bare string.
+- Verification:
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `git diff --check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -504,12 +539,17 @@ Notes:
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
 - Base messaging/processors:
-  - Subscriber queues/maps, processor/flow Promise compatibility, and dynamic
-    flow state should continue moving toward `Queue`, `Deferred`,
-    `SynchronizedRef`, `Schedule`, and scoped layers.
-  - Existing constructor shims and typed registries in base processors still
-    use type assertions; they need a typed factory/registry redesign rather
-    than more assertions.
+  - Processor/flow Promise compatibility now uses `ManagedRuntime`; keep
+    `NodeRuntime` only for process `runMain()` entrypoints.
+  - Subscriber queues/maps and dynamic flow state should continue moving
+    toward `Queue`, `Deferred`, `SynchronizedRef`, `Schedule`, and scoped
+    layers.
+  - Existing constructor shims preserve callable-plus-newable public exports;
+    removing them needs a public API split or real class redesign.
+  - Typed string registries in `Flow` need schema-backed parameters and
+    typed-spec/key accessors. Effect `HashMap`/`MutableHashMap` can improve
+    lookup ergonomics with `Option`, but it does not remove the string-key
+    type hole by itself.
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
@@ -528,18 +568,25 @@ Notes:
 
 ## Ranked Findings
 
-### P1: Base Processor Registry And Constructor Shims
+### P1: Base Flow Definition Schemas And Typed Spec Accessors
 
 - TrustGraph evidence:
-  - `ts/packages/base/src/processor/async-processor.ts`
   - `ts/packages/base/src/processor/flow.ts`
   - `ts/packages/base/src/processor/flow-processor.ts`
+  - `ts/packages/base/src/spec/parameter-spec.ts`
+  - `ts/packages/base/src/spec/producer-spec.ts`
+  - `ts/packages/base/src/spec/request-response-spec.ts`
 - Effect primitives:
   - Schema-backed registries, `Context`, `Layer`, `Effect.fn`, `Option`,
-    `Predicate`.
+    `Predicate`, `HashMap`/`MutableHashMap`.
 - Rewrite shape:
-  - Replace constructor `as unknown as` shims with typed factory exports.
-  - Replace resource lookup casts with schema-backed typed registry helpers.
+  - Replace hand-rolled `isStringRecord` / `isFlowDefinition` narrowing with
+    Schema decoding plus `Option`/`Match`-style branches.
+  - Add schema-backed generic parameter specs and spec-object accessors such as
+    `flow.parameterEffect(spec)`, then keep string accessors as compatibility
+    escapes.
+  - Add typed spec-object accessors for producers and requestors so call sites
+    stop spelling generic string lookups.
   - Do not add assertions to quiet Effect channel inference problems.
 - Tests:
   - `cd ts && bun run --cwd packages/base test`
@@ -598,7 +645,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. Base processor registry and constructor shim redesign.
+1. Base flow definition schema decoding and typed spec accessors.
 2. Gateway RPC callback and client streaming completion cleanup.
 3. Storage/provider managed resource cleanup.
 4. MCP parity/deletion decision and workbench platform polish.
@@ -623,6 +670,9 @@ Do not flag these as rewrite blockers without additional proof:
 - Client `newableFactory` assertions that preserve vendored callable-plus-new
   API facades are compatibility boundaries unless the public constructor API is
   intentionally redesigned.
+- Base `AsyncProcessor`, `Flow`, and `FlowProcessor` callable-plus-newable
+  export assertions are compatibility boundaries unless the public constructor
+  API is intentionally redesigned.
 
 ## Acceptance For Final Loop Completion
 

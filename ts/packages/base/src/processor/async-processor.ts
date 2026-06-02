@@ -8,7 +8,7 @@
 
 import type { PubSubBackend } from "../backend/types.js";
 import { makeNatsBackend } from "../backend/nats.js";
-import { Context, Effect } from "effect";
+import { Context, Effect, Layer, ManagedRuntime } from "effect";
 import { processorLifecycleError, type ProcessorLifecycleError } from "../errors.js";
 import { loadProcessorRuntimeConfig } from "../runtime/config.js";
 
@@ -74,6 +74,8 @@ interface RegisteredSignalHandler {
   readonly handler: () => void;
 }
 
+const asyncProcessorRuntime = ManagedRuntime.make(Layer.empty);
+
 export function makeAsyncProcessor<
   RunError = ProcessorLifecycleError,
   RunRequirements = never,
@@ -94,14 +96,10 @@ export function makeAsyncProcessor<
     }
 
     const shutdown = () => {
-      void Effect.runPromise(
+      void asyncProcessorRuntime.runPromise(
         Effect.log(`[${config.id}] Shutting down...`).pipe(
-          Effect.flatMap(() =>
-            Effect.tryPromise({
-              try: () => processor.stop(),
-              catch: (error) => processorLifecycleError(config.id, "signal-shutdown", error),
-            }),
-          ),
+          Effect.flatMap(() => processor.stopEffect),
+          Effect.mapError((error) => processorLifecycleError(config.id, "signal-shutdown", error)),
         ),
       ).then(() => process.exit(0), () => process.exit(1));
     };
@@ -133,8 +131,8 @@ export function makeAsyncProcessor<
     registerConfigHandler: (handler) => {
       configHandlers.push(handler);
     },
-    start: (context) => Effect.runPromiseWith(context)(processor.startEffect),
-    stop: () => Effect.runPromise(processor.stopEffect),
+    start: (context) => asyncProcessorRuntime.runPromise(Effect.provide(processor.startEffect, context)),
+    stop: () => asyncProcessorRuntime.runPromise(processor.stopEffect),
     onShutdown: (callback) => {
       shutdownCallbacks.push(callback);
     },
@@ -178,7 +176,7 @@ export function makeAsyncProcessor<
       });
       return stopProcessor();
     },
-    run: (context) => Effect.runPromiseWith(context)(processor.runEffect),
+    run: (context) => asyncProcessorRuntime.runPromise(Effect.provide(processor.runEffect, context)),
     get runEffect() {
       if (options.runEffect !== undefined) {
         return options.runEffect(processor);
@@ -208,7 +206,7 @@ export const AsyncProcessor = Object.assign(
       id: string,
     ): Promise<void> {
       const ProcessorCtor = this;
-      return Effect.runPromise(
+      return asyncProcessorRuntime.runPromise(
         Effect.gen(function* () {
           const config = yield* loadProcessorRuntimeConfig(id);
           const processor = new ProcessorCtor(config);

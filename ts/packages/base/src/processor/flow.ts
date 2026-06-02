@@ -4,7 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/base/flow.py
  */
 
-import { Context, Effect, Exit, Scope } from "effect";
+import { Context, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
 import { makePubSubService } from "../backend/pubsub.js";
 import {
@@ -69,6 +69,7 @@ export function makeFlow<Requirements = never>(
   const requestors = new Map<string, EffectRequestResponse<never, unknown>>();
   const parameters = new Map<string, unknown>();
   let compatibilityScope: Scope.Closeable | null = null;
+  const compatibilityRuntime = ManagedRuntime.make(Layer.empty);
 
   const ensureCompatibilityScopeEffect = Effect.fn("Flow.ensureCompatibilityScope")(function* () {
     if (compatibilityScope !== null) {
@@ -107,7 +108,7 @@ export function makeFlow<Requirements = never>(
       });
     },
     start(context: Context.Context<Requirements>): Promise<void> {
-      return Effect.runPromise(
+      return compatibilityRuntime.runPromise(
         Effect.gen(function* () {
           if (compatibilityScope !== null) {
             yield* flow.stopEffect();
@@ -117,7 +118,7 @@ export function makeFlow<Requirements = never>(
       );
     },
     stop(): Promise<void> {
-      return Effect.runPromise(flow.stopEffect());
+      return compatibilityRuntime.runPromise(flow.stopEffect());
     },
     stopEffect(): Effect.Effect<void> {
       return Effect.gen(function* () {
@@ -157,7 +158,7 @@ export function makeFlow<Requirements = never>(
       runtimePubsub: PubSubBackend,
       context: Context.Context<Requirements>,
     ): Promise<A> {
-      return Effect.runPromise(flow.runInCompatibilityScopeEffect(effect, runtimePubsub, context));
+      return compatibilityRuntime.runPromise(flow.runInCompatibilityScopeEffect(effect, runtimePubsub, context));
     },
     clearResources(): void {
       producers.clear();
@@ -207,16 +208,16 @@ export function makeFlow<Requirements = never>(
       const p = producers.get(producerName);
       if (p === undefined) throw flowResourceNotFoundError(name, "producer", producerName);
       return {
-        send: (id, message) => Effect.runPromise((p as EffectProducer<T>).send(id, message)),
-        flush: () => Effect.runPromise(p.flush),
-        stop: () => Effect.runPromise(p.flush.pipe(Effect.flatMap(() => p.close))),
+        send: (id, message) => compatibilityRuntime.runPromise((p as EffectProducer<T>).send(id, message)),
+        flush: () => compatibilityRuntime.runPromise(p.flush),
+        stop: () => compatibilityRuntime.runPromise(p.flush.pipe(Effect.flatMap(() => p.close))),
       };
     },
     consumer(consumerName: string): FlowConsumer {
       const c = consumers.get(consumerName);
       if (c === undefined) throw flowResourceNotFoundError(name, "consumer", consumerName);
       return {
-        stop: () => Effect.runPromise(c.stop),
+        stop: () => compatibilityRuntime.runPromise(c.stop),
       };
     },
     requestor<TReq, TRes>(requestorName: string): FlowRequestor<TReq, TRes> {
@@ -224,13 +225,13 @@ export function makeFlow<Requirements = never>(
       if (rr === undefined) throw flowResourceNotFoundError(name, "requestor", requestorName);
       return {
         request: (request, options) =>
-          Effect.runPromise(
+          compatibilityRuntime.runPromise(
             (rr as EffectRequestResponse<TReq, TRes>).request(
               request,
               toEffectRequestOptions(options),
             ),
           ),
-        stop: () => Effect.runPromise(rr.stop),
+        stop: () => compatibilityRuntime.runPromise(rr.stop),
       };
     },
     parameter<T>(parameterName: string): T {

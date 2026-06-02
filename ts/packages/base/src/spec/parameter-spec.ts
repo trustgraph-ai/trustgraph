@@ -20,6 +20,7 @@ export function makeParameterSpec(name: string): ParameterSpec {
   return {
     name,
     addEffect,
-    add: (flow, _pubsub, definition) => Effect.runPromise(addEffect(flow, definition)),
+    add: (flow, pubsub, definition, context) =>
+      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }

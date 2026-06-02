@@ -37,7 +37,7 @@ import {
 } from "../messaging/runtime.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
-import { Duration, Effect, Exit, Scope } from "effect";
+import { Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
@@ -346,6 +346,7 @@ export function makeFlowProcessor<FlowRequirements = never>(
   const specifications: Array<Spec<FlowRequirements>> = [
     ...(options.specifications ?? []),
   ];
+  const compatibilityRuntime = ManagedRuntime.make(Layer.empty);
   let processor: FlowProcessorRuntime<FlowRequirements>;
   const base: AsyncProcessorRuntime<
     PubSubError | FlowRuntimeError | ProcessorLifecycleError,
@@ -385,7 +386,7 @@ export function makeFlowProcessor<FlowRequirements = never>(
       return makeStartEffect();
     },
     start: (context) =>
-      Effect.runPromiseWith(context)(
+      compatibilityRuntime.runPromise(Effect.provide(
         Effect.gen(function* () {
           const pubsub = makePubSubService(base.pubsub);
           const messagingConfig = yield* loadMessagingRuntimeConfig();
@@ -401,7 +402,8 @@ export function makeFlowProcessor<FlowRequirements = never>(
           );
           yield* Effect.scoped(start);
         }),
-      ),
+        context,
+      )),
   };
 
   return processor;
