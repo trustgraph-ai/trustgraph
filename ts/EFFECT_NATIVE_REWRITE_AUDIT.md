@@ -409,6 +409,23 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: KnowledgeCore Operation Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/cores/service.ts` now dispatches
+    `KnowledgeOperation` with `effect/Match` instead of a native `switch`.
+  - The dispatcher is a named `Effect.fn` and uses `Match.exhaustive` against
+    the schema-derived `KnowledgeOperation` union, so newly modeled operations
+    should surface as type/check failures until handled.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/knowledge-core-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ### 2026-06-02: Flow Manager And Librarian Runtime Normalization
 
 - Status: migrated and root-verified.
@@ -1775,6 +1792,9 @@ Notes:
   - FlowManager `() => Effect.gen(...)` factories are normalized to
     `Effect.fn` / `Effect.fnUntraced`. Sibling service factories still need a
     focused scan before treating them as valid migration targets.
+  - KnowledgeCore operation dispatch now uses `effect/Match` with
+    `Match.exhaustive`; remaining service operation switches are in config and
+    librarian surfaces.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
     Effect collections later; local pure traversal maps/sets remain no-ops.
 

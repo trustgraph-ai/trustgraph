@@ -25,7 +25,7 @@ import {
   type Message,
   type ProcessorConfig,
 } from "@trustgraph/base";
-import {Duration, Effect, Layer, ManagedRuntime, SynchronizedRef} from "effect";
+import {Duration, Effect, Layer, ManagedRuntime, Match, SynchronizedRef} from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import {ensureDirectory, joinPath, readTextFile, writeTextFile} from "../runtime/effect-files.js";
@@ -654,34 +654,29 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
   });
   const baseStop = base.stop;
 
-  const handleOperationEffect = (request: KnowledgeRequest, requestId: string) => {
+  const handleOperationEffect = Effect.fn("KnowledgeCoreService.handleOperation")(function* (
+    request: KnowledgeRequest,
+    requestId: string,
+  ) {
     const operation: KnowledgeOperation = request.operation;
 
-    switch (operation) {
-      case "list-kg-cores":
-        return listKgCoresEffect(state, request, requestId);
-      case "get-kg-core":
-        return getKgCoreEffect(state, request, requestId);
-      case "delete-kg-core":
-        return deleteKgCoreEffect(state, persistPath, request, requestId);
-      case "put-kg-core":
-        return putKgCoreEffect(state, persistPath, request, requestId);
-      case "load-kg-core":
-        return getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId)));
-      case "unload-kg-core":
-        return sendResponse(state, {}, requestId);
-      case "list-de-cores":
-        return listDeCoresEffect(state, request, requestId);
-      case "get-de-core":
-        return getDeCoreEffect(state, request, requestId);
-      case "delete-de-core":
-        return deleteDeCoreEffect(state, persistPath, request, requestId);
-      case "put-de-core":
-        return putDeCoreEffect(state, persistPath, request, requestId);
-      case "load-de-core":
-        return loadDeCoreEffect(state, request, requestId);
-    }
-  };
+    return yield* Match.value(operation).pipe(
+      Match.when("list-kg-cores", () => listKgCoresEffect(state, request, requestId)),
+      Match.when("get-kg-core", () => getKgCoreEffect(state, request, requestId)),
+      Match.when("delete-kg-core", () => deleteKgCoreEffect(state, persistPath, request, requestId)),
+      Match.when("put-kg-core", () => putKgCoreEffect(state, persistPath, request, requestId)),
+      Match.when("load-kg-core", () =>
+        getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId)))
+      ),
+      Match.when("unload-kg-core", () => sendResponse(state, {}, requestId)),
+      Match.when("list-de-cores", () => listDeCoresEffect(state, request, requestId)),
+      Match.when("get-de-core", () => getDeCoreEffect(state, request, requestId)),
+      Match.when("delete-de-core", () => deleteDeCoreEffect(state, persistPath, request, requestId)),
+      Match.when("put-de-core", () => putDeCoreEffect(state, persistPath, request, requestId)),
+      Match.when("load-de-core", () => loadDeCoreEffect(state, request, requestId)),
+      Match.exhaustive,
+    );
+  });
 
   const handleMessageEffect = Effect.fn("KnowledgeCoreService.handleMessage")(function* (msg: Message<KnowledgeRequest>) {
     const request = yield* S.decodeUnknownEffect(KnowledgeRequestSchema)(msg.value()).pipe(
