@@ -12,19 +12,19 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Librarian tagged
-operation helper slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Librarian typed
+runtime loop slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 209 |
-| `Map<` | 74 |
+| `Effect.runPromise` | 208 |
+| `Map<` | 77 |
 | `WebSocket` | 47 |
 | `new Map` | 56 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
-| `while (` | 10 |
+| `while (` | 9 |
 | `new Error` | 14 |
 | `new Promise` | 10 |
 | `JSON.parse` | 7 |
@@ -46,8 +46,8 @@ Notes:
   snapshot because the FlowManager slice added focused service tests and
   Promise compatibility facades while removing the service's internal mutable
   object state.
-- The remaining `Record<string, any>` hit is the librarian service object and
-  should be removed in the next librarian state migration slice.
+- `Record<string, any>` and `throwLibrarianServiceError` are now clean in
+  `ts/packages`.
 
 ## Loop Passes
 
@@ -294,11 +294,36 @@ Notes:
   - The librarian tests now await the Promise compatibility facade for upload
     status.
 - Remaining:
-  - Librarian still has the dynamic service object, mutable maps/handles on
-    that object, and a raw `while (service.running)` poll loop. That remains
-    the next P0 state/ref-backed migration.
+  - The typed runtime loop slice addresses the dynamic service object and raw
+    poll loop. Librarian mutable maps/handles remain the next P0 ref-backed
+    state migration.
 - Verification:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Librarian Typed Runtime Loop Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/librarian/service.ts` now exposes a typed
+    `LibrarianService` interface instead of `AsyncProcessorRuntime &
+    Record<string, any>`.
+  - Service construction now uses `makeAsyncProcessor<LibrarianServiceError>`
+    with `runEffect`; the old method-bag `run` override and
+    `as LibrarianService` cast are gone.
+  - The librarian startup poller now uses `Effect.whileLoop`.
+  - The local operation helpers retrieve the initialized service through an
+    Effect gate rather than closing over an unsafe partially built value.
+- Remaining:
+  - Librarian still stores `documents`, `processing`, `uploads`, collection
+    manager, and producer/consumer handles as mutable fields. Move those into
+    `SynchronizedRef<LibrarianServiceState>` next.
+- Verification:
   - `bun run --cwd ts/packages/flow build`
   - `cd ts && bun run check`
   - `bun run --cwd ts/packages/flow test`
@@ -316,10 +341,10 @@ Notes:
   - MCP env is now Config-backed; continue that policy for future MCP settings.
 - Flow stateful services:
   - Config service, KnowledgeCore service, and FlowManager ref-backed state
-    are complete. Librarian now has native Effect module startup
-    (`NodeRuntime.runMain` with a `ManagedRuntime` compatibility facade), but
-    it still has a mutable poller service object. It remains a good candidate
-    for `Context` services, scoped layers, `Ref`/`SynchronizedRef`,
+    are complete. Librarian now has native Effect module startup, a typed
+    service surface, and an `Effect.whileLoop` runtime, but it still stores
+    service maps and pubsub handles as mutable fields. It remains a good
+    candidate for `Context` services, scoped layers, `Ref`/`SynchronizedRef`,
     `Schedule`, and managed persistence.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
@@ -346,7 +371,7 @@ Notes:
 
 ## Ranked Findings
 
-### P0: Migrate Librarian Stateful Service To Scoped Effect Service
+### P0: Migrate Librarian Mutable State To Ref-Backed Effect Service
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/librarian/service.ts`
