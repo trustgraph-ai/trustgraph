@@ -12,15 +12,15 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Librarian typed
-runtime loop slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Librarian
+ref-backed state slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 208 |
-| `Map<` | 77 |
-| `WebSocket` | 47 |
-| `new Map` | 56 |
+| `Map<` | 88 |
+| `WebSocket` | 49 |
+| `new Map` | 62 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
@@ -28,7 +28,7 @@ runtime loop slice:
 | `new Error` | 14 |
 | `new Promise` | 10 |
 | `JSON.parse` | 7 |
-| `localStorage` | 9 |
+| `localStorage` | 8 |
 | `JSON.stringify` | 6 |
 | `setTimeout` | 4 |
 | `process.env` | 3 |
@@ -42,10 +42,9 @@ Notes:
 - `Effect.runPromise` is expected at external Promise compatibility
   boundaries, but each match should still be audited for avoidable internal
   runtime ownership.
-- The `Effect.runPromise`, `Map<`, and `new Map` counts increased in this
-  snapshot because the FlowManager slice added focused service tests and
-  Promise compatibility facades while removing the service's internal mutable
-  object state.
+- The `Map<` and `new Map` counts increased in this snapshot because the
+  Librarian slice introduced explicit ref-backed state types and clone helpers
+  while removing the service object's direct mutable maps/handles.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -269,8 +268,7 @@ Notes:
   - New librarian tests cover modeled upload fields, concrete persisted-state
     loading, and schema-backed metadata triple normalization.
 - Remaining:
-  - Librarian still has the dynamic `AsyncProcessorRuntime & Record<string,
-    any>` service object. Keep it as the next P0 state/ref-backed migration.
+  - Resolved by the typed runtime loop and ref-backed state slices below.
 - Verification:
   - `bun run --cwd ts/packages/base build`
   - `bun run --cwd ts/packages/flow build`
@@ -294,9 +292,7 @@ Notes:
   - The librarian tests now await the Promise compatibility facade for upload
     status.
 - Remaining:
-  - The typed runtime loop slice addresses the dynamic service object and raw
-    poll loop. Librarian mutable maps/handles remain the next P0 ref-backed
-    state migration.
+  - Resolved by the typed runtime loop and ref-backed state slices below.
 - Verification:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
   - `bun run --cwd ts/packages/flow build`
@@ -320,11 +316,32 @@ Notes:
   - The local operation helpers retrieve the initialized service through an
     Effect gate rather than closing over an unsafe partially built value.
 - Remaining:
-  - Librarian still stores `documents`, `processing`, `uploads`, collection
-    manager, and producer/consumer handles as mutable fields. Move those into
-    `SynchronizedRef<LibrarianServiceState>` next.
+  - Resolved by the ref-backed state slice below.
 - Verification:
   - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Librarian Ref-Backed State Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/librarian/service.ts` now stores documents,
+    processing records, upload sessions, collection manager, and pubsub
+    handles in `SynchronizedRef<LibrarianServiceState>`.
+  - Document, processing, upload, collection, persistence, load, and stop paths
+    now read snapshots or mutate cloned maps/managers through the ref instead
+    of writing fields on the service object.
+  - Upload chunk updates clone nested `UploadSession.chunks` before replacing
+    the upload map entry, avoiding mutable nested state hidden behind the ref.
+  - Librarian response producers and consumers are read/nullified through
+    ref-backed handles.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
   - `cd ts && bun run check`
   - `bun run --cwd ts/packages/flow test`
   - `cd ts && bun run build`
@@ -340,12 +357,10 @@ Notes:
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
 - Flow stateful services:
-  - Config service, KnowledgeCore service, and FlowManager ref-backed state
-    are complete. Librarian now has native Effect module startup, a typed
-    service surface, and an `Effect.whileLoop` runtime, but it still stores
-    service maps and pubsub handles as mutable fields. It remains a good
-    candidate for `Context` services, scoped layers, `Ref`/`SynchronizedRef`,
-    `Schedule`, and managed persistence.
+  - Config service, KnowledgeCore service, FlowManager, and Librarian
+    ref-backed state slices are complete. Follow-up service work should focus
+    on scoped layers, schedules where polling semantics allow, and managed
+    persistence providers rather than direct mutable service fields.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
 - Base messaging/processors:
@@ -370,26 +385,6 @@ Notes:
     schema, and scope audits.
 
 ## Ranked Findings
-
-### P0: Migrate Librarian Mutable State To Ref-Backed Effect Service
-
-- TrustGraph evidence:
-  - `ts/packages/flow/src/librarian/service.ts`
-- Effect primitives:
-  - `Context`, `Layer.scoped`, `Ref`, `SynchronizedRef`, `Schedule`,
-    `Effect.addFinalizer`, `Config`, `Schema`, `FileSystem`,
-    `KeyValueStore`.
-- Rewrite shape:
-  - Model one remaining service at a time as a `Context` service plus scoped
-    layer or ref-backed state slice.
-  - Store mutable service state in `Ref` or `SynchronizedRef`.
-  - Run service main programs with platform runtime entrypoints such as
-    `NodeRuntime.runMain`; keep `ManagedRuntime` only for compatibility
-    Promise facades.
-  - Replace polling sleep loops with schedules where behavior allows.
-  - Decode persisted payloads and config with schemas at boundaries.
-- Tests:
-  - Service-specific tests plus `cd ts && bun run --cwd packages/flow test`.
 
 ### P1: Finish Client RPC Boundary Modernization
 
@@ -481,12 +476,11 @@ Notes:
 
 ## Recommended PR Order
 
-1. Librarian or flow-manager scoped state migration.
-2. Client RPC managed runtime/scoped layer cleanup.
-3. Base processor registry and constructor shim redesign.
-4. Gateway RPC callback and client streaming completion cleanup.
-5. Storage/provider managed resource cleanup.
-6. MCP parity/deletion decision and workbench platform polish.
+1. Client RPC managed runtime/scoped layer cleanup.
+2. Base processor registry and constructor shim redesign.
+3. Gateway RPC callback and client streaming completion cleanup.
+4. Storage/provider managed resource cleanup.
+5. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 
