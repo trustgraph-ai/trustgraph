@@ -12,14 +12,14 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Librarian
-ref-backed state slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Client RPC
+managed runtime slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 208 |
+| `Effect.runPromise` | 203 |
 | `Map<` | 88 |
-| `WebSocket` | 49 |
+| `WebSocket` | 43 |
 | `new Map` | 62 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
@@ -45,6 +45,9 @@ Notes:
 - The `Map<` and `new Map` counts increased in this snapshot because the
   Librarian slice introduced explicit ref-backed state types and clone helpers
   while removing the service object's direct mutable maps/handles.
+- The `Effect.runPromise` and `WebSocket` counts dropped in this snapshot
+  because `EffectRpcClient` now owns its RPC/socket layer with
+  `ManagedRuntime` and uses Effect's WebSocket constructor layer.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -348,6 +351,32 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Client RPC Managed Runtime Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/client/src/socket/effect-rpc-client.ts` now builds one
+    `ManagedRuntime` from the RPC client layer instead of manually creating a
+    `Scope`, building the layer, and calling `Effect.runPromise` for every
+    operation.
+  - RPC dispatch and stream dispatch continue to expose the existing
+    Promise-returning `EffectRpcClient` facade, but they run through the managed
+    runtime and close with `runtime.dispose()`.
+  - The Effect RPC socket path now consumes `Socket.layerWebSocketConstructorGlobal`
+    instead of a duplicate local WebSocket constructor layer.
+  - Dispatch payload construction now uses `DispatchPayload.make(...)` so
+    schema classes are not instantiated with `new`.
+  - Client socket logging and timestamp creation now use Effect `Logger` and
+    `Clock` instead of direct console and `Date.now()` calls in the touched
+    surface.
+- Verification:
+  - `bun run --cwd ts/packages/client build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/client test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -371,11 +400,14 @@ Notes:
     use type assertions; they need a typed factory/registry redesign rather
     than more assertions.
 - Gateway/client:
+  - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
+    Remaining client cleanup should focus on `trustgraph-socket.ts`
+    higher-level normal `Error` throws/JSON parsing and the public synchronous
+    `websocket-adapter.ts` compatibility helpers.
   - Knowledge streams still duplicate legacy end-of-stream handling.
-  - Effect RPC client remains Promise-first internally in places and should be
-    turned into a managed runtime or scoped layer.
   - WebSocket adapter shims still contain host-boundary `try`/`catch` and
-    normal `Error` construction.
+    normal `Error` construction, but their sync exports are public API and
+    should be migrated in a separate compatibility-preserving slice.
 - RAG/providers/storage:
   - RAG and agent requestor bridges are complete: `toPromiseRequestor` has no
     remaining `ts/packages` matches.
@@ -399,10 +431,13 @@ Notes:
   - `effect/unstable/rpc/RpcSerialization.layerNdjson` or `layerNdJsonRpc`.
   - `ManagedRuntime` for compatibility facades when a Promise API must remain.
 - Rewrite shape:
-  - Treat `EffectRpcClient` as an internal managed runtime or scoped layer.
+  - `EffectRpcClient` is now an internal managed runtime with Promise
+    compatibility facades.
   - Expose Promise-returning methods through a thin adapter.
-  - Replace normal client `Error` constructors with tagged errors before they
-    cross into shared Effect code.
+  - Finish replacing remaining normal client `Error` constructors with tagged
+    errors before they cross into shared Effect code.
+  - Preserve public sync exports in `websocket-adapter.ts` while moving host
+    failure capture toward typed Effect helpers.
 - Tests:
   - `cd ts && bun run --cwd packages/client test`
 

@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Exit, Layer, Scope, Stream } from "effect";
+import { Context, Data, Effect, Layer, ManagedRuntime, Stream } from "effect";
 import type * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
@@ -83,14 +83,14 @@ export function makeEffectRpcClient(
     }
   };
 
-  const makeClient = (): Effect.Effect<TrustGraphRpcClient, never, Scope.Scope> => {
+  const makeClientLayer = (): Layer.Layer<TrustGraphRpcClientService> => {
     const socketLayer = Layer.effect(
       Socket.Socket,
       Socket.makeWebSocket(url, {
         closeCodeIsError: (code) => code !== 1000,
         openTimeout: "10 seconds",
       }),
-    ).pipe(Layer.provide(webSocketConstructorLayer));
+    ).pipe(Layer.provide(Socket.layerWebSocketConstructorGlobal));
 
     const hooksLayer = Layer.succeed(
       RpcClient.ConnectionHooks,
@@ -124,16 +124,11 @@ export function makeEffectRpcClient(
       RpcClient.make(TrustGraphRpcs),
     ).pipe(Layer.provide(protocolLayer));
 
-    return Effect.map(
-      Layer.build(clientLayer),
-      (context) => Context.get(context, TrustGraphRpcClientService),
-    );
+    return clientLayer;
   };
 
-  const scopePromise = Effect.runPromise(Scope.make());
-  const clientPromise = scopePromise.then((scope) =>
-    Effect.runPromise(makeClient().pipe(Scope.provide(scope))),
-  );
+  const runtime = ManagedRuntime.make(makeClientLayer());
+  const clientPromise = runtime.runPromise(TrustGraphRpcClientService);
   clientPromise.catch((cause) => {
     setState({
       status: "failed",
@@ -149,41 +144,40 @@ export function makeEffectRpcClient(
         listeners.delete(listener);
       };
     },
-    dispatch: async (input, options = {}) => {
-      const client = await clientPromise;
-      return await Effect.runPromise(
-        withDispatchRequestPolicy(client.Dispatch(new DispatchPayload(input)), options),
-      );
-    },
-    dispatchStream: async (input, receiver, options = {}) => {
-      const client = await clientPromise;
+    dispatch: (input, options = {}) =>
+      clientPromise.then((client) =>
+        runtime.runPromise(
+          withDispatchRequestPolicy(client.Dispatch(DispatchPayload.make(input)), options),
+        )
+      ),
+    dispatchStream: (input, receiver, options = {}) => {
       let last: DispatchStreamChunk | undefined;
-      await Effect.runPromise(
-        withDispatchRequestPolicy(
-          client.DispatchStream(new DispatchPayload(input)).pipe(
-            Stream.runForEach((chunk) =>
-              Effect.suspend(() => {
-                last = chunk;
-                if (receiver(chunk)) return Effect.fail(new StopStreaming());
-                return Effect.void;
-              }),
+      return clientPromise.then((client) =>
+        runtime.runPromise(
+          withDispatchRequestPolicy(
+            client.DispatchStream(DispatchPayload.make(input)).pipe(
+              Stream.runForEach((chunk) =>
+                Effect.suspend(() => {
+                  last = chunk;
+                  if (receiver(chunk)) return Effect.fail(new StopStreaming());
+                  return Effect.void;
+                }),
+              ),
+              Effect.catchIf(
+                (cause): cause is StopStreaming => cause instanceof StopStreaming,
+                () => Effect.void,
+              ),
             ),
-            Effect.catchIf(
-              (cause): cause is StopStreaming => cause instanceof StopStreaming,
-              () => Effect.void,
-            ),
+            options,
           ),
-          options,
-        ),
-      );
-      return last;
+        )
+      ).then(() => last);
     },
-    close: async () => {
-      if (closed) return;
+    close: () => {
+      if (closed) return Promise.resolve();
       closed = true;
       setState({ status: "closed" });
-      const scope = await scopePromise;
-      await Effect.runPromise(Scope.close(scope, Exit.void));
+      return runtime.dispose();
     },
   };
 }
@@ -201,7 +195,7 @@ export function withDispatchRequestPolicy<A, E, R>(
       duration: timeoutMs,
       orElse: () =>
         Effect.fail(
-          new DispatchError({
+          DispatchError.make({
             message: `Request timed out after ${timeoutMs}ms`,
           }),
         ),
@@ -212,25 +206,6 @@ export function withDispatchRequestPolicy<A, E, R>(
 }
 
 class StopStreaming extends Data.TaggedError("StopStreaming")<{}> {}
-
-const webSocketConstructorLayer: Layer.Layer<Socket.WebSocketConstructor> = Layer.effect(
-  Socket.WebSocketConstructor,
-  Effect.promise(async () => {
-    if (typeof globalThis !== "undefined" && "WebSocket" in globalThis) {
-      return (url, protocols) => new globalThis.WebSocket(url, protocols);
-    }
-
-    try {
-      const mod = await import("ws");
-      const WS = mod.WebSocket;
-      return (url, protocols) => new WS(url, protocols) as unknown as globalThis.WebSocket;
-    } catch (cause) {
-      throw new DispatchError({
-        message: `WebSocket is not available: ${errorMessage(cause)}`,
-      });
-    }
-  }),
-);
 
 function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message;

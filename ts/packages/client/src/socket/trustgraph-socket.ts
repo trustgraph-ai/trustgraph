@@ -8,6 +8,7 @@ import {
   makeEffectRpcClient,
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
+import { Clock, Effect } from "effect";
 
 // Import all message types for different services
 import type {
@@ -200,6 +201,17 @@ function parseConfigJson(value: unknown): unknown {
   }
 }
 
+const currentEpochSeconds = (): number =>
+  Math.floor(Effect.runSync(Clock.currentTimeMillis) / 1000);
+
+const logClientInfo = (message: string): void => {
+  Effect.runFork(Effect.log(message));
+};
+
+const logClientError = (message: string, error: unknown): void => {
+  Effect.runFork(Effect.logError(message, { error: toErrorMessage(error, message) }));
+};
+
 /**
  * Socket interface defining all available operations for the TrustGraph API
  * This provides a unified interface for various AI/ML and knowledge graph
@@ -386,7 +398,7 @@ export function makeBaseApi(
      */
     close() {
       rpc.close().catch((err) => {
-        console.error("[socket close error]", err);
+        logClientError("[socket close error]", err);
       });
     },
 
@@ -418,9 +430,7 @@ export function makeBaseApi(
     ) {
       return rpc
         .dispatch(dispatchInput(service, request, flow), dispatchOptions(timeout, retries))
-        .then((obj) => {
-          return obj as ResponseType;
-        });
+        .then((obj) => obj as ResponseType);
     },
 
     /**
@@ -438,14 +448,10 @@ export function makeBaseApi(
       return rpc
         .dispatchStream(
           dispatchInput(service, request, flow),
-          (chunk) => {
-            return receiver({ response: chunk.response, complete: chunk.complete });
-          },
+          (chunk) => receiver({ response: chunk.response, complete: chunk.complete }),
           dispatchOptions(timeout, retries),
         )
-        .then((obj) => {
-          return obj as ResponseType;
-        });
+        .then((obj) => obj as ResponseType);
     },
 
     /**
@@ -523,7 +529,7 @@ export function makeBaseApi(
       try {
         listener(state);
       } catch (error) {
-        console.error("Error in connection state listener:", error);
+        logClientError("Error in connection state listener", error);
       }
     });
   };
@@ -574,11 +580,8 @@ export function makeBaseApi(
     notifyStateChange();
   });
 
-  console.log(
-    "SOCKET: opening socket...",
-    isNonEmptyString(token) ? "with auth" : "without auth",
-    "user:",
-    user,
+  logClientInfo(
+    `SOCKET: opening socket... ${isNonEmptyString(token) ? "with auth" : "without auth"} user: ${user}`,
   );
 
   return api;
@@ -684,7 +687,7 @@ export function makeLibrarianApi(api: BaseApi) {
         metadata?: Triple[],
       ) {
         const documentMetadata: DocumentMetadata = {
-          time: Math.floor(Date.now() / 1000), // Unix timestamp
+          time: currentEpochSeconds(),
           kind: mimeType,
           title,
           comments,
@@ -756,7 +759,7 @@ export function makeLibrarianApi(api: BaseApi) {
               id: id,
               "document-id": doc_id,
               documentId: doc_id,
-              time: Math.floor(Date.now() / 1000),
+              time: currentEpochSeconds(),
               flow: flow,
               user: this.api.user,
               collection: withDefault(collection, "default"),
@@ -1416,7 +1419,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
               break;
             case "action":
               // Actions are typically not streamed incrementally, just logged
-              console.log("Agent action:", content);
+              logClientInfo(`Agent action: ${content}`);
               break;
           }
 
@@ -2202,12 +2205,12 @@ export function makeConfigApi(api: BaseApi) {
             },
             60000,
           )
-          .then((r) => {
-            return asConfigValues(r).map((item) => ({
+          .then((r) =>
+            asConfigValues(r).map((item) => ({
               key: item.key,
               value: parseConfigJson(item.value),
-            }));
-          })
+            }))
+          )
           .then((r) =>
             // Transform to more usable format
             r.map((x: unknown) => {
@@ -2514,6 +2517,4 @@ export const createTrustGraphSocket = (
   user: string,
   token?: string,
   socketUrl?: string,
-): BaseApi => {
-  return new BaseApi(user, token, socketUrl);
-};
+): BaseApi => new BaseApi(user, token, socketUrl);
