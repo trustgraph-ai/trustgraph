@@ -7,10 +7,12 @@
  * Python reference: trustgraph-base/trustgraph/base/request_response_spec.py
  */
 
-import { randomUUID } from "node:crypto";
-import { makeProducer, type Producer } from "./producer.js";
-import { makeSubscriber, type Subscriber } from "./subscriber.js";
+import { Effect, Exit, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
+import { PubSub } from "../backend/pubsub.js";
+import { messagingDeliveryError, messagingLifecycleError } from "../errors.js";
+import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
+import { makeEffectRequestResponseFromPubSub, type EffectRequestResponse } from "./runtime.js";
 
 export interface RequestResponseOptions {
   pubsub: PubSubBackend;
@@ -31,24 +33,48 @@ export interface RequestResponse<TReq, TRes> {
   ) => Promise<TRes>;
 }
 
+interface RequestResponseRuntime<TReq, TRes> {
+  readonly scope: Scope.Closeable;
+  readonly requestor: EffectRequestResponse<TReq, TRes>;
+}
+
 export function makeRequestResponse<TReq, TRes>(
   options: RequestResponseOptions,
 ): RequestResponse<TReq, TRes> {
-  const producer: Producer<TReq> = makeProducer<TReq>(options.pubsub, options.requestTopic);
-  const subscriber: Subscriber<TRes> = makeSubscriber<TRes>(
-    options.pubsub,
-    options.responseTopic,
-    options.subscription,
-  );
+  let runtime: RequestResponseRuntime<TReq, TRes> | null = null;
 
   return {
     start: async () => {
-      await producer.start();
-      await subscriber.start();
+      if (runtime !== null) return;
+
+      const scope = await Effect.runPromise(Scope.make());
+
+      try {
+        const config = await Effect.runPromise(loadMessagingRuntimeConfig());
+        const requestor = await Effect.runPromise(
+          makeEffectRequestResponseFromPubSub<TReq, TRes>(
+            PubSub.fromBackend(options.pubsub),
+            config,
+            {
+              requestTopic: options.requestTopic,
+              responseTopic: options.responseTopic,
+              subscription: options.subscription,
+            },
+          ).pipe(Scope.provide(scope)),
+        );
+
+        runtime = { scope, requestor };
+      } catch (error) {
+        await Effect.runPromise(Scope.close(scope, Exit.fail(error))).catch(() => undefined);
+        throw error;
+      }
     },
     stop: async () => {
-      await producer.stop();
-      await subscriber.stop();
+      const current = runtime;
+      runtime = null;
+      if (current === null) return;
+
+      await Effect.runPromise(Scope.close(current.scope, Exit.void));
     },
     /**
      * Send a request and wait for responses.
@@ -60,35 +86,32 @@ export function makeRequestResponse<TReq, TRes>(
      *   If omitted, returns the first response.
      */
     request: async (request, requestOptions) => {
-      const id = randomUUID();
+      const current = runtime;
+      if (current === null) {
+        throw messagingLifecycleError(
+          `${options.requestTopic}:${options.responseTopic}`,
+          "request",
+          "RequestResponse not started",
+        );
+      }
+
       const timeoutMs = requestOptions?.timeoutMs ?? 300_000;
       const recipient = requestOptions?.recipient;
 
-      const queue = subscriber.subscribe(id);
-
-      try {
-        await producer.send(id, request);
-
-        const deadline = Date.now() + timeoutMs;
-
-        while (true) {
-          const remaining = deadline - Date.now();
-          if (remaining <= 0) {
-            throw new Error(`Request timed out after ${timeoutMs}ms`);
-          }
-
-          const response = await queue.pop(remaining);
-
-          if (recipient !== undefined) {
-            const isFinal = await recipient(response);
-            if (isFinal) return response;
-          } else {
-            return response;
-          }
-        }
-      } finally {
-        subscriber.unsubscribe(id);
-      }
+      return await Effect.runPromise(
+        current.requestor.request(request, {
+          timeoutMs,
+          ...(recipient === undefined
+            ? {}
+            : {
+                recipient: (response) =>
+                  Effect.tryPromise({
+                    try: () => recipient(response),
+                    catch: (error) => messagingDeliveryError(options.responseTopic, "recipient", error),
+                  }),
+              }),
+        }),
+      );
     },
   };
 }

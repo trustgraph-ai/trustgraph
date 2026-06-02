@@ -424,7 +424,11 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
   config: MessagingRuntimeConfig,
   options: EffectRequestResponseOptions,
 ) {
-  const producer = yield* makeEffectProducerFromPubSub<TReq>(pubsub, {
+  const producerOptions: CreateProducerOptions = options.requestSchema === undefined
+    ? { topic: options.requestTopic }
+    : { topic: options.requestTopic, schema: options.requestSchema };
+  const producerBackend = yield* pubsub.createProducer<TReq>(producerOptions);
+  const producer = makeEffectProducerHandle<TReq>(producerBackend, {
     topic: options.requestTopic,
     ...(options.requestSchema === undefined ? {} : { schema: options.requestSchema }),
   });
@@ -435,9 +439,12 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
   };
   const backend = yield* pubsub.createConsumer<TRes>(createOptions);
   const subscribers = new Map<string, Queue.Queue<TRes>>();
-  const fiber = yield* dispatchResponseLoop(backend, options.responseTopic, subscribers, config).pipe(Effect.forkChild);
+  const fiber = yield* dispatchResponseLoop(backend, options.responseTopic, subscribers, config).pipe(Effect.forkScoped);
+  let stopped = false;
 
   const stop = Effect.fn(`RequestResponse.stop:${options.requestTopic}`)(function* () {
+    if (stopped) return;
+    stopped = true;
     yield* Fiber.interrupt(fiber);
     yield* producer.close;
     yield* closeConsumerBackend(backend, options.responseTopic, options.subscription);

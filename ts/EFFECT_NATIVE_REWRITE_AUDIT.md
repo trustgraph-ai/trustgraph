@@ -33,6 +33,44 @@ Signal counts from `ts/packages`:
 | `while (` | 10 |
 | `localStorage` | 8 |
 
+## Loop Passes
+
+### 2026-06-02: Base Request/Response Facade
+
+- Status: migrated and verified.
+- Completed:
+  - `ts/packages/base/src/messaging/request-response.ts:50` now creates an
+    explicit `Scope.Closeable` and `:55` builds the existing
+    `EffectRequestResponse` runtime.
+  - `ts/packages/base/src/messaging/request-response.ts:91` rejects
+    not-started calls with `MessagingLifecycleError`, and `:108` maps
+    recipient callback failures into `MessagingDeliveryError`. It no longer
+    constructs normal `Error` values.
+  - `ts/packages/base/src/messaging/runtime.ts:427` now lets
+    request/response own its producer directly, `:442` runs the response
+    dispatcher with `Effect.forkScoped`, and `:445` makes shutdown idempotent.
+  - `ts/packages/base/src/__tests__/request-response.test.ts:115` covers the
+    Promise facade over the Effect runtime, `:143` asserts tagged timeout
+    errors, and `:164` asserts tagged lifecycle errors.
+- Verification:
+  - `bun run --cwd ts/packages/base test`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts check:tsgo`
+  - `bun run --cwd ts build`
+  - `bun run --cwd ts test`
+- Remaining base evidence:
+  - `makeSubscriber(` has no current `ts/packages` call sites after this slice,
+    but `ts/packages/base/src/messaging/index.ts` still exports
+    `makeAsyncQueue`, `makeSubscriber`, and related types.
+  - `ts/packages/base/src/messaging/consumer.ts` still has a Promise polling
+    loop and a normal `Error` constructor.
+  - `ts/packages/base/src/messaging/producer.ts` still throws a normal
+    not-started `Error`.
+- Decision:
+  - Normal `Error` construction in library internals is migration evidence.
+    Prefer existing `S.TaggedErrorClass` errors from
+    `ts/packages/base/src/errors.ts`, adding new tagged errors when needed.
+
 ## Ranked Findings
 
 ### P0: Collapse Base Messaging Promise Facades
@@ -56,7 +94,8 @@ Signal counts from `ts/packages`:
     `Scope.ts`, `Layer.ts`, `Schedule.ts`, `Ref.ts`.
 - Rewrite shape:
   - Make the Effect runtime factories the canonical internal surface.
-  - Keep Promise adapters only at external compatibility boundaries.
+  - Keep Promise adapters only at external compatibility boundaries. Rejected
+    values at those boundaries should still be tagged TrustGraph errors.
   - Replace polling sleep loops with scheduled scoped consumers where possible.
   - Replace resolver maps with `Queue`, `Deferred`, or `PubSub`-backed routing.
 - Tests:
@@ -66,6 +105,9 @@ Signal counts from `ts/packages`:
 - Blockers:
   - Public package exports may still expect Promise-shaped producer, consumer,
     and request/response handles. Inventory callers before changing exports.
+  - First slice completed request/response facade migration. Next base follow-up
+    is either an Effect-backed consumer facade or a public export decision for
+    `subscriber.ts`.
 
 ### P0: Convert Stateful Flow Services To Scoped Effect Services
 
@@ -274,10 +316,10 @@ Signal counts from `ts/packages`:
 
 ## Recommended PR Order
 
-1. Base messaging/runtime convergence design and tests.
-2. Gateway dispatcher internal Effect conversion.
+1. Gateway dispatcher requestor-cache and streaming-completion migration.
+2. Config service scoped state migration.
 3. RAG and agent requestor bridge removal.
-4. One stateful Flow service conversion, starting with config or cores.
+4. Base consumer facade and subscriber export cleanup.
 5. Client compatibility facade tightening.
 6. Storage/provider managed resource cleanup.
 7. MCP canonicalization and Workbench polish.
@@ -287,7 +329,8 @@ Signal counts from `ts/packages`:
 Do not flag these as rewrite blockers without additional proof:
 
 - Promise-returning CLI actions and Fastify route handlers at external
-  boundaries.
+  boundaries. This does not exempt normal `Error` construction inside shared
+  library code.
 - `S.Class`, `S.TaggedErrorClass`, `Context.Service`, `Rpc.make`, and
   `HttpApi.make` when they are required or idiomatic for the Effect API.
 - Plain `Map` usage for local pure transformations, such as graph utility

@@ -51,6 +51,7 @@ primitive exists.
 | AI tools, MCP, and model calls | `Tool`, `Toolkit`, `McpServer`, `McpSchema`, `LanguageModel`, provider layers | `effect/unstable/ai`, provider packages such as `@effect/ai-openai` | `ts/node_modules/effect/src/unstable/ai/*.ts`, `packages/ai/ai/src/*.ts` |
 | Workbench async state | `Atom`, `AtomRpc`, `AtomHttpApi`, `AsyncResult`, `AtomRegistry`, `Reactivity` | `effect/unstable/reactivity`, `@effect/atom-react` | `ts/node_modules/effect/src/unstable/reactivity/*.ts`, `ts/packages/workbench/node_modules/@effect/atom-react/src/*.ts` |
 | Metrics and logs | `Metric`, `Logger`, `Effect.log*` | `effect`, `@effect/opentelemetry` | `packages/effect/src/Metric.ts`, `packages/effect/src/Logger.ts` |
+| Normal internal errors | `S.TaggedErrorClass` and existing TrustGraph tagged errors | `effect/Schema`, `@trustgraph/base/errors` | `packages/effect/src/Schema.ts`, `ts/packages/base/src/errors.ts` |
 
 Known concrete exports useful to scouts:
 
@@ -69,6 +70,9 @@ Known concrete exports useful to scouts:
   `Reactivity.query`, `Reactivity.stream`, `Reactivity.mutation`.
 - `Tool.make`, `Toolkit.make`, `McpServer.registerToolkit`,
   `LanguageModel.generateText`, `LanguageModel.streamText`.
+- `S.TaggedErrorClass` for internal/library errors. Treat `new Error` inside
+  library internals as migration evidence unless it is a host/tool boundary,
+  test-only helper, or externally mandated error shape.
 
 ## Scout Workflow
 
@@ -79,7 +83,7 @@ Known concrete exports useful to scouts:
 3. Run quick signal scans:
 
    ```sh
-   rg -n "new Promise|setTimeout|while \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
+   rg -n "new Error|new Promise|setTimeout|while \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
    ```
 
 4. Split scouts by lane. If the thread cannot spawn every scout in parallel,
