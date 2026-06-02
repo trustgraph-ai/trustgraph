@@ -3,7 +3,7 @@ import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as RpcServer from "effect/unstable/rpc/RpcServer";
 import type * as Socket from "effect/unstable/socket/Socket";
 import { errorMessage } from "@trustgraph/base";
-import type { DispatcherManager } from "./dispatch/manager.js";
+import type { DispatcherManager, DispatcherStreamError } from "./dispatch/manager.js";
 import { DispatchError, DispatchPayload, DispatchStreamChunk, TrustGraphRpcs } from "./rpc-contract.js";
 import { makeSocketRpcProtocol } from "./rpc-protocol.js";
 
@@ -45,20 +45,14 @@ const makeGatewayRpcHandlers = (dispatcher: DispatcherManager) =>
           catch: (cause) => DispatchError.make({ message: errorMessage(cause) }),
         }),
       DispatchStream: Effect.fn("GatewayRpc.DispatchStream")(function* (payload) {
-        const context = yield* Effect.context<never>();
-        const runPromise = Effect.runPromiseWith(context);
         const queue = yield* Queue.bounded<DispatchStreamChunk, DispatchError | Cause.Done>(16);
         yield* Effect.addFinalizer(() => Queue.shutdown(queue));
 
-        yield* Effect.tryPromise({
-          try: () =>
-            dispatchStream(dispatcher, payload, (response, complete) =>
-              runPromise(Queue.offer(queue, DispatchStreamChunk.make({ response, complete }))).then(() => complete),
-            ),
-          catch: (cause) => DispatchError.make({ message: errorMessage(cause) }),
-        }).pipe(
+        yield* dispatchStreamEffect(dispatcher, payload, (response, complete) =>
+          Queue.offer(queue, DispatchStreamChunk.make({ response, complete })),
+        ).pipe(
           Effect.flatMap(() => Queue.end(queue)),
-          Effect.catch((error) => Queue.fail(queue, error)),
+          Effect.catch((cause) => Queue.fail(queue, DispatchError.make({ message: errorMessage(cause) }))),
           Effect.forkScoped,
         );
 
@@ -81,26 +75,23 @@ function dispatchOne(
   return dispatcher.dispatchGlobalService(payload.service, payload.request);
 }
 
-function dispatchStream(
+function dispatchStreamEffect(
   dispatcher: DispatcherManager,
   payload: DispatchPayload,
-  responder: (response: unknown, complete: boolean) => Promise<boolean>,
-): Promise<void> {
-  const send = (response: unknown, complete: boolean): Promise<void> =>
-    responder(response, complete).then(() => undefined);
-
+  responder: (response: unknown, complete: boolean) => Effect.Effect<void>,
+): Effect.Effect<void, DispatcherStreamError> {
   if (payload.scope === "flow") {
-    return dispatcher.dispatchFlowServiceStreaming(
+    return dispatcher.dispatchFlowServiceStreamingEffect(
       payload.flow ?? "default",
       payload.service,
       payload.request,
-      send,
+      responder,
     );
   }
 
-  return dispatcher.dispatchGlobalServiceStreaming(
+  return dispatcher.dispatchGlobalServiceStreamingEffect(
     payload.service,
     payload.request,
-    send,
+    responder,
   );
 }

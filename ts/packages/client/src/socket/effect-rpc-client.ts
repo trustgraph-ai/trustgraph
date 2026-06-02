@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Context, Effect, Layer, ManagedRuntime, Stream } from "effect";
 import type * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
@@ -156,16 +156,11 @@ export function makeEffectRpcClient(
         runtime.runPromise(
           withDispatchRequestPolicy(
             client.DispatchStream(DispatchPayload.make(input)).pipe(
-              Stream.runForEach((chunk) =>
+              Stream.runForEachWhile((chunk) =>
                 Effect.suspend(() => {
                   last = chunk;
-                  if (receiver(chunk)) return Effect.fail(new StopStreaming());
-                  return Effect.void;
+                  return Effect.succeed(!receiver(chunk));
                 }),
-              ),
-              Effect.catchIf(
-                (cause): cause is StopStreaming => cause instanceof StopStreaming,
-                () => Effect.void,
               ),
             ),
             options,
@@ -204,8 +199,6 @@ export function withDispatchRequestPolicy<A, E, R>(
 
   return retryTimes > 0 ? timed.pipe(Effect.retry({ times: retryTimes })) : timed;
 }
-
-class StopStreaming extends Data.TaggedError("StopStreaming")<{}> {}
 
 function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Effect } from "effect";
 import {
   dispatcherManagerIsCompleteResponse,
   makeDispatcherManager,
@@ -181,6 +182,30 @@ describe("gateway dispatcher manager", () => {
     await manager.dispatchGlobalServiceStreaming("knowledge", { query: "hello" }, async (response, complete) => {
       chunks.push({ response, complete });
     });
+    await manager.stop();
+
+    expect(chunks).toEqual([
+      { response: { chunk: 1 }, complete: false },
+      { response: { chunk: 2, endOfStream: true }, complete: true },
+    ]);
+  });
+
+  it("streams responses through the Effect-native responder path", async () => {
+    const backend = new DispatchBackend();
+    const manager = makeDispatcherManager({
+      port: 0,
+      metricsPort: 0,
+      pubsub: backend,
+    });
+    const chunks: Array<{ readonly response: unknown; readonly complete: boolean }> = [];
+
+    await Effect.runPromise(
+      manager.dispatchGlobalServiceStreamingEffect("knowledge", { query: "hello" }, (response, complete) =>
+        Effect.sync(() => {
+          chunks.push({ response, complete });
+        })
+      ),
+    );
     await manager.stop();
 
     expect(chunks).toEqual([

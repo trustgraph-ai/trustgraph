@@ -12,12 +12,13 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 native PubSub
-boundary slice:
+Current signal counts from `ts/packages` after the 2026-06-02 gateway
+streaming callback slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 165 |
+| `Effect.runPromise` | 163 |
+| `Effect.runPromiseWith` | 0 |
 | `Map<` | 82 |
 | `WebSocket` | 62 |
 | `new Map` | 60 |
@@ -93,6 +94,10 @@ Notes:
   `PubSub` is an in-process hub and does not replace the broker-backed
   `PubSubBackend`/NATS boundary, but it should be preferred for future
   in-process broadcast/fanout needs.
+- The gateway streaming callback slice added Effect-returning dispatcher
+  streaming methods, switched the RPC stream server off nested
+  `Effect.runPromiseWith(context)` queue offers, and replaced the client
+  `StopStreaming` sentinel error with `Stream.runForEachWhile`.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -718,6 +723,41 @@ Notes:
   - `bun run --cwd ts/packages/base test`
   - `cd ts && bun run check`
 
+### 2026-06-02: Gateway Streaming Callback Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts` now exposes
+    `dispatchGlobalServiceStreamingEffect` and
+    `dispatchFlowServiceStreamingEffect` so Effect callers can handle stream
+    chunks without Promise callback re-entry.
+  - The existing Promise-returning streaming methods remain as compatibility
+    facades and wrap responders with `Effect.tryPromise`.
+  - `ts/packages/flow/src/gateway/rpc-server.ts` now writes stream chunks into
+    the RPC queue through the dispatcher Effect path, removing the prior
+    `Effect.context` plus `Effect.runPromiseWith(context)` bridge.
+  - `ts/packages/client/src/socket/effect-rpc-client.ts` now uses
+    `Stream.runForEachWhile` for early stream termination instead of throwing a
+    synthetic `StopStreaming` tagged error.
+  - Gateway dispatcher tests now exercise both the Promise compatibility
+    streaming path and the Effect-native responder path.
+- Remaining:
+  - Client facade methods still duplicate some per-service streaming envelope
+    completion checks. Centralize these around `DispatchStreamChunk.complete`
+    in a later client API cleanup.
+  - `ts/packages/flow/src/gateway/rpc-protocol.ts` remains a Fastify socket
+    compatibility bridge, not a direct replacement target for Effect RPC
+    server layers yet.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/client build`
+  - `bunx --bun vitest run src/__tests__/gateway-dispatcher.test.ts`
+  - `bunx --bun vitest run src/__tests__/rpc-timeout.test.ts`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -756,7 +796,13 @@ Notes:
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
     The remaining client `newableFactory` assertions are documented as public
     API compatibility boundaries for this loop.
-  - Knowledge streams still duplicate legacy end-of-stream handling.
+  - Gateway `DispatchStream` now uses Effect-native dispatcher streaming
+    callbacks instead of nested `Effect.runPromiseWith`; the remaining client
+    streaming cleanup is facade-level completion normalization around
+    `DispatchStreamChunk.complete`.
+  - Do not make `gateway/rpc-protocol.ts` the next cleanup target: it is a
+    Fastify socket compatibility bridge while the public Effect RPC server
+    layers require SocketServer or Effect HTTP routing.
   - WebSocket adapter host fallbacks now use `Result.try` and tagged adapter
     errors while preserving sync exports.
 - RAG/providers/storage:
@@ -764,8 +810,14 @@ Notes:
     remaining `ts/packages` matches.
   - Provider SDKs and storage clients should become managed resources where
     they have meaningful lifecycle.
-  - FalkorDB/Qdrant/Ollama/OpenAI-compatible surfaces still need config,
-    schema, and scope audits.
+  - FalkorDB should be the next P1 storage slice: both triples query and store
+    connect Redis clients, cache them with mutable `Effect.cached` slots, and
+    expose `Layer.succeed` services without a scoped client finalizer.
+  - Qdrant has no close/disconnect surface in the installed client, so treat it
+    as a config/schema/fakeability slice rather than an `acquireRelease` close
+    slice.
+  - Ollama/OpenAI-compatible/provider surfaces still need config, schema, and
+    provider-layer audits.
 
 ## Ranked Findings
 
@@ -773,19 +825,29 @@ Notes:
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/storage/triples/falkordb.ts`
+  - `ts/packages/flow/src/query/triples/falkordb.ts`
   - `ts/packages/flow/src/storage/embeddings/qdrant-graph.ts`
   - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts`
+  - `ts/packages/flow/src/query/embeddings/qdrant-graph.ts`
+  - `ts/packages/flow/src/query/embeddings/qdrant-doc.ts`
   - `ts/packages/flow/src/model/text-completion/*.ts`
   - `ts/packages/flow/src/embeddings/ollama.ts`
 - Effect primitives:
-  - `Effect.acquireRelease`, `Layer.scoped`, `Config`, `ConfigProvider`,
-    `Metric`, `Logger`, Effect AI provider layers.
+  - `Effect.acquireRelease`, `Layer.effect`/`Layer.scoped`, `Config`,
+    `ConfigProvider`, `Metric`, `Logger`, Effect AI provider layers.
 - Rewrite shape:
+  - First migrate FalkorDB triples store/query so Redis client connect and
+    disconnect/quit are owned by the service layer scope instead of mutable
+    cached effects hidden inside a `Layer.succeed` service.
   - Move env/config reading into `Config` loaders and provider-specific layers.
-  - Scope SDK clients that need explicit close/disconnect.
+  - Scope SDK clients that need explicit close/disconnect; for clients without
+    close APIs, prefer config/schema/fakeable construction work instead.
 - Tests:
-  - Provider config tests with `ConfigProvider.fromMap`.
-  - Storage tests with fake clients before changing real resource lifetimes.
+  - FalkorDB tests with fake client factories proving connect on acquire and
+    disconnect/quit on scope close.
+  - Provider/config tests with `ConfigProvider.fromUnknown`.
+  - Storage/query tests with fake clients before changing real resource
+    lifetimes.
 
 ### P2: Canonicalize MCP Around The Effect Server
 
@@ -819,9 +881,10 @@ Notes:
 
 ## Recommended PR Order
 
-1. Gateway RPC callback and client streaming completion cleanup.
-2. Storage/provider managed resource cleanup.
-3. MCP parity/deletion decision and workbench platform polish.
+1. FalkorDB triples store/query scoped client lifecycle.
+2. Qdrant config/schema/fakeable construction cleanup.
+3. Client streaming facade completion normalization.
+4. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 
@@ -850,6 +913,10 @@ Do not flag these as rewrite blockers without additional proof:
   boundary for NATS/Pulsar-style topics, acknowledgement, schema codecs, and
   backend lifecycle. Effect's native `PubSub` can replace in-process fanout
   helpers, but not the distributed broker abstraction by itself.
+- `ts/packages/flow/src/gateway/rpc-protocol.ts` is a Fastify socket
+  compatibility bridge. Do not flag its internal connection maps/sets as a
+  standalone replacement target until the gateway is ready to move onto Effect
+  SocketServer or Effect HTTP routing.
 
 ## Acceptance For Final Loop Completion
 
