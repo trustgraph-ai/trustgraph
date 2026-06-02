@@ -12,20 +12,20 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Client RPC
-managed runtime slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Client
+WebSocket adapter slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 203 |
 | `Map<` | 88 |
-| `WebSocket` | 43 |
+| `WebSocket` | 72 |
 | `new Map` | 62 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
 | `while (` | 9 |
-| `new Error` | 14 |
+| `new Error` | 12 |
 | `new Promise` | 10 |
 | `JSON.parse` | 7 |
 | `localStorage` | 8 |
@@ -48,6 +48,12 @@ Notes:
 - The `Effect.runPromise` and `WebSocket` counts dropped in this snapshot
   because `EffectRpcClient` now owns its RPC/socket layer with
   `ManagedRuntime` and uses Effect's WebSocket constructor layer.
+- The raw `WebSocket` count increased in this snapshot because the adapter
+  slice added focused tests and typed adapter names; production
+  `websocket-adapter.ts` is now clean of `try`/`catch`, normal `Error`, and
+  the previous constructor assertions.
+- The `new Error` count dropped because `websocket-adapter.ts` now throws
+  `S.TaggedErrorClass` adapter errors.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -377,6 +383,29 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Client WebSocket Adapter Error Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/client/src/socket/websocket-adapter.ts` now models host
+    fallback failures with `WebSocketAdapterError` via
+    `S.TaggedErrorClass`.
+  - Synchronous `getWebSocketConstructor()` and `getRandomValues()` facades
+    keep their public signatures while using `Result.try` instead of local
+    `try`/`catch` blocks.
+  - Runtime predicates now narrow WebSocket constructor modules and crypto
+    modules without the previous constructor/result type assertions.
+  - New adapter tests cover global WebSocket selection, optional `ws`
+    fallback, global crypto, typed crypto failure, and typed adapter errors.
+- Verification:
+  - `bun run --cwd ts/packages/client build`
+  - `bun run --cwd ts/packages/client test -- src/__tests__/websocket-adapter.test.ts`
+  - `bun run --cwd ts/packages/client test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -402,12 +431,11 @@ Notes:
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
     Remaining client cleanup should focus on `trustgraph-socket.ts`
-    higher-level normal `Error` throws/JSON parsing and the public synchronous
-    `websocket-adapter.ts` compatibility helpers.
+    higher-level normal `Error` throws/JSON parsing and the client newable
+    factory assertions.
   - Knowledge streams still duplicate legacy end-of-stream handling.
-  - WebSocket adapter shims still contain host-boundary `try`/`catch` and
-    normal `Error` construction, but their sync exports are public API and
-    should be migrated in a separate compatibility-preserving slice.
+  - WebSocket adapter host fallbacks now use `Result.try` and tagged adapter
+    errors while preserving sync exports.
 - RAG/providers/storage:
   - RAG and agent requestor bridges are complete: `toPromiseRequestor` has no
     remaining `ts/packages` matches.
@@ -423,7 +451,6 @@ Notes:
 - TrustGraph evidence:
   - `ts/packages/client/src/socket/effect-rpc-client.ts`
   - `ts/packages/client/src/socket/trustgraph-socket.ts`
-  - `ts/packages/client/src/socket/websocket-adapter.ts`
 - Effect primitives:
   - `effect/unstable/socket` `Socket.makeWebSocket`, `fromWebSocket`,
     `toChannel`, `layerWebSocket`.
@@ -436,8 +463,8 @@ Notes:
   - Expose Promise-returning methods through a thin adapter.
   - Finish replacing remaining normal client `Error` constructors with tagged
     errors before they cross into shared Effect code.
-  - Preserve public sync exports in `websocket-adapter.ts` while moving host
-    failure capture toward typed Effect helpers.
+  - Replace remaining client newable factory assertions with a typed factory
+    shape that preserves current constructor/function compatibility.
 - Tests:
   - `cd ts && bun run --cwd packages/client test`
 

@@ -7,6 +7,7 @@
  * Provides its own minimal type definitions for the WebSocket API surface
  * we actually use, so the package does not require DOM lib types.
  */
+import { Result, Schema as S } from "effect";
 
 // ---------------------------------------------------------------------------
 // WebSocket readyState constants (identical in browser WebSocket and 'ws')
@@ -64,6 +65,41 @@ export interface IsomorphicWebSocketConstructor {
   new (url: string): IsomorphicWebSocket;
 }
 
+export class WebSocketAdapterError extends S.TaggedErrorClass<WebSocketAdapterError>()(
+  "WebSocketAdapterError",
+  {
+    message: S.String,
+    operation: S.String,
+  },
+) {}
+
+const adapterError = (operation: string, message: string): WebSocketAdapterError =>
+  WebSocketAdapterError.make({ operation, message });
+
+interface CryptoModule {
+  readonly randomFillSync: (array: Uint32Array) => Uint32Array;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isWebSocketConstructor(value: unknown): value is IsomorphicWebSocketConstructor {
+  return typeof value === "function";
+}
+
+function websocketConstructorFromModule(value: unknown): IsomorphicWebSocketConstructor | undefined {
+  if (isWebSocketConstructor(value)) return value;
+  if (!isRecord(value)) return undefined;
+  if (isWebSocketConstructor(value.WebSocket)) return value.WebSocket;
+  if (isWebSocketConstructor(value.default)) return value.default;
+  return undefined;
+}
+
+function isCryptoModule(value: unknown): value is CryptoModule {
+  return isRecord(value) && typeof value.randomFillSync === "function";
+}
+
 // ---------------------------------------------------------------------------
 // Runtime helpers
 // ---------------------------------------------------------------------------
@@ -74,24 +110,33 @@ export interface IsomorphicWebSocketConstructor {
  * - Browser: uses `globalThis.WebSocket` (native)
  * - Node.js: dynamically `require`s the `ws` npm package
  *
- * @throws Error if no WebSocket implementation is available
+ * @throws WebSocketAdapterError if no WebSocket implementation is available
  */
 export function getWebSocketConstructor(): IsomorphicWebSocketConstructor {
   // Browser environment (or Deno, Bun, etc. where WebSocket is global)
-  if (typeof globalThis !== "undefined" && "WebSocket" in globalThis) {
-    return (globalThis as unknown as { WebSocket: IsomorphicWebSocketConstructor }).WebSocket;
+  const globalWebSocket = typeof globalThis !== "undefined" ? globalThis.WebSocket : undefined;
+  if (isWebSocketConstructor(globalWebSocket)) {
+    return globalWebSocket;
   }
 
   // Node.js environment — dynamically require 'ws'
-  try {
+  const wsModule = Result.getOrThrow(Result.try({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ws = require("ws");
-    return ws as IsomorphicWebSocketConstructor;
-  } catch {
-    throw new Error(
-      'WebSocket is not available. In Node.js, install the "ws" package: npm install ws',
+    try: (): unknown => require("ws"),
+    catch: () =>
+      adapterError(
+        "websocket-constructor",
+        'WebSocket is not available. In Node.js, install the "ws" package: npm install ws',
+      ),
+  }));
+  const wsConstructor = websocketConstructorFromModule(wsModule);
+  if (wsConstructor === undefined) {
+    throw adapterError(
+      "websocket-constructor",
+      'The "ws" package did not export a compatible WebSocket constructor',
     );
   }
+  return wsConstructor;
 }
 
 /**
@@ -122,14 +167,20 @@ export function getRandomValues(array: Uint32Array): Uint32Array {
     return array;
   }
   // Node.js fallback for versions < 19 where globalThis.crypto may not exist
-  try {
+  const cryptoModule = Result.getOrThrow(Result.try({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { randomFillSync } = require("node:crypto");
-    return randomFillSync(array) as Uint32Array;
-  } catch {
-    throw new Error(
-      "No cryptographic random source available. " +
-        "Upgrade to Node.js 19+ or ensure the 'crypto' module is available.",
+    try: (): unknown => require("node:crypto"),
+    catch: () =>
+      adapterError(
+        "random-values",
+        "No cryptographic random source available. Upgrade to Node.js 19+ or ensure the 'crypto' module is available.",
+      ),
+  }));
+  if (!isCryptoModule(cryptoModule)) {
+    throw adapterError(
+      "random-values",
+      'The "node:crypto" module did not export randomFillSync',
     );
   }
+  return cryptoModule.randomFillSync(array);
 }
