@@ -120,7 +120,7 @@ export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
           return Stream.unfold<"pulling" | "done", LlmChunk, TextCompletionRuntimeError, never>(
             "pulling",
             (state) => {
-              if (state === "done") return Effect.void as Effect.Effect<undefined>;
+              if (state === "done") return Effect.as(Effect.void, undefined);
 
               return Effect.gen(function* () {
                 while (true) {

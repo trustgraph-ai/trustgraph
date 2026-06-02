@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Base flow
-definition schema slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Text completion
+stream sentinel slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -68,6 +68,10 @@ Notes:
 - The base flow definition schema slice removed hand-rolled
   `Predicate`/object narrowing from `flow-processor.ts`; signal counts are
   unchanged because this was a validation-quality migration.
+- The text completion stream sentinel slice removed the duplicated
+  `Effect.void as Effect.Effect<undefined>` assertions from provider stream
+  unfold branches. Counts are unchanged because this was an Effect diagnostic
+  and type-channel cleanup.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -543,6 +547,24 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Text Completion Stream Sentinel Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/model/text-completion/{ollama,openai,mistral,azure-openai,claude,openai-compatible}.ts`
+    now return the `Stream.unfold` end sentinel with
+    `Effect.as(Effect.void, undefined)`.
+  - Removed six `Effect.void as Effect.Effect<undefined>` assertions without
+    replacing them with `Effect.succeed(undefined)`, which `@effect/tsgo`
+    flags as a diagnostic.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -627,8 +649,6 @@ Notes:
 - Rewrite shape:
   - Move env/config reading into `Config` loaders and provider-specific layers.
   - Scope SDK clients that need explicit close/disconnect.
-  - Remove `Effect.void as Effect.Effect<undefined>` stream assertions by
-    letting branch return types infer or by restructuring the stream parser.
 - Tests:
   - Provider config tests with `ConfigProvider.fromMap`.
   - Storage tests with fake clients before changing real resource lifetimes.
