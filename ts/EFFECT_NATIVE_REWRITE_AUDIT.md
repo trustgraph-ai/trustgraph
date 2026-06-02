@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 workbench theme
-storage slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Effect AI
+adapter and native request/response PubSub slices:
 
 | Signal | Count |
 | --- | ---: |
@@ -21,9 +21,9 @@ storage slice:
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
 | `Layer.succeed` | 12 |
-| `Map<` | 38 |
+| `Map<` | 37 |
 | `WebSocket` | 72 |
-| `new Map` | 60 |
+| `new Map` | 59 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 17 |
@@ -31,7 +31,7 @@ storage slice:
 | `new Error` | 7 |
 | `new Promise` | 9 |
 | `JSON.parse` | 4 |
-| `localStorage` | 9 |
+| `localStorage` | 11 |
 | `JSON.stringify` | 8 |
 | `setTimeout` | 3 |
 | `process.env` | 3 |
@@ -138,6 +138,18 @@ Notes:
   `BrowserKeyValueStore.layerLocalStorage`; the first-paint host script reads
   that JSON-encoded key before React mounts and falls back to `tg-theme` only
   for legacy installs.
+- The Effect AI `LanguageModel` adapter slice added a reusable
+  `makeLanguageModelProvider` bridge in text-completion common code. It maps
+  `generateText` responses to `LlmResult`, maps streaming `text-delta` and
+  final `finish.usage` parts to TrustGraph chunks, and converts Effect AI rate
+  and quota failures into `TooManyRequestsError`. No concrete provider has
+  been flipped yet.
+- The native request/response PubSub slice removed the local
+  `Map<string, Queue>` response subscriber fanout in
+  `makeEffectRequestResponseFromPubSub`. Response dispatch now publishes
+  `{ id, value }` envelopes through native `effect/PubSub`, and each request
+  uses a scoped `PubSub.Subscription` plus `Stream.fromSubscription` to wait
+  for its matching response.
 - A focused broker-backend scout found no remaining P0 broker runtime rewrite
   after the producer, NATS, consumer concurrency, rate-limit, and
   request-response stop slices. `PubSubBackend` remains an intentional
@@ -1358,6 +1370,38 @@ Notes:
   - `cd ts && bun run test`
   - `cd ts && bun run lint`
 
+### 2026-06-02: Effect AI LanguageModel Adapter Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - Added `makeLanguageModelProvider`, a bridge from
+    `effect/unstable/ai/LanguageModel` into the existing TrustGraph
+    `LlmProvider` contract.
+  - Covered non-streaming text/token mapping, streaming text/final-token
+    mapping, and Effect AI rate/quota failure mapping with fake
+    `LanguageModel` tests.
+  - Kept concrete provider swaps deferred until provider-specific parity is
+    proven.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/text-completion-common.test.ts src/__tests__/text-completion-providers.test.ts`
+
+### 2026-06-02: Native Request/Response PubSub Fanout Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - Replaced the request/response runtime's hand-managed
+    `Map<string, Queue>` response fanout with native `effect/PubSub`.
+  - Each request subscribes before sending, consumes through
+    `Stream.fromSubscription`, filters by response id, and releases the
+    subscription at scope exit.
+  - Kept `PubSubBackend` as the broker boundary because Effect native PubSub is
+    in-process only and does not provide NATS topics, ack/nack, durable
+    subscriptions, schema codecs, or backend lifecycle.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/messaging-runtime.test.ts src/__tests__/request-response.test.ts src/__tests__/flow-spec-runtime.test.ts`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1442,9 +1486,9 @@ Notes:
     text, token counts, streaming final usage, and rate-limit mapping. The
     local provider layer-construction cleanup is complete; remaining provider
     work is adapter/parity work, not `Layer.succeed` cleanup.
-  - The next provider PR should add a small `effect/unstable/ai/LanguageModel`
-    to TrustGraph `LlmProvider` adapter and prove it with fake
-    `LanguageModel` parts before migrating Claude. Direct OpenAI, Azure, and
+  - The `effect/unstable/ai/LanguageModel` to TrustGraph `LlmProvider` adapter
+    baseline is complete. The next provider PR should migrate Claude through
+    that adapter with provider-specific parity tests. Direct OpenAI, Azure, and
     OpenAI-compatible swaps are no-ops until Responses-vs-Chat-Completions
     parity is proven.
   - FalkorDB scoped lifecycle is complete for triples query/store. Use the
@@ -1499,6 +1543,9 @@ Notes:
     handles.
   - Treat request-response pending shutdown semantics as complete; do not flag
     `waitForResponse` timeout behavior for stopped runtimes.
+  - Treat request-response in-process fanout as complete: response routing now
+    uses native `effect/PubSub` subscriptions instead of a hand-managed
+    subscriber map.
   - Treat the legacy consumer facade as a completed compatibility wrapper over
     `makeEffectConsumerFromPubSub`; do not flag blocking `start()` semantics.
 
@@ -1510,13 +1557,9 @@ Notes:
   - `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
     Effect AI OpenAI/Anthropic provider layers.
 - Rewrite shape:
-  - Add an Effect AI `LanguageModel` to `LlmProvider` adapter beside the
-    current `LlmProvider` contract before flipping any public provider
-    interface.
-  - Prove `LlmResult`, streaming `text-delta` plus final `finish.usage`,
-    `AiError.RateLimitError` mapping, and missing-token config behavior with
-    fake Effect `LanguageModel` tests.
-  - Claude is the first plausible provider migration after the adapter.
+  - Adapter baseline is complete: `makeLanguageModelProvider` bridges
+    `LanguageModel` into `LlmProvider`.
+  - Claude is the first plausible provider migration through the adapter.
   - Do not directly swap OpenAI, Azure, or OpenAI-compatible providers yet:
     current TrustGraph code uses Chat Completions/local-server semantics while
     `@effect/ai-openai` is Responses API backed.
@@ -1560,7 +1603,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. Effect AI `LanguageModel` to `LlmProvider` adapter, then Claude parity.
+1. Claude provider parity through the Effect AI `LanguageModel` adapter.
 2. MCP Effect stdio parity and canonicalization.
 
 ## No-Op Rules

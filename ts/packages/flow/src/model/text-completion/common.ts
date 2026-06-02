@@ -4,12 +4,14 @@ import {
   errorMessage,
   makeLlmServiceShape,
   type LlmChunk,
+  type LlmResult,
   type LlmProvider,
 } from "@trustgraph/base";
-import { Config, Effect, Layer, Ref, Result, Stream } from "effect";
+import { Config, Effect, Layer, ManagedRuntime, Ref, Result, Stream } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
+import { AiError, LanguageModel, Prompt, Response } from "effect/unstable/ai";
 
 export class TextCompletionConfigError extends S.TaggedErrorClass<TextCompletionConfigError>()(
   "TextCompletionConfigError",
@@ -31,6 +33,21 @@ export class TextCompletionProviderError extends S.TaggedErrorClass<TextCompleti
 export type TextCompletionRuntimeError =
   | TextCompletionProviderError
   | TooManyRequestsError;
+
+export interface LanguageModelProviderRequest {
+  readonly model: string;
+  readonly temperature: number;
+}
+
+export interface LanguageModelProviderOptions<Requirements> {
+  readonly provider: string;
+  readonly defaultModel: string;
+  readonly defaultTemperature: number;
+  readonly runtime: ManagedRuntime.ManagedRuntime<Requirements, TextCompletionRuntimeError>;
+  readonly makeLanguageModel: (
+    request: LanguageModelProviderRequest,
+  ) => Effect.Effect<LanguageModel.Service, TextCompletionRuntimeError, Requirements>;
+}
 
 export const makeTextCompletionLayer = <E, R>(
   provider: Effect.Effect<LlmProvider, E, R>,
@@ -82,6 +99,33 @@ const textChunk = (model: string, text: string): LlmChunk => ({
   model,
   isFinal: false,
 });
+
+const effectAiProviderError = (
+  provider: string,
+  error: unknown,
+): TextCompletionRuntimeError => {
+  if (
+    AiError.isAiError(error) &&
+    (error.reason._tag === "RateLimitError" || error.reason._tag === "QuotaExhaustedError")
+  ) {
+    return TooManyRequestsError.make({ message: "Rate limit exceeded" });
+  }
+  return providerRuntimeError(provider, error);
+};
+
+const usageInputTokens = (usage: Response.Usage): number =>
+  usage.inputTokens.total ?? 0;
+
+const usageOutputTokens = (usage: Response.Usage): number =>
+  usage.outputTokens.total ?? 0;
+
+const languageModelPrompt = (
+  system: string,
+  prompt: string,
+): Prompt.RawInput => [
+  { role: "system", content: system },
+  { role: "user", content: [{ type: "text", text: prompt }] },
+];
 
 const contentPartText = (part: unknown): O.Option<string> =>
   Predicate.isObject(part) &&
@@ -199,6 +243,105 @@ export const providerStatusError = (
     ? TooManyRequestsError.make({ message: "Rate limit exceeded" })
     : providerRuntimeError(provider, error);
 };
+
+const languageModelResult = (
+  response: LanguageModel.GenerateTextResponse<{}>,
+  model: string,
+): LlmResult => ({
+  text: response.text,
+  inToken: usageInputTokens(response.usage),
+  outToken: usageOutputTokens(response.usage),
+  model,
+});
+
+const languageModelStreamChunk = (
+  provider: string,
+  model: string,
+  part: Response.StreamPart<{}>,
+): Effect.Effect<Result.Result<LlmChunk, undefined>, TextCompletionRuntimeError> => {
+  switch (part.type) {
+    case "text-delta":
+      return Effect.succeed(
+        part.delta.length > 0
+          ? Result.succeed(textChunk(model, part.delta))
+          : Result.fail(undefined),
+      );
+    case "finish":
+      return Effect.succeed(
+        Result.succeed(
+          finalChunk(model, {
+            inToken: usageInputTokens(part.usage),
+            outToken: usageOutputTokens(part.usage),
+          }),
+        ),
+      );
+    case "error":
+      return Effect.fail(effectAiProviderError(provider, part.error));
+    default:
+      return Effect.succeed(Result.fail(undefined));
+  }
+};
+
+const runLanguageModelStream = <RuntimeRequirements, StreamRequirements extends RuntimeRequirements>(
+  runtime: ManagedRuntime.ManagedRuntime<RuntimeRequirements, TextCompletionRuntimeError>,
+  stream: Stream.Stream<LlmChunk, TextCompletionRuntimeError, StreamRequirements>,
+): AsyncIterable<LlmChunk> => ({
+  [Symbol.asyncIterator]: () => {
+    const iterator = runtime.context().then((context) =>
+      Stream.toAsyncIterableWith(stream, context)[Symbol.asyncIterator]()
+    );
+    return {
+      next: () => iterator.then((current) => current.next()),
+    };
+  },
+});
+
+export const makeLanguageModelProvider = <Requirements>(
+  options: LanguageModelProviderOptions<Requirements>,
+): LlmProvider => ({
+  generateContent: (system, prompt, model, temperature) => {
+    const modelName = model ?? options.defaultModel;
+    const temp = temperature ?? options.defaultTemperature;
+    return options.runtime.runPromise(
+      Effect.gen(function* () {
+        const languageModel = yield* options.makeLanguageModel({
+          model: modelName,
+          temperature: temp,
+        });
+        const response = yield* languageModel.generateText({
+          prompt: languageModelPrompt(system, prompt),
+        }).pipe(
+          Effect.mapError((error) => effectAiProviderError(options.provider, error)),
+        );
+        return languageModelResult(response, modelName);
+      }),
+    );
+  },
+  supportsStreaming: () => true,
+  generateContentStream: (system, prompt, model, temperature) => {
+    const modelName = model ?? options.defaultModel;
+    const temp = temperature ?? options.defaultTemperature;
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const languageModel = yield* options.makeLanguageModel({
+          model: modelName,
+          temperature: temp,
+        });
+        return languageModel.streamText({
+          prompt: languageModelPrompt(system, prompt),
+        }).pipe(
+          Stream.mapError((error) => effectAiProviderError(options.provider, error)),
+          Stream.filterMapEffect((part) =>
+            languageModelStreamChunk(options.provider, modelName, part)
+          ),
+        );
+      }),
+    );
+    return toAsyncGenerator(runLanguageModelStream(options.runtime, stream), (error) =>
+      effectAiProviderError(options.provider, error)
+    );
+  },
+});
 
 export const toAsyncGenerator = (
   iterable: AsyncIterable<LlmChunk>,

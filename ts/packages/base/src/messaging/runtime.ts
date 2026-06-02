@@ -3,7 +3,20 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Context, Deferred, Duration, Effect, Fiber, Layer, Queue, Ref, Result, Schedule, Scope, Stream } from "effect";
+import {
+  Context,
+  Deferred,
+  Duration,
+  Effect,
+  Fiber,
+  Layer,
+  PubSub as EffectPubSub,
+  Ref,
+  Result,
+  Schedule,
+  Scope,
+  Stream,
+} from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type {
@@ -119,6 +132,11 @@ export interface FlowRuntimeService {
   readonly run: <Requirements = never>(
     flow: Flow<Requirements>,
   ) => Effect.Effect<void, FlowRuntimeError, SpecRuntimeRequirements | Requirements>;
+}
+
+interface ResponseEnvelope<T> {
+  readonly id: string;
+  readonly value: T;
 }
 
 export class ProducerFactory extends Context.Service<ProducerFactory, ProducerFactoryService>()(
@@ -395,7 +413,7 @@ export const makeEffectConsumerFromPubSub = Effect.fn("makeEffectConsumerFromPub
 const dispatchResponseLoop = <T>(
   backend: BackendConsumer<T>,
   responseTopic: string,
-  subscribers: Map<string, Queue.Queue<T>>,
+  responses: EffectPubSub.PubSub<ResponseEnvelope<T>>,
   config: MessagingRuntimeConfig,
 ): Effect.Effect<void> =>
   Effect.whileLoop({
@@ -408,10 +426,12 @@ const dispatchResponseLoop = <T>(
           }
 
           const id = message.properties().id;
-          const queue = id === undefined ? undefined : subscribers.get(id);
           return Effect.gen(function* () {
-            if (queue !== undefined) {
-              yield* Queue.offer(queue, message.value());
+            if (id !== undefined) {
+              yield* EffectPubSub.publish(responses, {
+                id,
+                value: message.value(),
+              });
             }
             yield* acknowledgeMessage(backend, message, responseTopic);
           });
@@ -427,19 +447,24 @@ const dispatchResponseLoop = <T>(
   });
 
 const waitForResponse = Effect.fn("waitForResponse")(function* <TRes, E, R>(
-  queue: Queue.Queue<TRes>,
+  subscription: EffectPubSub.Subscription<ResponseEnvelope<TRes>>,
+  id: string,
   options: EffectRequestOptions<TRes, E, R> | undefined,
 ) {
-  const response = yield* Stream.fromQueue(queue).pipe(
+  const response = yield* Stream.fromSubscription(subscription).pipe(
     Stream.filterMapEffect((candidate) => {
-      if (options?.recipient === undefined) {
-        return Effect.succeed(Result.succeed(candidate));
+      if (candidate.id !== id) {
+        return Effect.succeed(Result.fail(undefined));
       }
 
-      return options.recipient(candidate).pipe(
+      if (options?.recipient === undefined) {
+        return Effect.succeed(Result.succeed(candidate.value));
+      }
+
+      return options.recipient(candidate.value).pipe(
         Effect.map((complete) =>
           complete
-            ? Result.succeed(candidate)
+            ? Result.succeed(candidate.value)
             : Result.fail(undefined)
         ),
       );
@@ -475,9 +500,9 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
     ...(options.responseSchema === undefined ? {} : { schema: options.responseSchema }),
   };
   const backend = yield* pubsub.createConsumer<TRes>(createOptions);
-  const subscribers = new Map<string, Queue.Queue<TRes>>();
+  const responses = yield* EffectPubSub.unbounded<ResponseEnvelope<TRes>>();
   const stoppedSignal = yield* Deferred.make<never, MessagingLifecycleError>();
-  const fiber = yield* dispatchResponseLoop(backend, options.responseTopic, subscribers, config).pipe(Effect.forkScoped);
+  const fiber = yield* dispatchResponseLoop(backend, options.responseTopic, responses, config).pipe(Effect.forkScoped);
   let stopped = false;
 
   const stop = Effect.fn(`RequestResponse.stop:${options.requestTopic}`)(function* () {
@@ -487,6 +512,7 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
       stoppedSignal,
       messagingLifecycleError(`${options.requestTopic}:${options.responseTopic}`, "stop", "RequestResponse stopped"),
     ).pipe(Effect.ignore);
+    yield* EffectPubSub.shutdown(responses).pipe(Effect.ignore);
     yield* Fiber.interrupt(fiber);
     yield* producer.close;
     yield* closeConsumerBackend(backend, options.responseTopic, options.subscription);
@@ -510,33 +536,19 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
       const id = randomUUID();
       const timeoutMs = requestOptions?.timeoutMs ?? config.requestTimeoutMs;
 
-      return Effect.acquireUseRelease(
-        Queue.unbounded<TRes>().pipe(
-          Effect.tap((queue) =>
-            Effect.sync(() => {
-              subscribers.set(id, queue);
-            }),
-          ),
-        ),
-        (queue) =>
-          Effect.gen(function* () {
-            yield* producer.send(id, request);
-            const result = yield* waitForResponse(queue, requestOptions).pipe(
-              Effect.raceFirst(Deferred.await(stoppedSignal)),
-              Effect.timeoutOption(Duration.millis(timeoutMs)),
-            );
-            return yield* O.match(result, {
-              onNone: () => Effect.fail(messagingTimeoutError("request-response", timeoutMs)),
-              onSome: Effect.succeed,
-            });
-          }),
-        (queue) =>
-          Effect.sync(() => {
-            subscribers.delete(id);
-          }).pipe(
-            Effect.flatMap(() => Queue.shutdown(queue)),
-            Effect.ignore,
-          ),
+      return Effect.scoped(
+        Effect.gen(function* () {
+          const subscription = yield* EffectPubSub.subscribe(responses);
+          yield* producer.send(id, request);
+          const result = yield* waitForResponse(subscription, id, requestOptions).pipe(
+            Effect.raceFirst(Deferred.await(stoppedSignal)),
+            Effect.timeoutOption(Duration.millis(timeoutMs)),
+          );
+          return yield* O.match(result, {
+            onNone: () => Effect.fail(messagingTimeoutError("request-response", timeoutMs)),
+            onSome: Effect.succeed,
+          });
+        }),
       );
     },
     stop: stop(),

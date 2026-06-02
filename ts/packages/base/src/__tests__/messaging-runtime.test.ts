@@ -322,7 +322,7 @@ describe("Effect-native messaging runtime", () => {
   );
 
   it.effect(
-    "routes request-response replies through an Effect queue",
+    "routes request-response replies through Effect PubSub",
     Effect.fnUntraced(function* () {
       const responseConsumer = new ScriptedConsumer<string>();
       const backend = new RuntimeBackend(
