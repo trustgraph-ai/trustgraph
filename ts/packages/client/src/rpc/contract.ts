@@ -14,8 +14,7 @@ export class DispatchStreamChunk extends S.Class<DispatchStreamChunk>("DispatchS
   complete: S.Boolean,
 }) {}
 
-export class DispatchError extends S.ErrorClass<DispatchError>("DispatchError")({
-  _tag: S.tag("DispatchError"),
+export class DispatchError extends S.TaggedErrorClass<DispatchError>()("DispatchError", {
   message: S.String,
 }) {}
 

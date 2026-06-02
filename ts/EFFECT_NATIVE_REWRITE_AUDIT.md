@@ -1429,6 +1429,27 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-02: RPC Dispatch Tagged Error Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - Replaced the remaining production `S.ErrorClass` usage in the Flow gateway
+    RPC contract with `S.TaggedErrorClass`.
+  - Normalized the client-side RPC `DispatchError` counterpart to the same
+    tagged-error schema shape so both wire contract copies stay aligned.
+  - Closed the scratch-note `S.ErrorClass` finding for production code. The
+    remaining plain `new Error` matches are test-only helpers or external
+    host-boundary simulations.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/gateway-dispatcher.test.ts`
+  - `cd ts/packages/client && bunx --bun vitest run src/__tests__/rpc-timeout.test.ts`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1485,6 +1506,8 @@ Notes:
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
     The remaining client `newableFactory` assertions are documented as public
     API compatibility boundaries for this loop.
+  - Gateway/client `DispatchError` contracts now use `S.TaggedErrorClass`; do
+    not reopen `S.ErrorClass` unless a new production match appears.
   - Gateway `DispatchStream` now uses Effect-native dispatcher streaming
     callbacks instead of nested `Effect.runPromiseWith`, and client streaming
     facade callbacks now decode the legacy envelope through Schema before
