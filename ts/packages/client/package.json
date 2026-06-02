@@ -12,7 +12,7 @@
     "test": "bunx --bun vitest run"
   },
   "dependencies": {
-    "effect": "4.0.0-beta.74"
+    "effect": "4.0.0-beta.75"
   },
   "peerDependencies": {
     "ws": "^8.0.0"
@@ -23,7 +23,7 @@
     }
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.0-beta.74",
+    "@effect/vitest": "4.0.0-beta.75",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.0",
 
