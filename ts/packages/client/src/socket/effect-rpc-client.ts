@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Cause, Context, Effect, Layer, ManagedRuntime, Stream } from "effect";
 import type * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
@@ -128,13 +128,18 @@ export function makeEffectRpcClient(
   };
 
   const runtime = ManagedRuntime.make(makeClientLayer());
-  const clientPromise = runtime.runPromise(TrustGraphRpcClientService);
-  clientPromise.catch((cause) => {
-    setState({
-      status: "failed",
-      lastError: errorMessage(cause),
-    });
-  });
+  const clientPromise = runtime.runPromise(
+    TrustGraphRpcClientService.pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() => {
+          setState({
+            status: "failed",
+            lastError: Cause.pretty(cause),
+          });
+        })
+      ),
+    ),
+  );
 
   return {
     subscribe: (listener) => {
@@ -198,16 +203,6 @@ export function withDispatchRequestPolicy<A, E, R>(
   );
 
   return retryTimes > 0 ? timed.pipe(Effect.retry({ times: retryTimes })) : timed;
-}
-
-function errorMessage(cause: unknown): string {
-  if (cause instanceof Error) return cause.message;
-  if (typeof cause === "string") return cause;
-  if (cause !== null && typeof cause === "object" && "message" in cause) {
-    const message = (cause as { message?: unknown }).message;
-    if (typeof message === "string") return message;
-  }
-  return String(cause);
 }
 
 function normalizeTimeoutMs(timeoutMs: number | undefined): number {

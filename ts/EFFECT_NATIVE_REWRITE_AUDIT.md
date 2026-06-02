@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 request-response
-queue stream slice:
+Current signal counts from `ts/packages` after the 2026-06-02 client RPC
+acquisition cause tap slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -138,6 +138,10 @@ Notes:
   around the socket program by sandboxing the Effect and handling the resulting
   `Cause` in the Effect pipeline before the Fastify fire-and-forget
   `runPromise` boundary.
+- The client RPC acquisition cause tap slice removed the Promise `.catch` used
+  only to update connection state on runtime/client acquisition failure.
+  `effect-rpc-client.ts` now uses `Effect.tapCause` and `Cause.pretty` before
+  the public Promise boundary.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -980,6 +984,27 @@ Notes:
   - `cd ts && bun run check:tsgo`
   - `bun run --cwd ts/packages/flow build`
   - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Client RPC Acquisition Cause Tap Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/client/src/socket/effect-rpc-client.ts` now observes
+    runtime/client acquisition failures with `Effect.tapCause` and
+    `Cause.pretty`.
+  - Removed the Promise `.catch(...)` that only updated local connection state
+    after `runtime.runPromise(TrustGraphRpcClientService)`.
+  - Removed the local `errorMessage` helper and its message-field assertion.
+  - Public `dispatch`, `dispatchStream`, and `close` Promise facades remain
+    compatibility boundaries.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/client build`
+  - `bun run --cwd ts/packages/client test`
   - `cd ts && bun run check`
   - `cd ts && bun run build`
   - `cd ts && bun run test`
