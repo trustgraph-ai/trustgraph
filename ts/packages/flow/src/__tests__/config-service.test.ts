@@ -147,6 +147,58 @@ describe("ConfigService operations", () => {
     ]);
   });
 
+  it("dispatches all config operations through the Match-backed handler", async () => {
+    const service = makeService();
+
+    await expect(service.handleOperation({ operation: "put" })).rejects.toMatchObject({
+      _tag: "ConfigServiceError",
+      operation: "put",
+    });
+    await expect(service.handleOperation({ operation: "delete" })).rejects.toMatchObject({
+      _tag: "ConfigServiceError",
+      operation: "delete",
+    });
+
+    await expect(service.handleOperation({
+      operation: "put",
+      values: [{ type: "prompt", key: "system", value: "hello" }],
+    })).resolves.toEqual({ version: 1 });
+
+    await expect(service.handleOperation({
+      operation: "get",
+      keys: ["prompt", "system"],
+    })).resolves.toEqual({
+      version: 1,
+      values: { system: "hello" },
+    });
+    await expect(service.handleOperation({ operation: "list" })).resolves.toEqual({
+      version: 1,
+      directory: ["prompt"],
+    });
+    await expect(service.handleOperation({ operation: "config" })).resolves.toEqual({
+      version: 1,
+      config: { prompt: { system: "hello" } },
+    });
+    await expect(service.handleOperation({
+      operation: "getvalues",
+      type: "prompt",
+    })).resolves.toEqual({
+      version: 1,
+      values: [{ type: "prompt", key: "system", value: "hello" }],
+    });
+    await expect(service.handleOperation({
+      operation: "getvalues-all-ws",
+      type: "prompt",
+    })).resolves.toEqual({
+      version: 1,
+      values: [{ workspace: "default", type: "prompt", key: "system", value: "hello" }],
+    });
+    await expect(service.handleOperation({
+      operation: "delete",
+      keys: ["prompt", "system"],
+    })).resolves.toEqual({ version: 2 });
+  });
+
   it("pushes config from the stored producer handle", async () => {
     const backend = new NoopPubSub();
     const service = makeConfigService({

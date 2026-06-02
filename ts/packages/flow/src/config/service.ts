@@ -5,7 +5,7 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
-import {Duration, Effect, Layer, ManagedRuntime, SynchronizedRef} from "effect";
+import {Duration, Effect, Layer, ManagedRuntime, Match, SynchronizedRef} from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 import {
@@ -109,9 +109,9 @@ export interface ConfigService extends AsyncProcessorRuntime<ConfigServiceError>
   readonly pushConfig: () => Promise<void>;
   readonly pushConfigEffect: Effect.Effect<void, ConfigServiceError>;
   readonly persist: () => Promise<void>;
-  readonly persistEffect: Effect.Effect<void, never>;
+  readonly persistEffect: Effect.Effect<void>;
   readonly loadFromDisk: () => Promise<void>;
-  readonly loadFromDiskEffect: Effect.Effect<void, never>;
+  readonly loadFromDiskEffect: Effect.Effect<void>;
 }
 
 const initialState = (): ConfigServiceState => ({
@@ -340,7 +340,7 @@ const updateHandles = (
 const persistStateEffect = (
   persistPath: string | null,
   state: ConfigServiceState,
-): Effect.Effect<void, never> =>
+): Effect.Effect<void> =>
   Effect.gen(function* () {
     if (persistPath === null) return;
     const payload = {
@@ -383,7 +383,7 @@ const pushConfigWithStateEffect = (
 
 const readPersistedConfigEffect = (
   persistPath: string,
-): Effect.Effect<PersistedConfig | null, never> =>
+): Effect.Effect<PersistedConfig | null> =>
   Effect.gen(function* () {
     const raw = yield* Effect.tryPromise({
       try: () => readTextFile(persistPath),
@@ -778,26 +778,24 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
   const baseStop = base.stop;
   const persistPath = config.persistPath ?? null;
 
-  const handleOperationEffect = (request: ConfigRequest) => {
+  const handleOperationEffect = Effect.fn("ConfigService.handleOperation")(function* (
+    request: ConfigRequest,
+  ) {
     const op: ConfigOperation = request.operation;
 
-    switch (op) {
-      case "get":
-        return Effect.succeed(handleGetWithState(stateSnapshot(state), request));
-      case "put":
-        return handlePutEffect(state, persistPath, request);
-      case "delete":
-        return handleDeleteEffect(state, persistPath, request);
-      case "list":
-        return Effect.succeed(handleListWithState(stateSnapshot(state), request));
-      case "config":
-        return Effect.succeed(handleConfigDumpWithState(stateSnapshot(state), request));
-      case "getvalues":
-        return Effect.succeed(handleGetValuesWithState(stateSnapshot(state), request));
-      case "getvalues-all-ws":
-        return Effect.succeed(handleGetValuesAllWorkspacesWithState(stateSnapshot(state), request));
-    }
-  };
+    return yield* Match.value(op).pipe(
+      Match.when("get", () => Effect.succeed(handleGetWithState(stateSnapshot(state), request))),
+      Match.when("put", () => handlePutEffect(state, persistPath, request)),
+      Match.when("delete", () => handleDeleteEffect(state, persistPath, request)),
+      Match.when("list", () => Effect.succeed(handleListWithState(stateSnapshot(state), request))),
+      Match.when("config", () => Effect.succeed(handleConfigDumpWithState(stateSnapshot(state), request))),
+      Match.when("getvalues", () => Effect.succeed(handleGetValuesWithState(stateSnapshot(state), request))),
+      Match.when("getvalues-all-ws", () =>
+        Effect.succeed(handleGetValuesAllWorkspacesWithState(stateSnapshot(state), request))
+      ),
+      Match.exhaustive,
+    );
+  });
 
   const handleMessageEffect = Effect.fn("handleMessageEffect")(function* (msg: Message<ConfigRequest>) {
       const request = yield* S.decodeUnknownEffect(ConfigRequestSchema)(msg.value()).pipe(
@@ -810,17 +808,16 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
         return;
       }
 
-      const sendResponse = (response: ConfigResponse): Effect.Effect<void, ConfigServiceError> =>
-        Effect.gen(function* () {
-          const responseProducer = (yield* SynchronizedRef.get(state)).responseProducer;
-          if (responseProducer === null) {
-            return yield* configServiceError("respond", "Config response producer not started");
-          }
-          yield* Effect.tryPromise({
-            try: () => responseProducer.send(response, {id: requestId}),
-            catch: (cause) => configServiceError("respond", cause),
-          });
+      const sendResponse = Effect.fnUntraced(function* (response: ConfigResponse) {
+        const responseProducer = (yield* SynchronizedRef.get(state)).responseProducer;
+        if (responseProducer === null) {
+          return yield* configServiceError("respond", "Config response producer not started");
+        }
+        yield* Effect.tryPromise({
+          try: () => responseProducer.send(response, {id: requestId}),
+          catch: (cause) => configServiceError("respond", cause),
         });
+      });
 
       yield* handleOperationEffect(request).pipe(
         Effect.flatMap(sendResponse),

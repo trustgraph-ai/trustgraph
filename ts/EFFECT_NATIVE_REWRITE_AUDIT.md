@@ -346,6 +346,25 @@ Notes:
   - `git diff --check`
   - `git diff --check`
 
+### 2026-06-02: ConfigService Operation Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/config/service.ts` now dispatches
+    `ConfigOperation` with `effect/Match` instead of a native `switch`.
+  - The dispatcher is a named `Effect.fn` and uses `Match.exhaustive` against
+    the schema-derived `ConfigOperation` union.
+  - The per-message response sender now uses `Effect.fnUntraced` instead of an
+    arrow function returning `Effect.gen(...)`.
+  - Config-service tests now cover all seven operations through
+    `handleOperation`, including tagged invalid mutation failures.
+  - Existing explicit `never` annotations on `persistEffect`,
+    `loadFromDiskEffect`, `persistStateEffect`, and
+    `readPersistedConfigEffect` were removed so Effect can infer the channel.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/config-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.
@@ -1792,8 +1811,8 @@ Notes:
   - FlowManager `() => Effect.gen(...)` factories are normalized to
     `Effect.fn` / `Effect.fnUntraced`. Sibling service factories still need a
     focused scan before treating them as valid migration targets.
-  - KnowledgeCore operation dispatch now uses `effect/Match` with
-    `Match.exhaustive`; remaining service operation switches are in config and
+  - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
+    with `Match.exhaustive`; remaining service operation switches are in
     librarian surfaces.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
     Effect collections later; local pure traversal maps/sets remain no-ops.
