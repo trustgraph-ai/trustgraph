@@ -12,23 +12,23 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 strict tsgo
-slice:
+Current signal counts from `ts/packages` after the 2026-06-02 config service
+runtime slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 208 |
-| `Map<` | 58 |
-| `WebSocket` | 45 |
-| `new Map` | 45 |
+| `Effect.runPromise` | 207 |
+| `Map<` | 65 |
+| `WebSocket` | 51 |
+| `new Map` | 47 |
 | `toPromiseRequestor` | 19 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
-| `while (` | 13 |
+| `while (` | 12 |
 | `new Error` | 14 |
 | `new Promise` | 10 |
 | `JSON.parse` | 8 |
-| `localStorage` | 8 |
+| `localStorage` | 9 |
 | `JSON.stringify` | 6 |
 | `setTimeout` | 4 |
 | `process.env` | 3 |
@@ -78,7 +78,7 @@ Notes:
 
 ### 2026-06-02: Strict Base, CLI, MCP, And tsgo Slice
 
-- Status: migrated, root-verified, ready to commit.
+- Status: migrated, root-verified, committed, and pushed.
 - Completed:
   - Base messaging, NATS backend, producer, consumer, subscriber,
     request/response, runtime factories, processor programs, flow specs, and
@@ -102,6 +102,37 @@ Notes:
   - `cd ts && bun run build`
   - `git diff --check`
 
+### 2026-06-02: ConfigService Ref-Backed State Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/config/service.ts` now models runtime state as a
+    `SynchronizedRef<ConfigServiceState>` instead of adding mutable
+    `store`, `version`, consumer, and producer fields onto the processor
+    object.
+  - Config operations have Effect-returning handlers with Promise facades only
+    on the exported compatibility methods.
+  - Request narrowing now uses `effect/Predicate` rather than request-record
+    type assertions.
+  - Persistence remains schema-backed and now reads/writes snapshots from the
+    ref-backed state.
+  - The consume loop now uses `Effect.whileLoop`; the remaining
+    `consumer.receive(2000)` call is a pubsub boundary for this service.
+  - Service startup now exposes `runMain()` through `NodeRuntime.runMain`.
+    The legacy `run()` Promise facade uses `ManagedRuntime`, and
+    `ts/scripts/run-config.ts` delegates directly to `runMain()` instead of
+    owning its own catch/process-exit wrapper.
+  - Config-service tests cover tagged invalid mutation errors, workspace
+    persistence, legacy load, concurrent ref-backed mutations, and push
+    publishing from the stored producer handle.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -111,8 +142,9 @@ Notes:
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
 - Flow stateful services:
-  - Config, librarian, cores, and flow-manager still have mutable poller
-    service objects. These remain good candidates for `Context` services,
+  - Config service ref-backed state is complete. Librarian, cores, and
+    flow-manager still have mutable poller service objects. These remain good
+    candidates for `Context` services,
     scoped layers, `Ref`/`SynchronizedRef`, `Schedule`, and managed
     persistence.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
@@ -140,10 +172,9 @@ Notes:
 
 ## Ranked Findings
 
-### P0: Convert Stateful Flow Services To Scoped Effect Services
+### P0: Continue Stateful Flow Services To Scoped Effect Services
 
 - TrustGraph evidence:
-  - `ts/packages/flow/src/config/service.ts`
   - `ts/packages/flow/src/librarian/service.ts`
   - `ts/packages/flow/src/cores/service.ts`
   - `ts/packages/flow/src/flow-manager/service.ts`
@@ -152,8 +183,12 @@ Notes:
     `Effect.addFinalizer`, `Config`, `Schema`, `FileSystem`,
     `KeyValueStore`.
 - Rewrite shape:
-  - Model one service at a time as a `Context` service plus scoped layer.
+  - Model one remaining service at a time as a `Context` service plus scoped
+    layer or ref-backed state slice.
   - Store mutable service state in `Ref` or `SynchronizedRef`.
+  - Run service main programs with platform runtime entrypoints such as
+    `NodeRuntime.runMain`; keep `ManagedRuntime` only for compatibility
+    Promise facades.
   - Replace polling sleep loops with schedules where behavior allows.
   - Decode persisted payloads and config with schemas at boundaries.
 - Tests:
@@ -267,8 +302,8 @@ Notes:
 
 ## Recommended PR Order
 
-1. Config service scoped state migration.
-2. RAG and agent requestor bridge removal.
+1. RAG and agent requestor bridge removal.
+2. Librarian, cores, or flow-manager scoped state migration.
 3. Client RPC managed runtime/scoped layer cleanup.
 4. Base processor registry and constructor shim redesign.
 5. Gateway RPC callback and client streaming completion cleanup.
