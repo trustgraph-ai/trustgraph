@@ -13,7 +13,7 @@ import { Config, Effect, Exit, Scope } from "effect";
 import * as O from "effect/Option";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as EffectSocket from "effect/unstable/socket/Socket";
-import { optionalStringConfig, registry, toTgError } from "@trustgraph/base";
+import { optionalStringConfig, registry, toTgError, type PubSubBackend } from "@trustgraph/base";
 import { makeDispatcherManager } from "./dispatch/manager.js";
 import { makeGatewayRpcServer } from "./rpc-server.js";
 
@@ -22,6 +22,7 @@ export interface GatewayConfig {
   metricsPort: number;
   secret?: string;
   natsUrl?: string;
+  pubsub?: PubSubBackend;
 }
 
 export async function createGateway(config: GatewayConfig) {

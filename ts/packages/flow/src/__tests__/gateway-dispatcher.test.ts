@@ -1,0 +1,210 @@
+import { describe, expect, it } from "vitest";
+import {
+  dispatcherManagerIsCompleteResponse,
+  makeDispatcherManager,
+} from "../gateway/dispatch/manager.js";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  Message,
+  PubSubBackend,
+} from "@trustgraph/base";
+
+function createMessage<T>(value: T, properties: Record<string, string> = {}): Message<T> {
+  return {
+    value: () => value,
+    properties: () => properties,
+  };
+}
+
+class TopicConsumer<T> implements BackendConsumer<T> {
+  readonly acknowledged: Array<Message<T>> = [];
+  readonly nacked: Array<Message<T>> = [];
+  closeCount = 0;
+  private readonly messages: Array<Message<T>> = [];
+  private readonly waiters: Array<(message: Message<T> | null) => void> = [];
+  private closed = false;
+
+  push(message: Message<T>): void {
+    const waiter = this.waiters.shift();
+    if (waiter !== undefined) {
+      waiter(message);
+      return;
+    }
+
+    this.messages.push(message);
+  }
+
+  async receive(): Promise<Message<T> | null> {
+    const message = this.messages.shift();
+    if (message !== undefined || this.closed) return message ?? null;
+
+    return await new Promise((resolve) => {
+      this.waiters.push(resolve);
+    });
+  }
+
+  async acknowledge(message: Message<T>): Promise<void> {
+    this.acknowledged.push(message);
+  }
+
+  async negativeAcknowledge(message: Message<T>): Promise<void> {
+    this.nacked.push(message);
+  }
+
+  async unsubscribe(): Promise<void> {}
+
+  async close(): Promise<void> {
+    this.closed = true;
+    for (const waiter of this.waiters.splice(0)) {
+      waiter(null);
+    }
+    this.closeCount += 1;
+  }
+}
+
+class RecordingProducer<T> implements BackendProducer<T> {
+  readonly sent: Array<{ readonly message: T; readonly properties?: Record<string, string> }> = [];
+  closeCount = 0;
+  flushCount = 0;
+
+  constructor(
+    private readonly topic: string,
+    private readonly onSend: (topic: string, message: T, properties?: Record<string, string>) => void,
+  ) {}
+
+  async send(message: T, properties?: Record<string, string>): Promise<void> {
+    this.sent.push(properties === undefined ? { message } : { message, properties });
+    this.onSend(this.topic, message, properties);
+  }
+
+  async flush(): Promise<void> {
+    this.flushCount += 1;
+  }
+
+  async close(): Promise<void> {
+    this.closeCount += 1;
+  }
+}
+
+class DispatchBackend implements PubSubBackend {
+  closeCount = 0;
+  readonly producerOptions: CreateProducerOptions[] = [];
+  readonly consumerOptions: CreateConsumerOptions[] = [];
+  readonly producersByTopic = new Map<string, RecordingProducer<unknown>>();
+  readonly consumersByTopic = new Map<string, TopicConsumer<unknown>>();
+
+  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
+    this.producerOptions.push(options);
+    let producer = this.producersByTopic.get(options.topic);
+    if (producer === undefined) {
+      producer = new RecordingProducer<unknown>(options.topic, (topic, message, properties) => {
+        this.handleSend(topic, message, properties);
+      });
+      this.producersByTopic.set(options.topic, producer);
+    }
+    return producer as BackendProducer<T>;
+  }
+
+  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
+    this.consumerOptions.push(options);
+    let consumer = this.consumersByTopic.get(options.topic);
+    if (consumer === undefined) {
+      consumer = new TopicConsumer<unknown>();
+      this.consumersByTopic.set(options.topic, consumer);
+    }
+    return consumer as BackendConsumer<T>;
+  }
+
+  async close(): Promise<void> {
+    this.closeCount += 1;
+  }
+
+  private handleSend(topic: string, message: unknown, properties?: Record<string, string>): void {
+    const id = properties?.id ?? "";
+    if (topic === "tg.flow.config-request") {
+      this.push("tg.flow.config-response", { ok: true, echo: message }, id);
+      return;
+    }
+
+    if (topic === "tg.flow.knowledge-request") {
+      this.push("tg.flow.knowledge-response", { chunk: 1 }, id);
+      this.push("tg.flow.knowledge-response", { chunk: 2, endOfStream: true }, id);
+      return;
+    }
+
+    if (topic === "tg.flow.prompt-request") {
+      this.push("tg.flow.prompt-response", { prompt: message }, id);
+    }
+  }
+
+  private push(topic: string, response: unknown, id: string): void {
+    const consumer = this.consumersByTopic.get(topic);
+    consumer?.push(createMessage(response, { id }));
+  }
+}
+
+describe("gateway dispatcher manager", () => {
+  it("caches Effect requestors as scoped handles", async () => {
+    const backend = new DispatchBackend();
+    const manager = makeDispatcherManager({
+      port: 0,
+      metricsPort: 0,
+      pubsub: backend,
+    });
+
+    await manager.start();
+    const first = await manager.dispatchGlobalService("config", { operation: "get" });
+    const second = await manager.dispatchGlobalService("config", { operation: "list" });
+    await manager.stop();
+
+    expect(first).toEqual({ ok: true, echo: { operation: "get" } });
+    expect(second).toEqual({ ok: true, echo: { operation: "list" } });
+    expect(backend.producerOptions.filter((options) => options.topic === "tg.flow.config-request")).toHaveLength(1);
+    expect(backend.consumerOptions.filter((options) => options.topic === "tg.flow.config-response")).toHaveLength(1);
+    expect(backend.producersByTopic.get("tg.flow.config-request")?.closeCount).toBe(1);
+    expect(backend.consumersByTopic.get("tg.flow.config-response")?.closeCount).toBe(1);
+    expect(backend.closeCount).toBe(1);
+  });
+
+  it("streams responses until the centralized completion predicate is true", async () => {
+    const backend = new DispatchBackend();
+    const manager = makeDispatcherManager({
+      port: 0,
+      metricsPort: 0,
+      pubsub: backend,
+    });
+    const chunks: Array<{ readonly response: unknown; readonly complete: boolean }> = [];
+
+    await manager.dispatchGlobalServiceStreaming("knowledge", { query: "hello" }, async (response, complete) => {
+      chunks.push({ response, complete });
+    });
+    await manager.stop();
+
+    expect(chunks).toEqual([
+      { response: { chunk: 1 }, complete: false },
+      { response: { chunk: 2, endOfStream: true }, complete: true },
+    ]);
+  });
+
+  it.each([
+    [{ complete: true }],
+    [{ endOfStream: true }],
+    [{ endOfSession: true }],
+    [{ end_of_stream: true }],
+    [{ end_of_session: true }],
+    [{ end_of_dialog: true }],
+    [{ eos: true }],
+    [{ error: { message: "failed" } }],
+    ["plain"],
+    [null],
+  ])("treats %j as a complete streaming response", (response) => {
+    expect(dispatcherManagerIsCompleteResponse(response)).toBe(true);
+  });
+
+  it("does not mark ordinary response objects complete", () => {
+    expect(dispatcherManagerIsCompleteResponse({ chunk: 1 })).toBe(false);
+  });
+});

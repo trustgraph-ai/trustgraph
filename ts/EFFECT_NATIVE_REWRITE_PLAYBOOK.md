@@ -52,6 +52,7 @@ primitive exists.
 | Workbench async state | `Atom`, `AtomRpc`, `AtomHttpApi`, `AsyncResult`, `AtomRegistry`, `Reactivity` | `effect/unstable/reactivity`, `@effect/atom-react` | `ts/node_modules/effect/src/unstable/reactivity/*.ts`, `ts/packages/workbench/node_modules/@effect/atom-react/src/*.ts` |
 | Metrics and logs | `Metric`, `Logger`, `Effect.log*` | `effect`, `@effect/opentelemetry` | `packages/effect/src/Metric.ts`, `packages/effect/src/Logger.ts` |
 | Normal internal errors | `S.TaggedErrorClass` and existing TrustGraph tagged errors | `effect/Schema`, `@trustgraph/base/errors` | `packages/effect/src/Schema.ts`, `ts/packages/base/src/errors.ts` |
+| Imperative exception capture | `Effect.try`, `Effect.tryPromise`, or `Result.try` | `effect`, `effect/Result` | `packages/effect/src/Effect.ts`, `packages/effect/src/Result.ts` |
 
 Known concrete exports useful to scouts:
 
@@ -73,6 +74,9 @@ Known concrete exports useful to scouts:
 - `S.TaggedErrorClass` for internal/library errors. Treat `new Error` inside
   library internals as migration evidence unless it is a host/tool boundary,
   test-only helper, or externally mandated error shape.
+- `Effect.try`, `Effect.tryPromise`, and `Result.try` for exception capture.
+  Treat `try`/`catch` blocks as migration evidence unless they are host/tool
+  boundaries or test-only helpers.
 
 ## Scout Workflow
 
@@ -83,7 +87,7 @@ Known concrete exports useful to scouts:
 3. Run quick signal scans:
 
    ```sh
-   rg -n "new Error|new Promise|setTimeout|while \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
+   rg -n "try \\{|new Error|new Promise|setTimeout|while \\(|receive\\(|Effect\\.runPromise|toPromiseRequestor|makeAsyncProcessor|process\\.env|JSON\\.parse|JSON\\.stringify|localStorage|new Map|WebSocket" ts/packages --glob '*.ts' --glob '*.tsx'
    ```
 
 4. Split scouts by lane. If the thread cannot spawn every scout in parallel,

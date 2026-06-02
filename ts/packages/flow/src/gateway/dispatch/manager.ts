@@ -8,7 +8,18 @@
  * Python reference: trustgraph-flow/trustgraph/gateway/dispatch/manager.py
  */
 
-import { makeNatsBackend, makeRequestResponse, type PubSubBackend, type RequestResponse } from "@trustgraph/base";
+import { Effect, Exit, Scope, SynchronizedRef } from "effect";
+import {
+  loadMessagingRuntimeConfig,
+  makeNatsBackend,
+  makePubSubService,
+  makeRequestResponseFactoryService,
+  messagingDeliveryError,
+  messagingLifecycleError,
+  type EffectRequestResponse,
+  type PubSubBackend,
+  type RequestResponseFactoryService,
+} from "@trustgraph/base";
 import type { GatewayConfig } from "../server.js";
 import { translateRequest, translateResponse } from "./serialize.js";
 
@@ -107,44 +118,106 @@ export const dispatcherManagerGlobalServiceNames = (): readonly string[] => [
 export const dispatcherManagerIsStreamingService = (kind: string): boolean =>
   STREAMING_SERVICES.has(kind);
 
+export const dispatcherManagerIsCompleteResponse = (response: unknown): boolean => {
+  if (typeof response !== "object" || response === null) return true;
+  const res = response as Record<string, unknown>;
+  return (
+    res.complete === true ||
+    res.endOfStream === true ||
+    res.endOfSession === true ||
+    res.end_of_stream === true ||
+    res.end_of_session === true ||
+    res.end_of_dialog === true ||
+    res.eos === true ||
+    // error responses are always final
+    (res.error !== undefined && res.error !== null)
+  );
+};
+
+type RequestorMap = Map<string, EffectRequestResponse<unknown, unknown>>;
+
+interface DispatcherRuntime {
+  readonly scope: Scope.Closeable;
+  readonly requestors: SynchronizedRef.SynchronizedRef<RequestorMap>;
+  readonly factory: RequestResponseFactoryService;
+}
+
 export function makeDispatcherManager(config: GatewayConfig): DispatcherManager {
-  const pubsub: PubSubBackend = makeNatsBackend(config.natsUrl ?? "nats://localhost:4222");
-  const requestors = new Map<string, Promise<RequestResponse<unknown, unknown>>>();
+  const pubsub: PubSubBackend = config.pubsub ?? makeNatsBackend(config.natsUrl ?? "nats://localhost:4222");
+  let runtime: DispatcherRuntime | null = null;
 
   const start = async (): Promise<void> => {
-    // Requestors are created on demand when first accessed
+    if (runtime !== null) return;
+
+    runtime = await Effect.runPromise(
+      Effect.gen(function* () {
+        const scope = yield* Scope.make();
+        return yield* Effect.gen(function* () {
+          const messagingConfig = yield* loadMessagingRuntimeConfig();
+          const requestors = yield* SynchronizedRef.make<RequestorMap>(new Map());
+          return {
+            scope,
+            requestors,
+            factory: makeRequestResponseFactoryService(makePubSubService(pubsub), messagingConfig),
+          } satisfies DispatcherRuntime;
+        }).pipe(
+          Effect.onError((cause) => Scope.close(scope, Exit.failCause(cause))),
+        );
+      }),
+    );
   };
 
   const stop = async (): Promise<void> => {
-    for (const pending of requestors.values()) {
-      const rr = await pending;
-      await rr.stop();
+    const current = runtime;
+    runtime = null;
+
+    if (current !== null) {
+      await Effect.runPromise(Scope.close(current.scope, Exit.void));
     }
+
     await pubsub.close();
   };
 
   // ---------- Internal helpers ----------
 
-  const getRequestor = (
+  const ensureRuntime = async (): Promise<DispatcherRuntime> => {
+    if (runtime === null) {
+      await start();
+    }
+    if (runtime === null) {
+      throw messagingLifecycleError("gateway-dispatcher", "start", "Dispatcher manager failed to start");
+    }
+    return runtime;
+  };
+
+  const getRequestor = async (
     requestTopic: string,
     responseTopic: string,
     key: string,
-  ): Promise<RequestResponse<unknown, unknown>> => {
-    let pending = requestors.get(key);
-    if (pending === undefined) {
-      pending = (async () => {
-        const rr = makeRequestResponse({
-          pubsub,
+  ): Promise<EffectRequestResponse<unknown, unknown>> => {
+    const current = await ensureRuntime();
+
+    return await Effect.runPromise(
+      SynchronizedRef.modifyEffect(current.requestors, (requestors) => {
+        const cached = requestors.get(key);
+        if (cached !== undefined) {
+          return Effect.succeed([cached, requestors] as const);
+        }
+
+        return current.factory.make<unknown, unknown>({
           requestTopic,
           responseTopic,
           subscription: `gateway-${key}`,
-        });
-        await rr.start();
-        return rr;
-      })();
-      requestors.set(key, pending);
-    }
-    return pending;
+        }).pipe(
+          Scope.provide(current.scope),
+          Effect.map((requestor) => {
+            const next = new Map(requestors);
+            next.set(key, requestor);
+            return [requestor, next] as const;
+          }),
+        );
+      }),
+    );
   };
 
   const resolveGlobalTopics = (
@@ -181,26 +254,6 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     };
   };
 
-  /**
-   * Determine whether a response is the final one in a streaming sequence.
-   * Checks for various end-of-stream markers used by different services.
-   */
-  const isComplete = (response: unknown): boolean => {
-    if (typeof response !== "object" || response === null) return true;
-    const res = response as Record<string, unknown>;
-    return (
-      res.complete === true ||
-      res.endOfStream === true ||
-      res.endOfSession === true ||
-      res.end_of_stream === true ||
-      res.end_of_session === true ||
-      res.end_of_dialog === true ||
-      res.eos === true ||
-      // error responses are always final
-      (res.error !== undefined && res.error !== null)
-    );
-  };
-
   // ---------- Global service dispatch ----------
 
   const dispatchGlobalService = async (
@@ -211,7 +264,7 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     const rr = await getRequestor(requestTopic, responseTopic, `global:${kind}`);
 
     const translated = translateRequest(kind, request);
-    const response = await rr.request(translated);
+    const response = await Effect.runPromise(rr.request(translated));
     return translateResponse(kind, response);
   };
 
@@ -224,14 +277,21 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     const rr = await getRequestor(requestTopic, responseTopic, `global:${kind}`);
     const translated = translateRequest(kind, request);
 
-    await rr.request(translated, {
-      recipient: async (response) => {
-        const translatedRes = translateResponse(kind, response);
-        const complete = isComplete(translatedRes);
-        await responder(translatedRes, complete);
-        return complete;
-      },
-    });
+    await Effect.runPromise(
+      rr.request(translated, {
+        recipient: (response) => {
+          const translatedRes = translateResponse(kind, response);
+          const complete = dispatcherManagerIsCompleteResponse(translatedRes);
+          return Effect.tryPromise({
+            try: async () => {
+              await responder(translatedRes, complete);
+              return complete;
+            },
+            catch: (error) => messagingDeliveryError(responseTopic, "stream-responder", error),
+          });
+        },
+      }),
+    );
   };
 
   // ---------- Flow-scoped service dispatch ----------
@@ -249,7 +309,7 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     );
 
     const translated = translateRequest(kind, request);
-    const response = await rr.request(translated);
+    const response = await Effect.runPromise(rr.request(translated));
     return translateResponse(kind, response);
   };
 
@@ -267,14 +327,21 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     );
     const translated = translateRequest(kind, request);
 
-    await rr.request(translated, {
-      recipient: async (response) => {
-        const translatedRes = translateResponse(kind, response);
-        const complete = isComplete(translatedRes);
-        await responder(translatedRes, complete);
-        return complete;
-      },
-    });
+    await Effect.runPromise(
+      rr.request(translated, {
+        recipient: (response) => {
+          const translatedRes = translateResponse(kind, response);
+          const complete = dispatcherManagerIsCompleteResponse(translatedRes);
+          return Effect.tryPromise({
+            try: async () => {
+              await responder(translatedRes, complete);
+              return complete;
+            },
+            catch: (error) => messagingDeliveryError(responseTopic, "stream-responder", error),
+          });
+        },
+      }),
+    );
   };
 
   // ---------- Fire-and-forget publish ----------

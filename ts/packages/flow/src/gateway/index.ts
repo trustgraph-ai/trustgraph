@@ -2,6 +2,7 @@ export { createGateway, run, type GatewayConfig } from "./server.js";
 export {
   dispatcherManagerFlowServiceNames,
   dispatcherManagerGlobalServiceNames,
+  dispatcherManagerIsCompleteResponse,
   dispatcherManagerIsStreamingService,
   makeDispatcherManager,
   type DispatcherManager,

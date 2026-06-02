@@ -70,6 +70,46 @@ Signal counts from `ts/packages`:
   - Normal `Error` construction in library internals is migration evidence.
     Prefer existing `S.TaggedErrorClass` errors from
     `ts/packages/base/src/errors.ts`, adding new tagged errors when needed.
+  - `try`/`catch` blocks are also migration evidence. Prefer `Effect.try`,
+    `Effect.tryPromise`, or `Result.try` unless the block is a host/tool
+    boundary or test-only helper.
+
+### 2026-06-02: Gateway Dispatcher Requestor Cache
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts:121` centralizes
+    streaming completion detection as `dispatcherManagerIsCompleteResponse`.
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts:137` stores requestors
+    as `EffectRequestResponse` handles, not `Promise<RequestResponse>` values.
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts:152` starts the manager
+    through an Effect program, `:157` creates a `SynchronizedRef` cache, and
+    `:164` uses `Effect.onError` for scope cleanup instead of a `try`/`catch`
+    block.
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts:200` uses
+    `SynchronizedRef.modifyEffect` so lazy requestor creation and caching are
+    serialized under the manager scope.
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts:267` and `:312` keep
+    Fastify/RPC as Promise boundaries via `Effect.runPromise`; streaming
+    responder failures are mapped with `MessagingDeliveryError` at `:290` and
+    `:340`.
+  - `ts/packages/flow/src/gateway/server.ts:25` accepts an optional injected
+    `PubSubBackend` for tests without changing production NATS defaults.
+  - `ts/packages/flow/src/__tests__/gateway-dispatcher.test.ts:150` verifies
+    scoped requestor reuse and shutdown, `:172` verifies streaming through the
+    centralized completion predicate, and `:192` table-tests all final markers.
+- Verification:
+  - `bun run --cwd ts/packages/flow test`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts check:tsgo`
+- Remaining gateway evidence:
+  - `ts/packages/flow/src/gateway/rpc-server.ts` still has Promise callbacks
+    around Effect RPC queues.
+  - `ts/packages/flow/src/gateway/server.ts` still has Fastify route
+    `try`/`catch` blocks. These are boundary code, but should still be audited
+    for `Effect.tryPromise` wrapping where it improves consistency.
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` still duplicates some
+    streaming final-marker detection on the client side.
 
 ## Ranked Findings
 
@@ -173,6 +213,9 @@ Signal counts from `ts/packages`:
 - Blockers:
   - The gateway is an integration boundary. Preserve current HTTP and WebSocket
     wire behavior during the first rewrite.
+  - First dispatcher-cache slice is complete. Follow-up gateway work should
+    target RPC server Promise callbacks and client-side streaming completion
+    duplication, not recreate the requestor cache migration.
 
 ### P1: Remove RAG And Agent `toPromiseRequestor` Bridges
 
@@ -316,11 +359,11 @@ Signal counts from `ts/packages`:
 
 ## Recommended PR Order
 
-1. Gateway dispatcher requestor-cache and streaming-completion migration.
-2. Config service scoped state migration.
-3. RAG and agent requestor bridge removal.
-4. Base consumer facade and subscriber export cleanup.
-5. Client compatibility facade tightening.
+1. Config service scoped state migration.
+2. RAG and agent requestor bridge removal.
+3. Base consumer facade and subscriber export cleanup.
+4. Client compatibility facade tightening.
+5. Gateway RPC callback and client streaming completion cleanup.
 6. Storage/provider managed resource cleanup.
 7. MCP canonicalization and Workbench polish.
 
@@ -331,6 +374,9 @@ Do not flag these as rewrite blockers without additional proof:
 - Promise-returning CLI actions and Fastify route handlers at external
   boundaries. This does not exempt normal `Error` construction inside shared
   library code.
+- `try`/`catch` blocks at host/tool boundaries only when the catch maps into a
+  typed error or wire error. Internal exception capture should use `Effect.try`,
+  `Effect.tryPromise`, or `Result.try`.
 - `S.Class`, `S.TaggedErrorClass`, `Context.Service`, `Rpc.make`, and
   `HttpApi.make` when they are required or idiomatic for the Effect API.
 - Plain `Map` usage for local pure transformations, such as graph utility
