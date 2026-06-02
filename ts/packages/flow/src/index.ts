@@ -4,39 +4,43 @@ export { createGateway, type GatewayConfig } from "./gateway/index.js";
 export { OpenAIProcessor } from "./model/text-completion/openai.js";
 export { ClaudeProcessor } from "./model/text-completion/claude.js";
 export {
-  GraphRag,
   GraphRagEngine,
   GraphRagLive,
+  makeGraphRag,
   makeGraphRagEngine,
   normalizeGraphRagConfig,
   stringToTerm,
   termToString,
+  type GraphRag,
   type GraphRagConfig,
   type GraphRagClients,
   type GraphRagEngineShape,
   type GraphRagQueryOptions,
 } from "./retrieval/graph-rag.js";
 export {
-  DocumentRag,
   DocumentRagEngine,
   DocumentRagLive,
+  makeDocumentRag,
   makeDocumentRagEngine,
+  type DocumentRag,
   type DocumentRagClients,
   type DocumentRagEngineShape,
   type DocumentRagQueryOptions,
 } from "./retrieval/document-rag.js";
-export { FalkorDBTriplesStore, type FalkorDBConfig } from "./storage/triples/falkordb.js";
-export { FalkorDBTriplesQuery, type FalkorDBQueryConfig } from "./query/triples/falkordb.js";
+export { makeFalkorDBTriplesStore, type FalkorDBTriplesStore, type FalkorDBConfig } from "./storage/triples/falkordb.js";
+export { makeFalkorDBTriplesQuery, type FalkorDBTriplesQuery, type FalkorDBQueryConfig } from "./query/triples/falkordb.js";
 
 // Qdrant embeddings storage
 export {
-  QdrantDocEmbeddingsStore,
+  makeQdrantDocEmbeddingsStore,
+  type QdrantDocEmbeddingsStore,
   type QdrantDocEmbeddingsConfig,
   type DocEmbeddingsMessage,
   type DocEmbeddingChunk,
 } from "./storage/embeddings/qdrant-doc.js";
 export {
-  QdrantGraphEmbeddingsStore,
+  makeQdrantGraphEmbeddingsStore,
+  type QdrantGraphEmbeddingsStore,
   type QdrantGraphEmbeddingsConfig,
   type GraphEmbeddingsMessage,
   type GraphEmbeddingEntity,
@@ -44,13 +48,15 @@ export {
 
 // Qdrant embeddings query
 export {
-  QdrantDocEmbeddingsQuery,
+  makeQdrantDocEmbeddingsQuery,
+  type QdrantDocEmbeddingsQuery,
   type QdrantDocQueryConfig,
   type ChunkMatch,
   type DocEmbeddingsQueryRequest,
 } from "./query/embeddings/qdrant-doc.js";
 export {
-  QdrantGraphEmbeddingsQuery,
+  makeQdrantGraphEmbeddingsQuery,
+  type QdrantGraphEmbeddingsQuery,
   type QdrantGraphQueryConfig,
   type EntityMatch,
   type GraphEmbeddingsQueryRequest,
@@ -81,7 +87,7 @@ export { filterToolsByGroupAndState, getNextState } from "./agent/tool-filter.js
 
 // Librarian service
 export { LibrarianService, type LibrarianServiceConfig } from "./librarian/service.js";
-export { CollectionManager, type CollectionEntry } from "./librarian/collection-manager.js";
+export { makeCollectionManager, type CollectionEntry, type CollectionManager } from "./librarian/collection-manager.js";
 
 // Chunking service
 export { recursiveSplit } from "./chunking/recursive-splitter.js";

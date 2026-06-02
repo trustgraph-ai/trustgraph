@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import {
-  AsyncProcessor,
   PubSub,
+  makeAsyncProcessor,
   runProcessorScoped,
   type BackendConsumer,
   type BackendProducer,
@@ -79,53 +79,49 @@ class FailingProducerBackend extends FakePubSubBackend {
   }
 }
 
-class RecordingProcessor extends AsyncProcessor {
-  constructor(
-    config: ProcessorConfig,
-    private readonly events: Array<string>,
-  ) {
-    super(config);
-  }
+const makeRecordingProcessor = (
+  config: ProcessorConfig,
+  events: Array<string>,
+) => {
+  const processor = makeAsyncProcessor(config, {
+    run: async (runtime) => {
+      events.push(`run:${runtime.config.manageProcessSignals === false ? "effect-signals" : "class-signals"}`);
+    },
+  });
+  const stop = processor.stop;
+  processor.stop = async () => {
+    events.push("stop");
+    await stop();
+  };
+  return processor;
+};
 
-  protected async run(): Promise<void> {
-    this.events.push(`run:${this.config.manageProcessSignals === false ? "effect-signals" : "class-signals"}`);
-  }
+const makeFailingProcessor = (config: ProcessorConfig) =>
+  makeAsyncProcessor(config, {
+    run: async () => {
+      throw new Error("processor failed");
+    },
+  });
 
-  override async stop(): Promise<void> {
-    this.events.push("stop");
-    await super.stop();
-  }
-}
-
-class FailingProcessor extends AsyncProcessor {
-  protected async run(): Promise<void> {
-    throw new Error("processor failed");
-  }
-}
-
-class NativeRecordingProcessor extends AsyncProcessor<never, PubSub> {
-  constructor(
-    config: ProcessorConfig,
-    private readonly events: Array<string>,
-  ) {
-    super(config);
-  }
-
-  protected override runEffect() {
-    const events = this.events;
-    const config = this.config;
-    return Effect.gen(function* () {
-      const pubsub = yield* PubSub;
-      events.push(`native:${config.manageProcessSignals === false ? "effect-signals" : "class-signals"}`);
-      events.push(`pubsub:${pubsub.backend.constructor.name}`);
-    });
-  }
-
-  override stopEffect() {
-    this.events.push("native-stop");
-    return super.stopEffect();
-  }
-}
+const makeNativeRecordingProcessor = (
+  config: ProcessorConfig,
+  events: Array<string>,
+) => {
+  const processor = makeAsyncProcessor<never, PubSub>(config, {
+    runEffect: (runtime) =>
+      Effect.gen(function* () {
+        const pubsub = yield* PubSub;
+        events.push(`native:${runtime.config.manageProcessSignals === false ? "effect-signals" : "class-signals"}`);
+        events.push(`pubsub:${pubsub.backend.constructor.name}`);
+      }),
+  });
+  const stopEffect = processor.stopEffect;
+  processor.stopEffect = () => {
+    events.push("native-stop");
+    return stopEffect();
+  };
+  return processor;
+};
 
 describe("Effect runtime services", () => {
   it.effect(
@@ -180,7 +176,7 @@ describe("Effect runtime services", () => {
             metricsPort: 8000,
             manageProcessSignals: true,
           },
-          (config) => new RecordingProcessor(config, events),
+          (config) => makeRecordingProcessor(config, events),
         ).pipe(Effect.provide(PubSub.layer(backend))),
       );
 
@@ -203,7 +199,7 @@ describe("Effect runtime services", () => {
             metricsPort: 8000,
             manageProcessSignals: true,
           },
-          (config) => new NativeRecordingProcessor(config, events),
+          (config) => makeNativeRecordingProcessor(config, events),
         ).pipe(Effect.provide(PubSub.layer(backend))),
       );
 
@@ -224,7 +220,7 @@ describe("Effect runtime services", () => {
             metricsPort: 8000,
             manageProcessSignals: true,
           },
-          (config) => new FailingProcessor(config),
+          makeFailingProcessor,
         ).pipe(
           Effect.provide(PubSub.layer(backend)),
           Effect.flip,

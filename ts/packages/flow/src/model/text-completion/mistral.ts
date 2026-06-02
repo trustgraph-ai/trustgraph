@@ -9,10 +9,11 @@
 import { Mistral } from "@mistralai/mistralai";
 import {
   Llm,
-  LlmService,
+  makeLlmService,
   makeFlowProcessorProgram,
   makeLlmServiceShape,
   makeLlmSpecs,
+  type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
@@ -20,132 +21,128 @@ import {
 } from "@trustgraph/base";
 import { Effect, Layer } from "effect";
 
-export class MistralProcessor extends LlmService {
-  private client: Mistral;
-  private readonly defaultModel: string;
-  private readonly defaultTemperature: number;
-  private readonly maxOutput: number;
+export type MistralProcessorConfig = ProcessorConfig & {
+  model?: string;
+  apiKey?: string;
+  temperature?: number;
+  maxOutput?: number;
+};
 
-  constructor(
-    config: ProcessorConfig & {
-      model?: string;
-      apiKey?: string;
-      temperature?: number;
-      maxOutput?: number;
-    },
-  ) {
-    super(config);
-
-    this.defaultModel =
-      config.model ?? process.env.MISTRAL_MODEL ?? "ministral-8b-latest";
-    this.defaultTemperature = config.temperature ?? 0.0;
-    this.maxOutput = config.maxOutput ?? 4096;
-
+export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider {
+  const defaultModel =
+    config.model ?? process.env.MISTRAL_MODEL ?? "ministral-8b-latest";
+  const defaultTemperature = config.temperature ?? 0.0;
+  const maxOutput = config.maxOutput ?? 4096;
     const apiKey = config.apiKey ?? process.env.MISTRAL_TOKEN;
     if (apiKey === undefined || apiKey.length === 0) {
       throw new Error("Mistral API key not specified");
     }
 
-    this.client = new Mistral({ apiKey });
+  const client = new Mistral({ apiKey });
 
     console.log("[Mistral] LLM service initialized");
-  }
 
-  async generateContent(
-    system: string,
-    prompt: string,
-    model?: string,
-    temperature?: number,
-  ): Promise<LlmResult> {
-    const modelName = model ?? this.defaultModel;
-    const temp = temperature ?? this.defaultTemperature;
+  return {
+    generateContent: async (
+      system: string,
+      prompt: string,
+      model?: string,
+      temperature?: number,
+    ): Promise<LlmResult> => {
+      const modelName = model ?? defaultModel;
+      const temp = temperature ?? defaultTemperature;
 
-    try {
-      const resp = await this.client.chat.complete({
-        model: modelName,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: prompt },
-        ],
-        temperature: temp,
-        maxTokens: this.maxOutput,
-      });
+      try {
+        const resp = await client.chat.complete({
+          model: modelName,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: prompt },
+          ],
+          temperature: temp,
+          maxTokens: maxOutput,
+        });
 
-      return {
-        text: (resp.choices?.[0]?.message?.content as string) ?? "",
-        inToken: resp.usage?.promptTokens ?? 0,
-        outToken: resp.usage?.completionTokens ?? 0,
-        model: modelName,
-      };
-    } catch (err) {
-      if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
-        throw tooManyRequestsError();
+        return {
+          text: (resp.choices?.[0]?.message?.content as string) ?? "",
+          inToken: resp.usage?.promptTokens ?? 0,
+          outToken: resp.usage?.completionTokens ?? 0,
+          model: modelName,
+        };
+      } catch (err) {
+        if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
+          throw tooManyRequestsError();
+        }
+        throw err;
       }
-      throw err;
-    }
-  }
+    },
+    supportsStreaming: () => true,
+    generateContentStream: async function* (
+      system: string,
+      prompt: string,
+      model?: string,
+      temperature?: number,
+    ): AsyncGenerator<LlmChunk> {
+      const modelName = model ?? defaultModel;
+      const temp = temperature ?? defaultTemperature;
 
-  override supportsStreaming(): boolean {
-    return true;
-  }
+      try {
+        const stream = await client.chat.stream({
+          model: modelName,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: prompt },
+          ],
+          temperature: temp,
+          maxTokens: maxOutput,
+        });
 
-  async *generateContentStream(
-    system: string,
-    prompt: string,
-    model?: string,
-    temperature?: number,
-  ): AsyncGenerator<LlmChunk> {
-    const modelName = model ?? this.defaultModel;
-    const temp = temperature ?? this.defaultTemperature;
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
 
-    try {
-      const stream = await this.client.chat.stream({
-        model: modelName,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: prompt },
-        ],
-        temperature: temp,
-        maxTokens: this.maxOutput,
-      });
+        for await (const chunk of stream) {
+          const delta = chunk.data?.choices?.[0]?.delta;
+          const content = delta?.content;
+          if (typeof content === "string" && content.length > 0) {
+            yield {
+              text: content,
+              inToken: null,
+              outToken: null,
+              model: modelName,
+              isFinal: false,
+            };
+          }
 
-      let totalInputTokens = 0;
-      let totalOutputTokens = 0;
-
-      for await (const chunk of stream) {
-        const delta = chunk.data?.choices?.[0]?.delta;
-        const content = delta?.content;
-        if (typeof content === "string" && content.length > 0) {
-          yield {
-            text: content,
-            inToken: null,
-            outToken: null,
-            model: modelName,
-            isFinal: false,
-          };
+          if (chunk.data?.usage !== undefined) {
+            totalInputTokens = chunk.data.usage.promptTokens ?? 0;
+            totalOutputTokens = chunk.data.usage.completionTokens ?? 0;
+          }
         }
 
-        if (chunk.data?.usage !== undefined) {
-          totalInputTokens = chunk.data.usage.promptTokens ?? 0;
-          totalOutputTokens = chunk.data.usage.completionTokens ?? 0;
+        yield {
+          text: "",
+          inToken: totalInputTokens,
+          outToken: totalOutputTokens,
+          model: modelName,
+          isFinal: true,
+        };
+      } catch (err) {
+        if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
+          throw tooManyRequestsError();
         }
+        throw err;
       }
-
-      yield {
-        text: "",
-        inToken: totalInputTokens,
-        outToken: totalOutputTokens,
-        model: modelName,
-        isFinal: true,
-      };
-    } catch (err) {
-      if ((err as any)?.statusCode === 429 || (err as any)?.status === 429) {
-        throw tooManyRequestsError();
-      }
-      throw err;
-    }
-  }
+    },
+  };
 }
+
+export type MistralProcessor = ReturnType<typeof makeMistralProcessor>;
+
+export function makeMistralProcessor(config: MistralProcessorConfig): ReturnType<typeof makeLlmService> {
+  return makeLlmService(config, makeMistralProvider(config));
+}
+
+export const MistralProcessor = makeMistralProcessor;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   id: "text-completion",
@@ -153,7 +150,7 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   layer: (config) =>
     Layer.succeed(
       Llm,
-      Llm.of(makeLlmServiceShape(new MistralProcessor(config))),
+      Llm.of(makeLlmServiceShape(makeMistralProvider(config))),
     ),
 });
 

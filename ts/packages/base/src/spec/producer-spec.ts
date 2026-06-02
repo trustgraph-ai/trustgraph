@@ -6,31 +6,34 @@
 
 import { Effect } from "effect";
 import type { Spec } from "./types.js";
-import type { PubSubBackend } from "../backend/types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 import {
   ProducerFactory,
   type EffectProducer,
 } from "../messaging/runtime.js";
 
-export class ProducerSpec<T> implements Spec {
-  public readonly name: string;
+declare const ProducerSpecType: unique symbol;
 
-  constructor(name: string) {
-    this.name = name;
-  }
+export interface ProducerSpec<T> extends Spec {
+  readonly [ProducerSpecType]?: (_: T) => T;
+}
 
-  addEffect(flow: Flow, definition: FlowDefinition) {
-    const spec = this;
-    return Effect.gen(function* () {
-      const topic = definition.topics?.[spec.name] ?? spec.name;
+export function makeProducerSpec<T>(name: string): ProducerSpec<T> {
+  const addEffect = Effect.fn("ProducerSpec.addEffect")(function* (
+    flow: Flow,
+    definition: FlowDefinition,
+  ) {
+      const topic = definition.topics?.[name] ?? name;
       const factory = yield* ProducerFactory;
       const producer = yield* factory.make<T>({ topic });
-      flow.registerProducer(spec.name, producer as EffectProducer<unknown>);
-    });
-  }
+      flow.registerProducer(name, producer as EffectProducer<unknown>);
+  });
 
-  async add(flow: Flow, pubsub: PubSubBackend, definition: FlowDefinition): Promise<void> {
-    await flow.runInCompatibilityScope(this.addEffect(flow, definition), pubsub);
-  }
+  return {
+    name,
+    addEffect,
+    add: async (flow, pubsub, definition) => {
+      await flow.runInCompatibilityScope(addEffect(flow, definition), pubsub);
+    },
+  };
 }

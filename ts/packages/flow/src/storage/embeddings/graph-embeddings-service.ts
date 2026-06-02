@@ -10,10 +10,11 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  RequestResponseSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeRequestResponseSpec,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -77,39 +78,36 @@ const onGraphEmbeddingsStoreMessage = Effect.fn("GraphEmbeddingsStoreService.onM
 });
 
 export const makeGraphEmbeddingsStoreSpecs = (): ReadonlyArray<Spec<GraphEmbeddingsStoreRequirements>> => [
-  new ConsumerSpec<EntityContexts, GraphEmbeddingsStoreError, GraphEmbeddingsStoreRequirements>(
+  makeConsumerSpec<EntityContexts, GraphEmbeddingsStoreError, GraphEmbeddingsStoreRequirements>(
     "store-graph-embeddings-input",
     onGraphEmbeddingsStoreMessage,
   ),
-  new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+  makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
     "embeddings-client",
     "embeddings-request",
     "embeddings-response",
   ),
 ];
 
-export class GraphEmbeddingsStoreService extends FlowProcessor<GraphEmbeddingsStoreRequirements> {
-  private readonly store = makeQdrantGraphEmbeddingsStoreService();
+export type GraphEmbeddingsStoreService = FlowProcessorRuntime<GraphEmbeddingsStoreRequirements>;
 
-  constructor(config: ProcessorConfig) {
-    super(config);
-
-    for (const spec of makeGraphEmbeddingsStoreSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[GraphEmbeddingsStore] Service initialized");
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(
-        QdrantGraphEmbeddingsStoreService,
-        QdrantGraphEmbeddingsStoreService.of(this.store),
+export function makeGraphEmbeddingsStoreService(config: ProcessorConfig): GraphEmbeddingsStoreService {
+  const store = makeQdrantGraphEmbeddingsStoreService();
+  const service = makeFlowProcessor(config, {
+    specifications: makeGraphEmbeddingsStoreSpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(
+          QdrantGraphEmbeddingsStoreService,
+          QdrantGraphEmbeddingsStoreService.of(store),
+        ),
       ),
-    );
-  }
+  });
+  console.log("[GraphEmbeddingsStore] Service initialized");
+  return service;
 }
+
+export const GraphEmbeddingsStoreService = makeGraphEmbeddingsStoreService;
 
 export const program = makeFlowProcessorProgram<
   ProcessorConfig & QdrantGraphEmbeddingsConfig,

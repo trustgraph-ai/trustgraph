@@ -9,9 +9,10 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type Triples,
   type Spec,
@@ -45,34 +46,31 @@ const onStoreTriplesMessage = Effect.fn("TriplesStoreService.onMessage")(functio
 });
 
 export const makeTriplesStoreSpecs = (): ReadonlyArray<Spec<FalkorDBTriplesStoreService>> => [
-  new ConsumerSpec<Triples, FalkorDBTriplesStoreError, FalkorDBTriplesStoreService>(
+  makeConsumerSpec<Triples, FalkorDBTriplesStoreError, FalkorDBTriplesStoreService>(
     "store-triples-input",
     onStoreTriplesMessage,
   ),
 ];
 
-export class TriplesStoreService extends FlowProcessor<FalkorDBTriplesStoreService> {
-  private readonly store = makeFalkorDBTriplesStoreService();
+export type TriplesStoreService = FlowProcessorRuntime<FalkorDBTriplesStoreService>;
 
-  constructor(config: ProcessorConfig) {
-    super(config);
-
-    for (const spec of makeTriplesStoreSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[TriplesStore] Service initialized");
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(
-        FalkorDBTriplesStoreService,
-        FalkorDBTriplesStoreService.of(this.store),
+export function makeTriplesStoreService(config: ProcessorConfig): TriplesStoreService {
+  const store = makeFalkorDBTriplesStoreService();
+  const service = makeFlowProcessor(config, {
+    specifications: makeTriplesStoreSpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(
+          FalkorDBTriplesStoreService,
+          FalkorDBTriplesStoreService.of(store),
+        ),
       ),
-    );
-  }
+  });
+  console.log("[TriplesStore] Service initialized");
+  return service;
 }
+
+export const TriplesStoreService = makeTriplesStoreService;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBConfig, never, FalkorDBTriplesStoreService>({
   id: "triples-store",

@@ -38,91 +38,55 @@ export interface DispatchOptions {
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_REQUEST_ATTEMPTS = 3;
 
-export class EffectRpcClient {
-  private readonly url: string;
-  private readonly onConnect: (() => void) | undefined;
-  private readonly onDisconnect: (() => void) | undefined;
-  private readonly scopePromise: Promise<Scope.Scope>;
-  private readonly clientPromise: Promise<TrustGraphRpcClient>;
-  private readonly listeners = new Set<(state: RpcConnectionState) => void>();
-  private state: RpcConnectionState = { status: "connecting" };
-  private closed = false;
+type NewableFactory<Args extends readonly unknown[], A extends object> = {
+  new (...args: Args): A;
+  (...args: Args): A;
+  readonly prototype: A;
+};
 
-  constructor(
-    url: string,
-    onConnect?: () => void,
-    onDisconnect?: () => void,
-  ) {
-    this.url = url;
-    this.onConnect = onConnect;
-    this.onDisconnect = onDisconnect;
-    this.scopePromise = Effect.runPromise(Scope.make());
-    this.clientPromise = this.scopePromise.then((scope) =>
-      Effect.runPromise(this.makeClient().pipe(Scope.provide(scope))),
-    );
-    this.clientPromise.catch((cause) => {
-      this.setState({
-        status: "failed",
-        lastError: errorMessage(cause),
-      });
-    });
+function newableFactory<Args extends readonly unknown[], A extends object>(
+  factory: (...args: Args) => A,
+): NewableFactory<Args, A> {
+  function Constructor(...args: Args): A {
+    return factory(...args);
   }
+  return Constructor as unknown as NewableFactory<Args, A>;
+}
 
-  subscribe(listener: (state: RpcConnectionState) => void): () => void {
-    this.listeners.add(listener);
-    listener(this.state);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  async dispatch(input: DispatchInput, options: DispatchOptions = {}): Promise<unknown> {
-    const client = await this.clientPromise;
-    return await Effect.runPromise(
-      this.withRequestPolicy(client.Dispatch(new DispatchPayload(input)), options),
-    );
-  }
-
-  async dispatchStream(
+export interface EffectRpcClient {
+  readonly subscribe: (listener: (state: RpcConnectionState) => void) => () => void;
+  readonly dispatch: (
+    input: DispatchInput,
+    options?: DispatchOptions,
+  ) => Promise<unknown>;
+  readonly dispatchStream: (
     input: DispatchInput,
     receiver: (chunk: DispatchStreamChunk) => boolean,
-    options: DispatchOptions = {},
-  ): Promise<DispatchStreamChunk | undefined> {
-    const client = await this.clientPromise;
-    let last: DispatchStreamChunk | undefined;
-    await Effect.runPromise(
-      this.withRequestPolicy(
-        client.DispatchStream(new DispatchPayload(input)).pipe(
-          Stream.runForEach((chunk) =>
-            Effect.suspend(() => {
-              last = chunk;
-              if (receiver(chunk)) return Effect.fail(new StopStreaming());
-              return Effect.void;
-            }),
-          ),
-          Effect.catchIf(
-            (cause): cause is StopStreaming => cause instanceof StopStreaming,
-            () => Effect.void,
-          ),
-        ),
-        options,
-      ),
-    );
-    return last;
-  }
+    options?: DispatchOptions,
+  ) => Promise<DispatchStreamChunk | undefined>;
+  readonly close: () => Promise<void>;
+}
 
-  async close(): Promise<void> {
-    if (this.closed) return;
-    this.closed = true;
-    this.setState({ status: "closed" });
-    const scope = await this.scopePromise;
-    await Effect.runPromise(Scope.close(scope, Exit.void));
-  }
+export function makeEffectRpcClient(
+  url: string,
+  onConnect?: () => void,
+  onDisconnect?: () => void,
+): EffectRpcClient {
+  const listeners = new Set<(state: RpcConnectionState) => void>();
+  let state: RpcConnectionState = { status: "connecting" };
+  let closed = false;
 
-  private makeClient(): Effect.Effect<TrustGraphRpcClient, never, Scope.Scope> {
+  const setState = (nextState: RpcConnectionState): void => {
+    state = nextState;
+    for (const listener of listeners) {
+      listener(nextState);
+    }
+  };
+
+  const makeClient = (): Effect.Effect<TrustGraphRpcClient, never, Scope.Scope> => {
     const socketLayer = Layer.effect(
       Socket.Socket,
-      Socket.makeWebSocket(this.url, {
+      Socket.makeWebSocket(url, {
         closeCodeIsError: (code) => code !== 1000,
         openTimeout: "10 seconds",
       }),
@@ -132,17 +96,17 @@ export class EffectRpcClient {
       RpcClient.ConnectionHooks,
       RpcClient.ConnectionHooks.of({
         onConnect: Effect.sync(() => {
-          this.setState({ status: "connected" });
-          this.onConnect?.();
+          setState({ status: "connected" });
+          onConnect?.();
         }),
         onDisconnect: Effect.sync(() => {
-          if (!this.closed) {
-            this.setState({
+          if (!closed) {
+            setState({
               status: "connecting",
               lastError: "Disconnected from gateway",
             });
           }
-          this.onDisconnect?.();
+          onDisconnect?.();
         }),
       }),
     );
@@ -164,35 +128,87 @@ export class EffectRpcClient {
       Layer.build(clientLayer),
       (context) => Context.get(context, TrustGraphRpcClientService),
     );
-  }
+  };
 
-  private setState(state: RpcConnectionState): void {
-    this.state = state;
-    for (const listener of this.listeners) {
+  const scopePromise = Effect.runPromise(Scope.make());
+  const clientPromise = scopePromise.then((scope) =>
+    Effect.runPromise(makeClient().pipe(Scope.provide(scope))),
+  );
+  clientPromise.catch((cause) => {
+    setState({
+      status: "failed",
+      lastError: errorMessage(cause),
+    });
+  });
+
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
       listener(state);
-    }
-  }
-
-  private withRequestPolicy<A, E, R>(
-    effect: Effect.Effect<A, E, R>,
-    options: DispatchOptions,
-  ): Effect.Effect<A, E | DispatchError, R> {
-    const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
-    const retryTimes = normalizeAttempts(options.retries) - 1;
-    const timed = effect.pipe(
-      Effect.timeoutOrElse({
-        duration: timeoutMs,
-        orElse: () =>
-          Effect.fail(
-            new DispatchError({
-              message: `Request timed out after ${timeoutMs}ms`,
-            }),
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    dispatch: async (input, options = {}) => {
+      const client = await clientPromise;
+      return await Effect.runPromise(
+        withDispatchRequestPolicy(client.Dispatch(new DispatchPayload(input)), options),
+      );
+    },
+    dispatchStream: async (input, receiver, options = {}) => {
+      const client = await clientPromise;
+      let last: DispatchStreamChunk | undefined;
+      await Effect.runPromise(
+        withDispatchRequestPolicy(
+          client.DispatchStream(new DispatchPayload(input)).pipe(
+            Stream.runForEach((chunk) =>
+              Effect.suspend(() => {
+                last = chunk;
+                if (receiver(chunk)) return Effect.fail(new StopStreaming());
+                return Effect.void;
+              }),
+            ),
+            Effect.catchIf(
+              (cause): cause is StopStreaming => cause instanceof StopStreaming,
+              () => Effect.void,
+            ),
           ),
-      }),
-    );
+          options,
+        ),
+      );
+      return last;
+    },
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      setState({ status: "closed" });
+      const scope = await scopePromise;
+      await Effect.runPromise(Scope.close(scope, Exit.void));
+    },
+  };
+}
 
-    return retryTimes > 0 ? timed.pipe(Effect.retry({ times: retryTimes })) : timed;
-  }
+export const EffectRpcClient = newableFactory(makeEffectRpcClient);
+
+export function withDispatchRequestPolicy<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+  options: DispatchOptions,
+): Effect.Effect<A, E | DispatchError, R> {
+  const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
+  const retryTimes = normalizeAttempts(options.retries) - 1;
+  const timed = effect.pipe(
+    Effect.timeoutOrElse({
+      duration: timeoutMs,
+      orElse: () =>
+        Effect.fail(
+          new DispatchError({
+            message: `Request timed out after ${timeoutMs}ms`,
+          }),
+        ),
+    }),
+  );
+
+  return retryTimes > 0 ? timed.pipe(Effect.retry({ times: retryTimes })) : timed;
 }
 
 class StopStreaming extends Data.TaggedError("StopStreaming")<{}> {}

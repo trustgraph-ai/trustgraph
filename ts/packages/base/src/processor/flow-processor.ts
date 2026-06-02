@@ -8,8 +8,11 @@
  */
 
 import {
-  AsyncProcessor,
+  makeAsyncProcessor,
+  type AsyncProcessorRuntime,
+  type ConfigHandler,
   type EffectConfigHandler,
+  type ProcessorRuntime,
   type ProcessorConfig,
 } from "./async-processor.js";
 import type { Spec } from "../spec/types.js";
@@ -58,6 +61,44 @@ export interface FlowProcessorRuntimeOptions<
     EffectConfigHandler<ConfigHandlerError, ConfigHandlerRequirements>
   >;
   readonly isRunning?: () => boolean;
+}
+
+type FlowProcessorRuntimeRequirements<FlowRequirements> =
+  | PubSub
+  | FlowRuntime
+  | ProducerFactory
+  | ConsumerFactory
+  | RequestResponseFactory
+  | Scope.Scope
+  | FlowRequirements;
+
+export type FlowProcessorStartEffect<FlowRequirements> = Effect.Effect<
+  void,
+  PubSubError | FlowRuntimeError | ProcessorLifecycleError,
+  FlowProcessorRuntimeRequirements<FlowRequirements>
+>;
+
+export interface FlowProcessorRuntime<FlowRequirements = never>
+  extends ProcessorRuntime<
+    PubSubError | FlowRuntimeError | ProcessorLifecycleError,
+    FlowProcessorRuntimeRequirements<FlowRequirements>
+  > {
+  readonly config: ProcessorConfig;
+  readonly pubsub: PubSubBackend;
+  readonly configHandlers: ConfigHandler[];
+  readonly isRunning: () => boolean;
+  readonly registerConfigHandler: (handler: ConfigHandler) => void;
+  readonly registerSpecification: <Requirements extends FlowRequirements>(
+    spec: Spec<Requirements>,
+  ) => void;
+  readonly specifications: ReadonlyArray<Spec<FlowRequirements>>;
+}
+
+export interface MakeFlowProcessorOptions<FlowRequirements = never> {
+  readonly specifications?: ReadonlyArray<Spec<FlowRequirements>>;
+  readonly provide?: (
+    effect: FlowProcessorStartEffect<FlowRequirements>,
+  ) => FlowProcessorStartEffect<FlowRequirements>;
 }
 
 const ConfigPushSchema = S.Struct({
@@ -281,78 +322,76 @@ export function runFlowProcessorDefinitionScoped<
   });
 }
 
-export abstract class FlowProcessor<FlowRequirements = never> extends AsyncProcessor<
-  PubSubError | FlowRuntimeError | ProcessorLifecycleError,
-  | PubSub
-  | FlowRuntime
-  | ProducerFactory
-  | ConsumerFactory
-  | RequestResponseFactory
-  | Scope.Scope
-  | FlowRequirements
-> {
-  private specifications: Array<Spec<FlowRequirements>> = [];
-
-  protected constructor(config: ProcessorConfig) {
-    super(config);
-  }
-
-  registerSpecification<Requirements extends FlowRequirements>(
-    spec: Spec<Requirements>,
-  ): void {
-    this.specifications.push(spec as Spec<FlowRequirements>);
-  }
-
-  override async start(): Promise<void> {
-    const pubsub = makePubSubService(this.pubsub);
-    const messagingConfig = await Effect.runPromise(loadMessagingRuntimeConfig());
-    const start = this.startEffect().pipe(
-      Effect.provideService(PubSub, pubsub),
-      Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
-      Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
-      Effect.provideService(
-        RequestResponseFactory,
-        RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
-      ),
-      Effect.provideService(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
-    ) as Effect.Effect<void, PubSubError | FlowRuntimeError | ProcessorLifecycleError>;
-    await Effect.runPromise(
-      Effect.scoped(
-        start,
-      ),
-    );
-  }
-
-  protected override runEffect(): Effect.Effect<
-    void,
+export function makeFlowProcessor<FlowRequirements = never>(
+  config: ProcessorConfig,
+  options: MakeFlowProcessorOptions<FlowRequirements> = {},
+): FlowProcessorRuntime<FlowRequirements> {
+  const specifications: Array<Spec<FlowRequirements>> = [
+    ...(options.specifications ?? []),
+  ];
+  let processor: FlowProcessorRuntime<FlowRequirements>;
+  const base: AsyncProcessorRuntime<
     PubSubError | FlowRuntimeError | ProcessorLifecycleError,
-    | PubSub
-    | FlowRuntime
-    | ProducerFactory
-    | ConsumerFactory
-    | RequestResponseFactory
-    | Scope.Scope
-    | FlowRequirements
-  > {
-    const processor = this;
-    const configHandlers = processor.configHandlers.map(
-      (handler): EffectConfigHandler<PubSubError> =>
-        (config, version) =>
-          Effect.tryPromise({
-            try: () => handler(config, version),
-            catch: (error) => pubSubError("config-handler", error),
-          }),
-    );
-    return runFlowProcessorDefinitionScoped({
-      id: processor.config.id,
-      pubsub: processor.pubsub,
-      specifications: processor.specifications,
-      configHandlers,
-      isRunning: () => processor.running,
-    });
-  }
+    FlowProcessorRuntimeRequirements<FlowRequirements>
+  > = makeAsyncProcessor(config, {
+    runEffect: (runtime) => {
+      const configHandlers = runtime.configHandlers.map(
+        (handler): EffectConfigHandler<PubSubError> =>
+          (pushedConfig, version) =>
+            Effect.tryPromise({
+              try: () => handler(pushedConfig, version),
+              catch: (error) => pubSubError("config-handler", error),
+            }),
+      );
+      return runFlowProcessorDefinitionScoped({
+        id: runtime.config.id,
+        pubsub: runtime.pubsub,
+        specifications,
+        configHandlers,
+        isRunning: runtime.isRunning,
+      });
+    },
+  });
 
-  override stopEffect(): Effect.Effect<void, ProcessorLifecycleError> {
-    return super.stopEffect();
-  }
+  const startEffect = (): FlowProcessorStartEffect<FlowRequirements> => {
+    const effect = base.startEffect() as FlowProcessorStartEffect<FlowRequirements>;
+    return options.provide?.(effect) ?? effect;
+  };
+
+  processor = {
+    ...base,
+    specifications,
+    registerSpecification: (spec) => {
+      specifications.push(spec as Spec<FlowRequirements>);
+    },
+    startEffect,
+    start: async () => {
+      const pubsub = makePubSubService(base.pubsub);
+      const messagingConfig = await Effect.runPromise(loadMessagingRuntimeConfig());
+      const start = startEffect().pipe(
+        Effect.provideService(PubSub, pubsub),
+        Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
+        Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
+        Effect.provideService(
+          RequestResponseFactory,
+          RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
+        ),
+        Effect.provideService(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
+      ) as Effect.Effect<void, PubSubError | FlowRuntimeError | ProcessorLifecycleError>;
+      await Effect.runPromise(Effect.scoped(start));
+    },
+  };
+
+  return processor;
 }
+
+export type FlowProcessor<FlowRequirements = never> = FlowProcessorRuntime<FlowRequirements>;
+
+export const FlowProcessor = makeFlowProcessor as unknown as {
+  new <FlowRequirements = never>(
+    config: ProcessorConfig,
+  ): FlowProcessor<FlowRequirements>;
+  <FlowRequirements = never>(
+    config: ProcessorConfig,
+  ): FlowProcessor<FlowRequirements>;
+};

@@ -8,10 +8,11 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -79,36 +80,33 @@ const onGraphEmbeddingsQueryMessage = Effect.fn("GraphEmbeddingsQueryService.onM
 });
 
 export const makeGraphEmbeddingsQuerySpecs = (): ReadonlyArray<Spec<QdrantGraphEmbeddingsQueryService>> => [
-  new ConsumerSpec<
+  makeConsumerSpec<
     GraphEmbeddingsRequest,
     FlowResourceNotFoundError | MessagingDeliveryError,
     QdrantGraphEmbeddingsQueryService
   >("graph-embeddings-request", onGraphEmbeddingsQueryMessage),
-  new ProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response"),
+  makeProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response"),
 ];
 
-export class GraphEmbeddingsQueryService extends FlowProcessor<QdrantGraphEmbeddingsQueryService> {
-  private readonly query = makeQdrantGraphEmbeddingsQueryService();
+export type GraphEmbeddingsQueryService = FlowProcessorRuntime<QdrantGraphEmbeddingsQueryService>;
 
-  constructor(config: ProcessorConfig) {
-    super(config);
-
-    for (const spec of makeGraphEmbeddingsQuerySpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[GraphEmbeddingsQuery] Service initialized");
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(
-        QdrantGraphEmbeddingsQueryService,
-        QdrantGraphEmbeddingsQueryService.of(this.query),
+export function makeGraphEmbeddingsQueryService(config: ProcessorConfig): GraphEmbeddingsQueryService {
+  const query = makeQdrantGraphEmbeddingsQueryService();
+  const service = makeFlowProcessor(config, {
+    specifications: makeGraphEmbeddingsQuerySpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(
+          QdrantGraphEmbeddingsQueryService,
+          QdrantGraphEmbeddingsQueryService.of(query),
+        ),
       ),
-    );
-  }
+  });
+  console.log("[GraphEmbeddingsQuery] Service initialized");
+  return service;
 }
+
+export const GraphEmbeddingsQueryService = makeGraphEmbeddingsQueryService;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantGraphQueryConfig, never, QdrantGraphEmbeddingsQueryService>({
   id: "graph-embeddings-query",

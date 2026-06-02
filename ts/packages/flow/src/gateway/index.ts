@@ -1,5 +1,11 @@
 export { createGateway, run, type GatewayConfig } from "./server.js";
-export { DispatcherManager } from "./dispatch/manager.js";
+export {
+  dispatcherManagerFlowServiceNames,
+  dispatcherManagerGlobalServiceNames,
+  dispatcherManagerIsStreamingService,
+  makeDispatcherManager,
+  type DispatcherManager,
+} from "./dispatch/manager.js";
 export {
   clientTermToInternal,
   clientTripleToInternal,

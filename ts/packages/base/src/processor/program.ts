@@ -12,7 +12,7 @@ import {
   type ProcessorLifecycleError,
   type PubSubError,
 } from "../errors.js";
-import { NatsBackend } from "../backend/nats.js";
+import { makeNatsBackend } from "../backend/nats.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import {
   ConsumerFactory,
@@ -30,21 +30,21 @@ import {
 } from "../runtime/config.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
 import type {
-  AsyncProcessor,
   EffectConfigHandler,
   ProcessorConfig,
+  ProcessorRuntime,
 } from "./async-processor.js";
 import { runFlowProcessorDefinitionScoped } from "./flow-processor.js";
 import type { Spec } from "../spec/types.js";
 
-type ProcessorRunError<Processor> = Processor extends AsyncProcessor<infer Error, unknown> ? Error : never;
-type ProcessorRunRequirements<Processor> = Processor extends AsyncProcessor<unknown, infer Requirements> ? Requirements : never;
+type ProcessorRunError<Processor> = Processor extends ProcessorRuntime<infer Error, unknown> ? Error : never;
+type ProcessorRunRequirements<Processor> = Processor extends ProcessorRuntime<unknown, infer Requirements> ? Requirements : never;
 
 export interface ProcessorProgramOptions<
   Config extends ProcessorConfig,
   Error,
   Requirements,
-  Processor extends AsyncProcessor<unknown, unknown>,
+  Processor extends ProcessorRuntime<unknown, unknown>,
 > {
   readonly id: string;
   readonly make: (config: Config) => Processor;
@@ -70,7 +70,7 @@ export interface FlowProcessorProgramOptions<
 
 export function runProcessorScoped<
   Config extends ProcessorConfig,
-  Processor extends AsyncProcessor<unknown, unknown>,
+  Processor extends ProcessorRuntime<unknown, unknown>,
 >(
   config: Config,
   make: (config: Config) => Processor,
@@ -103,11 +103,13 @@ export function runProcessorScoped<
       ),
     );
 
-    const typedProcessor = processor as unknown as AsyncProcessor<
-      ProcessorRunError<Processor>,
-      ProcessorRunRequirements<Processor>
-    >;
-    yield* typedProcessor.startEffect();
+    yield* (
+      processor.startEffect() as Effect.Effect<
+        void,
+        ProcessorRunError<Processor> | ProcessorLifecycleError,
+        ProcessorRunRequirements<Processor>
+      >
+    );
   });
 }
 
@@ -115,7 +117,7 @@ export function makeProcessorProgram<
   Config extends ProcessorConfig,
   Error = never,
   Requirements = never,
-  Processor extends AsyncProcessor<unknown, unknown> = AsyncProcessor,
+  Processor extends ProcessorRuntime<unknown, unknown> = ProcessorRuntime,
 >(
   options: ProcessorProgramOptions<Config, Error, Requirements, Processor>,
 ) {
@@ -133,7 +135,7 @@ export function makeProcessorProgram<
         manageProcessSignals: false,
       } as Config;
 
-      const pubsub = makePubSubService(new NatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
+      const pubsub = makePubSubService(makeNatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
       const messagingConfig = yield* loadMessagingRuntimeConfig();
       yield* Effect.addFinalizer(() =>
         pubsub.close.pipe(
@@ -191,7 +193,7 @@ export function makeFlowProcessorProgram<
         manageProcessSignals: false,
       } as Config;
 
-      const pubsub = makePubSubService(new NatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
+      const pubsub = makePubSubService(makeNatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
       const messagingConfig = yield* loadMessagingRuntimeConfig();
       yield* Effect.addFinalizer(() =>
         pubsub.close.pipe(

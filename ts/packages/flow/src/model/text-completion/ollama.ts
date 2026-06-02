@@ -9,27 +9,24 @@
 import { Ollama } from "ollama";
 import {
   Llm,
-  LlmService,
+  makeLlmService,
   makeFlowProcessorProgram,
   makeLlmServiceShape,
   makeLlmSpecs,
+  type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
 } from "@trustgraph/base";
 import { Effect, Layer } from "effect";
 
-export class OllamaProcessor extends LlmService {
-  private client: Ollama;
-  private readonly defaultModel: string;
+export type OllamaProcessorConfig = ProcessorConfig & {
+  model?: string;
+  ollamaUrl?: string;
+};
 
-  constructor(config: ProcessorConfig & {
-    model?: string;
-    ollamaUrl?: string;
-  }) {
-    super(config);
-
-    this.defaultModel =
+export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
+  const defaultModel =
       config.model ??
       process.env.OLLAMA_MODEL ??
       "qwen2.5:0.5b";
@@ -39,88 +36,93 @@ export class OllamaProcessor extends LlmService {
       process.env.OLLAMA_URL ??
       "http://localhost:11434";
 
-    this.client = new Ollama({ host });
+  const client = new Ollama({ host });
 
     console.log(
-      `[Ollama] LLM service initialized (host=${host}, model=${this.defaultModel})`,
+    `[Ollama] LLM service initialized (host=${host}, model=${defaultModel})`,
     );
-  }
 
-  async generateContent(
-    system: string,
-    prompt: string,
-    model?: string,
-    _temperature?: number,
-  ): Promise<LlmResult> {
-    const modelName = model ?? this.defaultModel;
-    const fullPrompt = system + "\n\n" + prompt;
+  return {
+    generateContent: async (
+      system: string,
+      prompt: string,
+      model?: string,
+      _temperature?: number,
+    ): Promise<LlmResult> => {
+      const modelName = model ?? defaultModel;
+      const fullPrompt = system + "\n\n" + prompt;
 
-    const resp = await this.client.generate({
-      model: modelName,
-      prompt: fullPrompt,
-      stream: false,
-    });
+      const resp = await client.generate({
+        model: modelName,
+        prompt: fullPrompt,
+        stream: false,
+      });
 
-    return {
-      text: resp.response,
-      inToken: resp.prompt_eval_count ?? 0,
-      outToken: resp.eval_count ?? 0,
-      model: modelName,
-    };
-  }
+      return {
+        text: resp.response,
+        inToken: resp.prompt_eval_count ?? 0,
+        outToken: resp.eval_count ?? 0,
+        model: modelName,
+      };
+    },
+    supportsStreaming: () => true,
+    generateContentStream: async function* (
+      system: string,
+      prompt: string,
+      model?: string,
+      _temperature?: number,
+    ): AsyncGenerator<LlmChunk> {
+      const modelName = model ?? defaultModel;
+      const fullPrompt = system + "\n\n" + prompt;
 
-  override supportsStreaming(): boolean {
-    return true;
-  }
+      const stream = await client.generate({
+        model: modelName,
+        prompt: fullPrompt,
+        stream: true,
+      });
 
-  async *generateContentStream(
-    system: string,
-    prompt: string,
-    model?: string,
-    _temperature?: number,
-  ): AsyncGenerator<LlmChunk> {
-    const modelName = model ?? this.defaultModel;
-    const fullPrompt = system + "\n\n" + prompt;
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
 
-    const stream = await this.client.generate({
-      model: modelName,
-      prompt: fullPrompt,
-      stream: true,
-    });
-
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-
-    for await (const chunk of stream) {
+      for await (const chunk of stream) {
       // Token counts accumulate across chunks; keep the latest values
-      if (chunk.prompt_eval_count !== undefined) {
-        totalInputTokens = chunk.prompt_eval_count;
-      }
-      if (chunk.eval_count !== undefined) {
-        totalOutputTokens = chunk.eval_count;
-      }
+        if (chunk.prompt_eval_count !== undefined) {
+          totalInputTokens = chunk.prompt_eval_count;
+        }
+        if (chunk.eval_count !== undefined) {
+          totalOutputTokens = chunk.eval_count;
+        }
 
-      if (chunk.response.length > 0) {
-        yield {
-          text: chunk.response,
-          inToken: null,
-          outToken: null,
-          model: modelName,
-          isFinal: false,
-        };
+        if (chunk.response.length > 0) {
+          yield {
+            text: chunk.response,
+            inToken: null,
+            outToken: null,
+            model: modelName,
+            isFinal: false,
+          };
+        }
       }
-    }
 
     // Final chunk with accumulated token counts
-    yield {
-      text: "",
-      inToken: totalInputTokens,
-      outToken: totalOutputTokens,
-      model: modelName,
-      isFinal: true,
-    };
-  }
+      yield {
+        text: "",
+        inToken: totalInputTokens,
+        outToken: totalOutputTokens,
+        model: modelName,
+        isFinal: true,
+      };
+    },
+  };
 }
+
+export type OllamaProcessor = ReturnType<typeof makeOllamaProcessor>;
+
+export function makeOllamaProcessor(config: OllamaProcessorConfig): ReturnType<typeof makeLlmService> {
+  return makeLlmService(config, makeOllamaProvider(config));
+}
+
+export const OllamaProcessor = makeOllamaProcessor;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   id: "text-completion",
@@ -128,7 +130,7 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   layer: (config) =>
     Layer.succeed(
       Llm,
-      Llm.of(makeLlmServiceShape(new OllamaProcessor(config))),
+      Llm.of(makeLlmServiceShape(makeOllamaProvider(config))),
     ),
 });
 

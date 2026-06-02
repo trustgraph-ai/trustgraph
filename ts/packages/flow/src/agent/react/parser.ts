@@ -22,57 +22,75 @@ const MARKERS = [
 // Longest marker prefix for partial-match detection
 const MAX_MARKER_LEN = Math.max(...MARKERS.map((m) => m.prefix.length));
 
-export class StreamingReActParser {
-  private state: ReActState = "initial";
-  private buffer = "";
-  private onThought: (text: string) => void;
-  private onAction: (name: string) => void;
-  private onActionInput: (input: string) => void;
-  private onFinalAnswer: (text: string) => void;
+export interface StreamingReActParser {
+  readonly feed: (text: string) => void;
+  readonly flush: () => void;
+}
 
-  constructor(
-    onThought: (text: string) => void,
-    onAction: (name: string) => void,
-    onActionInput: (input: string) => void,
-    onFinalAnswer: (text: string) => void,
-  ) {
-    this.onThought = onThought;
-    this.onAction = onAction;
-    this.onActionInput = onActionInput;
-    this.onFinalAnswer = onFinalAnswer;
-  }
+export function makeStreamingReActParser(
+  onThought: (text: string) => void,
+  onAction: (name: string) => void,
+  onActionInput: (input: string) => void,
+  onFinalAnswer: (text: string) => void,
+): StreamingReActParser {
+  let state: ReActState = "initial";
+  let buffer = "";
 
-  /**
-   * Feed a chunk of LLM output text into the parser.
-   * Accumulates in a buffer and processes complete lines.
-   */
-  feed(text: string): void {
-    this.buffer += text;
-    this.processBuffer(false);
-  }
+  const emitContent = (content: string): void => {
+    if (content.length === 0) return;
 
-  /**
-   * Flush any remaining buffered content at the end of output.
-   */
-  flush(): void {
-    this.processBuffer(true);
-    // Emit any remaining buffer content in the current state
-    if (this.buffer.trim().length > 0) {
-      this.emitContent(this.buffer);
-      this.buffer = "";
+    switch (state) {
+      case "thought":
+        onThought(content);
+        break;
+      case "action":
+        onAction(content);
+        break;
+      case "action_input":
+        onActionInput(content);
+        break;
+      case "final_answer":
+        onFinalAnswer(content);
+        break;
+      case "initial":
+        // Content before any marker -- treat as thought
+        state = "thought";
+        onThought(content);
+        break;
+      case "complete":
+        break;
     }
-  }
+  };
 
-  private processBuffer(isFinal: boolean): void {
+  const processLine = (line: string): void => {
+    const trimmed = line.trimStart();
+
+    // Check if this line starts a new section
+    for (const marker of MARKERS) {
+      if (trimmed.startsWith(marker.prefix)) {
+        const content = trimmed.slice(marker.prefix.length).trim();
+        state = marker.state;
+        emitContent(content);
+        return;
+      }
+    }
+
+    // Otherwise, this is continuation content for the current state
+    if (trimmed.length > 0) {
+      emitContent(trimmed);
+    }
+  };
+
+  const processBuffer = (isFinal: boolean): void => {
     // Process complete lines (terminated by newline)
     while (true) {
-      const newlineIdx = this.buffer.indexOf("\n");
+      const newlineIdx = buffer.indexOf("\n");
       if (newlineIdx === -1) {
         // No complete line yet.
         // If not final, check for partial marker match at the end and wait.
         if (!isFinal) {
           // If the remaining buffer could be the start of a marker, wait for more input.
-          const trimmed = this.buffer.trimStart();
+          const trimmed = buffer.trimStart();
           if (trimmed.length > 0 && trimmed.length < MAX_MARKER_LEN) {
             const couldBeMarker = MARKERS.some((m) =>
               m.prefix.startsWith(trimmed),
@@ -86,54 +104,29 @@ export class StreamingReActParser {
         break;
       }
 
-      const line = this.buffer.slice(0, newlineIdx);
-      this.buffer = this.buffer.slice(newlineIdx + 1);
-      this.processLine(line);
+      const line = buffer.slice(0, newlineIdx);
+      buffer = buffer.slice(newlineIdx + 1);
+      processLine(line);
     }
-  }
+  };
 
-  private processLine(line: string): void {
-    const trimmed = line.trimStart();
+  /**
+   * Feed a chunk of LLM output text into the parser.
+   * Accumulates in a buffer and processes complete lines.
+   */
+  const feed = (text: string): void => {
+    buffer += text;
+    processBuffer(false);
+  };
 
-    // Check if this line starts a new section
-    for (const marker of MARKERS) {
-      if (trimmed.startsWith(marker.prefix)) {
-        const content = trimmed.slice(marker.prefix.length).trim();
-        this.state = marker.state;
-        this.emitContent(content);
-        return;
-      }
+  const flush = (): void => {
+    processBuffer(true);
+    // Emit any remaining buffer content in the current state
+    if (buffer.trim().length > 0) {
+      emitContent(buffer);
+      buffer = "";
     }
+  };
 
-    // Otherwise, this is continuation content for the current state
-    if (trimmed.length > 0) {
-      this.emitContent(trimmed);
-    }
-  }
-
-  private emitContent(content: string): void {
-    if (content.length === 0) return;
-
-    switch (this.state) {
-      case "thought":
-        this.onThought(content);
-        break;
-      case "action":
-        this.onAction(content);
-        break;
-      case "action_input":
-        this.onActionInput(content);
-        break;
-      case "final_answer":
-        this.onFinalAnswer(content);
-        break;
-      case "initial":
-        // Content before any marker -- treat as thought
-        this.state = "thought";
-        this.onThought(content);
-        break;
-      case "complete":
-        break;
-    }
-  }
+  return { feed, flush };
 }

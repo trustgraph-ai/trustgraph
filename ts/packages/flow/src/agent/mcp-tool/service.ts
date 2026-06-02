@@ -14,13 +14,14 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
   makeFlowProcessorProgram,
   errorMessage,
   type ProcessorConfig,
   type FlowContext,
+  type FlowProcessorRuntime,
   type ToolRequest,
   type ToolResponse,
   type EffectConfigHandler,
@@ -281,40 +282,34 @@ const onMcpToolRequest = Effect.fn("McpToolService.onRequest")(function* (
 });
 
 export const makeMcpToolSpecs = (): ReadonlyArray<Spec<McpToolRuntime>> => [
-  new ConsumerSpec<ToolRequest, McpToolHandlerError, McpToolRuntime>(
+  makeConsumerSpec<ToolRequest, McpToolHandlerError, McpToolRuntime>(
     "mcp-tool-request",
     onMcpToolRequest,
   ),
-  new ProducerSpec<ToolResponse>("mcp-tool-response"),
+  makeProducerSpec<ToolResponse>("mcp-tool-response"),
 ];
 
 export const makeMcpToolConfigHandlers = (): ReadonlyArray<
   EffectConfigHandler<never, McpToolRuntime>
 > => [onMcpConfig];
 
-export class McpToolService extends FlowProcessor<McpToolRuntime> {
-  private readonly runtime = Effect.runSync(makeMcpToolRuntime);
+export type McpToolService = FlowProcessorRuntime<McpToolRuntime>;
 
-  constructor(config: ProcessorConfig) {
-    super(config);
-
-    for (const spec of makeMcpToolSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    this.registerConfigHandler((config, version) =>
-      Effect.runPromise(onMcpConfig(config, version).pipe(
-        Effect.provideService(McpToolRuntime, this.runtime),
-      )),
-    );
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(McpToolRuntime, this.runtime),
-    );
-  }
+export function makeMcpToolService(config: ProcessorConfig): McpToolService {
+  const runtime = Effect.runSync(makeMcpToolRuntime);
+  const service = makeFlowProcessor(config, {
+    specifications: makeMcpToolSpecs(),
+    provide: (effect) => effect.pipe(Effect.provideService(McpToolRuntime, runtime)),
+  });
+  service.registerConfigHandler((pushedConfig, version) =>
+    Effect.runPromise(onMcpConfig(pushedConfig, version).pipe(
+      Effect.provideService(McpToolRuntime, runtime),
+    )),
+  );
+  return service;
 }
+
+export const McpToolService = makeMcpToolService;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig, never, McpToolRuntime>({
   id: "mcp-tool",

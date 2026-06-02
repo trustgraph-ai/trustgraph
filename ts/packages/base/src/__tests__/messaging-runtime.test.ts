@@ -6,7 +6,7 @@ import {
   defaultMessagingRuntimeConfig,
   makeEffectRequestResponseFromPubSub,
   MessagingRuntimeLive,
-  ProducerSpec,
+  makeProducerSpec,
   runEffectConsumerScoped,
   runEffectProducerScoped,
   runFlowScoped,
@@ -260,7 +260,7 @@ describe("Effect-native messaging runtime", () => {
         "processor",
         backend,
         {},
-        [new ProducerSpec<string>("flow-output")],
+        [makeProducerSpec<string>("flow-output")],
       );
 
       yield* Effect.scoped(

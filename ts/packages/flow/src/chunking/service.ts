@@ -10,11 +10,12 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
-  ParameterSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
+  makeParameterSpec,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -74,27 +75,27 @@ const onChunkMessage = Effect.fn("ChunkingService.onMessage")(function* (
 export const makeChunkingSpecs = (): ReadonlyArray<
   Spec<never>
 > => [
-  new ConsumerSpec<TextDocument, FlowResourceNotFoundError | MessagingDeliveryError>(
+  makeConsumerSpec<TextDocument, FlowResourceNotFoundError | MessagingDeliveryError>(
     "chunk-input",
     onChunkMessage,
   ),
-  new ProducerSpec<Chunk>("chunk-output"),
-  new ProducerSpec<Triples>("chunk-triples"),
-  new ParameterSpec("chunk-size"),
-  new ParameterSpec("chunk-overlap"),
+  makeProducerSpec<Chunk>("chunk-output"),
+  makeProducerSpec<Triples>("chunk-triples"),
+  makeParameterSpec("chunk-size"),
+  makeParameterSpec("chunk-overlap"),
 ];
 
-export class ChunkingService extends FlowProcessor {
-  constructor(config: ProcessorConfig) {
-    super(config);
+export type ChunkingService = FlowProcessorRuntime;
 
-    for (const spec of makeChunkingSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[ChunkingService] Service initialized");
-  }
+export function makeChunkingService(config: ProcessorConfig): ChunkingService {
+  const service = makeFlowProcessor(config, {
+    specifications: makeChunkingSpecs(),
+  });
+  console.log("[ChunkingService] Service initialized");
+  return service;
 }
+
+export const ChunkingService = makeChunkingService;
 
 export const program = makeFlowProcessorProgram({
   id: "chunking",

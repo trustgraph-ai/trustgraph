@@ -1,7 +1,7 @@
 // ReAct agent -- barrel exports
 
 export { AgentService } from "./service.js";
-export { StreamingReActParser } from "./parser.js";
+export { makeStreamingReActParser, type StreamingReActParser } from "./parser.js";
 export { buildReActPrompt } from "./prompt.js";
 export {
   createKnowledgeQueryTool,

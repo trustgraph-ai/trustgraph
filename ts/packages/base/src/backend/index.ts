@@ -9,7 +9,7 @@ export type {
   InitialPosition,
 } from "./types.js";
 
-export { NatsBackend } from "./nats.js";
+export { makeNatsBackend } from "./nats.js";
 export {
   PubSub,
   NatsPubSubLive,

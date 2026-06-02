@@ -82,20 +82,19 @@ export const DocumentRagLive: Layer.Layer<DocumentRagEngine> = Layer.succeed(
   DocumentRagEngine.of(makeDocumentRagEngine()),
 );
 
-export class DocumentRag {
-  private readonly engine = makeDocumentRagEngine();
-  private readonly clients: DocumentRagClients;
-
-  constructor(clients: DocumentRagClients) {
-    this.clients = clients;
-  }
-
-  query(
+export interface DocumentRag {
+  readonly query: (
     queryText: string,
     options?: DocumentRagQueryOptions,
-  ): Promise<string> {
-    return Effect.runPromise(this.engine.query(this.clients, queryText, options));
-  }
+  ) => Promise<string>;
+}
+
+export function makeDocumentRag(clients: DocumentRagClients): DocumentRag {
+  const engine = makeDocumentRagEngine();
+  return {
+    query: (queryText, options) =>
+      Effect.runPromise(engine.query(clients, queryText, options)),
+  };
 }
 
 async function queryDocumentRag(

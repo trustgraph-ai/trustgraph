@@ -12,12 +12,12 @@ import {
   type MessagingDeliveryError,
 } from "../errors.js";
 import type { FlowContext } from "../messaging/consumer.js";
-import { FlowProcessor } from "../processor/flow-processor.js";
-import type { ProcessorConfig } from "../processor/async-processor.js";
+import { makeFlowProcessor } from "../processor/index.ts";
+import type { FlowProcessorRuntime, ProcessorConfig } from "../processor/index.ts";
 import type { EmbeddingsRequest, EmbeddingsResponse } from "../schema/messages.js";
-import { ConsumerSpec } from "../spec/consumer-spec.js";
-import { ParameterSpec } from "../spec/parameter-spec.js";
-import { ProducerSpec } from "../spec/producer-spec.js";
+import { makeConsumerSpec } from "../spec/index.ts";
+import { makeParameterSpec } from "../spec/index.ts";
+import { makeProducerSpec } from "../spec/index.ts";
 import type { Spec } from "../spec/types.js";
 
 export interface EmbeddingsServiceShape {
@@ -66,20 +66,31 @@ const onEmbeddingsRequest = Effect.fn("EmbeddingsService.onRequest")(function* (
 });
 
 export const makeEmbeddingsSpecs = (): ReadonlyArray<Spec<Embeddings>> => [
-  new ConsumerSpec<EmbeddingsRequest, FlowResourceNotFoundError | MessagingDeliveryError, Embeddings>(
+  makeConsumerSpec<EmbeddingsRequest, FlowResourceNotFoundError | MessagingDeliveryError, Embeddings>(
     "embeddings-request",
     onEmbeddingsRequest,
   ),
-  new ProducerSpec<EmbeddingsResponse>("embeddings-response"),
-  new ParameterSpec("model"),
+  makeProducerSpec<EmbeddingsResponse>("embeddings-response"),
+  makeParameterSpec("model"),
 ];
 
-export class EmbeddingsService extends FlowProcessor<Embeddings> {
-  constructor(config: ProcessorConfig) {
-    super(config);
+export type EmbeddingsService = FlowProcessorRuntime<Embeddings>;
 
-    for (const spec of makeEmbeddingsSpecs()) {
-      this.registerSpecification(spec);
-    }
-  }
+export function makeEmbeddingsService(
+  config: ProcessorConfig,
+  embeddings?: EmbeddingsServiceShape,
+): EmbeddingsService {
+  return makeFlowProcessor(config, {
+    specifications: makeEmbeddingsSpecs(),
+    ...(embeddings === undefined
+      ? {}
+      : {
+          provide: (effect) =>
+            effect.pipe(
+              Effect.provideService(Embeddings, Embeddings.of(embeddings)),
+            ),
+        }),
+  });
 }
+
+export const EmbeddingsService = makeEmbeddingsService;

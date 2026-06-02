@@ -8,7 +8,7 @@
  * Python reference: trustgraph-flow/trustgraph/gateway/dispatch/manager.py
  */
 
-import { NatsBackend, RequestResponse, type PubSubBackend } from "@trustgraph/base";
+import { makeNatsBackend, makeRequestResponse, type PubSubBackend, type RequestResponse } from "@trustgraph/base";
 import type { GatewayConfig } from "../server.js";
 import { translateRequest, translateResponse } from "./serialize.js";
 
@@ -66,38 +66,75 @@ function topicName(name: string): string {
 
 // ---------- Manager ----------
 
-export class DispatcherManager {
-  private readonly pubsub: PubSubBackend;
-  private requestors = new Map<string, Promise<RequestResponse<unknown, unknown>>>();
+export interface DispatcherManager {
+  readonly start: () => Promise<void>;
+  readonly stop: () => Promise<void>;
+  readonly dispatchGlobalService: (
+    kind: string,
+    request: Record<string, unknown>,
+  ) => Promise<unknown>;
+  readonly dispatchGlobalServiceStreaming: (
+    kind: string,
+    request: Record<string, unknown>,
+    responder: Responder,
+  ) => Promise<void>;
+  readonly dispatchFlowService: (
+    flow: string,
+    kind: string,
+    request: Record<string, unknown>,
+  ) => Promise<unknown>;
+  readonly dispatchFlowServiceStreaming: (
+    flow: string,
+    kind: string,
+    request: Record<string, unknown>,
+    responder: Responder,
+  ) => Promise<void>;
+  readonly publishToTopic: (
+    topic: string,
+    message: unknown,
+    id?: string,
+  ) => Promise<void>;
+}
 
-  constructor(config: GatewayConfig) {
-    this.pubsub = new NatsBackend(config.natsUrl ?? "nats://localhost:4222");
-  }
+export const dispatcherManagerFlowServiceNames = (): readonly string[] => [
+  ...FLOW_SERVICES.keys(),
+];
 
-  async start(): Promise<void> {
+export const dispatcherManagerGlobalServiceNames = (): readonly string[] => [
+  ...GLOBAL_SERVICES.keys(),
+];
+
+export const dispatcherManagerIsStreamingService = (kind: string): boolean =>
+  STREAMING_SERVICES.has(kind);
+
+export function makeDispatcherManager(config: GatewayConfig): DispatcherManager {
+  const pubsub: PubSubBackend = makeNatsBackend(config.natsUrl ?? "nats://localhost:4222");
+  const requestors = new Map<string, Promise<RequestResponse<unknown, unknown>>>();
+
+  const start = async (): Promise<void> => {
     // Requestors are created on demand when first accessed
-  }
+  };
 
-  async stop(): Promise<void> {
-    for (const pending of this.requestors.values()) {
+  const stop = async (): Promise<void> => {
+    for (const pending of requestors.values()) {
       const rr = await pending;
       await rr.stop();
     }
-    await this.pubsub.close();
-  }
+    await pubsub.close();
+  };
 
   // ---------- Internal helpers ----------
 
-  private getRequestor(
+  const getRequestor = (
     requestTopic: string,
     responseTopic: string,
     key: string,
-  ): Promise<RequestResponse<unknown, unknown>> {
-    let pending = this.requestors.get(key);
+  ): Promise<RequestResponse<unknown, unknown>> => {
+    let pending = requestors.get(key);
     if (pending === undefined) {
       pending = (async () => {
-        const rr = new RequestResponse({
-          pubsub: this.pubsub,
+        const rr = makeRequestResponse({
+          pubsub,
           requestTopic,
           responseTopic,
           subscription: `gateway-${key}`,
@@ -105,14 +142,14 @@ export class DispatcherManager {
         await rr.start();
         return rr;
       })();
-      this.requestors.set(key, pending);
+      requestors.set(key, pending);
     }
     return pending;
-  }
+  };
 
-  private resolveGlobalTopics(
+  const resolveGlobalTopics = (
     kind: string,
-  ): { requestTopic: string; responseTopic: string } {
+  ): { requestTopic: string; responseTopic: string } => {
     const entry = GLOBAL_SERVICES.get(kind);
     if (entry !== undefined) {
       return {
@@ -125,11 +162,11 @@ export class DispatcherManager {
       requestTopic: topicName(`${kind}-request`),
       responseTopic: topicName(`${kind}-response`),
     };
-  }
+  };
 
-  private resolveFlowTopics(
+  const resolveFlowTopics = (
     kind: string,
-  ): { requestTopic: string; responseTopic: string } {
+  ): { requestTopic: string; responseTopic: string } => {
     const entry = FLOW_SERVICES.get(kind);
     if (entry !== undefined) {
       return {
@@ -142,13 +179,13 @@ export class DispatcherManager {
       requestTopic: topicName(`${kind}-request`),
       responseTopic: topicName(`${kind}-response`),
     };
-  }
+  };
 
   /**
    * Determine whether a response is the final one in a streaming sequence.
    * Checks for various end-of-stream markers used by different services.
    */
-  private isComplete(response: unknown): boolean {
+  const isComplete = (response: unknown): boolean => {
     if (typeof response !== "object" || response === null) return true;
     const res = response as Record<string, unknown>;
     return (
@@ -162,50 +199,50 @@ export class DispatcherManager {
       // error responses are always final
       (res.error !== undefined && res.error !== null)
     );
-  }
+  };
 
   // ---------- Global service dispatch ----------
 
-  async dispatchGlobalService(
+  const dispatchGlobalService = async (
     kind: string,
     request: Record<string, unknown>,
-  ): Promise<unknown> {
-    const { requestTopic, responseTopic } = this.resolveGlobalTopics(kind);
-    const rr = await this.getRequestor(requestTopic, responseTopic, `global:${kind}`);
+  ): Promise<unknown> => {
+    const { requestTopic, responseTopic } = resolveGlobalTopics(kind);
+    const rr = await getRequestor(requestTopic, responseTopic, `global:${kind}`);
 
     const translated = translateRequest(kind, request);
     const response = await rr.request(translated);
     return translateResponse(kind, response);
-  }
+  };
 
-  async dispatchGlobalServiceStreaming(
+  const dispatchGlobalServiceStreaming = async (
     kind: string,
     request: Record<string, unknown>,
     responder: Responder,
-  ): Promise<void> {
-    const { requestTopic, responseTopic } = this.resolveGlobalTopics(kind);
-    const rr = await this.getRequestor(requestTopic, responseTopic, `global:${kind}`);
+  ): Promise<void> => {
+    const { requestTopic, responseTopic } = resolveGlobalTopics(kind);
+    const rr = await getRequestor(requestTopic, responseTopic, `global:${kind}`);
     const translated = translateRequest(kind, request);
 
     await rr.request(translated, {
       recipient: async (response) => {
         const translatedRes = translateResponse(kind, response);
-        const complete = this.isComplete(translatedRes);
+        const complete = isComplete(translatedRes);
         await responder(translatedRes, complete);
         return complete;
       },
     });
-  }
+  };
 
   // ---------- Flow-scoped service dispatch ----------
 
-  async dispatchFlowService(
+  const dispatchFlowService = async (
     flow: string,
     kind: string,
     request: Record<string, unknown>,
-  ): Promise<unknown> {
-    const { requestTopic, responseTopic } = this.resolveFlowTopics(kind);
-    const rr = await this.getRequestor(
+  ): Promise<unknown> => {
+    const { requestTopic, responseTopic } = resolveFlowTopics(kind);
+    const rr = await getRequestor(
       requestTopic,
       responseTopic,
       `flow:${flow}:${kind}`,
@@ -214,16 +251,16 @@ export class DispatcherManager {
     const translated = translateRequest(kind, request);
     const response = await rr.request(translated);
     return translateResponse(kind, response);
-  }
+  };
 
-  async dispatchFlowServiceStreaming(
+  const dispatchFlowServiceStreaming = async (
     flow: string,
     kind: string,
     request: Record<string, unknown>,
     responder: Responder,
-  ): Promise<void> {
-    const { requestTopic, responseTopic } = this.resolveFlowTopics(kind);
-    const rr = await this.getRequestor(
+  ): Promise<void> => {
+    const { requestTopic, responseTopic } = resolveFlowTopics(kind);
+    const rr = await getRequestor(
       requestTopic,
       responseTopic,
       `flow:${flow}:${kind}`,
@@ -233,12 +270,12 @@ export class DispatcherManager {
     await rr.request(translated, {
       recipient: async (response) => {
         const translatedRes = translateResponse(kind, response);
-        const complete = this.isComplete(translatedRes);
+        const complete = isComplete(translatedRes);
         await responder(translatedRes, complete);
         return complete;
       },
     });
-  }
+  };
 
   // ---------- Fire-and-forget publish ----------
 
@@ -246,24 +283,20 @@ export class DispatcherManager {
    * Publish a single message to an arbitrary topic (no request/response).
    * Used for injecting documents into the processing pipeline.
    */
-  async publishToTopic(topic: string, message: unknown, id?: string): Promise<void> {
-    const producer = await this.pubsub.createProducer<unknown>({ topic });
+  const publishToTopic = async (topic: string, message: unknown, id?: string): Promise<void> => {
+    const producer = await pubsub.createProducer<unknown>({ topic });
     const messageId = id ?? `pub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     await producer.send(message, { id: messageId });
     await producer.close();
-  }
+  };
 
-  // ---------- Static introspection ----------
-
-  static get flowServiceNames(): readonly string[] {
-    return [...FLOW_SERVICES.keys()];
-  }
-
-  static get globalServiceNames(): readonly string[] {
-    return [...GLOBAL_SERVICES.keys()];
-  }
-
-  static isStreamingService(kind: string): boolean {
-    return STREAMING_SERVICES.has(kind);
-  }
+  return {
+    start,
+    stop,
+    dispatchGlobalService,
+    dispatchGlobalServiceStreaming,
+    dispatchFlowService,
+    dispatchFlowServiceStreaming,
+    publishToTopic,
+  };
 }

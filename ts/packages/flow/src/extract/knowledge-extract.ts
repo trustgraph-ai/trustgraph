@@ -11,12 +11,13 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
-  RequestResponseSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
+  makeRequestResponseSpec,
   makeFlowProcessorProgram,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type Chunk,
   type Triples,
@@ -264,35 +265,35 @@ const onKnowledgeExtractMessage = Effect.fn("KnowledgeExtractService.onMessage")
 });
 
 export const makeKnowledgeExtractSpecs = (): ReadonlyArray<Spec<never>> => [
-  new ConsumerSpec<Chunk, KnowledgeExtractHandlerError>(
+  makeConsumerSpec<Chunk, KnowledgeExtractHandlerError>(
     "extract-input",
     onKnowledgeExtractMessage,
   ),
-  new ProducerSpec<Triples>("extract-triples"),
-  new ProducerSpec<EntityContexts>("extract-entity-contexts"),
-  new RequestResponseSpec<PromptRequest, PromptResponse>(
+  makeProducerSpec<Triples>("extract-triples"),
+  makeProducerSpec<EntityContexts>("extract-entity-contexts"),
+  makeRequestResponseSpec<PromptRequest, PromptResponse>(
     "prompt-client",
     "prompt-request",
     "prompt-response",
   ),
-  new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
     "llm-client",
     "text-completion-request",
     "text-completion-response",
   ),
 ];
 
-export class KnowledgeExtractService extends FlowProcessor {
-  constructor(config: ProcessorConfig) {
-    super(config);
+export type KnowledgeExtractService = FlowProcessorRuntime;
 
-    for (const spec of makeKnowledgeExtractSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[KnowledgeExtract] Service initialized");
-  }
+export function makeKnowledgeExtractService(config: ProcessorConfig): KnowledgeExtractService {
+  const service = makeFlowProcessor(config, {
+    specifications: makeKnowledgeExtractSpecs(),
+  });
+  console.log("[KnowledgeExtract] Service initialized");
+  return service;
 }
+
+export const KnowledgeExtractService = makeKnowledgeExtractService;
 
 // ---------- Helpers ----------
 

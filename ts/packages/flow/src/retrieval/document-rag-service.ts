@@ -8,10 +8,10 @@
  */
 
 import {
-  ConsumerSpec,
-  FlowProcessor,
-  ProducerSpec,
-  RequestResponseSpec,
+  makeConsumerSpec,
+  makeFlowProcessor,
+  makeProducerSpec,
+  makeRequestResponseSpec,
   makeFlowProcessorProgram,
   type DocumentEmbeddingsRequest,
   type DocumentEmbeddingsResponse,
@@ -22,6 +22,7 @@ import {
   type EmbeddingsRequest,
   type EmbeddingsResponse,
   type FlowContext,
+  type FlowProcessorRuntime,
   type FlowRequestOptions,
   type FlowRequestor,
   type FlowResourceNotFoundError,
@@ -113,47 +114,46 @@ const onDocumentRagRequest = Effect.fn("DocumentRagService.onRequest")(function*
 });
 
 export const makeDocumentRagSpecs = (): ReadonlyArray<Spec<DocumentRagEngine>> => [
-  new ConsumerSpec<DocumentRagRequest, FlowResourceNotFoundError | MessagingDeliveryError, DocumentRagEngine>(
+  makeConsumerSpec<DocumentRagRequest, FlowResourceNotFoundError | MessagingDeliveryError, DocumentRagEngine>(
     "document-rag-request",
     onDocumentRagRequest,
   ),
-  new ProducerSpec<DocumentRagResponse>("document-rag-response"),
-  new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  makeProducerSpec<DocumentRagResponse>("document-rag-response"),
+  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
     "llm",
     "text-completion-request",
     "text-completion-response",
   ),
-  new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+  makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
     "embeddings",
     "embeddings-request",
     "embeddings-response",
   ),
-  new RequestResponseSpec<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>(
+  makeRequestResponseSpec<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>(
     "doc-embeddings",
     "document-embeddings-request",
     "document-embeddings-response",
   ),
-  new RequestResponseSpec<PromptRequest, PromptResponse>(
+  makeRequestResponseSpec<PromptRequest, PromptResponse>(
     "prompt",
     "prompt-request",
     "prompt-response",
   ),
 ];
 
-export class DocumentRagService extends FlowProcessor<DocumentRagEngine> {
-  constructor(config: ProcessorConfig) {
-    super(config);
-    for (const spec of makeDocumentRagSpecs()) {
-      this.registerSpecification(spec);
-    }
-  }
+export type DocumentRagService = FlowProcessorRuntime<DocumentRagEngine>;
 
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(DocumentRagEngine, DocumentRagEngine.of(makeDocumentRagEngine())),
-    );
-  }
+export function makeDocumentRagService(config: ProcessorConfig): DocumentRagService {
+  return makeFlowProcessor(config, {
+    specifications: makeDocumentRagSpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(DocumentRagEngine, DocumentRagEngine.of(makeDocumentRagEngine())),
+      ),
+  });
 }
+
+export const DocumentRagService = makeDocumentRagService;
 
 export const program = makeFlowProcessorProgram({
   id: "document-rag",

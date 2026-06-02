@@ -17,14 +17,15 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
-  RequestResponseSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
+  makeRequestResponseSpec,
   makeFlowProcessorProgram,
   errorMessage,
   type ProcessorConfig,
   type FlowContext,
+  type FlowProcessorRuntime,
   type AgentRequest,
   type AgentResponse,
   type TextCompletionRequest,
@@ -488,32 +489,32 @@ const onAgentRequest = Effect.fn("AgentService.onRequest")(function* (
 });
 
 export const makeAgentSpecs = (): ReadonlyArray<Spec<AgentRuntime>> => [
-  new ConsumerSpec<AgentRequest, AgentHandlerError, AgentRuntime>(
+  makeConsumerSpec<AgentRequest, AgentHandlerError, AgentRuntime>(
     "agent-request",
     onAgentRequest,
   ),
-  new ProducerSpec<AgentResponse>("agent-response"),
-  new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  makeProducerSpec<AgentResponse>("agent-response"),
+  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
     "llm",
     "text-completion-request",
     "text-completion-response",
   ),
-  new RequestResponseSpec<GraphRagRequest, GraphRagResponse>(
+  makeRequestResponseSpec<GraphRagRequest, GraphRagResponse>(
     "graph-rag",
     "graph-rag-request",
     "graph-rag-response",
   ),
-  new RequestResponseSpec<DocumentRagRequest, DocumentRagResponse>(
+  makeRequestResponseSpec<DocumentRagRequest, DocumentRagResponse>(
     "doc-rag",
     "document-rag-request",
     "document-rag-response",
   ),
-  new RequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
+  makeRequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
     "triples",
     "triples-request",
     "triples-response",
   ),
-  new RequestResponseSpec<ToolRequest, ToolResponse>(
+  makeRequestResponseSpec<ToolRequest, ToolResponse>(
     "mcp-tool",
     "mcp-tool-request",
     "mcp-tool-response",
@@ -524,31 +525,24 @@ export const makeAgentConfigHandlers = (): ReadonlyArray<
   EffectConfigHandler<never, AgentRuntime>
 > => [onToolsConfig];
 
-export class AgentService extends FlowProcessor<AgentRuntime> {
-  private readonly runtime = Effect.runSync(makeAgentRuntime);
+export type AgentService = FlowProcessorRuntime<AgentRuntime>;
 
-  constructor(config: ProcessorConfig) {
-    super(config);
-
-    for (const spec of makeAgentSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    this.registerConfigHandler((config, version) =>
-      Effect.runPromise(onToolsConfig(config, version).pipe(
-        Effect.provideService(AgentRuntime, this.runtime),
-      )),
-    );
-
-    console.log("[AgentService] Service initialized");
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(AgentRuntime, this.runtime),
-    );
-  }
+export function makeAgentService(config: ProcessorConfig): AgentService {
+  const runtime = Effect.runSync(makeAgentRuntime);
+  const service = makeFlowProcessor(config, {
+    specifications: makeAgentSpecs(),
+    provide: (effect) => effect.pipe(Effect.provideService(AgentRuntime, runtime)),
+  });
+  service.registerConfigHandler((pushedConfig, version) =>
+    Effect.runPromise(onToolsConfig(pushedConfig, version).pipe(
+      Effect.provideService(AgentRuntime, runtime),
+    )),
+  );
+  console.log("[AgentService] Service initialized");
+  return service;
 }
+
+export const AgentService = makeAgentService;
 
 /**
  * Simple line-based parser for ReAct LLM output.

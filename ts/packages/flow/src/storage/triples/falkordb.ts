@@ -30,107 +30,136 @@ function getTermValue(term: Term): string {
   }
 }
 
-export class FalkorDBTriplesStore {
-  private graph: Graph;
-  private connectPromise: Promise<void>;
+export interface FalkorDBTriplesStore {
+  readonly createNode: (uri: string, user: string, collection: string) => Promise<void>;
+  readonly createLiteral: (value: string, user: string, collection: string) => Promise<void>;
+  readonly relateNode: (
+    src: string,
+    uri: string,
+    dest: string,
+    user: string,
+    collection: string,
+  ) => Promise<void>;
+  readonly relateLiteral: (
+    src: string,
+    uri: string,
+    dest: string,
+    user: string,
+    collection: string,
+  ) => Promise<void>;
+  readonly storeTriples: (
+    triples: Triple[],
+    user?: string,
+    collection?: string,
+  ) => Promise<void>;
+  readonly deleteCollection: (user: string, collection: string) => Promise<void>;
+}
 
-  constructor(config: FalkorDBConfig = {}) {
-    const url = config.url ?? process.env.FALKORDB_URL ?? "redis://localhost:6379";
-    const database = config.database ?? "falkordb";
+export function makeFalkorDBTriplesStore(config: FalkorDBConfig = {}): FalkorDBTriplesStore {
+  const url = config.url ?? process.env.FALKORDB_URL ?? "redis://localhost:6379";
+  const database = config.database ?? "falkordb";
 
-    const client = createClient({ url });
-    this.graph = new Graph(client, database);
-    this.connectPromise = client.connect().then(() => {
-      console.log(`[FalkorDBTriplesStore] Connected to ${url}, graph: ${database}`);
-    }).catch((err) => {
-      console.error(`[FalkorDBTriplesStore] Connection failed:`, err);
-      throw err;
-    });
-  }
+  const client = createClient({ url });
+  const graph = new Graph(client, database);
+  const connectPromise = client.connect().then(() => {
+    console.log(`[FalkorDBTriplesStore] Connected to ${url}, graph: ${database}`);
+  }).catch((err) => {
+    console.error(`[FalkorDBTriplesStore] Connection failed:`, err);
+    throw err;
+  });
 
-  private async ensureConnected(): Promise<void> {
-    await this.connectPromise;
-  }
+  const ensureConnected = async (): Promise<void> => {
+    await connectPromise;
+  };
 
-  async createNode(uri: string, user: string, collection: string): Promise<void> {
-    await this.ensureConnected();
-    await this.graph.query(
+  const createNode = async (uri: string, user: string, collection: string): Promise<void> => {
+    await ensureConnected();
+    await graph.query(
       "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
       { params: { uri, user, collection } },
     );
-  }
+  };
 
-  async createLiteral(value: string, user: string, collection: string): Promise<void> {
-    await this.ensureConnected();
-    await this.graph.query(
+  const createLiteral = async (value: string, user: string, collection: string): Promise<void> => {
+    await ensureConnected();
+    await graph.query(
       "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
       { params: { value, user, collection } },
     );
-  }
+  };
 
-  async relateNode(
+  const relateNode = async (
     src: string, uri: string, dest: string,
     user: string, collection: string,
-  ): Promise<void> {
-    await this.ensureConnected();
-    await this.graph.query(
+  ): Promise<void> => {
+    await ensureConnected();
+    await graph.query(
       "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) " +
       "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) " +
       "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
       { params: { src, dest, uri, user, collection } },
     );
-  }
+  };
 
-  async relateLiteral(
+  const relateLiteral = async (
     src: string, uri: string, dest: string,
     user: string, collection: string,
-  ): Promise<void> {
-    await this.ensureConnected();
-    await this.graph.query(
+  ): Promise<void> => {
+    await ensureConnected();
+    await graph.query(
       "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) " +
       "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) " +
       "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
       { params: { src, dest, uri, user, collection } },
     );
-  }
+  };
 
-  async storeTriples(
+  const storeTriples = async (
     triples: Triple[],
     user = "default",
     collection = "default",
-  ): Promise<void> {
+  ): Promise<void> => {
     for (const t of triples) {
       const s = getTermValue(t.s);
       const p = getTermValue(t.p);
       const o = getTermValue(t.o);
 
-      await this.createNode(s, user, collection);
+      await createNode(s, user, collection);
 
       if (t.o.type === "IRI") {
-        await this.createNode(o, user, collection);
-        await this.relateNode(s, p, o, user, collection);
+        await createNode(o, user, collection);
+        await relateNode(s, p, o, user, collection);
       } else {
-        await this.createLiteral(o, user, collection);
-        await this.relateLiteral(s, p, o, user, collection);
+        await createLiteral(o, user, collection);
+        await relateLiteral(s, p, o, user, collection);
       }
     }
-  }
+  };
 
-  async deleteCollection(user: string, collection: string): Promise<void> {
-    await this.ensureConnected();
-    await this.graph.query(
+  const deleteCollection = async (user: string, collection: string): Promise<void> => {
+    await ensureConnected();
+    await graph.query(
       "MATCH (n:Node {user: $user, collection: $collection}) DETACH DELETE n",
       { params: { user, collection } },
     );
-    await this.graph.query(
+    await graph.query(
       "MATCH (n:Literal {user: $user, collection: $collection}) DETACH DELETE n",
       { params: { user, collection } },
     );
-    await this.graph.query(
+    await graph.query(
       "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) DELETE c",
       { params: { user, collection } },
     );
-  }
+  };
+
+  return {
+    createNode,
+    createLiteral,
+    relateNode,
+    relateLiteral,
+    storeTriples,
+    deleteCollection,
+  };
 }
 
 export class FalkorDBTriplesStoreError extends S.TaggedErrorClass<FalkorDBTriplesStoreError>()(
@@ -171,7 +200,7 @@ const falkorDBTriplesStoreError = (operation: string, cause: unknown) =>
 export const makeFalkorDBTriplesStoreService = (
   config: FalkorDBConfig = {},
 ): FalkorDBTriplesStoreServiceShape => {
-  const store = new FalkorDBTriplesStore(config);
+  const store = makeFalkorDBTriplesStore(config);
   return {
     storeTriples: Effect.fn("FalkorDBTriplesStore.storeTriples")((
       triples: ReadonlyArray<Triple>,

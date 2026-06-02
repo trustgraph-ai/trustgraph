@@ -2,6 +2,7 @@ export {
   Llm,
   LlmService,
   LlmServiceError,
+  makeLlmService,
   makeLlmServiceShape,
   makeLlmSpecs,
   type LlmProvider,
@@ -10,6 +11,7 @@ export {
 export {
   Embeddings,
   EmbeddingsService,
+  makeEmbeddingsService,
   makeEmbeddingsSpecs,
   type EmbeddingsServiceShape,
 } from "./embeddings-service.js";

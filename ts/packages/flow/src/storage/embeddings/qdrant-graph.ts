@@ -43,57 +43,59 @@ function getTermValue(term: Term): string | null {
   }
 }
 
-export class QdrantGraphEmbeddingsStore {
-  private client: QdrantClient;
-  private knownCollections = new Set<string>();
+export interface QdrantGraphEmbeddingsStore {
+  readonly store: (message: GraphEmbeddingsMessage) => Promise<void>;
+  readonly deleteCollection: (user: string, collection: string) => Promise<void>;
+}
 
-  constructor(config: QdrantGraphEmbeddingsConfig = {}) {
-    const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
-    const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
+export function makeQdrantGraphEmbeddingsStore(
+  config: QdrantGraphEmbeddingsConfig = {},
+): QdrantGraphEmbeddingsStore {
+  const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
+  const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({
-      url,
-      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
-    });
+  const client = new QdrantClient({
+    url,
+    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+  });
+  const knownCollections = new Set<string>();
 
-    console.log("[QdrantGraphEmbeddings] Store initialized");
-  }
+  console.log("[QdrantGraphEmbeddings] Store initialized");
 
-  private collectionName(user: string, collection: string, dim: number): string {
-    return `t_${user}_${collection}_${dim}`;
-  }
+  const collectionName = (user: string, collection: string, dim: number): string =>
+    `t_${user}_${collection}_${dim}`;
 
-  private async ensureCollection(name: string, dim: number): Promise<void> {
-    if (this.knownCollections.has(name)) return;
+  const ensureCollection = async (name: string, dim: number): Promise<void> => {
+    if (knownCollections.has(name)) return;
 
-    const exists = await this.client.collectionExists(name);
+    const exists = await client.collectionExists(name);
     if (!exists.exists) {
       console.log(`[QdrantGraphEmbeddings] Creating collection ${name} (dim=${dim})`);
-      await this.client.createCollection(name, {
+      await client.createCollection(name, {
         vectors: { size: dim, distance: "Cosine" },
       });
     }
 
-    this.knownCollections.add(name);
-  }
+    knownCollections.add(name);
+  };
 
-  async store(message: GraphEmbeddingsMessage): Promise<void> {
+  const store = async (message: GraphEmbeddingsMessage): Promise<void> => {
     for (const entry of message.entities) {
       const entityValue = getTermValue(entry.entity);
       if (entityValue === null || entityValue.length === 0) continue;
       if (entry.vector.length === 0) continue;
 
       const dim = entry.vector.length;
-      const name = this.collectionName(message.user, message.collection, dim);
+      const name = collectionName(message.user, message.collection, dim);
 
-      await this.ensureCollection(name, dim);
+      await ensureCollection(name, dim);
 
       const payload: Record<string, unknown> = { entity: entityValue };
       if (entry.chunkId !== undefined && entry.chunkId.length > 0) {
         payload.chunk_id = entry.chunkId;
       }
 
-      await this.client.upsert(name, {
+      await client.upsert(name, {
         points: [
           {
             id: crypto.randomUUID(),
@@ -103,12 +105,12 @@ export class QdrantGraphEmbeddingsStore {
         ],
       });
     }
-  }
+  };
 
-  async deleteCollection(user: string, collection: string): Promise<void> {
+  const deleteCollection = async (user: string, collection: string): Promise<void> => {
     const prefix = `t_${user}_${collection}_`;
 
-    const allCollections = await this.client.getCollections();
+    const allCollections = await client.getCollections();
     const matching = allCollections.collections.filter((c) =>
       c.name.startsWith(prefix),
     );
@@ -119,15 +121,17 @@ export class QdrantGraphEmbeddingsStore {
     }
 
     for (const coll of matching) {
-      await this.client.deleteCollection(coll.name);
-      this.knownCollections.delete(coll.name);
+      await client.deleteCollection(coll.name);
+      knownCollections.delete(coll.name);
       console.log(`[QdrantGraphEmbeddings] Deleted collection: ${coll.name}`);
     }
 
     console.log(
       `[QdrantGraphEmbeddings] Deleted ${matching.length} collection(s) for ${user}/${collection}`,
     );
-  }
+  };
+
+  return { store, deleteCollection };
 }
 
 export class QdrantGraphEmbeddingsStoreError extends S.TaggedErrorClass<QdrantGraphEmbeddingsStoreError>()(
@@ -166,7 +170,7 @@ const qdrantGraphEmbeddingsStoreError = (operation: string, cause: unknown) =>
 export const makeQdrantGraphEmbeddingsStoreService = (
   config: QdrantGraphEmbeddingsConfig = {},
 ): QdrantGraphEmbeddingsStoreServiceShape => {
-  const store = new QdrantGraphEmbeddingsStore(config);
+  const store = makeQdrantGraphEmbeddingsStore(config);
   return {
     store: Effect.fn("QdrantGraphEmbeddingsStore.store")(function* (message) {
       return yield* Effect.tryPromise({

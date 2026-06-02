@@ -9,44 +9,46 @@
 
 import { Effect } from "effect";
 import type { Spec } from "./types.js";
-import type { PubSubBackend } from "../backend/types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 import {
   RequestResponseFactory,
   type EffectRequestResponse,
 } from "../messaging/runtime.js";
 
-export class RequestResponseSpec<TReq, TRes> implements Spec {
-  public readonly name: string;
-  private readonly requestTopicName: string;
-  private readonly responseTopicName: string;
+declare const RequestResponseSpecType: unique symbol;
 
-  constructor(
-    name: string,
-    requestTopicName: string,
-    responseTopicName: string,
+export interface RequestResponseSpec<TReq, TRes> extends Spec {
+  readonly [RequestResponseSpecType]?: {
+    readonly request: TReq;
+    readonly response: TRes;
+  };
+}
+
+export function makeRequestResponseSpec<TReq, TRes>(
+  name: string,
+  requestTopicName: string,
+  responseTopicName: string,
+): RequestResponseSpec<TReq, TRes> {
+  const addEffect = Effect.fn("RequestResponseSpec.addEffect")(function* (
+    flow: Flow,
+    definition: FlowDefinition,
   ) {
-    this.name = name;
-    this.requestTopicName = requestTopicName;
-    this.responseTopicName = responseTopicName;
-  }
-
-  addEffect(flow: Flow, definition: FlowDefinition) {
-    const spec = this;
-    return Effect.gen(function* () {
-      const requestTopic = definition.topics?.[spec.requestTopicName] ?? spec.requestTopicName;
-      const responseTopic = definition.topics?.[spec.responseTopicName] ?? spec.responseTopicName;
+      const requestTopic = definition.topics?.[requestTopicName] ?? requestTopicName;
+      const responseTopic = definition.topics?.[responseTopicName] ?? responseTopicName;
       const factory = yield* RequestResponseFactory;
       const requestor = yield* factory.make<TReq, TRes>({
         requestTopic,
         responseTopic,
-        subscription: `${flow.processorId}-${flow.name}-${spec.name}`,
+        subscription: `${flow.processorId}-${flow.name}-${name}`,
       });
-      flow.registerRequestor(spec.name, requestor as EffectRequestResponse<unknown, unknown>);
-    });
-  }
+      flow.registerRequestor(name, requestor as EffectRequestResponse<unknown, unknown>);
+  });
 
-  async add(flow: Flow, pubsub: PubSubBackend, definition: FlowDefinition): Promise<void> {
-    await flow.runInCompatibilityScope(this.addEffect(flow, definition), pubsub);
-  }
+  return {
+    name,
+    addEffect,
+    add: async (flow, pubsub, definition) => {
+      await flow.runInCompatibilityScope(addEffect(flow, definition), pubsub);
+    },
+  };
 }

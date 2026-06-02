@@ -14,7 +14,7 @@ import * as O from "effect/Option";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as EffectSocket from "effect/unstable/socket/Socket";
 import { optionalStringConfig, registry, toTgError } from "@trustgraph/base";
-import { DispatcherManager } from "./dispatch/manager.js";
+import { makeDispatcherManager } from "./dispatch/manager.js";
 import { makeGatewayRpcServer } from "./rpc-server.js";
 
 export interface GatewayConfig {
@@ -28,7 +28,7 @@ export async function createGateway(config: GatewayConfig) {
   const app = Fastify({ logger: true });
   await app.register(websocketPlugin);
 
-  const dispatcher = new DispatcherManager(config);
+  const dispatcher = makeDispatcherManager(config);
   await dispatcher.start();
   const rpcScope = await Effect.runPromise(Scope.make());
   const rpcServer = await Effect.runPromise(

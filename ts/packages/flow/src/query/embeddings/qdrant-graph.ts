@@ -39,22 +39,24 @@ function createTerm(value: string): Term {
   return { type: "LITERAL", value };
 }
 
-export class QdrantGraphEmbeddingsQuery {
-  private client: QdrantClient;
+export interface QdrantGraphEmbeddingsQuery {
+  readonly query: (request: GraphEmbeddingsQueryRequest) => Promise<EntityMatch[]>;
+}
 
-  constructor(config: QdrantGraphQueryConfig = {}) {
-    const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
-    const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
+export function makeQdrantGraphEmbeddingsQuery(
+  config: QdrantGraphQueryConfig = {},
+): QdrantGraphEmbeddingsQuery {
+  const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
+  const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({
-      url,
-      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
-    });
+  const client = new QdrantClient({
+    url,
+    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+  });
 
-    console.log("[QdrantGraphQuery] Query service initialized");
-  }
+  console.log("[QdrantGraphQuery] Query service initialized");
 
-  async query(request: GraphEmbeddingsQueryRequest): Promise<EntityMatch[]> {
+  const query = async (request: GraphEmbeddingsQueryRequest): Promise<EntityMatch[]> => {
     const { vector, user, collection, limit } = request;
 
     if (vector.length === 0) {
@@ -65,7 +67,7 @@ export class QdrantGraphEmbeddingsQuery {
     const collectionName = `t_${user}_${collection}_${dim}`;
 
     // Check if collection exists -- return empty if not
-    const exists = await this.client.collectionExists(collectionName);
+    const exists = await client.collectionExists(collectionName);
     if (!exists.exists) {
       console.log(
         `[QdrantGraphQuery] Collection ${collectionName} does not exist, returning empty results`,
@@ -75,7 +77,7 @@ export class QdrantGraphEmbeddingsQuery {
 
     // Query 2x the limit so we have a better chance of getting `limit`
     // unique entities after deduplication (same heuristic as Python impl)
-    const searchResult = await this.client.search(collectionName, {
+    const searchResult = await client.search(collectionName, {
       vector,
       limit: limit * 2,
       with_payload: true,
@@ -104,7 +106,9 @@ export class QdrantGraphEmbeddingsQuery {
     }
 
     return entities;
-  }
+  };
+
+  return { query };
 }
 
 export class QdrantGraphEmbeddingsQueryError extends S.TaggedErrorClass<QdrantGraphEmbeddingsQueryError>()(
@@ -139,7 +143,7 @@ const qdrantGraphEmbeddingsQueryError = (operation: string, cause: unknown) =>
 export const makeQdrantGraphEmbeddingsQueryService = (
   config: QdrantGraphQueryConfig = {},
 ): QdrantGraphEmbeddingsQueryServiceShape => {
-  const query = new QdrantGraphEmbeddingsQuery(config);
+  const query = makeQdrantGraphEmbeddingsQuery(config);
   return {
     query: Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (request) {
       return yield* Effect.tryPromise({

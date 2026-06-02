@@ -1,4 +1,4 @@
-import { BaseApi, type ConnectionState, type DocumentMetadata, type ProcessingMetadata, type StreamingMetadata, type Triple } from "@trustgraph/client";
+import { makeBaseApiWithRpc, type BaseApi, type DocumentMetadata, type ProcessingMetadata, type StreamingMetadata, type Triple } from "@trustgraph/client";
 import { Option, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;
@@ -78,24 +78,6 @@ interface MockState {
   readonly chat: {
     readonly delayFrames: number;
   };
-}
-
-interface MockBaseApi extends BaseApi {
-  makeRequest<RequestType extends object, ResponseType>(
-    service: string,
-    request: RequestType,
-    timeout?: number,
-    retries?: number,
-    flow?: string,
-  ): Promise<ResponseType>;
-  makeRequestMulti<RequestType extends object, ResponseType>(
-    service: string,
-    request: RequestType,
-    receiver: (resp: unknown) => boolean,
-    timeout?: number,
-    retries?: number,
-    flow?: string,
-  ): Promise<ResponseType>;
 }
 
 const encodeJsonUnknown = S.encodeUnknownOption(S.fromJsonString(S.Unknown));
@@ -533,40 +515,33 @@ function dispatchStream<ResponseType>(
 
 export function makeMockBaseApi(fixture: MockWorkbenchFixture = {}): BaseApi {
   const state = createState(fixture);
-  const api = Object.create(BaseApi.prototype) as MockBaseApi;
-  api.tag = "mock-workbench";
-  api.id = 1;
-  api.token = state.settings.apiKey.length > 0 ? state.settings.apiKey : undefined;
-  api.user = state.settings.user;
-  api.socketUrl = state.settings.gatewayUrl;
-  api.makeRequest = function makeRequest<RequestType extends object, ResponseType>(
-    service: string,
-    request: RequestType,
-    _timeout?: number,
-    _retries?: number,
-    flow?: string,
-  ) {
-    return Promise.resolve(dispatchRequest(state, service, request as Record<string, unknown>, flow) as ResponseType);
-  };
-  api.makeRequestMulti = function makeRequestMulti<RequestType extends object, ResponseType>(
-    service: string,
-    _request: RequestType,
-    receiver: (resp: unknown) => boolean,
-    _timeout?: number,
-    _retries?: number,
-    _flow?: string,
-  ) {
-    return dispatchStream<ResponseType>(state, service, receiver);
-  };
-  api.onConnectionStateChange = function onConnectionStateChange(listener: (state: ConnectionState) => void) {
-    listener({
-      status: api.token === undefined ? "unauthenticated" : "authenticated",
-      hasApiKey: api.token !== undefined,
-    });
-    return () => {};
-  };
-  api.close = function close() {};
-  return api;
+  const token = state.settings.apiKey.length > 0 ? state.settings.apiKey : undefined;
+  return makeBaseApiWithRpc(state.settings.user, token, state.settings.gatewayUrl, {
+    dispatch: (input) =>
+      Promise.resolve(
+        dispatchRequest(
+          state,
+          input.service,
+          input.request,
+          input.flow,
+        ),
+      ),
+    dispatchStream: async (input, receiver) => {
+      await dispatchStream(state, input.service, (message) => {
+        const chunk = message as { response?: unknown; complete?: boolean };
+        return receiver({
+          response: chunk.response,
+          complete: chunk.complete === true,
+        });
+      });
+      return undefined;
+    },
+    subscribe: (listener) => {
+      listener({ status: token === undefined ? "connected" : "connected" });
+      return () => {};
+    },
+    close: () => Promise.resolve(),
+  });
 }
 
 export function qaSettingsFromFixture(fixture: MockWorkbenchFixture = {}) {

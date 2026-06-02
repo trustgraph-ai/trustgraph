@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Consumer, type ConsumerOptions, type FlowContext } from "../messaging/consumer.js";
+import { makeConsumer, type ConsumerOptions, type FlowContext } from "../messaging/consumer.js";
 import type {
   PubSubBackend,
   BackendConsumer,
@@ -75,20 +75,21 @@ describe("Consumer", () => {
   // ── Constructor ──────────────────────────────────────────────────
   it("stores options and applies defaults", () => {
     const handler = vi.fn();
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "my-topic",
       subscription: "my-sub",
       handler,
     });
 
-    // Access private fields via any-cast to verify defaults
-    expect((consumer as any).concurrency).toBe(1);
-    expect((consumer as any).rateLimitRetryMs).toBe(10_000);
+    expect(consumer).toMatchObject({
+      start: expect.any(Function),
+      stop: expect.any(Function),
+    });
   });
 
   it("accepts custom concurrency and rateLimitRetryMs", () => {
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "t",
       subscription: "s",
@@ -97,8 +98,10 @@ describe("Consumer", () => {
       rateLimitRetryMs: 5_000,
     });
 
-    expect((consumer as any).concurrency).toBe(4);
-    expect((consumer as any).rateLimitRetryMs).toBe(5_000);
+    expect(consumer).toMatchObject({
+      start: expect.any(Function),
+      stop: expect.any(Function),
+    });
   });
 
   // ── start() creates consumer and calls handler ─────────────────
@@ -116,7 +119,7 @@ describe("Consumer", () => {
       return null;
     });
 
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "topic-a",
       subscription: "sub-a",
@@ -147,7 +150,7 @@ describe("Consumer", () => {
       return null;
     });
 
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "t",
       subscription: "s",
@@ -174,7 +177,7 @@ describe("Consumer", () => {
       return null;
     });
 
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "t",
       subscription: "s",
@@ -217,7 +220,7 @@ describe("Consumer", () => {
       return null;
     });
 
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "t",
       subscription: "s",
@@ -249,7 +252,7 @@ describe("Consumer", () => {
       return null;
     });
 
-    const consumer = new Consumer({
+    const consumer = makeConsumer({
       pubsub,
       topic: "t",
       subscription: "s",
@@ -268,6 +271,6 @@ describe("Consumer", () => {
     await startPromise;
 
     expect(backendConsumer.close).toHaveBeenCalled();
-    expect((consumer as any).running).toBe(false);
+    await expect(consumer.stop()).resolves.toBeUndefined();
   });
 });

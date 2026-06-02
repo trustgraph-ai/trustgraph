@@ -8,8 +8,8 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Producer } from "./producer.js";
-import { Subscriber } from "./subscriber.js";
+import { makeProducer, type Producer } from "./producer.js";
+import { makeSubscriber, type Subscriber } from "./subscriber.js";
 import type { PubSubBackend } from "../backend/types.js";
 
 export interface RequestResponseOptions {
@@ -19,73 +19,76 @@ export interface RequestResponseOptions {
   subscription: string;
 }
 
-export class RequestResponse<TReq, TRes> {
-  private producer: Producer<TReq>;
-  private subscriber: Subscriber<TRes>;
-
-  constructor(options: RequestResponseOptions) {
-    this.producer = new Producer<TReq>(options.pubsub, options.requestTopic);
-    this.subscriber = new Subscriber<TRes>(
-      options.pubsub,
-      options.responseTopic,
-      options.subscription,
-    );
-  }
-
-  async start(): Promise<void> {
-    await this.producer.start();
-    await this.subscriber.start();
-  }
-
-  async stop(): Promise<void> {
-    await this.producer.stop();
-    await this.subscriber.stop();
-  }
-
-  /**
-   * Send a request and wait for responses.
-   *
-   * @param request - The request payload
-   * @param options.timeoutMs - Total timeout in milliseconds (default: 300s)
-   * @param options.recipient - Optional callback for streaming responses.
-   *   Return `true` to indicate the final response has been received.
-   *   If omitted, returns the first response.
-   */
-  async request(
+export interface RequestResponse<TReq, TRes> {
+  readonly start: () => Promise<void>;
+  readonly stop: () => Promise<void>;
+  readonly request: (
     request: TReq,
     options?: {
       timeoutMs?: number;
       recipient?: (response: TRes) => Promise<boolean>;
     },
-  ): Promise<TRes> {
-    const id = randomUUID();
-    const timeoutMs = options?.timeoutMs ?? 300_000;
-    const recipient = options?.recipient;
+  ) => Promise<TRes>;
+}
 
-    const queue = this.subscriber.subscribe(id);
+export function makeRequestResponse<TReq, TRes>(
+  options: RequestResponseOptions,
+): RequestResponse<TReq, TRes> {
+  const producer: Producer<TReq> = makeProducer<TReq>(options.pubsub, options.requestTopic);
+  const subscriber: Subscriber<TRes> = makeSubscriber<TRes>(
+    options.pubsub,
+    options.responseTopic,
+    options.subscription,
+  );
 
-    try {
-      await this.producer.send(id, request);
+  return {
+    start: async () => {
+      await producer.start();
+      await subscriber.start();
+    },
+    stop: async () => {
+      await producer.stop();
+      await subscriber.stop();
+    },
+    /**
+     * Send a request and wait for responses.
+     *
+     * @param request - The request payload
+     * @param options.timeoutMs - Total timeout in milliseconds (default: 300s)
+     * @param options.recipient - Optional callback for streaming responses.
+     *   Return `true` to indicate the final response has been received.
+     *   If omitted, returns the first response.
+     */
+    request: async (request, requestOptions) => {
+      const id = randomUUID();
+      const timeoutMs = requestOptions?.timeoutMs ?? 300_000;
+      const recipient = requestOptions?.recipient;
 
-      const deadline = Date.now() + timeoutMs;
+      const queue = subscriber.subscribe(id);
 
-      while (true) {
-        const remaining = deadline - Date.now();
-        if (remaining <= 0) {
-          throw new Error(`Request timed out after ${timeoutMs}ms`);
+      try {
+        await producer.send(id, request);
+
+        const deadline = Date.now() + timeoutMs;
+
+        while (true) {
+          const remaining = deadline - Date.now();
+          if (remaining <= 0) {
+            throw new Error(`Request timed out after ${timeoutMs}ms`);
+          }
+
+          const response = await queue.pop(remaining);
+
+          if (recipient !== undefined) {
+            const isFinal = await recipient(response);
+            if (isFinal) return response;
+          } else {
+            return response;
+          }
         }
-
-        const response = await queue.pop(remaining);
-
-        if (recipient !== undefined) {
-          const isFinal = await recipient(response);
-          if (isFinal) return response;
-        } else {
-          return response;
-        }
+      } finally {
+        subscriber.unsubscribe(id);
       }
-    } finally {
-      this.subscriber.unsubscribe(id);
-    }
-  }
+    },
+  };
 }

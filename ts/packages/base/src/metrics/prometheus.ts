@@ -9,64 +9,64 @@ import { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client
 export const registry = new Registry();
 collectDefaultMetrics({ register: registry });
 
-export class ConsumerMetrics {
-  private requestHistogram: Histogram;
-  private processingCounter: Counter;
-  private rateLimitCounter: Counter;
-  private readonly labels: { processor: string; flow: string; name: string };
+export interface ConsumerMetrics {
+  readonly recordTime: (seconds: number) => void;
+  readonly process: (status: "success" | "error") => void;
+  readonly rateLimit: () => void;
+}
 
-  constructor(processor: string, flow: string, name: string) {
-    this.labels = { processor, flow, name };
-    this.requestHistogram = new Histogram({
+export function makeConsumerMetrics(
+  processor: string,
+  flow: string,
+  name: string,
+): ConsumerMetrics {
+  const labels = { processor, flow, name };
+  const requestHistogram = new Histogram({
       name: "tg_consumer_request_duration_seconds",
       help: "Consumer request processing time",
       labelNames: ["processor", "flow", "name"],
       registers: [registry],
-    });
+  });
 
-    this.processingCounter = new Counter({
+  const processingCounter = new Counter({
       name: "tg_consumer_processing_total",
       help: "Consumer processing outcomes",
       labelNames: ["processor", "flow", "name", "status"],
       registers: [registry],
-    });
+  });
 
-    this.rateLimitCounter = new Counter({
+  const rateLimitCounter = new Counter({
       name: "tg_consumer_rate_limit_total",
       help: "Consumer rate limit events",
       labelNames: ["processor", "flow", "name"],
       registers: [registry],
-    });
-  }
+  });
 
-  recordTime(seconds: number): void {
-    this.requestHistogram.observe(this.labels, seconds);
-  }
-
-  process(status: "success" | "error"): void {
-    this.processingCounter.inc({ ...this.labels, status });
-  }
-
-  rateLimit(): void {
-    this.rateLimitCounter.inc(this.labels);
-  }
+  return {
+    recordTime: (seconds) => requestHistogram.observe(labels, seconds),
+    process: (status) => processingCounter.inc({ ...labels, status }),
+    rateLimit: () => rateLimitCounter.inc(labels),
+  };
 }
 
-export class ProducerMetrics {
-  private counter: Counter;
-  private readonly labels: { processor: string; flow: string; name: string };
+export interface ProducerMetrics {
+  readonly inc: () => void;
+}
 
-  constructor(processor: string, flow: string, name: string) {
-    this.labels = { processor, flow, name };
-    this.counter = new Counter({
+export function makeProducerMetrics(
+  processor: string,
+  flow: string,
+  name: string,
+): ProducerMetrics {
+  const labels = { processor, flow, name };
+  const counter = new Counter({
       name: "tg_producer_items_total",
       help: "Producer items sent",
       labelNames: ["processor", "flow", "name"],
       registers: [registry],
-    });
-  }
+  });
 
-  inc(): void {
-    this.counter.inc(this.labels);
-  }
+  return {
+    inc: () => counter.inc(labels),
+  };
 }

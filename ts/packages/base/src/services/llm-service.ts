@@ -12,16 +12,16 @@ import {
   type MessagingDeliveryError,
 } from "../errors.js";
 import type { FlowContext } from "../messaging/consumer.js";
-import { FlowProcessor } from "../processor/flow-processor.js";
-import type { ProcessorConfig } from "../processor/async-processor.js";
+import { makeFlowProcessor } from "../processor/index.ts";
+import type { FlowProcessorRuntime, ProcessorConfig } from "../processor/index.ts";
 import type {
   TextCompletionRequest,
   TextCompletionResponse,
 } from "../schema/messages.js";
-import type { LlmChunk, LlmResult } from "../schema/primitives.js";
-import { ConsumerSpec } from "../spec/consumer-spec.js";
-import { ParameterSpec } from "../spec/parameter-spec.js";
-import { ProducerSpec } from "../spec/producer-spec.js";
+import type { LlmChunk, LlmResult } from "../schema/index.ts";
+import { makeConsumerSpec } from "../spec/index.ts";
+import { makeParameterSpec } from "../spec/index.ts";
+import { makeProducerSpec } from "../spec/index.ts";
 import type { Spec } from "../spec/types.js";
 
 export class LlmServiceError extends S.TaggedErrorClass<LlmServiceError>()(
@@ -203,45 +203,29 @@ const onLlmRequest = Effect.fn("LlmService.onRequest")(function* (
 });
 
 export const makeLlmSpecs = (): ReadonlyArray<Spec<Llm>> => [
-  new ConsumerSpec<TextCompletionRequest, LlmHandlerError, Llm>(
+  makeConsumerSpec<TextCompletionRequest, LlmHandlerError, Llm>(
     "text-completion-request",
     onLlmRequest,
   ),
-  new ProducerSpec<TextCompletionResponse>("text-completion-response"),
-  new ParameterSpec("model"),
-  new ParameterSpec("temperature"),
+  makeProducerSpec<TextCompletionResponse>("text-completion-response"),
+  makeParameterSpec("model"),
+  makeParameterSpec("temperature"),
 ];
 
-export abstract class LlmService extends FlowProcessor<Llm> implements LlmProvider {
-  protected constructor(config: ProcessorConfig) {
-    super(config);
+export type LlmService = FlowProcessorRuntime<Llm> & LlmProvider;
 
-    for (const spec of makeLlmSpecs()) {
-      this.registerSpecification(spec);
-    }
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(Llm, Llm.of(makeLlmServiceShape(this))),
-    );
-  }
-
-  abstract generateContent(
-    system: string,
-    prompt: string,
-    model?: string,
-    temperature?: number,
-  ): Promise<LlmResult>;
-
-  abstract generateContentStream(
-    system: string,
-    prompt: string,
-    model?: string,
-    temperature?: number,
-  ): AsyncGenerator<LlmChunk>;
-
-  supportsStreaming(): boolean {
-    return false;
-  }
+export function makeLlmService(
+  config: ProcessorConfig,
+  provider: LlmProvider,
+): LlmService {
+  const service = makeFlowProcessor(config, {
+    specifications: makeLlmSpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(Llm, Llm.of(makeLlmServiceShape(provider))),
+      ),
+  });
+  return Object.assign(service, provider);
 }
+
+export const LlmService = makeLlmService;

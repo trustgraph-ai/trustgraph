@@ -1,13 +1,21 @@
 export {
   AsyncProcessor,
+  makeAsyncProcessor,
   type ConfigHandler,
   type EffectConfigHandler,
+  type AsyncProcessorRuntime,
+  type AsyncProcessorRuntimeOptions,
   type ProcessorConfig,
+  type ProcessorRuntime,
 } from "./async-processor.js";
 export {
   FlowProcessor,
+  makeFlowProcessor,
   runFlowProcessorDefinitionScoped,
+  type FlowProcessorRuntime,
   type FlowProcessorRuntimeOptions,
+  type FlowProcessorStartEffect,
+  type MakeFlowProcessorOptions,
 } from "./flow-processor.js";
 export {
   Flow,

@@ -33,67 +33,55 @@ export interface ConsumerOptions<T> {
   rateLimitTimeoutMs?: number;
 }
 
-export class Consumer<T> {
-  private backend: BackendConsumer<T> | null = null;
-  private running = false;
-  private abortController = new AbortController();
-  private readonly options: ConsumerOptions<T>;
+declare const ConsumerMessageType: unique symbol;
 
-  private readonly concurrency: number;
-  private readonly rateLimitRetryMs: number;
+export interface Consumer<T> {
+  readonly [ConsumerMessageType]?: (_: T) => T;
+  readonly start: (flow: FlowContext) => Promise<void>;
+  readonly stop: () => Promise<void>;
+}
 
-  constructor(options: ConsumerOptions<T>) {
-    this.options = options;
-    this.concurrency = options.concurrency ?? 1;
-    this.rateLimitRetryMs = options.rateLimitRetryMs ?? 10_000;
-  }
+export function makeConsumer<T>(options: ConsumerOptions<T>): Consumer<T> {
+  let backend: BackendConsumer<T> | null = null;
+  let running = false;
+  let abortController = new AbortController();
+  const concurrency = options.concurrency ?? 1;
+  const rateLimitRetryMs = options.rateLimitRetryMs ?? 10_000;
 
-  async start(flow: FlowContext): Promise<void> {
-    this.backend = await this.options.pubsub.createConsumer<T>({
-      topic: this.options.topic,
-      subscription: this.options.subscription,
-      initialPosition: this.options.initialPosition ?? "latest",
-    });
-
-    this.running = true;
-
-    // Spawn concurrent consumer tasks
-    const tasks = Array.from({ length: this.concurrency }, () =>
-      this.consumeLoop(flow),
-    );
-    // Run all concurrently — first rejection stops all
-    await Promise.all(tasks);
-  }
-
-  async stop(): Promise<void> {
-    this.running = false;
-    this.abortController.abort();
-    if (this.backend !== null) {
-      await this.backend.close();
-      this.backend = null;
+  const handleWithRetry = async (msg: Message<T>, flow: FlowContext): Promise<void> => {
+    try {
+      await options.handler(msg.value(), msg.properties(), flow);
+    } catch (err) {
+      if (S.is(TooManyRequestsError)(err)) {
+        console.warn(`[Consumer] Rate limited, retrying in ${rateLimitRetryMs}ms`);
+        await sleep(rateLimitRetryMs);
+        await options.handler(msg.value(), msg.properties(), flow);
+      } else {
+        throw err;
+      }
     }
-  }
+  };
 
-  private async consumeLoop(flow: FlowContext): Promise<void> {
-    while (this.running) {
+  const consumeLoop = async (flow: FlowContext): Promise<void> => {
+    while (running) {
       let msg: Message<T> | null = null;
       try {
-        const backend = this.backend;
-        if (backend === null) throw new Error("Consumer backend not started");
+        const currentBackend = backend;
+        if (currentBackend === null) throw new Error("Consumer backend not started");
 
-        msg = await backend.receive(2000);
+        msg = await currentBackend.receive(2000);
         if (msg === null) continue;
 
-        await this.handleWithRetry(msg, flow);
-        await backend.acknowledge(msg);
+        await handleWithRetry(msg, flow);
+        await currentBackend.acknowledge(msg);
       } catch (err) {
-        if (!this.running) break;
+        if (!running) break;
         console.error("[Consumer] Error in consume loop:", err);
         if (msg !== null) {
           try {
-            const backend = this.backend;
-            if (backend !== null) {
-              await backend.negativeAcknowledge(msg);
+            const currentBackend = backend;
+            if (currentBackend !== null) {
+              await currentBackend.negativeAcknowledge(msg);
             }
           } catch (nakErr) {
             console.error("[Consumer] Failed to nak message:", nakErr);
@@ -102,21 +90,35 @@ export class Consumer<T> {
         await sleep(1000);
       }
     }
-  }
+  };
 
-  private async handleWithRetry(msg: Message<T>, flow: FlowContext): Promise<void> {
-    try {
-      await this.options.handler(msg.value(), msg.properties(), flow);
-    } catch (err) {
-      if (S.is(TooManyRequestsError)(err)) {
-        console.warn(`[Consumer] Rate limited, retrying in ${this.rateLimitRetryMs}ms`);
-        await sleep(this.rateLimitRetryMs);
-        await this.options.handler(msg.value(), msg.properties(), flow);
-      } else {
-        throw err;
+  return {
+    start: async (flow) => {
+      backend = await options.pubsub.createConsumer<T>({
+        topic: options.topic,
+        subscription: options.subscription,
+        initialPosition: options.initialPosition ?? "latest",
+      });
+
+      running = true;
+
+      // Spawn concurrent consumer tasks.
+      const tasks = Array.from({ length: concurrency }, () =>
+        consumeLoop(flow),
+      );
+      // Run all concurrently: first rejection stops all.
+      await Promise.all(tasks);
+    },
+    stop: async () => {
+      running = false;
+      abortController.abort();
+      abortController = new AbortController();
+      if (backend !== null) {
+        await backend.close();
+        backend = null;
       }
-    }
-  }
+    },
+  };
 }
 
 function sleep(ms: number): Promise<void> {

@@ -1,7 +1,7 @@
-export { Producer } from "./producer.js";
-export { Consumer, type MessageHandler, type FlowContext, type ConsumerOptions } from "./consumer.js";
-export { Subscriber, AsyncQueue } from "./subscriber.js";
-export { RequestResponse, type RequestResponseOptions } from "./request-response.js";
+export { makeProducer, type Producer } from "./producer.js";
+export { makeConsumer, type Consumer, type MessageHandler, type FlowContext, type ConsumerOptions } from "./consumer.js";
+export { makeAsyncQueue, makeSubscriber, type Subscriber, type AsyncQueue } from "./subscriber.js";
+export { makeRequestResponse, type RequestResponse, type RequestResponseOptions } from "./request-response.js";
 export {
   ConsumerFactory,
   ConsumerFactoryLive,

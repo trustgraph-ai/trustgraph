@@ -6,25 +6,22 @@
 
 import { Effect } from "effect";
 import type { Spec } from "./types.js";
-import type { PubSubBackend } from "../backend/types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 
-export class ParameterSpec implements Spec {
-  public readonly name: string;
+export interface ParameterSpec extends Spec {}
 
-  constructor(name: string) {
-    this.name = name;
-  }
-
-  addEffect(flow: Flow, definition: FlowDefinition) {
-    const spec = this;
-    return Effect.sync(() => {
-      const value = definition.parameters?.[spec.name];
-      flow.setParameter(spec.name, value);
+export function makeParameterSpec(name: string): ParameterSpec {
+  const addEffect = (flow: Flow, definition: FlowDefinition) =>
+    Effect.sync(() => {
+      const value = definition.parameters?.[name];
+      flow.setParameter(name, value);
     });
-  }
 
-  async add(flow: Flow, _pubsub: PubSubBackend, definition: FlowDefinition): Promise<void> {
-    await Effect.runPromise(this.addEffect(flow, definition));
-  }
+  return {
+    name,
+    addEffect,
+    add: async (flow, _pubsub, definition) => {
+      await Effect.runPromise(addEffect(flow, definition));
+    },
+  };
 }

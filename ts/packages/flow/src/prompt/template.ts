@@ -25,12 +25,13 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
   type ProcessorConfig,
   type EffectConfigHandler,
   type FlowContext,
+  type FlowProcessorRuntime,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
   type PromptRequest,
@@ -136,11 +137,11 @@ const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplate
 
   return {
     specs: [
-      new ConsumerSpec<PromptRequest, FlowResourceNotFoundError | MessagingDeliveryError>(
+      makeConsumerSpec<PromptRequest, FlowResourceNotFoundError | MessagingDeliveryError>(
         "prompt-request",
         onRequest,
       ),
-      new ProducerSpec<PromptResponse>("prompt-response"),
+      makeProducerSpec<PromptResponse>("prompt-response"),
     ],
     configHandlers: [onPromptConfig],
   };
@@ -154,26 +155,23 @@ const promptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplateRunt
   return runtime;
 };
 
-export class PromptTemplateService extends FlowProcessor {
-  private readonly runtime: PromptTemplateRuntime;
+export type PromptTemplateService = FlowProcessorRuntime;
 
-  constructor(config: PromptTemplateConfig) {
-    super(config);
-
-    this.runtime = makePromptTemplateRuntime(config);
-
-    for (const spec of this.runtime.specs) {
-      this.registerSpecification(spec);
-    }
-    for (const handler of this.runtime.configHandlers) {
-      this.registerConfigHandler((pushedConfig, version) =>
-        Effect.runPromise(handler(pushedConfig, version)),
-      );
-    }
-
-    console.log("[PromptTemplate] Service initialized");
+export function makePromptTemplateService(config: PromptTemplateConfig): PromptTemplateService {
+  const runtime = makePromptTemplateRuntime(config);
+  const service = makeFlowProcessor(config, {
+    specifications: runtime.specs,
+  });
+  for (const handler of runtime.configHandlers) {
+    service.registerConfigHandler((pushedConfig, version) =>
+      Effect.runPromise(handler(pushedConfig, version)),
+    );
   }
+  console.log("[PromptTemplate] Service initialized");
+  return service;
 }
+
+export const PromptTemplateService = makePromptTemplateService;
 
 /**
  * Simple template rendering: replaces {variable} placeholders with values.

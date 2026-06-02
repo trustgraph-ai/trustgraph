@@ -7,6 +7,7 @@
     "lint": "bunx --bun turbo lint",
     "test": "bunx --bun turbo test",
     "check:tsgo": "tsgo -b tsconfig.json",
+    "inventory:classes": "bun scripts/inventory-native-classes.ts",
     "workbench:qa": "bun run --cwd packages/workbench qa:browser",
     "prepare": "effect-tsgo patch",
     "clean": "turbo clean",

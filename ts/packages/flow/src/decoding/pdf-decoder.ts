@@ -16,11 +16,12 @@
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { TextItem } from "pdfjs-dist/types/src/display/api.js";
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
-  RequestResponseSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
+  makeRequestResponseSpec,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type FlowResourceNotFoundError,
   type Document,
@@ -209,27 +210,27 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
 });
 
 export const makePdfDecoderSpecs = (): ReadonlyArray<Spec<never>> => [
-  new ConsumerSpec<Document, PdfDecoderHandlerError>("decode-input", onPdfDecodeMessage),
-  new ProducerSpec<TextDocument>("decode-output"),
-  new ProducerSpec<Triples>("decode-triples"),
-  new RequestResponseSpec<LibrarianRequest, LibrarianResponse>(
+  makeConsumerSpec<Document, PdfDecoderHandlerError>("decode-input", onPdfDecodeMessage),
+  makeProducerSpec<TextDocument>("decode-output"),
+  makeProducerSpec<Triples>("decode-triples"),
+  makeRequestResponseSpec<LibrarianRequest, LibrarianResponse>(
     "librarian-client",
     "librarian-request",
     "librarian-response",
   ),
 ];
 
-export class PdfDecoderService extends FlowProcessor {
-  constructor(config: ProcessorConfig) {
-    super(config);
+export type PdfDecoderService = FlowProcessorRuntime;
 
-    for (const spec of makePdfDecoderSpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[PdfDecoder] Service initialized");
-  }
+export function makePdfDecoderService(config: ProcessorConfig): PdfDecoderService {
+  const service = makeFlowProcessor(config, {
+    specifications: makePdfDecoderSpecs(),
+  });
+  console.log("[PdfDecoder] Service initialized");
+  return service;
 }
+
+export const PdfDecoderService = makePdfDecoderService;
 
 function iriTerm(iri: string): Term {
   return { type: "IRI", iri };

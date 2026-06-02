@@ -1,1 +1,7 @@
-export { ConsumerMetrics, ProducerMetrics, registry } from "./prometheus.js";
+export {
+  makeConsumerMetrics,
+  makeProducerMetrics,
+  registry,
+  type ConsumerMetrics,
+  type ProducerMetrics,
+} from "./prometheus.js";

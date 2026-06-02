@@ -8,10 +8,11 @@
  */
 
 import {
-  FlowProcessor,
-  ConsumerSpec,
-  ProducerSpec,
+  makeFlowProcessor,
+  makeConsumerSpec,
+  makeProducerSpec,
   type ProcessorConfig,
+  type FlowProcessorRuntime,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -78,36 +79,33 @@ const onDocEmbeddingsQueryMessage = Effect.fn("DocEmbeddingsQueryService.onMessa
 });
 
 export const makeDocEmbeddingsQuerySpecs = (): ReadonlyArray<Spec<QdrantDocEmbeddingsQueryService>> => [
-  new ConsumerSpec<
+  makeConsumerSpec<
     DocumentEmbeddingsRequest,
     FlowResourceNotFoundError | MessagingDeliveryError,
     QdrantDocEmbeddingsQueryService
   >("document-embeddings-request", onDocEmbeddingsQueryMessage),
-  new ProducerSpec<DocumentEmbeddingsResponse>("document-embeddings-response"),
+  makeProducerSpec<DocumentEmbeddingsResponse>("document-embeddings-response"),
 ];
 
-export class DocEmbeddingsQueryService extends FlowProcessor<QdrantDocEmbeddingsQueryService> {
-  private readonly query = makeQdrantDocEmbeddingsQueryService();
+export type DocEmbeddingsQueryService = FlowProcessorRuntime<QdrantDocEmbeddingsQueryService>;
 
-  constructor(config: ProcessorConfig) {
-    super(config);
-
-    for (const spec of makeDocEmbeddingsQuerySpecs()) {
-      this.registerSpecification(spec);
-    }
-
-    console.log("[DocEmbeddingsQuery] Service initialized");
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(
-        QdrantDocEmbeddingsQueryService,
-        QdrantDocEmbeddingsQueryService.of(this.query),
+export function makeDocEmbeddingsQueryService(config: ProcessorConfig): DocEmbeddingsQueryService {
+  const query = makeQdrantDocEmbeddingsQueryService();
+  const service = makeFlowProcessor(config, {
+    specifications: makeDocEmbeddingsQuerySpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(
+          QdrantDocEmbeddingsQueryService,
+          QdrantDocEmbeddingsQueryService.of(query),
+        ),
       ),
-    );
-  }
+  });
+  console.log("[DocEmbeddingsQuery] Service initialized");
+  return service;
 }
+
+export const DocEmbeddingsQueryService = makeDocEmbeddingsQueryService;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantDocQueryConfig, never, QdrantDocEmbeddingsQueryService>({
   id: "doc-embeddings-query",

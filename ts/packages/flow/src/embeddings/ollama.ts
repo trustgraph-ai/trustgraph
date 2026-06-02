@@ -8,8 +8,8 @@ import { Effect, Layer } from "effect";
 import * as S from "effect/Schema";
 import {
   Embeddings,
-  EmbeddingsService,
   embeddingsError,
+  makeEmbeddingsService,
   makeEmbeddingsSpecs,
   type EmbeddingsServiceShape,
   type ProcessorConfig,
@@ -84,24 +84,17 @@ export function OllamaEmbeddingsLive(config: OllamaEmbeddingsConfig): Layer.Laye
   );
 }
 
-export class OllamaEmbeddingsProcessor extends EmbeddingsService {
-  private readonly embeddings: EmbeddingsServiceShape;
+export type OllamaEmbeddingsProcessor = ReturnType<typeof makeOllamaEmbeddingsProcessor>;
 
-  constructor(config: OllamaEmbeddingsConfig) {
-    super(config);
-    this.embeddings = makeOllamaEmbeddings(config);
-
-    console.log(
-      `[OllamaEmbeddings] Initialized (host=${config.ollamaHost ?? process.env.OLLAMA_URL ?? process.env.OLLAMA_HOST ?? "http://localhost:11434"}, model=${config.model ?? "mxbai-embed-large"})`,
-    );
-  }
-
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(Embeddings, Embeddings.of(this.embeddings)),
-    );
-  }
+export function makeOllamaEmbeddingsProcessor(config: OllamaEmbeddingsConfig) {
+  const embeddings = makeOllamaEmbeddings(config);
+  console.log(
+    `[OllamaEmbeddings] Initialized (host=${config.ollamaHost ?? process.env.OLLAMA_URL ?? process.env.OLLAMA_HOST ?? "http://localhost:11434"}, model=${config.model ?? "mxbai-embed-large"})`,
+  );
+  return makeEmbeddingsService(config, embeddings);
 }
+
+export const OllamaEmbeddingsProcessor = makeOllamaEmbeddingsProcessor;
 
 export const program = makeFlowProcessorProgram<OllamaEmbeddingsConfig, never, Embeddings>({
   id: "embeddings",

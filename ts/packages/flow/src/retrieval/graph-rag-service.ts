@@ -8,14 +8,15 @@
  */
 
 import {
-  ConsumerSpec,
-  FlowProcessor,
-  ProducerSpec,
-  RequestResponseSpec,
+  makeConsumerSpec,
+  makeFlowProcessor,
+  makeProducerSpec,
+  makeRequestResponseSpec,
   makeFlowProcessorProgram,
   type EffectRequestOptions,
   type EffectRequestResponse,
   type FlowContext,
+  type FlowProcessorRuntime,
   type FlowRequestOptions,
   type FlowRequestor,
   type FlowResourceNotFoundError,
@@ -139,52 +140,51 @@ const onGraphRagRequest = Effect.fn("GraphRagService.onRequest")(function* (
 });
 
 export const makeGraphRagSpecs = (): ReadonlyArray<Spec<GraphRagEngine>> => [
-  new ConsumerSpec<GraphRagRequest, FlowResourceNotFoundError | MessagingDeliveryError, GraphRagEngine>(
+  makeConsumerSpec<GraphRagRequest, FlowResourceNotFoundError | MessagingDeliveryError, GraphRagEngine>(
     "graph-rag-request",
     onGraphRagRequest,
   ),
-  new ProducerSpec<GraphRagResponse>("graph-rag-response"),
-  new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  makeProducerSpec<GraphRagResponse>("graph-rag-response"),
+  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
     "llm",
     "text-completion-request",
     "text-completion-response",
   ),
-  new RequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+  makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
     "embeddings",
     "embeddings-request",
     "embeddings-response",
   ),
-  new RequestResponseSpec<GraphEmbeddingsRequest, GraphEmbeddingsResponse>(
+  makeRequestResponseSpec<GraphEmbeddingsRequest, GraphEmbeddingsResponse>(
     "graph-embeddings",
     "graph-embeddings-request",
     "graph-embeddings-response",
   ),
-  new RequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
+  makeRequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
     "triples",
     "triples-request",
     "triples-response",
   ),
-  new RequestResponseSpec<PromptRequest, PromptResponse>(
+  makeRequestResponseSpec<PromptRequest, PromptResponse>(
     "prompt",
     "prompt-request",
     "prompt-response",
   ),
 ];
 
-export class GraphRagService extends FlowProcessor<GraphRagEngine> {
-  constructor(config: ProcessorConfig) {
-    super(config);
-    for (const spec of makeGraphRagSpecs()) {
-      this.registerSpecification(spec);
-    }
-  }
+export type GraphRagService = FlowProcessorRuntime<GraphRagEngine>;
 
-  override startEffect() {
-    return super.startEffect().pipe(
-      Effect.provideService(GraphRagEngine, GraphRagEngine.of(makeGraphRagEngine())),
-    );
-  }
+export function makeGraphRagService(config: ProcessorConfig): GraphRagService {
+  return makeFlowProcessor(config, {
+    specifications: makeGraphRagSpecs(),
+    provide: (effect) =>
+      effect.pipe(
+        Effect.provideService(GraphRagEngine, GraphRagEngine.of(makeGraphRagEngine())),
+      ),
+  });
 }
+
+export const GraphRagService = makeGraphRagService;
 
 export const program = makeFlowProcessorProgram({
   id: "graph-rag",

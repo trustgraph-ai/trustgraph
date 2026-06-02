@@ -5,7 +5,7 @@
  */
 
 import * as S from "effect/Schema";
-import { Term, TgError, Triple } from "./primitives.js";
+import {Term, TgError, Triple} from "./primitives.js";
 
 const UnknownRecord = S.Record(S.String, S.Unknown);
 const MutableArray = <A extends S.Top>(schema: A) => schema.pipe(S.Array, S.mutable);
@@ -98,13 +98,14 @@ export const AgentRequest = S.Struct({
 export type AgentRequest = typeof AgentRequest.Type;
 
 export const AgentResponse = S.Struct({
-  chunk_type: S.optionalKey(S.Union([
-    S.Literal("thought"),
-    S.Literal("observation"),
-    S.Literal("answer"),
-    S.Literal("error"),
-    S.Literal("explain"),
-  ])),
+  chunk_type: S.optionalKey(S.Literals(
+    [
+      "thought",
+      "observation",
+      "answer",
+      "error",
+      "explain",
+    ])),
   content: S.optionalKey(S.String),
   end_of_message: S.optionalKey(S.Boolean),
   end_of_dialog: S.optionalKey(S.Boolean),

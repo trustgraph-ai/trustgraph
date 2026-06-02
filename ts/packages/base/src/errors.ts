@@ -5,7 +5,7 @@
  */
 
 import * as S from "effect/Schema";
-import type { TgError } from "./schema/primitives.js";
+import type { TgError } from "./schema/index.ts";
 
 export class TooManyRequestsError extends S.TaggedErrorClass<TooManyRequestsError>()(
   "TooManyRequestsError",

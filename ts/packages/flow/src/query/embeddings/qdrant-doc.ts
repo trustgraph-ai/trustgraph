@@ -30,22 +30,24 @@ export interface DocEmbeddingsQueryRequest {
   limit: number;
 }
 
-export class QdrantDocEmbeddingsQuery {
-  private client: QdrantClient;
+export interface QdrantDocEmbeddingsQuery {
+  readonly query: (request: DocEmbeddingsQueryRequest) => Promise<ChunkMatch[]>;
+}
 
-  constructor(config: QdrantDocQueryConfig = {}) {
-    const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
-    const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
+export function makeQdrantDocEmbeddingsQuery(
+  config: QdrantDocQueryConfig = {},
+): QdrantDocEmbeddingsQuery {
+  const url = config.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
+  const apiKey = config.apiKey ?? process.env.QDRANT_API_KEY;
 
-    this.client = new QdrantClient({
-      url,
-      ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
-    });
+  const client = new QdrantClient({
+    url,
+    ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+  });
 
-    console.log("[QdrantDocQuery] Query service initialized");
-  }
+  console.log("[QdrantDocQuery] Query service initialized");
 
-  async query(request: DocEmbeddingsQueryRequest): Promise<ChunkMatch[]> {
+  const query = async (request: DocEmbeddingsQueryRequest): Promise<ChunkMatch[]> => {
     const { vector, user, collection, limit } = request;
 
     if (vector.length === 0) {
@@ -56,7 +58,7 @@ export class QdrantDocEmbeddingsQuery {
     const collectionName = `d_${user}_${collection}_${dim}`;
 
     // Check if collection exists -- return empty if not
-    const exists = await this.client.collectionExists(collectionName);
+    const exists = await client.collectionExists(collectionName);
     if (!exists.exists) {
       console.log(
         `[QdrantDocQuery] Collection ${collectionName} does not exist, returning empty results`,
@@ -64,7 +66,7 @@ export class QdrantDocEmbeddingsQuery {
       return [];
     }
 
-    const searchResult = await this.client.search(collectionName, {
+    const searchResult = await client.search(collectionName, {
       vector,
       limit,
       with_payload: true,
@@ -84,7 +86,9 @@ export class QdrantDocEmbeddingsQuery {
     }
 
     return chunks;
-  }
+  };
+
+  return { query };
 }
 
 export class QdrantDocEmbeddingsQueryError extends S.TaggedErrorClass<QdrantDocEmbeddingsQueryError>()(
@@ -119,7 +123,7 @@ const qdrantDocEmbeddingsQueryError = (operation: string, cause: unknown) =>
 export const makeQdrantDocEmbeddingsQueryService = (
   config: QdrantDocQueryConfig = {},
 ): QdrantDocEmbeddingsQueryServiceShape => {
-  const query = new QdrantDocEmbeddingsQuery(config);
+  const query = makeQdrantDocEmbeddingsQuery(config);
   return {
     query: Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request) {
       return yield* Effect.tryPromise({

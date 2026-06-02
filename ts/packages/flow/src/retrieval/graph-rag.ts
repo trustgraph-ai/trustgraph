@@ -124,27 +124,22 @@ export const GraphRagLive: Layer.Layer<GraphRagEngine> = Layer.succeed(
   GraphRagEngine.of(makeGraphRagEngine()),
 );
 
-export class GraphRag {
-  private readonly engine = makeGraphRagEngine();
-  private readonly clients: GraphRagClients;
-  private readonly config: GraphRagConfig;
-
-  constructor(
-    clients: GraphRagClients,
-    config: GraphRagConfig = {},
-  ) {
-    this.clients = clients;
-    this.config = config;
-  }
-
-  query(
+export interface GraphRag {
+  readonly query: (
     queryText: string,
     options?: GraphRagQueryOptions,
-  ): Promise<GraphRagResult> {
-    return Effect.runPromise(
-      this.engine.query(this.clients, queryText, options, this.config),
-    );
-  }
+  ) => Promise<GraphRagResult>;
+}
+
+export function makeGraphRag(
+  clients: GraphRagClients,
+  config: GraphRagConfig = {},
+): GraphRag {
+  const engine = makeGraphRagEngine();
+  return {
+    query: (queryText, options) =>
+      Effect.runPromise(engine.query(clients, queryText, options, config)),
+  };
 }
 
 async function queryGraphRag(

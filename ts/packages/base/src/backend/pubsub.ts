@@ -14,7 +14,7 @@ import type {
   CreateProducerOptions,
   PubSubBackend,
 } from "./types.js";
-import { NatsBackend } from "./nats.js";
+import { makeNatsBackend } from "./nats.js";
 import { pubSubError } from "../errors.js";
 
 export interface PubSubService {
@@ -78,14 +78,14 @@ export function pubSubLayer(backend: PubSubBackend): Layer.Layer<PubSub> {
 }
 
 export function makeNatsPubSubLayer(url = "nats://localhost:4222"): Layer.Layer<PubSub> {
-  return pubSubLayer(new NatsBackend(url));
+  return pubSubLayer(makeNatsBackend(url));
 }
 
 export const NatsPubSubLive = Layer.effect(PubSub)(
   Effect.gen(function* () {
     const natsUrl = O.getOrUndefined(yield* Config.string("NATS_URL").pipe(Config.option));
     const pulsarHost = O.getOrUndefined(yield* Config.string("PULSAR_HOST").pipe(Config.option));
-    const service = makePubSubService(new NatsBackend(natsUrl ?? pulsarHost ?? "nats://localhost:4222"));
+    const service = makePubSubService(makeNatsBackend(natsUrl ?? pulsarHost ?? "nats://localhost:4222"));
     yield* Effect.addFinalizer(() =>
       service.close.pipe(
         Effect.catch((error) =>

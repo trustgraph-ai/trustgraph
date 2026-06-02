@@ -3,7 +3,7 @@ import { ConfigProvider, Effect, Fiber } from "effect";
 import {
   FlowProcessor,
   MessagingRuntimeLive,
-  ProducerSpec,
+  makeProducerSpec,
   PubSub,
   runFlowProcessorDefinitionScoped,
   runProcessorScoped,
@@ -146,7 +146,7 @@ class TestFlowProcessor extends FlowProcessor {
     private readonly events: Array<string>,
   ) {
     super(config);
-    this.registerSpecification(new ProducerSpec<string>("output"));
+    this.registerSpecification(makeProducerSpec<string>("output"));
     this.registerConfigHandler(async (_config, version) => {
       this.events.push(`handler:${version}`);
     });
@@ -225,7 +225,7 @@ describe("Effect-native FlowProcessor runtime", () => {
           const fiber = yield* runFlowProcessorDefinitionScoped({
             id: "functional-flow-processor-test",
             pubsub: backend,
-            specifications: [new ProducerSpec<string>("output")],
+            specifications: [makeProducerSpec<string>("output")],
             configHandlers: [
               (_config, version) => Effect.sync(() => {
                 events.push(`handler:${version}`);

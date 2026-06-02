@@ -1,5 +1,5 @@
 export type { Spec, SpecRuntimeError, SpecRuntimeRequirements } from "./types.js";
-export { ConsumerSpec } from "./consumer-spec.js";
-export { ProducerSpec } from "./producer-spec.js";
-export { ParameterSpec } from "./parameter-spec.js";
-export { RequestResponseSpec } from "./request-response-spec.js";
+export { makeConsumerSpec, makeConsumerSpecFromPromise, type ConsumerSpec } from "./consumer-spec.js";
+export { makeProducerSpec, type ProducerSpec } from "./producer-spec.js";
+export { makeParameterSpec, type ParameterSpec } from "./parameter-spec.js";
+export { makeRequestResponseSpec, type RequestResponseSpec } from "./request-response-spec.js";

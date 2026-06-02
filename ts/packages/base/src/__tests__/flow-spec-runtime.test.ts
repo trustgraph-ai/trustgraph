@@ -2,13 +2,14 @@ import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Duration, Effect, Fiber } from "effect";
 import * as TestClock from "effect/testing/TestClock";
 import {
-  ConsumerSpec,
+  makeConsumerSpec,
+  makeConsumerSpecFromPromise,
   Flow,
   MessagingRuntimeLive,
-  ParameterSpec,
-  ProducerSpec,
+  makeParameterSpec,
+  makeProducerSpec,
   PubSub,
-  RequestResponseSpec,
+  makeRequestResponseSpec,
   type BackendConsumer,
   type BackendProducer,
   type CreateConsumerOptions,
@@ -156,7 +157,7 @@ describe("Effect-native flow specifications", () => {
         "processor",
         backend,
         { topics: { output: "actual-output" } },
-        [new ProducerSpec<string>("output")],
+        [makeProducerSpec<string>("output")],
       );
 
       yield* Effect.scoped(
@@ -179,7 +180,7 @@ describe("Effect-native flow specifications", () => {
   );
 
   it.effect(
-    "runs Promise handlers through the explicit ConsumerSpec compatibility helper",
+    "runs Promise handlers through the explicit makeConsumerSpec compatibility helper",
     Effect.fnUntraced(function* () {
       const message = createMessage("payload", { id: "request-1" });
       const consumer = new ScriptedConsumer<string>([message]);
@@ -191,7 +192,7 @@ describe("Effect-native flow specifications", () => {
         backend,
         {},
         [
-          ConsumerSpec.fromPromise<string>(
+          makeConsumerSpecFromPromise<string>(
             "input",
             async (value, properties, flowContext: FlowContext) => {
               handled.push(`${flowContext.name}:${properties.id}:${value}`);
@@ -237,7 +238,7 @@ describe("Effect-native flow specifications", () => {
             response: "actual-response",
           },
         },
-        [new RequestResponseSpec<string, string>("rr", "request", "response")],
+        [makeRequestResponseSpec<string, string>("rr", "request", "response")],
       );
 
       const response = yield* Effect.scoped(
@@ -270,7 +271,7 @@ describe("Effect-native flow specifications", () => {
         "processor",
         backend,
         { parameters: { present: 42 } },
-        [new ParameterSpec("present")],
+        [makeParameterSpec("present")],
       );
 
       const errors = yield* Effect.scoped(

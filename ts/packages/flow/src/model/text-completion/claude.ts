@@ -7,10 +7,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   Llm,
-  LlmService,
+  makeLlmService,
   makeFlowProcessorProgram,
   makeLlmServiceShape,
   makeLlmSpecs,
+  type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
   type LlmChunk,
@@ -18,124 +19,122 @@ import {
 } from "@trustgraph/base";
 import { Effect, Layer } from "effect";
 
-export class ClaudeProcessor extends LlmService {
-  private client: Anthropic;
-  private readonly defaultModel: string;
-  private readonly defaultTemperature: number;
-  private readonly maxOutput: number;
+export type ClaudeProcessorConfig = ProcessorConfig & {
+  model?: string;
+  apiKey?: string;
+  temperature?: number;
+  maxOutput?: number;
+};
 
-  constructor(config: ProcessorConfig & {
-    model?: string;
-    apiKey?: string;
-    temperature?: number;
-    maxOutput?: number;
-  }) {
-    super(config);
-
-    this.defaultModel = config.model ?? "claude-sonnet-4-20250514";
-    this.defaultTemperature = config.temperature ?? 0.0;
-    this.maxOutput = config.maxOutput ?? 8192;
-
+export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
+  const defaultModel = config.model ?? "claude-sonnet-4-20250514";
+  const defaultTemperature = config.temperature ?? 0.0;
+  const maxOutput = config.maxOutput ?? 8192;
     const apiKey = config.apiKey ?? process.env.CLAUDE_KEY;
     if (apiKey === undefined || apiKey.length === 0) {
       throw new Error("Claude API key not specified");
     }
 
-    this.client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey });
 
     console.log("[Claude] LLM service initialized");
-  }
 
-  async generateContent(
-    system: string,
-    prompt: string,
-    model?: string,
-    temperature?: number,
-  ): Promise<LlmResult> {
-    const modelName = model ?? this.defaultModel;
-    const temp = temperature ?? this.defaultTemperature;
+  return {
+    generateContent: async (
+      system: string,
+      prompt: string,
+      model?: string,
+      temperature?: number,
+    ): Promise<LlmResult> => {
+      const modelName = model ?? defaultModel;
+      const temp = temperature ?? defaultTemperature;
 
-    try {
-      const response = await this.client.messages.create({
-        model: modelName,
-        max_tokens: this.maxOutput,
-        temperature: temp,
-        system,
-        messages: [
-          { role: "user", content: prompt },
-        ],
-      });
+      try {
+        const response = await client.messages.create({
+          model: modelName,
+          max_tokens: maxOutput,
+          temperature: temp,
+          system,
+          messages: [
+            { role: "user", content: prompt },
+          ],
+        });
 
-      const text = response.content[0].type === "text"
-        ? response.content[0].text
-        : "";
+        const text = response.content[0].type === "text"
+          ? response.content[0].text
+          : "";
 
-      return {
-        text,
-        inToken: response.usage.input_tokens,
-        outToken: response.usage.output_tokens,
-        model: modelName,
-      };
-    } catch (err) {
-      if (err instanceof Anthropic.RateLimitError) {
-        throw tooManyRequestsError();
-      }
-      throw err;
-    }
-  }
-
-  override supportsStreaming(): boolean {
-    return true;
-  }
-
-  async *generateContentStream(
-    system: string,
-    prompt: string,
-    model?: string,
-    temperature?: number,
-  ): AsyncGenerator<LlmChunk> {
-    const modelName = model ?? this.defaultModel;
-    const temp = temperature ?? this.defaultTemperature;
-
-    try {
-      const stream = this.client.messages.stream({
-        model: modelName,
-        max_tokens: this.maxOutput,
-        temperature: temp,
-        system,
-        messages: [
-          { role: "user", content: prompt },
-        ],
-      });
-
-      for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          yield {
-            text: event.delta.text,
-            inToken: null,
-            outToken: null,
-            model: modelName,
-            isFinal: false,
-          };
+        return {
+          text,
+          inToken: response.usage.input_tokens,
+          outToken: response.usage.output_tokens,
+          model: modelName,
+        };
+      } catch (err) {
+        if (err instanceof Anthropic.RateLimitError) {
+          throw tooManyRequestsError();
         }
+        throw err;
       }
+    },
+    supportsStreaming: () => true,
+    generateContentStream: async function* (
+      system: string,
+      prompt: string,
+      model?: string,
+      temperature?: number,
+    ): AsyncGenerator<LlmChunk> {
+      const modelName = model ?? defaultModel;
+      const temp = temperature ?? defaultTemperature;
 
-      const finalMessage = await stream.finalMessage();
-      yield {
-        text: "",
-        inToken: finalMessage.usage.input_tokens,
-        outToken: finalMessage.usage.output_tokens,
-        model: modelName,
-        isFinal: true,
-      };
-    } catch (err) {
-      if (err instanceof Anthropic.RateLimitError) {
-        throw tooManyRequestsError();
+      try {
+        const stream = client.messages.stream({
+          model: modelName,
+          max_tokens: maxOutput,
+          temperature: temp,
+          system,
+          messages: [
+            { role: "user", content: prompt },
+          ],
+        });
+
+        for await (const event of stream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            yield {
+              text: event.delta.text,
+              inToken: null,
+              outToken: null,
+              model: modelName,
+              isFinal: false,
+            };
+          }
+        }
+
+        const finalMessage = await stream.finalMessage();
+        yield {
+          text: "",
+          inToken: finalMessage.usage.input_tokens,
+          outToken: finalMessage.usage.output_tokens,
+          model: modelName,
+          isFinal: true,
+        };
+      } catch (err) {
+        if (err instanceof Anthropic.RateLimitError) {
+          throw tooManyRequestsError();
+        }
+        throw err;
       }
-      throw err;
-    }
-  }
+    },
+  };
 }
+
+export type ClaudeProcessor = ReturnType<typeof makeClaudeProcessor>;
+
+export function makeClaudeProcessor(config: ClaudeProcessorConfig): ReturnType<typeof makeLlmService> {
+  return makeLlmService(config, makeClaudeProvider(config));
+}
+
+export const ClaudeProcessor = makeClaudeProcessor;
 
 export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   id: "text-completion",
@@ -143,7 +142,7 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, Llm>({
   layer: (config) =>
     Layer.succeed(
       Llm,
-      Llm.of(makeLlmServiceShape(new ClaudeProcessor(config))),
+      Llm.of(makeLlmServiceShape(makeClaudeProvider(config))),
     ),
 });
 
