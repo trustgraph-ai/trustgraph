@@ -1546,6 +1546,34 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-02: Messaging Runtime Duration Config Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/base/src/runtime/messaging-config.ts` now stores internal
+    runtime timing fields as `Duration.Duration` instead of number-shaped
+    millisecond fields.
+  - `loadMessagingRuntimeConfig()` reads `TG_*` timing env vars with
+    `Config.duration` while preserving legacy bare-number millisecond env
+    values through a `Config.number(...).map(Duration.millis)` fallback.
+  - `ts/packages/base/src/messaging/runtime.ts` now uses `Duration` values
+    directly for sleeps, retry schedules, and timeout options. It converts back
+    to milliseconds only at the broker `receive(timeoutMs)` boundary and for
+    existing timeout error payloads.
+  - Public compatibility options such as `receiveTimeoutMs`,
+    `rateLimitRetryMs`, `rateLimitTimeoutMs`, and request `timeoutMs` remain
+    numeric millisecond inputs.
+  - Tests now cover both legacy numeric env values and native Effect duration
+    strings.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/schema-effect.test.ts src/__tests__/messaging-runtime.test.ts src/__tests__/consumer.test.ts`
+  - `cd ts/packages/base && bun run build`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1658,10 +1686,10 @@ Notes:
     gateway translation, and pure term helper switches. Future work should
     only reopen this if client socket schema drift appears or a hidden
     consumer needs a different named-graph shape.
-  - Messaging runtime `Config.duration` is the next strongest scratch target:
-    internal runtime config can use `Duration.Duration` while public
-    `timeoutMs` compatibility surfaces stay numeric.
-  - Qdrant graph/doc known-collection caches are a good small
+  - Messaging runtime `Config.duration` cleanup is complete. Internal runtime
+    config uses `Duration.Duration`; public timeout compatibility inputs and
+    broker receive/error payload boundaries remain numeric milliseconds.
+  - Qdrant graph/doc known-collection caches are the next good small
     `MutableHashSet<string>` candidate; short-lived local traversal sets
     remain no-ops.
   - FlowManager and sibling service `() => Effect.gen(...)` factories remain a
@@ -1776,7 +1804,7 @@ Notes:
     triples, compact graph strings, malformed known-tag payloads, and
     malformed client triple failures.
 
-### P1: Messaging Runtime Duration Config Cleanup
+### Complete: Messaging Runtime Duration Config Cleanup
 
 - TrustGraph evidence:
   - `ts/packages/base/src/runtime/messaging-config.ts`
@@ -1794,8 +1822,9 @@ Notes:
     processor, and client boundaries unless their public API is deliberately
     changed.
 - Tests:
-  - Extend base runtime config tests for env duration parsing and verify
-    messaging retry/timeout behavior still uses the same effective durations.
+  - Base runtime config tests cover legacy millisecond env values and Effect
+    duration string env values.
+  - Messaging runtime and consumer tests preserve retry and timeout behavior.
 
 ### P2: Qdrant Known-Collection MutableHashSet Cleanup
 
@@ -1848,10 +1877,10 @@ Notes:
 
 ## Recommended PR Order
 
-1. Messaging runtime `Config.duration` / `Duration` cleanup.
-2. Qdrant known-collection `MutableHashSet` cleanup.
-3. MCP protocol parity tests and legacy stdio flip/removal decision.
-4. FlowManager/service `Effect.fn` normalization.
+1. Qdrant known-collection `MutableHashSet` cleanup.
+2. MCP protocol parity tests and legacy stdio flip/removal decision.
+3. FlowManager/service `Effect.fn` normalization.
+4. Flow/client RPC stream and remaining service operation `Match` follow-ups.
 
 ## No-Op Rules
 

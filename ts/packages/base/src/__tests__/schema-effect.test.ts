@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { ConfigProvider, Effect } from "effect";
+import { ConfigProvider, Duration, Effect } from "effect";
 import * as S from "effect/Schema";
 import {
   ConfigRequest,
@@ -7,6 +7,7 @@ import {
   Term,
   TextCompletionRequest,
   Triple,
+  loadMessagingRuntimeConfig,
   loadProcessorRuntimeConfig,
 } from "../index.js";
 
@@ -105,6 +106,58 @@ describe("Effect runtime config", () => {
         metricsPort: 9000,
         manageProcessSignals: false,
       });
+    }),
+  );
+
+  it.effect(
+    "loads messaging durations from legacy millisecond env values",
+    Effect.fnUntraced(function* () {
+      const provider = ConfigProvider.fromEnv({
+        env: {
+          TG_CONSUMER_RECEIVE_TIMEOUT_MS: "5",
+          TG_CONSUMER_ERROR_BACKOFF_MS: "10",
+          TG_RATE_LIMIT_RETRY_MS: "15",
+          TG_RATE_LIMIT_TIMEOUT_MS: "20",
+          TG_REQUEST_TIMEOUT_MS: "25",
+        },
+      });
+
+      const config = yield* Effect.provide(
+        loadMessagingRuntimeConfig(),
+        ConfigProvider.layer(provider),
+      );
+
+      expect(Duration.toMillis(config.consumerReceiveTimeout)).toBe(5);
+      expect(Duration.toMillis(config.consumerErrorBackoff)).toBe(10);
+      expect(Duration.toMillis(config.rateLimitRetry)).toBe(15);
+      expect(Duration.toMillis(config.rateLimitTimeout)).toBe(20);
+      expect(Duration.toMillis(config.requestTimeout)).toBe(25);
+    }),
+  );
+
+  it.effect(
+    "loads messaging durations from Effect duration env values",
+    Effect.fnUntraced(function* () {
+      const provider = ConfigProvider.fromEnv({
+        env: {
+          TG_CONSUMER_RECEIVE_TIMEOUT_MS: "2 seconds",
+          TG_CONSUMER_ERROR_BACKOFF_MS: "3 seconds",
+          TG_RATE_LIMIT_RETRY_MS: "4 seconds",
+          TG_RATE_LIMIT_TIMEOUT_MS: "5 seconds",
+          TG_REQUEST_TIMEOUT_MS: "6 seconds",
+        },
+      });
+
+      const config = yield* Effect.provide(
+        loadMessagingRuntimeConfig(),
+        ConfigProvider.layer(provider),
+      );
+
+      expect(Duration.toMillis(config.consumerReceiveTimeout)).toBe(2_000);
+      expect(Duration.toMillis(config.consumerErrorBackoff)).toBe(3_000);
+      expect(Duration.toMillis(config.rateLimitRetry)).toBe(4_000);
+      expect(Duration.toMillis(config.rateLimitTimeout)).toBe(5_000);
+      expect(Duration.toMillis(config.requestTimeout)).toBe(6_000);
     }),
   );
 });

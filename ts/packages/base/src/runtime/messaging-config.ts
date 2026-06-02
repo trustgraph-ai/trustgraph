@@ -2,46 +2,57 @@
  * Effect Config contracts for messaging runtime behavior.
  */
 
-import { Config, Effect } from "effect";
+import { Config, Duration, Effect } from "effect";
 
 export interface MessagingRuntimeConfig {
-  readonly consumerReceiveTimeoutMs: number;
-  readonly consumerErrorBackoffMs: number;
-  readonly rateLimitRetryMs: number;
-  readonly rateLimitTimeoutMs: number;
-  readonly requestTimeoutMs: number;
+  readonly consumerReceiveTimeout: Duration.Duration;
+  readonly consumerErrorBackoff: Duration.Duration;
+  readonly rateLimitRetry: Duration.Duration;
+  readonly rateLimitTimeout: Duration.Duration;
+  readonly requestTimeout: Duration.Duration;
 }
 
 export const defaultMessagingRuntimeConfig: MessagingRuntimeConfig = {
-  consumerReceiveTimeoutMs: 2_000,
-  consumerErrorBackoffMs: 1_000,
-  rateLimitRetryMs: 10_000,
-  rateLimitTimeoutMs: 7_200_000,
-  requestTimeoutMs: 300_000,
+  consumerReceiveTimeout: Duration.millis(2_000),
+  consumerErrorBackoff: Duration.millis(1_000),
+  rateLimitRetry: Duration.millis(10_000),
+  rateLimitTimeout: Duration.millis(7_200_000),
+  requestTimeout: Duration.millis(300_000),
 };
 
+const durationConfig = (name: string, defaultValue: Duration.Duration) =>
+  Config.duration(name).pipe(
+    Config.orElse(() => Config.number(name).pipe(Config.map(Duration.millis))),
+    Config.withDefault(defaultValue),
+  );
+
 export const loadMessagingRuntimeConfig = Effect.fn("loadMessagingRuntimeConfig")(function* () {
-  const consumerReceiveTimeoutMs = yield* Config.number("TG_CONSUMER_RECEIVE_TIMEOUT_MS").pipe(
-    Config.withDefault(defaultMessagingRuntimeConfig.consumerReceiveTimeoutMs),
+  const consumerReceiveTimeout = yield* durationConfig(
+    "TG_CONSUMER_RECEIVE_TIMEOUT_MS",
+    defaultMessagingRuntimeConfig.consumerReceiveTimeout,
   );
-  const consumerErrorBackoffMs = yield* Config.number("TG_CONSUMER_ERROR_BACKOFF_MS").pipe(
-    Config.withDefault(defaultMessagingRuntimeConfig.consumerErrorBackoffMs),
+  const consumerErrorBackoff = yield* durationConfig(
+    "TG_CONSUMER_ERROR_BACKOFF_MS",
+    defaultMessagingRuntimeConfig.consumerErrorBackoff,
   );
-  const rateLimitRetryMs = yield* Config.number("TG_RATE_LIMIT_RETRY_MS").pipe(
-    Config.withDefault(defaultMessagingRuntimeConfig.rateLimitRetryMs),
+  const rateLimitRetry = yield* durationConfig(
+    "TG_RATE_LIMIT_RETRY_MS",
+    defaultMessagingRuntimeConfig.rateLimitRetry,
   );
-  const rateLimitTimeoutMs = yield* Config.number("TG_RATE_LIMIT_TIMEOUT_MS").pipe(
-    Config.withDefault(defaultMessagingRuntimeConfig.rateLimitTimeoutMs),
+  const rateLimitTimeout = yield* durationConfig(
+    "TG_RATE_LIMIT_TIMEOUT_MS",
+    defaultMessagingRuntimeConfig.rateLimitTimeout,
   );
-  const requestTimeoutMs = yield* Config.number("TG_REQUEST_TIMEOUT_MS").pipe(
-    Config.withDefault(defaultMessagingRuntimeConfig.requestTimeoutMs),
+  const requestTimeout = yield* durationConfig(
+    "TG_REQUEST_TIMEOUT_MS",
+    defaultMessagingRuntimeConfig.requestTimeout,
   );
 
   return {
-    consumerReceiveTimeoutMs,
-    consumerErrorBackoffMs,
-    rateLimitRetryMs,
-    rateLimitTimeoutMs,
-    requestTimeoutMs,
+    consumerReceiveTimeout,
+    consumerErrorBackoff,
+    rateLimitRetry,
+    rateLimitTimeout,
+    requestTimeout,
   } satisfies MessagingRuntimeConfig;
 });

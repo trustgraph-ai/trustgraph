@@ -338,7 +338,7 @@ describe("Effect-native messaging runtime", () => {
             PubSub.fromBackend(backend),
             {
               ...defaultMessagingRuntimeConfig,
-              consumerReceiveTimeoutMs: 1,
+              consumerReceiveTimeout: Duration.millis(1),
             },
             {
               requestTopic: "tg.test.request",
@@ -378,7 +378,7 @@ describe("Effect-native messaging runtime", () => {
             PubSub.fromBackend(backend),
             {
               ...defaultMessagingRuntimeConfig,
-              consumerReceiveTimeoutMs: 1,
+              consumerReceiveTimeout: Duration.millis(1),
             },
             {
               requestTopic: "tg.test.request",
@@ -417,7 +417,7 @@ describe("Effect-native messaging runtime", () => {
             PubSub.fromBackend(backend),
             {
               ...defaultMessagingRuntimeConfig,
-              consumerReceiveTimeoutMs: 1,
+              consumerReceiveTimeout: Duration.millis(1),
             },
             {
               requestTopic: "tg.test.request",
@@ -452,7 +452,7 @@ describe("Effect-native messaging runtime", () => {
             PubSub.fromBackend(backend),
             {
               ...defaultMessagingRuntimeConfig,
-              consumerReceiveTimeoutMs: 1,
+              consumerReceiveTimeout: Duration.millis(1),
             },
             {
               requestTopic: "tg.test.request",
