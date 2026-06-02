@@ -10,7 +10,7 @@
 import Fastify, { type FastifyReply } from "fastify";
 import websocketPlugin from "@fastify/websocket";
 import { NodeRuntime } from "@effect/platform-node";
-import { Clock, Config, Effect, Exit, Layer, ManagedRuntime, Random, Scope } from "effect";
+import { Cause, Clock, Config, Effect, Exit, Layer, ManagedRuntime, Random, Scope } from "effect";
 import * as O from "effect/Option";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as EffectSocket from "effect/unstable/socket/Socket";
@@ -208,19 +208,23 @@ export function createGateway(config: GatewayConfig) {
           }),
         );
 
-        void Effect.runPromise(program.pipe(Scope.provide(rpcScope))).catch((error) => {
-          void Effect.runPromise(
-            Effect.logError("[Gateway] RPC WebSocket error", { error: toTgError(error).message }).pipe(
-              Effect.flatMap(() =>
-                Effect.sync(() => {
-                  if (socket.readyState === 1) {
-                    socket.close(1011, "Internal server error");
-                  }
-                }),
-              ),
+        void Effect.runPromise(
+          program.pipe(
+            Scope.provide(rpcScope),
+            Effect.sandbox,
+            Effect.catch((cause) =>
+              Effect.logError("[Gateway] RPC WebSocket error", { error: Cause.pretty(cause) }).pipe(
+                Effect.flatMap(() =>
+                  Effect.sync(() => {
+                    if (socket.readyState === 1) {
+                      socket.close(1011, "Internal server error");
+                    }
+                  }),
+                ),
+              )
             ),
-          );
-        });
+          ),
+        );
       });
 
       // Metrics endpoint — returns Prometheus metrics from prom-client

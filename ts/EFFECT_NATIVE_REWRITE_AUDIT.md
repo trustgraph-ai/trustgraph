@@ -134,6 +134,10 @@ Notes:
   `Stream.filterMapEffect`, `Result`, and `Stream.runHead`, dropping the
   remaining `while (` count from 3 to 2. The two remaining production `while`
   hits are synchronous parsing/CLI traversal loops, not async polling loops.
+- The gateway RPC WebSocket cause-handling slice removed the Promise `.catch`
+  around the socket program by sandboxing the Effect and handling the resulting
+  `Cause` in the Effect pipeline before the Fastify fire-and-forget
+  `runPromise` boundary.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -957,6 +961,25 @@ Notes:
   - `bunx --bun vitest run src/__tests__/messaging-runtime.test.ts`
   - `bun run --cwd ts/packages/base build`
   - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Gateway RPC WebSocket Cause Handling Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/server.ts` now handles RPC WebSocket program
+    defects and interruptions inside the Effect pipeline with `Effect.sandbox`,
+    `Effect.catch`, and `Cause.pretty`.
+  - The previous Promise `.catch(...)` around `Effect.runPromise(...)`, plus the
+    nested `Effect.runPromise` used only for logging and socket close, is removed.
+  - The outer `Effect.runPromise` remains as the Fastify WebSocket host boundary.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
   - `cd ts && bun run check`
   - `cd ts && bun run build`
   - `cd ts && bun run test`
