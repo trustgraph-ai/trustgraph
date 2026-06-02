@@ -1574,6 +1574,35 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-02: Qdrant MutableHashSet Cache Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/storage/embeddings/qdrant-graph.ts` now uses
+    `MutableHashSet<string>` for its known-collection cache.
+  - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts` now uses
+    `MutableHashSet<string>` inside its store effect shape instead of a native
+    `Set<string>`.
+  - Collection cache membership, insertion, and invalidation now use
+    `MutableHashSet.has`, `MutableHashSet.add`, and
+    `MutableHashSet.remove`.
+  - Qdrant tests now prove the graph store service avoids repeated collection
+    existence checks while the collection is cached and checks again after
+    delete invalidates the cache.
+- Remaining:
+  - The document store's public direct facade still constructs a fresh store
+    effect per operation, so its cache lifetime is per constructed effect
+    shape. Changing that facade to own a shared runtime/service is a separate
+    lifecycle design slice, not part of this collection primitive migration.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/qdrant-embeddings.test.ts`
+  - `cd ts/packages/flow && bun run build`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1689,9 +1718,8 @@ Notes:
   - Messaging runtime `Config.duration` cleanup is complete. Internal runtime
     config uses `Duration.Duration`; public timeout compatibility inputs and
     broker receive/error payload boundaries remain numeric milliseconds.
-  - Qdrant graph/doc known-collection caches are the next good small
-    `MutableHashSet<string>` candidate; short-lived local traversal sets
-    remain no-ops.
+  - Qdrant graph/doc known-collection caches now use
+    `MutableHashSet<string>`. Short-lived local traversal sets remain no-ops.
   - FlowManager and sibling service `() => Effect.gen(...)` factories remain a
     broad mechanical `Effect.fn` / `Effect.fnUntraced` cleanup, best handled
     after Duration and small collection slices.
@@ -1826,7 +1854,7 @@ Notes:
     duration string env values.
   - Messaging runtime and consumer tests preserve retry and timeout behavior.
 
-### P2: Qdrant Known-Collection MutableHashSet Cleanup
+### Complete: Qdrant Known-Collection MutableHashSet Cleanup
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts`
@@ -1839,8 +1867,8 @@ Notes:
   - Keep short-lived local `Set` values for pure query traversal or fixture
     assertions as no-op boundaries.
 - Tests:
-  - Existing Qdrant embeddings tests should prove lazy collection creation and
-    deletion cache invalidation still behave the same.
+  - Qdrant embeddings tests prove graph cache hits skip repeated collection
+    existence checks and deletion invalidates the cache.
 
 ### P2: Canonicalize MCP Around The Effect Server
 
@@ -1877,10 +1905,10 @@ Notes:
 
 ## Recommended PR Order
 
-1. Qdrant known-collection `MutableHashSet` cleanup.
-2. MCP protocol parity tests and legacy stdio flip/removal decision.
-3. FlowManager/service `Effect.fn` normalization.
-4. Flow/client RPC stream and remaining service operation `Match` follow-ups.
+1. MCP protocol parity tests and legacy stdio flip/removal decision.
+2. FlowManager/service `Effect.fn` normalization.
+3. Flow/client RPC stream and remaining service operation `Match` follow-ups.
+4. Long-lived ref-backed `HashMap` state cleanup where clone helpers remain.
 
 ## No-Op Rules
 

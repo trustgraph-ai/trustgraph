@@ -10,6 +10,7 @@
 
 import { errorMessage } from "@trustgraph/base";
 import { Config, Effect, Random } from "effect";
+import * as MutableHashSet from "effect/MutableHashSet";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
@@ -121,7 +122,7 @@ interface QdrantDocEmbeddingsStoreEffectShape {
 const makeQdrantDocEmbeddingsStoreFromClient = (
   client: QdrantClientLike,
 ): QdrantDocEmbeddingsStoreEffectShape => {
-  const knownCollections = new Set<string>();
+  const knownCollections = MutableHashSet.empty<string>();
 
   const collectionName = (user: string, collection: string, dim: number): string =>
     `d_${user}_${collection}_${dim}`;
@@ -130,7 +131,7 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
     name: string,
     dim: number,
   ) {
-    if (knownCollections.has(name)) return;
+    if (MutableHashSet.has(knownCollections, name)) return;
 
     const exists = yield* Effect.tryPromise({
       try: () => client.collectionExists(name),
@@ -147,7 +148,7 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
       });
     }
 
-    knownCollections.add(name);
+    MutableHashSet.add(knownCollections, name);
   });
 
   const storeEffect = Effect.fn("QdrantDocEmbeddings.store")(function* (message: DocEmbeddingsMessage) {
@@ -206,7 +207,7 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
         try: () => client.deleteCollection(coll.name),
         catch: (cause) => qdrantDocEmbeddingsStoreError("delete-collection", cause),
       });
-      knownCollections.delete(coll.name);
+      MutableHashSet.remove(knownCollections, coll.name);
       yield* Effect.log(`[QdrantDocEmbeddings] Deleted collection: ${coll.name}`);
     }
 

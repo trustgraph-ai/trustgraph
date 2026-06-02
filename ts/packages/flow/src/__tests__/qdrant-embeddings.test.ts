@@ -24,6 +24,7 @@ interface FakePoint {
 
 class FakeQdrantClient implements QdrantClientLike {
   readonly collections = new Set<string>();
+  readonly collectionExistsCalls: string[] = [];
   readonly createdCollections: Array<{ readonly name: string; readonly size: number }> = [];
   readonly upserts: Array<{
     readonly collectionName: string;
@@ -33,6 +34,7 @@ class FakeQdrantClient implements QdrantClientLike {
   searchResults: ReadonlyArray<QdrantScoredPoint> = [];
 
   async collectionExists(collectionName: string): Promise<{ readonly exists: boolean }> {
+    this.collectionExistsCalls.push(collectionName);
     return { exists: this.collections.has(collectionName) };
   }
 
@@ -161,6 +163,17 @@ describe("Qdrant embeddings", () => {
           collection: "graph",
           entities: [{ entity, vector: [1, 2, 3], chunkId: "chunk-a" }],
         });
+        yield* store.store({
+          user: "alice",
+          collection: "graph",
+          entities: [{ entity, vector: [3, 2, 1], chunkId: "chunk-b" }],
+        });
+        yield* store.deleteCollection("alice", "graph");
+        yield* store.store({
+          user: "alice",
+          collection: "graph",
+          entities: [{ entity, vector: [1, 1, 1], chunkId: "chunk-c" }],
+        });
       }).pipe(
         Effect.provide(
           QdrantGraphEmbeddingsStoreLive({
@@ -171,8 +184,13 @@ describe("Qdrant embeddings", () => {
       ),
     );
 
-    expect(client.createdCollections).toEqual([{ name: "t_alice_graph_3", size: 3 }]);
-    expect(client.upserts).toHaveLength(1);
+    expect(client.collectionExistsCalls).toEqual(["t_alice_graph_3", "t_alice_graph_3"]);
+    expect(client.createdCollections).toEqual([
+      { name: "t_alice_graph_3", size: 3 },
+      { name: "t_alice_graph_3", size: 3 },
+    ]);
+    expect(client.deletedCollections).toEqual(["t_alice_graph_3"]);
+    expect(client.upserts).toHaveLength(3);
     expect(client.upserts[0]?.collectionName).toBe("t_alice_graph_3");
     expect(client.upserts[0]?.points[0]?.payload).toEqual({
       entity: "https://example.com/entity",
@@ -194,9 +212,33 @@ describe("Qdrant embeddings", () => {
         chunks: [{ chunkId: "chunk-a", vector: [1, 2], content: "alpha" }],
       }),
     );
+    await Effect.runPromise(
+      store.storeEffect({
+        user: "alice",
+        collection: "docs",
+        chunks: [{ chunkId: "chunk-b", vector: [2, 1], content: "beta" }],
+      }),
+    );
+    await Effect.runPromise(store.deleteCollectionEffect("alice", "docs"));
+    await Effect.runPromise(
+      store.storeEffect({
+        user: "alice",
+        collection: "docs",
+        chunks: [{ chunkId: "chunk-c", vector: [1, 1], content: "gamma" }],
+      }),
+    );
 
-    expect(client.createdCollections).toEqual([{ name: "d_alice_docs_2", size: 2 }]);
-    expect(client.upserts).toHaveLength(1);
+    expect(client.collectionExistsCalls).toEqual([
+      "d_alice_docs_2",
+      "d_alice_docs_2",
+      "d_alice_docs_2",
+    ]);
+    expect(client.createdCollections).toEqual([
+      { name: "d_alice_docs_2", size: 2 },
+      { name: "d_alice_docs_2", size: 2 },
+    ]);
+    expect(client.deletedCollections).toEqual(["d_alice_docs_2"]);
+    expect(client.upserts).toHaveLength(3);
     expect(client.upserts[0]?.collectionName).toBe("d_alice_docs_2");
     expect(client.upserts[0]?.points[0]?.payload).toEqual({
       chunk_id: "chunk-a",
