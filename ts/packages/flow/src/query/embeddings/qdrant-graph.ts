@@ -10,15 +10,16 @@
  * Python reference: trustgraph-flow/trustgraph/query/graph_embeddings/qdrant/service.py
  */
 
-import { QdrantClient } from "@qdrant/js-client-rest";
 import { errorMessage, type Term } from "@trustgraph/base";
 import { Config, Context, Effect, Layer } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
+import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
 
 export interface QdrantGraphQueryConfig {
   url?: string;
   apiKey?: string;
+  clientFactory?: QdrantClientFactory;
 }
 
 export interface EntityMatch {
@@ -72,24 +73,36 @@ function createTerm(value: string): Term {
   return { type: "LITERAL", value };
 }
 
+const GraphPointPayloadSchema = S.Struct({
+  entity: S.String,
+});
+
+const decodeGraphPointPayload = (payload: unknown) =>
+  S.decodeUnknownEffect(GraphPointPayloadSchema)(payload).pipe(Effect.option);
+
 export interface QdrantGraphEmbeddingsQuery {
-  readonly query: (request: GraphEmbeddingsQueryRequest) => Promise<EntityMatch[]>;
+  readonly query: (request: GraphEmbeddingsQueryRequest) => Promise<ReadonlyArray<EntityMatch>>;
   readonly queryEffect: (
     request: GraphEmbeddingsQueryRequest,
   ) => Effect.Effect<ReadonlyArray<EntityMatch>, QdrantGraphEmbeddingsQueryError>;
 }
 
-export function makeQdrantGraphEmbeddingsQuery(
-  config: QdrantGraphQueryConfig = {},
-): QdrantGraphEmbeddingsQuery {
-  const resolved = Effect.runSync(loadQdrantGraphQueryConfig(config));
-
-  const client = new QdrantClient({
-    url: resolved.url,
-    ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
+const makeQdrantGraphEmbeddingsQueryClient = (
+  config: QdrantGraphQueryConfig,
+  resolved: ResolvedQdrantGraphQueryConfig,
+) =>
+  Effect.try({
+    try: () =>
+      makeQdrantClient(config.clientFactory, {
+        url: resolved.url,
+        ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
+      }),
+    catch: (cause) => qdrantGraphEmbeddingsQueryError("create-client", cause),
   });
 
-  Effect.runSync(Effect.log("[QdrantGraphQuery] Query service initialized"));
+const makeQdrantGraphEmbeddingsQueryFromClient = (
+  client: QdrantClientLike,
+): QdrantGraphEmbeddingsQueryServiceShape => {
 
   const queryEffect = Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (
     request: GraphEmbeddingsQueryRequest,
@@ -131,8 +144,10 @@ export function makeQdrantGraphEmbeddingsQuery(
     const entities: EntityMatch[] = [];
 
     for (const point of searchResult) {
-      const payload = point.payload as Record<string, unknown> | undefined;
-      const entityValue = payload?.entity as string | undefined;
+      const payload = yield* decodeGraphPointPayload(point.payload);
+      if (O.isNone(payload)) continue;
+
+      const entityValue = payload.value.entity;
       if (entityValue === undefined || entityValue.length === 0) continue;
 
       // Deduplicate by entity value, keeping the highest score (results are
@@ -151,6 +166,36 @@ export function makeQdrantGraphEmbeddingsQuery(
 
     return entities;
   });
+
+  return {
+    query: queryEffect,
+  };
+};
+
+export const makeQdrantGraphEmbeddingsQueryServiceEffect = Effect.fn(
+  "makeQdrantGraphEmbeddingsQueryServiceEffect",
+)(function* (config: QdrantGraphQueryConfig = {}) {
+  const resolved = yield* loadQdrantGraphQueryConfig(config).pipe(
+    Effect.mapError((cause) => qdrantGraphEmbeddingsQueryError("load-config", cause)),
+  );
+  const client = yield* makeQdrantGraphEmbeddingsQueryClient(config, resolved);
+  yield* Effect.log("[QdrantGraphQuery] Query service initialized");
+  return makeQdrantGraphEmbeddingsQueryFromClient(client);
+});
+
+const withQdrantGraphEmbeddingsQuery = <A>(
+  config: QdrantGraphQueryConfig,
+  use: (query: QdrantGraphEmbeddingsQueryServiceShape) => Effect.Effect<A, QdrantGraphEmbeddingsQueryError>,
+) =>
+  makeQdrantGraphEmbeddingsQueryServiceEffect(config).pipe(
+    Effect.flatMap(use),
+  );
+
+export function makeQdrantGraphEmbeddingsQuery(
+  config: QdrantGraphQueryConfig = {},
+): QdrantGraphEmbeddingsQuery {
+  const queryEffect = (request: GraphEmbeddingsQueryRequest) =>
+    withQdrantGraphEmbeddingsQuery(config, (query) => query.query(request));
 
   return {
     query: (request) => Effect.runPromise(queryEffect(request)),
@@ -173,17 +218,16 @@ export class QdrantGraphEmbeddingsQueryService extends Context.Service<
 
 export const makeQdrantGraphEmbeddingsQueryService = (
   config: QdrantGraphQueryConfig = {},
-): QdrantGraphEmbeddingsQueryServiceShape => {
-  const query = makeQdrantGraphEmbeddingsQuery(config);
-  return {
-    query: query.queryEffect,
-  };
-};
+): QdrantGraphEmbeddingsQueryServiceShape => ({
+  query: (request) => withQdrantGraphEmbeddingsQuery(config, (query) => query.query(request)),
+});
 
 export const QdrantGraphEmbeddingsQueryLive = (
   config: QdrantGraphQueryConfig = {},
-): Layer.Layer<QdrantGraphEmbeddingsQueryService> =>
-  Layer.succeed(
+): Layer.Layer<QdrantGraphEmbeddingsQueryService, QdrantGraphEmbeddingsQueryError> =>
+  Layer.effect(
     QdrantGraphEmbeddingsQueryService,
-    QdrantGraphEmbeddingsQueryService.of(makeQdrantGraphEmbeddingsQueryService(config)),
+    makeQdrantGraphEmbeddingsQueryServiceEffect(config).pipe(
+      Effect.map((service) => QdrantGraphEmbeddingsQueryService.of(service)),
+    ),
   );

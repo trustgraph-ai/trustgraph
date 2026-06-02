@@ -7,15 +7,16 @@
  * Python reference: trustgraph-flow/trustgraph/query/doc_embeddings/qdrant/service.py
  */
 
-import { QdrantClient } from "@qdrant/js-client-rest";
 import { errorMessage } from "@trustgraph/base";
 import { Config, Context, Effect, Layer } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
+import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
 
 export interface QdrantDocQueryConfig {
   url?: string;
   apiKey?: string;
+  clientFactory?: QdrantClientFactory;
 }
 
 export interface ChunkMatch {
@@ -63,25 +64,37 @@ const loadQdrantDocQueryConfig = Effect.fn("QdrantDocEmbeddingsQuery.loadConfig"
   } satisfies ResolvedQdrantDocQueryConfig;
 });
 
+const DocPointPayloadSchema = S.Struct({
+  chunk_id: S.String,
+  content: S.optionalKey(S.String),
+});
+
+const decodeDocPointPayload = (payload: unknown) =>
+  S.decodeUnknownEffect(DocPointPayloadSchema)(payload).pipe(Effect.option);
+
 export interface QdrantDocEmbeddingsQuery {
-  readonly query: (request: DocEmbeddingsQueryRequest) => Promise<ChunkMatch[]>;
+  readonly query: (request: DocEmbeddingsQueryRequest) => Promise<ReadonlyArray<ChunkMatch>>;
   readonly queryEffect: (
     request: DocEmbeddingsQueryRequest,
   ) => Effect.Effect<ReadonlyArray<ChunkMatch>, QdrantDocEmbeddingsQueryError>;
 }
 
-export function makeQdrantDocEmbeddingsQuery(
-  config: QdrantDocQueryConfig = {},
-): QdrantDocEmbeddingsQuery {
-  const resolved = Effect.runSync(loadQdrantDocQueryConfig(config));
-
-  const client = new QdrantClient({
-    url: resolved.url,
-    ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
+const makeQdrantDocEmbeddingsQueryClient = (
+  config: QdrantDocQueryConfig,
+  resolved: ResolvedQdrantDocQueryConfig,
+) =>
+  Effect.try({
+    try: () =>
+      makeQdrantClient(config.clientFactory, {
+        url: resolved.url,
+        ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
+      }),
+    catch: (cause) => qdrantDocEmbeddingsQueryError("create-client", cause),
   });
 
-  Effect.runSync(Effect.log("[QdrantDocQuery] Query service initialized"));
-
+const makeQdrantDocEmbeddingsQueryFromClient = (
+  client: QdrantClientLike,
+): QdrantDocEmbeddingsQueryServiceShape => {
   const queryEffect = Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request: DocEmbeddingsQueryRequest) {
     const { vector, user, collection, limit } = request;
 
@@ -116,19 +129,51 @@ export function makeQdrantDocEmbeddingsQuery(
 
     const chunks: ChunkMatch[] = [];
     for (const point of searchResult) {
-      const payload = point.payload as Record<string, unknown> | undefined;
-      const chunkId = payload?.chunk_id as string | undefined;
-      if (chunkId !== undefined && chunkId.length > 0) {
-        chunks.push({
-          chunkId,
-          score: point.score,
-          ...(typeof payload?.content === "string" ? { content: payload.content } : {}),
-        });
-      }
+      const payload = yield* decodeDocPointPayload(point.payload);
+      if (O.isNone(payload)) continue;
+
+      const chunkId = payload.value.chunk_id;
+      if (chunkId.length === 0) continue;
+
+      chunks.push({
+        chunkId,
+        score: point.score,
+        ...(payload.value.content !== undefined ? { content: payload.value.content } : {}),
+      });
     }
 
     return chunks;
   });
+
+  return {
+    query: queryEffect,
+  };
+};
+
+export const makeQdrantDocEmbeddingsQueryServiceEffect = Effect.fn(
+  "makeQdrantDocEmbeddingsQueryServiceEffect",
+)(function* (config: QdrantDocQueryConfig = {}) {
+  const resolved = yield* loadQdrantDocQueryConfig(config).pipe(
+    Effect.mapError((cause) => qdrantDocEmbeddingsQueryError("load-config", cause)),
+  );
+  const client = yield* makeQdrantDocEmbeddingsQueryClient(config, resolved);
+  yield* Effect.log("[QdrantDocQuery] Query service initialized");
+  return makeQdrantDocEmbeddingsQueryFromClient(client);
+});
+
+const withQdrantDocEmbeddingsQuery = <A>(
+  config: QdrantDocQueryConfig,
+  use: (query: QdrantDocEmbeddingsQueryServiceShape) => Effect.Effect<A, QdrantDocEmbeddingsQueryError>,
+) =>
+  makeQdrantDocEmbeddingsQueryServiceEffect(config).pipe(
+    Effect.flatMap(use),
+  );
+
+export function makeQdrantDocEmbeddingsQuery(
+  config: QdrantDocQueryConfig = {},
+): QdrantDocEmbeddingsQuery {
+  const queryEffect = (request: DocEmbeddingsQueryRequest) =>
+    withQdrantDocEmbeddingsQuery(config, (query) => query.query(request));
 
   return {
     query: (request) => Effect.runPromise(queryEffect(request)),
@@ -151,17 +196,16 @@ export class QdrantDocEmbeddingsQueryService extends Context.Service<
 
 export const makeQdrantDocEmbeddingsQueryService = (
   config: QdrantDocQueryConfig = {},
-): QdrantDocEmbeddingsQueryServiceShape => {
-  const query = makeQdrantDocEmbeddingsQuery(config);
-  return {
-    query: query.queryEffect,
-  };
-};
+): QdrantDocEmbeddingsQueryServiceShape => ({
+  query: (request) => withQdrantDocEmbeddingsQuery(config, (query) => query.query(request)),
+});
 
 export const QdrantDocEmbeddingsQueryLive = (
   config: QdrantDocQueryConfig = {},
-): Layer.Layer<QdrantDocEmbeddingsQueryService> =>
-  Layer.succeed(
+): Layer.Layer<QdrantDocEmbeddingsQueryService, QdrantDocEmbeddingsQueryError> =>
+  Layer.effect(
     QdrantDocEmbeddingsQueryService,
-    QdrantDocEmbeddingsQueryService.of(makeQdrantDocEmbeddingsQueryService(config)),
+    makeQdrantDocEmbeddingsQueryServiceEffect(config).pipe(
+      Effect.map((service) => QdrantDocEmbeddingsQueryService.of(service)),
+    ),
   );

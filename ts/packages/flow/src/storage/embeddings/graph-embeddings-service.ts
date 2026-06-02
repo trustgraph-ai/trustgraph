@@ -13,8 +13,10 @@ import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeRequestResponseSpec,
+  processorLifecycleError,
   type ProcessorConfig,
   type FlowProcessorRuntime,
+  type FlowProcessorStartEffect,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -30,7 +32,7 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   QdrantGraphEmbeddingsStoreLive,
   QdrantGraphEmbeddingsStoreService,
-  makeQdrantGraphEmbeddingsStoreService,
+  makeQdrantGraphEmbeddingsStoreServiceEffect,
   type QdrantGraphEmbeddingsConfig,
   type QdrantGraphEmbeddingsStoreError,
 } from "./qdrant-graph.js";
@@ -93,19 +95,27 @@ export const makeGraphEmbeddingsStoreSpecs = (): ReadonlyArray<Spec<GraphEmbeddi
 
 export type GraphEmbeddingsStoreService = FlowProcessorRuntime<GraphEmbeddingsStoreRequirements>;
 
+const provideQdrantGraphEmbeddingsStore = (processorId: string) =>
+  Effect.fn("GraphEmbeddingsStoreService.provideQdrant")(function* (
+    effect: FlowProcessorStartEffect<GraphEmbeddingsStoreRequirements>,
+  ) {
+    const store = yield* makeQdrantGraphEmbeddingsStoreServiceEffect().pipe(
+      Effect.mapError((error) => processorLifecycleError(processorId, "qdrant-graph-store-connect", error)),
+    );
+    yield* effect.pipe(
+      Effect.provideService(
+        QdrantGraphEmbeddingsStoreService,
+        QdrantGraphEmbeddingsStoreService.of(store),
+      ),
+    );
+  });
+
 export function makeGraphEmbeddingsStoreService(config: ProcessorConfig): GraphEmbeddingsStoreService {
-  const store = makeQdrantGraphEmbeddingsStoreService();
   const service = makeFlowProcessor(config, {
     specifications: makeGraphEmbeddingsStoreSpecs(),
-    provide: (effect) =>
-      effect.pipe(
-        Effect.provideService(
-          QdrantGraphEmbeddingsStoreService,
-          QdrantGraphEmbeddingsStoreService.of(store),
-        ),
-      ),
+    provide: provideQdrantGraphEmbeddingsStore(config.id),
   });
-  Effect.runSync(Effect.log("[GraphEmbeddingsStore] Service initialized"));
+  void Effect.runPromise(Effect.log("[GraphEmbeddingsStore] Service initialized"));
   return service;
 }
 
@@ -113,7 +123,7 @@ export const GraphEmbeddingsStoreService = makeGraphEmbeddingsStoreService;
 
 export const program = makeFlowProcessorProgram<
   ProcessorConfig & QdrantGraphEmbeddingsConfig,
-  never,
+  QdrantGraphEmbeddingsStoreError,
   GraphEmbeddingsStoreRequirements
 >({
   id: "graph-embeddings-store",

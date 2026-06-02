@@ -11,8 +11,10 @@ import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
+  processorLifecycleError,
   type ProcessorConfig,
   type FlowProcessorRuntime,
+  type FlowProcessorStartEffect,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -26,8 +28,9 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   QdrantGraphEmbeddingsQueryLive,
   QdrantGraphEmbeddingsQueryService,
-  makeQdrantGraphEmbeddingsQueryService,
+  makeQdrantGraphEmbeddingsQueryServiceEffect,
   type QdrantGraphQueryConfig,
+  type QdrantGraphEmbeddingsQueryError,
 } from "./qdrant-graph.js";
 
 const GraphEmbeddingsResponseProducer = makeProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response");
@@ -93,25 +96,37 @@ export const makeGraphEmbeddingsQuerySpecs = (): ReadonlyArray<Spec<QdrantGraphE
 
 export type GraphEmbeddingsQueryService = FlowProcessorRuntime<QdrantGraphEmbeddingsQueryService>;
 
+const provideQdrantGraphEmbeddingsQuery = (processorId: string) =>
+  Effect.fn("GraphEmbeddingsQueryService.provideQdrant")(function* (
+    effect: FlowProcessorStartEffect<QdrantGraphEmbeddingsQueryService>,
+  ) {
+    const query = yield* makeQdrantGraphEmbeddingsQueryServiceEffect().pipe(
+      Effect.mapError((error) => processorLifecycleError(processorId, "qdrant-graph-query-connect", error)),
+    );
+    yield* effect.pipe(
+      Effect.provideService(
+        QdrantGraphEmbeddingsQueryService,
+        QdrantGraphEmbeddingsQueryService.of(query),
+      ),
+    );
+  });
+
 export function makeGraphEmbeddingsQueryService(config: ProcessorConfig): GraphEmbeddingsQueryService {
-  const query = makeQdrantGraphEmbeddingsQueryService();
   const service = makeFlowProcessor(config, {
     specifications: makeGraphEmbeddingsQuerySpecs(),
-    provide: (effect) =>
-      effect.pipe(
-        Effect.provideService(
-          QdrantGraphEmbeddingsQueryService,
-          QdrantGraphEmbeddingsQueryService.of(query),
-        ),
-      ),
+    provide: provideQdrantGraphEmbeddingsQuery(config.id),
   });
-  Effect.runSync(Effect.log("[GraphEmbeddingsQuery] Service initialized"));
+  void Effect.runPromise(Effect.log("[GraphEmbeddingsQuery] Service initialized"));
   return service;
 }
 
 export const GraphEmbeddingsQueryService = makeGraphEmbeddingsQueryService;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig & QdrantGraphQueryConfig, never, QdrantGraphEmbeddingsQueryService>({
+export const program = makeFlowProcessorProgram<
+  ProcessorConfig & QdrantGraphQueryConfig,
+  QdrantGraphEmbeddingsQueryError,
+  QdrantGraphEmbeddingsQueryService
+>({
   id: "graph-embeddings-query",
   specs: () => makeGraphEmbeddingsQuerySpecs(),
   layer: (config) => QdrantGraphEmbeddingsQueryLive(config),

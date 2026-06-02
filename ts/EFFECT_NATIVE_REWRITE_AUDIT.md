@@ -12,14 +12,15 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 FalkorDB scoped
-client lifecycle slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Qdrant
+config/schema/fakeability slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 165 |
+| `Effect.runPromise` | 172 |
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
+| `Layer.succeed` | 19 |
 | `Map<` | 82 |
 | `WebSocket` | 62 |
 | `new Map` | 60 |
@@ -105,6 +106,14 @@ Notes:
   `Effect.acquireRelease` and disconnect them on scope close. The
   `Effect.runPromise` count increased by two because the new lifecycle tests
   run scoped programs at the test boundary.
+- The Qdrant config/schema/fakeability slice removed direct production
+  `new QdrantClient`, sync config loading, payload casts, and Qdrant
+  `Layer.succeed` service construction from graph/doc store/query modules.
+  The installed Qdrant client exposes no public close/disconnect method, so
+  this remains a fakeable construction and Schema decode slice rather than a
+  scoped finalizer slice. `Effect.runPromise` increased because the new tests
+  and legacy service initialization logs run Effects at compatibility
+  boundaries.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -785,16 +794,40 @@ Notes:
     instead of record/string type assertions.
   - New lifecycle tests use fake clients/graphs to prove connect on acquire
     and disconnect on scope close for both triples store and triples query.
-- Remaining:
-  - Qdrant graph/doc store/query construction still needs the next
-    config/schema/fakeability cleanup. The installed Qdrant client exposes no
-    close/disconnect method, so this should not be treated as a lifecycle
-    finalizer slice.
 - Verification:
   - `bunx --bun vitest run src/__tests__/falkordb-lifecycle.test.ts`
   - `bun run --cwd ts/packages/flow build`
   - `cd ts && bun run check`
   - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Qdrant Config, Schema, And Fakeable Construction Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Added `ts/packages/flow/src/qdrant/client.ts` as the narrow fakeable
+    Qdrant surface used by graph/doc embedding store/query modules.
+  - Graph and document Qdrant store/query constructors now create clients
+    through `Effect.try`, load Qdrant config in Effect, and map config/client
+    failures into their existing `S.TaggedErrorClass` errors.
+  - Graph and document query payload extraction now uses
+    `Schema.decodeUnknownEffect(...).pipe(Effect.option)` and skips malformed
+    Qdrant payloads without type assertions.
+  - Qdrant graph/doc query Live layers and graph store Live layer now use
+    `Layer.effect` instead of preconstructing services with `Layer.succeed`.
+  - Legacy graph store/query/doc query processor providers now acquire Qdrant
+    services with named `Effect.fn` providers and map startup failures to
+    `ProcessorLifecycleError`.
+  - The installed Qdrant client still has no public close/disconnect method,
+    so no `Effect.acquireRelease` finalizer was added for Qdrant.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/qdrant-embeddings.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
   - `cd ts && bun run build`
   - `cd ts && bun run test`
   - `git diff --check`
@@ -854,35 +887,14 @@ Notes:
   - FalkorDB scoped lifecycle is complete for triples query/store. Use the
     fakeable client/graph factory pattern from that slice for future storage
     client tests.
-  - Qdrant has no close/disconnect surface in the installed client, so treat it
-    as a config/schema/fakeability slice rather than an `acquireRelease` close
-    slice.
+  - Qdrant config/schema/fakeability is complete for graph/doc embedding
+    store/query modules. Qdrant still has no close/disconnect surface in the
+    installed client, so do not reopen it as an `acquireRelease` close slice
+    without new SDK evidence.
   - Ollama/OpenAI-compatible/provider surfaces still need config, schema, and
     provider-layer audits.
 
 ## Ranked Findings
-
-### P1: Qdrant Config, Schema, And Fakeable Construction Cleanup
-
-- TrustGraph evidence:
-  - `ts/packages/flow/src/storage/embeddings/qdrant-graph.ts`
-  - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts`
-  - `ts/packages/flow/src/query/embeddings/qdrant-graph.ts`
-  - `ts/packages/flow/src/query/embeddings/qdrant-doc.ts`
-- Effect primitives:
-  - `Config`, `ConfigProvider`, `Layer.effect`, `Schema.decodeUnknownEffect`,
-    `Predicate`, `Option`.
-- Rewrite shape:
-  - Move Qdrant config loading out of sync factory construction and into
-    Effect config/layer paths.
-  - Add fakeable Qdrant client construction before behavior changes.
-  - Decode query payloads through Schema instead of manual payload casts.
-  - Do not add an `acquireRelease` finalizer unless a concrete close API is
-    found in the installed Qdrant client.
-- Tests:
-  - Qdrant graph/doc store/query tests with fake clients.
-  - Config tests with `ConfigProvider.fromUnknown`.
-  - Schema decode failure tests for malformed payloads.
 
 ### P2: Provider Layer And Effect AI Cleanup
 
@@ -936,10 +948,9 @@ Notes:
 
 ## Recommended PR Order
 
-1. Qdrant config/schema/fakeable construction cleanup.
-2. Client streaming facade completion normalization.
-3. Provider layer and Effect AI cleanup.
-4. MCP parity/deletion decision and workbench platform polish.
+1. Client streaming facade completion normalization.
+2. Provider layer and Effect AI cleanup.
+3. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 

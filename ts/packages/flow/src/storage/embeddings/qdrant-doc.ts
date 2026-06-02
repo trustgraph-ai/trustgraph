@@ -8,15 +8,16 @@
  * Python reference: trustgraph-flow/trustgraph/storage/doc_embeddings/qdrant/write.py
  */
 
-import { QdrantClient } from "@qdrant/js-client-rest";
 import { errorMessage } from "@trustgraph/base";
 import { Config, Effect, Random } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
+import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
 
 export interface QdrantDocEmbeddingsConfig {
   url?: string;
   apiKey?: string;
+  clientFactory?: QdrantClientFactory;
 }
 
 export interface DocEmbeddingChunk {
@@ -94,18 +95,33 @@ export interface QdrantDocEmbeddingsStore {
   ) => Effect.Effect<void, QdrantDocEmbeddingsStoreError>;
 }
 
-export function makeQdrantDocEmbeddingsStore(
-  config: QdrantDocEmbeddingsConfig = {},
-): QdrantDocEmbeddingsStore {
-  const resolved = Effect.runSync(loadQdrantDocEmbeddingsConfig(config));
-
-  const client = new QdrantClient({
-    url: resolved.url,
-    ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
+const makeQdrantDocEmbeddingsClient = (
+  config: QdrantDocEmbeddingsConfig,
+  resolved: ResolvedQdrantDocEmbeddingsConfig,
+) =>
+  Effect.try({
+    try: () =>
+      makeQdrantClient(config.clientFactory, {
+        url: resolved.url,
+        ...(resolved.apiKey !== undefined ? { apiKey: resolved.apiKey } : {}),
+      }),
+    catch: (cause) => qdrantDocEmbeddingsStoreError("create-client", cause),
   });
-  const knownCollections = new Set<string>();
 
-  Effect.runSync(Effect.log("[QdrantDocEmbeddings] Store initialized"));
+interface QdrantDocEmbeddingsStoreEffectShape {
+  readonly store: (
+    message: DocEmbeddingsMessage,
+  ) => Effect.Effect<void, QdrantDocEmbeddingsStoreError>;
+  readonly deleteCollection: (
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, QdrantDocEmbeddingsStoreError>;
+}
+
+const makeQdrantDocEmbeddingsStoreFromClient = (
+  client: QdrantClientLike,
+): QdrantDocEmbeddingsStoreEffectShape => {
+  const knownCollections = new Set<string>();
 
   const collectionName = (user: string, collection: string, dim: number): string =>
     `d_${user}_${collection}_${dim}`;
@@ -198,6 +214,39 @@ export function makeQdrantDocEmbeddingsStore(
       `[QdrantDocEmbeddings] Deleted ${matching.length} collection(s) for ${user}/${collection}`,
     );
   });
+
+  return {
+    store: storeEffect,
+    deleteCollection: deleteCollectionEffect,
+  };
+};
+
+const makeQdrantDocEmbeddingsStoreEffect = Effect.fn("makeQdrantDocEmbeddingsStoreEffect")(function* (
+  config: QdrantDocEmbeddingsConfig = {},
+) {
+  const resolved = yield* loadQdrantDocEmbeddingsConfig(config).pipe(
+    Effect.mapError((cause) => qdrantDocEmbeddingsStoreError("load-config", cause)),
+  );
+  const client = yield* makeQdrantDocEmbeddingsClient(config, resolved);
+  yield* Effect.log("[QdrantDocEmbeddings] Store initialized");
+  return makeQdrantDocEmbeddingsStoreFromClient(client);
+});
+
+const withQdrantDocEmbeddingsStore = <A>(
+  config: QdrantDocEmbeddingsConfig,
+  use: (store: QdrantDocEmbeddingsStoreEffectShape) => Effect.Effect<A, QdrantDocEmbeddingsStoreError>,
+) =>
+  makeQdrantDocEmbeddingsStoreEffect(config).pipe(
+    Effect.flatMap(use),
+  );
+
+export function makeQdrantDocEmbeddingsStore(
+  config: QdrantDocEmbeddingsConfig = {},
+): QdrantDocEmbeddingsStore {
+  const storeEffect = (message: DocEmbeddingsMessage) =>
+    withQdrantDocEmbeddingsStore(config, (store) => store.store(message));
+  const deleteCollectionEffect = (user: string, collection: string) =>
+    withQdrantDocEmbeddingsStore(config, (store) => store.deleteCollection(user, collection));
 
   return {
     store: (message) => Effect.runPromise(storeEffect(message)),
