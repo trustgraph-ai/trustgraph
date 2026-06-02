@@ -434,6 +434,29 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Client Newable Factory Compatibility Decision
+
+- Status: documented no-op for the current loop.
+- Evidence:
+  - `ts/packages/workbench/src/atoms/workbench.ts` constructs
+    `new BaseApi(...)`.
+  - `ts/packages/client/src/__tests__/flows-api.test.ts` constructs
+    `new FlowsApi(...)`, and sibling API facades expose the same constructor
+    shape.
+  - `EffectRpcClient` and `BaseApi` also preserve callable factory exports for
+    compatibility with the vendored TrustGraph client shape.
+- Decision:
+  - The remaining `newableFactory(... ) as unknown as NewableFactory<...>`
+    assertions in client socket files are TypeScript compatibility boundaries,
+    not Effect error/requirement channel assertions and not replacements for an
+    Effect primitive.
+  - Removing them safely requires a deliberate public API redesign or explicit
+    class implementations for every API facade, not a local Effect-native
+    rewrite.
+- Verification:
+  - Current client/root verification from the tagged error slice covers this
+    no-op decision.
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -458,8 +481,9 @@ Notes:
     than more assertions.
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
-    Remaining client cleanup should focus on `trustgraph-socket.ts`
-    and `effect-rpc-client.ts` newable factory assertions.
+    Socket errors/JSON parsing now use tagged errors and Schema decoding.
+    The remaining client `newableFactory` assertions are documented as public
+    API compatibility boundaries for this loop.
   - Knowledge streams still duplicate legacy end-of-stream handling.
   - WebSocket adapter host fallbacks now use `Result.try` and tagged adapter
     errors while preserving sync exports.
@@ -472,26 +496,6 @@ Notes:
     schema, and scope audits.
 
 ## Ranked Findings
-
-### P1: Finish Client RPC Boundary Modernization
-
-- TrustGraph evidence:
-  - `ts/packages/client/src/socket/effect-rpc-client.ts`
-  - `ts/packages/client/src/socket/trustgraph-socket.ts`
-- Effect primitives:
-  - `effect/unstable/socket` `Socket.makeWebSocket`, `fromWebSocket`,
-    `toChannel`, `layerWebSocket`.
-  - `effect/unstable/rpc/RpcClient.layerProtocolSocket`.
-  - `effect/unstable/rpc/RpcSerialization.layerNdjson` or `layerNdJsonRpc`.
-  - `ManagedRuntime` for compatibility facades when a Promise API must remain.
-- Rewrite shape:
-  - `EffectRpcClient` is now an internal managed runtime with Promise
-    compatibility facades.
-  - Expose Promise-returning methods through a thin adapter.
-  - Replace remaining client newable factory assertions with a typed factory
-    shape that preserves current constructor/function compatibility.
-- Tests:
-  - `cd ts && bun run --cwd packages/client test`
 
 ### P1: Base Processor Registry And Constructor Shims
 
@@ -563,11 +567,10 @@ Notes:
 
 ## Recommended PR Order
 
-1. Client RPC managed runtime/scoped layer cleanup.
-2. Base processor registry and constructor shim redesign.
-3. Gateway RPC callback and client streaming completion cleanup.
-4. Storage/provider managed resource cleanup.
-5. MCP parity/deletion decision and workbench platform polish.
+1. Base processor registry and constructor shim redesign.
+2. Gateway RPC callback and client streaming completion cleanup.
+3. Storage/provider managed resource cleanup.
+4. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 
@@ -586,6 +589,9 @@ Do not flag these as rewrite blockers without additional proof:
 - JSON stringification in tests or wire-contract fixtures. Production JSON
   encode/decode should prefer schema codecs when the encoded form can be
   preserved.
+- Client `newableFactory` assertions that preserve vendored callable-plus-new
+  API facades are compatibility boundaries unless the public constructor API is
+  intentionally redesigned.
 
 ## Acceptance For Final Loop Completion
 
