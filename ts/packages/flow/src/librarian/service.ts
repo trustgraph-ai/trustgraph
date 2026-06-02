@@ -25,7 +25,8 @@ import {
   type ProcessingMetadata,
 } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Clock, Config, Context, DateTime, Duration, Effect, Random } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+import { Clock, Config, Context, DateTime, Duration, Effect, Layer, ManagedRuntime, Random } from "effect";
 import * as S from "effect/Schema";
 import { makeCollectionManager } from "./collection-manager.js";
 import {
@@ -1349,6 +1350,12 @@ export const program = makeProcessorProgram({
   make: (config) => makeLibrarianService(config),
 });
 
+const librarianRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return librarianRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

@@ -26,7 +26,8 @@ import {
 } from "@trustgraph/base";
 import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
-import { Context, Duration, Effect, Option } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+import { Context, Duration, Effect, Layer, ManagedRuntime, Option } from "effect";
 import * as S from "effect/Schema";
 
 // ---------- Internal state types ----------
@@ -885,6 +886,12 @@ export const program = makeProcessorProgram({
   make: (config) => makeFlowManagerService(config),
 });
 
+const flowManagerRuntime = ManagedRuntime.make(Layer.empty);
+
 export function run(): Promise<void> {
-  return Effect.runPromise(program);
+  return flowManagerRuntime.runPromise(program);
+}
+
+export function runMain(): void {
+  NodeRuntime.runMain(program);
 }

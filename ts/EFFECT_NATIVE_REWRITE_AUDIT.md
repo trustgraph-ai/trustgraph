@@ -12,14 +12,14 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 KnowledgeCore
-ref-backed state slice:
+Current signal counts from `ts/packages` after the 2026-06-02
+flow-manager/librarian runtime normalization slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 200 |
-| `Map<` | 72 |
-| `WebSocket` | 51 |
+| `Effect.runPromise` | 198 |
+| `Map<` | 71 |
+| `WebSocket` | 47 |
 | `new Map` | 53 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
@@ -196,6 +196,25 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: Flow Manager And Librarian Runtime Normalization
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/flow-manager/service.ts` and
+    `ts/packages/flow/src/librarian/service.ts` now expose `runMain()` through
+    `NodeRuntime.runMain`.
+  - Their legacy `run()` Promise facades now use `ManagedRuntime` instead of
+    directly owning `Effect.runPromise`.
+  - `ts/scripts/run-flow-manager.ts` and `ts/scripts/run-librarian.ts` now
+    delegate to `runMain()` instead of wrapping startup with local
+    `.catch(console.error/process.exit)` handlers.
+- Verification:
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -206,10 +225,11 @@ Notes:
   - MCP env is now Config-backed; continue that policy for future MCP settings.
 - Flow stateful services:
   - Config service and KnowledgeCore service ref-backed state are complete.
-    Librarian and flow-manager still have mutable poller service objects.
-    These remain good
-    candidates for `Context` services,
-    scoped layers, `Ref`/`SynchronizedRef`, `Schedule`, and managed
+    Librarian and flow-manager now have native Effect module startup
+    (`NodeRuntime.runMain` with `ManagedRuntime` compatibility facades), but
+    they still have mutable poller service objects. These remain good
+    candidates for `Context` services, scoped layers,
+    `Ref`/`SynchronizedRef`, `Schedule`, and managed
     persistence.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
