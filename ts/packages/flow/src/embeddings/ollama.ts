@@ -71,14 +71,14 @@ const loadOllamaEmbeddingsConfig = Effect.fn("OllamaEmbeddings.loadConfig")(func
   } satisfies ResolvedOllamaEmbeddingsConfig;
 });
 
-export function makeOllamaEmbeddings(config: OllamaEmbeddingsConfig): EmbeddingsServiceShape {
-  const {
-    defaultModel,
-    ollamaHost,
-    fetchImpl,
-  } = Effect.runSync(loadOllamaEmbeddingsConfig(config)) satisfies ResolvedOllamaEmbeddingsConfig;
+const responseJson = (response: Response): Promise<unknown> =>
+  response.json();
 
-  return {
+const makeOllamaEmbeddingsFromConfig = ({
+  defaultModel,
+  ollamaHost,
+  fetchImpl,
+}: ResolvedOllamaEmbeddingsConfig): EmbeddingsServiceShape => ({
     embed: Effect.fn("OllamaEmbeddings.embed")((texts: ReadonlyArray<string>, model?: string) => {
       if (texts.length === 0) {
         return Effect.succeed([]);
@@ -117,7 +117,7 @@ export function makeOllamaEmbeddings(config: OllamaEmbeddingsConfig): Embeddings
         }
 
         const data = yield* Effect.tryPromise({
-          try: () => response.json() as Promise<unknown>,
+          try: () => responseJson(response),
           catch: (error) => ollamaEmbeddingsError("ollama.response-json", error),
         });
         const decoded = yield* S.decodeUnknownEffect(OllamaEmbedResponse)(data).pipe(
@@ -126,13 +126,30 @@ export function makeOllamaEmbeddings(config: OllamaEmbeddingsConfig): Embeddings
         return Array.from(decoded.embeddings, (vector) => Array.from(vector));
       });
     }),
-  };
+  });
+
+export const makeOllamaEmbeddingsEffect = Effect.fn("makeOllamaEmbeddingsEffect")(function* (
+  config: OllamaEmbeddingsConfig,
+) {
+  const resolved = yield* loadOllamaEmbeddingsConfig(config).pipe(
+    Effect.mapError((cause) => ollamaEmbeddingsError("ollama.load-config", cause)),
+  );
+  yield* Effect.log(
+    `[OllamaEmbeddings] Initialized (host=${resolved.ollamaHost}, model=${resolved.defaultModel})`,
+  );
+  return makeOllamaEmbeddingsFromConfig(resolved);
+});
+
+export function makeOllamaEmbeddings(config: OllamaEmbeddingsConfig): EmbeddingsServiceShape {
+  return Effect.runSync(makeOllamaEmbeddingsEffect(config));
 }
 
-export function OllamaEmbeddingsLive(config: OllamaEmbeddingsConfig): Layer.Layer<Embeddings> {
-  return Layer.succeed(
+export function OllamaEmbeddingsLive(config: OllamaEmbeddingsConfig): Layer.Layer<Embeddings, EmbeddingsError> {
+  return Layer.effect(
     Embeddings,
-    Embeddings.of(makeOllamaEmbeddings(config)),
+    makeOllamaEmbeddingsEffect(config).pipe(
+      Effect.map((embeddings) => Embeddings.of(embeddings)),
+    ),
   );
 }
 
@@ -140,16 +157,12 @@ export type OllamaEmbeddingsProcessor = ReturnType<typeof makeOllamaEmbeddingsPr
 
 export function makeOllamaEmbeddingsProcessor(config: OllamaEmbeddingsConfig) {
   const embeddings = makeOllamaEmbeddings(config);
-  const resolved = Effect.runSync(loadOllamaEmbeddingsConfig(config)) satisfies ResolvedOllamaEmbeddingsConfig;
-  Effect.runSync(Effect.log(
-    `[OllamaEmbeddings] Initialized (host=${resolved.ollamaHost}, model=${resolved.defaultModel})`,
-  ));
   return makeEmbeddingsService(config, embeddings);
 }
 
 export const OllamaEmbeddingsProcessor = makeOllamaEmbeddingsProcessor;
 
-export const program = makeFlowProcessorProgram<OllamaEmbeddingsConfig, never, Embeddings>({
+export const program = makeFlowProcessorProgram<OllamaEmbeddingsConfig, EmbeddingsError, Embeddings>({
   id: "embeddings",
   specs: () => makeEmbeddingsSpecs(),
   layer: (config) => OllamaEmbeddingsLive(config),

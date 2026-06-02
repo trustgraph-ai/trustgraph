@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { makeOllamaEmbeddings } from "../embeddings/ollama.js";
+import { Embeddings } from "@trustgraph/base";
+import { makeOllamaEmbeddings, OllamaEmbeddingsLive } from "../embeddings/ollama.js";
 
 describe("Ollama embeddings provider", () => {
   it.effect(
@@ -77,6 +78,34 @@ describe("Ollama embeddings provider", () => {
       expect(error.operation).toBe("ollama.embed");
       expect(error.provider).toBe("ollama");
       expect(error.message).toContain("Ollama embeddings request failed (404): not found");
+    }),
+  );
+
+  it.effect(
+    "provides embeddings through the effectful layer",
+    Effect.fnUntraced(function* () {
+      const fetchImpl = (() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ embeddings: [[4, 5, 6]] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        )) as typeof fetch;
+
+      const vectors = yield* Effect.gen(function* () {
+        const embeddings = yield* Embeddings;
+        return yield* embeddings.embed(["beta"]);
+      }).pipe(
+        Effect.provide(
+          OllamaEmbeddingsLive({
+            id: "embeddings",
+            ollamaHost: "http://ollama.local",
+            fetch: fetchImpl,
+          }),
+        ),
+      );
+
+      expect(vectors).toEqual([[4, 5, 6]]);
     }),
   );
 });

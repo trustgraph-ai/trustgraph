@@ -12,15 +12,15 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 client streaming
-facade normalization slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Ollama
+embeddings effectful layer slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 172 |
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
-| `Layer.succeed` | 19 |
+| `Layer.succeed` | 18 |
 | `Map<` | 82 |
 | `WebSocket` | 62 |
 | `new Map` | 60 |
@@ -32,7 +32,7 @@ facade normalization slice:
 | `new Promise` | 10 |
 | `JSON.parse` | 4 |
 | `localStorage` | 8 |
-| `JSON.stringify` | 6 |
+| `JSON.stringify` | 7 |
 | `setTimeout` | 4 |
 | `process.env` | 3 |
 
@@ -119,6 +119,10 @@ Notes:
   decode in `trustgraph-socket.ts`, uses Schema plus `effect/Predicate`
   property narrowing for streaming payload reads, and leaves service-specific
   legacy completion markers only where they preserve public callback behavior.
+- The Ollama embeddings effectful layer slice dropped one `Layer.succeed`
+  match by making `OllamaEmbeddingsLive` effectful and mapping config/load
+  failures to `EmbeddingsError`. The `JSON.stringify` count increased by one
+  because the new layer test uses a JSON response fixture.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -210,6 +214,7 @@ Notes:
   - `cd ts && bun run check`
   - `cd ts && bun run build`
   - `cd ts && bun run test`
+  - `git diff --check`
   - `git diff --check`
 
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
@@ -802,6 +807,32 @@ Notes:
   - `cd ts && bun run check`
   - `cd ts && bun run build`
   - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Ollama Embeddings Effectful Layer Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/embeddings/ollama.ts` now exposes
+    `makeOllamaEmbeddingsEffect` for effectful config loading and service
+    construction.
+  - `OllamaEmbeddingsLive` now uses `Layer.effect` and maps config/load
+    failures into `EmbeddingsError` instead of preconstructing the service with
+    `Layer.succeed`.
+  - The direct `makeOllamaEmbeddings(config)` factory remains as a
+    compatibility facade, while the canonical `program` entrypoint preserves
+    the provider tagged error channel.
+  - Ollama response JSON parsing no longer uses a Promise type assertion.
+  - The focused embeddings tests now cover both direct factory use and the
+    effectful `OllamaEmbeddingsLive` layer.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/ollama-embeddings.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check:tsgo`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
 
 ### 2026-06-02: FalkorDB Scoped Client Lifecycle Slice
 
@@ -913,6 +944,14 @@ Notes:
     remaining `ts/packages` matches.
   - Provider SDKs and storage clients should become managed resources where
     they have meaningful lifecycle.
+  - Ollama embeddings now has an effectful canonical layer. There is no
+    installed Effect AI Ollama provider package, so future Ollama work should
+    focus on local Effect wrappers/adapters rather than provider replacement.
+  - Full text-completion provider swaps need parity tests first. OpenAI and
+    Azure currently use Chat Completions while `@effect/ai-openai` is Responses
+    API oriented, and no installed Azure/Mistral/Ollama Effect AI provider is
+    available. Anthropic is the closest direct provider swap, but must preserve
+    text, token counts, streaming final usage, and rate-limit mapping.
   - FalkorDB scoped lifecycle is complete for triples query/store. Use the
     fakeable client/graph factory pattern from that slice for future storage
     client tests.
@@ -920,8 +959,8 @@ Notes:
     store/query modules. Qdrant still has no close/disconnect surface in the
     installed client, so do not reopen it as an `acquireRelease` close slice
     without new SDK evidence.
-  - Ollama/OpenAI-compatible/provider surfaces still need config, schema, and
-    provider-layer audits.
+  - The next safe provider cleanup is shared text-completion stream iteration
+    and assertion removal, not a direct SDK swap.
 
 ## Ranked Findings
 
@@ -929,14 +968,18 @@ Notes:
 
 - TrustGraph evidence:
   - `ts/packages/flow/src/model/text-completion/*.ts`
-  - `ts/packages/flow/src/embeddings/ollama.ts`
 - Effect primitives:
   - `Config`, `ConfigProvider`, `Metric`, `Logger`,
     `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
     Effect AI OpenAI/Anthropic provider layers.
 - Rewrite shape:
-  - Migrate provider config into Effect layers.
-  - Use Effect AI provider layers where parity is proven.
+  - Consolidate duplicated text-completion stream iterator plumbing and error
+    conversion in a shared helper.
+  - Remove remaining provider assertions such as the Mistral content cast using
+    guards or Schema-backed normalization.
+  - Add an Effect AI adapter layer beside the current `LlmProvider` contract
+    before flipping any public provider interface.
+  - Use Effect AI provider layers only where parity is proven.
   - Keep OpenAI-compatible/Azure-compatible behavior behind parity tests
     because current code uses chat-completions style APIs while the Effect
     OpenAI language model is Responses API backed.
