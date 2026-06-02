@@ -11,8 +11,10 @@ import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
+  processorLifecycleError,
   type ProcessorConfig,
   type FlowProcessorRuntime,
+  type FlowProcessorStartEffect,
   type FlowContext,
   type FlowResourceNotFoundError,
   type MessagingDeliveryError,
@@ -26,8 +28,9 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   FalkorDBTriplesQueryLive,
   FalkorDBTriplesQueryService,
-  makeFalkorDBTriplesQueryService,
+  makeFalkorDBTriplesQueryServiceScoped,
   type FalkorDBQueryConfig,
+  type FalkorDBTriplesQueryError,
 } from "./falkordb.js";
 
 const TriplesResponseProducer = makeProducerSpec<TriplesQueryResponse>("triples-response");
@@ -79,17 +82,25 @@ export const makeTriplesQuerySpecs = (): ReadonlyArray<Spec<FalkorDBTriplesQuery
 
 export type TriplesQueryService = FlowProcessorRuntime<FalkorDBTriplesQueryService>;
 
+const provideFalkorDBTriplesQuery = (processorId: string) =>
+  Effect.fn("TriplesQueryService.provideFalkorDB")(function* (
+    effect: FlowProcessorStartEffect<FalkorDBTriplesQueryService>,
+  ) {
+    const query = yield* makeFalkorDBTriplesQueryServiceScoped().pipe(
+      Effect.mapError((error) => processorLifecycleError(processorId, "falkordb-query-connect", error)),
+    );
+    yield* effect.pipe(
+      Effect.provideService(
+        FalkorDBTriplesQueryService,
+        FalkorDBTriplesQueryService.of(query),
+      ),
+    );
+  });
+
 export function makeTriplesQueryService(config: ProcessorConfig): TriplesQueryService {
-  const query = makeFalkorDBTriplesQueryService();
   const service = makeFlowProcessor(config, {
     specifications: makeTriplesQuerySpecs(),
-    provide: (effect) =>
-      effect.pipe(
-        Effect.provideService(
-          FalkorDBTriplesQueryService,
-          FalkorDBTriplesQueryService.of(query),
-        ),
-      ),
+    provide: provideFalkorDBTriplesQuery(config.id),
   });
   void Effect.runPromise(Effect.log("[TriplesQuery] Service initialized"));
   return service;
@@ -97,7 +108,11 @@ export function makeTriplesQueryService(config: ProcessorConfig): TriplesQuerySe
 
 export const TriplesQueryService = makeTriplesQueryService;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBQueryConfig, never, FalkorDBTriplesQueryService>({
+export const program = makeFlowProcessorProgram<
+  ProcessorConfig & FalkorDBQueryConfig,
+  FalkorDBTriplesQueryError,
+  FalkorDBTriplesQueryService
+>({
   id: "triples-query",
   specs: () => makeTriplesQuerySpecs(),
   layer: (config) => FalkorDBTriplesQueryLive(config),

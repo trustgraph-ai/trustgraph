@@ -11,8 +11,10 @@
 import {
   makeFlowProcessor,
   makeConsumerSpec,
+  processorLifecycleError,
   type ProcessorConfig,
   type FlowProcessorRuntime,
+  type FlowProcessorStartEffect,
   type FlowContext,
   type Triples,
   type Spec,
@@ -23,7 +25,7 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   FalkorDBTriplesStoreLive,
   FalkorDBTriplesStoreService,
-  makeFalkorDBTriplesStoreService,
+  makeFalkorDBTriplesStoreServiceScoped,
   type FalkorDBConfig,
   type FalkorDBTriplesStoreError,
 } from "./falkordb.js";
@@ -55,17 +57,25 @@ export const makeTriplesStoreSpecs = (): ReadonlyArray<Spec<FalkorDBTriplesStore
 
 export type TriplesStoreService = FlowProcessorRuntime<FalkorDBTriplesStoreService>;
 
+const provideFalkorDBTriplesStore = (processorId: string) =>
+  Effect.fn("TriplesStoreService.provideFalkorDB")(function* (
+    effect: FlowProcessorStartEffect<FalkorDBTriplesStoreService>,
+  ) {
+    const store = yield* makeFalkorDBTriplesStoreServiceScoped().pipe(
+      Effect.mapError((error) => processorLifecycleError(processorId, "falkordb-store-connect", error)),
+    );
+    yield* effect.pipe(
+      Effect.provideService(
+        FalkorDBTriplesStoreService,
+        FalkorDBTriplesStoreService.of(store),
+      ),
+    );
+  });
+
 export function makeTriplesStoreService(config: ProcessorConfig): TriplesStoreService {
-  const store = makeFalkorDBTriplesStoreService();
   const service = makeFlowProcessor(config, {
     specifications: makeTriplesStoreSpecs(),
-    provide: (effect) =>
-      effect.pipe(
-        Effect.provideService(
-          FalkorDBTriplesStoreService,
-          FalkorDBTriplesStoreService.of(store),
-        ),
-      ),
+    provide: provideFalkorDBTriplesStore(config.id),
   });
   void Effect.runPromise(Effect.log("[TriplesStore] Service initialized"));
   return service;
@@ -73,7 +83,11 @@ export function makeTriplesStoreService(config: ProcessorConfig): TriplesStoreSe
 
 export const TriplesStoreService = makeTriplesStoreService;
 
-export const program = makeFlowProcessorProgram<ProcessorConfig & FalkorDBConfig, never, FalkorDBTriplesStoreService>({
+export const program = makeFlowProcessorProgram<
+  ProcessorConfig & FalkorDBConfig,
+  FalkorDBTriplesStoreError,
+  FalkorDBTriplesStoreService
+>({
   id: "triples-store",
   specs: () => makeTriplesStoreSpecs(),
   layer: (config) => FalkorDBTriplesStoreLive(config),

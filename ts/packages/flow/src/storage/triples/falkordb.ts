@@ -12,9 +12,31 @@ import { errorMessage, type Term, type Triple } from "@trustgraph/base";
 import { Config, Context, Effect, Layer } from "effect";
 import * as S from "effect/Schema";
 
+export interface FalkorDBClosableClient {
+  readonly connect: () => Promise<unknown>;
+  readonly disconnect: () => Promise<unknown>;
+}
+
+export type FalkorDBStoreQueryOptions = Parameters<Graph["query"]>[1];
+
+export interface FalkorDBStoreGraph {
+  readonly query: <T = unknown>(
+    query: string,
+    options?: FalkorDBStoreQueryOptions,
+  ) => Promise<{ readonly data?: Array<T> }>;
+}
+
+export type FalkorDBStoreClientFactory = (url: string) => FalkorDBClosableClient;
+export type FalkorDBStoreGraphFactory = (
+  client: FalkorDBClosableClient,
+  database: string,
+) => FalkorDBStoreGraph;
+
 export interface FalkorDBConfig {
   url?: string;
   database?: string;
+  clientFactory?: FalkorDBStoreClientFactory;
+  graphFactory?: FalkorDBStoreGraphFactory;
 }
 
 function getTermValue(term: Term): string {
@@ -91,10 +113,9 @@ const falkorDBTriplesStoreError = (operation: string, cause: unknown): FalkorDBT
   });
 
 interface FalkorDBStoreConnection {
-  readonly graph: Graph;
+  readonly client: FalkorDBClosableClient;
+  readonly graph: FalkorDBStoreGraph;
 }
-
-type FalkorDBQueryOptions = Parameters<Graph["query"]>[1];
 
 interface FalkorDBTriplesStoreEffectShape {
   readonly createNode: (
@@ -150,8 +171,25 @@ const connectFalkorDBTriplesStore = (
 ): Effect.Effect<FalkorDBStoreConnection, FalkorDBTriplesStoreError> =>
   Effect.gen(function* () {
     const { url, database } = yield* resolveFalkorDBStoreConfig(config);
+    const clientFactory = config.clientFactory;
+    const graphFactory = config.graphFactory;
+
+    if (
+      (clientFactory === undefined && graphFactory !== undefined) ||
+      (clientFactory !== undefined && graphFactory === undefined)
+    ) {
+      return yield* falkorDBTriplesStoreError(
+        "create-client",
+        "FalkorDB custom clientFactory and graphFactory must be configured together",
+      );
+    }
+
     const { client, graph } = yield* Effect.try({
       try: () => {
+        if (clientFactory !== undefined && graphFactory !== undefined) {
+          const client = clientFactory(url);
+          return { client, graph: graphFactory(client, database) };
+        }
         const client = createClient({ url });
         return { client, graph: new Graph(client, database) };
       },
@@ -171,14 +209,38 @@ const connectFalkorDBTriplesStore = (
     );
 
     yield* Effect.log(`[FalkorDBTriplesStore] Connected to ${url}, graph: ${database}`);
-    return { graph };
+    return { client, graph };
   });
 
+const disconnectFalkorDBTriplesStore = (
+  connection: FalkorDBStoreConnection,
+): Effect.Effect<void> =>
+  Effect.tryPromise({
+    try: () => connection.client.disconnect(),
+    catch: (cause) => falkorDBTriplesStoreError("disconnect", cause),
+  }).pipe(
+    Effect.catch((error) =>
+      Effect.logError("[FalkorDBTriplesStore] Disconnect failed", {
+        error: error.message,
+        operation: error.operation,
+      }),
+    ),
+    Effect.asVoid,
+  );
+
+const acquireFalkorDBTriplesStore = (
+  config: FalkorDBConfig,
+) =>
+  Effect.acquireRelease(
+    connectFalkorDBTriplesStore(config),
+    (connection) => disconnectFalkorDBTriplesStore(connection),
+  );
+
 const runGraphQuery = (
-  graph: Graph,
+  graph: FalkorDBStoreGraph,
   operation: string,
   query: string,
-  options?: FalkorDBQueryOptions,
+  options?: FalkorDBStoreQueryOptions,
 ): Effect.Effect<void, FalkorDBTriplesStoreError> =>
   Effect.tryPromise({
     try: () => graph.query(query, options),
@@ -188,17 +250,8 @@ const runGraphQuery = (
   );
 
 const makeFalkorDBTriplesStoreEffect = (
-  config: FalkorDBConfig = {},
+  getConnection: () => Effect.Effect<FalkorDBStoreConnection, FalkorDBTriplesStoreError>,
 ): FalkorDBTriplesStoreEffectShape => {
-  let cachedConnection: Effect.Effect<FalkorDBStoreConnection, FalkorDBTriplesStoreError> | undefined;
-
-  const getConnection = Effect.fn("FalkorDBTriplesStore.connection")(function* () {
-    if (cachedConnection === undefined) {
-      cachedConnection = yield* Effect.cached(connectFalkorDBTriplesStore(config));
-    }
-    return yield* cachedConnection;
-  });
-
   const createNode = Effect.fn("FalkorDBTriplesStore.createNode")(function* (
     uri: string,
     user: string,
@@ -320,38 +373,75 @@ const makeFalkorDBTriplesStoreEffect = (
   };
 };
 
+const makeFalkorDBTriplesStoreEffectScoped = (
+  config: FalkorDBConfig = {},
+) =>
+  acquireFalkorDBTriplesStore(config).pipe(
+    Effect.map((connection) => makeFalkorDBTriplesStoreEffect(() => Effect.succeed(connection))),
+  );
+
+const withFalkorDBTriplesStore = <A>(
+  config: FalkorDBConfig,
+  use: (store: FalkorDBTriplesStoreEffectShape) => Effect.Effect<A, FalkorDBTriplesStoreError>,
+) =>
+  Effect.scoped(
+    makeFalkorDBTriplesStoreEffectScoped(config).pipe(
+      Effect.flatMap(use),
+    ),
+  );
+
 export function makeFalkorDBTriplesStore(config: FalkorDBConfig = {}): FalkorDBTriplesStore {
-  const store = makeFalkorDBTriplesStoreEffect(config);
   return {
     createNode: (uri, user, collection) =>
-      Effect.runPromise(store.createNode(uri, user, collection)),
+      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.createNode(uri, user, collection))),
     createLiteral: (value, user, collection) =>
-      Effect.runPromise(store.createLiteral(value, user, collection)),
+      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.createLiteral(value, user, collection))),
     relateNode: (src, uri, dest, user, collection) =>
-      Effect.runPromise(store.relateNode(src, uri, dest, user, collection)),
+      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.relateNode(src, uri, dest, user, collection))),
     relateLiteral: (src, uri, dest, user, collection) =>
-      Effect.runPromise(store.relateLiteral(src, uri, dest, user, collection)),
+      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.relateLiteral(src, uri, dest, user, collection))),
     storeTriples: (triples, user = "default", collection = "default") =>
-      Effect.runPromise(store.storeTriples(triples, user, collection)),
+      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.storeTriples(triples, user, collection))),
     deleteCollection: (user, collection) =>
-      Effect.runPromise(store.deleteCollection(user, collection)),
+      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.deleteCollection(user, collection))),
   };
 }
 
 export const makeFalkorDBTriplesStoreService = (
   config: FalkorDBConfig = {},
+): FalkorDBTriplesStoreServiceShape => ({
+  storeTriples: (triples, user, collection) =>
+    withFalkorDBTriplesStore(config, (store) => store.storeTriples(triples, user, collection)),
+  deleteCollection: (user, collection) =>
+    withFalkorDBTriplesStore(config, (store) => store.deleteCollection(user, collection)),
+});
+
+export const makeFalkorDBTriplesStoreServiceFromConnection = (
+  connection: FalkorDBStoreConnection,
 ): FalkorDBTriplesStoreServiceShape => {
-  const store = makeFalkorDBTriplesStoreEffect(config);
+  const store = makeFalkorDBTriplesStoreEffect(() => Effect.succeed(connection));
   return {
     storeTriples: store.storeTriples,
     deleteCollection: store.deleteCollection,
   };
 };
 
+export const makeFalkorDBTriplesStoreServiceScoped = (
+  config: FalkorDBConfig = {},
+) =>
+  makeFalkorDBTriplesStoreEffectScoped(config).pipe(
+    Effect.map((store) => ({
+      storeTriples: store.storeTriples,
+      deleteCollection: store.deleteCollection,
+    })),
+  );
+
 export const FalkorDBTriplesStoreLive = (
   config: FalkorDBConfig = {},
-): Layer.Layer<FalkorDBTriplesStoreService> =>
-  Layer.succeed(
+): Layer.Layer<FalkorDBTriplesStoreService, FalkorDBTriplesStoreError> =>
+  Layer.effect(
     FalkorDBTriplesStoreService,
-    FalkorDBTriplesStoreService.of(makeFalkorDBTriplesStoreService(config)),
+    makeFalkorDBTriplesStoreServiceScoped(config).pipe(
+      Effect.map((service) => FalkorDBTriplesStoreService.of(service)),
+    ),
   );

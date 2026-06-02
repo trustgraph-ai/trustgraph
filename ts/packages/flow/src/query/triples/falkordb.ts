@@ -9,11 +9,34 @@
 import { createClient, Graph } from "falkordb";
 import { errorMessage, type Term, type Triple } from "@trustgraph/base";
 import { Config, Context, Effect, Layer } from "effect";
+import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
+
+export interface FalkorDBClosableClient {
+  readonly connect: () => Promise<unknown>;
+  readonly disconnect: () => Promise<unknown>;
+}
+
+export type FalkorDBQueryOptions = Parameters<Graph["query"]>[1];
+
+export interface FalkorDBQueryGraph {
+  readonly query: <T = unknown>(
+    query: string,
+    options?: FalkorDBQueryOptions,
+  ) => Promise<{ readonly data?: Array<T> }>;
+}
+
+export type FalkorDBQueryClientFactory = (url: string) => FalkorDBClosableClient;
+export type FalkorDBQueryGraphFactory = (
+  client: FalkorDBClosableClient,
+  database: string,
+) => FalkorDBQueryGraph;
 
 export interface FalkorDBQueryConfig {
   url?: string;
   database?: string;
+  clientFactory?: FalkorDBQueryClientFactory;
+  graphFactory?: FalkorDBQueryGraphFactory;
 }
 
 function termToValue(term: Term | undefined): string | null {
@@ -41,7 +64,9 @@ function createTerm(value: string): Term {
 }
 
 function field(row: unknown, key: string): string {
-  return (row as Record<string, unknown>)?.[key] as string ?? "";
+  if (!Predicate.hasProperty(row, key)) return "";
+  const value = row[key];
+  return typeof value === "string" ? value : "";
 }
 
 export interface FalkorDBTriplesQuery {
@@ -86,10 +111,9 @@ const falkorDBTriplesQueryError = (operation: string, cause: unknown): FalkorDBT
   });
 
 interface FalkorDBQueryConnection {
-  readonly graph: Graph;
+  readonly client: FalkorDBClosableClient;
+  readonly graph: FalkorDBQueryGraph;
 }
-
-type FalkorDBQueryOptions = Parameters<Graph["query"]>[1];
 
 const resolveFalkorDBQueryConfig = Effect.fn("FalkorDBTriplesQuery.resolveConfig")(function* (
   config: FalkorDBQueryConfig,
@@ -109,8 +133,25 @@ const connectFalkorDBTriplesQuery = (
 ): Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError> =>
   Effect.gen(function* () {
     const { url, database } = yield* resolveFalkorDBQueryConfig(config);
+    const clientFactory = config.clientFactory;
+    const graphFactory = config.graphFactory;
+
+    if (
+      (clientFactory === undefined && graphFactory !== undefined) ||
+      (clientFactory !== undefined && graphFactory === undefined)
+    ) {
+      return yield* falkorDBTriplesQueryError(
+        "create-client",
+        "FalkorDB custom clientFactory and graphFactory must be configured together",
+      );
+    }
+
     const { client, graph } = yield* Effect.try({
       try: () => {
+        if (clientFactory !== undefined && graphFactory !== undefined) {
+          const client = clientFactory(url);
+          return { client, graph: graphFactory(client, database) };
+        }
         const client = createClient({ url });
         return { client, graph: new Graph(client, database) };
       },
@@ -130,11 +171,35 @@ const connectFalkorDBTriplesQuery = (
     );
 
     yield* Effect.log(`[FalkorDBTriplesQuery] Connected to ${url}, graph: ${database}`);
-    return { graph };
+    return { client, graph };
   });
 
+const disconnectFalkorDBTriplesQuery = (
+  connection: FalkorDBQueryConnection,
+): Effect.Effect<void> =>
+  Effect.tryPromise({
+    try: () => connection.client.disconnect(),
+    catch: (cause) => falkorDBTriplesQueryError("disconnect", cause),
+  }).pipe(
+    Effect.catch((error) =>
+      Effect.logError("[FalkorDBTriplesQuery] Disconnect failed", {
+        error: error.message,
+        operation: error.operation,
+      }),
+    ),
+    Effect.asVoid,
+  );
+
+const acquireFalkorDBTriplesQuery = (
+  config: FalkorDBQueryConfig,
+) =>
+  Effect.acquireRelease(
+    connectFalkorDBTriplesQuery(config),
+    (connection) => disconnectFalkorDBTriplesQuery(connection),
+  );
+
 const queryRows = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   operation: string,
   query: string,
   options?: FalkorDBQueryOptions,
@@ -147,7 +212,7 @@ const queryRows = (
   );
 
 const matchPattern = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   pv: string,
@@ -171,7 +236,7 @@ const matchPattern = (
   });
 
 const matchSP = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   pv: string,
@@ -202,7 +267,7 @@ const matchSP = (
   });
 
 const matchSO = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   ov: string,
@@ -224,7 +289,7 @@ const matchSO = (
   });
 
 const matchPO = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   pv: string,
   ov: string,
@@ -246,7 +311,7 @@ const matchPO = (
   });
 
 const matchS = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   limit: number,
@@ -276,7 +341,7 @@ const matchS = (
   });
 
 const matchP = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   pv: string,
   limit: number,
@@ -306,7 +371,7 @@ const matchP = (
   });
 
 const matchO = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   ov: string,
   limit: number,
@@ -327,7 +392,7 @@ const matchO = (
   });
 
 const matchAll = (
-  graph: Graph,
+  graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   limit: number,
 ): Effect.Effect<void, FalkorDBTriplesQueryError> =>
@@ -395,45 +460,67 @@ const queryTriplesEffect = (
   });
 
 const makeFalkorDBTriplesQueryEffect = (
+  getConnection: () => Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError>,
+): FalkorDBTriplesQueryServiceShape => ({
+  queryTriples: Effect.fn("FalkorDBTriplesQuery.queryTriples")((
+    s: Term | undefined,
+    p: Term | undefined,
+    o: Term | undefined,
+    limit: number,
+  ) => queryTriplesEffect(getConnection, s, p, o, limit)),
+});
+
+const makeFalkorDBTriplesQueryEffectScoped = (
   config: FalkorDBQueryConfig = {},
-): FalkorDBTriplesQueryServiceShape => {
-  let cachedConnection: Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError> | undefined;
+) =>
+  acquireFalkorDBTriplesQuery(config).pipe(
+    Effect.map((connection) => makeFalkorDBTriplesQueryEffect(() => Effect.succeed(connection))),
+  );
 
-  const getConnection = Effect.fn("FalkorDBTriplesQuery.connection")(function* () {
-    if (cachedConnection === undefined) {
-      cachedConnection = yield* Effect.cached(connectFalkorDBTriplesQuery(config));
-    }
-    return yield* cachedConnection;
-  });
-
-  return {
-    queryTriples: Effect.fn("FalkorDBTriplesQuery.queryTriples")((
-      s: Term | undefined,
-      p: Term | undefined,
-      o: Term | undefined,
-      limit: number,
-    ) => queryTriplesEffect(getConnection, s, p, o, limit)),
-  };
-};
+const withFalkorDBTriplesQuery = <A>(
+  config: FalkorDBQueryConfig,
+  use: (query: FalkorDBTriplesQueryServiceShape) => Effect.Effect<A, FalkorDBTriplesQueryError>,
+) =>
+  Effect.scoped(
+    makeFalkorDBTriplesQueryEffectScoped(config).pipe(
+      Effect.flatMap(use),
+    ),
+  );
 
 export function makeFalkorDBTriplesQuery(
   config: FalkorDBQueryConfig = {},
 ): FalkorDBTriplesQuery {
-  const query = makeFalkorDBTriplesQueryEffect(config);
   return {
     queryTriples: (s, p, o, limit = 100) =>
-      Effect.runPromise(query.queryTriples(s, p, o, limit)).then((triples) => Array.from(triples)),
+      Effect.runPromise(
+        withFalkorDBTriplesQuery(config, (query) => query.queryTriples(s, p, o, limit)),
+      ).then((triples) => Array.from(triples)),
   };
 }
 
 export const makeFalkorDBTriplesQueryService = (
   config: FalkorDBQueryConfig = {},
-): FalkorDBTriplesQueryServiceShape => makeFalkorDBTriplesQueryEffect(config);
+): FalkorDBTriplesQueryServiceShape => ({
+  queryTriples: (s, p, o, limit) =>
+    withFalkorDBTriplesQuery(config, (query) => query.queryTriples(s, p, o, limit)),
+});
+
+export const makeFalkorDBTriplesQueryServiceFromConnection = (
+  connection: FalkorDBQueryConnection,
+): FalkorDBTriplesQueryServiceShape =>
+  makeFalkorDBTriplesQueryEffect(() => Effect.succeed(connection));
+
+export const makeFalkorDBTriplesQueryServiceScoped = (
+  config: FalkorDBQueryConfig = {},
+) =>
+  makeFalkorDBTriplesQueryEffectScoped(config);
 
 export const FalkorDBTriplesQueryLive = (
   config: FalkorDBQueryConfig = {},
-): Layer.Layer<FalkorDBTriplesQueryService> =>
-  Layer.succeed(
+): Layer.Layer<FalkorDBTriplesQueryService, FalkorDBTriplesQueryError> =>
+  Layer.effect(
     FalkorDBTriplesQueryService,
-    FalkorDBTriplesQueryService.of(makeFalkorDBTriplesQueryService(config)),
+    makeFalkorDBTriplesQueryServiceScoped(config).pipe(
+      Effect.map((service) => FalkorDBTriplesQueryService.of(service)),
+    ),
   );

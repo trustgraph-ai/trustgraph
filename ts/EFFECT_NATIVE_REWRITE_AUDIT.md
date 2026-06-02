@@ -12,13 +12,14 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 gateway
-streaming callback slice:
+Current signal counts from `ts/packages` after the 2026-06-02 FalkorDB scoped
+client lifecycle slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 163 |
+| `Effect.runPromise` | 165 |
 | `Effect.runPromiseWith` | 0 |
+| `Effect.cached` | 0 |
 | `Map<` | 82 |
 | `WebSocket` | 62 |
 | `new Map` | 60 |
@@ -98,6 +99,12 @@ Notes:
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
   `StopStreaming` sentinel error with `Stream.runForEachWhile`.
+- The FalkorDB scoped client lifecycle slice removed the remaining
+  `Effect.cached` matches from `ts/packages`. FalkorDB triples store/query
+  Live layers and direct compatibility factories now acquire clients through
+  `Effect.acquireRelease` and disconnect them on scope close. The
+  `Effect.runPromise` count increased by two because the new lifecycle tests
+  run scoped programs at the test boundary.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -758,6 +765,40 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: FalkorDB Scoped Client Lifecycle Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/storage/triples/falkordb.ts` and
+    `ts/packages/flow/src/query/triples/falkordb.ts` now model FalkorDB client
+    acquisition with `Effect.acquireRelease`.
+  - FalkorDB Live layers now use `Layer.effect` and own Redis client
+    disconnect finalizers through the layer scope.
+  - Direct Promise compatibility factories and direct service factories now
+    bracket each operation with scoped acquisition instead of hiding mutable
+    `Effect.cached` connection slots.
+  - Legacy `makeTriplesStoreService` and `makeTriplesQueryService` provider
+    hooks now acquire scoped FalkorDB services and map acquisition failures to
+    `ProcessorLifecycleError`; modern `program` entrypoints preserve the
+    FalkorDB tagged layer error type.
+  - FalkorDB query row field extraction now uses `effect/Predicate` narrowing
+    instead of record/string type assertions.
+  - New lifecycle tests use fake clients/graphs to prove connect on acquire
+    and disconnect on scope close for both triples store and triples query.
+- Remaining:
+  - Qdrant graph/doc store/query construction still needs the next
+    config/schema/fakeability cleanup. The installed Qdrant client exposes no
+    close/disconnect method, so this should not be treated as a lifecycle
+    finalizer slice.
+- Verification:
+  - `bunx --bun vitest run src/__tests__/falkordb-lifecycle.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -810,9 +851,9 @@ Notes:
     remaining `ts/packages` matches.
   - Provider SDKs and storage clients should become managed resources where
     they have meaningful lifecycle.
-  - FalkorDB should be the next P1 storage slice: both triples query and store
-    connect Redis clients, cache them with mutable `Effect.cached` slots, and
-    expose `Layer.succeed` services without a scoped client finalizer.
+  - FalkorDB scoped lifecycle is complete for triples query/store. Use the
+    fakeable client/graph factory pattern from that slice for future storage
+    client tests.
   - Qdrant has no close/disconnect surface in the installed client, so treat it
     as a config/schema/fakeability slice rather than an `acquireRelease` close
     slice.
@@ -821,33 +862,47 @@ Notes:
 
 ## Ranked Findings
 
-### P1: Make SDK, Storage, And Provider Layers Managed Resources
+### P1: Qdrant Config, Schema, And Fakeable Construction Cleanup
 
 - TrustGraph evidence:
-  - `ts/packages/flow/src/storage/triples/falkordb.ts`
-  - `ts/packages/flow/src/query/triples/falkordb.ts`
   - `ts/packages/flow/src/storage/embeddings/qdrant-graph.ts`
   - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts`
   - `ts/packages/flow/src/query/embeddings/qdrant-graph.ts`
   - `ts/packages/flow/src/query/embeddings/qdrant-doc.ts`
+- Effect primitives:
+  - `Config`, `ConfigProvider`, `Layer.effect`, `Schema.decodeUnknownEffect`,
+    `Predicate`, `Option`.
+- Rewrite shape:
+  - Move Qdrant config loading out of sync factory construction and into
+    Effect config/layer paths.
+  - Add fakeable Qdrant client construction before behavior changes.
+  - Decode query payloads through Schema instead of manual payload casts.
+  - Do not add an `acquireRelease` finalizer unless a concrete close API is
+    found in the installed Qdrant client.
+- Tests:
+  - Qdrant graph/doc store/query tests with fake clients.
+  - Config tests with `ConfigProvider.fromUnknown`.
+  - Schema decode failure tests for malformed payloads.
+
+### P2: Provider Layer And Effect AI Cleanup
+
+- TrustGraph evidence:
   - `ts/packages/flow/src/model/text-completion/*.ts`
   - `ts/packages/flow/src/embeddings/ollama.ts`
 - Effect primitives:
-  - `Effect.acquireRelease`, `Layer.effect`/`Layer.scoped`, `Config`,
-    `ConfigProvider`, `Metric`, `Logger`, Effect AI provider layers.
+  - `Config`, `ConfigProvider`, `Metric`, `Logger`,
+    `effect/unstable/ai/LanguageModel`, `effect/unstable/ai/EmbeddingModel`,
+    Effect AI OpenAI/Anthropic provider layers.
 - Rewrite shape:
-  - First migrate FalkorDB triples store/query so Redis client connect and
-    disconnect/quit are owned by the service layer scope instead of mutable
-    cached effects hidden inside a `Layer.succeed` service.
-  - Move env/config reading into `Config` loaders and provider-specific layers.
-  - Scope SDK clients that need explicit close/disconnect; for clients without
-    close APIs, prefer config/schema/fakeable construction work instead.
+  - Migrate provider config into Effect layers.
+  - Use Effect AI provider layers where parity is proven.
+  - Keep OpenAI-compatible/Azure-compatible behavior behind parity tests
+    because current code uses chat-completions style APIs while the Effect
+    OpenAI language model is Responses API backed.
 - Tests:
-  - FalkorDB tests with fake client factories proving connect on acquire and
-    disconnect/quit on scope close.
-  - Provider/config tests with `ConfigProvider.fromUnknown`.
-  - Storage/query tests with fake clients before changing real resource
-    lifetimes.
+  - Provider parity for `LlmResult`, final streaming chunk token counts, 429
+    mapping, missing-token config failures, and OpenAI-compatible local-server
+    behavior.
 
 ### P2: Canonicalize MCP Around The Effect Server
 
@@ -881,9 +936,9 @@ Notes:
 
 ## Recommended PR Order
 
-1. FalkorDB triples store/query scoped client lifecycle.
-2. Qdrant config/schema/fakeable construction cleanup.
-3. Client streaming facade completion normalization.
+1. Qdrant config/schema/fakeable construction cleanup.
+2. Client streaming facade completion normalization.
+3. Provider layer and Effect AI cleanup.
 4. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
