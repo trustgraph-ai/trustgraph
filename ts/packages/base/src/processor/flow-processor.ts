@@ -38,7 +38,7 @@ import {
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
 import { Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
-import * as Predicate from "effect/Predicate";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
 interface ConfigPush {
@@ -105,19 +105,14 @@ const ConfigPushSchema = S.Struct({
   config: S.Record(S.String, S.Unknown),
 });
 
-const isStringRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value) && !Array.isArray(value);
+const FlowDefinitionSchema = S.Struct({
+  topics: S.optionalKey(S.Record(S.String, S.String)),
+  parameters: S.optionalKey(S.Record(S.String, S.Unknown)),
+});
 
-const isTopicsRecord = (value: unknown): value is Record<string, string> =>
-  isStringRecord(value) && Object.values(value).every((item) => typeof item === "string");
+const FlowDefinitionsSchema = S.Record(S.String, FlowDefinitionSchema);
 
-const isFlowDefinition = (value: unknown): value is FlowDefinition => {
-  if (!isStringRecord(value)) return false;
-  const topics = value.topics;
-  const parameters = value.parameters;
-  return (topics === undefined || isTopicsRecord(topics)) &&
-    (parameters === undefined || isStringRecord(parameters));
-};
+const decodeFlowDefinitions = S.decodeUnknownOption(FlowDefinitionsSchema);
 
 export function runFlowProcessorDefinitionScoped<
   FlowRequirements = never,
@@ -220,12 +215,14 @@ export function runFlowProcessorDefinitionScoped<
         yield* Effect.log(`[${options.id}] No flows in config push, skipping`);
         return;
       }
-      if (!isStringRecord(flowDefs)) {
+      const decodedFlowDefs = decodeFlowDefinitions(flowDefs);
+      if (O.isNone(decodedFlowDefs)) {
         yield* Effect.logWarning(`[${options.id}] Skipping config push: flows is not an object`);
         return;
       }
+      const flowDefinitions = decodedFlowDefs.value;
 
-      const flowsJson = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(flowDefs).pipe(
+      const flowsJson = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(flowDefinitions).pipe(
         Effect.catch((error) => Effect.succeed(String(error))),
       );
       if (lastFlowsJson.length > 0 && flowsJson === lastFlowsJson && flows.size > 0) {
@@ -235,19 +232,14 @@ export function runFlowProcessorDefinitionScoped<
       lastFlowsJson = flowsJson;
 
       for (const [name, activeFlow] of flows) {
-        if (!(name in flowDefs)) {
+        if (!(name in flowDefinitions)) {
           yield* Effect.log(`[${options.id}] Stopping removed flow: ${name}`);
           yield* closeFlowEffect(name, activeFlow);
           flows.delete(name);
         }
       }
 
-      for (const [name, defn] of Object.entries(flowDefs)) {
-        if (!isFlowDefinition(defn)) {
-          yield* Effect.logWarning(`[${options.id}] Skipping flow "${name}": definition is not an object`);
-          continue;
-        }
-
+      for (const [name, defn] of Object.entries(flowDefinitions)) {
         const existing = flows.get(name);
         if (existing !== undefined) {
           yield* Effect.log(`[${options.id}] Restarting flow "${name}" with updated config`);

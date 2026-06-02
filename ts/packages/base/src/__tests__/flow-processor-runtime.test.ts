@@ -136,6 +136,10 @@ class FlowProcessorBackend implements PubSubBackend {
   }
 
   pushConfig(version: number, flows: Record<string, unknown>): void {
+    this.pushFlowConfig(version, flows);
+  }
+
+  pushFlowConfig(version: number, flows: unknown): void {
     this.configConsumer.push(createMessage({ version, config: { flows } }));
   }
 }
@@ -249,6 +253,46 @@ describe("Effect-native FlowProcessor runtime", () => {
       );
 
       expect(backend.producerOptions.map((options) => options.topic)).toEqual(["functional-output"]);
+      expect(events).toEqual(["handler:1"]);
+      expect(backend.configConsumer.closeCount).toBeGreaterThanOrEqual(1);
+      expect(backend.closeCount).toBe(1);
+    }),
+  );
+
+  it.effect(
+    "schema-decodes flow definitions before starting resources",
+    Effect.fnUntraced(function* () {
+      const backend = new FlowProcessorBackend();
+      const events: Array<string> = [];
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const fiber = yield* runFlowProcessorDefinitionScoped({
+            id: "schema-flow-processor-test",
+            pubsub: backend,
+            specifications: [makeProducerSpec<string>("output")],
+            configHandlers: [
+              (_config, version) => Effect.sync(() => {
+                events.push(`handler:${version}`);
+              }),
+            ],
+          }).pipe(
+            Effect.provide(MessagingRuntimeLive),
+            Effect.provide(PubSub.layer(backend)),
+            Effect.provide(fastMessagingConfig),
+            Effect.forkChild,
+          );
+
+          yield* waitFor(() => backend.consumerOptions.length === 1, "schema config subscription");
+
+          backend.pushFlowConfig(1, { default: { topics: { output: 42 } } });
+          yield* waitFor(() => backend.configConsumer.acknowledged.length === 1, "schema config ack");
+
+          yield* Fiber.interrupt(fiber);
+        }),
+      );
+
+      expect(backend.producers).toHaveLength(0);
       expect(events).toEqual(["handler:1"]);
       expect(backend.configConsumer.closeCount).toBeGreaterThanOrEqual(1);
       expect(backend.closeCount).toBe(1);

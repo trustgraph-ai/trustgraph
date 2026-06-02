@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Base processor
-compatibility runtime slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Base flow
+definition schema slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -65,6 +65,9 @@ Notes:
 - The base processor compatibility runtime slice dropped the
   `Effect.runPromise` count again by moving `AsyncProcessor`, `Flow`, and
   `FlowProcessor` Promise compatibility facades onto `ManagedRuntime`.
+- The base flow definition schema slice removed hand-rolled
+  `Predicate`/object narrowing from `flow-processor.ts`; signal counts are
+  unchanged because this was a validation-quality migration.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -520,6 +523,26 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: Base Flow Definition Schema Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/base/src/processor/flow-processor.ts` now validates
+    `config.flows` with Effect Schema instead of local
+    `Predicate`/object/string-record guards.
+  - Invalid flow definition payloads still log/skip and preserve the existing
+    config-handler and acknowledgement behavior.
+  - `ts/packages/base/src/__tests__/flow-processor-runtime.test.ts` now covers
+    an invalid nested flow definition that is acknowledged without starting
+    resources.
+- Verification:
+  - `bun run --cwd ts/packages/base test -- src/__tests__/flow-processor-runtime.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -568,11 +591,10 @@ Notes:
 
 ## Ranked Findings
 
-### P1: Base Flow Definition Schemas And Typed Spec Accessors
+### P1: Base Typed Spec Accessors
 
 - TrustGraph evidence:
   - `ts/packages/base/src/processor/flow.ts`
-  - `ts/packages/base/src/processor/flow-processor.ts`
   - `ts/packages/base/src/spec/parameter-spec.ts`
   - `ts/packages/base/src/spec/producer-spec.ts`
   - `ts/packages/base/src/spec/request-response-spec.ts`
@@ -580,8 +602,6 @@ Notes:
   - Schema-backed registries, `Context`, `Layer`, `Effect.fn`, `Option`,
     `Predicate`, `HashMap`/`MutableHashMap`.
 - Rewrite shape:
-  - Replace hand-rolled `isStringRecord` / `isFlowDefinition` narrowing with
-    Schema decoding plus `Option`/`Match`-style branches.
   - Add schema-backed generic parameter specs and spec-object accessors such as
     `flow.parameterEffect(spec)`, then keep string accessors as compatibility
     escapes.
@@ -645,7 +665,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. Base flow definition schema decoding and typed spec accessors.
+1. Base typed spec accessors.
 2. Gateway RPC callback and client streaming completion cleanup.
 3. Storage/provider managed resource cleanup.
 4. MCP parity/deletion decision and workbench platform polish.
