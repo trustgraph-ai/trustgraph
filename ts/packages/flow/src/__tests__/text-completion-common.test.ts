@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import type { LlmChunk } from "@trustgraph/base";
-import { providerRuntimeError, toAsyncGenerator } from "../model/text-completion/common.js";
+import { providerRuntimeError, providerStatusError, toAsyncGenerator } from "../model/text-completion/common.js";
 
 const emptyChunkIterator = (): AsyncIterable<LlmChunk> => ({
   [Symbol.asyncIterator]: () => ({
@@ -9,6 +9,18 @@ const emptyChunkIterator = (): AsyncIterable<LlmChunk> => ({
 });
 
 describe("text completion common helpers", () => {
+  it("maps provider rate-limit status fields to tagged retry errors", () => {
+    expect(providerStatusError("test-provider", { status: 429 })).toMatchObject({
+      _tag: "TooManyRequestsError",
+      message: "Rate limit exceeded",
+    });
+
+    expect(providerStatusError("test-provider", { statusCode: 429 })).toMatchObject({
+      _tag: "TooManyRequestsError",
+      message: "Rate limit exceeded",
+    });
+  });
+
   it("maps fallback generator throw failures into tagged provider errors", async () => {
     const generator = toAsyncGenerator(
       emptyChunkIterator(),

@@ -13,7 +13,7 @@ Verified source roots:
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
 Current signal counts from `ts/packages` after the 2026-06-02 Text completion
-generator boundary slice:
+provider status narrowing slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -76,6 +76,8 @@ Notes:
   `Effect.runPromise(Effect.fail(...))` fallback and the related
   `AsyncGenerator`/`IteratorResult` assertions from
   `model/text-completion/common.ts`.
+- The text completion provider status slice replaced manual status/statusCode
+  record assertions with `effect/Predicate` narrowing.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -580,6 +582,24 @@ Notes:
   - The custom generator object no longer uses `as AsyncGenerator`,
     `as Promise<IteratorResult<LlmChunk>>`, or `as LlmChunk` assertions.
   - Added a focused unit test for fallback throw mapping.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/text-completion-common.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Text Completion Provider Status Narrowing Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/flow/src/model/text-completion/common.ts` now uses
+    `effect/Predicate` narrowing for provider `status` / `statusCode`
+    inspection instead of local record assertions.
+  - `ts/packages/flow/src/__tests__/text-completion-common.test.ts` covers
+    both rate-limit status fields.
 - Verification:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/text-completion-common.test.ts`
   - `bun run --cwd ts/packages/flow build`

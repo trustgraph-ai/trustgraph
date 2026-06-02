@@ -5,6 +5,7 @@ import {
 } from "@trustgraph/base";
 import { Config, Effect } from "effect";
 import * as O from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
 export class TextCompletionConfigError extends S.TaggedErrorClass<TextCompletionConfigError>()(
@@ -68,11 +69,11 @@ export const providerStatusError = (
   provider: string,
   error: unknown,
 ): TextCompletionRuntimeError => {
-  const status = typeof error === "object" && error !== null && "status" in error
-    ? (error as { readonly status?: unknown }).status
+  const status = Predicate.isObject(error) && Predicate.hasProperty(error, "status")
+    ? error.status
     : undefined;
-  const statusCode = typeof error === "object" && error !== null && "statusCode" in error
-    ? (error as { readonly statusCode?: unknown }).statusCode
+  const statusCode = Predicate.isObject(error) && Predicate.hasProperty(error, "statusCode")
+    ? error.statusCode
     : undefined;
   return status === 429 || statusCode === 429
     ? TooManyRequestsError.make({ message: "Rate limit exceeded" })
