@@ -14,7 +14,9 @@ import {
   type JetStreamClient,
   type JetStreamManager,
   type Consumer as NatsJsConsumer,
+  headers,
   type JsMsg,
+  type JetStreamPublishOptions,
   StringCodec,
   AckPolicy,
   DeliverPolicy,
@@ -78,6 +80,25 @@ function makeNatsProducer<T>(
   subject: string,
   schema?: S.Codec<T, unknown>,
 ): BackendProducer<T> {
+  const makePublishOptions = (
+    properties: Record<string, string> | undefined,
+  ): Effect.Effect<Partial<JetStreamPublishOptions>, ReturnType<typeof pubSubError>> => {
+    if (properties === undefined || Object.keys(properties).length === 0) {
+      return Effect.succeed({});
+    }
+
+    return Effect.try({
+      try: () => {
+        const hdrs = headers();
+        for (const [key, val] of Object.entries(properties)) {
+          hdrs.append(key, val);
+        }
+        return { headers: hdrs };
+      },
+      catch: (error) => pubSubError(`headers:${subject}`, error),
+    });
+  };
+
   return {
     send: (message, properties) =>
       Effect.runPromise(
@@ -91,19 +112,7 @@ function makeNatsProducer<T>(
             Effect.mapError((error) => pubSubError(`encode-json:${subject}`, error)),
           );
           const data = sc.encode(json);
-          const opts: Record<string, unknown> = {};
-
-          if (properties !== undefined && Object.keys(properties).length > 0) {
-            const { headers } = yield* Effect.tryPromise({
-              try: () => import("nats"),
-              catch: (error) => pubSubError("import:nats-headers", error),
-            });
-            const hdrs = headers();
-            for (const [key, val] of Object.entries(properties)) {
-              hdrs.append(key, val);
-            }
-            opts.headers = hdrs;
-          }
+          const opts = yield* makePublishOptions(properties);
 
           yield* Effect.tryPromise({
             try: () => js.publish(subject, data, opts),
@@ -204,8 +213,11 @@ function makeNatsConsumer<T>(
           if (!isNatsMessage(message)) {
             return yield* pubSubError(`acknowledge:${subject}`, "Message was not produced by NATS backend");
           }
-          yield* Effect.sync(() => {
-            message._jsMsg.ack();
+          yield* Effect.try({
+            try: () => {
+              message._jsMsg.ack();
+            },
+            catch: (error) => pubSubError(`acknowledge:${subject}`, error),
           });
         }),
       ),
@@ -218,8 +230,11 @@ function makeNatsConsumer<T>(
               "Message was not produced by NATS backend",
             );
           }
-          yield* Effect.sync(() => {
-            message._jsMsg.nak();
+          yield* Effect.try({
+            try: () => {
+              message._jsMsg.nak();
+            },
+            catch: (error) => pubSubError(`negative-acknowledge:${subject}`, error),
           });
         }),
       ),

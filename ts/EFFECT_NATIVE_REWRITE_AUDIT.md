@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 base producer
-scoped runtime slice:
+Current signal counts from `ts/packages` after the 2026-06-02 NATS typed
+boundary slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -26,13 +26,13 @@ scoped runtime slice:
 | `new Map` | 60 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
-| `receive(` | 17 |
+| `receive(` | 18 |
 | `while (` | 2 |
 | `new Error` | 8 |
 | `new Promise` | 10 |
 | `JSON.parse` | 4 |
 | `localStorage` | 9 |
-| `JSON.stringify` | 7 |
+| `JSON.stringify` | 8 |
 | `setTimeout` | 4 |
 | `process.env` | 3 |
 
@@ -101,6 +101,10 @@ Notes:
   factory. Public `start`/`send`/`stop` remain Promise compatibility
   boundaries, while producer allocation, flush, and finalizer close now go
   through the Effect runtime path.
+- The NATS typed boundary slice removed the dynamic `import("nats")` header
+  path and maps header construction plus `ack()`/`nak()` failures into tagged
+  `PubSubError`s with `Effect.try`. The `receive(` and `JSON.stringify` count
+  increases are from the new mocked NATS backend test, not production code.
 - The gateway streaming callback slice added Effect-returning dispatcher
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
@@ -1156,6 +1160,28 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: NATS Typed Boundary Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Replaced the dynamic header import inside `makeNatsProducer` with the
+    static NATS `headers` export.
+  - Wrapped publish header construction in `Effect.try`, so invalid header
+    names/values fail as tagged `PubSubError` values instead of defects.
+  - Wrapped NATS `ack()` and `nak()` calls in `Effect.try`, preserving the
+    existing wrong-message guard and mapping thrown acknowledgement failures
+    into tagged `PubSubError`s.
+  - Added a mocked NATS backend test covering invalid publish headers and
+    thrown ack/nak failures through the public `makeNatsBackend` path.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/nats-backend.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1187,6 +1213,10 @@ Notes:
     runtime. Remaining broker P0 work should focus on native backend/NATS
     runtime shape and consumer polling, not replacing `PubSubBackend` with
     `effect/PubSub`.
+  - NATS header construction and ack/nak operations now map thrown SDK
+    failures into tagged `PubSubError`s. Remaining NATS work is selective
+    404 handling, scoped backend/layer construction, and stream/consumer state
+    ownership.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -1257,6 +1287,9 @@ Notes:
   - Treat the producer Promise facade as a completed compatibility wrapper;
     avoid reopening it unless backend runtime changes require a narrower
     adapter.
+  - Keep NATS SDK boundary failures typed; future backend slices should avoid
+    catch-all create-on-failure behavior and move connection/stream state into
+    scoped Effect services.
 - Tests:
   - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
     config-push stream tests.
