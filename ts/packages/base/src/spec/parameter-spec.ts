@@ -4,13 +4,31 @@
  * Python reference: trustgraph-base/trustgraph/base/parameter_spec.py
  */
 
-import { Effect } from "effect";
+import { Effect, type Context } from "effect";
+import * as S from "effect/Schema";
+import type { PubSubBackend } from "../backend/types.js";
 import type { Spec } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 
-export interface ParameterSpec extends Spec {}
+declare const ParameterSpecType: unique symbol;
 
-export function makeParameterSpec(name: string): ParameterSpec {
+const UnknownParameterSchema: S.Codec<unknown, unknown> = S.Unknown;
+
+export interface ParameterSpec<T = unknown> extends Spec {
+  readonly [ParameterSpecType]?: (_: T) => T;
+  readonly schema: S.Codec<T, unknown>;
+}
+
+export function makeParameterSpec(name: string): ParameterSpec<unknown>;
+export function makeParameterSpec<T>(
+  name: string,
+  schema: S.Codec<T, unknown>,
+): ParameterSpec<T>;
+export function makeParameterSpec<T>(
+  name: string,
+  schema?: S.Codec<T, unknown>,
+) {
+  const parameterSchema = schema ?? UnknownParameterSchema;
   const addEffect = (flow: Flow, definition: FlowDefinition) =>
     Effect.sync(() => {
       const value = definition.parameters?.[name];
@@ -19,8 +37,14 @@ export function makeParameterSpec(name: string): ParameterSpec {
 
   return {
     name,
+    schema: parameterSchema,
     addEffect,
-    add: (flow, pubsub, definition, context) =>
+    add: (
+      flow: Flow,
+      pubsub: PubSubBackend,
+      definition: FlowDefinition,
+      context: Context.Context<never>,
+    ) =>
       flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }

@@ -12,14 +12,14 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Text completion
-provider status narrowing slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Base parameter
+spec accessor slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 168 |
-| `Map<` | 88 |
-| `WebSocket` | 72 |
+| `Map<` | 82 |
+| `WebSocket` | 62 |
 | `new Map` | 62 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
@@ -78,6 +78,11 @@ Notes:
   `model/text-completion/common.ts`.
 - The text completion provider status slice replaced manual status/statusCode
   record assertions with `effect/Predicate` narrowing.
+- The base parameter spec accessor slice added Schema-backed
+  `ParameterSpec<T>` values plus `flow.parameterEffect(spec)` and
+  `flow.parameter(spec)`. Bare string parameter lookup remains available as an
+  `unknown` compatibility escape, while typed parameter access now decodes
+  through Schema and fails with a tagged `FlowParameterDecodeError`.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -609,6 +614,39 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Base Parameter Spec Accessor Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/base/src/spec/parameter-spec.ts` now models
+    `ParameterSpec<T>` with an Effect Schema codec. Legacy parameter specs
+    default to `S.Unknown`, preserving name-based registration while making
+    typed access schema-backed.
+  - `ts/packages/base/src/processor/flow.ts` now exposes
+    `flow.parameterEffect(spec)` and `flow.parameter(spec)` for inferred,
+    Schema-decoded parameter values. String lookup remains available as an
+    `unknown` compatibility escape instead of a caller-chosen generic type.
+  - Parameter schema failures now fail with the tagged
+    `FlowParameterDecodeError` rather than a normal `Error`.
+  - `ts/packages/flow/src/chunking/service.ts` now declares numeric chunk
+    parameters once and retrieves them through the typed spec-object accessor.
+  - `ts/packages/base/src/__tests__/flow-spec-runtime.test.ts` covers typed
+    parameter decoding, legacy string lookup, missing parameter errors, sync
+    accessor decoding, and schema mismatch errors.
+- Remaining:
+  - Add typed spec-object accessors for producers and requestors so call sites
+    can stop spelling generic string lookups for those registries too.
+- Verification:
+  - `bun run --cwd ts/packages/base test -- src/__tests__/flow-spec-runtime.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/base test`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -635,10 +673,10 @@ Notes:
     layers.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
-  - Typed string registries in `Flow` need schema-backed parameters and
-    typed-spec/key accessors. Effect `HashMap`/`MutableHashMap` can improve
-    lookup ergonomics with `Option`, but it does not remove the string-key
-    type hole by itself.
+  - Typed string registries in `Flow` now have Schema-backed parameter specs.
+    Producer and requestor typed spec-object accessors remain. Effect
+    `HashMap`/`MutableHashMap` can improve lookup ergonomics with `Option`, but
+    it does not remove the string-key type hole by itself.
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
@@ -657,20 +695,18 @@ Notes:
 
 ## Ranked Findings
 
-### P1: Base Typed Spec Accessors
+### P1: Base Typed Producer And Requestor Spec Accessors
 
 - TrustGraph evidence:
   - `ts/packages/base/src/processor/flow.ts`
-  - `ts/packages/base/src/spec/parameter-spec.ts`
   - `ts/packages/base/src/spec/producer-spec.ts`
   - `ts/packages/base/src/spec/request-response-spec.ts`
 - Effect primitives:
-  - Schema-backed registries, `Context`, `Layer`, `Effect.fn`, `Option`,
+  - Typed spec-object registries, `Context`, `Layer`, `Effect.fn`, `Option`,
     `Predicate`, `HashMap`/`MutableHashMap`.
 - Rewrite shape:
-  - Add schema-backed generic parameter specs and spec-object accessors such as
-    `flow.parameterEffect(spec)`, then keep string accessors as compatibility
-    escapes.
+  - Parameter specs are now Schema-backed and support
+    `flow.parameterEffect(spec)` / `flow.parameter(spec)`.
   - Add typed spec-object accessors for producers and requestors so call sites
     stop spelling generic string lookups.
   - Do not add assertions to quiet Effect channel inference problems.
@@ -729,7 +765,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. Base typed spec accessors.
+1. Complete base typed producer/requestor spec accessors.
 2. Gateway RPC callback and client streaming completion cleanup.
 3. Storage/provider managed resource cleanup.
 4. MCP parity/deletion decision and workbench platform polish.

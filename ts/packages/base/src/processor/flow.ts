@@ -5,10 +5,14 @@
  */
 
 import { Context, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
+import * as O from "effect/Option";
+import * as S from "effect/Schema";
 import type { PubSubBackend } from "../backend/types.js";
 import { makePubSubService } from "../backend/pubsub.js";
 import {
+  flowParameterDecodeError,
   flowResourceNotFoundError,
+  type FlowParameterDecodeError,
   type FlowResourceNotFoundError,
   type PubSubError,
 } from "../errors.js";
@@ -25,6 +29,7 @@ import {
   makeRequestResponseFactoryService,
 } from "../messaging/runtime.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
+import type { ParameterSpec } from "../spec/parameter-spec.js";
 import type { Spec, SpecRuntimeRequirements } from "../spec/types.js";
 
 export interface FlowDefinition {
@@ -56,6 +61,8 @@ export interface FlowRequestor<TReq, TRes> {
   ) => Promise<TRes>;
   readonly stop: () => Promise<void>;
 }
+
+type FlowParameterError = FlowResourceNotFoundError | FlowParameterDecodeError;
 
 export function makeFlow<Requirements = never>(
   name: string,
@@ -96,6 +103,60 @@ export function makeFlow<Requirements = never>(
           }),
     };
   };
+
+  const getParameterEffect = (parameterName: string): Effect.Effect<unknown, FlowResourceNotFoundError> => {
+    const value = parameters.get(parameterName);
+    return value === undefined
+      ? Effect.fail(flowResourceNotFoundError(name, "parameter", parameterName))
+      : Effect.succeed(value);
+  };
+
+  const getParameter = (parameterName: string): unknown => {
+    const value = parameters.get(parameterName);
+    if (value === undefined) throw flowResourceNotFoundError(name, "parameter", parameterName);
+    return value;
+  };
+
+  const decodeParameterEffect = <T>(
+    spec: ParameterSpec<T>,
+    value: unknown,
+  ): Effect.Effect<T, FlowParameterDecodeError> =>
+    S.decodeUnknownEffect(spec.schema)(value).pipe(
+      Effect.mapError((error) => flowParameterDecodeError(name, spec.name, error)),
+    );
+
+  const decodeParameter = <T>(spec: ParameterSpec<T>, value: unknown): T => {
+    const decoded = S.decodeUnknownOption(spec.schema)(value);
+    if (O.isSome(decoded)) return decoded.value;
+    throw flowParameterDecodeError(name, spec.name, "Parameter value does not match schema");
+  };
+
+  function parameterEffect<T>(
+    parameterSpec: ParameterSpec<T>,
+  ): Effect.Effect<T, FlowParameterError>;
+  function parameterEffect(
+    parameterName: string,
+  ): Effect.Effect<unknown, FlowResourceNotFoundError>;
+  function parameterEffect<T>(
+    parameter: string | ParameterSpec<T>,
+  ): Effect.Effect<unknown, FlowParameterError> {
+    if (typeof parameter === "string") {
+      return getParameterEffect(parameter);
+    }
+    return getParameterEffect(parameter.name).pipe(
+      Effect.flatMap((value) => decodeParameterEffect(parameter, value)),
+    );
+  }
+
+  function parameter<T>(parameterSpec: ParameterSpec<T>): T;
+  function parameter(parameterName: string): unknown;
+  function parameter<T>(parameter: string | ParameterSpec<T>): unknown {
+    const value = getParameter(typeof parameter === "string" ? parameter : parameter.name);
+    if (typeof parameter === "string") {
+      return value;
+    }
+    return decodeParameter(parameter, value);
+  }
 
   const flow = {
     name,
@@ -198,12 +259,7 @@ export function makeFlow<Requirements = never>(
         ? Effect.fail(flowResourceNotFoundError(name, "requestor", requestorName))
         : Effect.succeed(rr as EffectRequestResponse<TReq, TRes>);
     },
-    parameterEffect<T>(parameterName: string): Effect.Effect<T, FlowResourceNotFoundError> {
-      const v = parameters.get(parameterName);
-      return v === undefined
-        ? Effect.fail(flowResourceNotFoundError(name, "parameter", parameterName))
-        : Effect.succeed(v as T);
-    },
+    parameterEffect,
     producer<T>(producerName: string): FlowProducer<T> {
       const p = producers.get(producerName);
       if (p === undefined) throw flowResourceNotFoundError(name, "producer", producerName);
@@ -234,11 +290,7 @@ export function makeFlow<Requirements = never>(
         stop: () => compatibilityRuntime.runPromise(rr.stop),
       };
     },
-    parameter<T>(parameterName: string): T {
-      const v = parameters.get(parameterName);
-      if (v === undefined) throw flowResourceNotFoundError(name, "parameter", parameterName);
-      return v as T;
-    },
+    parameter,
   };
 
   return flow;

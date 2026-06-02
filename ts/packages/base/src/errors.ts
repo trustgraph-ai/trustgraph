@@ -140,6 +140,15 @@ export class FlowResourceNotFoundError extends S.TaggedErrorClass<FlowResourceNo
   },
 ) {}
 
+export class FlowParameterDecodeError extends S.TaggedErrorClass<FlowParameterDecodeError>()(
+  "FlowParameterDecodeError",
+  {
+    message: S.String,
+    flowName: S.String,
+    parameterName: S.String,
+  },
+) {}
+
 export type TrustGraphError =
   | TooManyRequestsError
   | LlmError
@@ -155,6 +164,7 @@ export type TrustGraphError =
   | MessagingTimeoutError
   | MessagingHandlerError
   | FlowRuntimeError
+  | FlowParameterDecodeError
   | FlowResourceNotFoundError;
 
 export type MessagingRuntimeError =
@@ -165,6 +175,7 @@ export type MessagingRuntimeError =
   | MessagingTimeoutError
   | MessagingHandlerError
   | FlowRuntimeError
+  | FlowParameterDecodeError
   | FlowResourceNotFoundError;
 
 export function tooManyRequestsError(message = "Rate limit exceeded"): TooManyRequestsError {
@@ -288,6 +299,18 @@ export function flowResourceNotFoundError(
     resourceType,
     resourceName,
     message: `${resourceType} "${resourceName}" not found in flow "${flowName}"`,
+  });
+}
+
+export function flowParameterDecodeError(
+  flowName: string,
+  parameterName: string,
+  error: unknown,
+): FlowParameterDecodeError {
+  return FlowParameterDecodeError.make({
+    flowName,
+    parameterName,
+    message: `parameter "${parameterName}" in flow "${flowName}" failed schema decoding: ${errorMessage(error)}`,
   });
 }
 

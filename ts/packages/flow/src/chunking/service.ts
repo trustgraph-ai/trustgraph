@@ -27,10 +27,13 @@ import {
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime } from "effect";
+import * as S from "effect/Schema";
 import { recursiveSplit } from "./recursive-splitter.js";
 
 const DEFAULT_CHUNK_SIZE = 2000;
 const DEFAULT_CHUNK_OVERLAP = 100;
+const ChunkSizeParameter = makeParameterSpec("chunk-size", S.Number);
+const ChunkOverlapParameter = makeParameterSpec("chunk-overlap", S.Number);
 
 const onChunkMessage = Effect.fn("ChunkingService.onMessage")(function* (
   msg: TextDocument,
@@ -40,10 +43,10 @@ const onChunkMessage = Effect.fn("ChunkingService.onMessage")(function* (
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const chunkSize = yield* flowCtx.flow.parameterEffect<number>("chunk-size").pipe(
+  const chunkSize = yield* flowCtx.flow.parameterEffect(ChunkSizeParameter).pipe(
     Effect.orElseSucceed(() => DEFAULT_CHUNK_SIZE),
   );
-  const chunkOverlap = yield* flowCtx.flow.parameterEffect<number>("chunk-overlap").pipe(
+  const chunkOverlap = yield* flowCtx.flow.parameterEffect(ChunkOverlapParameter).pipe(
     Effect.orElseSucceed(() => DEFAULT_CHUNK_OVERLAP),
   );
 
@@ -82,8 +85,8 @@ export const makeChunkingSpecs = (): ReadonlyArray<
   ),
   makeProducerSpec<Chunk>("chunk-output"),
   makeProducerSpec<Triples>("chunk-triples"),
-  makeParameterSpec("chunk-size"),
-  makeParameterSpec("chunk-overlap"),
+  ChunkSizeParameter,
+  ChunkOverlapParameter,
 ];
 
 export type ChunkingService = FlowProcessorRuntime;

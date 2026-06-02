@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Duration, Effect, Fiber } from "effect";
+import * as S from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 import {
   makeConsumerSpec,
@@ -266,12 +267,14 @@ describe("Effect-native flow specifications", () => {
     "returns typed errors for missing flow resources",
     Effect.fnUntraced(function* () {
       const backend = new RuntimeBackend(new ScriptedConsumer<unknown>());
+      const presentParameter = makeParameterSpec("present", S.Number);
+      const invalidParameter = makeParameterSpec("present", S.String);
       const flow = new Flow(
         "default",
         "processor",
         backend,
         { parameters: { present: 42 } },
-        [makeParameterSpec("present")],
+        [presentParameter],
       );
 
       const errors = yield* Effect.scoped(
@@ -280,19 +283,27 @@ describe("Effect-native flow specifications", () => {
           Effect.gen(function* () {
             yield* flow.startEffect();
             const producerError = yield* flow.producerEffect<string>("missing-producer").pipe(Effect.flip);
-            const parameter = yield* flow.parameterEffect<number>("present");
-            const parameterError = yield* flow.parameterEffect<number>("missing-parameter").pipe(Effect.flip);
-            return { producerError, parameter, parameterError };
+            const parameter = yield* flow.parameterEffect(presentParameter);
+            const legacyParameter = yield* flow.parameterEffect("present");
+            const parameterError = yield* flow.parameterEffect("missing-parameter").pipe(Effect.flip);
+            const invalidParameterError = yield* flow.parameterEffect(invalidParameter).pipe(Effect.flip);
+            return { producerError, parameter, legacyParameter, parameterError, invalidParameterError };
           }),
         ),
       );
 
       expect(errors.parameter).toBe(42);
+      expect(errors.legacyParameter).toBe(42);
       expect(errors.producerError._tag).toBe("FlowResourceNotFoundError");
       expect(errors.producerError.resourceType).toBe("producer");
       expect(errors.producerError.resourceName).toBe("missing-producer");
       expect(errors.parameterError._tag).toBe("FlowResourceNotFoundError");
       expect(errors.parameterError.resourceType).toBe("parameter");
+      expect(errors.invalidParameterError._tag).toBe("FlowParameterDecodeError");
+      expect(errors.invalidParameterError.parameterName).toBe("present");
+      expect(flow.parameter(presentParameter)).toBe(42);
+      expect(flow.parameter("present")).toBe(42);
+      expect(() => flow.parameter(invalidParameter)).toThrow("failed schema decoding");
       expect(() => flow.producer("missing-producer")).toThrow("not found");
     }),
   );
