@@ -244,6 +244,27 @@ describe("gateway dispatcher manager", () => {
     expect(backend.closeCount).toBe(0);
   });
 
+  it("serializes concurrent requestor creation for the same service", async () => {
+    const backend = new DispatchBackend();
+    const manager = makeDispatcherManager({
+      port: 0,
+      metricsPort: 0,
+      pubsub: backend,
+    });
+
+    await manager.start();
+    const [first, second] = await Promise.all([
+      manager.dispatchGlobalService("config", { operation: "get" }),
+      manager.dispatchGlobalService("config", { operation: "list" }),
+    ]);
+    await manager.stop();
+
+    expect(first).toEqual({ ok: true, echo: { operation: "get" } });
+    expect(second).toEqual({ ok: true, echo: { operation: "list" } });
+    expect(backend.producerOptions.filter((options) => options.topic === "tg.flow.config-request")).toHaveLength(1);
+    expect(backend.consumerOptions.filter((options) => options.topic === "tg.flow.config-response")).toHaveLength(1);
+  });
+
   it("does not start requestors when request serialization fails", async () => {
     const backend = new DispatchBackend();
     const manager = makeDispatcherManager({

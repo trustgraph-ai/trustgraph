@@ -8,7 +8,7 @@
  * Python reference: trustgraph-flow/trustgraph/gateway/dispatch/manager.py
  */
 
-import { Clock, Effect, Exit, Random, Scope, SynchronizedRef } from "effect";
+import { Clock, Effect, Exit, HashMap, HashSet, Option, Random, Scope, SynchronizedRef, Tuple } from "effect";
 import {
   loadMessagingRuntimeConfig,
   makeNatsBackend,
@@ -51,36 +51,45 @@ export type DispatcherStreamError<E = never> =
  * These are resolved within a specific flow's interface definitions.
  * Topic pattern: tg.flow.<name>-request / tg.flow.<name>-response
  */
-const FLOW_SERVICES: ReadonlyMap<string, { request: string; response: string }> = new Map([
-  ["agent",               { request: "agent-request",               response: "agent-response" }],
-  ["text-completion",     { request: "text-completion-request",     response: "text-completion-response" }],
-  ["prompt",              { request: "prompt-request",              response: "prompt-response" }],
-  ["graph-rag",           { request: "graph-rag-request",           response: "graph-rag-response" }],
-  ["document-rag",        { request: "document-rag-request",        response: "document-rag-response" }],
-  ["embeddings",          { request: "embeddings-request",          response: "embeddings-response" }],
-  ["graph-embeddings",    { request: "graph-embeddings-request",    response: "graph-embeddings-response" }],
-  ["document-embeddings", { request: "doc-embeddings-request",      response: "doc-embeddings-response" }],
-  ["triples",             { request: "triples-request",             response: "triples-response" }],
-  ["mcp-tool",            { request: "mcp-tool-request",            response: "mcp-tool-response" }],
-]);
+interface ServiceTopics {
+  readonly request: string;
+  readonly response: string;
+}
+
+const FLOW_SERVICE_ENTRIES: ReadonlyArray<readonly [string, ServiceTopics]> = [
+  ["agent", { request: "agent-request", response: "agent-response" }],
+  ["text-completion", { request: "text-completion-request", response: "text-completion-response" }],
+  ["prompt", { request: "prompt-request", response: "prompt-response" }],
+  ["graph-rag", { request: "graph-rag-request", response: "graph-rag-response" }],
+  ["document-rag", { request: "document-rag-request", response: "document-rag-response" }],
+  ["embeddings", { request: "embeddings-request", response: "embeddings-response" }],
+  ["graph-embeddings", { request: "graph-embeddings-request", response: "graph-embeddings-response" }],
+  ["document-embeddings", { request: "doc-embeddings-request", response: "doc-embeddings-response" }],
+  ["triples", { request: "triples-request", response: "triples-response" }],
+  ["mcp-tool", { request: "mcp-tool-request", response: "mcp-tool-response" }],
+];
+
+const FLOW_SERVICES: HashMap.HashMap<string, ServiceTopics> = HashMap.fromIterable(FLOW_SERVICE_ENTRIES);
 
 /**
  * Global services (not flow-scoped).
  * These always use fixed topics regardless of which flow is active.
  */
-const GLOBAL_SERVICES: ReadonlyMap<string, { request: string; response: string }> = new Map([
-  ["config",                  { request: "config-request",                  response: "config-response" }],
-  ["flow",                    { request: "flow-request",                    response: "flow-response" }],
-  ["librarian",               { request: "librarian-request",               response: "librarian-response" }],
-  ["knowledge",               { request: "knowledge-request",               response: "knowledge-response" }],
-  ["collection-management",   { request: "collection-management-request",   response: "collection-management-response" }],
-]);
+const GLOBAL_SERVICE_ENTRIES: ReadonlyArray<readonly [string, ServiceTopics]> = [
+  ["config", { request: "config-request", response: "config-response" }],
+  ["flow", { request: "flow-request", response: "flow-response" }],
+  ["librarian", { request: "librarian-request", response: "librarian-response" }],
+  ["knowledge", { request: "knowledge-request", response: "knowledge-response" }],
+  ["collection-management", { request: "collection-management-request", response: "collection-management-response" }],
+];
+
+const GLOBAL_SERVICES: HashMap.HashMap<string, ServiceTopics> = HashMap.fromIterable(GLOBAL_SERVICE_ENTRIES);
 
 /**
  * Services that support streaming responses (multiple messages per request).
  * The completion flag is determined by checking for end-of-stream markers.
  */
-const STREAMING_SERVICES = new Set([
+const STREAMING_SERVICES = HashSet.make(
   "agent",
   "text-completion",
   "graph-rag",
@@ -88,7 +97,7 @@ const STREAMING_SERVICES = new Set([
   "triples",
   "knowledge",
   "librarian",
-]);
+);
 
 function topicName(name: string): string {
   return `tg.flow.${name}`;
@@ -138,15 +147,15 @@ export interface DispatcherManager {
 }
 
 export const dispatcherManagerFlowServiceNames = (): readonly string[] => [
-  ...FLOW_SERVICES.keys(),
+  ...FLOW_SERVICE_ENTRIES.map(([name]) => name),
 ];
 
 export const dispatcherManagerGlobalServiceNames = (): readonly string[] => [
-  ...GLOBAL_SERVICES.keys(),
+  ...GLOBAL_SERVICE_ENTRIES.map(([name]) => name),
 ];
 
 export const dispatcherManagerIsStreamingService = (kind: string): boolean =>
-  STREAMING_SERVICES.has(kind);
+  HashSet.has(STREAMING_SERVICES, kind);
 
 export const dispatcherManagerIsCompleteResponse = (response: unknown): boolean => {
   if (typeof response !== "object" || response === null) return true;
@@ -164,7 +173,7 @@ export const dispatcherManagerIsCompleteResponse = (response: unknown): boolean 
   );
 };
 
-type RequestorMap = Map<string, EffectRequestResponse<unknown, unknown>>;
+type RequestorMap = HashMap.HashMap<string, EffectRequestResponse<unknown, unknown>>;
 
 interface DispatcherRuntime {
   readonly scope: Scope.Closeable;
@@ -191,7 +200,9 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
           )
         ),
       );
-      const requestors = yield* SynchronizedRef.make<RequestorMap>(new Map());
+      const requestors = yield* SynchronizedRef.make(
+        HashMap.empty<string, EffectRequestResponse<unknown, unknown>>(),
+      );
       return {
         scope,
         requestors,
@@ -246,60 +257,49 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
   ) {
     const current = yield* ensureRuntimeEffect();
 
-    return yield* SynchronizedRef.modifyEffect(current.requestors, (requestors) => {
-      const cached = requestors.get(key);
-      if (cached !== undefined) {
-        return Effect.succeed([cached, requestors] as const);
-      }
-
-      return current.factory.make<unknown, unknown>({
-        requestTopic,
-        responseTopic,
-        subscription: `gateway-${key}`,
-      }).pipe(
-        Scope.provide(current.scope),
-        Effect.map((requestor) => {
-          const next = new Map(requestors);
-          next.set(key, requestor);
-          return [requestor, next] as const;
-        }),
-      );
-    });
+    return yield* SynchronizedRef.modifyEffect(current.requestors, (requestors) =>
+      Option.match(HashMap.get(requestors, key), {
+        onNone: () =>
+          current.factory.make<unknown, unknown>({
+            requestTopic,
+            responseTopic,
+            subscription: `gateway-${key}`,
+          }).pipe(
+            Scope.provide(current.scope),
+            Effect.map((requestor) => Tuple.make(requestor, HashMap.set(requestors, key, requestor))),
+          ),
+        onSome: (cached) => Effect.succeed(Tuple.make(cached, requestors)),
+      })
+    );
   });
 
   const resolveGlobalTopics = (
     kind: string,
-  ): { requestTopic: string; responseTopic: string } => {
-    const entry = GLOBAL_SERVICES.get(kind);
-    if (entry !== undefined) {
-      return {
+  ): { requestTopic: string; responseTopic: string } =>
+    Option.match(HashMap.get(GLOBAL_SERVICES, kind), {
+      onNone: () => ({
+        requestTopic: topicName(`${kind}-request`),
+        responseTopic: topicName(`${kind}-response`),
+      }),
+      onSome: (entry) => ({
         requestTopic: topicName(entry.request),
         responseTopic: topicName(entry.response),
-      };
-    }
-    // Fallback: derive from kind name directly
-    return {
-      requestTopic: topicName(`${kind}-request`),
-      responseTopic: topicName(`${kind}-response`),
-    };
-  };
+      }),
+    });
 
   const resolveFlowTopics = (
     kind: string,
-  ): { requestTopic: string; responseTopic: string } => {
-    const entry = FLOW_SERVICES.get(kind);
-    if (entry !== undefined) {
-      return {
+  ): { requestTopic: string; responseTopic: string } =>
+    Option.match(HashMap.get(FLOW_SERVICES, kind), {
+      onNone: () => ({
+        requestTopic: topicName(`${kind}-request`),
+        responseTopic: topicName(`${kind}-response`),
+      }),
+      onSome: (entry) => ({
         requestTopic: topicName(entry.request),
         responseTopic: topicName(entry.response),
-      };
-    }
-    // Fallback: derive from kind name directly
-    return {
-      requestTopic: topicName(`${kind}-request`),
-      responseTopic: topicName(`${kind}-response`),
-    };
-  };
+      }),
+    });
 
   // ---------- Global service dispatch ----------
 

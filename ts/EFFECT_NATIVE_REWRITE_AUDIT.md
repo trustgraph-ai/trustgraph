@@ -12,18 +12,20 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Effect AI
-adapter and native request/response PubSub slices:
+Current signal counts from `ts/packages` after the 2026-06-02 dispatcher
+Effect collections slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 169 |
+| `Effect.runPromise` | 175 |
 | `Effect.runPromiseWith` | 0 |
 | `Effect.cached` | 0 |
-| `Layer.succeed` | 12 |
-| `Map<` | 37 |
+| `Layer.succeed` | 13 |
+| `Map<` | 86 |
 | `WebSocket` | 72 |
-| `new Map` | 59 |
+| `new Map` | 56 |
+| `new Set` | 15 |
+| `Set<` | 9 |
 | `toPromiseRequestor` | 0 |
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 17 |
@@ -31,7 +33,7 @@ adapter and native request/response PubSub slices:
 | `new Error` | 7 |
 | `new Promise` | 9 |
 | `JSON.parse` | 4 |
-| `localStorage` | 11 |
+| `localStorage` | 9 |
 | `JSON.stringify` | 8 |
 | `setTimeout` | 3 |
 | `process.env` | 3 |
@@ -45,9 +47,12 @@ Notes:
 - `Effect.runPromise` is expected at external Promise compatibility
   boundaries, but each match should still be audited for avoidable internal
   runtime ownership.
-- The `Map<` and `new Map` counts increased in this snapshot because the
-  Librarian slice introduced explicit ref-backed state types and clone helpers
-  while removing the service object's direct mutable maps/handles.
+- The dispatcher Effect collections slice removed native `Map`/`Set` from the
+  gateway service registries, streaming membership set, and scoped requestor
+  cache. Remaining broad `Map`/`Set` matches include tests/fakes, WeakMap
+  compatibility caches, short-lived pure traversal collections, and larger
+  ref-backed service state that still needs focused `HashMap`/`MutableHashMap`
+  cleanup.
 - The `Effect.runPromise` and `WebSocket` counts dropped in this snapshot
   because `EffectRpcClient` now owns its RPC/socket layer with
   `ManagedRuntime` and uses Effect's WebSocket constructor layer.
@@ -259,6 +264,29 @@ Notes:
   - `bun run --cwd ts/packages/flow test`
   - `bun run --cwd ts/packages/flow build`
   - `bun run --cwd ts check:tsgo`
+
+### 2026-06-02: Gateway Dispatcher Effect Collections Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/dispatch/manager.ts` now stores the
+    flow/global service registries in `effect/HashMap` instead of native
+    `ReadonlyMap`, while explicit entry arrays preserve the public service-name
+    ordering.
+  - Streaming service membership now uses `effect/HashSet` instead of native
+    `Set`.
+  - The scoped requestor cache now stores
+    `HashMap<string, EffectRequestResponse<unknown, unknown>>` in the existing
+    `SynchronizedRef`, replacing `new Map` cloning with immutable
+    `HashMap.set`.
+  - Cache hits and service topic lookups now use `HashMap.get` plus
+    `effect/Option`, and ref update tuples use `effect/Tuple.make` instead of
+    `as const` assertions.
+  - Gateway dispatcher tests now cover concurrent same-key dispatches so the
+    cache still creates exactly one scoped producer/consumer pair.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/gateway-dispatcher.test.ts`
+  - `cd ts && bun run check:tsgo`
 
 ### 2026-06-02: Strict Base, CLI, MCP, And tsgo Slice
 
@@ -1720,12 +1748,13 @@ Notes:
     broker receive/error payload boundaries remain numeric milliseconds.
   - Qdrant graph/doc known-collection caches now use
     `MutableHashSet<string>`. Short-lived local traversal sets remain no-ops.
+  - Gateway dispatcher static service registries, streaming membership, and
+    scoped requestor cache now use Effect `HashMap`/`HashSet`.
   - FlowManager and sibling service `() => Effect.gen(...)` factories remain a
     broad mechanical `Effect.fn` / `Effect.fnUntraced` cleanup, best handled
     after Duration and small collection slices.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
-    Effect collections later; static lookup tables and local pure traversal
-    maps/sets remain no-ops.
+    Effect collections later; local pure traversal maps/sets remain no-ops.
 
 ## Ranked Findings
 
