@@ -28,8 +28,8 @@
     "@effect/opentelemetry": "4.0.0-beta.75",
     "@effect/platform-browser": "4.0.0-beta.75",
     "@effect/platform-bun": "4.0.0-beta.75",
-    "nats": "^2.29.0",
-    "prom-client": "^15.1.0"
+    "effect": "4.0.0-beta.75",
+    "nats": "^2.29.0"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.0-beta.75",

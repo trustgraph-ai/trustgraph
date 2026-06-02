@@ -1,7 +1,8 @@
 export {
+  formatPrometheusMetrics,
   makeConsumerMetrics,
   makeProducerMetrics,
-  registry,
+  prometheusContentType,
   type ConsumerMetrics,
   type ProducerMetrics,
 } from "./prometheus.js";

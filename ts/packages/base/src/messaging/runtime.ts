@@ -41,7 +41,7 @@ import {
   type MessagingTimeoutError,
   type PubSubError,
 } from "../errors.js";
-import type { ProducerMetrics } from "../metrics/prometheus.js";
+import type { ProducerMetrics } from "../metrics/index.js";
 import type { FlowContext } from "./consumer.js";
 import type { Flow } from "../processor/flow.js";
 import type { SpecRuntimeRequirements } from "../spec/types.js";
@@ -169,9 +169,7 @@ export function makeEffectProducerHandle<T>(
         Effect.tap(() =>
           options.metrics === undefined
             ? Effect.void
-            : Effect.sync(() => {
-                options.metrics?.inc();
-              }),
+            : options.metrics.inc,
         ),
       ),
     ),

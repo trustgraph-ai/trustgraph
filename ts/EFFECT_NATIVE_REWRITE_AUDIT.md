@@ -1450,6 +1450,33 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-02: Effect Metrics Prometheus Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Replaced the `@trustgraph/base` `prom-client` metric wrappers with
+    Effect-native `Metric.counter`, `Metric.histogram`, and
+    `effect/unstable/observability` `PrometheusMetrics.format`.
+  - Kept the existing Prometheus metric names and gateway
+    `/api/v1/metrics` scrape boundary while removing the direct `prom-client`
+    dependency and lockfile entries.
+  - Changed producer metric recording from a sync callback to an Effect value
+    that runs inside the producer send pipeline.
+  - Added isolated metric-registry tests for producer and consumer Prometheus
+    formatting.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/metrics-effect.test.ts src/__tests__/producer.test.ts src/__tests__/messaging-runtime.test.ts`
+  - `cd ts/packages/base && bun run build`
+  - `cd ts/packages/base && bun run test`
+  - `cd ts/packages/flow && bun run build`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/gateway-dispatcher.test.ts`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1501,6 +1528,12 @@ Notes:
     and typed producer/requestor spec-object accessors. New service handlers
     should hoist spec objects and use those accessors; bare string accessors
     remain compatibility escapes.
+  - Base metrics are now Effect-native and Prometheus-formatted through
+    `PrometheusMetrics.format`; do not reopen `prom-client` unless a future
+    scrape requirement cannot be represented by Effect metrics.
+  - Numeric public timeout fields such as `timeoutMs` remain compatibility
+    surfaces. Internal runtime config with `Config.number(...Ms)` is still a
+    valid `Config.duration` / `Duration` cleanup target.
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
@@ -1550,6 +1583,16 @@ Notes:
   - Shared text-completion stream iteration and the Mistral content assertion are
     complete. The remaining provider-layer item is parity-backed Effect AI
     adapter work, not a direct SDK swap.
+- Scratch-note follow-ups:
+  - `Term` / compact client term serialization is the next strongest schema
+    migration: prefer `S.toTaggedUnion(...).match` or `Match` helpers over the
+    current native switches and unsafe serializer fallbacks.
+  - FlowManager and sibling service `() => Effect.gen(...)` factories remain a
+    broad mechanical `Effect.fn` / `Effect.fnUntraced` cleanup, best handled
+    after the term schema slice.
+  - Long-lived `Map` / `Set` state in ref-backed services can move toward
+    Effect collections later; static lookup tables and local pure traversal
+    maps/sets remain no-ops.
 
 ## Ranked Findings
 
@@ -1619,6 +1662,42 @@ Notes:
     mapping, missing-token config failures, and OpenAI-compatible local-server
     behavior.
 
+### No-op: Base Metrics Prometheus Wrapper
+
+- Status:
+  - Closed as a scratch-note migration target by the Effect Metrics Prometheus
+    slice.
+- TrustGraph evidence:
+  - `ts/packages/base/src/metrics/prometheus.ts`
+  - `ts/packages/flow/src/gateway/server.ts`
+- Effect primitives:
+  - `Metric.counter`, `Metric.histogram`, and
+    `effect/unstable/observability` `PrometheusMetrics.format`.
+- Rule:
+  - Keep the gateway Fastify route as the external scrape boundary, but record
+    TrustGraph metrics through Effect `Metric` values.
+  - Use a fresh `Metric.MetricRegistry` in tests that assert exact scrape
+    content.
+
+### P1: Term And ClientTerm Tagged-Union Normalization
+
+- TrustGraph evidence:
+  - `ts/packages/base/src/schema/primitives.ts`
+  - `ts/packages/flow/src/gateway/dispatch/serialize.ts`
+  - `ts/packages/client/src/socket/trustgraph-socket.ts`
+- Effect primitives:
+  - `S.toTaggedUnion(...).match` and `effect/Match` discriminator helpers.
+- Rewrite shape:
+  - Add tagged-union helpers for internal `Term` and compact client terms.
+  - Replace serializer native switches with tagged-union matching or
+    `Match.discriminatorsExhaustive`.
+  - Remove unsafe default pass-through casts while preserving compact `g`
+    string compatibility.
+- Tests:
+  - Extend base schema tests for recursive terms and add gateway serializer
+    coverage for all variants, nested triples, compact graph strings, and
+    malformed client triples.
+
 ### P2: Canonicalize MCP Around The Effect Server
 
 - Status:
@@ -1655,6 +1734,9 @@ Notes:
 ## Recommended PR Order
 
 1. MCP Effect stdio parity and canonicalization.
+2. Term/ClientTerm Schema tagged-union and Match normalization.
+3. FlowManager/service `Effect.fn` normalization.
+4. Messaging runtime `Config.duration` / `Duration` cleanup.
 
 ## No-Op Rules
 

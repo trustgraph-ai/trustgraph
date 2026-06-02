@@ -14,7 +14,14 @@ import { Cause, Clock, Config, Effect, Exit, Layer, ManagedRuntime, Random, Scop
 import * as O from "effect/Option";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as EffectSocket from "effect/unstable/socket/Socket";
-import { messagingLifecycleError, optionalStringConfig, registry, toTgError, type PubSubBackend } from "@trustgraph/base";
+import {
+  formatPrometheusMetrics,
+  messagingLifecycleError,
+  optionalStringConfig,
+  prometheusContentType,
+  toTgError,
+  type PubSubBackend,
+} from "@trustgraph/base";
 import { makeDispatcherManager } from "./dispatch/manager.js";
 import { makeGatewayRpcServer } from "./rpc-server.js";
 
@@ -227,10 +234,10 @@ export function createGateway(config: GatewayConfig) {
         );
       });
 
-      // Metrics endpoint — returns Prometheus metrics from prom-client
+      // Metrics endpoint — returns Effect metrics in Prometheus exposition format.
       app.get("/api/v1/metrics", (_, reply) => {
-        reply.header("content-type", registry.contentType);
-        return registry.metrics();
+        reply.header("content-type", prometheusContentType);
+        return Effect.runPromise(formatPrometheusMetrics);
       });
 
       return {
