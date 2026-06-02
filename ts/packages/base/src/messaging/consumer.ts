@@ -16,7 +16,7 @@ import {
 import { Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import * as P from "effect/Predicate";
 import * as S from "effect/Schema";
-import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
+import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
 import { makeEffectConsumerFromPubSub, type EffectConsumer } from "./runtime.js";
 
 export type MessageHandler<T> = (

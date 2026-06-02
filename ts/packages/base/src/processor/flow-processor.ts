@@ -36,7 +36,7 @@ import {
   runFlowRuntimeScoped,
 } from "../messaging/runtime.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
-import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
+import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
 import { Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
