@@ -117,8 +117,10 @@ class SocketEndpoint:
 
                 running = Running()
 
+                params = dict(request.query)
+                params.update(request.match_info)
                 dispatcher = await self.dispatcher(
-                    ws, running, request.match_info
+                    ws, running, params
                 )
 
                 worker_task = tg.create_task(

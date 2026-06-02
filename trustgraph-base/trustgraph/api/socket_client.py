@@ -167,7 +167,8 @@ class SocketClient:
             )
 
         if resp.get("type") == "auth-ok":
-            self.workspace = resp.get("workspace", self.workspace)
+            if self.workspace == "default":
+                self.workspace = resp.get("workspace", self.workspace)
         elif resp.get("type") == "auth-failed":
             await self._socket.close()
             raise ProtocolException(
