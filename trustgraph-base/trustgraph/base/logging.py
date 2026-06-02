@@ -11,6 +11,7 @@ Supports dual output to console and Loki for centralized log aggregation.
 import contextvars
 import logging
 import logging.handlers
+import uuid
 from argparse import ArgumentParser
 from queue import Queue
 from typing import Any
@@ -132,14 +133,12 @@ def setup_logging(args: dict[str, Any]) -> None:
         try:
             from logging_loki import LokiHandler
 
-            # Create Loki handler with optional authentication.  The
-            # processor label is NOT baked in here — it's stamped onto
-            # each record by _ProcessorIdFilter reading the task-local
-            # contextvar, and logging_loki's emitter reads record.tags
-            # to build per-record Loki labels.
+            instance_id = str(uuid.uuid4())[:8]
+
             loki_handler_kwargs = {
                 'url': loki_url,
                 'version': "1",
+                'tags': {'instance': instance_id},
             }
 
             if loki_username and loki_password:
