@@ -96,6 +96,7 @@ describe("Consumer", () => {
       handler: vi.fn(),
       concurrency: 4,
       rateLimitRetryMs: 5_000,
+      rateLimitTimeoutMs: 10_000,
     });
 
     expect(consumer).toMatchObject({
@@ -165,7 +166,7 @@ describe("Consumer", () => {
 
   // ── Messages are negatively acknowledged on handler error ──────
   it("negatively acknowledges messages when the handler throws", async () => {
-    const handler = vi.fn().mockRejectedValue(new Error("handler boom"));
+    const handler = vi.fn().mockRejectedValue("handler boom");
     const msg = createMockMessage("bad-payload");
 
     let callCount = 0;
@@ -241,6 +242,76 @@ describe("Consumer", () => {
     expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
 
     warnSpy.mockRestore();
+  });
+
+  it("retries repeated TooManyRequestsError until success within the timeout", async () => {
+    let handlerCalls = 0;
+    const handler = vi.fn().mockImplementation(async () => {
+      handlerCalls++;
+      if (handlerCalls <= 2) {
+        throw tooManyRequestsError("rate limited");
+      }
+    });
+
+    const msg = createMockMessage("rate-limited-payload");
+
+    let receiveCount = 0;
+    backendConsumer.receive.mockImplementation(async () => {
+      receiveCount++;
+      if (receiveCount === 1) return msg;
+      await consumer.stop();
+      return null;
+    });
+
+    const consumer = makeConsumer({
+      pubsub,
+      topic: "t",
+      subscription: "s",
+      handler,
+      rateLimitRetryMs: 500,
+      rateLimitTimeoutMs: 2_000,
+    });
+
+    const startPromise = consumer.start(flowCtx);
+    await vi.advanceTimersByTimeAsync(1_100);
+    await startPromise;
+
+    expect(handler).toHaveBeenCalledTimes(3);
+    expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
+    expect(backendConsumer.negativeAcknowledge).not.toHaveBeenCalled();
+  });
+
+  it("negatively acknowledges when rate-limit retry timeout elapses", async () => {
+    const handler = vi.fn().mockImplementation(async () => {
+      throw tooManyRequestsError("rate limited");
+    });
+    const msg = createMockMessage("rate-limited-payload");
+
+    let receiveCount = 0;
+    backendConsumer.receive.mockImplementation(async () => {
+      receiveCount++;
+      if (receiveCount === 1) return msg;
+      return null;
+    });
+
+    const consumer = makeConsumer({
+      pubsub,
+      topic: "t",
+      subscription: "s",
+      handler,
+      rateLimitRetryMs: 500,
+      rateLimitTimeoutMs: 1_000,
+    });
+
+    const startPromise = consumer.start(flowCtx);
+    await vi.advanceTimersByTimeAsync(1_100);
+    await consumer.stop();
+    await vi.advanceTimersByTimeAsync(1_100);
+    await startPromise;
+
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(backendConsumer.negativeAcknowledge).toHaveBeenCalledWith(msg);
+    expect(backendConsumer.acknowledge).not.toHaveBeenCalled();
   });
 
   // ── stop() closes the backend ──────────────────────────────────

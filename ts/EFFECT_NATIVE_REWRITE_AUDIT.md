@@ -12,8 +12,8 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 NATS selective
-404 slice:
+Current signal counts from `ts/packages` after the 2026-06-02 consumer
+rate-limit retry slice:
 
 | Signal | Count |
 | --- | ---: |
@@ -28,7 +28,7 @@ Current signal counts from `ts/packages` after the 2026-06-02 NATS selective
 | `makeAsyncProcessor` | 19 |
 | `receive(` | 18 |
 | `while (` | 2 |
-| `new Error` | 8 |
+| `new Error` | 7 |
 | `new Promise` | 10 |
 | `JSON.parse` | 4 |
 | `localStorage` | 9 |
@@ -110,6 +110,12 @@ Notes:
   `Effect.catchIf` recovery only for NATS JetStream missing-resource errors.
   Non-missing lookup failures now stay on the typed failure path without
   attempting to create streams or durable consumers.
+- The consumer rate-limit retry slice wired the previously unused
+  `rateLimitTimeoutMs` option and `TG_RATE_LIMIT_TIMEOUT_MS` config into both
+  legacy and Effect-native consumers. Repeated `TooManyRequestsError` failures
+  now retry with `Schedule.spaced` until success or a tagged rate-limit timeout.
+  The `new Error` count dropped by one because a touched consumer test fixture
+  no longer uses a normal `Error`.
 - The gateway streaming callback slice added Effect-returning dispatcher
   streaming methods, switched the RPC stream server off nested
   `Effect.runPromiseWith(context)` queue offers, and replaced the client
@@ -1208,6 +1214,30 @@ Notes:
   - `cd ts && bun run build`
   - `cd ts && bun run test`
 
+### 2026-06-02: Consumer Rate-Limit Retry Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Added `rateLimitTimeoutMs` to the Effect-native messaging runtime config,
+    backed by `TG_RATE_LIMIT_TIMEOUT_MS` and the Python-compatible default of
+    `7_200_000ms`.
+  - Reworked legacy `makeConsumer` retry handling to use `Schedule.spaced`,
+    retry repeated `TooManyRequestsError`s, and fail with a tagged
+    `MessagingTimeoutError` when the rate-limit timeout elapses.
+  - Reworked `makeEffectConsumerFromPubSub` handler retry handling with the
+    same schedule/timeout behavior while keeping handler failures in typed
+    Effect error channels.
+  - Added legacy and Effect-native tests for repeated rate-limit retry until
+    success and negative acknowledgement after retry timeout.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/consumer.test.ts src/__tests__/messaging-runtime.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/base test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1242,6 +1272,10 @@ Notes:
   - NATS header construction, ack/nak operations, and lookup create-on-missing
     behavior now stay typed. Remaining NATS work is scoped backend/layer
     construction and stream/consumer state ownership.
+  - Consumer rate-limit retry timeout behavior is now wired in both legacy and
+    Effect-native consumer paths. Remaining consumer runtime work should focus
+    on per-worker backend consumer ownership and request/response pending
+    shutdown semantics.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
   - Typed string registries in `Flow` now have Schema-backed parameter specs
@@ -1315,6 +1349,8 @@ Notes:
   - Keep NATS SDK boundary failures typed and avoid catch-all
     create-on-failure behavior. Future backend slices should move
     connection/stream state into scoped Effect services.
+  - Treat rate-limit retry timeout semantics as complete; next consumer slices
+    should focus on concurrency ownership and shutdown, not retry policy.
 - Tests:
   - Fake backend ack/nak/backoff/stop tests, NATS close finalizer tests, and
     config-push stream tests.

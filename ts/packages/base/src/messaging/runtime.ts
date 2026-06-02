@@ -3,7 +3,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Context, Duration, Effect, Fiber, Layer, Queue, Result, Scope, Stream } from "effect";
+import { Context, Duration, Effect, Fiber, Layer, Queue, Result, Schedule, Scope, Stream } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type {
@@ -23,6 +23,7 @@ import {
   TooManyRequestsError,
   type FlowRuntimeError,
   type MessagingDeliveryError,
+  type MessagingHandlerError,
   type MessagingLifecycleError,
   type MessagingTimeoutError,
   type PubSubError,
@@ -66,6 +67,7 @@ export interface EffectConsumerOptions<T, E = never, R = never> {
   readonly receiveTimeoutMs?: number;
   readonly errorBackoffMs?: number;
   readonly rateLimitRetryMs?: number;
+  readonly rateLimitTimeoutMs?: number;
 }
 
 export interface EffectConsumer {
@@ -236,28 +238,40 @@ const handleMessageWithRetry = Effect.fn("handleMessageWithRetry")(function* <T,
   message: Message<T>,
   config: MessagingRuntimeConfig,
 ) {
-  const runHandler = Effect.fn(`Consumer.handler:${options.topic}`)(() =>
+  const rateLimitRetryMs = options.rateLimitRetryMs ?? config.rateLimitRetryMs;
+  const rateLimitTimeoutMs = options.rateLimitTimeoutMs ?? config.rateLimitTimeoutMs;
+  const runHandler = (): Effect.Effect<void, TooManyRequestsError | MessagingHandlerError, R> =>
     options.handler(message.value(), message.properties(), flow).pipe(
-      Effect.mapError((error) => messagingHandlerError(options.topic, options.subscription, error)),
-    ),
-  );
+      Effect.mapError((error): TooManyRequestsError | MessagingHandlerError =>
+        isTooManyRequestsError(error)
+          ? error
+          : messagingHandlerError(options.topic, options.subscription, error),
+      ),
+    );
 
-  return yield* options.handler(message.value(), message.properties(), flow).pipe(
-    Effect.catch((error) => {
-      if (isTooManyRequestsError(error)) {
-        return Effect.gen(function* () {
-          yield* Effect.logWarning("[Consumer] Rate limited, retrying", {
+  return yield* runHandler().pipe(
+    Effect.tapError((error) =>
+      isTooManyRequestsError(error)
+        ? Effect.logWarning("[Consumer] Rate limited, retrying", {
             topic: options.topic,
             subscription: options.subscription,
-            retryMs: config.rateLimitRetryMs,
-          });
-          yield* Effect.sleep(Duration.millis(config.rateLimitRetryMs));
-          yield* runHandler();
-        });
-      }
-
-      return Effect.fail(messagingHandlerError(options.topic, options.subscription, error));
+            retryMs: rateLimitRetryMs,
+          })
+        : Effect.void,
+    ),
+    Effect.retry({
+      schedule: Schedule.spaced(Duration.millis(rateLimitRetryMs)),
+      while: isTooManyRequestsError,
     }),
+    Effect.timeoutOrElse({
+      duration: Duration.millis(rateLimitTimeoutMs),
+      orElse: () => Effect.fail(messagingTimeoutError("rate-limit", rateLimitTimeoutMs)),
+    }),
+    Effect.mapError((error) =>
+      isTooManyRequestsError(error)
+        ? messagingHandlerError(options.topic, options.subscription, error)
+        : error,
+    ),
   );
 });
 
@@ -339,6 +353,7 @@ export const makeEffectConsumerFromPubSub = Effect.fn("makeEffectConsumerFromPub
     consumerLoop(backend, options, flow, {
       ...config,
       rateLimitRetryMs: options.rateLimitRetryMs ?? config.rateLimitRetryMs,
+      rateLimitTimeoutMs: options.rateLimitTimeoutMs ?? config.rateLimitTimeoutMs,
     }).pipe(Effect.forkChild),
   );
 

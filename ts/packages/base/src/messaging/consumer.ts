@@ -12,8 +12,9 @@ import {
   messagingDeliveryError,
   messagingHandlerError,
   messagingLifecycleError,
+  messagingTimeoutError,
 } from "../errors.js";
-import { Duration, Effect } from "effect";
+import { Duration, Effect, Schedule } from "effect";
 import * as S from "effect/Schema";
 
 export type MessageHandler<T> = (
@@ -54,6 +55,7 @@ export function makeConsumer<T>(options: ConsumerOptions<T>): Consumer<T> {
   const isTooManyRequestsError = S.is(TooManyRequestsError);
   const concurrency = options.concurrency ?? 1;
   const rateLimitRetryMs = options.rateLimitRetryMs ?? 10_000;
+  const rateLimitTimeoutMs = options.rateLimitTimeoutMs ?? 7_200_000;
 
   const runHandler = (
     message: T,
@@ -74,15 +76,27 @@ export function makeConsumer<T>(options: ConsumerOptions<T>): Consumer<T> {
   ) {
     const callHandler = runHandler(message.value(), message.properties(), flow);
     yield* callHandler.pipe(
-      Effect.catchTag("TooManyRequestsError", () =>
-        Effect.logWarning("[Consumer] Rate limited, retrying", {
-          topic: options.topic,
-          subscription: options.subscription,
-          retryMs: rateLimitRetryMs,
-        }).pipe(
-          Effect.flatMap(() => Effect.sleep(Duration.millis(rateLimitRetryMs))),
-          Effect.flatMap(() => callHandler),
-        ),
+      Effect.tapError((error) =>
+        isTooManyRequestsError(error)
+          ? Effect.logWarning("[Consumer] Rate limited, retrying", {
+              topic: options.topic,
+              subscription: options.subscription,
+              retryMs: rateLimitRetryMs,
+            })
+          : Effect.void,
+      ),
+      Effect.retry({
+        schedule: Schedule.spaced(Duration.millis(rateLimitRetryMs)),
+        while: isTooManyRequestsError,
+      }),
+      Effect.timeoutOrElse({
+        duration: Duration.millis(rateLimitTimeoutMs),
+        orElse: () => Effect.fail(messagingTimeoutError("rate-limit", rateLimitTimeoutMs)),
+      }),
+      Effect.mapError((error) =>
+        isTooManyRequestsError(error)
+          ? messagingHandlerError(options.topic, options.subscription, error)
+          : error,
       ),
     );
   });

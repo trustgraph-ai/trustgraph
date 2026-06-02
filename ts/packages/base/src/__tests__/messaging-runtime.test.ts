@@ -10,6 +10,7 @@ import {
   runEffectConsumerScoped,
   runEffectProducerScoped,
   runFlowScoped,
+  tooManyRequestsError,
   type BackendConsumer,
   type BackendProducer,
   type CreateConsumerOptions,
@@ -175,6 +176,85 @@ describe("Effect-native messaging runtime", () => {
       expect(consumer.acknowledged).toEqual([message]);
       expect(consumer.nacked).toEqual([]);
       expect(consumer.closeCount).toBeGreaterThan(0);
+    }),
+  );
+
+  it.effect(
+    "retries rate-limited Effect handlers until success within the timeout",
+    Effect.fnUntraced(function* () {
+      const message = createMessage("payload", { id: "request-1" });
+      const consumer = new ScriptedConsumer<string>([message]);
+      const backend = new RuntimeBackend(consumer as BackendConsumer<unknown>);
+      let attempts = 0;
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* runEffectConsumerScoped<string>(
+            {
+              topic: "tg.test.consumer",
+              subscription: "sub",
+              receiveTimeoutMs: 1,
+              errorBackoffMs: 1,
+              rateLimitRetryMs: 10,
+              rateLimitTimeoutMs: 100,
+              handler: () =>
+                Effect.sync(() => {
+                  attempts += 1;
+                  return attempts;
+                }).pipe(
+                  Effect.flatMap((attempt) =>
+                    attempt <= 2
+                      ? Effect.fail(tooManyRequestsError("rate limited"))
+                      : Effect.void
+                  ),
+                ),
+            },
+            flowContext,
+          );
+          yield* TestClock.adjust(Duration.millis(35));
+        }).pipe(Effect.provide(PubSub.layer(backend))),
+      );
+
+      expect(attempts).toBe(3);
+      expect(consumer.acknowledged).toEqual([message]);
+      expect(consumer.nacked).toEqual([]);
+    }),
+  );
+
+  it.effect(
+    "negatively acknowledges rate-limited Effect handlers after retry timeout",
+    Effect.fnUntraced(function* () {
+      const message = createMessage("payload", { id: "request-1" });
+      const consumer = new ScriptedConsumer<string>([message]);
+      const backend = new RuntimeBackend(consumer as BackendConsumer<unknown>);
+      let attempts = 0;
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* runEffectConsumerScoped<string>(
+            {
+              topic: "tg.test.consumer",
+              subscription: "sub",
+              receiveTimeoutMs: 1,
+              errorBackoffMs: 1,
+              rateLimitRetryMs: 10,
+              rateLimitTimeoutMs: 25,
+              handler: () =>
+                Effect.sync(() => {
+                  attempts += 1;
+                }).pipe(
+                  Effect.flatMap(() => Effect.fail(tooManyRequestsError("rate limited"))),
+                ),
+            },
+            flowContext,
+          );
+          yield* TestClock.adjust(Duration.millis(40));
+        }).pipe(Effect.provide(PubSub.layer(backend))),
+      );
+
+      expect(attempts).toBeGreaterThanOrEqual(2);
+      expect(consumer.acknowledged).toEqual([]);
+      expect(consumer.nacked).toEqual([message]);
     }),
   );
 
