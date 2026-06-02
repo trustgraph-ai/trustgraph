@@ -233,6 +233,25 @@ const logClientError = (message: string, error: unknown): void => {
   Effect.runFork(Effect.logError(message, { error: toErrorMessage(error, message) }));
 };
 
+const runLegacyStreamingRequest = (
+  operation: string,
+  label: string,
+  request: () => Promise<unknown>,
+  onError: (message: string) => void,
+): Promise<unknown | void> =>
+  Effect.runPromise(
+    Effect.tryPromise({
+      try: request,
+      catch: (error) => socketError(operation, toErrorMessage(error, "Unknown error")),
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          onError(`${label} request failed: ${error.message}`);
+        })
+      ),
+    ),
+  );
+
 const StreamingEnvelopeSchema = S.Struct({
   response: S.optionalKey(S.Unknown),
   complete: S.optionalKey(S.Boolean),
@@ -1555,8 +1574,10 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           return dialogComplete; // End when backend signals complete
         };
 
-        return this.api
-          .makeRequestMulti<AgentRequest, AgentResponse>(
+        return runLegacyStreamingRequest(
+          "agent-stream",
+          "Agent",
+          () => this.api.makeRequestMulti<AgentRequest, AgentResponse>(
             "agent",
             {
               question: question,
@@ -1568,11 +1589,9 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             120000,
             2,
             this.flowId,
-          )
-          .catch((err) => {
-            const errorMessage = toErrorMessage(err, "Unknown error");
-            error(`Agent request failed: ${errorMessage}`);
-          });
+          ),
+          error,
+        );
       },
 
 
@@ -1670,17 +1689,20 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           request["max-path-length"] = options.pathLength;
         }
 
-        this.api.makeRequestMulti<GraphRagRequest, GraphRagResponse>(
-          "graph-rag",
-          request,
-          recv,
-          60000,
-          undefined,
-          this.flowId,
-        ).catch((err) => {
-          const errorMessage = toErrorMessage(err, "Unknown error");
-          onError(`Graph RAG request failed: ${errorMessage}`);
-        });
+        void runLegacyStreamingRequest(
+          "graph-rag-stream",
+          "Graph RAG",
+          () =>
+            this.api.makeRequestMulti<GraphRagRequest, GraphRagResponse>(
+              "graph-rag",
+              request,
+              recv,
+              60000,
+              undefined,
+              this.flowId,
+            ),
+          onError,
+        );
       },
 
 
@@ -1755,17 +1777,20 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           request["doc-limit"] = docLimit;
         }
 
-        this.api.makeRequestMulti<DocumentRagRequest, DocumentRagResponse>(
-          "document-rag",
-          request,
-          recv,
-          60000,
-          undefined,
-          this.flowId,
-        ).catch((err) => {
-          const errorMessage = toErrorMessage(err, "Unknown error");
-          onError(`Document RAG request failed: ${errorMessage}`);
-        });
+        void runLegacyStreamingRequest(
+          "document-rag-stream",
+          "Document RAG",
+          () =>
+            this.api.makeRequestMulti<DocumentRagRequest, DocumentRagResponse>(
+              "document-rag",
+              request,
+              recv,
+              60000,
+              undefined,
+              this.flowId,
+            ),
+          onError,
+        );
       },
 
 
