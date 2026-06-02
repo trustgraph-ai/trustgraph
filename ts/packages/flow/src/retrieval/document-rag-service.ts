@@ -40,6 +40,28 @@ import {
   type DocumentRagClients,
 } from "./document-rag.js";
 
+const DocumentRagResponseProducer = makeProducerSpec<DocumentRagResponse>("document-rag-response");
+const DocumentRagLlmClient = makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  "llm",
+  "text-completion-request",
+  "text-completion-response",
+);
+const DocumentRagEmbeddingsClient = makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+  "embeddings",
+  "embeddings-request",
+  "embeddings-response",
+);
+const DocumentRagDocEmbeddingsClient = makeRequestResponseSpec<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>(
+  "doc-embeddings",
+  "document-embeddings-request",
+  "document-embeddings-response",
+);
+const DocumentRagPromptClient = makeRequestResponseSpec<PromptRequest, PromptResponse>(
+  "prompt",
+  "prompt-request",
+  "prompt-response",
+);
+
 const onDocumentRagRequest = Effect.fn("DocumentRagService.onRequest")(function* (
   msg: DocumentRagRequest,
   properties: Record<string, string>,
@@ -48,14 +70,14 @@ const onDocumentRagRequest = Effect.fn("DocumentRagService.onRequest")(function*
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const producer = yield* flowCtx.flow.producerEffect<DocumentRagResponse>("document-rag-response");
+  const producer = yield* flowCtx.flow.producerEffect(DocumentRagResponseProducer);
   const engine = yield* DocumentRagEngine;
 
   const clients: DocumentRagClients = {
-    llm: yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm"),
-    embeddings: yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings"),
-    docEmbeddings: yield* flowCtx.flow.requestorEffect<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>("doc-embeddings"),
-    prompt: yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt"),
+    llm: yield* flowCtx.flow.requestorEffect(DocumentRagLlmClient),
+    embeddings: yield* flowCtx.flow.requestorEffect(DocumentRagEmbeddingsClient),
+    docEmbeddings: yield* flowCtx.flow.requestorEffect(DocumentRagDocEmbeddingsClient),
+    prompt: yield* flowCtx.flow.requestorEffect(DocumentRagPromptClient),
   };
 
   const response = yield* engine.query(
@@ -90,27 +112,11 @@ export const makeDocumentRagSpecs = (): ReadonlyArray<Spec<DocumentRagEngine>> =
     "document-rag-request",
     onDocumentRagRequest,
   ),
-  makeProducerSpec<DocumentRagResponse>("document-rag-response"),
-  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
-    "llm",
-    "text-completion-request",
-    "text-completion-response",
-  ),
-  makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
-    "embeddings",
-    "embeddings-request",
-    "embeddings-response",
-  ),
-  makeRequestResponseSpec<DocumentEmbeddingsRequest, DocumentEmbeddingsResponse>(
-    "doc-embeddings",
-    "document-embeddings-request",
-    "document-embeddings-response",
-  ),
-  makeRequestResponseSpec<PromptRequest, PromptResponse>(
-    "prompt",
-    "prompt-request",
-    "prompt-response",
-  ),
+  DocumentRagResponseProducer,
+  DocumentRagLlmClient,
+  DocumentRagEmbeddingsClient,
+  DocumentRagDocEmbeddingsClient,
+  DocumentRagPromptClient,
 ];
 
 export type DocumentRagService = FlowProcessorRuntime<DocumentRagEngine>;

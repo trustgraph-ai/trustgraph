@@ -30,6 +30,8 @@ import {
   type QdrantGraphQueryConfig,
 } from "./qdrant-graph.js";
 
+const GraphEmbeddingsResponseProducer = makeProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response");
+
 const onGraphEmbeddingsQueryMessage = Effect.fn("GraphEmbeddingsQueryService.onMessage")(function* (
   msg: GraphEmbeddingsRequest,
   properties: Record<string, string>,
@@ -38,7 +40,7 @@ const onGraphEmbeddingsQueryMessage = Effect.fn("GraphEmbeddingsQueryService.onM
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const producer = yield* flowCtx.flow.producerEffect<GraphEmbeddingsResponse>("graph-embeddings-response");
+  const producer = yield* flowCtx.flow.producerEffect(GraphEmbeddingsResponseProducer);
   const query = yield* QdrantGraphEmbeddingsQueryService;
   const user = msg.user ?? "default";
   const collection = msg.collection ?? "default";
@@ -86,7 +88,7 @@ export const makeGraphEmbeddingsQuerySpecs = (): ReadonlyArray<Spec<QdrantGraphE
     FlowResourceNotFoundError | MessagingDeliveryError,
     QdrantGraphEmbeddingsQueryService
   >("graph-embeddings-request", onGraphEmbeddingsQueryMessage),
-  makeProducerSpec<GraphEmbeddingsResponse>("graph-embeddings-response"),
+  GraphEmbeddingsResponseProducer,
 ];
 
 export type GraphEmbeddingsQueryService = FlowProcessorRuntime<QdrantGraphEmbeddingsQueryService>;

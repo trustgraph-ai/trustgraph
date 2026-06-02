@@ -42,6 +42,12 @@ type GraphEmbeddingsStoreError =
   | MessagingTimeoutError
   | QdrantGraphEmbeddingsStoreError;
 
+const EmbeddingsClient = makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+  "embeddings-client",
+  "embeddings-request",
+  "embeddings-response",
+);
+
 const onGraphEmbeddingsStoreMessage = Effect.fn("GraphEmbeddingsStoreService.onMessage")(function* (
   msg: EntityContexts,
   _properties: Record<string, string>,
@@ -49,8 +55,7 @@ const onGraphEmbeddingsStoreMessage = Effect.fn("GraphEmbeddingsStoreService.onM
 ): Effect.fn.Return<void, GraphEmbeddingsStoreError, GraphEmbeddingsStoreRequirements> {
   if (msg.entities.length === 0) return;
 
-  const embeddingsClient =
-    yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings-client");
+  const embeddingsClient = yield* flowCtx.flow.requestorEffect(EmbeddingsClient);
 
   const user = msg.metadata?.user ?? "default";
   const collection = msg.metadata?.collection ?? "default";
@@ -83,11 +88,7 @@ export const makeGraphEmbeddingsStoreSpecs = (): ReadonlyArray<Spec<GraphEmbeddi
     "store-graph-embeddings-input",
     onGraphEmbeddingsStoreMessage,
   ),
-  makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
-    "embeddings-client",
-    "embeddings-request",
-    "embeddings-response",
-  ),
+  EmbeddingsClient,
 ];
 
 export type GraphEmbeddingsStoreService = FlowProcessorRuntime<GraphEmbeddingsStoreRequirements>;

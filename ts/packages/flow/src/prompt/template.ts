@@ -69,6 +69,7 @@ const programRuntimes = new WeakMap<PromptTemplateConfig, PromptTemplateRuntime>
 const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplateRuntime => {
   const templates = new Map<string, PromptTemplate>();
   const configKey = config.configKey ?? "prompt";
+  const PromptResponseProducer = makeProducerSpec<PromptResponse>("prompt-response");
 
   const onPromptConfig = Effect.fn("PromptTemplateService.onConfig")(function* (
     pushedConfig: Record<string, unknown>,
@@ -114,7 +115,7 @@ const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplate
     const requestId = properties.id;
     if (requestId === undefined || requestId.length === 0) return;
 
-    const responseProducer = yield* flowCtx.flow.producerEffect<PromptResponse>("prompt-response");
+    const responseProducer = yield* flowCtx.flow.producerEffect(PromptResponseProducer);
     const template = templates.get(msg.name);
     if (template === undefined) {
       yield* responseProducer.send(requestId, {
@@ -142,7 +143,7 @@ const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplate
         "prompt-request",
         onRequest,
       ),
-      makeProducerSpec<PromptResponse>("prompt-response"),
+      PromptResponseProducer,
     ],
     configHandlers: [onPromptConfig],
   };

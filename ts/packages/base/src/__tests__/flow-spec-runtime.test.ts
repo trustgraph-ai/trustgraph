@@ -153,12 +153,14 @@ describe("Effect-native flow specifications", () => {
     "starts producer specs through Effect factories and exposes typed accessors",
     Effect.fnUntraced(function* () {
       const backend = new RuntimeBackend(new ScriptedConsumer<unknown>());
+      const outputProducerSpec = makeProducerSpec<string>("output");
+      const duplicateOutputProducerSpec = makeProducerSpec<string>("output");
       const flow = new Flow(
         "default",
         "processor",
         backend,
         { topics: { output: "actual-output" } },
-        [makeProducerSpec<string>("output")],
+        [outputProducerSpec],
       );
 
       yield* Effect.scoped(
@@ -166,17 +168,21 @@ describe("Effect-native flow specifications", () => {
           backend,
           Effect.gen(function* () {
             yield* flow.startEffect();
-            const producer = yield* flow.producerEffect<string>("output");
+            const producer = yield* flow.producerEffect(outputProducerSpec);
+            const duplicateSpecError = yield* flow.producerEffect(duplicateOutputProducerSpec).pipe(Effect.flip);
+            expect(duplicateSpecError._tag).toBe("FlowResourceNotFoundError");
             yield* producer.send("request-1", "hello");
           }),
         ),
       );
+      const closedProducerError = yield* flow.producerEffect(outputProducerSpec).pipe(Effect.flip);
 
       expect(backend.producerOptions).toEqual({ topic: "actual-output" });
       expect(backend.producer.sent).toEqual([
         { message: "hello", properties: { id: "request-1" } },
       ]);
       expect(backend.producer.closeCount).toBe(1);
+      expect(closedProducerError._tag).toBe("FlowResourceNotFoundError");
     }),
   );
 
@@ -229,6 +235,8 @@ describe("Effect-native flow specifications", () => {
           responseConsumer.push(createMessage("response", { id: properties?.id ?? "" }));
         },
       );
+      const requestResponseSpec = makeRequestResponseSpec<string, string>("rr", "request", "response");
+      const duplicateRequestResponseSpec = makeRequestResponseSpec<string, string>("rr", "request", "response");
       const flow = new Flow(
         "default",
         "processor",
@@ -239,7 +247,7 @@ describe("Effect-native flow specifications", () => {
             response: "actual-response",
           },
         },
-        [makeRequestResponseSpec<string, string>("rr", "request", "response")],
+        [requestResponseSpec],
       );
 
       const response = yield* Effect.scoped(
@@ -247,7 +255,9 @@ describe("Effect-native flow specifications", () => {
           backend,
           Effect.gen(function* () {
             yield* flow.startEffect();
-            const requestor = flow.requestor<string, string>("rr");
+            const duplicateSpecError = yield* flow.requestorEffect(duplicateRequestResponseSpec).pipe(Effect.flip);
+            expect(duplicateSpecError._tag).toBe("FlowResourceNotFoundError");
+            const requestor = flow.requestor(requestResponseSpec);
             const fiber = yield* Effect.promise(() =>
               requestor.request("request", { timeoutMs: 250 }),
             ).pipe(Effect.forkChild);
@@ -256,10 +266,12 @@ describe("Effect-native flow specifications", () => {
           }),
         ),
       );
+      const closedRequestorError = yield* flow.requestorEffect(requestResponseSpec).pipe(Effect.flip);
 
       expect(response).toBe("response");
       expect(backend.producerOptions).toEqual({ topic: "actual-request" });
       expect(responseConsumer.acknowledged.length).toBe(1);
+      expect(closedRequestorError._tag).toBe("FlowResourceNotFoundError");
     }),
   );
 
@@ -282,7 +294,7 @@ describe("Effect-native flow specifications", () => {
           backend,
           Effect.gen(function* () {
             yield* flow.startEffect();
-            const producerError = yield* flow.producerEffect<string>("missing-producer").pipe(Effect.flip);
+            const producerError = yield* flow.producerEffect("missing-producer").pipe(Effect.flip);
             const parameter = yield* flow.parameterEffect(presentParameter);
             const legacyParameter = yield* flow.parameterEffect("present");
             const parameterError = yield* flow.parameterEffect("missing-parameter").pipe(Effect.flip);

@@ -30,6 +30,8 @@ import {
   type FalkorDBQueryConfig,
 } from "./falkordb.js";
 
+const TriplesResponseProducer = makeProducerSpec<TriplesQueryResponse>("triples-response");
+
 const onTriplesQueryMessage = Effect.fn("TriplesQueryService.onMessage")(function* (
   msg: TriplesQueryRequest,
   properties: Record<string, string>,
@@ -38,7 +40,7 @@ const onTriplesQueryMessage = Effect.fn("TriplesQueryService.onMessage")(functio
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const producer = yield* flowCtx.flow.producerEffect<TriplesQueryResponse>("triples-response");
+  const producer = yield* flowCtx.flow.producerEffect(TriplesResponseProducer);
   const query = yield* FalkorDBTriplesQueryService;
   const triples = yield* query.queryTriples(
     msg.s,
@@ -72,7 +74,7 @@ export const makeTriplesQuerySpecs = (): ReadonlyArray<Spec<FalkorDBTriplesQuery
     FlowResourceNotFoundError | MessagingDeliveryError,
     FalkorDBTriplesQueryService
   >("triples-request", onTriplesQueryMessage),
-  makeProducerSpec<TriplesQueryResponse>("triples-response"),
+  TriplesResponseProducer,
 ];
 
 export type TriplesQueryService = FlowProcessorRuntime<FalkorDBTriplesQueryService>;

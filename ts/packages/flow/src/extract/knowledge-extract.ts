@@ -69,6 +69,19 @@ type KnowledgeExtractHandlerError =
 type PromptClient = EffectRequestResponse<PromptRequest, PromptResponse>;
 type LlmClient = EffectRequestResponse<TextCompletionRequest, TextCompletionResponse>;
 
+const ExtractTriplesProducer = makeProducerSpec<Triples>("extract-triples");
+const ExtractEntityContextsProducer = makeProducerSpec<EntityContexts>("extract-entity-contexts");
+const PromptClientSpec = makeRequestResponseSpec<PromptRequest, PromptResponse>(
+  "prompt-client",
+  "prompt-request",
+  "prompt-response",
+);
+const LlmClientSpec = makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  "llm-client",
+  "text-completion-request",
+  "text-completion-response",
+);
+
 const requestPrompt = Effect.fn("KnowledgeExtract.requestPrompt")(function* (
   promptClient: PromptClient,
   name: string,
@@ -153,10 +166,10 @@ const onKnowledgeExtractMessage = Effect.fn("KnowledgeExtractService.onMessage")
   const text = msg.chunk;
   if (text.trim().length === 0) return;
 
-  const promptClient = yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt-client");
-  const llmClient = yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm-client");
-  const triplesProducer = yield* flowCtx.flow.producerEffect<Triples>("extract-triples");
-  const entityContextsProducer = yield* flowCtx.flow.producerEffect<EntityContexts>("extract-entity-contexts");
+  const promptClient = yield* flowCtx.flow.requestorEffect(PromptClientSpec);
+  const llmClient = yield* flowCtx.flow.requestorEffect(LlmClientSpec);
+  const triplesProducer = yield* flowCtx.flow.producerEffect(ExtractTriplesProducer);
+  const entityContextsProducer = yield* flowCtx.flow.producerEffect(ExtractEntityContextsProducer);
 
   const allTriples: Triple[] = [];
   const allEntityContexts: EntityContext[] = [];
@@ -270,18 +283,10 @@ export const makeKnowledgeExtractSpecs = (): ReadonlyArray<Spec<never>> => [
     "extract-input",
     onKnowledgeExtractMessage,
   ),
-  makeProducerSpec<Triples>("extract-triples"),
-  makeProducerSpec<EntityContexts>("extract-entity-contexts"),
-  makeRequestResponseSpec<PromptRequest, PromptResponse>(
-    "prompt-client",
-    "prompt-request",
-    "prompt-response",
-  ),
-  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
-    "llm-client",
-    "text-completion-request",
-    "text-completion-response",
-  ),
+  ExtractTriplesProducer,
+  ExtractEntityContextsProducer,
+  PromptClientSpec,
+  LlmClientSpec,
 ];
 
 export type KnowledgeExtractService = FlowProcessorRuntime;

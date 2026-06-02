@@ -11,6 +11,11 @@ import { Effect } from "effect";
 import type { Spec } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 import {
+  flowResourceNotFoundError,
+  type FlowResourceNotFoundError,
+} from "../errors.js";
+import {
+  type EffectRequestResponse,
   RequestResponseFactory,
 } from "../messaging/runtime.js";
 
@@ -21,6 +26,9 @@ export interface RequestResponseSpec<TReq, TRes> extends Spec {
     readonly request: TReq;
     readonly response: TRes;
   };
+  readonly requestorEffect: <Requirements = never>(
+    flow: Flow<Requirements>,
+  ) => Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError>;
 }
 
 export function makeRequestResponseSpec<TReq, TRes>(
@@ -28,6 +36,35 @@ export function makeRequestResponseSpec<TReq, TRes>(
   requestTopicName: string,
   responseTopicName: string,
 ): RequestResponseSpec<TReq, TRes> {
+  const requestors = new WeakMap<object, EffectRequestResponse<TReq, TRes>>();
+
+  const registerRequestor = <Requirements>(
+    flow: Flow<Requirements>,
+    requestor: EffectRequestResponse<TReq, TRes>,
+  ) =>
+    Effect.sync(() => {
+      requestors.set(flow, requestor);
+    });
+
+  const unregisterRequestor = <Requirements>(
+    flow: Flow<Requirements>,
+    requestor: EffectRequestResponse<TReq, TRes>,
+  ) =>
+    Effect.sync(() => {
+      if (requestors.get(flow) === requestor) {
+        requestors.delete(flow);
+      }
+    });
+
+  const requestorEffect = <Requirements>(
+    flow: Flow<Requirements>,
+  ): Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError> => {
+    const requestor = requestors.get(flow);
+    return requestor === undefined
+      ? Effect.fail(flowResourceNotFoundError(flow.name, "requestor", name))
+      : Effect.succeed(requestor);
+  };
+
   const addEffect = Effect.fn("RequestResponseSpec.addEffect")(function* (
     flow: Flow,
     definition: FlowDefinition,
@@ -41,10 +78,13 @@ export function makeRequestResponseSpec<TReq, TRes>(
         subscription: `${flow.processorId}-${flow.name}-${name}`,
       });
       flow.registerRequestor(name, requestor);
+      yield* registerRequestor(flow, requestor);
+      yield* Effect.addFinalizer(() => unregisterRequestor(flow, requestor));
   });
 
   return {
     name,
+    requestorEffect,
     addEffect,
     add: (flow, pubsub, definition, context) =>
       flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),

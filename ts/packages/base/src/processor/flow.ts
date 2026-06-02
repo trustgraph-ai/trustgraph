@@ -30,6 +30,8 @@ import {
 } from "../messaging/runtime.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
 import type { ParameterSpec } from "../spec/parameter-spec.js";
+import type { ProducerSpec } from "../spec/producer-spec.js";
+import type { RequestResponseSpec } from "../spec/request-response-spec.js";
 import type { Spec, SpecRuntimeRequirements } from "../spec/types.js";
 
 export interface FlowDefinition {
@@ -131,6 +133,93 @@ export function makeFlow<Requirements = never>(
     throw flowParameterDecodeError(name, spec.name, "Parameter value does not match schema");
   };
 
+  const getProducerEffect = (
+    producerName: string,
+  ): Effect.Effect<EffectProducer<never>, FlowResourceNotFoundError> => {
+    const producer = producers.get(producerName);
+    return producer === undefined
+      ? Effect.fail(flowResourceNotFoundError(name, "producer", producerName))
+      : Effect.succeed(producer);
+  };
+
+  const getProducer = (producerName: string): EffectProducer<never> => {
+    const producer = producers.get(producerName);
+    if (producer === undefined) throw flowResourceNotFoundError(name, "producer", producerName);
+    return producer;
+  };
+
+  const getRequestorEffect = (
+    requestorName: string,
+  ): Effect.Effect<EffectRequestResponse<never, unknown>, FlowResourceNotFoundError> => {
+    const requestor = requestors.get(requestorName);
+    return requestor === undefined
+      ? Effect.fail(flowResourceNotFoundError(name, "requestor", requestorName))
+      : Effect.succeed(requestor);
+  };
+
+  const getRequestor = (
+    requestorName: string,
+  ): EffectRequestResponse<never, unknown> => {
+    const requestor = requestors.get(requestorName);
+    if (requestor === undefined) throw flowResourceNotFoundError(name, "requestor", requestorName);
+    return requestor;
+  };
+
+  const toFlowProducer = <T>(producer: EffectProducer<T>): FlowProducer<T> => ({
+    send: (id, message) => compatibilityRuntime.runPromise(producer.send(id, message)),
+    flush: () => compatibilityRuntime.runPromise(producer.flush),
+    stop: () => compatibilityRuntime.runPromise(producer.flush.pipe(Effect.flatMap(() => producer.close))),
+  });
+
+  const toFlowRequestor = <TReq, TRes>(
+    requestor: EffectRequestResponse<TReq, TRes>,
+  ): FlowRequestor<TReq, TRes> => ({
+    request: (request, options) =>
+      compatibilityRuntime.runPromise(
+        requestor.request(
+          request,
+          toEffectRequestOptions(options),
+        ),
+      ),
+    stop: () => compatibilityRuntime.runPromise(requestor.stop),
+  });
+
+  function producerEffect<T>(
+    producerSpec: ProducerSpec<T>,
+  ): Effect.Effect<EffectProducer<T>, FlowResourceNotFoundError>;
+  function producerEffect(
+    producerName: string,
+  ): Effect.Effect<EffectProducer<never>, FlowResourceNotFoundError>;
+  function producerEffect<T>(
+    producer: string | ProducerSpec<T>,
+  ) {
+    if (typeof producer === "string") {
+      return getProducerEffect(producer);
+    }
+    if (!producers.has(producer.name)) {
+      return Effect.fail(flowResourceNotFoundError(name, "producer", producer.name));
+    }
+    return producer.producerEffect(flow);
+  }
+
+  function requestorEffect<TReq, TRes>(
+    requestorSpec: RequestResponseSpec<TReq, TRes>,
+  ): Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError>;
+  function requestorEffect(
+    requestorName: string,
+  ): Effect.Effect<EffectRequestResponse<never, unknown>, FlowResourceNotFoundError>;
+  function requestorEffect<TReq, TRes>(
+    requestor: string | RequestResponseSpec<TReq, TRes>,
+  ) {
+    if (typeof requestor === "string") {
+      return getRequestorEffect(requestor);
+    }
+    if (!requestors.has(requestor.name)) {
+      return Effect.fail(flowResourceNotFoundError(name, "requestor", requestor.name));
+    }
+    return requestor.requestorEffect(flow);
+  }
+
   function parameterEffect<T>(
     parameterSpec: ParameterSpec<T>,
   ): Effect.Effect<T, FlowParameterError>;
@@ -156,6 +245,34 @@ export function makeFlow<Requirements = never>(
       return value;
     }
     return decodeParameter(parameter, value);
+  }
+
+  function producer<T>(producerSpec: ProducerSpec<T>): FlowProducer<T>;
+  function producer(producerName: string): FlowProducer<never>;
+  function producer<T>(producer: string | ProducerSpec<T>) {
+    if (typeof producer === "string") {
+      return toFlowProducer(getProducer(producer));
+    }
+    if (!producers.has(producer.name)) {
+      throw flowResourceNotFoundError(name, "producer", producer.name);
+    }
+    return toFlowProducer(compatibilityRuntime.runSync(producer.producerEffect(flow)));
+  }
+
+  function requestor<TReq, TRes>(
+    requestorSpec: RequestResponseSpec<TReq, TRes>,
+  ): FlowRequestor<TReq, TRes>;
+  function requestor(requestorName: string): FlowRequestor<never, unknown>;
+  function requestor<TReq, TRes>(
+    requestor: string | RequestResponseSpec<TReq, TRes>,
+  ) {
+    if (typeof requestor === "string") {
+      return toFlowRequestor(getRequestor(requestor));
+    }
+    if (!requestors.has(requestor.name)) {
+      throw flowResourceNotFoundError(name, "requestor", requestor.name);
+    }
+    return toFlowRequestor(compatibilityRuntime.runSync(requestor.requestorEffect(flow)));
   }
 
   const flow = {
@@ -239,36 +356,16 @@ export function makeFlow<Requirements = never>(
     setParameter(parameterName: string, value: unknown): void {
       parameters.set(parameterName, value);
     },
-    producerEffect<T>(producerName: string): Effect.Effect<EffectProducer<T>, FlowResourceNotFoundError> {
-      const p = producers.get(producerName);
-      return p === undefined
-        ? Effect.fail(flowResourceNotFoundError(name, "producer", producerName))
-        : Effect.succeed(p as EffectProducer<T>);
-    },
+    producerEffect,
     consumerEffect(consumerName: string): Effect.Effect<EffectConsumer, FlowResourceNotFoundError> {
       const c = consumers.get(consumerName);
       return c === undefined
         ? Effect.fail(flowResourceNotFoundError(name, "consumer", consumerName))
         : Effect.succeed(c);
     },
-    requestorEffect<TReq, TRes>(
-      requestorName: string,
-    ): Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError> {
-      const rr = requestors.get(requestorName);
-      return rr === undefined
-        ? Effect.fail(flowResourceNotFoundError(name, "requestor", requestorName))
-        : Effect.succeed(rr as EffectRequestResponse<TReq, TRes>);
-    },
+    requestorEffect,
     parameterEffect,
-    producer<T>(producerName: string): FlowProducer<T> {
-      const p = producers.get(producerName);
-      if (p === undefined) throw flowResourceNotFoundError(name, "producer", producerName);
-      return {
-        send: (id, message) => compatibilityRuntime.runPromise((p as EffectProducer<T>).send(id, message)),
-        flush: () => compatibilityRuntime.runPromise(p.flush),
-        stop: () => compatibilityRuntime.runPromise(p.flush.pipe(Effect.flatMap(() => p.close))),
-      };
-    },
+    producer,
     consumer(consumerName: string): FlowConsumer {
       const c = consumers.get(consumerName);
       if (c === undefined) throw flowResourceNotFoundError(name, "consumer", consumerName);
@@ -276,20 +373,7 @@ export function makeFlow<Requirements = never>(
         stop: () => compatibilityRuntime.runPromise(c.stop),
       };
     },
-    requestor<TReq, TRes>(requestorName: string): FlowRequestor<TReq, TRes> {
-      const rr = requestors.get(requestorName);
-      if (rr === undefined) throw flowResourceNotFoundError(name, "requestor", requestorName);
-      return {
-        request: (request, options) =>
-          compatibilityRuntime.runPromise(
-            (rr as EffectRequestResponse<TReq, TRes>).request(
-              request,
-              toEffectRequestOptions(options),
-            ),
-          ),
-        stop: () => compatibilityRuntime.runPromise(rr.stop),
-      };
-    },
+    requestor,
     parameter,
   };
 

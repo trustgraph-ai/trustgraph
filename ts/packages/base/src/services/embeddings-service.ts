@@ -31,6 +31,8 @@ export class Embeddings extends Context.Service<Embeddings, EmbeddingsServiceSha
   "@trustgraph/base/services/embeddings-service/Embeddings",
 ) {}
 
+const EmbeddingsResponseProducer = makeProducerSpec<EmbeddingsResponse>("embeddings-response");
+
 const onEmbeddingsRequest = Effect.fn("EmbeddingsService.onRequest")(function* (
   msg: EmbeddingsRequest,
   properties: Record<string, string>,
@@ -41,7 +43,7 @@ const onEmbeddingsRequest = Effect.fn("EmbeddingsService.onRequest")(function* (
     return;
   }
 
-  const responseProducer = yield* flowCtx.flow.producerEffect<EmbeddingsResponse>("embeddings-response");
+  const responseProducer = yield* flowCtx.flow.producerEffect(EmbeddingsResponseProducer);
   const embeddings = yield* Embeddings;
   const response = yield* embeddings.embed(msg.text, msg.model).pipe(
     Effect.map((vectors) => ({ vectors }) satisfies EmbeddingsResponse),
@@ -70,7 +72,7 @@ export const makeEmbeddingsSpecs = (): ReadonlyArray<Spec<Embeddings>> => [
     "embeddings-request",
     onEmbeddingsRequest,
   ),
-  makeProducerSpec<EmbeddingsResponse>("embeddings-response"),
+  EmbeddingsResponseProducer,
   makeParameterSpec("model"),
 ];
 

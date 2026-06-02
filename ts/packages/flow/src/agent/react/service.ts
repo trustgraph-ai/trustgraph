@@ -71,6 +71,33 @@ class AgentToolExecutionError extends S.TaggedErrorClass<AgentToolExecutionError
   },
 ) {}
 
+const AgentResponseProducer = makeProducerSpec<AgentResponse>("agent-response");
+const AgentLlmClient = makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  "llm",
+  "text-completion-request",
+  "text-completion-response",
+);
+const AgentGraphRagClient = makeRequestResponseSpec<GraphRagRequest, GraphRagResponse>(
+  "graph-rag",
+  "graph-rag-request",
+  "graph-rag-response",
+);
+const AgentDocRagClient = makeRequestResponseSpec<DocumentRagRequest, DocumentRagResponse>(
+  "doc-rag",
+  "document-rag-request",
+  "document-rag-response",
+);
+const AgentTriplesClient = makeRequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
+  "triples",
+  "triples-request",
+  "triples-response",
+);
+const AgentMcpToolClient = makeRequestResponseSpec<ToolRequest, ToolResponse>(
+  "mcp-tool",
+  "mcp-tool-request",
+  "mcp-tool-response",
+);
+
 const UnknownRecord = S.Record(S.String, S.Unknown);
 const ToolArgumentConfig = S.StructWithRest(
   S.Struct({
@@ -248,10 +275,10 @@ const wireTools = Effect.fn("AgentService.wireTools")(function* (
   collection: string | undefined,
   onExplain: (data: ExplainData) => void,
 ) {
-  const graphRag = yield* flowCtx.flow.requestorEffect<GraphRagRequest, GraphRagResponse>("graph-rag");
-  const docRag = yield* flowCtx.flow.requestorEffect<DocumentRagRequest, DocumentRagResponse>("doc-rag");
-  const triples = yield* flowCtx.flow.requestorEffect<TriplesQueryRequest, TriplesQueryResponse>("triples");
-  const mcpTool = yield* flowCtx.flow.requestorEffect<ToolRequest, ToolResponse>("mcp-tool");
+  const graphRag = yield* flowCtx.flow.requestorEffect(AgentGraphRagClient);
+  const docRag = yield* flowCtx.flow.requestorEffect(AgentDocRagClient);
+  const triples = yield* flowCtx.flow.requestorEffect(AgentTriplesClient);
+  const mcpTool = yield* flowCtx.flow.requestorEffect(AgentMcpToolClient);
 
   return tools.map((tool) => {
     const rawImplType = tool.config?.type;
@@ -300,9 +327,9 @@ const defaultTools = Effect.fn("AgentService.defaultTools")(function* (
   collection: string | undefined,
   onExplain: (data: ExplainData) => void,
 ) {
-  const graphRag = yield* flowCtx.flow.requestorEffect<GraphRagRequest, GraphRagResponse>("graph-rag");
-  const docRag = yield* flowCtx.flow.requestorEffect<DocumentRagRequest, DocumentRagResponse>("doc-rag");
-  const triples = yield* flowCtx.flow.requestorEffect<TriplesQueryRequest, TriplesQueryResponse>("triples");
+  const graphRag = yield* flowCtx.flow.requestorEffect(AgentGraphRagClient);
+  const docRag = yield* flowCtx.flow.requestorEffect(AgentDocRagClient);
+  const triples = yield* flowCtx.flow.requestorEffect(AgentTriplesClient);
 
   return [
     createKnowledgeQueryTool(
@@ -346,7 +373,7 @@ const onAgentRequest = Effect.fn("AgentService.onRequest")(function* (
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const responseProducer = yield* flowCtx.flow.producerEffect<AgentResponse>("agent-response");
+  const responseProducer = yield* flowCtx.flow.producerEffect(AgentResponseProducer);
 
   yield* Effect.gen(function* () {
     const runtime = yield* AgentRuntime;
@@ -367,10 +394,7 @@ const onAgentRequest = Effect.fn("AgentService.onRequest")(function* (
       msg.question,
     );
 
-    const llmClient = yield* flowCtx.flow.requestorEffect<
-      TextCompletionRequest,
-      TextCompletionResponse
-    >("llm");
+    const llmClient = yield* flowCtx.flow.requestorEffect(AgentLlmClient);
 
     let conversation = initialPrompt;
 
@@ -472,32 +496,12 @@ export const makeAgentSpecs = (): ReadonlyArray<Spec<AgentRuntime>> => [
     "agent-request",
     onAgentRequest,
   ),
-  makeProducerSpec<AgentResponse>("agent-response"),
-  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
-    "llm",
-    "text-completion-request",
-    "text-completion-response",
-  ),
-  makeRequestResponseSpec<GraphRagRequest, GraphRagResponse>(
-    "graph-rag",
-    "graph-rag-request",
-    "graph-rag-response",
-  ),
-  makeRequestResponseSpec<DocumentRagRequest, DocumentRagResponse>(
-    "doc-rag",
-    "document-rag-request",
-    "document-rag-response",
-  ),
-  makeRequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
-    "triples",
-    "triples-request",
-    "triples-response",
-  ),
-  makeRequestResponseSpec<ToolRequest, ToolResponse>(
-    "mcp-tool",
-    "mcp-tool-request",
-    "mcp-tool-response",
-  ),
+  AgentResponseProducer,
+  AgentLlmClient,
+  AgentGraphRagClient,
+  AgentDocRagClient,
+  AgentTriplesClient,
+  AgentMcpToolClient,
 ];
 
 export const makeAgentConfigHandlers = (): ReadonlyArray<

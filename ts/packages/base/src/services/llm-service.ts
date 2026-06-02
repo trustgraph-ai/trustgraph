@@ -124,6 +124,8 @@ const llmErrorResponse = (error: LlmServiceError): TextCompletionResponse => ({
   endOfStream: true,
 });
 
+const TextCompletionResponseProducer = makeProducerSpec<TextCompletionResponse>("text-completion-response");
+
 const sendStreamingResponse = Effect.fn("LlmService.sendStreamingResponse")(function* (
   llm: LlmServiceShape,
   requestId: string,
@@ -158,9 +160,7 @@ const onLlmRequest = Effect.fn("LlmService.onRequest")(function* (
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const responseProducer = yield* flowCtx.flow.producerEffect<TextCompletionResponse>(
-    "text-completion-response",
-  );
+  const responseProducer = yield* flowCtx.flow.producerEffect(TextCompletionResponseProducer);
   const llm = yield* Llm;
 
   if (msg.streaming === true && llm.supportsStreaming()) {
@@ -210,7 +210,7 @@ export const makeLlmSpecs = (): ReadonlyArray<Spec<Llm>> => [
     "text-completion-request",
     onLlmRequest,
   ),
-  makeProducerSpec<TextCompletionResponse>("text-completion-response"),
+  TextCompletionResponseProducer,
   makeParameterSpec("model"),
   makeParameterSpec("temperature"),
 ];

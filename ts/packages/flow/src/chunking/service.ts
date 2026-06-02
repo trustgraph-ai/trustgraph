@@ -34,6 +34,8 @@ const DEFAULT_CHUNK_SIZE = 2000;
 const DEFAULT_CHUNK_OVERLAP = 100;
 const ChunkSizeParameter = makeParameterSpec("chunk-size", S.Number);
 const ChunkOverlapParameter = makeParameterSpec("chunk-overlap", S.Number);
+const ChunkOutputProducer = makeProducerSpec<Chunk>("chunk-output");
+const ChunkTriplesProducer = makeProducerSpec<Triples>("chunk-triples");
 
 const onChunkMessage = Effect.fn("ChunkingService.onMessage")(function* (
   msg: TextDocument,
@@ -62,7 +64,7 @@ const onChunkMessage = Effect.fn("ChunkingService.onMessage")(function* (
     `[ChunkingService] Split document ${msg.documentId} into ${chunks.length} chunks (size=${chunkSize}, overlap=${chunkOverlap})`,
   );
 
-  const outputProducer = yield* flowCtx.flow.producerEffect<Chunk>("chunk-output");
+  const outputProducer = yield* flowCtx.flow.producerEffect(ChunkOutputProducer);
 
   yield* Effect.forEach(
     chunks,
@@ -83,8 +85,8 @@ export const makeChunkingSpecs = (): ReadonlyArray<
     "chunk-input",
     onChunkMessage,
   ),
-  makeProducerSpec<Chunk>("chunk-output"),
-  makeProducerSpec<Triples>("chunk-triples"),
+  ChunkOutputProducer,
+  ChunkTriplesProducer,
   ChunkSizeParameter,
   ChunkOverlapParameter,
 ];

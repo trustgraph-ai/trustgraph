@@ -12,13 +12,13 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Base parameter
-spec accessor slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Base
+producer/requestor spec accessor slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 168 |
-| `Map<` | 82 |
+| `Map<` | 84 |
 | `WebSocket` | 62 |
 | `new Map` | 62 |
 | `toPromiseRequestor` | 0 |
@@ -83,6 +83,11 @@ Notes:
   `flow.parameter(spec)`. Bare string parameter lookup remains available as an
   `unknown` compatibility escape, while typed parameter access now decodes
   through Schema and fails with a tagged `FlowParameterDecodeError`.
+- The base producer/requestor spec accessor slice added typed spec-object
+  accessors for `ProducerSpec<T>` and `RequestResponseSpec<TReq, TRes>`, then
+  migrated flow service producer/requestor lookups off caller-chosen generic
+  string calls. Spec object handles are scoped per `Flow` through WeakMaps and
+  finalizers delete only the handle they registered.
 - `Record<string, any>` and `throwLibrarianServiceError` are now clean in
   `ts/packages`.
 
@@ -647,6 +652,42 @@ Notes:
   - `cd ts && bun run test`
   - `git diff --check`
 
+### 2026-06-02: Base Producer And Requestor Spec Accessor Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/base/src/spec/producer-spec.ts` now exposes
+    `ProducerSpec<T>.producerEffect(flow)` and stores typed producer handles in
+    a per-spec WeakMap keyed by `Flow`.
+  - `ts/packages/base/src/spec/request-response-spec.ts` now exposes
+    `RequestResponseSpec<TReq, TRes>.requestorEffect(flow)` and stores typed
+    requestor handles in a per-spec WeakMap keyed by `Flow`.
+  - Spec finalizers remove only the exact handle they registered, avoiding
+    stale finalizers deleting newer registrations for the same flow/spec pair.
+  - `ts/packages/base/src/processor/flow.ts` now supports
+    `flow.producerEffect(spec)`, `flow.requestorEffect(spec)`,
+    `flow.producer(spec)`, and `flow.requestor(spec)` while keeping string
+    accessors as untyped compatibility escapes.
+  - Base service adapters and flow service handlers now reuse the same hoisted
+    producer/requestor spec object in their spec arrays and handler lookups.
+  - `ts/packages/base/src/__tests__/flow-spec-runtime.test.ts` covers typed
+    spec-object lookups, duplicate spec identity failures, and scoped
+    finalizer cleanup for producer and requestor handles.
+- Remaining:
+  - Bare string `Flow` producer/requestor accessors remain compatibility
+    escapes for external/legacy callers, but new Effect service code should use
+    spec objects.
+- Verification:
+  - `bun run --cwd ts/packages/base test -- src/__tests__/flow-spec-runtime.test.ts`
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/base test`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -673,10 +714,10 @@ Notes:
     layers.
   - Existing constructor shims preserve callable-plus-newable public exports;
     removing them needs a public API split or real class redesign.
-  - Typed string registries in `Flow` now have Schema-backed parameter specs.
-    Producer and requestor typed spec-object accessors remain. Effect
-    `HashMap`/`MutableHashMap` can improve lookup ergonomics with `Option`, but
-    it does not remove the string-key type hole by itself.
+  - Typed string registries in `Flow` now have Schema-backed parameter specs
+    and typed producer/requestor spec-object accessors. New service handlers
+    should hoist spec objects and use those accessors; bare string accessors
+    remain compatibility escapes.
 - Gateway/client:
   - `EffectRpcClient` now owns its socket/RPC layer with `ManagedRuntime`.
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
@@ -694,26 +735,6 @@ Notes:
     schema, and scope audits.
 
 ## Ranked Findings
-
-### P1: Base Typed Producer And Requestor Spec Accessors
-
-- TrustGraph evidence:
-  - `ts/packages/base/src/processor/flow.ts`
-  - `ts/packages/base/src/spec/producer-spec.ts`
-  - `ts/packages/base/src/spec/request-response-spec.ts`
-- Effect primitives:
-  - Typed spec-object registries, `Context`, `Layer`, `Effect.fn`, `Option`,
-    `Predicate`, `HashMap`/`MutableHashMap`.
-- Rewrite shape:
-  - Parameter specs are now Schema-backed and support
-    `flow.parameterEffect(spec)` / `flow.parameter(spec)`.
-  - Add typed spec-object accessors for producers and requestors so call sites
-    stop spelling generic string lookups.
-  - Do not add assertions to quiet Effect channel inference problems.
-- Tests:
-  - `cd ts && bun run --cwd packages/base test`
-  - Root `cd ts && bun run check` because this surface easily pollutes Effect
-    error and requirement channels.
 
 ### P1: Make SDK, Storage, And Provider Layers Managed Resources
 
@@ -765,10 +786,9 @@ Notes:
 
 ## Recommended PR Order
 
-1. Complete base typed producer/requestor spec accessors.
-2. Gateway RPC callback and client streaming completion cleanup.
-3. Storage/provider managed resource cleanup.
-4. MCP parity/deletion decision and workbench platform polish.
+1. Gateway RPC callback and client streaming completion cleanup.
+2. Storage/provider managed resource cleanup.
+3. MCP parity/deletion decision and workbench platform polish.
 
 ## No-Op Rules
 

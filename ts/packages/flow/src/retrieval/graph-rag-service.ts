@@ -43,6 +43,33 @@ import {
   type GraphRagConfig,
 } from "./graph-rag.js";
 
+const GraphRagResponseProducer = makeProducerSpec<GraphRagResponse>("graph-rag-response");
+const GraphRagLlmClient = makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+  "llm",
+  "text-completion-request",
+  "text-completion-response",
+);
+const GraphRagEmbeddingsClient = makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
+  "embeddings",
+  "embeddings-request",
+  "embeddings-response",
+);
+const GraphRagGraphEmbeddingsClient = makeRequestResponseSpec<GraphEmbeddingsRequest, GraphEmbeddingsResponse>(
+  "graph-embeddings",
+  "graph-embeddings-request",
+  "graph-embeddings-response",
+);
+const GraphRagTriplesClient = makeRequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
+  "triples",
+  "triples-request",
+  "triples-response",
+);
+const GraphRagPromptClient = makeRequestResponseSpec<PromptRequest, PromptResponse>(
+  "prompt",
+  "prompt-request",
+  "prompt-response",
+);
+
 const graphRagConfigFromRequest = (msg: GraphRagRequest): GraphRagConfig => ({
   ...(msg.entityLimit !== undefined ? { entityLimit: msg.entityLimit } : {}),
   ...(msg.tripleLimit !== undefined ? { tripleLimit: msg.tripleLimit } : {}),
@@ -58,17 +85,17 @@ const onGraphRagRequest = Effect.fn("GraphRagService.onRequest")(function* (
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const producer = yield* flowCtx.flow.producerEffect<GraphRagResponse>("graph-rag-response");
+  const producer = yield* flowCtx.flow.producerEffect(GraphRagResponseProducer);
   const engine = yield* GraphRagEngine;
 
   yield* Effect.log(`[GraphRagService] Received request ${requestId}: "${msg.query?.slice(0, 60)}..." collection=${msg.collection}`);
 
   const clients: GraphRagClients = {
-    llm: yield* flowCtx.flow.requestorEffect<TextCompletionRequest, TextCompletionResponse>("llm"),
-    embeddings: yield* flowCtx.flow.requestorEffect<EmbeddingsRequest, EmbeddingsResponse>("embeddings"),
-    graphEmbeddings: yield* flowCtx.flow.requestorEffect<GraphEmbeddingsRequest, GraphEmbeddingsResponse>("graph-embeddings"),
-    triples: yield* flowCtx.flow.requestorEffect<TriplesQueryRequest, TriplesQueryResponse>("triples"),
-    prompt: yield* flowCtx.flow.requestorEffect<PromptRequest, PromptResponse>("prompt"),
+    llm: yield* flowCtx.flow.requestorEffect(GraphRagLlmClient),
+    embeddings: yield* flowCtx.flow.requestorEffect(GraphRagEmbeddingsClient),
+    graphEmbeddings: yield* flowCtx.flow.requestorEffect(GraphRagGraphEmbeddingsClient),
+    triples: yield* flowCtx.flow.requestorEffect(GraphRagTriplesClient),
+    prompt: yield* flowCtx.flow.requestorEffect(GraphRagPromptClient),
   };
 
   const result = yield* engine.query(
@@ -118,32 +145,12 @@ export const makeGraphRagSpecs = (): ReadonlyArray<Spec<GraphRagEngine>> => [
     "graph-rag-request",
     onGraphRagRequest,
   ),
-  makeProducerSpec<GraphRagResponse>("graph-rag-response"),
-  makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
-    "llm",
-    "text-completion-request",
-    "text-completion-response",
-  ),
-  makeRequestResponseSpec<EmbeddingsRequest, EmbeddingsResponse>(
-    "embeddings",
-    "embeddings-request",
-    "embeddings-response",
-  ),
-  makeRequestResponseSpec<GraphEmbeddingsRequest, GraphEmbeddingsResponse>(
-    "graph-embeddings",
-    "graph-embeddings-request",
-    "graph-embeddings-response",
-  ),
-  makeRequestResponseSpec<TriplesQueryRequest, TriplesQueryResponse>(
-    "triples",
-    "triples-request",
-    "triples-response",
-  ),
-  makeRequestResponseSpec<PromptRequest, PromptResponse>(
-    "prompt",
-    "prompt-request",
-    "prompt-response",
-  ),
+  GraphRagResponseProducer,
+  GraphRagLlmClient,
+  GraphRagEmbeddingsClient,
+  GraphRagGraphEmbeddingsClient,
+  GraphRagTriplesClient,
+  GraphRagPromptClient,
 ];
 
 export type GraphRagService = FlowProcessorRuntime<GraphRagEngine>;

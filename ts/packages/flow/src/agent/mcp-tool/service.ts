@@ -71,6 +71,8 @@ export class McpToolRuntime extends Context.Service<
   McpToolRuntimeService
 >()("@trustgraph/flow/agent/mcp-tool/service/McpToolRuntime") {}
 
+const McpToolResponseProducer = makeProducerSpec<ToolResponse>("mcp-tool-response");
+
 const mcpToolError = (
   operation: string,
   cause: unknown,
@@ -246,7 +248,7 @@ const onMcpToolRequest = Effect.fn("McpToolService.onRequest")(function* (
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const responseProducer = yield* flowCtx.flow.producerEffect<ToolResponse>("mcp-tool-response");
+  const responseProducer = yield* flowCtx.flow.producerEffect(McpToolResponseProducer);
   const runtime = yield* McpToolRuntime;
 
   const result = yield* parametersFromJson(msg.name, msg.parameters).pipe(
@@ -284,7 +286,7 @@ export const makeMcpToolSpecs = (): ReadonlyArray<Spec<McpToolRuntime>> => [
     "mcp-tool-request",
     onMcpToolRequest,
   ),
-  makeProducerSpec<ToolResponse>("mcp-tool-response"),
+  McpToolResponseProducer,
 ];
 
 export const makeMcpToolConfigHandlers = (): ReadonlyArray<

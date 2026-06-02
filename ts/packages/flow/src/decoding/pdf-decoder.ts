@@ -96,6 +96,14 @@ const loadPageText = Effect.fn("loadPageText")(function*(
       .join(" ");
 });
 
+const DecodeOutputProducer = makeProducerSpec<TextDocument>("decode-output");
+const DecodeTriplesProducer = makeProducerSpec<Triples>("decode-triples");
+const LibrarianClient = makeRequestResponseSpec<LibrarianRequest, LibrarianResponse>(
+  "librarian-client",
+  "librarian-request",
+  "librarian-response",
+);
+
 const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
   msg: Document,
   properties: Record<string, string>,
@@ -107,9 +115,7 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
   const { documentId } = msg;
   const user = msg.metadata.user;
 
-  const librarian = yield* flowCtx.flow.requestorEffect<LibrarianRequest, LibrarianResponse>(
-    "librarian-client",
-  );
+  const librarian = yield* flowCtx.flow.requestorEffect(LibrarianClient);
 
   const metadataResp = yield* librarian.request({
     operation: "get-document-metadata",
@@ -152,8 +158,8 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
 
   yield* Effect.log(`[PdfDecoder] Document ${documentId}: ${pdf.numPages} pages`);
 
-  const outputProducer = yield* flowCtx.flow.producerEffect<TextDocument>("decode-output");
-  const triplesProducer = yield* flowCtx.flow.producerEffect<Triples>("decode-triples");
+  const outputProducer = yield* flowCtx.flow.producerEffect(DecodeOutputProducer);
+  const triplesProducer = yield* flowCtx.flow.producerEffect(DecodeTriplesProducer);
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const pageText = yield* loadPageText(documentId, i, pdf);
@@ -219,13 +225,9 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
 
 export const makePdfDecoderSpecs = (): ReadonlyArray<Spec<never>> => [
   makeConsumerSpec<Document, PdfDecoderHandlerError>("decode-input", onPdfDecodeMessage),
-  makeProducerSpec<TextDocument>("decode-output"),
-  makeProducerSpec<Triples>("decode-triples"),
-  makeRequestResponseSpec<LibrarianRequest, LibrarianResponse>(
-    "librarian-client",
-    "librarian-request",
-    "librarian-response",
-  ),
+  DecodeOutputProducer,
+  DecodeTriplesProducer,
+  LibrarianClient,
 ];
 
 export type PdfDecoderService = FlowProcessorRuntime;

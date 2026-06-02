@@ -30,6 +30,8 @@ import {
   type QdrantDocQueryConfig,
 } from "./qdrant-doc.js";
 
+const DocumentEmbeddingsResponseProducer = makeProducerSpec<DocumentEmbeddingsResponse>("document-embeddings-response");
+
 const onDocEmbeddingsQueryMessage = Effect.fn("DocEmbeddingsQueryService.onMessage")(function* (
   msg: DocumentEmbeddingsRequest,
   properties: Record<string, string>,
@@ -38,7 +40,7 @@ const onDocEmbeddingsQueryMessage = Effect.fn("DocEmbeddingsQueryService.onMessa
   const requestId = properties.id;
   if (requestId === undefined || requestId.length === 0) return;
 
-  const producer = yield* flowCtx.flow.producerEffect<DocumentEmbeddingsResponse>("document-embeddings-response");
+  const producer = yield* flowCtx.flow.producerEffect(DocumentEmbeddingsResponseProducer);
   const query = yield* QdrantDocEmbeddingsQueryService;
   const collection = msg.collection ?? "default";
   const allChunks: DocumentEmbeddingsResponse["chunks"] = [];
@@ -85,7 +87,7 @@ export const makeDocEmbeddingsQuerySpecs = (): ReadonlyArray<Spec<QdrantDocEmbed
     FlowResourceNotFoundError | MessagingDeliveryError,
     QdrantDocEmbeddingsQueryService
   >("document-embeddings-request", onDocEmbeddingsQueryMessage),
-  makeProducerSpec<DocumentEmbeddingsResponse>("document-embeddings-response"),
+  DocumentEmbeddingsResponseProducer,
 ];
 
 export type DocEmbeddingsQueryService = FlowProcessorRuntime<QdrantDocEmbeddingsQueryService>;
