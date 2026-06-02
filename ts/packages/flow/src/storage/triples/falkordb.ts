@@ -9,7 +9,7 @@
 
 import { createClient, Graph } from "falkordb";
 import { errorMessage, type Term, type Triple } from "@trustgraph/base";
-import { Config, Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer, Match } from "effect";
 import * as S from "effect/Schema";
 
 export interface FalkorDBClosableClient {
@@ -40,16 +40,14 @@ export interface FalkorDBConfig {
 }
 
 function getTermValue(term: Term): string {
-  switch (term.type) {
-    case "IRI":
-      return term.iri;
-    case "LITERAL":
-      return term.value;
-    case "BLANK":
-      return term.id;
-    case "TRIPLE":
-      return getTermValue(term.triple.s);
-  }
+  return Match.type<Term>().pipe(
+    Match.discriminatorsExhaustive("type")({
+      IRI: (iri) => iri.iri,
+      LITERAL: (literal) => literal.value,
+      BLANK: (blank) => blank.id,
+      TRIPLE: (triple) => getTermValue(triple.triple.s),
+    }),
+  )(term);
 }
 
 export interface FalkorDBTriplesStore {

@@ -18,8 +18,19 @@
  * Python reference: trustgraph-base/trustgraph/messaging/translators/primitives.py
  */
 
-import { errorMessage, type Term, type Triple } from "@trustgraph/base";
-import { Effect } from "effect";
+import {
+  BlankTerm,
+  errorMessage,
+  IriTerm,
+  LiteralTerm,
+  Term as TermSchema,
+  Triple as TripleSchema,
+  TripleTerm,
+  type Term,
+  type Triple,
+} from "@trustgraph/base";
+import { Effect, Match } from "effect";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
 // ---------- Client wire format type definitions ----------
@@ -65,77 +76,102 @@ interface ClientTriple {
   g?: string;
 }
 
-// ---------- Client → Internal ----------
+const ClientIriTermSchema = S.Struct({
+  t: S.tag("i"),
+  i: S.String,
+});
 
-export function clientTermToInternal(wire: ClientTerm): Term {
-  switch (wire.t) {
-    case "i":
-      return { type: "IRI", iri: wire.i };
-    case "b":
-      return { type: "BLANK", id: wire.d };
-    case "l":
-      return {
-        type: "LITERAL",
-        value: wire.v,
-        ...(wire.dt !== undefined ? { datatype: wire.dt } : {}),
-        ...(wire.ln !== undefined ? { language: wire.ln } : {}),
-      };
-    case "t": {
+const ClientBlankTermSchema = S.Struct({
+  t: S.tag("b"),
+  d: S.String,
+});
+
+const ClientLiteralTermSchema = S.Struct({
+  t: S.tag("l"),
+  v: S.String,
+  dt: S.optionalKey(S.String),
+  ln: S.optionalKey(S.String),
+});
+
+const ClientTripleSchema: S.Codec<ClientTriple, ClientTriple> = S.Struct({
+  s: S.suspend((): S.Codec<ClientTerm, ClientTerm> => ClientTermSchema),
+  p: S.suspend((): S.Codec<ClientTerm, ClientTerm> => ClientTermSchema),
+  o: S.suspend((): S.Codec<ClientTerm, ClientTerm> => ClientTermSchema),
+  g: S.optionalKey(S.String),
+});
+
+const ClientTripleTermSchema = S.Struct({
+  t: S.tag("t"),
+  tr: S.optionalKey(ClientTripleSchema),
+});
+
+const ClientTermSchema = S.Union([
+  ClientIriTermSchema,
+  ClientBlankTermSchema,
+  ClientLiteralTermSchema,
+  ClientTripleTermSchema,
+]).pipe(S.toTaggedUnion("t"));
+
+const decodeClientTerm = S.decodeUnknownOption(ClientTermSchema);
+const decodeInternalTerm = S.decodeUnknownOption(TermSchema);
+
+const clientTermToInternalMatch = Match.type<ClientTerm>().pipe(
+  Match.discriminatorsExhaustive("t")({
+    i: (wire) => IriTerm.make({ iri: wire.i }),
+    b: (wire) => BlankTerm.make({ id: wire.d }),
+    l: (wire) => LiteralTerm.make({
+      value: wire.v,
+      ...(wire.dt !== undefined ? { datatype: wire.dt } : {}),
+      ...(wire.ln !== undefined ? { language: wire.ln } : {}),
+    }),
+    t: (wire) => {
       if (wire.tr === undefined) {
         throw DispatchSerializationError.make({
           operation: "client-term-to-internal",
           message: "Client triple term is missing tr",
         });
       }
-      return {
-        type: "TRIPLE",
+      return TripleTerm.make({
         triple: clientTripleToInternal(wire.tr),
-      };
-    }
-    default:
-      // Defensive: pass through unknown term types
-      return wire as unknown as Term;
-  }
+      });
+    },
+  }),
+);
+
+const internalTermToClientMatch = Match.type<Term>().pipe(
+  Match.discriminatorsExhaustive("type")({
+    IRI: (term) => ClientIriTermSchema.make({ i: term.iri }),
+    BLANK: (term) => ClientBlankTermSchema.make({ d: term.id }),
+    LITERAL: (term) => ClientLiteralTermSchema.make({
+      v: term.value,
+      ...(term.datatype !== undefined ? { dt: term.datatype } : {}),
+      ...(term.language !== undefined ? { ln: term.language } : {}),
+    }),
+    TRIPLE: (term) => ClientTripleTermSchema.make({
+      tr: internalTripleToClient(term.triple),
+    }),
+  }),
+);
+
+// ---------- Client → Internal ----------
+
+export function clientTermToInternal(wire: ClientTerm): Term {
+  return clientTermToInternalMatch(wire);
 }
 
 export function clientTripleToInternal(wire: ClientTriple): Triple {
-  const result: Triple = {
+  return TripleSchema.make({
     s: clientTermToInternal(wire.s),
     p: clientTermToInternal(wire.p),
     o: clientTermToInternal(wire.o),
-  };
-  if (wire.g !== undefined) {
-    // In the client wire format, g is a plain string.
-    // In the internal format, g is an optional Term (named graph).
-    // The Python translator treats g as a plain string passthrough,
-    // so we keep it as-is for compatibility.
-    (result as unknown as Record<string, unknown>).g = wire.g;
-  }
-  return result;
+    ...(wire.g !== undefined ? { g: wire.g } : {}),
+  });
 }
 
 // ---------- Internal → Client ----------
 
 export function internalTermToClient(term: Term): ClientTerm {
-  switch (term.type) {
-    case "IRI":
-      return { t: "i", i: term.iri };
-    case "BLANK":
-      return { t: "b", d: term.id };
-    case "LITERAL": {
-      const lit: ClientLiteralTerm = { t: "l", v: term.value };
-      if (term.datatype !== undefined) lit.dt = term.datatype;
-      if (term.language !== undefined) lit.ln = term.language;
-      return lit;
-    }
-    case "TRIPLE":
-      return {
-        t: "t",
-        tr: internalTripleToClient(term.triple),
-      };
-    default:
-      return term as unknown as ClientTerm;
-  }
+  return internalTermToClientMatch(term);
 }
 
 export function internalTripleToClient(triple: Triple): ClientTriple {
@@ -144,17 +180,8 @@ export function internalTripleToClient(triple: Triple): ClientTriple {
     p: internalTermToClient(triple.p),
     o: internalTermToClient(triple.o),
   };
-  const g = (triple as unknown as Record<string, unknown>).g;
-  if (g !== undefined && g !== null) {
-    if (typeof g === "string") {
-      result.g = g;
-    } else {
-      // If g is a Term, convert it back to client wire format
-      const iri = (g as Record<string, unknown>).iri;
-      if (typeof iri === "string") {
-        result.g = iri;
-      }
-    }
+  if (triple.g !== undefined) {
+    result.g = triple.g;
   }
   return result;
 }
@@ -166,32 +193,6 @@ export function internalTripleToClient(triple: Triple): ClientTriple {
  * A client term is detected by the presence of a `t` property
  * with value "i", "b", "l", or "t".
  */
-function isClientTerm(v: unknown): v is ClientTerm {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    "t" in v &&
-    typeof (v as Record<string, unknown>).t === "string" &&
-    ["i", "b", "l", "t"].includes((v as Record<string, unknown>).t as string)
-  );
-}
-
-/**
- * An internal term is detected by the presence of a `type` property
- * with value "IRI", "BLANK", "LITERAL", or "TRIPLE".
- */
-function isInternalTerm(v: unknown): v is Term {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    "type" in v &&
-    typeof (v as Record<string, unknown>).type === "string" &&
-    ["IRI", "BLANK", "LITERAL", "TRIPLE"].includes(
-      (v as Record<string, unknown>).type as string,
-    )
-  );
-}
-
 /**
  * Deep-translate all client Terms in a request body to internal format.
  * Handles nested objects and arrays.
@@ -204,11 +205,12 @@ function deepClientToInternal(value: unknown): unknown {
   }
 
   if (typeof value === "object") {
-    if (isClientTerm(value)) {
-      return clientTermToInternal(value);
+    const term = decodeClientTerm(value);
+    if (O.isSome(term)) {
+      return clientTermToInternal(term.value);
     }
     const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(value)) {
       result[k] = deepClientToInternal(v);
     }
     return result;
@@ -229,11 +231,12 @@ function deepInternalToClient(value: unknown): unknown {
   }
 
   if (typeof value === "object") {
-    if (isInternalTerm(value)) {
-      return internalTermToClient(value);
+    const term = decodeInternalTerm(value);
+    if (O.isSome(term)) {
+      return internalTermToClient(term.value);
     }
     const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(value)) {
       result[k] = deepInternalToClient(v);
     }
     return result;

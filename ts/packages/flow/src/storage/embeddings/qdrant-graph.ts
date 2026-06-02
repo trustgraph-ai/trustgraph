@@ -9,7 +9,7 @@
  */
 
 import { errorMessage, type Term } from "@trustgraph/base";
-import { Config, Context, Effect, Layer, Random } from "effect";
+import { Config, Context, Effect, Layer, Match, Random } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
@@ -84,16 +84,14 @@ const randomPointId = Effect.fn("QdrantGraphEmbeddings.randomPointId")(function*
 });
 
 function getTermValue(term: Term): string | null {
-  switch (term.type) {
-    case "IRI":
-      return term.iri;
-    case "LITERAL":
-      return term.value;
-    case "BLANK":
-      return term.id;
-    case "TRIPLE":
-      return null;
-  }
+  return Match.type<Term>().pipe(
+    Match.discriminatorsExhaustive("type")({
+      IRI: (iri) => iri.iri,
+      LITERAL: (literal) => literal.value,
+      BLANK: (blank) => blank.id,
+      TRIPLE: () => null,
+    }),
+  )(term);
 }
 
 export interface QdrantGraphEmbeddingsStore {

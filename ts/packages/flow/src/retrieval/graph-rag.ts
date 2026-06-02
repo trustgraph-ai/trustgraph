@@ -21,7 +21,7 @@ import type {
   TriplesQueryResponse,
 } from "@trustgraph/base";
 import { errorMessage } from "@trustgraph/base";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Match } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -461,16 +461,15 @@ function parseScoredEdges(responseText: string): Array<typeof ScoredEdge.Type> {
 }
 
 export function termToString(term: Term): string {
-  switch (term.type) {
-    case "IRI":
-      return term.iri;
-    case "LITERAL":
-      return term.value;
-    case "BLANK":
-      return `_:${term.id}`;
-    case "TRIPLE":
-      return `(${termToString(term.triple.s)} ${termToString(term.triple.p)} ${termToString(term.triple.o)})`;
-  }
+  return Match.type<Term>().pipe(
+    Match.discriminatorsExhaustive("type")({
+      IRI: (iri) => iri.iri,
+      LITERAL: (literal) => literal.value,
+      BLANK: (blank) => `_:${blank.id}`,
+      TRIPLE: (triple) =>
+        `(${termToString(triple.triple.s)} ${termToString(triple.triple.p)} ${termToString(triple.triple.o)})`,
+    }),
+  )(term);
 }
 
 export function stringToTerm(value: string): Term {

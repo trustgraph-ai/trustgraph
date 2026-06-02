@@ -19,7 +19,7 @@ import type {
   Triple,
 } from "@trustgraph/base";
 import {Term as TermSchema} from "@trustgraph/base";
-import { Effect } from "effect";
+import { Effect, Match } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
@@ -33,16 +33,15 @@ const decodeTerm = S.decodeUnknownOption(TermSchema);
  * Format a Term to a human-readable string.
  */
 function termToString(term: Term): string {
-  switch (term.type) {
-    case "IRI":
-      return term.iri;
-    case "LITERAL":
-      return term.value;
-    case "BLANK":
-      return `_:${term.id}`;
-    case "TRIPLE":
-      return `(${termToString(term.triple.s)} ${termToString(term.triple.p)} ${termToString(term.triple.o)})`;
-  }
+  return Match.type<Term>().pipe(
+    Match.discriminatorsExhaustive("type")({
+      IRI: (iri) => iri.iri,
+      LITERAL: (literal) => literal.value,
+      BLANK: (blank) => `_:${blank.id}`,
+      TRIPLE: (triple) =>
+        `(${termToString(triple.triple.s)} ${termToString(triple.triple.p)} ${termToString(triple.triple.o)})`,
+    }),
+  )(term);
 }
 
 /**

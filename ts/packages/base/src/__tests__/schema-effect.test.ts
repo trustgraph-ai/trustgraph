@@ -6,6 +6,7 @@ import {
   GraphRagResponse,
   Term,
   TextCompletionRequest,
+  Triple,
   loadProcessorRuntimeConfig,
 } from "../index.js";
 
@@ -37,6 +38,20 @@ describe("Effect schemas", () => {
       });
 
       expect(term.type).toBe("TRIPLE");
+    }),
+  );
+
+  it.effect(
+    "decode triples with named graph strings",
+    Effect.fnUntraced(function* () {
+      const triple = yield* S.decodeUnknownEffect(Triple)({
+        s: { type: "IRI", iri: "urn:s" },
+        p: { type: "IRI", iri: "urn:p" },
+        o: { type: "LITERAL", value: "object" },
+        g: "urn:graph",
+      });
+
+      expect(triple.g).toBe("urn:graph");
     }),
   );
 

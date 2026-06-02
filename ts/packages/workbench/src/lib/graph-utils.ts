@@ -1,4 +1,5 @@
 import type { Triple, Term } from "@trustgraph/client";
+import { Match } from "effect";
 import type { NodeObject, LinkObject } from "react-force-graph-2d";
 
 // ---------------------------------------------------------------------------
@@ -36,16 +37,14 @@ export interface GraphData {
 // ---------------------------------------------------------------------------
 
 export function termValue(t: Term): string {
-  switch (t.t) {
-    case "i":
-      return t.i;
-    case "l":
-      return t.v;
-    case "b":
-      return t.d;
-    case "t":
-      return "[triple]";
-  }
+  return Match.type<Term>().pipe(
+    Match.discriminatorsExhaustive("t")({
+      i: (iri) => iri.i,
+      l: (literal) => literal.v,
+      b: (blank) => blank.d,
+      t: () => "[triple]",
+    }),
+  )(t);
 }
 
 export function isIri(t: Term): boolean {

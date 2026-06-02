@@ -45,30 +45,28 @@ export type Triple = {
   readonly s: Term;
   readonly p: Term;
   readonly o: Term;
-  readonly g?: Term;
+  readonly g?: string;
 };
 
-export const Triple: S.Codec<Triple, Triple> = S.suspend(() =>
-  S.Struct({
-    s: Term,
-    p: Term,
-    o: Term,
-    g: S.optionalKey(Term),
-  })
-);
+export const Triple: S.Codec<Triple, Triple> = S.Struct({
+  s: S.suspend((): S.Codec<Term, Term> => Term),
+  p: S.suspend((): S.Codec<Term, Term> => Term),
+  o: S.suspend((): S.Codec<Term, Term> => Term),
+  g: S.optionalKey(S.String),
+});
 
-export const TripleTerm: S.Codec<TripleTerm, TripleTerm> = S.suspend(() =>
-  S.Struct({
-    type: S.tag("TRIPLE"),
-    triple: Triple,
-  })
-);
+export const TripleTerm: S.Codec<TripleTerm, TripleTerm> = S.Struct({
+  type: S.tag("TRIPLE"),
+  triple: S.suspend((): S.Codec<Triple, Triple> => Triple),
+});
 export interface TripleTerm {
   readonly type: "TRIPLE";
   readonly triple: Triple;
 }
 
-export const Term: S.Codec<Term, Term> = S.suspend(() => S.Union([IriTerm, BlankTerm, LiteralTerm, TripleTerm]));
+export const Term = S.Union([IriTerm, BlankTerm, LiteralTerm, TripleTerm]).pipe(
+  S.toTaggedUnion("type"),
+);
 
 export const Field = S.Struct({
   name: S.String,

@@ -4,6 +4,12 @@ import {
   dispatcherManagerIsCompleteResponse,
   makeDispatcherManager,
 } from "../gateway/dispatch/manager.js";
+import {
+  clientTermToInternal,
+  internalTermToClient,
+  translateRequestEffect,
+  translateResponseEffect,
+} from "../gateway/dispatch/serialize.js";
 import type {
   BackendConsumer,
   BackendProducer,
@@ -153,6 +159,69 @@ class DispatchBackend implements PubSubBackend {
 }
 
 describe("gateway dispatcher manager", () => {
+  it("translates compact client terms with Match and schema-backed narrowing", async () => {
+    const internal = clientTermToInternal({
+      t: "t",
+      tr: {
+        s: { t: "i", i: "urn:s" },
+        p: { t: "b", d: "blank" },
+        o: { t: "l", v: "value", dt: "urn:datatype", ln: "en" },
+        g: "urn:graph",
+      },
+    });
+
+    expect(internal).toEqual({
+      type: "TRIPLE",
+      triple: {
+        s: { type: "IRI", iri: "urn:s" },
+        p: { type: "BLANK", id: "blank" },
+        o: {
+          type: "LITERAL",
+          value: "value",
+          datatype: "urn:datatype",
+          language: "en",
+        },
+        g: "urn:graph",
+      },
+    });
+
+    expect(internalTermToClient(internal)).toEqual({
+      t: "t",
+      tr: {
+        s: { t: "i", i: "urn:s" },
+        p: { t: "b", d: "blank" },
+        o: { t: "l", v: "value", dt: "urn:datatype", ln: "en" },
+        g: "urn:graph",
+      },
+    });
+  });
+
+  it("deep-translates only schema-valid term-shaped values", async () => {
+    const request = await Effect.runPromise(
+      translateRequestEffect("knowledge", {
+        term: { t: "i", i: "urn:item" },
+        malformedKnownTag: { t: "i" },
+        untouched: { t: "unknown", value: "kept" },
+      }),
+    );
+    const response = await Effect.runPromise(
+      translateResponseEffect("knowledge", {
+        term: { type: "IRI", iri: "urn:item" },
+        untouched: { type: "unknown", value: "kept" },
+      }),
+    );
+
+    expect(request).toEqual({
+      term: { type: "IRI", iri: "urn:item" },
+      malformedKnownTag: { t: "i" },
+      untouched: { t: "unknown", value: "kept" },
+    });
+    expect(response).toEqual({
+      term: { t: "i", i: "urn:item" },
+      untouched: { type: "unknown", value: "kept" },
+    });
+  });
+
   it("caches Effect requestors as scoped handles", async () => {
     const backend = new DispatchBackend();
     const manager = makeDispatcherManager({

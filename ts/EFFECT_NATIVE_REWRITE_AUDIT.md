@@ -1508,6 +1508,44 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-02: Term And ClientTerm Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/base/src/schema/primitives.ts` now exposes `Term` as a
+    recursive `S.toTaggedUnion("type")` schema and aligns `Triple.g` with the
+    Python/client wire contract as an optional graph string.
+  - `ts/packages/flow/src/gateway/dispatch/serialize.ts` now defines compact
+    client-term schemas with `S.tag`, decodes unknown term-shaped values with
+    Schema/Option, and translates terms with
+    `Match.discriminatorsExhaustive`.
+  - Removed the gateway serializer's native term switches and unsafe
+    pass-through casts. Malformed known-tag objects now stay ordinary payload
+    objects during deep translation instead of being cast into invalid terms.
+  - Replaced pure term helper switches in FalkorDB triples store/query,
+    Qdrant graph embeddings store, Graph RAG, agent tools, and workbench graph
+    utilities with exhaustive `Match` discriminators.
+  - Added tests for named graph string decoding, nested compact/internal term
+    round trips, and malformed known-tag payload preservation.
+- Remaining:
+  - The client socket streaming term schema is still a local recursive union
+    and can be centralized later if drift appears. It has no native term
+    switch in the current scan.
+  - Operation dispatch switches in config, cores, librarian, and flow-manager
+    are separate service-command refactors, not part of this term wire slice.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/schema-effect.test.ts`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/gateway-dispatcher.test.ts src/__tests__/falkordb-lifecycle.test.ts src/__tests__/qdrant-embeddings.test.ts src/__tests__/retrieval-rag.test.ts`
+  - `cd ts/packages/flow && bun run test`
+  - `cd ts/packages/base && bun run build`
+  - `cd ts/packages/flow && bun run build`
+  - `cd ts/packages/workbench && bun run build`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1616,12 +1654,19 @@ Notes:
     complete. The remaining provider-layer item is parity-backed Effect AI
     adapter work, not a direct SDK swap.
 - Scratch-note follow-ups:
-  - `Term` / compact client term serialization is the next strongest schema
-    migration: prefer `S.toTaggedUnion(...).match` or `Match` helpers over the
-    current native switches and unsafe serializer fallbacks.
+  - `Term` / compact client term serialization is complete for base schema,
+    gateway translation, and pure term helper switches. Future work should
+    only reopen this if client socket schema drift appears or a hidden
+    consumer needs a different named-graph shape.
+  - Messaging runtime `Config.duration` is the next strongest scratch target:
+    internal runtime config can use `Duration.Duration` while public
+    `timeoutMs` compatibility surfaces stay numeric.
+  - Qdrant graph/doc known-collection caches are a good small
+    `MutableHashSet<string>` candidate; short-lived local traversal sets
+    remain no-ops.
   - FlowManager and sibling service `() => Effect.gen(...)` factories remain a
     broad mechanical `Effect.fn` / `Effect.fnUntraced` cleanup, best handled
-    after the term schema slice.
+    after Duration and small collection slices.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
     Effect collections later; static lookup tables and local pure traversal
     maps/sets remain no-ops.
@@ -1711,7 +1756,7 @@ Notes:
   - Use a fresh `Metric.MetricRegistry` in tests that assert exact scrape
     content.
 
-### P1: Term And ClientTerm Tagged-Union Normalization
+### Complete: Term And ClientTerm Tagged-Union Normalization
 
 - TrustGraph evidence:
   - `ts/packages/base/src/schema/primitives.ts`
@@ -1726,9 +1771,47 @@ Notes:
   - Remove unsafe default pass-through casts while preserving compact `g`
     string compatibility.
 - Tests:
-  - Extend base schema tests for recursive terms and add gateway serializer
-    coverage for all variants, nested triples, compact graph strings, and
-    malformed client triples.
+  - Base schema tests now cover recursive terms and graph strings.
+  - Gateway dispatcher tests now cover all compact term variants, nested
+    triples, compact graph strings, malformed known-tag payloads, and
+    malformed client triple failures.
+
+### P1: Messaging Runtime Duration Config Cleanup
+
+- TrustGraph evidence:
+  - `ts/packages/base/src/runtime/messaging-config.ts`
+  - `ts/packages/base/src/messaging/runtime.ts`
+- Effect primitives:
+  - `Config.duration`, `Duration.Duration`, and existing `Duration.millis`
+    compatibility conversions.
+- Rewrite shape:
+  - Change internal runtime config fields such as `receiveTimeoutMs`,
+    `requestTimeoutMs`, `retryDelayMs`, and `rateLimitTimeoutMs` to
+    `Duration.Duration`.
+  - Load env-backed values with `Config.duration` while preserving Python-style
+    millisecond defaults and public numeric compatibility options.
+  - Keep external `timeoutMs` option names numeric in request/response,
+    processor, and client boundaries unless their public API is deliberately
+    changed.
+- Tests:
+  - Extend base runtime config tests for env duration parsing and verify
+    messaging retry/timeout behavior still uses the same effective durations.
+
+### P2: Qdrant Known-Collection MutableHashSet Cleanup
+
+- TrustGraph evidence:
+  - `ts/packages/flow/src/storage/embeddings/qdrant-doc.ts`
+  - `ts/packages/flow/src/storage/embeddings/qdrant-graph.ts`
+- Effect primitives:
+  - `MutableHashSet` from `effect`.
+- Rewrite shape:
+  - Replace long-lived `Set<string>` known-collection caches with
+    `MutableHashSet<string>` in Qdrant graph/doc embedding stores.
+  - Keep short-lived local `Set` values for pure query traversal or fixture
+    assertions as no-op boundaries.
+- Tests:
+  - Existing Qdrant embeddings tests should prove lazy collection creation and
+    deletion cache invalidation still behave the same.
 
 ### P2: Canonicalize MCP Around The Effect Server
 
@@ -1765,10 +1848,10 @@ Notes:
 
 ## Recommended PR Order
 
-1. MCP protocol parity tests and legacy stdio flip/removal decision.
-2. Term/ClientTerm Schema tagged-union and Match normalization.
-3. FlowManager/service `Effect.fn` normalization.
-4. Messaging runtime `Config.duration` / `Duration` cleanup.
+1. Messaging runtime `Config.duration` / `Duration` cleanup.
+2. Qdrant known-collection `MutableHashSet` cleanup.
+3. MCP protocol parity tests and legacy stdio flip/removal decision.
+4. FlowManager/service `Effect.fn` normalization.
 
 ## No-Op Rules
 
