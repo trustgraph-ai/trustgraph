@@ -315,33 +315,68 @@ export const LibrarianOperation = S.Literals([
 ]);
 export type LibrarianOperation = typeof LibrarianOperation.Type;
 
-export const LibrarianRequest = S.Struct({
-  operation: LibrarianOperation,
-  documentId: S.optionalKey(S.String),
-  "document-id": S.optionalKey(S.String),
-  processingId: S.optionalKey(S.String),
-  "processing-id": S.optionalKey(S.String),
-  documentMetadata: S.optionalKey(DocumentMetadata),
-  "document-metadata": S.optionalKey(DocumentMetadata),
-  processingMetadata: S.optionalKey(ProcessingMetadata),
-  "processing-metadata": S.optionalKey(ProcessingMetadata),
-  content: S.optionalKey(S.String),
-  user: S.optionalKey(S.String),
-  collection: S.optionalKey(S.String),
-});
+export const LibrarianRequest = S.StructWithRest(
+  S.Struct({
+    operation: LibrarianOperation,
+    documentId: S.optionalKey(S.String),
+    "document-id": S.optionalKey(S.String),
+    processingId: S.optionalKey(S.String),
+    "processing-id": S.optionalKey(S.String),
+    documentMetadata: S.optionalKey(DocumentMetadata),
+    "document-metadata": S.optionalKey(DocumentMetadata),
+    processingMetadata: S.optionalKey(ProcessingMetadata),
+    "processing-metadata": S.optionalKey(ProcessingMetadata),
+    content: S.optionalKey(S.String),
+    user: S.optionalKey(S.String),
+    collection: S.optionalKey(S.String),
+    "total-size": S.optionalKey(S.Number),
+    "chunk-size": S.optionalKey(S.Number),
+    "upload-id": S.optionalKey(S.String),
+    "chunk-index": S.optionalKey(S.Number),
+  }),
+  [UnknownRecord],
+);
 export type LibrarianRequest = typeof LibrarianRequest.Type;
 
-export const LibrarianResponse = S.Struct({
-  error: S.optionalKey(TgError),
-  documentMetadata: S.optionalKey(DocumentMetadata),
-  "document-metadata": S.optionalKey(DocumentMetadata),
-  content: S.optionalKey(S.String),
-  documents: OptionalMutableArray(DocumentMetadata),
-  "document-metadatas": OptionalMutableArray(DocumentMetadata),
-  processing: OptionalMutableArray(ProcessingMetadata),
-  "processing-metadata": OptionalMutableArray(ProcessingMetadata),
-  "processing-metadatas": OptionalMutableArray(ProcessingMetadata),
+const UploadSessionInfo = S.Struct({
+  "upload-id": S.String,
+  "document-id": S.String,
+  "document-metadata-json": S.String,
+  "total-size": S.Number,
+  "chunk-size": S.Number,
+  "total-chunks": S.Number,
+  "chunks-received": S.Number,
+  "created-at": S.String,
 });
+
+export const LibrarianResponse = S.StructWithRest(
+  S.Struct({
+    error: S.optionalKey(TgError),
+    documentMetadata: S.optionalKey(DocumentMetadata),
+    "document-metadata": S.optionalKey(DocumentMetadata),
+    content: S.optionalKey(S.String),
+    documents: OptionalMutableArray(DocumentMetadata),
+    "document-metadatas": OptionalMutableArray(DocumentMetadata),
+    processing: OptionalMutableArray(ProcessingMetadata),
+    "processing-metadata": OptionalMutableArray(ProcessingMetadata),
+    "processing-metadatas": OptionalMutableArray(ProcessingMetadata),
+    "document-id": S.optionalKey(S.String),
+    "object-id": S.optionalKey(S.String),
+    "upload-id": S.optionalKey(S.String),
+    "chunk-size": S.optionalKey(S.Number),
+    "chunk-index": S.optionalKey(S.Number),
+    "total-chunks": S.optionalKey(S.Number),
+    "chunks-received": S.optionalKey(S.Number),
+    "bytes-received": S.optionalKey(S.Number),
+    "total-bytes": S.optionalKey(S.Number),
+    "upload-state": S.optionalKey(S.String),
+    "received-chunks": S.optionalKey(NumberArray),
+    "missing-chunks": S.optionalKey(NumberArray),
+    "upload-sessions": S.optionalKey(UploadSessionInfo.pipe(S.Array, S.mutable)),
+    eos: S.optionalKey(S.Boolean),
+  }),
+  [UnknownRecord],
+);
 export type LibrarianResponse = typeof LibrarianResponse.Type;
 
 // Knowledge core

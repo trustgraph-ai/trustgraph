@@ -12,13 +12,13 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02
-FlowManager ref-backed state slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Librarian
+schema/assertion cleanup slice:
 
 | Signal | Count |
 | --- | ---: |
 | `Effect.runPromise` | 204 |
-| `Map<` | 75 |
+| `Map<` | 74 |
 | `WebSocket` | 47 |
 | `new Map` | 56 |
 | `toPromiseRequestor` | 0 |
@@ -46,6 +46,8 @@ Notes:
   snapshot because the FlowManager slice added focused service tests and
   Promise compatibility facades while removing the service's internal mutable
   object state.
+- The remaining `Record<string, any>` hit is the librarian service object and
+  should be removed in the next librarian state migration slice.
 
 ## Loop Passes
 
@@ -244,6 +246,36 @@ Notes:
 - Verification:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/flow-manager-service.test.ts`
   - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Librarian Schema And Assertion Cleanup Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/base/src/schema/messages.ts` now models librarian upload and
+    stream request/response fields directly, instead of requiring service-side
+    `as LibrarianResponse` casts for the existing wire protocol.
+  - `ts/packages/flow/src/librarian/service.ts` now decodes persisted
+    librarian state through a concrete `S.fromJsonString` schema instead of a
+    generic JSON decode plus `as A`.
+  - Document metadata `metadata` triples now narrow through Schema decoding
+    with `Option` before being included in normalized metadata.
+  - Upload, stream, and complete-upload request/response constructors now rely
+    on the schema-modeled fields instead of local type assertions.
+  - New librarian tests cover modeled upload fields, concrete persisted-state
+    loading, and schema-backed metadata triple normalization.
+- Remaining:
+  - Librarian still has the dynamic `AsyncProcessorRuntime & Record<string,
+    any>` service object and sync throw helper paths. Keep it as the next P0
+    state/ref-backed migration.
+- Verification:
+  - `bun run --cwd ts/packages/base build`
+  - `bun run --cwd ts/packages/flow build`
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
   - `bun run --cwd ts/packages/flow test`
   - `cd ts && bun run check`
   - `cd ts && bun run build`
