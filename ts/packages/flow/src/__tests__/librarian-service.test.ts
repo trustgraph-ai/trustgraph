@@ -73,7 +73,7 @@ describe("LibrarianService schema-backed boundaries", () => {
       "chunk-size": 4,
     });
     const uploadId = response["upload-id"];
-    const status = service.getUploadStatus({
+    const status = await service.getUploadStatus({
       operation: "get-upload-status",
       "upload-id": uploadId,
     });

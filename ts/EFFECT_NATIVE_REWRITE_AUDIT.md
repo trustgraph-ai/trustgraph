@@ -12,12 +12,12 @@ Verified source roots:
 - Effect v4 subtree: `/home/elpresidank/YeeBois/projects/beep-effect2/.repos/effect-v4`
 - Installed Effect beta used by this workspace: `ts/node_modules/effect`
 
-Current signal counts from `ts/packages` after the 2026-06-02 Librarian
-schema/assertion cleanup slice:
+Current signal counts from `ts/packages` after the 2026-06-02 Librarian tagged
+operation helper slice:
 
 | Signal | Count |
 | --- | ---: |
-| `Effect.runPromise` | 204 |
+| `Effect.runPromise` | 209 |
 | `Map<` | 74 |
 | `WebSocket` | 47 |
 | `new Map` | 56 |
@@ -270,14 +270,38 @@ Notes:
     loading, and schema-backed metadata triple normalization.
 - Remaining:
   - Librarian still has the dynamic `AsyncProcessorRuntime & Record<string,
-    any>` service object and sync throw helper paths. Keep it as the next P0
-    state/ref-backed migration.
+    any>` service object. Keep it as the next P0 state/ref-backed migration.
 - Verification:
   - `bun run --cwd ts/packages/base build`
   - `bun run --cwd ts/packages/flow build`
   - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
   - `bun run --cwd ts/packages/flow test`
   - `cd ts && bun run check`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `git diff --check`
+
+### 2026-06-02: Librarian Tagged Operation Helper Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - Removed the librarian `throwLibrarianServiceError` helper.
+  - `get-document-metadata`, `list-children`, `upload-chunk`,
+    `get-upload-status`, and `abort-upload` now dispatch through local
+    Effect-returning helpers that fail with `LibrarianServiceError`.
+  - Compatibility methods for those operations now return Promise facades
+    backed by `Effect.runPromise`.
+  - The librarian tests now await the Promise compatibility facade for upload
+    status.
+- Remaining:
+  - Librarian still has the dynamic service object, mutable maps/handles on
+    that object, and a raw `while (service.running)` poll loop. That remains
+    the next P0 state/ref-backed migration.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
+  - `bun run --cwd ts/packages/flow build`
+  - `cd ts && bun run check`
+  - `bun run --cwd ts/packages/flow test`
   - `cd ts && bun run build`
   - `cd ts && bun run test`
   - `git diff --check`

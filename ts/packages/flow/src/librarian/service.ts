@@ -79,10 +79,6 @@ const librarianServiceError = (operation: string, cause: unknown): LibrarianServ
     message: errorMessage(cause),
   });
 
-function throwLibrarianServiceError(operation: string, cause: unknown): never {
-  throw librarianServiceError(operation, cause);
-}
-
 function resolveDataDir(config: LibrarianServiceConfig): string {
   return config.dataDir ?? Effect.runSync(
     Config.string("LIBRARIAN_DATA_DIR").pipe(Config.withDefault("./data/librarian")),
@@ -162,6 +158,107 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
   service.colProducer = null;
   service.dataDir = resolveDataDir(config);
   service.persistPath = joinPath(service.dataDir, "librarian-state.json");
+
+  const getDocumentMetadataEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
+    Effect.gen(function* () {
+      const id = service.documentId(request);
+      if (id === undefined || id.length === 0) {
+        return yield* librarianServiceError("get-document-metadata", "get-document-metadata requires documentId");
+      }
+
+      const doc = service.documents.get(id);
+      if (doc === undefined) {
+        return yield* librarianServiceError("get-document-metadata", `Document not found: ${id}`);
+      }
+
+      return service.documentResponse(doc);
+    });
+
+  const listChildrenEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
+    Effect.gen(function* () {
+      const parentId = service.documentId(request);
+      if (parentId === undefined || parentId.length === 0) {
+        return yield* librarianServiceError("list-children", "list-children requires documentId");
+      }
+
+      const children: DocumentMetadata[] = [];
+      for (const doc of service.documents.values()) {
+        if (doc.parentId === parentId) {
+          children.push(doc);
+        }
+      }
+
+      return service.documentsResponse(children);
+    });
+
+  const uploadChunkEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
+    Effect.gen(function* () {
+      const req = service.requestRecord(request);
+      const uploadId = optionalString(req["upload-id"]);
+      if (uploadId === undefined) {
+        return yield* librarianServiceError("upload-chunk", "upload-chunk requires upload-id");
+      }
+      const session = service.uploads.get(uploadId);
+      if (session === undefined) {
+        return yield* librarianServiceError("upload-chunk", `Upload not found: ${uploadId}`);
+      }
+      const chunkIndex = typeof req["chunk-index"] === "number" ? req["chunk-index"] : -1;
+      if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= session.totalChunks) {
+        return yield* librarianServiceError("upload-chunk", "upload-chunk requires a valid chunk-index");
+      }
+      const content = optionalString(req.content);
+      if (content === undefined) {
+        return yield* librarianServiceError("upload-chunk", "upload-chunk requires content");
+      }
+      session.chunks.set(chunkIndex, content);
+
+      const bytesReceived = [...session.chunks.values()].reduce((sum, chunk) => sum + chunk.length, 0);
+      return {
+        "upload-id": uploadId,
+        "chunk-index": chunkIndex,
+        "chunks-received": session.chunks.size,
+        "total-chunks": session.totalChunks,
+        "bytes-received": bytesReceived,
+        "total-bytes": session.totalSize,
+      };
+    });
+
+  const getUploadStatusEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
+    Effect.gen(function* () {
+      const uploadId = optionalString(service.requestRecord(request)["upload-id"]);
+      if (uploadId === undefined) {
+        return yield* librarianServiceError("get-upload-status", "get-upload-status requires upload-id");
+      }
+      const session = service.uploads.get(uploadId);
+      if (session === undefined) {
+        return yield* librarianServiceError("get-upload-status", `Upload not found: ${uploadId}`);
+      }
+      const receivedChunks = [...session.chunks.keys()].sort((a, b) => a - b);
+      const receivedSet = new Set(receivedChunks);
+      const missingChunks = Array.from({ length: session.totalChunks }, (_, i) => i).filter((i) => !receivedSet.has(i));
+      const bytesReceived = [...session.chunks.values()].reduce((sum, chunk) => sum + chunk.length, 0);
+      return {
+        "upload-id": uploadId,
+        "upload-state": "in-progress",
+        "chunks-received": session.chunks.size,
+        "total-chunks": session.totalChunks,
+        "received-chunks": receivedChunks,
+        "missing-chunks": missingChunks,
+        "bytes-received": bytesReceived,
+        "total-bytes": session.totalSize,
+      };
+    });
+
+  const abortUploadEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
+    Effect.gen(function* () {
+      const uploadId = optionalString(service.requestRecord(request)["upload-id"]);
+      if (uploadId === undefined) {
+        return yield* librarianServiceError("abort-upload", "abort-upload requires upload-id");
+      }
+      service.uploads.delete(uploadId);
+      return {};
+    });
+
   Object.assign(service, {
 
 
@@ -508,10 +605,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
                   catch: (cause) => librarianServiceError("list-documents", cause),
                 });
               case "get-document-metadata":
-                return yield* Effect.try({
-                  try: () => service.getDocumentMetadata(request),
-                  catch: (cause) => librarianServiceError("get-document-metadata", cause),
-                });
+                return yield* getDocumentMetadataEffect(request);
               case "get-document-content":
                 return yield* Effect.tryPromise({
                   try: () => service.getDocumentContent(request),
@@ -523,10 +617,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
                   catch: (cause) => librarianServiceError("add-child-document", cause),
                 });
               case "list-children":
-                return yield* Effect.try({
-                  try: () => service.listChildren(request),
-                  catch: (cause) => librarianServiceError("list-children", cause),
-                });
+                return yield* listChildrenEffect(request);
               case "add-processing":
                 return yield* Effect.tryPromise({
                   try: () => service.addProcessing(request),
@@ -548,25 +639,16 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
                   catch: (cause) => librarianServiceError("begin-upload", cause),
                 });
               case "upload-chunk":
-                return yield* Effect.try({
-                  try: () => service.uploadChunk(request),
-                  catch: (cause) => librarianServiceError("upload-chunk", cause),
-                });
+                return yield* uploadChunkEffect(request);
               case "complete-upload":
                 return yield* Effect.tryPromise({
                   try: () => service.completeUpload(request),
                   catch: (cause) => librarianServiceError("complete-upload", cause),
                 });
               case "get-upload-status":
-                return yield* Effect.try({
-                  try: () => service.getUploadStatus(request),
-                  catch: (cause) => librarianServiceError("get-upload-status", cause),
-                });
+                return yield* getUploadStatusEffect(request);
               case "abort-upload":
-                return yield* Effect.try({
-                  try: () => service.abortUpload(request),
-                  catch: (cause) => librarianServiceError("abort-upload", cause),
-                });
+                return yield* abortUploadEffect(request);
               case "list-uploads":
                 return yield* Effect.tryPromise({
                   try: () => service.listUploads(request),
@@ -737,16 +819,8 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      getDocumentMetadata: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const id = this.documentId(request);
-        if (id === undefined || id.length === 0) {
-          throwLibrarianServiceError("get-document-metadata", "get-document-metadata requires documentId");
-        }
-
-        const doc = this.documents.get(id);
-        if (doc === undefined) throwLibrarianServiceError("get-document-metadata", `Document not found: ${id}`);
-
-        return this.documentResponse(doc);
+      getDocumentMetadata: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        return Effect.runPromise(getDocumentMetadataEffect(request));
 
         },
 
@@ -833,20 +907,8 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      listChildren: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const parentId = this.documentId(request);
-        if (parentId === undefined || parentId.length === 0) {
-          throwLibrarianServiceError("list-children", "list-children requires documentId");
-        }
-
-        const children: DocumentMetadata[] = [];
-        for (const doc of this.documents.values()) {
-          if (doc.parentId === parentId) {
-            children.push(doc);
-          }
-        }
-
-        return this.documentsResponse(children);
+      listChildren: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        return Effect.runPromise(listChildrenEffect(request));
 
         },
 
@@ -969,29 +1031,8 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      uploadChunk: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const req = this.requestRecord(request);
-        const uploadId = optionalString(req["upload-id"]);
-        if (uploadId === undefined) throwLibrarianServiceError("upload-chunk", "upload-chunk requires upload-id");
-        const session = this.uploads.get(uploadId);
-        if (session === undefined) throwLibrarianServiceError("upload-chunk", `Upload not found: ${uploadId}`);
-        const chunkIndex = typeof req["chunk-index"] === "number" ? req["chunk-index"] : -1;
-        if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= session.totalChunks) {
-          throwLibrarianServiceError("upload-chunk", "upload-chunk requires a valid chunk-index");
-        }
-        const content = optionalString(req.content);
-        if (content === undefined) throwLibrarianServiceError("upload-chunk", "upload-chunk requires content");
-        session.chunks.set(chunkIndex, content);
-
-        const bytesReceived = [...session.chunks.values()].reduce((sum, chunk) => sum + chunk.length, 0);
-        return {
-          "upload-id": uploadId,
-          "chunk-index": chunkIndex,
-          "chunks-received": session.chunks.size,
-          "total-chunks": session.totalChunks,
-          "bytes-received": bytesReceived,
-          "total-bytes": session.totalSize,
-        };
+      uploadChunk: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        return Effect.runPromise(uploadChunkEffect(request));
 
         },
 
@@ -1034,35 +1075,15 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
 
-      getUploadStatus: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const uploadId = optionalString(this.requestRecord(request)["upload-id"]);
-        if (uploadId === undefined) throwLibrarianServiceError("get-upload-status", "get-upload-status requires upload-id");
-        const session = this.uploads.get(uploadId);
-        if (session === undefined) throwLibrarianServiceError("get-upload-status", `Upload not found: ${uploadId}`);
-        const receivedChunks = [...session.chunks.keys()].sort((a, b) => a - b);
-        const receivedSet = new Set(receivedChunks);
-        const missingChunks = Array.from({ length: session.totalChunks }, (_, i) => i).filter((i) => !receivedSet.has(i));
-        const bytesReceived = [...session.chunks.values()].reduce((sum, chunk) => sum + chunk.length, 0);
-        return {
-          "upload-id": uploadId,
-          "upload-state": "in-progress",
-          "chunks-received": session.chunks.size,
-          "total-chunks": session.totalChunks,
-          "received-chunks": receivedChunks,
-          "missing-chunks": missingChunks,
-          "bytes-received": bytesReceived,
-          "total-bytes": session.totalSize,
-        };
+      getUploadStatus: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        return Effect.runPromise(getUploadStatusEffect(request));
 
         },
 
 
 
-      abortUpload: function(this: LibrarianService, request: LibrarianRequest): LibrarianResponse {
-        const uploadId = optionalString(this.requestRecord(request)["upload-id"]);
-        if (uploadId === undefined) throwLibrarianServiceError("abort-upload", "abort-upload requires upload-id");
-        this.uploads.delete(uploadId);
-        return {};
+      abortUpload: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
+        return Effect.runPromise(abortUploadEffect(request));
 
         },
 
