@@ -12,6 +12,7 @@ import logging
 from .. base import WorkspaceProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
 from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .. base import LibrarianClient
 
 from .. schema import KnowledgeRequest, KnowledgeResponse, Error
 from .. schema import knowledge_request_queue, knowledge_response_queue
@@ -77,12 +78,17 @@ class Processor(WorkspaceProcessor):
             }
         )
 
+        self.librarian_client = LibrarianClient(
+            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
+        )
+
         self.knowledge = KnowledgeManager(
             cassandra_host = self.cassandra_host,
             cassandra_username = self.cassandra_username,
             cassandra_password = self.cassandra_password,
             keyspace = keyspace,
             flow_config = self,
+            librarian = self.librarian_client,
             replication_factor = replication_factor,
         )
 
@@ -156,6 +162,7 @@ class Processor(WorkspaceProcessor):
     async def start(self):
 
         await super(Processor, self).start()
+        await self.librarian_client.start()
 
     async def on_knowledge_config(self, workspace, config, version):
 

@@ -79,6 +79,39 @@ class CoreImport:
 
                         await kr.process(msg)
 
+                    elif unpacked[0] == "lm":
+                        msg = unpacked[1]
+                        msg = {
+                            "operation": "put-kg-core",
+                            "workspace": workspace,
+                            "id": id,
+                            "library-metadata": {
+                                "id": msg["i"],
+                                "kind": msg.get("k", ""),
+                                "title": msg.get("t", ""),
+                                "parent-id": msg.get("p", ""),
+                                "document-type": msg.get("d", ""),
+                                "comments": msg.get("c", ""),
+                                "tags": msg.get("g", []),
+                            }
+                        }
+
+                        await kr.process(msg)
+
+                    elif unpacked[0] == "lb":
+                        msg = unpacked[1]
+                        msg = {
+                            "operation": "put-kg-core",
+                            "workspace": workspace,
+                            "id": id,
+                            "library-blob": {
+                                "id": msg["i"],
+                                "data": msg.get("d", b""),
+                            }
+                        }
+
+                        await kr.process(msg)
+
         except Exception as e:
             logger.error(f"Core import exception: {e}", exc_info=True)
             await error(str(e))

@@ -98,7 +98,8 @@ class KnowledgeTableStore:
                     text, boolean, text, boolean, text, boolean
                 >>,
                 triples list<tuple<
-                    text, boolean, text, boolean, text, boolean
+                    text, boolean, text, boolean, text, boolean,
+                    text
                 >>,
                 PRIMARY KEY ((workspace, document_id), id)
             );
@@ -234,7 +235,8 @@ class KnowledgeTableStore:
 
         triples = [
             (
-                *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
+                *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o),
+                v.g or ""
             )
             for v in m.triples
         ]
@@ -416,6 +418,7 @@ class KnowledgeTableStore:
                             s = tuple_to_term(elt[0], elt[1]),
                             p = tuple_to_term(elt[2], elt[3]),
                             o = tuple_to_term(elt[4], elt[5]),
+                            g = elt[6] if elt[6] else None,
                         )
                         for elt in row[3]
                     ]
