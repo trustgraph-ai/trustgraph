@@ -22,6 +22,21 @@ from .embeddings import GraphEmbeddings, DocumentEmbeddings
 #   <- (error)
 
 @dataclass
+class LibraryMetadata:
+    id: str = ""
+    kind: str = ""
+    title: str = ""
+    parent_id: str = ""
+    document_type: str = ""
+    comments: str = ""
+    tags: list[str] = field(default_factory=list)
+
+@dataclass
+class LibraryBlob:
+    id: str = ""
+    data: bytes = b""
+
+@dataclass
 class KnowledgeRequest:
     # get-kg-core, delete-kg-core, list-kg-cores, put-kg-core
     # load-kg-core, unload-kg-core
@@ -44,6 +59,10 @@ class KnowledgeRequest:
     # put-de-core
     document_embeddings: DocumentEmbeddings | None = None
 
+    # put-kg-core (source material)
+    library_metadata: LibraryMetadata | None = None
+    library_blob: LibraryBlob | None = None
+
 @dataclass
 class KnowledgeResponse:
     error: Error | None = None
@@ -52,6 +71,8 @@ class KnowledgeResponse:
     triples: Triples | None = None
     graph_embeddings: GraphEmbeddings | None = None
     document_embeddings: DocumentEmbeddings | None = None
+    library_metadata: LibraryMetadata | None = None
+    library_blob: LibraryBlob | None = None
 
 knowledge_request_queue = queue('knowledge', cls='request')
 knowledge_response_queue = queue('knowledge', cls='response')

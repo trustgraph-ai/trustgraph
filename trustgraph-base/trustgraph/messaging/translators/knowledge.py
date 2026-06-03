@@ -2,7 +2,8 @@ from typing import Dict, Any, Tuple, Optional
 from ...schema import (
     KnowledgeRequest, KnowledgeResponse, Triples, GraphEmbeddings,
     DocumentEmbeddings, ChunkEmbeddings,
-    Metadata, EntityEmbeddings
+    Metadata, EntityEmbeddings,
+    LibraryMetadata, LibraryBlob,
 )
 from .base import MessageTranslator
 from .primitives import ValueTranslator, SubgraphTranslator
@@ -61,6 +62,27 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 ]
             )
 
+        library_metadata = None
+        if "library-metadata" in data:
+            lm = data["library-metadata"]
+            library_metadata = LibraryMetadata(
+                id=lm.get("id", ""),
+                kind=lm.get("kind", ""),
+                title=lm.get("title", ""),
+                parent_id=lm.get("parent-id", ""),
+                document_type=lm.get("document-type", ""),
+                comments=lm.get("comments", ""),
+                tags=lm.get("tags", []),
+            )
+
+        library_blob = None
+        if "library-blob" in data:
+            lb = data["library-blob"]
+            library_blob = LibraryBlob(
+                id=lb.get("id", ""),
+                data=lb.get("data", b""),
+            )
+
         return KnowledgeRequest(
             operation=data.get("operation"),
             id=data.get("id"),
@@ -69,6 +91,8 @@ class KnowledgeRequestTranslator(MessageTranslator):
             triples=triples,
             graph_embeddings=graph_embeddings,
             document_embeddings=document_embeddings,
+            library_metadata=library_metadata,
+            library_blob=library_blob,
         )
 
     def encode(self, obj: KnowledgeRequest) -> Dict[str, Any]:
@@ -123,6 +147,26 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     }
                     for ch in obj.document_embeddings.chunks
                 ],
+            }
+
+        if obj.library_metadata:
+            result["library-metadata"] = {
+                "id": obj.library_metadata.id,
+                "kind": obj.library_metadata.kind,
+                "title": obj.library_metadata.title,
+                "parent-id": obj.library_metadata.parent_id,
+                "document-type": obj.library_metadata.document_type,
+                "comments": obj.library_metadata.comments,
+                "tags": obj.library_metadata.tags,
+            }
+
+        if obj.library_blob:
+            data = obj.library_blob.data
+            if isinstance(data, bytes):
+                data = data.decode("utf-8")
+            result["library-blob"] = {
+                "id": obj.library_blob.id,
+                "data": data,
             }
 
         return result
@@ -194,6 +238,32 @@ class KnowledgeResponseTranslator(MessageTranslator):
                 }
             }
 
+        # Streaming library metadata response
+        if obj.library_metadata:
+            return {
+                "library-metadata": {
+                    "id": obj.library_metadata.id,
+                    "kind": obj.library_metadata.kind,
+                    "title": obj.library_metadata.title,
+                    "parent-id": obj.library_metadata.parent_id,
+                    "document-type": obj.library_metadata.document_type,
+                    "comments": obj.library_metadata.comments,
+                    "tags": obj.library_metadata.tags,
+                }
+            }
+
+        # Streaming library blob response
+        if obj.library_blob:
+            data = obj.library_blob.data
+            if isinstance(data, bytes):
+                data = data.decode("utf-8")
+            return {
+                "library-blob": {
+                    "id": obj.library_blob.id,
+                    "data": data,
+                }
+            }
+
         # End of stream marker
         if obj.eos is True:
             return {"eos": True}
@@ -209,7 +279,9 @@ class KnowledgeResponseTranslator(MessageTranslator):
         is_final = (
             obj.ids is not None or  # List response
             obj.eos is True or      # End of stream
-            (not obj.triples and not obj.graph_embeddings and not obj.document_embeddings)  # Empty response
+            (not obj.triples and not obj.graph_embeddings
+             and not obj.document_embeddings
+             and not obj.library_metadata and not obj.library_blob)  # Empty response
         )
         
         return response, is_final

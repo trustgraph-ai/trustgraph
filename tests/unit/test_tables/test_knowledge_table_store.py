@@ -155,7 +155,7 @@ class TestGetTriples:
     @pytest.mark.asyncio
     @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
     async def test_row_converts_to_triples(self, mock_async_execute_paged):
-        # row[3] is a list of (s_val, s_uri, p_val, p_uri, o_val, o_uri)
+        # row[3] is a list of (s_val, s_uri, p_val, p_uri, o_val, o_uri, graph)
         fake_row = (
             None, None, None,
             [
@@ -163,6 +163,7 @@ class TestGetTriples:
                     "http://example.org/alice", True,
                     "http://example.org/knows", True,
                     "http://example.org/bob", True,
+                    "urn:graph:source",
                 ),
             ],
         )
@@ -191,3 +192,33 @@ class TestGetTriples:
         assert t.s.iri == "http://example.org/alice"
         assert t.p.iri == "http://example.org/knows"
         assert t.o.iri == "http://example.org/bob"
+        assert t.g == "urn:graph:source"
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
+    async def test_empty_graph_name_becomes_none(self, mock_async_execute_paged):
+        fake_row = (
+            None, None, None,
+            [
+                (
+                    "http://example.org/alice", True,
+                    "http://example.org/knows", True,
+                    "http://example.org/bob", True,
+                    "",
+                ),
+            ],
+        )
+
+        store = _make_store()
+        store.cassandra = Mock()
+        store.get_triples_stmt = Mock()
+        mock_async_execute_paged.return_value = [[fake_row]]
+
+        received = []
+
+        async def receiver(msg):
+            received.append(msg)
+
+        await store.get_triples("w", "d", receiver)
+
+        assert received[0].triples[0].g is None

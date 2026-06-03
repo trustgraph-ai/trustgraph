@@ -73,6 +73,39 @@ class CoreExport:
                     enc = msgpack.packb(msg)
                     await response.write(enc)
 
+                if "library-metadata" in resp:
+
+                    data = resp["library-metadata"]
+                    msg = (
+                        "lm",
+                        {
+                            "i": data["id"],
+                            "k": data.get("kind", ""),
+                            "t": data.get("title", ""),
+                            "p": data.get("parent-id", ""),
+                            "d": data.get("document-type", ""),
+                            "c": data.get("comments", ""),
+                            "g": data.get("tags", []),
+                        }
+                    )
+
+                    enc = msgpack.packb(msg)
+                    await response.write(enc)
+
+                if "library-blob" in resp:
+
+                    data = resp["library-blob"]
+                    msg = (
+                        "lb",
+                        {
+                            "i": data["id"],
+                            "d": data.get("data", b""),
+                        }
+                    )
+
+                    enc = msgpack.packb(msg, use_bin_type=True)
+                    await response.write(enc)
+
             await kr.process(
                 {
                     "operation": "get-kg-core",
