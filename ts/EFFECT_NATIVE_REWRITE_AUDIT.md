@@ -2194,6 +2194,26 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Chunking Chunk Collection Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/chunking/recursive-splitter.ts` now returns
+    `Chunk.Chunk<string>` and uses `effect/Chunk` for splitter result, merge,
+    recursive append, and overlap collections.
+  - The chunking service behavior is unchanged; `Chunk` is iterable and still
+    provides `length` for logging and output counting.
+  - Splitter and service tests convert `Chunk` results to readonly arrays only
+    at assertion boundaries.
+  - The focused chunking scan no longer has array-backed splitter result state.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/recursive-splitter.test.ts src/__tests__/chunking-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2342,9 +2362,9 @@ Notes:
     broker receive/error payload boundaries remain numeric milliseconds.
   - CLI modernization remains valid, but the live installed target is
     `effect/unstable/cli` rather than an installed `@effect/cli` package.
-  - Chunking remains a small valid `effect/Chunk` slice: the recursive
-    splitter is still array/mutation based and can expose `Chunk.Chunk<string>`
-    internally while preserving service behavior.
+  - Chunking `effect/Chunk` migration is complete: the recursive splitter now
+    returns `Chunk.Chunk<string>` and converts to arrays only at test/assertion
+    boundaries.
   - Knowledge core internals are largely Effect-native, but public core service
     facades still expose Promise methods; migrate tests to Effect-first
     methods before shrinking those facades.

@@ -11,13 +11,15 @@
  * Python reference: trustgraph-flow/trustgraph/chunking/recursive_splitter/service.py
  */
 
-const DEFAULT_SEPARATORS = ["\n\n", "\n", " ", ""];
+import * as Chunk from "effect/Chunk";
+
+const DEFAULT_SEPARATORS: ReadonlyArray<string> = ["\n\n", "\n", " ", ""];
 
 export function recursiveSplit(
   text: string,
   chunkSize: number,
   chunkOverlap: number,
-): string[] {
+): Chunk.Chunk<string> {
   return splitRecursive(text, chunkSize, chunkOverlap, DEFAULT_SEPARATORS);
 }
 
@@ -25,10 +27,10 @@ function splitRecursive(
   text: string,
   chunkSize: number,
   chunkOverlap: number,
-  separators: string[],
-): string[] {
+  separators: ReadonlyArray<string>,
+): Chunk.Chunk<string> {
   if (text.length <= chunkSize) {
-    return text.trim().length > 0 ? [text] : [];
+    return text.trim().length > 0 ? Chunk.of(text) : Chunk.empty();
   }
 
   // Find the best separator that exists in the text
@@ -51,13 +53,13 @@ function splitRecursive(
   const merged = mergePieces(pieces, separator, chunkSize);
 
   // Recursively split oversized chunks with the next separator
-  const results: string[] = [];
+  let results = Chunk.empty<string>();
   for (const chunk of merged) {
     if (chunk.length > chunkSize && remainingSeparators.length > 0) {
       const subChunks = splitRecursive(chunk, chunkSize, chunkOverlap, remainingSeparators);
-      results.push(...subChunks);
+      results = Chunk.appendAll(results, subChunks);
     } else if (chunk.trim().length > 0) {
-      results.push(chunk);
+      results = Chunk.append(results, chunk);
     }
   }
 
@@ -66,18 +68,18 @@ function splitRecursive(
 }
 
 function mergePieces(
-  pieces: string[],
+  pieces: ReadonlyArray<string>,
   separator: string,
   chunkSize: number,
-): string[] {
-  const chunks: string[] = [];
+): Chunk.Chunk<string> {
+  let chunks = Chunk.empty<string>();
   let current = "";
 
   for (const piece of pieces) {
     const candidate = current.length > 0 ? current + separator + piece : piece;
 
     if (candidate.length > chunkSize && current.length > 0) {
-      chunks.push(current);
+      chunks = Chunk.append(chunks, current);
       current = piece;
     } else {
       current = candidate;
@@ -85,21 +87,26 @@ function mergePieces(
   }
 
   if (current.length > 0) {
-    chunks.push(current);
+    chunks = Chunk.append(chunks, current);
   }
 
   return chunks;
 }
 
-function applyOverlap(chunks: string[], overlapSize: number): string[] {
+function applyOverlap(chunks: Chunk.Chunk<string>, overlapSize: number): Chunk.Chunk<string> {
   if (overlapSize <= 0 || chunks.length <= 1) return chunks;
 
-  const result: string[] = [chunks[0]];
+  let result = Chunk.empty<string>();
+  let previous: string | undefined;
 
-  for (let i = 1; i < chunks.length; i++) {
-    const prev = chunks[i - 1];
-    const overlapText = prev.slice(Math.max(0, prev.length - overlapSize));
-    result.push(overlapText + chunks[i]);
+  for (const chunk of chunks) {
+    if (previous === undefined) {
+      result = Chunk.append(result, chunk);
+    } else {
+      const overlapText = previous.slice(Math.max(0, previous.length - overlapSize));
+      result = Chunk.append(result, overlapText + chunk);
+    }
+    previous = chunk;
   }
 
   return result;

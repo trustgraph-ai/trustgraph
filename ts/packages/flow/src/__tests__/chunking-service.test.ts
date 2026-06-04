@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Fiber } from "effect";
+import * as EffectChunk from "effect/Chunk";
 import {
   MessagingRuntimeLive,
   PubSub,
@@ -212,7 +213,7 @@ describe("ChunkingService", () => {
           inputConsumer.push(createMessage(document, { id: "request-1" }));
 
           const outputProducer = backend.producersByTopic.get("chunk-output-topic") as RecordingProducer<Chunk>;
-          const expectedChunks = recursiveSplit(document.text, 18, 0);
+          const expectedChunks = EffectChunk.toReadonlyArray(recursiveSplit(document.text, 18, 0));
           yield* waitFor(() => outputProducer.sent.length === expectedChunks.length, "chunk outputs");
 
           expect(inputConsumer.acknowledged.length).toBe(1);
