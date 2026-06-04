@@ -2308,6 +2308,29 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Librarian Service State MutableHashMap Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/librarian/service.ts` now stores live documents,
+    processing records, uploads, and per-upload chunks in `MutableHashMap`
+    instead of native `Map`.
+  - State updates continue to clone the current collection before swapping it
+    into `SynchronizedRef`, but now use `MutableHashMap.fromIterable`,
+    `Option`-based lookups, and `MutableHashMap.set` / `remove` / `size` /
+    `keys` / `values` for service-state behavior.
+  - Persistence stays at the JSON boundary through `Object.fromEntries` over
+    the Effect collection iterable; persisted load repopulates
+    `MutableHashMap` state.
+- Verification:
+  - `cd ts && bun run --cwd packages/flow build`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/librarian-service.test.ts src/__tests__/collection-manager.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2493,10 +2516,11 @@ Notes:
     compatibility facades, gateway/librarian helpers, and CLI command actions.
     The workbench random id helper is complete; the remaining workbench
     `Effect.gen` match is a local one-shot command effect value.
-  - Remaining real long-lived native collection target is Librarian service
-    state. Base processor registries, the standalone Librarian collection
-    manager, prompt template cache, and workbench explain triples module cache
-    are complete. Local traversal sets and test fakes remain no-op boundaries.
+  - Fresh long-lived native collection targets from the scratch inventory are
+    complete: Librarian service state, base processor registries, the
+    standalone Librarian collection manager, prompt template cache, and
+    workbench explain triples module cache. Local traversal sets and test fakes
+    remain no-op boundaries.
 
 ## Ranked Findings
 
