@@ -167,7 +167,7 @@ describe("Effect-native flow specifications", () => {
         provideRuntime(
           backend,
           Effect.gen(function* () {
-            yield* flow.startEffect();
+            yield* flow.startEffect;
             const producer = yield* flow.producerEffect(outputProducerSpec);
             const duplicateSpecError = yield* flow.producerEffect(duplicateOutputProducerSpec).pipe(Effect.flip);
             expect(duplicateSpecError._tag).toBe("FlowResourceNotFoundError");
@@ -212,7 +212,7 @@ describe("Effect-native flow specifications", () => {
         provideRuntime(
           backend,
           Effect.gen(function* () {
-            yield* flow.startEffect();
+            yield* flow.startEffect;
             yield* Effect.yieldNow;
             yield* TestClock.adjust(Duration.millis(5));
           }),
@@ -254,7 +254,7 @@ describe("Effect-native flow specifications", () => {
         provideRuntime(
           backend,
           Effect.gen(function* () {
-            yield* flow.startEffect();
+            yield* flow.startEffect;
             const duplicateSpecError = yield* flow.requestorEffect(duplicateRequestResponseSpec).pipe(Effect.flip);
             expect(duplicateSpecError._tag).toBe("FlowResourceNotFoundError");
             const requestor = flow.requestor(requestResponseSpec);
@@ -293,7 +293,7 @@ describe("Effect-native flow specifications", () => {
         provideRuntime(
           backend,
           Effect.gen(function* () {
-            yield* flow.startEffect();
+            yield* flow.startEffect;
             const producerError = yield* flow.producerEffect("missing-producer").pipe(Effect.flip);
             const parameter = yield* flow.parameterEffect(presentParameter);
             const legacyParameter = yield* flow.parameterEffect("present");

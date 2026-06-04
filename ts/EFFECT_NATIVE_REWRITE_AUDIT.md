@@ -2164,6 +2164,36 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Base Processor Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/base/src/processor/flow.ts` now exposes `startEffect` and
+    `stopEffect` as Effect values with spans instead of lazy zero-argument
+    Effect methods.
+  - `Flow.runInCompatibilityScopeEffect` is now a named `Effect.fn` helper
+    instead of a method returning nested `Effect.gen`.
+  - The public `Flow` shape is explicit so Effect error and requirement
+    channels do not widen through recursive object inference.
+  - Producer, request/response, and parameter specs are generic over the
+    receiving flow requirements, so reusable specs remain mountable in flows
+    with additional service dependencies without type assertions.
+  - `ts/packages/base/src/processor/flow-processor.ts` now defines
+    `startFlow`, `configureFlows`, `processNextConfigPush`, the safe consume
+    wrapper, and the Promise `start` compatibility helper with named
+    `Effect.fn` functions.
+  - The focused scan for callable `return Effect.gen(...)` helpers in
+    `flow.ts` is clean. Remaining `flow-processor.ts` matches are one-shot
+    program values / exported program factories and should be scoped
+    separately from reusable helper normalization.
+- Verification:
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/flow-spec-runtime.test.ts src/__tests__/flow-processor-runtime.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2198,6 +2228,10 @@ Notes:
   - Flow service startup facades now consistently use `ManagedRuntime`, and
     local scripts should delegate to `runMain()` instead of adding local
     `.catch(console.error/process.exit)` wrappers.
+  - Base `Flow.startEffect` / `stopEffect` are now Effect values, not
+    zero-argument lazy Effect methods. New runtime APIs should expose Effect
+    values where no arguments are needed, and reserve `Effect.fn` for reusable
+    helpers that take arguments.
   - Persistence IO should move toward `FileSystem` or `KeyValueStore` where
     the installed beta has the needed provider surface.
 - Base messaging/processors:
@@ -2233,6 +2267,10 @@ Notes:
   - Base metrics are now Effect-native and Prometheus-formatted through
     `PrometheusMetrics.format`; do not reopen `prom-client` unless a future
     scrape requirement cannot be represented by Effect metrics.
+  - The scratch note's `prom-client` claim is stale: `ts/packages` has no
+    `prom-client` matches, and `metrics/prometheus.ts` already uses
+    `effect/Metric` plus `PrometheusMetrics.format`. Remaining observability
+    work is OTLP/span coverage and wiring existing consumer metrics helpers.
   - Numeric public timeout fields such as `timeoutMs` remain compatibility
     surfaces. Internal runtime config with `Config.number(...Ms)` is still a
     valid `Config.duration` / `Duration` cleanup target.
@@ -2241,6 +2279,9 @@ Notes:
     Socket errors/JSON parsing now use tagged errors and Schema decoding.
     The remaining client `newableFactory` assertions are documented as public
     API compatibility boundaries for this loop.
+  - `EffectRpcClient` remains Promise-shaped at the public facade. A future
+    client API slice can add an Effect/Stream-native surface beside the
+    Promise facade, then migrate callback users incrementally.
   - Gateway/client `DispatchError` contracts now use `S.TaggedErrorClass`; do
     not reopen `S.ErrorClass` unless a new production match appears.
   - Gateway `DispatchStream` now uses Effect-native dispatcher streaming
@@ -2288,6 +2329,9 @@ Notes:
     complete, and the Effect AI stream-part adapter now uses `effect/Match`.
     The remaining provider-layer item is parity-backed Effect AI adapter work,
     not a direct SDK swap.
+  - AI service modernization remains partially valid: Claude already uses
+    `@effect/ai-anthropic`, while OpenAI/Azure/OpenAI-compatible/Mistral/Ollama
+    still need parity-backed Effect AI adapters or provider-specific bridges.
 - Scratch-note follow-ups:
   - `Term` / compact client term serialization is complete for base schema,
     gateway translation, and pure term helper switches. Future work should
@@ -2296,6 +2340,14 @@ Notes:
   - Messaging runtime `Config.duration` cleanup is complete. Internal runtime
     config uses `Duration.Duration`; public timeout compatibility inputs and
     broker receive/error payload boundaries remain numeric milliseconds.
+  - CLI modernization remains valid, but the live installed target is
+    `effect/unstable/cli` rather than an installed `@effect/cli` package.
+  - Chunking remains a small valid `effect/Chunk` slice: the recursive
+    splitter is still array/mutation based and can expose `Chunk.Chunk<string>`
+    internally while preserving service behavior.
+  - Knowledge core internals are largely Effect-native, but public core service
+    facades still expose Promise methods; migrate tests to Effect-first
+    methods before shrinking those facades.
   - Qdrant graph/doc known-collection caches now use
     `MutableHashSet<string>`. Short-lived local traversal sets remain no-ops.
   - Gateway dispatcher static service registries, streaming membership, and
@@ -2322,8 +2374,10 @@ Notes:
   - Fresh strict signal sweep after the 2026-06-04 helper and collection
     slices found no production normal `Error`, raw `try`/`catch`, native
     `switch`, or Effect-focused type assertions under `ts/packages`.
-  - Remaining real helper-normalization targets from the fresh sweep are base
-    processor flow helpers and one workbench atom helper.
+  - Remaining real helper-normalization targets from the fresh sweep are one
+    workbench atom helper plus separately scoped inline callback/program
+    factories in messaging compatibility facades, gateway/librarian helpers,
+    and CLI command actions.
   - Remaining real long-lived native collection targets include base processor
     registries, Librarian service / collection manager state, prompt template
     cache, and a workbench module cache. Local traversal sets and test fakes

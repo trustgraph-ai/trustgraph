@@ -7,12 +7,14 @@
  * Python reference: trustgraph-base/trustgraph/base/prompt_client_spec.py
  */
 
-import { Effect } from "effect";
-import type { Spec } from "./types.js";
+import { Effect, type Context } from "effect";
+import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
+import type { PubSubBackend } from "../backend/types.js";
 import {
   flowResourceNotFoundError,
   type FlowResourceNotFoundError,
+  type PubSubError,
 } from "../errors.js";
 import {
   type EffectRequestResponse,
@@ -21,11 +23,22 @@ import {
 
 declare const RequestResponseSpecType: unique symbol;
 
-export interface RequestResponseSpec<TReq, TRes> extends Spec {
+export interface RequestResponseSpec<TReq, TRes> {
   readonly [RequestResponseSpecType]?: {
     readonly request: TReq;
     readonly response: TRes;
   };
+  readonly name: string;
+  readonly addEffect: <Requirements = never>(
+    flow: Flow<Requirements>,
+    definition: FlowDefinition,
+  ) => Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
+  readonly add: <Requirements = never>(
+    flow: Flow<Requirements>,
+    pubsub: PubSubBackend,
+    definition: FlowDefinition,
+    context: Context.Context<Requirements>,
+  ) => Promise<void>;
   readonly requestorEffect: <Requirements = never>(
     flow: Flow<Requirements>,
   ) => Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError>;
@@ -65,8 +78,8 @@ export function makeRequestResponseSpec<TReq, TRes>(
       : Effect.succeed(requestor);
   };
 
-  const addEffect = Effect.fn("RequestResponseSpec.addEffect")(function* (
-    flow: Flow,
+  const addEffect = Effect.fn("RequestResponseSpec.addEffect")(function* <Requirements = never>(
+    flow: Flow<Requirements>,
     definition: FlowDefinition,
   ) {
       const requestTopic = definition.topics?.[requestTopicName] ?? requestTopicName;

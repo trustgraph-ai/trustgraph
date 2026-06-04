@@ -625,7 +625,7 @@ export const RequestResponseFactoryLive = Layer.effect(
 export const runFlowRuntimeScoped = Effect.fn("FlowRuntime.run")(function* <Requirements = never>(
   flow: Flow<Requirements>,
 ) {
-  yield* flow.startEffect().pipe(
+  yield* flow.startEffect.pipe(
     Effect.mapError((error) => flowRuntimeError(flow.name, "start", error)),
   );
   yield* Effect.addFinalizer(() =>
@@ -673,8 +673,8 @@ export const runEffectRequestResponseScoped = Effect.fn("runEffectRequestRespons
   return yield* makeEffectRequestResponseFromPubSub<TReq, TRes>(pubsub, config, options);
 });
 
-export const runFlowScoped = Effect.fn("runFlowScoped")(function* (
-  flow: Flow,
+export const runFlowScoped = Effect.fn("runFlowScoped")(function* <Requirements = never>(
+  flow: Flow<Requirements>,
 ) {
   yield* runFlowRuntimeScoped(flow);
 });

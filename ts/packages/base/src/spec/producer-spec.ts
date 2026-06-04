@@ -4,12 +4,14 @@
  * Python reference: trustgraph-base/trustgraph/base/producer_spec.py
  */
 
-import { Effect } from "effect";
-import type { Spec } from "./types.js";
+import { Effect, type Context } from "effect";
+import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
+import type { PubSubBackend } from "../backend/types.js";
 import {
   flowResourceNotFoundError,
   type FlowResourceNotFoundError,
+  type PubSubError,
 } from "../errors.js";
 import {
   type EffectProducer,
@@ -18,8 +20,19 @@ import {
 
 declare const ProducerSpecType: unique symbol;
 
-export interface ProducerSpec<T> extends Spec {
+export interface ProducerSpec<T> {
   readonly [ProducerSpecType]?: (_: T) => T;
+  readonly name: string;
+  readonly addEffect: <Requirements = never>(
+    flow: Flow<Requirements>,
+    definition: FlowDefinition,
+  ) => Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
+  readonly add: <Requirements = never>(
+    flow: Flow<Requirements>,
+    pubsub: PubSubBackend,
+    definition: FlowDefinition,
+    context: Context.Context<Requirements>,
+  ) => Promise<void>;
   readonly producerEffect: <Requirements = never>(
     flow: Flow<Requirements>,
   ) => Effect.Effect<EffectProducer<T>, FlowResourceNotFoundError>;
@@ -55,8 +68,8 @@ export function makeProducerSpec<T>(name: string): ProducerSpec<T> {
       : Effect.succeed(producer);
   };
 
-  const addEffect = Effect.fn("ProducerSpec.addEffect")(function* (
-    flow: Flow,
+  const addEffect = Effect.fn("ProducerSpec.addEffect")(function* <Requirements = never>(
+    flow: Flow<Requirements>,
     definition: FlowDefinition,
   ) {
       const topic = definition.topics?.[name] ?? name;

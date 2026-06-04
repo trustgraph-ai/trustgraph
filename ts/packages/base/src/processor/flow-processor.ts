@@ -37,7 +37,7 @@ import {
 } from "../messaging/runtime.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
-import { Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
+import { Context, Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -172,127 +172,110 @@ export function runFlowProcessorDefinitionScoped<
     );
   };
 
-  const startFlowEffect = (
+  const startFlowEffect = Effect.fn("FlowProcessor.startFlow")(function* (
     name: string,
     definition: FlowDefinition,
-  ): Effect.Effect<
-    ActiveFlow,
-    FlowRuntimeError,
-    FlowRuntime | ProducerFactory | ConsumerFactory | RequestResponseFactory | FlowRequirements
-  > =>
-    Effect.gen(function* () {
-      const flowRuntime = yield* FlowRuntime;
-      const scope = yield* Scope.make();
-      const flow = new Flow<FlowRequirements>(
-        name,
-        options.id,
-        options.pubsub,
-        definition,
-        options.specifications,
-      );
-      return yield* flowRuntime.run(flow).pipe(
-        Scope.provide(scope),
-        Effect.as({ scope } satisfies ActiveFlow),
-        Effect.catch((error) =>
-          Scope.close(scope, Exit.void).pipe(
-            Effect.flatMap(() => Effect.fail(error)),
-          ),
+  ) {
+    const flowRuntime = yield* FlowRuntime;
+    const scope = yield* Scope.make();
+    const flow = new Flow<FlowRequirements>(
+      name,
+      options.id,
+      options.pubsub,
+      definition,
+      options.specifications,
+    );
+    return yield* flowRuntime.run(flow).pipe(
+      Scope.provide(scope),
+      Effect.as({ scope } satisfies ActiveFlow),
+      Effect.catch((error) =>
+        Scope.close(scope, Exit.void).pipe(
+          Effect.flatMap(() => Effect.fail(error)),
         ),
-      );
-    });
+      ),
+    );
+  });
 
-  const onConfigureFlowsEffect = (
+  const onConfigureFlowsEffect = Effect.fn("FlowProcessor.configureFlows")(function* (
     config: Record<string, unknown>,
     _version: number,
-  ): Effect.Effect<
-    void,
-    FlowRuntimeError,
-    FlowRuntime | ProducerFactory | ConsumerFactory | RequestResponseFactory | FlowRequirements
-  > =>
-    Effect.gen(function* () {
-      const flowDefs = config.flows;
-      if (flowDefs === undefined) {
-        yield* Effect.log(`[${options.id}] No flows in config push, skipping`);
-        return;
-      }
-      const decodedFlowDefs = decodeFlowDefinitions(flowDefs);
-      if (O.isNone(decodedFlowDefs)) {
-        yield* Effect.logWarning(`[${options.id}] Skipping config push: flows is not an object`);
-        return;
-      }
-      const flowDefinitions = decodedFlowDefs.value;
+  ) {
+    const flowDefs = config.flows;
+    if (flowDefs === undefined) {
+      yield* Effect.log(`[${options.id}] No flows in config push, skipping`);
+      return;
+    }
+    const decodedFlowDefs = decodeFlowDefinitions(flowDefs);
+    if (O.isNone(decodedFlowDefs)) {
+      yield* Effect.logWarning(`[${options.id}] Skipping config push: flows is not an object`);
+      return;
+    }
+    const flowDefinitions = decodedFlowDefs.value;
 
-      const flowsJson = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(flowDefinitions).pipe(
-        Effect.catch((error) => Effect.succeed(String(error))),
-      );
-      if (lastFlowsJson.length > 0 && flowsJson === lastFlowsJson && flows.size > 0) {
-        yield* Effect.log(`[${options.id}] Flow definitions unchanged, skipping restart`);
-        return;
-      }
-      lastFlowsJson = flowsJson;
+    const flowsJson = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(flowDefinitions).pipe(
+      Effect.catch((error) => Effect.succeed(String(error))),
+    );
+    if (lastFlowsJson.length > 0 && flowsJson === lastFlowsJson && flows.size > 0) {
+      yield* Effect.log(`[${options.id}] Flow definitions unchanged, skipping restart`);
+      return;
+    }
+    lastFlowsJson = flowsJson;
 
-      for (const [name, activeFlow] of flows) {
-        if (!(name in flowDefinitions)) {
-          yield* Effect.log(`[${options.id}] Stopping removed flow: ${name}`);
-          yield* closeFlowEffect(name, activeFlow);
-          flows.delete(name);
-        }
+    for (const [name, activeFlow] of flows) {
+      if (!(name in flowDefinitions)) {
+        yield* Effect.log(`[${options.id}] Stopping removed flow: ${name}`);
+        yield* closeFlowEffect(name, activeFlow);
+        flows.delete(name);
+      }
+    }
+
+    for (const [name, defn] of Object.entries(flowDefinitions)) {
+      const existing = flows.get(name);
+      if (existing !== undefined) {
+        yield* Effect.log(`[${options.id}] Restarting flow "${name}" with updated config`);
+        yield* closeFlowEffect(name, existing);
+        flows.delete(name);
       }
 
-      for (const [name, defn] of Object.entries(flowDefinitions)) {
-        const existing = flows.get(name);
-        if (existing !== undefined) {
-          yield* Effect.log(`[${options.id}] Restarting flow "${name}" with updated config`);
-          yield* closeFlowEffect(name, existing);
-          flows.delete(name);
-        }
+      yield* Effect.log(`[${options.id}] Starting flow "${name}"`);
+      const activeFlow = yield* startFlowEffect(name, defn);
+      flows.set(name, activeFlow);
+      yield* Effect.log(`[${options.id}] Flow "${name}" started`);
+    }
+  });
 
-        yield* Effect.log(`[${options.id}] Starting flow "${name}"`);
-        const activeFlow = yield* startFlowEffect(name, defn);
-        flows.set(name, activeFlow);
-        yield* Effect.log(`[${options.id}] Flow "${name}" started`);
-      }
+  const processNextConfigPushEffect = Effect.fn("FlowProcessor.processNextConfigPush")(function* () {
+    const consumer = configConsumer;
+    if (consumer === null) {
+      yield* Effect.sleep(Duration.millis(1000));
+      return;
+    }
+
+    const msg = yield* Effect.tryPromise({
+      try: () => consumer.receive(2000),
+      catch: (error) => pubSubError("receive:config-push", error),
     });
+    if (msg === null) {
+      return;
+    }
 
-  const processNextConfigPushEffect = (): Effect.Effect<
-    void,
-    never,
-    | FlowRuntime
-    | ProducerFactory
-    | ConsumerFactory
-    | RequestResponseFactory
-    | FlowRequirements
-    | ConfigHandlerRequirements
-  > =>
-    Effect.gen(function* () {
-      const consumer = configConsumer;
-      if (consumer === null) {
-        yield* Effect.sleep(Duration.millis(1000));
-        return;
-      }
+    const push = msg.value();
+    yield* Effect.log(`[${options.id}] Received config push version=${push.version}`);
 
-      const msg = yield* Effect.tryPromise({
-        try: () => consumer.receive(2000),
-        catch: (error) => pubSubError("receive:config-push", error),
-      });
-      if (msg === null) {
-        return;
-      }
+    yield* onConfigureFlowsEffect(push.config, push.version);
 
-      const push = msg.value();
-      yield* Effect.log(`[${options.id}] Received config push version=${push.version}`);
+    for (const handler of options.configHandlers ?? []) {
+      yield* handler(push.config, push.version);
+    }
 
-      yield* onConfigureFlowsEffect(push.config, push.version);
+    yield* Effect.tryPromise({
+      try: () => consumer.acknowledge(msg),
+      catch: (error) => pubSubError("acknowledge:config-push", error),
+    });
+  });
 
-      for (const handler of options.configHandlers ?? []) {
-        yield* handler(push.config, push.version);
-      }
-
-      yield* Effect.tryPromise({
-        try: () => consumer.acknowledge(msg),
-        catch: (error) => pubSubError("acknowledge:config-push", error),
-      });
-    }).pipe(
+  const processNextConfigPushSafelyEffect = Effect.fn("FlowProcessor.processNextConfigPushSafely")(function* () {
+    return yield* processNextConfigPushEffect().pipe(
       Effect.catch((error) => {
         if (!isRunning()) {
           return Effect.void;
@@ -304,6 +287,7 @@ export function runFlowProcessorDefinitionScoped<
         );
       }),
     );
+  });
 
   return Effect.gen(function* () {
     const pubsub = yield* PubSub;
@@ -325,7 +309,7 @@ export function runFlowProcessorDefinitionScoped<
 
     yield* Effect.whileLoop({
       while: isRunning,
-      body: processNextConfigPushEffect,
+      body: processNextConfigPushSafelyEffect,
       step: () => undefined,
     });
   });
@@ -368,6 +352,24 @@ export function makeFlowProcessor<FlowRequirements = never>(
     return options.provide?.(effect) ?? effect;
   };
 
+  const startProcessorEffect = Effect.fn("FlowProcessor.start")(function* (
+    context: Context.Context<FlowProcessorRuntimeRequirements<FlowRequirements>>,
+  ) {
+    const pubsub = makePubSubService(base.pubsub);
+    const messagingConfig = yield* loadMessagingRuntimeConfig();
+    const start = processor.startEffect.pipe(
+      Effect.provideService(PubSub, pubsub),
+      Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
+      Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
+      Effect.provideService(
+        RequestResponseFactory,
+        RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
+      ),
+      Effect.provideService(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
+    );
+    return yield* Effect.provide(Effect.scoped(start), context);
+  });
+
   processor = {
     ...base,
     specifications,
@@ -377,25 +379,7 @@ export function makeFlowProcessor<FlowRequirements = never>(
     get startEffect() {
       return makeStartEffect();
     },
-    start: (context) =>
-      compatibilityRuntime.runPromise(Effect.provide(
-        Effect.gen(function* () {
-          const pubsub = makePubSubService(base.pubsub);
-          const messagingConfig = yield* loadMessagingRuntimeConfig();
-          const start = processor.startEffect.pipe(
-            Effect.provideService(PubSub, pubsub),
-            Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsub))),
-            Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsub, messagingConfig))),
-            Effect.provideService(
-              RequestResponseFactory,
-              RequestResponseFactory.of(makeRequestResponseFactoryService(pubsub, messagingConfig)),
-            ),
-            Effect.provideService(FlowRuntime, FlowRuntime.of({ run: runFlowRuntimeScoped })),
-          );
-          yield* Effect.scoped(start);
-        }),
-        context,
-      )),
+    start: (context) => compatibilityRuntime.runPromise(startProcessorEffect(context)),
   };
 
   return processor;

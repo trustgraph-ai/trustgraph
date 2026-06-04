@@ -4,7 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/base/flow.py
  */
 
-import { Context, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
+import { Config as EffectConfig, Context, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type { PubSubBackend } from "../backend/types.js";
@@ -66,13 +66,68 @@ export interface FlowRequestor<TReq, TRes> {
 
 type FlowParameterError = FlowResourceNotFoundError | FlowParameterDecodeError;
 
+export interface Flow<Requirements = never> {
+  readonly name: string;
+  readonly processorId: string;
+  startEffect: Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
+  start: (context: Context.Context<Requirements>) => Promise<void>;
+  stop: () => Promise<void>;
+  stopEffect: Effect.Effect<void>;
+  runInCompatibilityScopeEffect: <A, E>(
+    effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
+    runtimePubsub: PubSubBackend,
+    context: Context.Context<Requirements>,
+  ) => Effect.Effect<A, E | EffectConfig.ConfigError>;
+  runInCompatibilityScope: <A, E>(
+    effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
+    runtimePubsub: PubSubBackend,
+    context: Context.Context<Requirements>,
+  ) => Promise<A>;
+  clearResources: () => void;
+  registerProducer: <T>(registerName: string, producer: EffectProducer<T>) => void;
+  registerConsumer: (registerName: string, consumer: EffectConsumer) => void;
+  registerRequestor: <TReq, TRes>(
+    registerName: string,
+    rr: EffectRequestResponse<TReq, TRes>,
+  ) => void;
+  setParameter: (parameterName: string, value: unknown) => void;
+  producerEffect: {
+    <T>(producerSpec: ProducerSpec<T>): Effect.Effect<EffectProducer<T>, FlowResourceNotFoundError>;
+    (producerName: string): Effect.Effect<EffectProducer<never>, FlowResourceNotFoundError>;
+  };
+  consumerEffect: (consumerName: string) => Effect.Effect<EffectConsumer, FlowResourceNotFoundError>;
+  requestorEffect: {
+    <TReq, TRes>(
+      requestorSpec: RequestResponseSpec<TReq, TRes>,
+    ): Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError>;
+    (requestorName: string): Effect.Effect<EffectRequestResponse<never, unknown>, FlowResourceNotFoundError>;
+  };
+  parameterEffect: {
+    <T>(parameterSpec: ParameterSpec<T>): Effect.Effect<T, FlowParameterError>;
+    (parameterName: string): Effect.Effect<unknown, FlowResourceNotFoundError>;
+  };
+  producer: {
+    <T>(producerSpec: ProducerSpec<T>): FlowProducer<T>;
+    (producerName: string): FlowProducer<never>;
+  };
+  consumer: (consumerName: string) => FlowConsumer;
+  requestor: {
+    <TReq, TRes>(requestorSpec: RequestResponseSpec<TReq, TRes>): FlowRequestor<TReq, TRes>;
+    (requestorName: string): FlowRequestor<never, unknown>;
+  };
+  parameter: {
+    <T>(parameterSpec: ParameterSpec<T>): T;
+    (parameterName: string): unknown;
+  };
+}
+
 export function makeFlow<Requirements = never>(
   name: string,
   processorId: string,
   pubsub: PubSubBackend,
   definition: FlowDefinition,
   specifications: ReadonlyArray<Spec<Requirements>>,
-) {
+): Flow<Requirements> {
   const producers = new Map<string, EffectProducer<never>>();
   const consumers = new Map<string, EffectConsumer>();
   const requestors = new Map<string, EffectRequestResponse<never, unknown>>();
@@ -275,62 +330,56 @@ export function makeFlow<Requirements = never>(
     return toFlowRequestor(compatibilityRuntime.runSync(requestor.requestorEffect(flow)));
   }
 
-  const flow = {
+  const flow: Flow<Requirements> = {
     name,
     processorId,
-    startEffect(): Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements> {
-      return Effect.gen(function* () {
-        for (const spec of specifications) {
-          yield* spec.addEffect(flow, definition);
-        }
-      });
-    },
+    startEffect: Effect.gen(function* () {
+      for (const spec of specifications) {
+        yield* spec.addEffect(flow, definition);
+      }
+    }).pipe(Effect.withSpan("Flow.startEffect")),
     start(context: Context.Context<Requirements>): Promise<void> {
       return compatibilityRuntime.runPromise(
         Effect.gen(function* () {
           if (compatibilityScope !== null) {
-            yield* flow.stopEffect();
+            yield* flow.stopEffect;
           }
-          yield* flow.runInCompatibilityScopeEffect(flow.startEffect(), pubsub, context);
+          yield* flow.runInCompatibilityScopeEffect(flow.startEffect, pubsub, context);
         }),
       );
     },
     stop(): Promise<void> {
-      return compatibilityRuntime.runPromise(flow.stopEffect());
+      return compatibilityRuntime.runPromise(flow.stopEffect);
     },
-    stopEffect(): Effect.Effect<void> {
-      return Effect.gen(function* () {
-        const scope = compatibilityScope;
-        compatibilityScope = null;
-        if (scope !== null) {
-          yield* Scope.close(scope, Exit.void);
-        }
-        flow.clearResources();
-      });
-    },
-    runInCompatibilityScopeEffect<A, E>(
+    stopEffect: Effect.gen(function* () {
+      const scope = compatibilityScope;
+      compatibilityScope = null;
+      if (scope !== null) {
+        yield* Scope.close(scope, Exit.void);
+      }
+      flow.clearResources();
+    }).pipe(Effect.withSpan("Flow.stopEffect")),
+    runInCompatibilityScopeEffect: Effect.fn("Flow.runInCompatibilityScopeEffect")(function* <A, E>(
       effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
       runtimePubsub: PubSubBackend,
       context: Context.Context<Requirements>,
     ) {
-      return Effect.gen(function* () {
-        const scope = yield* ensureCompatibilityScopeEffect();
-        const pubsubService = makePubSubService(runtimePubsub);
-        const messagingConfig = yield* loadMessagingRuntimeConfig();
-        return yield* Effect.provide(
-          effect.pipe(
-            Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsubService))),
-            Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsubService, messagingConfig))),
-            Effect.provideService(
-              RequestResponseFactory,
-              RequestResponseFactory.of(makeRequestResponseFactoryService(pubsubService, messagingConfig)),
-            ),
-            Scope.provide(scope),
+      const scope = yield* ensureCompatibilityScopeEffect();
+      const pubsubService = makePubSubService(runtimePubsub);
+      const messagingConfig = yield* loadMessagingRuntimeConfig();
+      return yield* Effect.provide(
+        effect.pipe(
+          Effect.provideService(ProducerFactory, ProducerFactory.of(makeProducerFactoryService(pubsubService))),
+          Effect.provideService(ConsumerFactory, ConsumerFactory.of(makeConsumerFactoryService(pubsubService, messagingConfig))),
+          Effect.provideService(
+            RequestResponseFactory,
+            RequestResponseFactory.of(makeRequestResponseFactoryService(pubsubService, messagingConfig)),
           ),
-          context,
-        );
-      });
-    },
+          Scope.provide(scope),
+        ),
+        context,
+      );
+    }),
     runInCompatibilityScope<A, E>(
       effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
       runtimePubsub: PubSubBackend,
@@ -379,8 +428,6 @@ export function makeFlow<Requirements = never>(
 
   return flow;
 }
-
-export type Flow<Requirements = never> = ReturnType<typeof makeFlow<Requirements>>;
 
 export const Flow = makeFlow as unknown as {
   new <Requirements = never>(

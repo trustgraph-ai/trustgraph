@@ -7,16 +7,28 @@
 import { Effect, type Context } from "effect";
 import * as S from "effect/Schema";
 import type { PubSubBackend } from "../backend/types.js";
-import type { Spec } from "./types.js";
+import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
+import type { PubSubError } from "../errors.js";
 
 declare const ParameterSpecType: unique symbol;
 
 const UnknownParameterSchema: S.Codec<unknown, unknown> = S.Unknown;
 
-export interface ParameterSpec<T = unknown> extends Spec {
+export interface ParameterSpec<T = unknown> {
   readonly [ParameterSpecType]?: (_: T) => T;
+  readonly name: string;
   readonly schema: S.Codec<T, unknown>;
+  readonly addEffect: <Requirements = never>(
+    flow: Flow<Requirements>,
+    definition: FlowDefinition,
+  ) => Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
+  readonly add: <Requirements = never>(
+    flow: Flow<Requirements>,
+    pubsub: PubSubBackend,
+    definition: FlowDefinition,
+    context: Context.Context<Requirements>,
+  ) => Promise<void>;
 }
 
 export function makeParameterSpec(name: string): ParameterSpec<unknown>;
@@ -29,7 +41,7 @@ export function makeParameterSpec<T>(
   schema?: S.Codec<T, unknown>,
 ) {
   const parameterSchema = schema ?? UnknownParameterSchema;
-  const addEffect = (flow: Flow, definition: FlowDefinition) =>
+  const addEffect = <Requirements = never>(flow: Flow<Requirements>, definition: FlowDefinition) =>
     Effect.sync(() => {
       const value = definition.parameters?.[name];
       flow.setParameter(name, value);
@@ -39,11 +51,11 @@ export function makeParameterSpec<T>(
     name,
     schema: parameterSchema,
     addEffect,
-    add: (
-      flow: Flow,
+    add: <Requirements = never>(
+      flow: Flow<Requirements>,
       pubsub: PubSubBackend,
       definition: FlowDefinition,
-      context: Context.Context<never>,
+      context: Context.Context<Requirements>,
     ) =>
       flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
