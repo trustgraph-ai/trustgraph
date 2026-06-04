@@ -8,7 +8,7 @@ import {
   makeEffectRpcClient,
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
-import { Clock, Effect, Fiber, Option, Result, Schema as S, Stream, SubscriptionRef } from "effect";
+import { Clock, Effect, Fiber, Match, Option, Result, Schema as S, Stream, SubscriptionRef } from "effect";
 import * as Predicate from "effect/Predicate";
 
 // Import all message types for different services
@@ -688,18 +688,18 @@ export function makeBaseApi(
     Effect.runSync(SubscriptionRef.set(connectionStateRef, getConnectionState()));
   };
 
-  const connectionStatusFromRpc = (hasApiKey: boolean): ConnectionState["status"] => {
-    switch (rpcState.status) {
-      case "connected":
-        return hasApiKey ? "authenticated" : "unauthenticated";
-      case "failed":
-        return "failed";
-      case "closed":
-        return "failed";
-      case "connecting":
-        return lastError === undefined ? "connecting" : "reconnecting";
-    }
-  };
+  const connectionStatusFromRpc = (hasApiKey: boolean): ConnectionState["status"] =>
+    Match.value(rpcState.status).pipe(
+      Match.when("connected", (): ConnectionState["status"] =>
+        hasApiKey ? "authenticated" : "unauthenticated"
+      ),
+      Match.when("failed", (): ConnectionState["status"] => "failed"),
+      Match.when("closed", (): ConnectionState["status"] => "failed"),
+      Match.when("connecting", (): ConnectionState["status"] =>
+        lastError === undefined ? "connecting" : "reconnecting"
+      ),
+      Match.exhaustive,
+    );
 
   const dispatchInput = <RequestType extends object>(
     service: string,
@@ -1571,22 +1571,14 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           // Extract metadata from final message
           const metadata = dialogComplete ? streamingMetadataFrom(resp) : undefined;
 
-          switch (chunkType) {
-            case "thought":
-              think(content, messageComplete, metadata);
-              break;
-            case "observation":
-              observe(content, messageComplete, metadata);
-              break;
-            case "answer":
-            case "final-answer":
-              answer(content, messageComplete, metadata);
-              break;
-            case "action":
-              // Actions are typically not streamed incrementally, just logged
-              logClientInfo(`Agent action: ${content}`);
-              break;
-          }
+          Match.value(chunkType).pipe(
+            Match.when("thought", () => think(content, messageComplete, metadata)),
+            Match.when("observation", () => observe(content, messageComplete, metadata)),
+            Match.when("answer", () => answer(content, messageComplete, metadata)),
+            Match.when("final-answer", () => answer(content, messageComplete, metadata)),
+            Match.when("action", () => logClientInfo(`Agent action: ${content}`)),
+            Match.orElse(() => undefined),
+          );
 
           return dialogComplete; // End when backend signals complete
         };

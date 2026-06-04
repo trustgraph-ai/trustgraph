@@ -173,4 +173,86 @@ describe("Effect RPC request policy", () => {
       },
     ]);
   });
+
+  it("dispatches agent stream chunk types through the Match-backed callback mapper", async () => {
+    const dispatchStream = vi.fn((_input: DispatchInput, receiver: (chunk: DispatchStreamChunk) => boolean) => {
+      const ignoredComplete = receiver(DispatchStreamChunk.make({
+        response: { chunk_type: "ignored", content: "skip" },
+        complete: false,
+      }));
+      const thoughtComplete = receiver(DispatchStreamChunk.make({
+        response: { chunk_type: "thought", content: "plan", end_of_message: true },
+        complete: false,
+      }));
+      const observationComplete = receiver(DispatchStreamChunk.make({
+        response: { chunk_type: "observation", content: "facts", end_of_message: true },
+        complete: false,
+      }));
+      const actionComplete = receiver(DispatchStreamChunk.make({
+        response: { chunk_type: "action", content: "lookup" },
+        complete: false,
+      }));
+      const answerComplete = receiver(DispatchStreamChunk.make({
+        response: {
+          chunk_type: "final-answer",
+          content: "done",
+          end_of_message: true,
+          end_of_dialog: true,
+          in_token: 3,
+          out_token: 5,
+          model: "agent-model",
+        },
+        complete: true,
+      }));
+
+      expect(ignoredComplete).toBe(false);
+      expect(thoughtComplete).toBe(false);
+      expect(observationComplete).toBe(false);
+      expect(actionComplete).toBe(false);
+      expect(answerComplete).toBe(true);
+
+      return Promise.resolve(
+        DispatchStreamChunk.make({
+          response: { response: "done" },
+          complete: true,
+        }),
+      );
+    });
+    const api = makeBaseApiWithRpc("alice", undefined, "ws://example.test/rpc", {
+      dispatch: vi.fn(() => Promise.resolve({ ok: true })),
+      dispatchStream,
+      close: vi.fn(() => Promise.resolve()),
+      subscribe: vi.fn(() => () => {}),
+    });
+    const think = vi.fn();
+    const observe = vi.fn();
+    const answer = vi.fn();
+    const onError = vi.fn();
+
+    await api.flow("flow-a").agent("hello", think, observe, answer, onError);
+
+    expect(dispatchStream).toHaveBeenCalledWith(
+      {
+        scope: "flow",
+        service: "agent",
+        flow: "flow-a",
+        request: {
+          question: "hello",
+          user: "alice",
+          collection: "default",
+          streaming: true,
+        },
+      },
+      expect.any(Function),
+      { timeoutMs: 120000, retries: 2 },
+    );
+    expect(think).toHaveBeenCalledWith("plan", true, undefined);
+    expect(observe).toHaveBeenCalledWith("facts", true, undefined);
+    expect(answer).toHaveBeenCalledWith(
+      "done",
+      true,
+      { in_token: 3, out_token: 5, model: "agent-model" },
+    );
+    expect(onError).not.toHaveBeenCalled();
+  });
 });

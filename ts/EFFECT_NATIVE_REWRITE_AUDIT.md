@@ -420,6 +420,22 @@ Notes:
   - `bun run --cwd ts/packages/client test -- src/__tests__/rpc-timeout.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: Client Callback Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` now maps RPC
+    connection status with `effect/Match` instead of a native `switch`.
+  - Flow agent streaming chunk callbacks now use `effect/Match` for
+    `thought`, `observation`, `answer`, `final-answer`, and `action`, while
+    preserving ignored behavior for unknown chunk types with `Match.orElse`.
+  - Client RPC tests now drive agent stream chunks through the fake RPC stream
+    to prove callback dispatch, ignored fallback behavior, completion signals,
+    and metadata forwarding.
+- Verification:
+  - `bun run --cwd ts/packages/client test -- src/__tests__/rpc-timeout.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-04: Gateway Term Service HashSet Slice
 
 - Status: migrated and package-verified.
