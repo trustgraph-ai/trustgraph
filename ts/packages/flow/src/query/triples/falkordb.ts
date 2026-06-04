@@ -126,10 +126,9 @@ const resolveFalkorDBQueryConfig = Effect.fn("FalkorDBTriplesQuery.resolveConfig
   };
 });
 
-const connectFalkorDBTriplesQuery = (
+const connectFalkorDBTriplesQuery = Effect.fn("FalkorDBTriplesQuery.connect")(function* (
   config: FalkorDBQueryConfig,
-): Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     const { url, database } = yield* resolveFalkorDBQueryConfig(config);
     const clientFactory = config.clientFactory;
     const graphFactory = config.graphFactory;
@@ -209,15 +208,14 @@ const queryRows = (
     Effect.map((result) => result.data ?? []),
   );
 
-const matchPattern = (
+const matchPattern = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   pv: string,
   ov: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     for (const destType of ["Literal", "Node"] as const) {
       const destKey = destType === "Literal" ? "value" : "uri";
       const rows = yield* queryRows(
@@ -233,14 +231,13 @@ const matchPattern = (
     }
   });
 
-const matchSP = (
+const matchSP = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   pv: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     const litRows = yield* queryRows(
       graph,
       "match-sp-literal",
@@ -264,14 +261,13 @@ const matchSP = (
     }
   });
 
-const matchSO = (
+const matchSO = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   ov: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
       const rows = yield* queryRows(
         graph,
@@ -286,14 +282,13 @@ const matchSO = (
     }
   });
 
-const matchPO = (
+const matchPO = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   pv: string,
   ov: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
       const rows = yield* queryRows(
         graph,
@@ -308,13 +303,12 @@ const matchPO = (
     }
   });
 
-const matchS = (
+const matchS = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   sv: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     const litRows = yield* queryRows(
       graph,
       "match-s-literal",
@@ -338,13 +332,12 @@ const matchS = (
     }
   });
 
-const matchP = (
+const matchP = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   pv: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     const litRows = yield* queryRows(
       graph,
       "match-p-literal",
@@ -368,13 +361,12 @@ const matchP = (
     }
   });
 
-const matchO = (
+const matchO = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   ov: string,
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     for (const [destType, destKey] of [["Literal", "value"], ["Node", "uri"]] as const) {
       const rows = yield* queryRows(
         graph,
@@ -389,12 +381,11 @@ const matchO = (
     }
   });
 
-const matchAll = (
+const matchAll = Effect.fnUntraced(function* (
   graph: FalkorDBQueryGraph,
   out: [string, string, string][],
   limit: number,
-): Effect.Effect<void, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     const litRows = yield* queryRows(
       graph,
       "match-all-literal",
@@ -416,14 +407,13 @@ const matchAll = (
     }
   });
 
-const queryTriplesEffect = (
+const queryTriplesEffect = Effect.fn("FalkorDBTriplesQuery.queryTriplesInternal")(function* (
   getConnection: () => Effect.Effect<FalkorDBQueryConnection, FalkorDBTriplesQueryError>,
   s: Term | undefined,
   p: Term | undefined,
   o: Term | undefined,
   limit: number,
-): Effect.Effect<ReadonlyArray<Triple>, FalkorDBTriplesQueryError> =>
-  Effect.gen(function* () {
+) {
     const { graph } = yield* getConnection();
     const sv = termToValue(s);
     const pv = termToValue(p);

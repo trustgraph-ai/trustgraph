@@ -2028,6 +2028,27 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: FalkorDB Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/query/triples/falkordb.ts` now defines reusable
+    connection, pattern-match, and query helper programs with `Effect.fn` or
+    `Effect.fnUntraced` instead of arrow functions returning `Effect.gen`.
+  - `ts/packages/flow/src/storage/triples/falkordb.ts` now uses a named
+    `Effect.fn` for its connection helper, matching the existing scoped
+    acquisition/finalizer boundary.
+  - The public Promise facades and scoped layer acquisition behavior are
+    unchanged; this slice only removes repeated helper generator construction.
+  - The focused scan for FalkorDB helper `=> Effect.gen` patterns is clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/falkordb-lifecycle.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:

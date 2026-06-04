@@ -164,10 +164,9 @@ const resolveFalkorDBStoreConfig = Effect.fn("FalkorDBTriplesStore.resolveConfig
   };
 });
 
-const connectFalkorDBTriplesStore = (
+const connectFalkorDBTriplesStore = Effect.fn("FalkorDBTriplesStore.connect")(function* (
   config: FalkorDBConfig,
-): Effect.Effect<FalkorDBStoreConnection, FalkorDBTriplesStoreError> =>
-  Effect.gen(function* () {
+) {
     const { url, database } = yield* resolveFalkorDBStoreConfig(config);
     const clientFactory = config.clientFactory;
     const graphFactory = config.graphFactory;
