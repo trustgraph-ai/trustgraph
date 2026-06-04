@@ -4,6 +4,7 @@ import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueS
 import { BaseApi, type ConnectionState, type DocumentMetadata, type ExplainEvent, type StreamingMetadata, type Term, type Triple } from "@trustgraph/client";
 import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
+import * as Predicate from "effect/Predicate";
 import * as Otlp from "effect/unstable/observability/Otlp";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
@@ -44,9 +45,9 @@ const isWorkbenchPromiseError = S.is(WorkbenchPromiseError);
 
 function errorMessage(error: unknown): string {
   if (isWorkbenchPromiseError(error)) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string") return message;
+  if (Predicate.isObject(error) && Predicate.hasProperty(error, "message")) {
+    const message = error.message;
+    if (Predicate.isString(message)) return message;
   }
   return String(error);
 }

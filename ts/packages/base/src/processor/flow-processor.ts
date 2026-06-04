@@ -20,6 +20,7 @@ import type { BackendConsumer, PubSubBackend } from "../backend/types.js";
 import { Flow, type FlowDefinition } from "./flow.js";
 import { topics } from "../schema/topics.js";
 import {
+  errorMessage,
   pubSubError,
   type FlowRuntimeError,
   type ProcessorLifecycleError,
@@ -282,7 +283,7 @@ export function runFlowProcessorDefinitionScoped<
           return Effect.void;
         }
         return Effect.logError(`[${options.id}] Config consumer error`, {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage(error),
         }).pipe(
           Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
         );

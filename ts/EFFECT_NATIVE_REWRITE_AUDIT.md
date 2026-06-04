@@ -2378,6 +2378,49 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Predicate Error Message Cleanup Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/base/src/errors.ts` now narrows unknown message-bearing
+    failures through `effect/Predicate` instead of a structural type
+    assertion.
+  - `ts/packages/base/src/processor/flow-processor.ts` now logs config
+    consumer failures through the shared `errorMessage` helper instead of an
+    `instanceof Error` branch.
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` now uses
+    `effect/Predicate` for legacy callback error-message extraction instead of
+    native `Error` checks or structural assertions.
+  - `ts/packages/workbench/src/atoms/workbench.ts` now uses
+    `effect/Predicate` for workbench promise-boundary error-message
+    extraction.
+- Verification:
+  - `cd ts && bun run --cwd packages/base test`
+  - `cd ts && bun run --cwd packages/base build`
+  - `cd ts && bun run --cwd packages/client test`
+  - `cd ts && bun run --cwd packages/client build`
+  - `cd ts && bun run --cwd packages/workbench build`
+  - `cd ts && bun run check:tsgo`
+  - `rg -n "instanceof Error|\\bas \\{ message\\?: unknown \\}|\\bas \\{ message\\?:" ts/packages --glob '*.ts' --glob '*.tsx'`
+
+### 2026-06-04: Flow Persistence FileSystem Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/runtime/effect-files.ts` now provides
+    Effect-native `ensureDirectoryEffect`, `readTextFileEffect`,
+    `readBinaryFileEffect`, `writeTextFileEffect`, `writeBinaryFileEffect`,
+    and `removePathEffect` helpers backed by `effect/FileSystem`.
+  - The existing Promise helpers remain compatibility wrappers over a
+    `ManagedRuntime` provided with `@effect/platform-bun/BunFileSystem.layer`,
+    preserving current config/core/librarian service call sites while removing
+    direct `Bun.$`, `Bun.file`, and `Bun.write` production IO from the helper.
+  - File operation error channels are typed as `effect/PlatformError`.
+- Verification:
+  - `cd ts && bun run --cwd packages/flow build`
+  - `cd ts && bunx --bun vitest run packages/flow/src/__tests__/config-service.test.ts packages/flow/src/__tests__/knowledge-core-service.test.ts packages/flow/src/__tests__/librarian-service.test.ts`
+  - `rg -n "Bun\\.\\$|Bun\\.file|Bun\\.write" ts/packages/flow/src/runtime/effect-files.ts ts/packages/flow/src --glob '*.ts'`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2555,14 +2598,20 @@ Notes:
     design, not listener bookkeeping.
   - Long-lived `Map` / `Set` state in ref-backed services is complete for the
     current scratch inventory; local pure traversal maps/sets remain no-ops.
-  - Fresh strict signal sweep after the 2026-06-04 helper and collection
-    slices found no production normal `Error`, raw `try`/`catch`, native
-    `switch`, or Effect-focused type assertions under `ts/packages`.
-  - Remaining real helper-normalization targets from the fresh sweep are
-    separately scoped inline callback/program factories in messaging
-    compatibility facades, gateway/librarian helpers, and CLI command actions.
-    The workbench random id helper is complete; the remaining workbench
-    `Effect.gen` match is a local one-shot command effect value.
+  - Fresh strict signal sweep after the 2026-06-04 Predicate cleanup found no
+    committed production native `Error` construction/inheritance, raw
+    `try`/`catch`, native `switch`, message-shape assertions, or
+    Effect-focused type assertions under `ts/packages`. Two `instanceof Error`
+    hits remain only in the unrelated local dirty
+    `ts/packages/flow/src/extract/knowledge-extract.ts` file and were left
+    untouched.
+  - Remaining production `Effect.gen` matches are one-shot program values,
+    scoped runtime factories, local command effect values, or public
+    compatibility callbacks; reusable service helpers from the scratch
+    inventory are normalized to `Effect.fn` / `Effect.fnUntraced`.
+  - Flow service persistence helpers now use `effect/FileSystem` with the Bun
+    FileSystem layer. Remaining direct `Bun.file` / `Bun.write` matches in the
+    Flow persistence lane are test fixture setup/assertions, not production IO.
   - Fresh long-lived native collection targets from the scratch inventory are
     complete: Librarian service state, base processor registries, the
     standalone Librarian collection manager, prompt template cache, and
@@ -2620,6 +2669,49 @@ Notes:
     subscriber map.
   - Treat the legacy consumer facade as a completed compatibility wrapper over
     `makeEffectConsumerFromPubSub`; do not flag blocking `start()` semantics.
+
+### No-op: Legacy Promise Facades And One-Shot Program Effects
+
+- Status:
+  - Closed as active P0/P1/P2 migration evidence after the final 2026-06-04
+    signal pass.
+- TrustGraph evidence:
+  - `ts/packages/base/src/messaging/consumer.ts`
+  - `ts/packages/base/src/messaging/producer.ts`
+  - `ts/packages/base/src/messaging/request-response.ts`
+  - `ts/packages/base/src/processor/flow-processor.ts`
+  - `ts/packages/flow/src/config/service.ts`
+  - `ts/packages/flow/src/cores/service.ts`
+  - `ts/packages/flow/src/flow-manager/service.ts`
+  - `ts/packages/flow/src/librarian/service.ts`
+  - `ts/packages/flow/src/gateway/server.ts`
+  - `ts/packages/mcp/src/server.ts`
+  - `ts/packages/cli/src/commands/*.ts`
+- Effect primitives:
+  - `Effect.fn`, `ManagedRuntime`, `NodeRuntime.runMain`, `Scope`,
+    `Layer`, `Effect.tryPromise`, `effect/FileSystem`, Bun/Node FileSystem
+    provider layers, and tagged error constructors.
+- Evidence:
+  - Internal service handlers and reusable helpers now expose Effect-returning
+    functions or `Effect.fn` helpers; legacy object methods call
+    `Effect.runPromise` only where the existing public interface still
+    requires `Promise` callbacks.
+  - CLI command actions, Fastify route handlers, MCP SDK callbacks, and client
+    callback APIs are host/library boundaries that require Promise-returning
+    callbacks. These boundaries now delegate to Effect programs and map
+    failures into tagged errors or wire-contract errors.
+  - Remaining `Effect.gen` matches are one-shot program/runtime values such as
+    MCP stdio startup, socket RPC protocol construction, agent runtime
+    construction, or local command effect values; they are not reusable helper
+    functions that would benefit from `Effect.fn`.
+  - Flow service file persistence now goes through `effect/FileSystem`; direct
+    Bun file helpers remain only in tests and fixture setup.
+- Rule:
+  - Do not reopen `Effect.runPromise` matches unless the surrounding public API
+    is being intentionally redesigned to an Effect-first contract.
+  - New internal helpers should continue to be written as `Effect.fn` or
+    direct Effect-returning functions, with Promise compatibility isolated at
+    the host boundary.
 
 ### No-op: Remaining Effect AI Provider Swaps
 
@@ -2756,11 +2848,18 @@ Notes:
 
 ## Recommended PR Order
 
-1. MCP tool-call parity tests and legacy stdio flip/removal decision.
-2. Flow/client RPC stream API design beyond callback/Promise compatibility.
-3. Long-lived ref-backed `HashMap` state cleanup where clone helpers remain.
-4. Sibling service `Effect.fn` normalization where arrow-returned generators
-   still appear.
+No active PR-sized Effect-native migration remains from the current playbook
+signal set. Future work is intentionally API-design or compatibility-policy
+work, not a current P0/P1/P2 rewrite blocker:
+
+1. MCP `tools/call` parity tests before deleting the legacy SDK/Zod stdio
+   compatibility entrypoint.
+2. Flow/client RPC stream API redesign beyond callback/Promise public
+   compatibility.
+3. CLI migration from Commander to `effect/unstable/cli` if the public CLI
+   surface is intentionally redesigned.
+4. Provider-specific Effect AI swaps when installed provider semantics match
+   TrustGraph's existing Chat Completions/local-server behavior.
 
 ## No-Op Rules
 

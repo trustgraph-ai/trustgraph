@@ -113,15 +113,12 @@ function withDefault(value: string | undefined, fallback: string): string {
 }
 
 function toErrorMessage(value: unknown, fallback: string): string {
-  if (value instanceof Error) {
-    return value.message;
-  }
-  if (typeof value === "string" && value.length > 0) {
+  if (Predicate.isString(value) && value.length > 0) {
     return value;
   }
-  if (value !== null && typeof value === "object" && "message" in value) {
-    const message = (value as { message?: unknown }).message;
-    if (typeof message === "string" && message.length > 0) {
+  if (Predicate.isObject(value) && Predicate.hasProperty(value, "message")) {
+    const message = value.message;
+    if (Predicate.isString(message) && message.length > 0) {
       return message;
     }
   }

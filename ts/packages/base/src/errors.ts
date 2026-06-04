@@ -4,6 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/exceptions.py
  */
 
+import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 import type { TgError } from "./schema/index.ts";
 
@@ -315,8 +316,8 @@ export function flowParameterDecodeError(
 }
 
 export function errorMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const message = (error as { message?: unknown }).message;
+  if (Predicate.isObject(error) && Predicate.hasProperty(error, "message")) {
+    const message = error.message;
     if (typeof message === "string") return message;
   }
   return String(error);
