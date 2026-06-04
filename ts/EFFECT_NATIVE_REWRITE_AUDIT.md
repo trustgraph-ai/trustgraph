@@ -402,6 +402,24 @@ Notes:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/flow-manager-service.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: Client Connection State SubscriptionRef Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/client/src/socket/effect-rpc-client.ts` now owns RPC
+    connection state in `effect/SubscriptionRef` instead of a mutable state
+    variable plus manual listener `Set`.
+  - `ts/packages/client/src/socket/trustgraph-socket.ts` now bridges UI
+    connection-state listeners through `SubscriptionRef.changes` instead of a
+    hand-rolled listener array.
+  - Both public `subscribe` APIs preserve synchronous immediate replay and
+    unsubscribe compatibility while using Effect fibers for later updates.
+  - Client tests now drive a fake RPC state source to prove immediate replay,
+    connection updates, and unsubscribe behavior.
+- Verification:
+  - `bun run --cwd ts/packages/client test -- src/__tests__/rpc-timeout.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.
@@ -1851,6 +1869,9 @@ Notes:
   - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
     with `Match.exhaustive`; FlowManager and Librarian operation dispatch now
     use `effect/Match` with runtime-preserving `Match.orElse` fallbacks.
+  - Client RPC/BaseApi connection-state fanout now uses
+    `effect/SubscriptionRef`; remaining gateway/client P1 work is broader API
+    design, not listener bookkeeping.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
     Effect collections later; local pure traversal maps/sets remain no-ops.
 

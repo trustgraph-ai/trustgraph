@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { DispatchError, DispatchStreamChunk } from "../rpc/contract";
-import { type DispatchInput, withDispatchRequestPolicy } from "../socket/effect-rpc-client";
-import { makeBaseApiWithRpc } from "../socket/trustgraph-socket";
+import { type DispatchInput, type RpcConnectionState, withDispatchRequestPolicy } from "../socket/effect-rpc-client";
+import { type ConnectionState, makeBaseApiWithRpc } from "../socket/trustgraph-socket";
 
 const input: DispatchInput = {
   scope: "global",
@@ -11,6 +11,50 @@ const input: DispatchInput = {
 };
 
 describe("Effect RPC request policy", () => {
+  it("replays and updates connection state through the SubscriptionRef-backed bridge", async () => {
+    let rpcListener: ((state: RpcConnectionState) => void) | undefined;
+    const api = makeBaseApiWithRpc("alice", undefined, "ws://example.test/rpc", {
+      dispatch: vi.fn(() => Promise.resolve({ ok: true })),
+      dispatchStream: vi.fn(() => Promise.resolve(undefined)),
+      close: vi.fn(() => Promise.resolve()),
+      subscribe: vi.fn((listener) => {
+        rpcListener = listener;
+        listener({ status: "connecting" });
+        return () => undefined;
+      }),
+    });
+    const observed: ConnectionState[] = [];
+
+    const unsubscribe = api.onConnectionStateChange((state) => {
+      observed.push(state);
+    });
+
+    expect(observed).toEqual([{ status: "connecting", hasApiKey: false }]);
+    const listener = rpcListener;
+    expect(listener).toBeDefined();
+    if (listener !== undefined) {
+      listener({ status: "connected" });
+    }
+    await Effect.runPromise(Effect.yieldNow);
+
+    expect(observed).toEqual([
+      { status: "connecting", hasApiKey: false },
+      { status: "unauthenticated", hasApiKey: false },
+    ]);
+
+    unsubscribe();
+    await Effect.runPromise(Effect.yieldNow);
+    if (listener !== undefined) {
+      listener({ status: "failed", lastError: "boom" });
+    }
+    await Effect.runPromise(Effect.yieldNow);
+
+    expect(observed).toEqual([
+      { status: "connecting", hasApiKey: false },
+      { status: "unauthenticated", hasApiKey: false },
+    ]);
+  });
+
   it("threads BaseApi timeout and retry options into dispatch calls", async () => {
     const dispatch = vi.fn(() => Promise.resolve({ ok: true }));
     const api = makeBaseApiWithRpc("alice", undefined, "ws://example.test/rpc", {

@@ -8,7 +8,7 @@ import {
   makeEffectRpcClient,
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
-import { Clock, Effect, Option, Result, Schema as S } from "effect";
+import { Clock, Effect, Fiber, Option, Result, Schema as S, Stream, SubscriptionRef } from "effect";
 import * as Predicate from "effect/Predicate";
 
 // Import all message types for different services
@@ -491,7 +491,12 @@ export function makeBaseApi(
   rpcFactory: (url: string) => EffectRpcClient = makeEffectRpcClient,
 ) {
   let rpc: EffectRpcClient;
-  const connectionStateListeners: ((state: ConnectionState) => void)[] = [];
+  const connectionStateRef = Effect.runSync(
+    SubscriptionRef.make<ConnectionState>({
+      status: "connecting",
+      hasApiKey: isNonEmptyString(token),
+    }),
+  );
   let lastError: string | undefined = undefined;
   let rpcState: RpcConnectionState = { status: "connecting" };
 
@@ -506,16 +511,27 @@ export function makeBaseApi(
      * Subscribe to connection state changes for UI updates
      */
     onConnectionStateChange(listener: (state: ConnectionState) => void) {
-      connectionStateListeners.push(listener);
-      // Immediately send current state
-      listener(getConnectionState());
+      let latest = SubscriptionRef.getUnsafe(connectionStateRef);
+      listener(latest);
+      let replaySeen = false;
+      const fiber = Effect.runFork(
+        SubscriptionRef.changes(connectionStateRef).pipe(
+          Stream.runForEach((state) =>
+            Effect.sync(() => {
+              if (!replaySeen) {
+                replaySeen = true;
+                if (state === latest) return;
+              }
+              latest = state;
+              notifyConnectionStateListener(listener, state);
+            })
+          ),
+        ),
+      );
 
       // Return unsubscribe function
       return () => {
-        const index = connectionStateListeners.indexOf(listener);
-        if (index > -1) {
-          connectionStateListeners.splice(index, 1);
-        }
+        Effect.runFork(Fiber.interrupt(fiber));
       };
     },
 
@@ -651,24 +667,25 @@ export function makeBaseApi(
     return state;
   };
 
-  /**
-   * Notify all listeners of connection state changes
-   */
-  const notifyStateChange = () => {
-    const state = getConnectionState();
-    connectionStateListeners.forEach((listener) => {
-      const result = Result.try({
-        try: () => listener(state),
-        catch: (error) =>
-          socketError(
-            "connection-state-listener",
-            toErrorMessage(error, "Error in connection state listener"),
-          ),
-      });
-      if (Result.isFailure(result)) {
-        logClientError("Error in connection state listener", result.failure);
-      }
+  const notifyConnectionStateListener = (
+    listener: (state: ConnectionState) => void,
+    state: ConnectionState,
+  ): void => {
+    const result = Result.try({
+      try: () => listener(state),
+      catch: (error) =>
+        socketError(
+          "connection-state-listener",
+          toErrorMessage(error, "Error in connection state listener"),
+        ),
     });
+    if (Result.isFailure(result)) {
+      logClientError("Error in connection state listener", result.failure);
+    }
+  };
+
+  const publishConnectionState = () => {
+    Effect.runSync(SubscriptionRef.set(connectionStateRef, getConnectionState()));
   };
 
   const connectionStatusFromRpc = (hasApiKey: boolean): ConnectionState["status"] => {
@@ -714,7 +731,7 @@ export function makeBaseApi(
   rpc.subscribe((state) => {
     rpcState = state;
     lastError = state.lastError;
-    notifyStateChange();
+    publishConnectionState();
   });
 
   logClientInfo(

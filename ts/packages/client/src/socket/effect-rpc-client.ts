@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Cause, Context, Effect, Fiber, Layer, ManagedRuntime, Stream, SubscriptionRef } from "effect";
 import type * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
@@ -72,16 +72,11 @@ export function makeEffectRpcClient(
   onConnect?: () => void,
   onDisconnect?: () => void,
 ): EffectRpcClient {
-  const listeners = new Set<(state: RpcConnectionState) => void>();
-  let state: RpcConnectionState = { status: "connecting" };
+  const stateRef = Effect.runSync(SubscriptionRef.make<RpcConnectionState>({ status: "connecting" }));
   let closed = false;
 
-  const setState = (nextState: RpcConnectionState): void => {
-    state = nextState;
-    for (const listener of listeners) {
-      listener(nextState);
-    }
-  };
+  const setState = (nextState: RpcConnectionState) =>
+    SubscriptionRef.set(stateRef, nextState);
 
   const makeClientLayer = (): Layer.Layer<TrustGraphRpcClientService> => {
     const socketLayer = Layer.effect(
@@ -95,13 +90,13 @@ export function makeEffectRpcClient(
     const hooksLayer = Layer.succeed(
       RpcClient.ConnectionHooks,
       RpcClient.ConnectionHooks.of({
-        onConnect: Effect.sync(() => {
-          setState({ status: "connected" });
+        onConnect: Effect.gen(function* () {
+          yield* setState({ status: "connected" });
           onConnect?.();
         }),
-        onDisconnect: Effect.sync(() => {
+        onDisconnect: Effect.gen(function* () {
           if (!closed) {
-            setState({
+            yield* setState({
               status: "connecting",
               lastError: "Disconnected from gateway",
             });
@@ -131,11 +126,9 @@ export function makeEffectRpcClient(
   const clientPromise = runtime.runPromise(
     TrustGraphRpcClientService.pipe(
       Effect.tapCause((cause) =>
-        Effect.sync(() => {
-          setState({
-            status: "failed",
-            lastError: Cause.pretty(cause),
-          });
+        setState({
+          status: "failed",
+          lastError: Cause.pretty(cause),
         })
       ),
     ),
@@ -143,10 +136,25 @@ export function makeEffectRpcClient(
 
   return {
     subscribe: (listener) => {
-      listeners.add(listener);
-      listener(state);
+      let latest = SubscriptionRef.getUnsafe(stateRef);
+      listener(latest);
+      let replaySeen = false;
+      const fiber = Effect.runFork(
+        SubscriptionRef.changes(stateRef).pipe(
+          Stream.runForEach((nextState) =>
+            Effect.sync(() => {
+              if (!replaySeen) {
+                replaySeen = true;
+                if (nextState === latest) return;
+              }
+              latest = nextState;
+              listener(nextState);
+            })
+          ),
+        ),
+      );
       return () => {
-        listeners.delete(listener);
+        Effect.runFork(Fiber.interrupt(fiber));
       };
     },
     dispatch: (input, options = {}) =>
@@ -176,7 +184,7 @@ export function makeEffectRpcClient(
     close: () => {
       if (closed) return Promise.resolve();
       closed = true;
-      setState({ status: "closed" });
+      Effect.runSync(setState({ status: "closed" }));
       return runtime.dispose();
     },
   };
