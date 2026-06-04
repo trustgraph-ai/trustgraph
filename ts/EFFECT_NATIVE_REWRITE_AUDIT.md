@@ -514,6 +514,23 @@ Notes:
   - `bun run --cwd ts/packages/cli test -- src/__tests__/library.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: Streaming ReAct Parser Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/agent/react/parser.ts` now uses `effect/Match` for
+    ReAct state emission instead of a native `switch`.
+  - Marker states now use an inferred `MarkerState` type instead of per-entry
+    `as ReActState` assertions.
+  - Flush now processes an unterminated final buffer line through marker
+    detection, fixing `Final Answer:` chunks that arrive without a trailing
+    newline.
+  - Parser tests cover split markers, pre-marker thought fallback,
+    continuations, action input, and final-answer routing.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/agent-parser.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.

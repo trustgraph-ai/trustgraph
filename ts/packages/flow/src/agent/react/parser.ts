@@ -10,13 +10,19 @@
  * Handles markers split across chunks by buffering lines.
  */
 
+import { Match } from "effect";
 import type { ReActState } from "./types.js";
 
-const MARKERS = [
-  { prefix: "Thought:", state: "thought" as ReActState },
-  { prefix: "Action Input:", state: "action_input" as ReActState },
-  { prefix: "Action:", state: "action" as ReActState },
-  { prefix: "Final Answer:", state: "final_answer" as ReActState },
+type MarkerState = Exclude<ReActState, "initial" | "complete">;
+
+const MARKERS: ReadonlyArray<{
+  readonly prefix: string;
+  readonly state: MarkerState;
+}> = [
+  { prefix: "Thought:", state: "thought" },
+  { prefix: "Action Input:", state: "action_input" },
+  { prefix: "Action:", state: "action" },
+  { prefix: "Final Answer:", state: "final_answer" },
 ];
 
 // Longest marker prefix for partial-match detection
@@ -39,27 +45,27 @@ export function makeStreamingReActParser(
   const emitContent = (content: string): void => {
     if (content.length === 0) return;
 
-    switch (state) {
-      case "thought":
+    Match.value(state).pipe(
+      Match.when("thought", () => {
         onThought(content);
-        break;
-      case "action":
+      }),
+      Match.when("action", () => {
         onAction(content);
-        break;
-      case "action_input":
+      }),
+      Match.when("action_input", () => {
         onActionInput(content);
-        break;
-      case "final_answer":
+      }),
+      Match.when("final_answer", () => {
         onFinalAnswer(content);
-        break;
-      case "initial":
+      }),
+      Match.when("initial", () => {
         // Content before any marker -- treat as thought
         state = "thought";
         onThought(content);
-        break;
-      case "complete":
-        break;
-    }
+      }),
+      Match.when("complete", () => undefined),
+      Match.exhaustive,
+    );
   };
 
   const processLine = (line: string): void => {
@@ -86,6 +92,11 @@ export function makeStreamingReActParser(
     while (true) {
       const newlineIdx = buffer.indexOf("\n");
       if (newlineIdx === -1) {
+        if (isFinal && buffer.length > 0) {
+          const line = buffer;
+          buffer = "";
+          processLine(line);
+        }
         // No complete line yet.
         // If not final, check for partial marker match at the end and wait.
         if (!isFinal) {
