@@ -25,7 +25,7 @@ import {
   type Message,
   type ProcessorConfig,
 } from "@trustgraph/base";
-import {Duration, Effect, Layer, ManagedRuntime, Match, SynchronizedRef} from "effect";
+import {Duration, Effect, HashMap, Layer, ManagedRuntime, Match, SynchronizedRef} from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import {ensureDirectory, joinPath, readTextFile, writeTextFile} from "../runtime/effect-files.js";
@@ -81,8 +81,8 @@ const knowledgeCoreServiceError = (operation: string, cause: unknown): Knowledge
     message: errorMessage(cause),
   });
 
-type KnowledgeCoreStore = Map<string, KnowledgeCore>;
-type DocumentCoreStore = Map<string, Array<DocumentEmbeddingsCore>>;
+type KnowledgeCoreStore = HashMap.HashMap<string, KnowledgeCore>;
+type DocumentCoreStore = HashMap.HashMap<string, Array<DocumentEmbeddingsCore>>;
 
 interface KnowledgeCoreServiceState {
   readonly kgCores: KnowledgeCoreStore;
@@ -131,11 +131,14 @@ export interface KnowledgeCoreService extends AsyncProcessorRuntime<KnowledgeCor
 }
 
 const initialState = (): KnowledgeCoreServiceState => ({
-  kgCores: new Map<string, KnowledgeCore>(),
-  deCores: new Map<string, Array<DocumentEmbeddingsCore>>(),
+  kgCores: HashMap.empty<string, KnowledgeCore>(),
+  deCores: HashMap.empty<string, Array<DocumentEmbeddingsCore>>(),
   consumer: null,
   responseProducer: null,
 });
+
+const getHashMapValue = <K, V>(store: HashMap.HashMap<K, V>, key: K): V | undefined =>
+  O.getOrUndefined(HashMap.get(store, key));
 
 const cloneKnowledgeCore = (core: KnowledgeCore): KnowledgeCore => ({
   triples: Array.from(core.triples),
@@ -145,30 +148,17 @@ const cloneKnowledgeCore = (core: KnowledgeCore): KnowledgeCore => ({
   })),
 });
 
-const cloneKgStore = (store: KnowledgeCoreStore): KnowledgeCoreStore => {
-  const next = new Map<string, KnowledgeCore>();
-  for (const [key, core] of store) {
-    next.set(key, cloneKnowledgeCore(core));
-  }
-  return next;
-};
-
-const cloneDeStore = (store: DocumentCoreStore): DocumentCoreStore => {
-  const next = new Map<string, Array<DocumentEmbeddingsCore>>();
-  for (const [key, cores] of store) {
-    next.set(key, Array.from(cores));
-  }
-  return next;
-};
+const sortedEntries = <A>(store: HashMap.HashMap<string, A>): ReadonlyArray<readonly [string, A]> =>
+  HashMap.toEntries(store).sort(([left], [right]) => left.localeCompare(right));
 
 const toPersistedSnapshot = (state: KnowledgeCoreServiceState): PersistedKnowledgeSnapshot => {
   const kg: Record<string, KnowledgeCore> = {};
   const de: Record<string, Array<DocumentEmbeddingsCore>> = {};
 
-  for (const [key, core] of state.kgCores) {
+  for (const [key, core] of sortedEntries(state.kgCores)) {
     kg[key] = cloneKnowledgeCore(core);
   }
-  for (const [key, core] of state.deCores) {
+  for (const [key, core] of sortedEntries(state.deCores)) {
     de[key] = Array.from(core);
   }
 
@@ -176,9 +166,9 @@ const toPersistedSnapshot = (state: KnowledgeCoreServiceState): PersistedKnowled
 };
 
 const kgStoreFromRecord = (record: LegacyKnowledgeSnapshot): KnowledgeCoreStore => {
-  const store = new Map<string, KnowledgeCore>();
+  let store = HashMap.empty<string, KnowledgeCore>();
   for (const [key, core] of Object.entries(record)) {
-    store.set(key, cloneKnowledgeCore(core));
+    store = HashMap.set(store, key, cloneKnowledgeCore(core));
   }
   return store;
 };
@@ -186,9 +176,9 @@ const kgStoreFromRecord = (record: LegacyKnowledgeSnapshot): KnowledgeCoreStore 
 const deStoreFromRecord = (
   record: Record<string, Array<DocumentEmbeddingsCore>> | undefined,
 ): DocumentCoreStore => {
-  const store = new Map<string, Array<DocumentEmbeddingsCore>>();
+  let store = HashMap.empty<string, Array<DocumentEmbeddingsCore>>();
   for (const [key, core] of Object.entries(record ?? {})) {
-    store.set(key, Array.from(core));
+    store = HashMap.set(store, key, Array.from(core));
   }
   return store;
 };
@@ -265,7 +255,7 @@ const readPersistedKnowledgeEffect = Effect.fn("KnowledgeCoreService.readPersist
     if (O.isSome(legacy)) {
       return {
         kgCores: kgStoreFromRecord(legacy.value),
-        deCores: new Map<string, Array<DocumentEmbeddingsCore>>(),
+        deCores: HashMap.empty<string, Array<DocumentEmbeddingsCore>>(),
       };
     }
 
@@ -304,14 +294,14 @@ const persistStateEffect = Effect.fn("KnowledgeCoreService.persistState")(
     ),
 );
 
-const listIds = (
-  store: ReadonlyMap<string, unknown>,
+const listIds = <A>(
+  store: HashMap.HashMap<string, A>,
   user: string,
 ): Array<string> => {
   const prefix = user.length > 0 ? `${user}:` : "";
   const ids: Array<string> = [];
 
-  for (const key of store.keys()) {
+  for (const [key] of sortedEntries(store)) {
     if (prefix.length === 0 || key.startsWith(prefix)) {
       ids.push(key.slice(prefix.length));
     }
@@ -413,7 +403,7 @@ const getKgCoreEffect = Effect.fn("getKgCoreEffect")(function* (
   requestId: string,
 ) {
     const key = coreKey(request.user ?? "", request.id ?? "");
-    const core = (yield* SynchronizedRef.get(stateRef)).kgCores.get(key);
+    const core = getHashMapValue((yield* SynchronizedRef.get(stateRef)).kgCores, key);
     if (core === undefined) {
       return yield* knowledgeCoreServiceError("get-kg-core", `Knowledge core not found: ${key}`);
     }
@@ -452,11 +442,10 @@ const deleteKgCoreEffect = Effect.fn("deleteKgCoreEffect")(function* (
   requestId: string,
 ) {
     const key = coreKey(request.user ?? "", request.id ?? "");
-    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
-      const kgCores = cloneKgStore(state.kgCores);
-      kgCores.delete(key);
-      return {...state, kgCores};
-    });
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => ({
+      ...state,
+      kgCores: HashMap.remove(state.kgCores, key),
+    }));
 
     yield* persistStateEffect(persistPath, next);
     yield* Effect.log(`[KnowledgeCoreService] Deleted core: ${key}`);
@@ -471,8 +460,7 @@ const putKgCoreEffect = Effect.fn("putKgCoreEffect")(function* (
 ) {
     const key = coreKey(request.user ?? "", request.id ?? "");
     const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
-      const kgCores = cloneKgStore(state.kgCores);
-      const existing = kgCores.get(key) ?? {triples: [], graphEmbeddings: []};
+      const existing = getHashMapValue(state.kgCores, key) ?? {triples: [], graphEmbeddings: []};
       const core: KnowledgeCore = {
         triples: [
           ...existing.triples,
@@ -486,11 +474,13 @@ const putKgCoreEffect = Effect.fn("putKgCoreEffect")(function* (
           })),
         ],
       };
-      kgCores.set(key, core);
-      return {...state, kgCores};
+      return {
+        ...state,
+        kgCores: HashMap.set(state.kgCores, key, core),
+      };
     });
 
-    const core = next.kgCores.get(key);
+    const core = getHashMapValue(next.kgCores, key);
     yield* persistStateEffect(persistPath, next);
     yield* Effect.log(
       `[KnowledgeCoreService] Updated core ${key}: triples=${core?.triples.length ?? 0}, embeddings=${core?.graphEmbeddings.length ?? 0}`,
@@ -507,7 +497,7 @@ const loadKgCoreEffect = Effect.fn("loadKgCoreEffect")(function* (
     const user = request.user ?? "";
     const coreId = request.id ?? "";
     const key = coreKey(user, coreId);
-    const core = (yield* SynchronizedRef.get(stateRef)).kgCores.get(key);
+    const core = getHashMapValue((yield* SynchronizedRef.get(stateRef)).kgCores, key);
     if (core === undefined) {
       return yield* knowledgeCoreServiceError("load-kg-core", `Knowledge core not found: ${key}`);
     }
@@ -554,7 +544,7 @@ const getDeCoreEffect = Effect.fn("getDeCoreEffect")(function* (
   requestId: string,
 ) {
     const key = coreKey(request.user ?? "", request.id ?? "");
-    const core = (yield* SynchronizedRef.get(stateRef)).deCores.get(key);
+    const core = getHashMapValue((yield* SynchronizedRef.get(stateRef)).deCores, key);
     if (core === undefined) {
       return yield* knowledgeCoreServiceError("get-de-core", `Document embeddings core not found: ${key}`);
     }
@@ -584,11 +574,10 @@ const deleteDeCoreEffect = Effect.fn("deleteDeCoreEffect")(function* (
   requestId: string,
 ) {
     const key = coreKey(request.user ?? "", request.id ?? "");
-    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
-      const deCores = cloneDeStore(state.deCores);
-      deCores.delete(key);
-      return {...state, deCores};
-    });
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => ({
+      ...state,
+      deCores: HashMap.remove(state.deCores, key),
+    }));
 
     yield* persistStateEffect(persistPath, next);
     yield* sendResponse(stateRef, {}, requestId);
@@ -606,11 +595,13 @@ const putDeCoreEffect = Effect.fn("putDeCoreEffect")(function* (
     }
 
     const key = coreKey(request.user ?? "", request.id ?? "");
-    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => {
-      const deCores = cloneDeStore(state.deCores);
-      deCores.set(key, [...(deCores.get(key) ?? []), item]);
-      return {...state, deCores};
-    });
+    const next = yield* SynchronizedRef.updateAndGet(stateRef, (state) => ({
+      ...state,
+      deCores: HashMap.set(state.deCores, key, [
+        ...(getHashMapValue(state.deCores, key) ?? []),
+        item,
+      ]),
+    }));
 
     yield* persistStateEffect(persistPath, next);
     yield* sendResponse(stateRef, {}, requestId);
@@ -622,7 +613,7 @@ const loadDeCoreEffect = Effect.fn("loadDeCoreEffect")(function* (
   requestId: string,
 ) {
     const key = coreKey(request.user ?? "", request.id ?? "");
-    const exists = (yield* SynchronizedRef.get(stateRef)).deCores.has(key);
+    const exists = HashMap.has((yield* SynchronizedRef.get(stateRef)).deCores, key);
     if (!exists) {
       return yield* knowledgeCoreServiceError("load-de-core", `Document embeddings core not found: ${key}`);
     }
@@ -705,7 +696,7 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
       deCores: loaded.deCores,
     }));
 
-    yield* Effect.log(`[KnowledgeCoreService] Loaded persisted state (kg=${next.kgCores.size}, de=${next.deCores.size})`);
+    yield* Effect.log(`[KnowledgeCoreService] Loaded persisted state (kg=${HashMap.size(next.kgCores)}, de=${HashMap.size(next.deCores)})`);
   });
 
   service = Object.assign(base, {

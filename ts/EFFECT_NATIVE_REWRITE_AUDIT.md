@@ -1983,6 +1983,28 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: KnowledgeCore HashMap State Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/cores/service.ts` now stores knowledge-core and
+    document-core state in `HashMap` inside the existing `SynchronizedRef`.
+  - Put/delete/load/get operations now read and update immutable `HashMap`
+    snapshots with `HashMap.get`, `HashMap.set`, `HashMap.remove`, and
+    `HashMap.has`.
+  - Persistence and list-response helpers convert `HashMap` state to
+    deterministic sorted records/arrays only at the API/JSON boundaries.
+  - `ts/packages/flow/src/__tests__/knowledge-core-service.test.ts` now reads
+    service state through `HashMap.get` and `Option`.
+  - The focused scan for native map state in `cores/service.ts` is clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/knowledge-core-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2003,8 +2025,12 @@ Notes:
     workspace state are complete: the long-lived config store now uses
     `HashMap` inside `SynchronizedRef`, and plain records remain only at
     persistence/API boundaries.
-  - KnowledgeCore service, FlowManager, and Librarian ref-backed state slices
-    are complete. Follow-up service work should focus on scoped layers,
+  - KnowledgeCore service operation dispatch, helper functions, and ref-backed
+    core state are complete: `kgCores` and `deCores` now use `HashMap` inside
+    `SynchronizedRef`, and plain records remain only at persistence/API
+    boundaries.
+  - FlowManager and Librarian ref-backed state slices are still valid larger
+    collection targets. Follow-up service work should focus on scoped layers,
     schedules where polling semantics allow, and managed persistence providers
     rather than direct mutable service fields.
   - Flow service startup facades now consistently use `ManagedRuntime`, and

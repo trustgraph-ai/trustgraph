@@ -1,7 +1,7 @@
 import {mkdtemp, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {Effect, SynchronizedRef} from "effect";
+import {Effect, HashMap, Option, SynchronizedRef} from "effect";
 import {describe, expect, it} from "vitest";
 import {
   topics,
@@ -96,7 +96,7 @@ describe("KnowledgeCoreService operations", () => {
 
     await service.putKgCore(request, "put-1");
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
-    const core = state.kgCores.get("alice:core-a");
+    const core = Option.getOrUndefined(HashMap.get(state.kgCores, "alice:core-a"));
 
     await service.getKgCore({
       operation: "get-kg-core",
@@ -166,7 +166,7 @@ describe("KnowledgeCoreService operations", () => {
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
     await rm(dir, {recursive: true, force: true});
 
-    expect(state.kgCores.get("alice:core-b")?.triples).toHaveLength(2);
+    expect(Option.getOrUndefined(HashMap.get(state.kgCores, "alice:core-b"))?.triples).toHaveLength(2);
   });
 
   it("loads the legacy persisted knowledge shape with schema decoding", async () => {
@@ -187,6 +187,6 @@ describe("KnowledgeCoreService operations", () => {
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
     await rm(dir, {recursive: true, force: true});
 
-    expect(state.kgCores.get("alice:legacy")?.triples).toEqual([sampleTriple]);
+    expect(Option.getOrUndefined(HashMap.get(state.kgCores, "alice:legacy"))?.triples).toEqual([sampleTriple]);
   });
 });
