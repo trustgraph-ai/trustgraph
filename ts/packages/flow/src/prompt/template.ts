@@ -41,6 +41,8 @@ import {
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime } from "effect";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
 export interface PromptTemplate {
@@ -67,7 +69,7 @@ interface PromptTemplateRuntime {
 const programRuntimes = new WeakMap<PromptTemplateConfig, PromptTemplateRuntime>();
 
 const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplateRuntime => {
-  const templates = new Map<string, PromptTemplate>();
+  const templates = MutableHashMap.empty<string, PromptTemplate>();
   const configKey = config.configKey ?? "prompt";
   const PromptResponseProducer = makeProducerSpec<PromptResponse>("prompt-response");
 
@@ -93,17 +95,17 @@ const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplate
     );
     if (decoded === null) return;
 
-    templates.clear();
+    MutableHashMap.clear(templates);
 
     for (const [name, template] of Object.entries(decoded)) {
-      templates.set(name, {
+      MutableHashMap.set(templates, name, {
         system: template.system ?? "",
         prompt: template.prompt ?? "",
       });
     }
 
     yield* Effect.log(
-      `[PromptTemplate] Loaded ${templates.size} template(s): ${[...templates.keys()].join(", ")}`,
+      `[PromptTemplate] Loaded ${MutableHashMap.size(templates)} template(s): ${Array.from(MutableHashMap.keys(templates)).join(", ")}`,
     );
   });
 
@@ -116,7 +118,7 @@ const makePromptTemplateRuntime = (config: PromptTemplateConfig): PromptTemplate
     if (requestId === undefined || requestId.length === 0) return;
 
     const responseProducer = yield* flowCtx.flow.producerEffect(PromptResponseProducer);
-    const template = templates.get(msg.name);
+    const template = O.getOrUndefined(MutableHashMap.get(templates, msg.name));
     if (template === undefined) {
       yield* responseProducer.send(requestId, {
         system: "",

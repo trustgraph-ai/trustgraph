@@ -2254,6 +2254,24 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Prompt Template MutableHashMap Cache Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/prompt/template.ts` now stores loaded prompt
+    templates in `MutableHashMap` instead of a native `Map`.
+  - Config reload clears and repopulates the Effect collection, request lookup
+    narrows through `Option`, and logging uses `MutableHashMap.size` / `keys`.
+  - New focused coverage verifies a config-loaded prompt template renders
+    through the service request/response flow.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/prompt-template.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2440,9 +2458,9 @@ Notes:
     The workbench random id helper is complete; the remaining workbench
     `Effect.gen` match is a local one-shot command effect value.
   - Remaining real long-lived native collection targets include base processor
-    registries, Librarian service state, prompt template cache, and a workbench
-    module cache. The standalone Librarian collection manager is complete.
-    Local traversal sets and test fakes remain no-op boundaries.
+    registries, Librarian service state, and a workbench module cache. The
+    standalone Librarian collection manager and prompt template cache are
+    complete. Local traversal sets and test fakes remain no-op boundaries.
 
 ## Ranked Findings
 
