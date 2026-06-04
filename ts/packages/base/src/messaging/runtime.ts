@@ -509,11 +509,12 @@ export const makeEffectRequestResponseFromPubSub = Effect.fn("makeEffectRequestR
   const responses = yield* EffectPubSub.unbounded<ResponseEnvelope<TRes>>();
   const stoppedSignal = yield* Deferred.make<never, MessagingLifecycleError>();
   const fiber = yield* dispatchResponseLoop(backend, options.responseTopic, responses, config).pipe(Effect.forkScoped);
-  let stopped = false;
+  const stopped = yield* Ref.make(false);
 
   const stop = Effect.fn(`RequestResponse.stop:${options.requestTopic}`)(function* () {
-    if (stopped) return;
-    stopped = true;
+    const alreadyStopped = yield* Ref.getAndSet(stopped, true);
+    if (alreadyStopped) return;
+
     yield* Deferred.fail(
       stoppedSignal,
       messagingLifecycleError(`${options.requestTopic}:${options.responseTopic}`, "stop", "RequestResponse stopped"),

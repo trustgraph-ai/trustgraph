@@ -472,6 +472,8 @@ describe("Effect-native messaging runtime", () => {
         operation: "stop",
         resource: "tg.test.request:tg.test.response",
       });
+      expect(backend.producer.closeCount).toBe(1);
+      expect(responseConsumer.closeCount).toBe(1);
     }),
   );
 
