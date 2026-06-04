@@ -1124,7 +1124,8 @@ Notes:
 - Remaining:
   - `ts/packages/flow/src/gateway/rpc-protocol.ts` remains a Fastify socket
     compatibility bridge, not a direct replacement target for Effect RPC
-    server layers yet.
+    server layers yet. Local parser validation and collection cleanup inside
+    that bridge remain valid migration targets.
 - Verification:
   - `bun run --cwd ts/packages/flow build`
   - `bun run --cwd ts/packages/client build`
@@ -2073,6 +2074,31 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Gateway RPC Protocol Decode Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/rpc-protocol.ts` no longer casts
+    `parser.decode(data)` to `ReadonlyArray<RpcMessage.FromClientEncoded>`.
+  - The socket protocol now validates parser output through a local Schema for
+    client-to-server `Request`, `Ack`, `Interrupt`, `Ping`, and `Eof`
+    envelopes before calling the server protocol write hook.
+  - Invalid client frames and parser failures now map to a tagged
+    `RpcProtocolDecodeError` and are written back as encoded RPC defects.
+  - The existing server-response defect encoding no longer uses a non-null
+    assertion on `parser.encode`.
+  - `ts/packages/flow/src/__tests__/gateway-rpc-protocol.test.ts` covers valid
+    request header prepending, control-frame forwarding, and rejection of
+    server response envelopes received from a client socket.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/gateway-rpc-protocol.test.ts`
+  - `cd ts/packages/flow && bunx --bun vitest run`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2160,9 +2186,11 @@ Notes:
     injected pubsub backends are not closed by the manager, one-shot producers
     are acquire/use/release bracketed, and serialization failures are typed
     Effect errors.
-  - Do not make `gateway/rpc-protocol.ts` the next cleanup target: it is a
-    Fastify socket compatibility bridge while the public Effect RPC server
-    layers require SocketServer or Effect HTTP routing.
+  - `gateway/rpc-protocol.ts` remains a Fastify socket compatibility bridge
+    while the public Effect RPC server layers require SocketServer or Effect
+    HTTP routing. The parser decode assertion is complete through Schema
+    validation; future local cleanups should focus on its connection
+    collections rather than replacing the whole bridge.
   - WebSocket adapter host fallbacks now use `Result.try` and tagged adapter
     errors while preserving sync exports.
 - RAG/providers/storage:
@@ -2470,9 +2498,10 @@ Do not flag these as rewrite blockers without additional proof:
   `start()` now initializes scoped Effect consumers and returns after startup,
   while `stop()` closes the native consumer scope.
 - `ts/packages/flow/src/gateway/rpc-protocol.ts` is a Fastify socket
-  compatibility bridge. Do not flag its internal connection maps/sets as a
-  standalone replacement target until the gateway is ready to move onto Effect
-  SocketServer or Effect HTTP routing.
+  compatibility bridge. Do not treat it as a wholesale server-layer replacement
+  target until the gateway is ready to move onto Effect SocketServer or Effect
+  HTTP routing; local parser validation and Effect collection cleanup inside
+  that bridge are still valid.
 
 ## Acceptance For Final Loop Completion
 
