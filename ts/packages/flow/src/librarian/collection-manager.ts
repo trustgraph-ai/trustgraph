@@ -6,6 +6,9 @@
  * via the parent LibrarianService JSON snapshot).
  */
 
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as O from "effect/Option";
+
 export interface CollectionEntry {
   user: string;
   collection: string;
@@ -32,7 +35,7 @@ export interface CollectionManager {
 
 export function makeCollectionManager(): CollectionManager {
   /** keyed by `${user}:${collection}` */
-  const collections = new Map<string, CollectionEntry>();
+  const collections = MutableHashMap.empty<string, CollectionEntry>();
 
   const key = (user: string, collection: string): string => `${user}:${collection}`;
 
@@ -44,35 +47,41 @@ export function makeCollectionManager(): CollectionManager {
     tags: string[],
   ): CollectionEntry => {
     const entry: CollectionEntry = { user, collection, name, description, tags };
-    collections.set(key(user, collection), entry);
+    MutableHashMap.set(collections, key(user, collection), entry);
     return entry;
   };
 
   return {
     listCollections: (user) => {
       const result: CollectionEntry[] = [];
-      for (const entry of collections.values()) {
+      for (const entry of MutableHashMap.values(collections)) {
         if (entry.user === user) {
           result.push(entry);
         }
       }
       return result;
     },
-    getCollection: (user, collection) => collections.get(key(user, collection)),
+    getCollection: (user, collection) =>
+      O.getOrUndefined(MutableHashMap.get(collections, key(user, collection))),
     updateCollection,
-    deleteCollection: (user, collection) => collections.delete(key(user, collection)),
+    deleteCollection: (user, collection) => {
+      const collectionKey = key(user, collection);
+      const exists = MutableHashMap.has(collections, collectionKey);
+      MutableHashMap.remove(collections, collectionKey);
+      return exists;
+    },
     ensureCollectionExists: (user, collection) => {
-      const existing = collections.get(key(user, collection));
+      const existing = O.getOrUndefined(MutableHashMap.get(collections, key(user, collection)));
       if (existing !== undefined) return existing;
       return updateCollection(user, collection, collection, "", []);
     },
     /** Serialize to a plain array for JSON persistence. */
-    toJSON: () => [...collections.values()],
+    toJSON: () => Array.from(MutableHashMap.values(collections)),
     /** Restore from a serialized array. */
     loadFromJSON: (entries) => {
-      collections.clear();
+      MutableHashMap.clear(collections);
       for (const entry of entries) {
-        collections.set(key(entry.user, entry.collection), entry);
+        MutableHashMap.set(collections, key(entry.user, entry.collection), entry);
       }
     },
   };

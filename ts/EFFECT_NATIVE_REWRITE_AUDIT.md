@@ -2234,6 +2234,26 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Librarian Collection Manager MutableHashMap Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/librarian/collection-manager.ts` now stores
+    in-memory collection entries in `MutableHashMap` instead of native `Map`.
+  - Public `listCollections`, `getCollection`, `updateCollection`,
+    `deleteCollection`, `ensureCollectionExists`, `toJSON`, and `loadFromJSON`
+    behavior stays array/boolean/undefined based at the API and persistence
+    boundaries.
+  - New focused coverage verifies create/update/list/get/delete and JSON
+    restore behavior through the migrated collection state.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/collection-manager.test.ts src/__tests__/librarian-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2420,9 +2440,9 @@ Notes:
     The workbench random id helper is complete; the remaining workbench
     `Effect.gen` match is a local one-shot command effect value.
   - Remaining real long-lived native collection targets include base processor
-    registries, Librarian service / collection manager state, prompt template
-    cache, and a workbench module cache. Local traversal sets and test fakes
-    remain no-op boundaries.
+    registries, Librarian service state, prompt template cache, and a workbench
+    module cache. The standalone Librarian collection manager is complete.
+    Local traversal sets and test fakes remain no-op boundaries.
 
 ## Ranked Findings
 
