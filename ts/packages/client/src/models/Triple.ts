@@ -1,3 +1,5 @@
+
+
 // Term type discriminators matching the wire format
 // i = IRI, b = BLANK node, l = LITERAL, t = TRIPLE (reified)
 export type TermType = "i" | "b" | "l" | "t";

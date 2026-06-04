@@ -278,7 +278,7 @@ const onKnowledgeExtractMessage = Effect.fn("KnowledgeExtractService.onMessage")
   }
 });
 
-export const makeKnowledgeExtractSpecs = (): ReadonlyArray<Spec<never>> => [
+export const makeKnowledgeExtractSpecs = (): ReadonlyArray<Spec> => [
   makeConsumerSpec<Chunk, KnowledgeExtractHandlerError>(
     "extract-input",
     onKnowledgeExtractMessage,

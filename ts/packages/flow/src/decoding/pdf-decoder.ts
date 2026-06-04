@@ -225,7 +225,7 @@ const onPdfDecodeMessage = Effect.fn("PdfDecoderService.onMessage")(function* (
   yield* Effect.log(`[PdfDecoder] Finished processing document ${documentId}`);
 });
 
-export const makePdfDecoderSpecs = (): ReadonlyArray<Spec<never>> => [
+export const makePdfDecoderSpecs = (): ReadonlyArray<Spec> => [
   makeConsumerSpec<Document, PdfDecoderHandlerError>("decode-input", onPdfDecodeMessage),
   DecodeOutputProducer,
   DecodeTriplesProducer,
