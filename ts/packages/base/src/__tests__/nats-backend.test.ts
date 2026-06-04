@@ -2,18 +2,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeNatsBackend } from "../backend/nats.js";
 
 const natsMock = vi.hoisted(() => {
+  const S = require("effect/Schema");
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  class MockNatsError extends Error {
-    readonly code: string;
-    private readonly apiCode: number | undefined;
-
+  class MockNatsError extends S.TaggedErrorClass()(
+    "MockNatsError",
+    {
+      apiCode: S.optional(S.Number),
+      code: S.String,
+      message: S.String,
+    },
+  ) {
     constructor(code: string, apiCode?: number) {
-      super(code);
-      this.name = "NatsError";
-      this.code = code;
-      this.apiCode = apiCode;
+      super({
+        apiCode,
+        code,
+        message: code,
+      });
     }
 
     jsError() {

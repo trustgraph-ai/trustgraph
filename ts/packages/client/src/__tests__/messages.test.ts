@@ -324,7 +324,10 @@ describe("Message Types", () => {
   describe("LibraryResponse", () => {
     it("should have correct structure", () => {
       const response: LibraryResponse = {
-        error: new Error(),
+        error: {
+          message: "Library unavailable",
+          type: "library-error",
+        },
         "document-metadatas": [
           {
             id: "doc-1",
@@ -334,7 +337,10 @@ describe("Message Types", () => {
         ],
       };
 
-      expect(response.error).toBeInstanceOf(Error);
+      expect(response.error).toMatchObject({
+        message: "Library unavailable",
+        type: "library-error",
+      });
       expect(response["document-metadatas"]).toHaveLength(1);
       expect(response["document-metadatas"]![0].id).toBe("doc-1");
     });

@@ -2331,6 +2331,30 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Tagged Test Error Cleanup Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - Removed the remaining native `new Error` / `extends Error` matches from
+    tests and client wire models.
+  - Polling helpers in embeddings, flow processor, and chunking tests now fail
+    with `S.TaggedErrorClass` timeout values.
+  - Runtime service fake failures and the embeddings provider failure fixture
+    now use tagged test errors.
+  - The NATS SDK error mock preserves `code` and `jsError()` behavior through a
+    `TaggedErrorClass`, and the client model no longer exports a wire type
+    alias named `Error`.
+- Verification:
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/nats-backend.test.ts src/__tests__/runtime-services.test.ts src/__tests__/embeddings-service.test.ts src/__tests__/flow-processor-runtime.test.ts`
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/chunking-service.test.ts`
+  - `cd ts && bun run --cwd packages/client build && bun run --cwd packages/base build && bun run --cwd packages/flow build`
+  - `rg -n "new Error\\(|extends Error|export type Error|error\\?: Error|S\\.ErrorClass" ts/packages --glob '*.ts' --glob '*.tsx'`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2521,6 +2545,9 @@ Notes:
     standalone Librarian collection manager, prompt template cache, and
     workbench explain triples module cache. Local traversal sets and test fakes
     remain no-op boundaries.
+  - Fresh strict error-class sweep after the 2026-06-04 tagged test error
+    cleanup found no `new Error`, `extends Error`, `export type Error`,
+    `error?: Error`, or `S.ErrorClass` matches under `ts/packages`.
 
 ## Ranked Findings
 

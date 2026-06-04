@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
+import * as S from "effect/Schema";
 import {
   PubSub,
   makeAsyncProcessor,
@@ -12,6 +13,11 @@ import {
   type ProcessorConfig,
   type PubSubBackend,
 } from "../index.js";
+
+class RuntimeServicesTestError extends S.TaggedErrorClass<RuntimeServicesTestError>()(
+  "RuntimeServicesTestError",
+  { message: S.String },
+) {}
 
 class FakeProducer<T> implements BackendProducer<T> {
   readonly sent: Array<{ readonly message: T; readonly properties?: Record<string, string> }> = [];
@@ -75,7 +81,7 @@ class FakePubSubBackend implements PubSubBackend {
 
 class FailingProducerBackend extends FakePubSubBackend {
   override async createProducer<T>(): Promise<BackendProducer<T>> {
-    throw new Error("producer unavailable");
+    throw RuntimeServicesTestError.make({ message: "producer unavailable" });
   }
 }
 
@@ -99,7 +105,7 @@ const makeRecordingProcessor = (
 const makeFailingProcessor = (config: ProcessorConfig) =>
   makeAsyncProcessor(config, {
     run: async () => {
-      throw new Error("processor failed");
+      throw RuntimeServicesTestError.make({ message: "processor failed" });
     },
   });
 

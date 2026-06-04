@@ -2,12 +2,13 @@ import type { Term, Triple } from "./Triple.js";
 
 export type Request = object;
 export type Response = object;
-export type Error = object | string;
 
 export interface ResponseError {
   type?: string;
   message: string;
 }
+
+export type WireError = object | string;
 
 export interface RequestMessage {
   id: string;
@@ -315,7 +316,7 @@ export interface LibraryRequest {
 }
 
 export interface LibraryResponse {
-  error?: Error;
+  error?: WireError;
   "document-metadata"?: DocumentMetadata;
   documentMetadata?: DocumentMetadata;
   content?: string;
@@ -340,7 +341,7 @@ export interface KnowledgeRequest {
 }
 
 export interface KnowledgeResponse {
-  error?: Error;
+  error?: WireError;
   ids?: string[];
   eos?: boolean;
   triples?: Triple[];
@@ -371,7 +372,7 @@ export interface FlowResponse {
     | {
         message?: string;
       }
-    | Error;
+    | WireError;
 }
 
 export interface PromptRequest {

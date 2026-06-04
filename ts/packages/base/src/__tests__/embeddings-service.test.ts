@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Fiber } from "effect";
+import * as S from "effect/Schema";
 import {
   Embeddings,
   EmbeddingsService,
@@ -17,6 +18,18 @@ import {
   type Message,
   type PubSubBackend,
 } from "../index.js";
+
+class WaitForTimeout extends S.TaggedErrorClass<WaitForTimeout>()(
+  "WaitForTimeout",
+  { label: S.String },
+) {}
+
+class TestProviderUnavailable extends S.TaggedErrorClass<TestProviderUnavailable>()(
+  "TestProviderUnavailable",
+  { message: S.String },
+) {}
+
+const isWaitForTimeout = S.is(WaitForTimeout);
 
 function createMessage<T>(value: T, properties: Record<string, string> = {}): Message<T> {
   return {
@@ -36,14 +49,14 @@ const waitFor = (condition: () => boolean, label: string) =>
             return;
           }
           if (Date.now() > deadline) {
-            reject(new Error(`Timed out waiting for ${label}`));
+            reject(WaitForTimeout.make({ label }));
             return;
           }
           setTimeout(check, 5);
         };
         check();
       }),
-    catch: (error) => error,
+    catch: (error) => isWaitForTimeout(error) ? error : WaitForTimeout.make({ label }),
   });
 
 class RecordingProducer<T> implements BackendProducer<T> {
@@ -206,7 +219,13 @@ describe("EmbeddingsService", () => {
       const backend = new EmbeddingsBackend();
       const embeddings = Embeddings.of({
         embed: Effect.fn("FailingEmbeddings.embed")(() =>
-          Effect.fail(embeddingsError("test.embed", new Error("provider unavailable"), "test")),
+          Effect.fail(
+            embeddingsError(
+              "test.embed",
+              TestProviderUnavailable.make({ message: "provider unavailable" }),
+              "test",
+            ),
+          ),
         ),
       });
 
