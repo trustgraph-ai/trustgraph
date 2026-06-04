@@ -27,7 +27,8 @@ class Processor(DocumentEmbeddingsQueryService):
         api_key = params.get("api_key")
 
         url, api_key, _, _ = resolve_qdrant_config(
-            url=store_uri, api_key=api_key,
+            url=store_uri,
+            api_key=api_key,
         )
 
         super(Processor, self).__init__(

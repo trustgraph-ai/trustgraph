@@ -83,7 +83,8 @@ class Processor(AsyncProcessor):
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
-            default_keyspace="config"
+            default_keyspace="config",
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         # Store resolved configuration

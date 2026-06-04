@@ -61,7 +61,8 @@ class Processor(WorkspaceProcessor):
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
-            default_keyspace="knowledge"
+            default_keyspace="knowledge",
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         self.cassandra_host = hosts
