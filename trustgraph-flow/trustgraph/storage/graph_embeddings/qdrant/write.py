@@ -14,6 +14,7 @@ from qdrant_client.models import Distance, VectorParams
 from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 from .... schema import IRI, LITERAL
 
 # Module logger
@@ -29,29 +30,32 @@ def get_term_value(term):
     elif term.type == LITERAL:
         return term.value
     else:
-        # For blank nodes or other types, use id or value
         return term.id or term.value
 
 
 default_ident = "graph-embeddings-write"
 
-default_store_uri = 'http://localhost:6333'
-
 class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
     def __init__(self, **params):
 
-        store_uri = params.get("store_uri", default_store_uri)
-        api_key = params.get("api_key", None)
+        store_uri = params.get("store_uri")
+        api_key = params.get("api_key")
+
+        url, api_key, replication_factor, shard_number = resolve_qdrant_config(
+            url=store_uri, api_key=api_key,
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "store_uri": store_uri,
+                "store_uri": url,
                 "api_key": api_key,
             }
         )
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.qdrant = QdrantClient(url=url, api_key=api_key)
+        self.replication_factor = replication_factor
+        self.shard_number = shard_number
         self._cache_lock = asyncio.Lock()
         self._known_collections: set[str] = set()
 
@@ -76,6 +80,8 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                     vectors_config=VectorParams(
                         size=dim, distance=Distance.COSINE
                     ),
+                    replication_factor=self.replication_factor,
+                    shard_number=self.shard_number,
                 )
             self._known_collections.add(collection_name)
 
@@ -128,18 +134,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
     def add_args(parser):
 
         GraphEmbeddingsStoreService.add_args(parser)
-
-        parser.add_argument(
-            '-t', '--store-uri',
-            default=default_store_uri,
-            help=f'Qdrant store URI (default: {default_store_uri})'
-        )
-        
-        parser.add_argument(
-            '-k', '--api-key',
-            default=None,
-            help=f'Qdrant API key'
-        )
+        add_qdrant_args(parser)
 
     async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """

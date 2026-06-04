@@ -19,12 +19,12 @@ from .... schema import (
     RowIndexMatch, Error
 )
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "row-embeddings-query"
-default_store_uri = 'http://localhost:6333'
 default_concurrency = 10
 
 
@@ -35,13 +35,17 @@ class Processor(FlowProcessor):
         id = params.get("id", default_ident)
         concurrency = params.get("concurrency", default_concurrency)
 
-        store_uri = params.get("store_uri", default_store_uri)
-        api_key = params.get("api_key", None)
+        store_uri = params.get("store_uri")
+        api_key = params.get("api_key")
+
+        url, api_key, _, _ = resolve_qdrant_config(
+            url=store_uri, api_key=api_key,
+        )
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "store_uri": store_uri,
+                "store_uri": url,
                 "api_key": api_key,
             }
         )
@@ -62,7 +66,7 @@ class Processor(FlowProcessor):
             )
         )
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.qdrant = QdrantClient(url=url, api_key=api_key)
 
     def sanitize_name(self, name: str) -> str:
         """Sanitize names for Qdrant collection naming"""
@@ -192,21 +196,9 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
-        """Add command-line arguments"""
 
         FlowProcessor.add_args(parser)
-
-        parser.add_argument(
-            '-t', '--store-uri',
-            default=default_store_uri,
-            help=f'Qdrant store URI (default: {default_store_uri})'
-        )
-
-        parser.add_argument(
-            '-k', '--api-key',
-            default=None,
-            help='API key for Qdrant (default: None)'
-        )
+        add_qdrant_args(parser)
 
         parser.add_argument(
             '-c', '--concurrency',

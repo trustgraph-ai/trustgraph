@@ -4,7 +4,7 @@ from .. schema import Metadata, GraphEmbeddings
 
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
-from ssl import SSLContext, PROTOCOL_TLSv1_2
+import ssl
 
 import uuid
 import time
@@ -33,7 +33,7 @@ class ConfigTableStore:
             cassandra_host = [h.strip() for h in cassandra_host.split(',')]
 
         if cassandra_username and cassandra_password:
-            ssl_context = SSLContext(PROTOCOL_TLSv1_2)
+            ssl_context = ssl.create_default_context()
             auth_provider = PlainTextAuthProvider(
                 username=cassandra_username, password=cassandra_password
             )

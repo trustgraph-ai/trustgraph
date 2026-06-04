@@ -6,7 +6,7 @@ import logging
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement, SimpleStatement
-from ssl import SSLContext, PROTOCOL_TLSv1_2
+import ssl
 
 from ..tables.cassandra_async import async_execute
 
@@ -41,13 +41,15 @@ class KnowledgeGraph:
 
     def __init__(
             self, hosts=None,
-            keyspace="trustgraph", username=None, password=None
+            keyspace="trustgraph", username=None, password=None,
+            replication_factor=1,
     ):
 
         if hosts is None:
             hosts = ["localhost"]
 
         self.keyspace = keyspace
+        self.replication_factor = replication_factor
         self.username = username
 
         # 7-table schema for quads with full query pattern support
@@ -68,7 +70,7 @@ class KnowledgeGraph:
         self.collection_metadata_table = "collection_metadata"
 
         if username and password:
-            ssl_context = SSLContext(PROTOCOL_TLSv1_2)
+            ssl_context = ssl.create_default_context()
             auth_provider = PlainTextAuthProvider(username=username, password=password)
             self.cluster = Cluster(hosts, auth_provider=auth_provider, ssl_context=ssl_context)
         else:
@@ -92,7 +94,7 @@ class KnowledgeGraph:
             create keyspace if not exists {self.keyspace}
                 with replication = {{
                    'class' : 'SimpleStrategy',
-                   'replication_factor' : 1
+                   'replication_factor' : {self.replication_factor}
                 }};
         """)
 
@@ -539,13 +541,15 @@ class EntityCentricKnowledgeGraph:
 
     def __init__(
             self, hosts=None,
-            keyspace="trustgraph", username=None, password=None
+            keyspace="trustgraph", username=None, password=None,
+            replication_factor=1,
     ):
 
         if hosts is None:
             hosts = ["localhost"]
 
         self.keyspace = keyspace
+        self.replication_factor = replication_factor
         self.username = username
 
         # 2-table entity-centric schema
@@ -556,7 +560,7 @@ class EntityCentricKnowledgeGraph:
         self.collection_metadata_table = "collection_metadata"
 
         if username and password:
-            ssl_context = SSLContext(PROTOCOL_TLSv1_2)
+            ssl_context = ssl.create_default_context()
             auth_provider = PlainTextAuthProvider(username=username, password=password)
             self.cluster = Cluster(hosts, auth_provider=auth_provider, ssl_context=ssl_context)
         else:
@@ -580,7 +584,7 @@ class EntityCentricKnowledgeGraph:
             create keyspace if not exists {self.keyspace}
                 with replication = {{
                    'class' : 'SimpleStrategy',
-                   'replication_factor' : 1
+                   'replication_factor' : {self.replication_factor}
                 }};
         """)
 
