@@ -27,12 +27,12 @@ from qdrant_client.models import PointStruct, Distance, VectorParams
 from .... schema import RowEmbeddings
 from .... base import FlowProcessor, ConsumerSpec
 from .... base import CollectionConfigHandler
+from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "row-embeddings-write"
-default_store_uri = 'http://localhost:6333'
 
 
 class Processor(CollectionConfigHandler, FlowProcessor):
@@ -41,13 +41,17 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
         id = params.get("id", default_ident)
 
-        store_uri = params.get("store_uri", default_store_uri)
-        api_key = params.get("api_key", None)
+        store_uri = params.get("store_uri")
+        api_key = params.get("api_key")
+
+        url, api_key, replication_factor, shard_number = resolve_qdrant_config(
+            url=store_uri, api_key=api_key,
+        )
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "store_uri": store_uri,
+                "store_uri": url,
                 "api_key": api_key,
             }
         )
@@ -63,7 +67,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         # Register config handler for collection management
         self.register_config_handler(self.on_collection_config, types=["collection"])
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.qdrant = QdrantClient(url=url, api_key=api_key)
+        self.replication_factor = replication_factor
+        self.shard_number = shard_number
         self._cache_lock = asyncio.Lock()
         self._known_collections: set[str] = set()
 
@@ -103,6 +109,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                         size=dimension,
                         distance=Distance.COSINE
                     ),
+                    replication_factor=self.replication_factor,
+                    shard_number=self.shard_number,
                 )
             self._known_collections.add(collection_name)
 
@@ -249,21 +257,9 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
     @staticmethod
     def add_args(parser):
-        """Add command-line arguments"""
 
         FlowProcessor.add_args(parser)
-
-        parser.add_argument(
-            '-t', '--store-uri',
-            default=default_store_uri,
-            help=f'Qdrant URI (default: {default_store_uri})'
-        )
-
-        parser.add_argument(
-            '-k', '--api-key',
-            default=None,
-            help='Qdrant API key (default: None)'
-        )
+        add_qdrant_args(parser)
 
 
 def run():
