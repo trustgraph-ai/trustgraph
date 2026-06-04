@@ -2214,6 +2214,26 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Workbench Random ID Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/workbench/src/atoms/workbench.ts` now defines the reusable
+    random id helper with named `Effect.fn` instead of a function returning
+    `Effect.gen`.
+  - Existing notification, upload, chat request, and message id call sites are
+    unchanged and still yield the helper directly.
+  - The remaining workbench `Effect.gen` scan hit is the local
+    `submitUploadDocument` one-shot effect value inside an existing
+    `Effect.fn` command, not a reusable helper factory.
+- Verification:
+  - `cd ts/packages/workbench && bun run build`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2394,10 +2414,11 @@ Notes:
   - Fresh strict signal sweep after the 2026-06-04 helper and collection
     slices found no production normal `Error`, raw `try`/`catch`, native
     `switch`, or Effect-focused type assertions under `ts/packages`.
-  - Remaining real helper-normalization targets from the fresh sweep are one
-    workbench atom helper plus separately scoped inline callback/program
-    factories in messaging compatibility facades, gateway/librarian helpers,
-    and CLI command actions.
+  - Remaining real helper-normalization targets from the fresh sweep are
+    separately scoped inline callback/program factories in messaging
+    compatibility facades, gateway/librarian helpers, and CLI command actions.
+    The workbench random id helper is complete; the remaining workbench
+    `Effect.gen` match is a local one-shot command effect value.
   - Remaining real long-lived native collection targets include base processor
     registries, Librarian service / collection manager state, prompt template
     cache, and a workbench module cache. Local traversal sets and test fakes

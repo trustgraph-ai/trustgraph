@@ -488,13 +488,11 @@ export function resultError<A, E>(result: AsyncResult.AsyncResult<A, E>): string
   return resultErrorMessage(result);
 }
 
-function randomId(prefix: string): Effect.Effect<string> {
-  return Effect.gen(function*() {
-    const left = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
-    const right = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
-    return `${prefix}-${left.toString(36).padStart(6, "0")}${right.toString(36).padStart(6, "0")}`;
-  });
-}
+const randomId = Effect.fn("trustgraph.workbench.randomId")(function*(prefix: string) {
+  const left = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+  const right = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+  return `${prefix}-${left.toString(36).padStart(6, "0")}${right.toString(36).padStart(6, "0")}`;
+});
 
 function metadataFrom(metadata: StreamingMetadata | undefined): ChatMessage["metadata"] | undefined {
   if (metadata === undefined) return undefined;
