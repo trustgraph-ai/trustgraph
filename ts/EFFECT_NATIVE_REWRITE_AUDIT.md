@@ -1920,6 +1920,28 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: KnowledgeCore Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/cores/service.ts` now defines its reusable
+    generator helpers with `Effect.fn` or `Effect.fnUntraced` instead of
+    arrow functions returning `Effect.gen`.
+  - `sendResponse` and `consumeOnceEffect` use `Effect.fnUntraced` because
+    they are small hot-path helper functions.
+  - `readPersistedKnowledgeEffect`, `persistStateEffect`,
+    `closeKnowledgeResourcesEffect`, and `runKnowledgeCoreServiceEffect` use
+    named `Effect.fn` wrappers while preserving their existing catch/logging
+    behavior.
+  - The focused scan for `=> Effect.gen` in `cores/service.ts` is clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/knowledge-core-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2045,9 +2067,9 @@ Notes:
   - Gateway dispatcher static service registries, streaming membership, and
     scoped requestor cache now use Effect `HashMap`/`HashSet`; gateway
     term-bearing service membership sets now use Effect `HashSet` too.
-  - FlowManager `() => Effect.gen(...)` factories are normalized to
-    `Effect.fn` / `Effect.fnUntraced`. Sibling service factories still need a
-    focused scan before treating them as valid migration targets.
+  - FlowManager and KnowledgeCore `() => Effect.gen(...)` factories are
+    normalized to `Effect.fn` / `Effect.fnUntraced`. Config and Librarian
+    helper factories still need focused follow-up slices.
   - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
     with `Match.exhaustive`; FlowManager and Librarian operation dispatch now
     use `effect/Match` with runtime-preserving `Match.orElse` fallbacks.

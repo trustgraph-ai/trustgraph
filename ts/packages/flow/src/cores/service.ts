@@ -236,28 +236,22 @@ const closeResource = (
     ),
   );
 
-const sendResponse = (
+const sendResponse = Effect.fnUntraced(function* (
   stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
   response: KnowledgeResponse,
   requestId: string,
   operation = "respond",
-): Effect.Effect<void, KnowledgeCoreServiceError> =>
-  Effect.gen(function* () {
-    const responseProducer = (yield* SynchronizedRef.get(stateRef)).responseProducer;
-    if (responseProducer === null) {
-      return yield* knowledgeCoreServiceError(operation, "Knowledge response producer not started");
-    }
+) {
+  const responseProducer = (yield* SynchronizedRef.get(stateRef)).responseProducer;
+  if (responseProducer === null) {
+    return yield* knowledgeCoreServiceError(operation, "Knowledge response producer not started");
+  }
 
-    yield* tryPromise(operation, () => responseProducer.send(response, {id: requestId}));
-  });
+  yield* tryPromise(operation, () => responseProducer.send(response, {id: requestId}));
+});
 
-const readPersistedKnowledgeEffect = (
-  persistPath: string,
-): Effect.Effect<{
-  readonly kgCores: KnowledgeCoreStore;
-  readonly deCores: DocumentCoreStore;
-} | null, never> =>
-  Effect.gen(function* () {
+const readPersistedKnowledgeEffect = Effect.fn("KnowledgeCoreService.readPersistedKnowledge")(
+  function* (persistPath: string) {
     const raw = yield* tryPromise("load-read", () => readTextFile(persistPath));
     const current = S.decodeUnknownOption(PersistedKnowledgeSnapshotJsonSchema)(raw);
     if (O.isSome(current)) {
@@ -276,36 +270,39 @@ const readPersistedKnowledgeEffect = (
     }
 
     return yield* knowledgeCoreServiceError("load-decode", "Persisted knowledge state did not match any known shape");
-  }).pipe(
-    Effect.catch(() =>
-      Effect.log("[KnowledgeCoreService] No persisted state found, starting fresh").pipe(
-        Effect.flatMap(() =>
-          Effect.succeed<{
-            readonly kgCores: KnowledgeCoreStore;
-            readonly deCores: DocumentCoreStore;
-          } | null>(null)
-        ),
-      )
+  },
+  (effect) =>
+    effect.pipe(
+      Effect.catch(() =>
+        Effect.log("[KnowledgeCoreService] No persisted state found, starting fresh").pipe(
+          Effect.flatMap(() =>
+            Effect.succeed<{
+              readonly kgCores: KnowledgeCoreStore;
+              readonly deCores: DocumentCoreStore;
+            } | null>(null)
+          ),
+        )
+      ),
     ),
   );
 
-const persistStateEffect = (
-  persistPath: string,
-  state: KnowledgeCoreServiceState,
-): Effect.Effect<void, never> =>
-  Effect.gen(function* () {
+const persistStateEffect = Effect.fn("KnowledgeCoreService.persistState")(
+  function* (persistPath: string, state: KnowledgeCoreServiceState) {
     const snapshot = toPersistedSnapshot(state);
     const json = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(snapshot).pipe(
       Effect.mapError((cause) => knowledgeCoreServiceError("persist-encode", cause)),
     );
     yield* tryPromise("persist-write", () => writeTextFile(persistPath, json));
-  }).pipe(
-    Effect.catch((error) =>
-      Effect.logError("[KnowledgeCoreService] Failed to persist state", {
-        error: error.message,
-      }),
+  },
+  (effect) =>
+    effect.pipe(
+      Effect.catch((error) =>
+        Effect.logError("[KnowledgeCoreService] Failed to persist state", {
+          error: error.message,
+        }),
+      ),
     ),
-  );
+);
 
 const listIds = (
   store: ReadonlyMap<string, unknown>,
@@ -323,86 +320,83 @@ const listIds = (
   return ids;
 };
 
-const closeKnowledgeResourcesEffect = (
+const closeKnowledgeResourcesEffect = Effect.fn("KnowledgeCoreService.closeResources")(function* (
   stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
-): Effect.Effect<void, KnowledgeCoreServiceError> =>
-  Effect.gen(function* () {
-    const state = yield* SynchronizedRef.get(stateRef);
+) {
+  const state = yield* SynchronizedRef.get(stateRef);
 
-    const consumer = state.consumer;
-    if (consumer !== null) {
-      yield* tryPromise("close-consumer", () => consumer.close());
-    }
+  const consumer = state.consumer;
+  if (consumer !== null) {
+    yield* tryPromise("close-consumer", () => consumer.close());
+  }
 
-    const responseProducer = state.responseProducer;
-    if (responseProducer !== null) {
-      yield* tryPromise("close-response-producer", () => responseProducer.close());
-    }
+  const responseProducer = state.responseProducer;
+  if (responseProducer !== null) {
+    yield* tryPromise("close-response-producer", () => responseProducer.close());
+  }
 
-    yield* updateHandles(stateRef, {
-      consumer: null,
-      responseProducer: null,
-    });
+  yield* updateHandles(stateRef, {
+    consumer: null,
+    responseProducer: null,
   });
+});
 
-const consumeOnceEffect = (
+const consumeOnceEffect = Effect.fnUntraced(function* (
   service: KnowledgeCoreService,
-): Effect.Effect<void, KnowledgeCoreServiceError> =>
-  Effect.gen(function* () {
-    const consumer = (yield* SynchronizedRef.get(service.state)).consumer;
-    if (consumer === null) {
-      return yield* knowledgeCoreServiceError("consume", "Knowledge request consumer not started");
-    }
+) {
+  const consumer = (yield* SynchronizedRef.get(service.state)).consumer;
+  if (consumer === null) {
+    return yield* knowledgeCoreServiceError("consume", "Knowledge request consumer not started");
+  }
 
-    const msg = yield* tryPromise("consume-receive", () => consumer.receive(2000));
-    if (msg === null) return;
+  const msg = yield* tryPromise("consume-receive", () => consumer.receive(2000));
+  if (msg === null) return;
 
-    yield* service.handleMessageEffect(msg);
-    yield* tryPromise("consume-acknowledge", () => consumer.acknowledge(msg));
-  });
+  yield* service.handleMessageEffect(msg);
+  yield* tryPromise("consume-acknowledge", () => consumer.acknowledge(msg));
+});
 
-const runKnowledgeCoreServiceEffect = (
+const runKnowledgeCoreServiceEffect = Effect.fn("KnowledgeCoreService.run")(function* (
   service: KnowledgeCoreService,
-): Effect.Effect<void, KnowledgeCoreServiceError> =>
-  Effect.gen(function* () {
-    yield* tryPromise("ensure-directory", () => ensureDirectory(service.dataDir));
-    yield* service.loadFromDiskEffect;
+) {
+  yield* tryPromise("ensure-directory", () => ensureDirectory(service.dataDir));
+  yield* service.loadFromDiskEffect;
 
-    const responseProducer = yield* tryPromise("response-producer", () =>
-      service.pubsub.createProducer<KnowledgeResponse>({
-        topic: topics.knowledgeResponse,
-        schema: KnowledgeResponseSchema,
-      }),
-    );
-    yield* updateHandles(service.state, {responseProducer});
+  const responseProducer = yield* tryPromise("response-producer", () =>
+    service.pubsub.createProducer<KnowledgeResponse>({
+      topic: topics.knowledgeResponse,
+      schema: KnowledgeResponseSchema,
+    }),
+  );
+  yield* updateHandles(service.state, {responseProducer});
 
-    const consumer = yield* tryPromise("consumer", () =>
-      service.pubsub.createConsumer<KnowledgeRequest>({
-        topic: topics.knowledgeRequest,
-        subscription: `${service.config.id}-knowledge-request`,
-        schema: KnowledgeRequestSchema,
-      }),
-    );
-    yield* updateHandles(service.state, {consumer});
+  const consumer = yield* tryPromise("consumer", () =>
+    service.pubsub.createConsumer<KnowledgeRequest>({
+      topic: topics.knowledgeRequest,
+      subscription: `${service.config.id}-knowledge-request`,
+      schema: KnowledgeRequestSchema,
+    }),
+  );
+  yield* updateHandles(service.state, {consumer});
 
-    yield* Effect.log(`[KnowledgeCoreService] Listening on ${topics.knowledgeRequest}`);
+  yield* Effect.log(`[KnowledgeCoreService] Listening on ${topics.knowledgeRequest}`);
 
-    yield* Effect.whileLoop({
-      while: () => service.running,
-      body: () =>
-        consumeOnceEffect(service).pipe(
-          Effect.catch((error) => {
-            if (!service.running) return Effect.void;
-            return Effect.logError("[KnowledgeCoreService] Error in consume loop", {
-              error: error.message,
-            }).pipe(
-              Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
-            );
-          }),
-        ),
-      step: () => undefined,
-    });
+  yield* Effect.whileLoop({
+    while: () => service.running,
+    body: () =>
+      consumeOnceEffect(service).pipe(
+        Effect.catch((error) => {
+          if (!service.running) return Effect.void;
+          return Effect.logError("[KnowledgeCoreService] Error in consume loop", {
+            error: error.message,
+          }).pipe(
+            Effect.flatMap(() => Effect.sleep(Duration.millis(1000))),
+          );
+        }),
+      ),
+    step: () => undefined,
   });
+});
 
 const listKgCoresEffect = (
   stateRef: SynchronizedRef.SynchronizedRef<KnowledgeCoreServiceState>,
