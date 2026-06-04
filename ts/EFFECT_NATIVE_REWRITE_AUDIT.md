@@ -499,6 +499,21 @@ Notes:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/agent-service.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: CLI Library MIME Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/cli/src/commands/library.ts` now uses `effect/Match` for
+    extension-to-MIME mapping instead of a native `switch`.
+  - `guessMimeType` is exported for focused CLI helper coverage.
+  - CLI tests now cover known extensions, case normalization, `html`/`htm`
+    aliases, and fallback behavior for unknown or extensionless paths.
+  - `ts/packages/cli/package.json` excludes `dist/**` from Vitest so built
+    test output is not executed a second time after root build lanes.
+- Verification:
+  - `bun run --cwd ts/packages/cli test -- src/__tests__/library.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.

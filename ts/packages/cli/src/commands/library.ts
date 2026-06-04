@@ -5,7 +5,7 @@
  */
 
 import type { Command } from "commander";
-import { Effect } from "effect";
+import { Effect, Match } from "effect";
 import { cliCommandError, withSocket, writeJson } from "./util.js";
 
 function basenamePath(filepath: string): string {
@@ -15,27 +15,19 @@ function basenamePath(filepath: string): string {
 }
 
 /** Simple MIME-type lookup by file extension. */
-function guessMimeType(filepath: string): string {
+export function guessMimeType(filepath: string): string {
   const ext = filepath.split(".").pop()?.toLowerCase();
-  switch (ext) {
-    case "pdf":
-      return "application/pdf";
-    case "txt":
-      return "text/plain";
-    case "md":
-      return "text/markdown";
-    case "html":
-    case "htm":
-      return "text/html";
-    case "json":
-      return "application/json";
-    case "csv":
-      return "text/csv";
-    case "docx":
-      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    default:
-      return "application/octet-stream";
-  }
+  return Match.value(ext).pipe(
+    Match.when("pdf", () => "application/pdf"),
+    Match.when("txt", () => "text/plain"),
+    Match.when("md", () => "text/markdown"),
+    Match.when("html", () => "text/html"),
+    Match.when("htm", () => "text/html"),
+    Match.when("json", () => "application/json"),
+    Match.when("csv", () => "text/csv"),
+    Match.when("docx", () => "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    Match.orElse(() => "application/octet-stream"),
+  );
 }
 
 export function registerLibraryCommands(program: Command): void {
