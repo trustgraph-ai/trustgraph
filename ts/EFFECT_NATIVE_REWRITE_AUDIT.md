@@ -465,6 +465,22 @@ Notes:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/text-completion-common.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: MCP Tool Transport Adapter Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/agent/mcp-tool/service.ts` no longer uses an
+    `as unknown as Parameters<Client["connect"]>[0]` assertion when connecting
+    the MCP SDK client.
+  - The concrete `StreamableHTTPClientTransport` is wrapped in a small
+    `Transport` adapter that forwards callbacks, send, close, and protocol
+    version updates while avoiding the SDK's exact-optional `sessionId` type
+    mismatch.
+  - The transport release path still closes the concrete SDK transport.
+- Verification:
+  - `bun run --cwd ts/packages/flow test`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.

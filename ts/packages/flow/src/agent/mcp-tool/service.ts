@@ -12,6 +12,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { NodeRuntime } from "@effect/platform-node";
 
 import {
@@ -100,6 +101,44 @@ const closeTransport = (
     ),
   );
 
+const transportAdapter = (transport: StreamableHTTPClientTransport): Transport => {
+  const clientTransport: Transport = {
+    start: () => {
+      const onclose = clientTransport.onclose;
+      if (onclose === undefined) {
+        delete transport.onclose;
+      } else {
+        transport.onclose = onclose;
+      }
+
+      const onerror = clientTransport.onerror;
+      if (onerror === undefined) {
+        delete transport.onerror;
+      } else {
+        transport.onerror = onerror;
+      }
+
+      const onmessage = clientTransport.onmessage;
+      if (onmessage === undefined) {
+        delete transport.onmessage;
+      } else {
+        transport.onmessage = (message) => onmessage(message);
+      }
+
+      return transport.start();
+    },
+    send: (message, options) =>
+      transport.send(message, {
+        ...(options?.resumptionToken === undefined ? {} : { resumptionToken: options.resumptionToken }),
+        ...(options?.onresumptiontoken === undefined ? {} : { onresumptiontoken: options.onresumptiontoken }),
+      }),
+    close: () => transport.close(),
+    setProtocolVersion: (version) => transport.setProtocolVersion(version),
+  };
+
+  return clientTransport;
+};
+
 const loadMcpServices = Effect.fn("McpToolRuntime.loadMcpServices")(function* (
   config: Record<string, unknown>,
   version: number,
@@ -165,11 +204,12 @@ const invokeConfiguredTool = Effect.fn("McpToolRuntime.invokeTool")(function* (
     url,
     { requestInit: { headers } },
   );
+  const clientTransport = transportAdapter(transport);
   const client = new Client({ name: "trustgraph-mcp-client", version: "1.0.0" });
 
   const result = yield* Effect.acquireUseRelease(
     Effect.tryPromise({
-      try: () => client.connect(transport as unknown as Parameters<Client["connect"]>[0]),
+      try: () => client.connect(clientTransport),
       catch: (cause) => mcpToolError("connect", cause, name),
     }).pipe(Effect.as(client)),
     (connectedClient) =>
