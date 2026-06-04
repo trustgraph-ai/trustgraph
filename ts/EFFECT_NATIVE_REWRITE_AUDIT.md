@@ -2272,6 +2272,24 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Workbench Explain Triples MutableHashMap Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/workbench/src/atoms/workbench.ts` now stores the
+    `explainTriplesAtom` input cache in `MutableHashMap` instead of a native
+    `Map`.
+  - Lookup narrows through `Option`, writes use `MutableHashMap.set`, and the
+    adjacent `Triple[]` assertions were replaced with callback return types and
+    inferred array copies.
+- Verification:
+  - `cd ts && bun run --cwd packages/workbench build`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2458,9 +2476,9 @@ Notes:
     The workbench random id helper is complete; the remaining workbench
     `Effect.gen` match is a local one-shot command effect value.
   - Remaining real long-lived native collection targets include base processor
-    registries, Librarian service state, and a workbench module cache. The
-    standalone Librarian collection manager and prompt template cache are
-    complete. Local traversal sets and test fakes remain no-op boundaries.
+    registries and Librarian service state. The standalone Librarian collection
+    manager, prompt template cache, and workbench explain triples module cache
+    are complete. Local traversal sets and test fakes remain no-op boundaries.
 
 ## Ranked Findings
 

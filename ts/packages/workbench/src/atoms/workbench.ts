@@ -3,6 +3,7 @@ import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore";
 import { BaseApi, type ConnectionState, type DocumentMetadata, type ExplainEvent, type StreamingMetadata, type Term, type Triple } from "@trustgraph/client";
 import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S } from "effect";
+import * as MutableHashMap from "effect/MutableHashMap";
 import * as Otlp from "effect/unstable/observability/Otlp";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
@@ -997,7 +998,7 @@ export interface ExplainTriplesInput {
 
 const atomFamilyKeySeparator = "\u001f";
 const explainGraphSeparator = "\u001e";
-const explainTriplesInputs = new Map<string, ExplainTriplesInput>();
+const explainTriplesInputs = MutableHashMap.empty<string, ExplainTriplesInput>();
 
 function graphTriplesKey(input: GraphTriplesInput): string {
   return [input.flowId, input.collection, String(input.limit)].join(atomFamilyKeySeparator);
@@ -1041,10 +1042,10 @@ const explainTriplesAtomByKey = Atom.family((key: string) =>
   queryAtom(
     `explainTriples.${key}`,
     Effect.fn("trustgraph.workbench.explainTriples")(function*(_get, api) {
-      const input = explainTriplesInputs.get(key);
+      const input = Option.getOrUndefined(MutableHashMap.get(explainTriplesInputs, key));
       if (input === undefined) return [];
-      const inlineTriples = input.events.flatMap((event) => event.explainTriples ?? []);
-      if (inlineTriples.length > 0) return inlineTriples as Triple[];
+      const inlineTriples = input.events.flatMap((event): ReadonlyArray<Triple> => event.explainTriples ?? []);
+      if (inlineTriples.length > 0) return [...inlineTriples];
       const graphUris = input.events.filter(
         (event): event is ExplainEvent & { explainGraph: string } =>
           event.explainGraph !== undefined && event.explainGraph.length > 0,
@@ -1054,7 +1055,7 @@ const explainTriplesAtomByKey = Atom.family((key: string) =>
           promiseBoundary(() =>
             api.flow(input.flowId)
               .triplesQuery(undefined, undefined, undefined, 500, input.collection, event.explainGraph)
-          ).pipe(Effect.orElseSucceed(() => [] as Triple[]))
+          ).pipe(Effect.orElseSucceed((): Array<Triple> => []))
         ),
         { concurrency: 4 },
       );
@@ -1073,7 +1074,7 @@ const explainTriplesAtomByKey = Atom.family((key: string) =>
 
 export const explainTriplesAtom = (input: ExplainTriplesInput) => {
   const key = explainTriplesKey(input);
-  explainTriplesInputs.set(key, input);
+  MutableHashMap.set(explainTriplesInputs, key, input);
   return explainTriplesAtomByKey(key);
 };
 
