@@ -13,7 +13,7 @@ import {createTrustGraphSocket, type BaseApi, type Term} from "@trustgraph/clien
 import {Effect, Layer, ManagedRuntime} from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
-import {z} from "zod";
+import * as z from "zod";
 import {loadTrustGraphMcpConfig} from "./server-effect.js";
 
 interface ToolTextContent {

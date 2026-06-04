@@ -1748,10 +1748,12 @@ Notes:
 - Scratch-note triage:
   - Metrics, in-process PubSub fanout, Claude Effect AI, RPC
     `S.TaggedErrorClass`, and `@effect/tsgo` setup are already migrated.
-  - Remaining valid scratch targets are MCP protocol parity/flip, Duration
-    config cleanup, Term/ClientTerm tagged-union matching, service
-    `Effect.fn` normalization, `@effect/cli`, stream/RPC follow-ups, chunking
-    `Chunk`, cores Promise APIs, and long-lived `Map`/`Set` state.
+  - Scratch targets migrated or parked since this triage include MCP tool-name
+    parity, Duration config cleanup, Term/ClientTerm tagged-union matching,
+    service `Effect.fn` normalization, chunking `Chunk`, and long-lived
+    `Map`/`Set` state. Remaining follow-ups are future API design or
+    compatibility decisions: MCP tool-call parity before deleting legacy stdio,
+    `effect/unstable/cli`, stream/RPC public facades, and cores Promise APIs.
 - Verification:
   - `cd ts/packages/mcp && bun run test`
   - `cd ts/packages/mcp && bun run build`
@@ -2355,14 +2357,36 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: MCP Legacy Tool Name Parity Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/mcp/src/__tests__/server-effect.test.ts` now verifies the
+    legacy SDK stdio server's registered tool names stay aligned with the
+    canonical Effect `TrustGraphMcpToolkit`.
+  - The test mocks the TrustGraph client constructor so parity inspection does
+    not open a gateway socket.
+  - `ts/packages/mcp/src/server.ts` uses a namespace `zod` import so the legacy
+    compatibility path works under the Bun/Vitest runtime used by the parity
+    test.
+- Verification:
+  - `cd ts/packages/mcp && bunx --bun vitest run src/__tests__/server-effect.test.ts`
+  - `cd ts && bun run --cwd packages/mcp build`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
   - Make the Effect MCP server the canonical implementation. An Effect
     `McpServer.layerStdio` entrypoint now exists; the old stdio server should
-    remain only as compatibility until protocol-level `tools/list` and
-    `tools/call` parity is proved. Do not delete `server.ts` until that parity
-    coverage exists, with special attention to `text_completion` behavior.
+    remain only as compatibility until protocol-level `tools/call` parity is
+    proved. Tool-name parity with the Effect toolkit is now covered. Do not
+    delete `server.ts` until call coverage exists, with special attention to
+    `text_completion` behavior.
   - Workbench BaseApi atoms can move toward `AtomRpc` or `AtomHttpApi` after
     the client API is less Promise-first.
   - MCP env is now Config-backed; continue that policy for future MCP settings.
@@ -2527,11 +2551,10 @@ Notes:
     drift should keep service dispatch on `effect/Match` or Schema tagged-union
     helpers.
   - Client RPC/BaseApi connection-state fanout now uses
-    `effect/SubscriptionRef`; remaining gateway/client P1 work is broader API
+    `effect/SubscriptionRef`; future gateway/client stream work is broader API
     design, not listener bookkeeping.
-  - Long-lived `Map` / `Set` state in remaining ref-backed services can move
-    toward Effect collections later; local pure traversal maps/sets remain
-    no-ops.
+  - Long-lived `Map` / `Set` state in ref-backed services is complete for the
+    current scratch inventory; local pure traversal maps/sets remain no-ops.
   - Fresh strict signal sweep after the 2026-06-04 helper and collection
     slices found no production normal `Error`, raw `try`/`catch`, native
     `switch`, or Effect-focused type assertions under `ts/packages`.
@@ -2694,16 +2717,20 @@ Notes:
   - Qdrant embeddings tests prove graph cache hits skip repeated collection
     existence checks and deletion invalidates the cache.
 
-### P2: Canonicalize MCP Around The Effect Server
+### No-op: MCP Legacy Compatibility Surface
 
 - Status:
   - MCP now builds under strict tsgo, the stdio server has an Effect-backed
     compatibility implementation, and an Effect `McpServer.layerStdio`
     entrypoint exists.
-- Remaining shape:
+  - The legacy SDK stdio server remains a compatibility boundary rather than an
+    active Effect-native rewrite blocker.
+- Rule:
   - Keep the old SDK/Zod stdio compatibility surface for now.
-  - Prove `tools/list` and `tools/call` parity before deleting any public
-    entry point or dropping `zod`/server-side MCP SDK dependencies.
+  - Tool-name parity with the canonical Effect toolkit is covered by
+    `server-effect.test.ts`.
+  - Prove `tools/call` parity before deleting any public entry point or
+    dropping `zod`/server-side MCP SDK dependencies.
   - Pay special attention to `text_completion`: legacy calls the TrustGraph
     gateway, while the Effect server currently uses an Effect AI
     `LanguageModel`/OpenAI layer.
@@ -2729,7 +2756,7 @@ Notes:
 
 ## Recommended PR Order
 
-1. MCP protocol parity tests and legacy stdio flip/removal decision.
+1. MCP tool-call parity tests and legacy stdio flip/removal decision.
 2. Flow/client RPC stream API design beyond callback/Promise compatibility.
 3. Long-lived ref-backed `HashMap` state cleanup where clone helpers remain.
 4. Sibling service `Effect.fn` normalization where arrow-returned generators
