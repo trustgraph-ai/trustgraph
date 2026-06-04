@@ -7,7 +7,7 @@ import {
   type LlmResult,
   type LlmProvider,
 } from "@trustgraph/base";
-import { Config, Effect, Layer, ManagedRuntime, Ref, Result, Stream } from "effect";
+import { Config, Effect, Layer, ManagedRuntime, Match, Ref, Result, Stream } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
@@ -258,29 +258,26 @@ const languageModelStreamChunk = (
   provider: string,
   model: string,
   part: Response.StreamPart<{}>,
-): Effect.Effect<Result.Result<LlmChunk, undefined>, TextCompletionRuntimeError> => {
-  switch (part.type) {
-    case "text-delta":
-      return Effect.succeed(
+): Effect.Effect<Result.Result<LlmChunk, undefined>, TextCompletionRuntimeError> =>
+  Match.value(part).pipe(
+    Match.discriminators("type")({
+      "text-delta": (part) => Effect.succeed(
         part.delta.length > 0
           ? Result.succeed(textChunk(model, part.delta))
           : Result.fail(undefined),
-      );
-    case "finish":
-      return Effect.succeed(
+      ),
+      finish: (part) => Effect.succeed(
         Result.succeed(
           finalChunk(model, {
             inToken: usageInputTokens(part.usage),
             outToken: usageOutputTokens(part.usage),
           }),
         ),
-      );
-    case "error":
-      return Effect.fail(effectAiProviderError(provider, part.error));
-    default:
-      return Effect.succeed(Result.fail(undefined));
-  }
-};
+      ),
+      error: (part) => Effect.fail(effectAiProviderError(provider, part.error)),
+    }),
+    Match.orElse(() => Effect.succeed(Result.fail(undefined))),
+  );
 
 const runLanguageModelStream = <RuntimeRequirements, StreamRequirements extends RuntimeRequirements>(
   runtime: ManagedRuntime.ManagedRuntime<RuntimeRequirements, TextCompletionRuntimeError>,

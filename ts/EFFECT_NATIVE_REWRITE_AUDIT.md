@@ -433,6 +433,22 @@ Notes:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/gateway-dispatcher.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: Effect AI Stream Part Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/model/text-completion/common.ts` now maps
+    `Response.StreamPart` values with `effect/Match` instead of a native
+    `switch`.
+  - The matcher handles `text-delta`, `finish`, and `error` explicitly, while
+    preserving ignored behavior for other valid stream parts with
+    `Match.orElse`.
+  - Text-completion common tests now include an ignored `text-start` stream
+    part before text deltas to prove the fallback path remains silent.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/text-completion-common.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.
@@ -1862,8 +1878,9 @@ Notes:
     installed client, so do not reopen it as an `acquireRelease` close slice
     without new SDK evidence.
   - Shared text-completion stream iteration and the Mistral content assertion are
-    complete. The remaining provider-layer item is parity-backed Effect AI
-    adapter work, not a direct SDK swap.
+    complete, and the Effect AI stream-part adapter now uses `effect/Match`.
+    The remaining provider-layer item is parity-backed Effect AI adapter work,
+    not a direct SDK swap.
 - Scratch-note follow-ups:
   - `Term` / compact client term serialization is complete for base schema,
     gateway translation, and pure term helper switches. Future work should

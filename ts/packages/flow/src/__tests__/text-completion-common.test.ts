@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import type { LlmChunk } from "@trustgraph/base";
 import { Effect, Layer, ManagedRuntime, Stream } from "effect";
-import { AiError, LanguageModel } from "effect/unstable/ai";
+import { AiError, LanguageModel, Response } from "effect/unstable/ai";
 import {
   llmStreamPart,
   makeLanguageModelProvider,
@@ -157,6 +157,7 @@ describe("text completion common helpers", () => {
             ]),
           streamText: () =>
             Stream.fromArray([
+              Response.makePart("text-start", { id: "part-1" }),
               { type: "text-delta", id: "part-1", delta: "hel" },
               { type: "text-delta", id: "part-1", delta: "lo" },
               finishPart(13, 8),
