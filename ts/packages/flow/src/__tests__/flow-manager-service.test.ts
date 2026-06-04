@@ -109,6 +109,74 @@ const seedResponseProducer = async (
 };
 
 describe("FlowManagerService operations", () => {
+  it("dispatches all flow operations through the Match-backed handler", async () => {
+    const configClient = new RecordingConfigClient(
+      [
+        {
+          key: "custom",
+          value: "{\"description\":\"Custom\",\"topics\":{\"input\":\"topic.in\"}}",
+        },
+      ],
+      [
+        {
+          key: "flow-a",
+          value: "{\"blueprint-name\":\"custom\",\"description\":\"Alpha\",\"parameters\":{\"limit\":3}}",
+        },
+      ],
+    );
+    const service = makeService();
+    await seedConfigClient(service, configClient);
+
+    await expect(service.handleOperation({operation: "list-blueprints"})).resolves.toEqual({
+      "blueprint-names": ["custom", "default"],
+    });
+    await expect(service.handleOperation({
+      operation: "get-blueprint",
+      "blueprint-name": "custom",
+    })).resolves.toMatchObject({
+      "blueprint-definition": "{\"description\":\"Custom\",\"topics\":{\"input\":\"topic.in\"}}",
+    });
+    await expect(service.handleOperation({
+      operation: "put-blueprint",
+      "blueprint-name": "added",
+      "blueprint-definition": {description: "Added", topics: {input: "topic.added"}},
+    })).resolves.toEqual({});
+    await expect(service.handleOperation({
+      operation: "delete-blueprint",
+      "blueprint-name": "custom",
+    })).resolves.toEqual({});
+    await expect(service.handleOperation({operation: "list-flows"})).resolves.toEqual({
+      "flow-ids": ["flow-a"],
+    });
+    await expect(service.handleOperation({
+      operation: "get-flow",
+      "flow-id": "flow-a",
+    })).resolves.toEqual({
+      flow: "{\"blueprint-name\":\"custom\",\"description\":\"Alpha\",\"parameters\":{\"limit\":3}}",
+    });
+    await expect(service.handleOperation({
+      operation: "start-flow",
+      "flow-id": "flow-b",
+      "blueprint-name": "custom",
+    })).resolves.toEqual({});
+    await expect(service.handleOperation({
+      operation: "stop-flow",
+      "flow-id": "flow-a",
+    })).resolves.toEqual({});
+    await expect(service.handleOperation({operation: "unknown-flow"})).rejects.toMatchObject({
+      _tag: "FlowManagerError",
+      operation: "operation",
+      message: "Unknown flow operation: unknown-flow",
+    });
+
+    expect(configClient.requests.some((request) =>
+      request.operation === "put" && request.keys?.[0] === "flow-blueprint"
+    )).toBe(true);
+    expect(configClient.requests.some((request) =>
+      request.operation === "delete" && request.keys?.[0] === "flow-blueprint"
+    )).toBe(true);
+  });
+
   it("uses tagged errors for invalid flow mutations", async () => {
     const service = makeService();
 

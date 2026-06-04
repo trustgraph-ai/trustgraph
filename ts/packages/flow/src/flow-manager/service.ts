@@ -34,7 +34,7 @@ import {
 import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
-import { Duration, Effect, Layer, ManagedRuntime, Option, SynchronizedRef } from "effect";
+import { Duration, Effect, Layer, ManagedRuntime, Match, Option, SynchronizedRef } from "effect";
 import * as S from "effect/Schema";
 
 // ---------- Internal state types ----------
@@ -756,34 +756,17 @@ export function makeFlowManagerService(config: ProcessorConfig): FlowManagerServ
     yield* refreshBlueprintsFromConfigEffect(state);
     yield* refreshFlowsFromConfigEffect(state);
 
-    switch (op) {
-      case "list-blueprints":
-        return handleListBlueprintsWithState(state.pipe(stateSnapshot));
-
-      case "put-blueprint":
-        return yield* handlePutBlueprintEffect(state, request);
-
-      case "get-blueprint":
-        return yield* handleGetBlueprintEffect(state, request);
-
-      case "delete-blueprint":
-        return yield* handleDeleteBlueprintEffect(state, request);
-
-      case "list-flows":
-        return handleListFlowsWithState(state.pipe(stateSnapshot));
-
-      case "get-flow":
-        return yield* handleGetFlowEffect(state, request);
-
-      case "start-flow":
-        return yield* handleStartFlowEffect(state, request);
-
-      case "stop-flow":
-        return yield* handleStopFlowEffect(state, request);
-
-      default:
-        return yield* flowManagerError("operation", `Unknown flow operation: ${op ?? ""}`);
-    }
+    return yield* Match.value(op).pipe(
+      Match.when("list-blueprints", () => Effect.succeed(handleListBlueprintsWithState(state.pipe(stateSnapshot)))),
+      Match.when("put-blueprint", () => handlePutBlueprintEffect(state, request)),
+      Match.when("get-blueprint", () => handleGetBlueprintEffect(state, request)),
+      Match.when("delete-blueprint", () => handleDeleteBlueprintEffect(state, request)),
+      Match.when("list-flows", () => Effect.succeed(handleListFlowsWithState(state.pipe(stateSnapshot)))),
+      Match.when("get-flow", () => handleGetFlowEffect(state, request)),
+      Match.when("start-flow", () => handleStartFlowEffect(state, request)),
+      Match.when("stop-flow", () => handleStopFlowEffect(state, request)),
+      Match.orElse(() => Effect.fail(flowManagerError("operation", `Unknown flow operation: ${op ?? ""}`))),
+    );
   });
 
   const handleMessageEffect = Effect.fn("handleMessageEffect")(function* (msg: Message<FlowRequest>) {
