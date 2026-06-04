@@ -1,5 +1,5 @@
 import { makeBaseApiWithRpc, type BaseApi, type DocumentMetadata, type ProcessingMetadata, type StreamingMetadata, type Triple } from "@trustgraph/client";
-import { Clock, Effect, Option, Schema as S } from "effect";
+import { Clock, Effect, Match, Option, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;
 
@@ -284,22 +284,15 @@ function addDocument(state: MockState, metadata: DocumentMetadata): DocumentMeta
 }
 
 function dispatchRequest(state: MockState, service: string, request: Record<string, unknown>, flow: string | undefined): unknown {
-  switch (service) {
-    case "flow":
-      return dispatchFlow(state, request);
-    case "config":
-      return dispatchConfig(state, request);
-    case "librarian":
-      return dispatchLibrarian(state, request);
-    case "knowledge":
-      return dispatchKnowledge(state, request);
-    case "collection-management":
-      return dispatchCollections(state, request);
-    case "triples":
-      return dispatchTriples(state, request, flow);
-    default:
-      return {};
-  }
+  return Match.value(service).pipe(
+    Match.when("flow", () => dispatchFlow(state, request)),
+    Match.when("config", () => dispatchConfig(state, request)),
+    Match.when("librarian", () => dispatchLibrarian(state, request)),
+    Match.when("knowledge", () => dispatchKnowledge(state, request)),
+    Match.when("collection-management", () => dispatchCollections(state, request)),
+    Match.when("triples", () => dispatchTriples(state, request, flow)),
+    Match.orElse(() => ({})),
+  );
 }
 
 function dispatchFlow(state: MockState, request: Record<string, unknown>): unknown {

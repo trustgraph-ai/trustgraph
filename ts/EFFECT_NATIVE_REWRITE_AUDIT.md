@@ -1855,6 +1855,26 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Workbench Match Dispatch Slice
+
+- Status: migrated and root-verified.
+- Completed:
+  - `ts/packages/workbench/src/qa/mock-api.ts` now dispatches mock RPC
+    service requests with `effect/Match` and keeps the existing unknown-service
+    `{}` fallback.
+  - `ts/packages/workbench/src/atoms/workbench.ts` now dispatches chat submit
+    behavior for `graph-rag`, `document-rag`, and `agent` through
+    `Match.exhaustive` over the `ChatMode` union.
+  - The strict scan for native `switch` statements in `ts/packages` is clean:
+    `rg -n "\bswitch\s*\(" ts/packages --glob '*.ts' --glob '*.tsx'` returns
+    no matches.
+- Verification:
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1982,6 +2002,9 @@ Notes:
   - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
     with `Match.exhaustive`; FlowManager and Librarian operation dispatch now
     use `effect/Match` with runtime-preserving `Match.orElse` fallbacks.
+  - Native `switch` statements are now clean in `ts/packages`; future branch
+    drift should keep service dispatch on `effect/Match` or Schema tagged-union
+    helpers.
   - Client RPC/BaseApi connection-state fanout now uses
     `effect/SubscriptionRef`; remaining gateway/client P1 work is broader API
     design, not listener bookkeeping.
@@ -2167,7 +2190,7 @@ Notes:
 ## Recommended PR Order
 
 1. MCP protocol parity tests and legacy stdio flip/removal decision.
-2. Flow/client RPC stream and remaining service operation `Match` follow-ups.
+2. Flow/client RPC stream API design beyond callback/Promise compatibility.
 3. Long-lived ref-backed `HashMap` state cleanup where clone helpers remain.
 4. Sibling service `Effect.fn` normalization where arrow-returned generators
    still appear.

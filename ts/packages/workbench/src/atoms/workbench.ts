@@ -2,7 +2,7 @@ import { Clipboard as BrowserClipboard } from "@effect/platform-browser";
 import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore";
 import { BaseApi, type ConnectionState, type DocumentMetadata, type ExplainEvent, type StreamingMetadata, type Term, type Triple } from "@trustgraph/client";
-import { Cause, Clock, Context, Effect, Layer, Metric, Option, Random, Schema as S } from "effect";
+import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S } from "effect";
 import * as Otlp from "effect/unstable/observability/Otlp";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
@@ -1576,14 +1576,14 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
     explainEvents.push(event);
   };
 
-  switch (chatMode) {
-    case "graph-rag":
+  Match.value(chatMode).pipe(
+    Match.when("graph-rag", () => {
       flow.graphRagStreaming(trimmed, onChunk, onError, undefined, collection, onExplain);
-      break;
-    case "document-rag":
+    }),
+    Match.when("document-rag", () => {
       flow.documentRagStreaming(trimmed, onChunk, onError, undefined, collection, onExplain);
-      break;
-    case "agent":
+    }),
+    Match.when("agent", () => {
       flow.agent(
         trimmed,
         (chunk, complete) => {
@@ -1633,8 +1633,9 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
         onExplain,
         collection,
       );
-      break;
-  }
+    }),
+    Match.exhaustive,
+  );
   }),
 );
 
