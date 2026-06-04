@@ -1896,6 +1896,30 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Config Service HashMap State Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/config/service.ts` now stores workspace and
+    namespace config state in nested `HashMap` values inside the existing
+    `SynchronizedRef`.
+  - Put/delete operations now update immutable `HashMap` snapshots with
+    `HashMap.set` and `HashMap.remove` instead of cloning and mutating native
+    `Map` instances.
+  - Persistence, config dump, list, and get-values handlers keep plain
+    `Record`/array shapes only at API and JSON boundaries, with deterministic
+    ordering applied while converting out of `HashMap`.
+  - The focused scan for native map state in `config/service.ts` is clean; the
+    remaining map matches in that file are `HashMap` and `SynchronizedRef`
+    operations.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/config-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -1912,10 +1936,14 @@ Notes:
     matches are legacy migration fallbacks, QA assertions, or the pre-paint
     host script.
 - Flow stateful services:
-  - Config service, KnowledgeCore service, FlowManager, and Librarian
-    ref-backed state slices are complete. Follow-up service work should focus
-    on scoped layers, schedules where polling semantics allow, and managed
-    persistence providers rather than direct mutable service fields.
+  - Config service operation dispatch, schema persistence, and nested
+    workspace state are complete: the long-lived config store now uses
+    `HashMap` inside `SynchronizedRef`, and plain records remain only at
+    persistence/API boundaries.
+  - KnowledgeCore service, FlowManager, and Librarian ref-backed state slices
+    are complete. Follow-up service work should focus on scoped layers,
+    schedules where polling semantics allow, and managed persistence providers
+    rather than direct mutable service fields.
   - Flow service startup facades now consistently use `ManagedRuntime`, and
     local scripts should delegate to `runMain()` instead of adding local
     `.catch(console.error/process.exit)` wrappers.
@@ -2023,14 +2051,18 @@ Notes:
   - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
     with `Match.exhaustive`; FlowManager and Librarian operation dispatch now
     use `effect/Match` with runtime-preserving `Match.orElse` fallbacks.
+  - ConfigService nested workspace config state now uses Effect `HashMap`.
+    JSON and API response helpers intentionally convert back to sorted plain
+    records/arrays at the boundary.
   - Native `switch` statements are now clean in `ts/packages`; future branch
     drift should keep service dispatch on `effect/Match` or Schema tagged-union
     helpers.
   - Client RPC/BaseApi connection-state fanout now uses
     `effect/SubscriptionRef`; remaining gateway/client P1 work is broader API
     design, not listener bookkeeping.
-  - Long-lived `Map` / `Set` state in ref-backed services can move toward
-    Effect collections later; local pure traversal maps/sets remain no-ops.
+  - Long-lived `Map` / `Set` state in remaining ref-backed services can move
+    toward Effect collections later; local pure traversal maps/sets remain
+    no-ops.
 
 ## Ranked Findings
 

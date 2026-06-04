@@ -5,7 +5,7 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
-import {Duration, Effect, Layer, ManagedRuntime, Match, SynchronizedRef} from "effect";
+import {Duration, Effect, HashMap, Layer, ManagedRuntime, Match, Option, SynchronizedRef} from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 import {
@@ -70,13 +70,14 @@ interface ConfigValueLike {
   readonly value: unknown;
 }
 
-type NamespaceStore = Map<string, unknown>;
-type WorkspaceStore = Map<string, NamespaceStore>;
+type NamespaceStore = HashMap.HashMap<string, unknown>;
+type WorkspaceStore = HashMap.HashMap<string, NamespaceStore>;
+type ConfigStore = HashMap.HashMap<string, WorkspaceStore>;
 type WorkspaceSnapshot = Record<string, Record<string, Record<string, unknown>>>;
 
 interface ConfigServiceState {
   readonly version: number;
-  readonly store: Map<string, WorkspaceStore>;
+  readonly store: ConfigStore;
   readonly consumer: BackendConsumer<ConfigRequest> | null;
   readonly responseProducer: BackendProducer<ConfigResponse> | null;
   readonly pushProducer: BackendProducer<ConfigPush> | null;
@@ -116,46 +117,46 @@ export interface ConfigService extends AsyncProcessorRuntime<ConfigServiceError>
 
 const initialState = (): ConfigServiceState => ({
   version: 0,
-  store: new Map<string, WorkspaceStore>(),
+  store: HashMap.empty<string, WorkspaceStore>(),
   consumer: null,
   responseProducer: null,
   pushProducer: null,
 });
 
-const cloneNamespaceStore = (source: NamespaceStore): NamespaceStore => {
-  const next = new Map<string, unknown>();
-  for (const [key, value] of source) {
-    next.set(key, value);
-  }
-  return next;
-};
+const getHashMapValue = <K, V>(store: HashMap.HashMap<K, V>, key: K): V | undefined =>
+  Option.getOrUndefined(HashMap.get(store, key));
 
-const cloneWorkspaceStore = (source: WorkspaceStore): WorkspaceStore => {
-  const next = new Map<string, NamespaceStore>();
-  for (const [namespace, subMap] of source) {
-    next.set(namespace, cloneNamespaceStore(subMap));
-  }
-  return next;
-};
+const compareText = (left: string, right: string): number =>
+  left.localeCompare(right);
 
-const cloneConfigStore = (source: Map<string, WorkspaceStore>): Map<string, WorkspaceStore> => {
-  const next = new Map<string, WorkspaceStore>();
-  for (const [workspace, ws] of source) {
-    next.set(workspace, cloneWorkspaceStore(ws));
-  }
-  return next;
-};
+const compareWorkspace = (left: string, right: string): number =>
+  left === right
+    ? 0
+    : left === DEFAULT_WORKSPACE
+      ? -1
+      : right === DEFAULT_WORKSPACE
+        ? 1
+        : compareText(left, right);
+
+const workspaceEntries = (store: ConfigStore): ReadonlyArray<readonly [string, WorkspaceStore]> =>
+  HashMap.toEntries(store).sort(([left], [right]) => compareWorkspace(left, right));
+
+const namespaceEntries = (store: WorkspaceStore): ReadonlyArray<readonly [string, NamespaceStore]> =>
+  HashMap.toEntries(store).sort(([left], [right]) => compareText(left, right));
+
+const valueEntries = (store: NamespaceStore): ReadonlyArray<readonly [string, unknown]> =>
+  HashMap.toEntries(store).sort(([left], [right]) => compareText(left, right));
 
 const toPersistedWorkspaces = (
-  store: Map<string, WorkspaceStore>,
+  store: ConfigStore,
 ): WorkspaceSnapshot => {
   const workspaces: WorkspaceSnapshot = {};
 
-  for (const [workspace, ws] of store) {
+  for (const [workspace, ws] of workspaceEntries(store)) {
     const workspaceData: Record<string, Record<string, unknown>> = {};
-    for (const [namespace, subMap] of ws) {
+    for (const [namespace, subMap] of namespaceEntries(ws)) {
       const obj: Record<string, unknown> = {};
-      for (const [key, value] of subMap) {
+      for (const [key, value] of valueEntries(subMap)) {
         obj[key] = value;
       }
       workspaceData[namespace] = obj;
@@ -166,34 +167,33 @@ const toPersistedWorkspaces = (
   return workspaces;
 };
 
-const storeFromPersistedConfig = (parsed: PersistedConfig): Map<string, WorkspaceStore> => {
-  const store = new Map<string, WorkspaceStore>();
+const workspaceStoreFromPersistedNamespaces = (
+  namespaces: Record<string, Record<string, unknown>>,
+): WorkspaceStore => {
+  let workspaceStore = HashMap.empty<string, NamespaceStore>();
+
+  for (const [namespace, obj] of Object.entries(namespaces)) {
+    let namespaceStore = HashMap.empty<string, unknown>();
+    for (const [key, value] of Object.entries(obj)) {
+      namespaceStore = HashMap.set(namespaceStore, key, value);
+    }
+    workspaceStore = HashMap.set(workspaceStore, namespace, namespaceStore);
+  }
+
+  return workspaceStore;
+};
+
+const storeFromPersistedConfig = (parsed: PersistedConfig): ConfigStore => {
+  let store = HashMap.empty<string, WorkspaceStore>();
 
   if (parsed.workspaces !== undefined) {
     for (const [workspace, namespaces] of Object.entries(parsed.workspaces)) {
-      const ws = new Map<string, NamespaceStore>();
-      for (const [namespace, obj] of Object.entries(namespaces)) {
-        const subMap = new Map<string, unknown>();
-        for (const [key, value] of Object.entries(obj)) {
-          subMap.set(key, value);
-        }
-        ws.set(namespace, subMap);
-      }
-      store.set(workspace, ws);
+      store = HashMap.set(store, workspace, workspaceStoreFromPersistedNamespaces(namespaces));
     }
     return store;
   }
 
-  const ws = new Map<string, NamespaceStore>();
-  for (const [namespace, obj] of Object.entries(parsed.data ?? {})) {
-    const subMap = new Map<string, unknown>();
-    for (const [key, value] of Object.entries(obj)) {
-      subMap.set(key, value);
-    }
-    ws.set(namespace, subMap);
-  }
-  store.set(DEFAULT_WORKSPACE, ws);
-  return store;
+  return HashMap.set(store, DEFAULT_WORKSPACE, workspaceStoreFromPersistedNamespaces(parsed.data ?? {}));
 };
 
 const optionalString = (value: unknown): string | undefined =>
@@ -266,38 +266,14 @@ const getWorkspaceStore = (
   state: ConfigServiceState,
   workspace: string,
 ): WorkspaceStore | undefined =>
-  state.store.get(workspace);
+  getHashMapValue(state.store, workspace);
 
 const getNamespaceStore = (
   state: ConfigServiceState,
   workspace: string,
   namespace: string,
 ): NamespaceStore | undefined =>
-  getWorkspaceStore(state, workspace)?.get(namespace);
-
-const getOrCreateWorkspaceStore = (
-  store: Map<string, WorkspaceStore>,
-  workspace: string,
-): WorkspaceStore => {
-  const existing = store.get(workspace);
-  if (existing !== undefined) return existing;
-  const created = new Map<string, NamespaceStore>();
-  store.set(workspace, created);
-  return created;
-};
-
-const getOrCreateNamespaceStore = (
-  store: Map<string, WorkspaceStore>,
-  workspace: string,
-  namespace: string,
-): NamespaceStore => {
-  const ws = getOrCreateWorkspaceStore(store, workspace);
-  const existing = ws.get(namespace);
-  if (existing !== undefined) return existing;
-  const created = new Map<string, unknown>();
-  ws.set(namespace, created);
-  return created;
-};
+  Option.flatMap(HashMap.get(state.store, workspace), HashMap.get(namespace)).pipe(Option.getOrUndefined);
 
 const configDumpForState = (
   state: ConfigServiceState,
@@ -308,9 +284,9 @@ const configDumpForState = (
 
   if (ws === undefined) return config;
 
-  for (const [namespace, subMap] of ws) {
+  for (const [namespace, subMap] of namespaceEntries(ws)) {
     const obj: Record<string, unknown> = {};
-    for (const [key, value] of subMap) {
+    for (const [key, value] of valueEntries(subMap)) {
       obj[key] = value;
     }
     config[namespace] = obj;
@@ -412,7 +388,7 @@ const handleGetWithState = (
       type: key.type,
       key: key.key ?? "",
       value: key.key !== undefined
-        ? getNamespaceStore(state, workspace, key.type)?.get(key.key)
+        ? getHashMapValue(getNamespaceStore(state, workspace, key.type) ?? HashMap.empty<string, unknown>(), key.key)
         : undefined,
     }));
     return {version: state.version, values};
@@ -429,13 +405,14 @@ const handleGetWithState = (
 
   if (subMap !== undefined) {
     if (keys.length === 1) {
-      for (const [key, value] of subMap) {
+      for (const [key, value] of valueEntries(subMap)) {
         values[key] = value;
       }
     } else {
       for (const key of keys.slice(1)) {
-        if (subMap.has(key)) {
-          values[key] = subMap.get(key);
+        const value = getHashMapValue(subMap, key);
+        if (value !== undefined || HashMap.has(subMap, key)) {
+          values[key] = value;
         }
       }
     }
@@ -448,11 +425,15 @@ const applyPut = (
   state: ConfigServiceState,
   values: ReadonlyArray<ConfigValueLike>,
 ): ConfigServiceState => {
-  const store = cloneConfigStore(state.store);
+  let store = state.store;
 
   for (const item of values) {
-    getOrCreateNamespaceStore(store, item.workspace ?? DEFAULT_WORKSPACE, item.type)
-      .set(item.key, item.value);
+    const workspace = item.workspace ?? DEFAULT_WORKSPACE;
+    const workspaceStore = getHashMapValue(store, workspace) ?? HashMap.empty<string, NamespaceStore>();
+    const namespaceStore = getHashMapValue(workspaceStore, item.type) ?? HashMap.empty<string, unknown>();
+    const nextNamespaceStore = HashMap.set(namespaceStore, item.key, item.value);
+    const nextWorkspaceStore = HashMap.set(workspaceStore, item.type, nextNamespaceStore);
+    store = HashMap.set(store, workspace, nextWorkspaceStore);
   }
 
   return {
@@ -467,21 +448,27 @@ const applyDeleteObjectKeys = (
   workspace: string,
   keys: ReadonlyArray<ConfigKeyLike>,
 ): ConfigServiceState => {
-  const store = cloneConfigStore(state.store);
-  const ws = store.get(workspace);
+  let store = state.store;
+  const ws = getHashMapValue(store, workspace);
 
   if (ws !== undefined) {
+    let nextWorkspaceStore = ws;
+
     for (const key of keys) {
       if (key.key === undefined) {
-        ws.delete(key.type);
+        nextWorkspaceStore = HashMap.remove(nextWorkspaceStore, key.type);
       } else {
-        const ns = ws.get(key.type);
-        ns?.delete(key.key);
-        if (ns !== undefined && ns.size === 0) {
-          ws.delete(key.type);
+        const ns = getHashMapValue(nextWorkspaceStore, key.type);
+        if (ns !== undefined) {
+          const nextNamespaceStore = HashMap.remove(ns, key.key);
+          nextWorkspaceStore = HashMap.size(nextNamespaceStore) === 0
+            ? HashMap.remove(nextWorkspaceStore, key.type)
+            : HashMap.set(nextWorkspaceStore, key.type, nextNamespaceStore);
         }
       }
     }
+
+    store = HashMap.set(store, workspace, nextWorkspaceStore);
   }
 
   return {
@@ -496,25 +483,30 @@ const applyDeleteStringKeys = (
   workspace: string,
   keys: ReadonlyArray<string>,
 ): ConfigServiceState => {
-  const store = cloneConfigStore(state.store);
+  let store = state.store;
   const namespace = keys[0];
-  const ws = store.get(workspace);
+  const ws = getHashMapValue(store, workspace);
 
   if (ws === undefined) return state;
 
+  let nextWorkspaceStore = ws;
+
   if (keys.length === 1) {
-    ws.delete(namespace);
+    nextWorkspaceStore = HashMap.remove(nextWorkspaceStore, namespace);
   } else {
-    const subMap = ws.get(namespace);
+    const subMap = getHashMapValue(nextWorkspaceStore, namespace);
     if (subMap !== undefined) {
+      let nextNamespaceStore = subMap;
       for (const key of keys.slice(1)) {
-        subMap.delete(key);
+        nextNamespaceStore = HashMap.remove(nextNamespaceStore, key);
       }
-      if (subMap.size === 0) {
-        ws.delete(namespace);
-      }
+      nextWorkspaceStore = HashMap.size(nextNamespaceStore) === 0
+        ? HashMap.remove(nextWorkspaceStore, namespace)
+        : HashMap.set(nextWorkspaceStore, namespace, nextNamespaceStore);
     }
   }
+
+  store = HashMap.set(store, workspace, nextWorkspaceStore);
 
   return {
     ...state,
@@ -588,14 +580,14 @@ const handleListWithState = (
   if (namespace === undefined) {
     return {
       version: state.version,
-      directory: ws !== undefined ? [...ws.keys()] : [],
+      directory: ws !== undefined ? namespaceEntries(ws).map(([key]) => key) : [],
     };
   }
 
-  const subMap = ws?.get(namespace);
+  const subMap = ws === undefined ? undefined : getHashMapValue(ws, namespace);
   return {
     version: state.version,
-    directory: subMap !== undefined ? [...subMap.keys()] : [],
+    directory: subMap !== undefined ? valueEntries(subMap).map(([key]) => key) : [],
   };
 };
 
@@ -609,9 +601,9 @@ const handleGetValuesWithState = (
   const values: Array<{type: string; key: string; value: unknown}> = [];
 
   if (ws !== undefined) {
-    for (const [namespace, subMap] of ws) {
+    for (const [namespace, subMap] of namespaceEntries(ws)) {
       if (type.length > 0 && namespace !== type) continue;
-      for (const [key, value] of subMap) {
+      for (const [key, value] of valueEntries(subMap)) {
         values.push({type: namespace, key, value});
       }
     }
@@ -627,10 +619,10 @@ const handleGetValuesAllWorkspacesWithState = (
   const type = requestType(request) ?? "";
   const values: Array<{workspace: string; type: string; key: string; value: unknown}> = [];
 
-  for (const [workspace, ws] of state.store) {
-    for (const [namespace, subMap] of ws) {
+  for (const [workspace, ws] of workspaceEntries(state.store)) {
+    for (const [namespace, subMap] of namespaceEntries(ws)) {
       if (type.length > 0 && namespace !== type) continue;
-      for (const [key, value] of subMap) {
+      for (const [key, value] of valueEntries(subMap)) {
         values.push({workspace, type: namespace, key, value});
       }
     }
@@ -840,7 +832,7 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
         store: storeFromPersistedConfig(parsed),
       }));
 
-      yield* Effect.log(`[ConfigService] Loaded persisted config (version=${next.version}, workspaces=${next.store.size})`);
+      yield* Effect.log(`[ConfigService] Loaded persisted config (version=${next.version}, workspaces=${HashMap.size(next.store)})`);
     });
 
   service = Object.assign(base, {
