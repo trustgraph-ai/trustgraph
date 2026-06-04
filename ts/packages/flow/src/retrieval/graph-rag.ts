@@ -149,13 +149,12 @@ export function makeGraphRag(
   };
 }
 
-function queryGraphRag(
+const queryGraphRag = Effect.fn("GraphRagEngine.queryGraphRag")(function* (
   clients: GraphRagClients,
   queryText: string,
   options?: GraphRagQueryOptions,
   rawConfig?: GraphRagConfig,
-): Effect.Effect<GraphRagResult, GraphRagEngineError> {
-  return Effect.gen(function* () {
+) {
     const config = normalizeGraphRagConfig(rawConfig);
     yield* Effect.log(`[GraphRag] Query: "${queryText.slice(0, 80)}..."`);
 
@@ -185,10 +184,11 @@ function queryGraphRag(
 
     return { answer, subgraph: scoredEdges };
   });
-}
 
-function extractConcepts(clients: GraphRagClients, query: string): Effect.Effect<string[], GraphRagEngineError> {
-  return Effect.gen(function* () {
+const extractConcepts = Effect.fn("GraphRagEngine.extractConcepts")(function* (
+  clients: GraphRagClients,
+  query: string,
+) {
     const promptResp = yield* requestClient(
       clients.prompt,
       "extract-concepts-prompt",
@@ -212,22 +212,21 @@ function extractConcepts(clients: GraphRagClients, query: string): Effect.Effect
       .map((concept) => concept.trim())
       .filter((concept) => concept.length > 0);
   });
-}
 
-function getVectors(clients: GraphRagClients, concepts: string[]): Effect.Effect<number[][], GraphRagEngineError> {
-  return Effect.gen(function* () {
+const getVectors = Effect.fn("GraphRagEngine.getVectors")(function* (
+  clients: GraphRagClients,
+  concepts: string[],
+) {
     const resp = yield* requestClient(clients.embeddings, "get-vectors", { text: concepts });
     return resp.vectors;
   });
-}
 
-function getEntities(
+const getEntities = Effect.fn("GraphRagEngine.getEntities")(function* (
   clients: GraphRagClients,
   config: NormalizedGraphRagConfig,
   vectors: number[][],
   collection?: string,
-): Effect.Effect<Term[], GraphRagEngineError> {
-  return Effect.gen(function* () {
+) {
     const resp = yield* requestClient(
       clients.graphEmbeddings,
       "get-entities",
@@ -240,15 +239,13 @@ function getEntities(
     );
     return resp.entities;
   });
-}
 
-function followEdges(
+const followEdges = Effect.fn("GraphRagEngine.followEdges")(function* (
   clients: GraphRagClients,
   config: NormalizedGraphRagConfig,
   entities: Term[],
   collection?: string,
-): Effect.Effect<Triple[], GraphRagEngineError> {
-  return Effect.gen(function* () {
+) {
     const visited = new Set<string>();
     const subgraph: Triple[] = [];
     let currentLevel = new Set<string>(
@@ -301,15 +298,13 @@ function followEdges(
 
     return subgraph.slice(0, config.maxSubgraphSize);
   });
-}
 
-function scoreEdges(
+const scoreEdges = Effect.fn("GraphRagEngine.scoreEdges")(function* (
   clients: GraphRagClients,
   config: NormalizedGraphRagConfig,
   query: string,
   triples: Triple[],
-): Effect.Effect<Triple[], GraphRagEngineError> {
-  return Effect.gen(function* () {
+) {
     if (triples.length === 0) return [];
 
     if (triples.length <= 500) {
@@ -372,15 +367,13 @@ function scoreEdges(
 
     return result;
   });
-}
 
-function synthesize(
+const synthesize = Effect.fn("GraphRagEngine.synthesize")(function* (
   clients: GraphRagClients,
   query: string,
   edges: Triple[],
   chunkCallback?: ChunkCallback,
-): Effect.Effect<string, GraphRagEngineError> {
-  return Effect.gen(function* () {
+) {
     const context = edges
       .map((triple) => `${termToString(triple.s)} -> ${termToString(triple.p)} -> ${termToString(triple.o)}`)
       .join("\n");
@@ -431,7 +424,6 @@ function synthesize(
 
     return resp.response;
   });
-}
 
 const ScoredEdge = S.Struct({
   id: S.String,

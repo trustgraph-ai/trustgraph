@@ -93,12 +93,11 @@ export function makeDocumentRag(clients: DocumentRagClients): DocumentRag {
   };
 }
 
-function queryDocumentRag(
+const queryDocumentRag = Effect.fn("DocumentRagEngine.queryDocumentRag")(function* (
   clients: DocumentRagClients,
   queryText: string,
   options?: DocumentRagQueryOptions,
-): Effect.Effect<string, DocumentRagEngineError> {
-  return Effect.gen(function* () {
+) {
     const collection = options?.collection ?? "default";
 
     const embResp = yield* clients.embeddings.request({ text: [queryText] }).pipe(
@@ -139,4 +138,3 @@ function queryDocumentRag(
 
     return resp.response;
   });
-}

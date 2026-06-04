@@ -2122,6 +2122,27 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Retrieval RAG Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/retrieval/document-rag.ts` now defines its reusable
+    document RAG query program with `Effect.fn` instead of a function returning
+    `Effect.gen`.
+  - `ts/packages/flow/src/retrieval/graph-rag.ts` now defines the graph RAG
+    query, concept extraction, vector lookup, entity lookup, edge traversal,
+    edge scoring, and synthesis helpers with named `Effect.fn` providers.
+  - Public Promise facades and requestor compatibility surfaces are unchanged.
+  - The focused scan for retrieval `return Effect.gen(...)` helper patterns is
+    clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/retrieval-rag.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2281,8 +2302,8 @@ Notes:
     slices found no production normal `Error`, raw `try`/`catch`, native
     `switch`, or Effect-focused type assertions under `ts/packages`.
   - Remaining real helper-normalization targets from the fresh sweep are
-    retrieval/document-rag, retrieval/graph-rag, embeddings/ollama, base
-    processor flow helpers, and one workbench atom helper.
+    embeddings/ollama, base processor flow helpers, and one workbench atom
+    helper.
   - Remaining real long-lived native collection targets include base processor
     registries, Librarian service / collection manager state, prompt template
     cache, and a workbench module cache. Local traversal sets and test fakes
