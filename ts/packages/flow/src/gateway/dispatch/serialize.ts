@@ -29,7 +29,7 @@ import {
   type Term,
   type Triple,
 } from "@trustgraph/base";
-import { Effect, Match } from "effect";
+import { Effect, HashSet, Match } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -251,23 +251,23 @@ function deepInternalToClient(value: unknown): unknown {
  * Services whose requests contain Term/Triple fields that need translation.
  * All other services pass through without term translation.
  */
-const TERM_BEARING_REQUEST_SERVICES = new Set([
+const TERM_BEARING_REQUEST_SERVICES = HashSet.make(
   "triples",
   "knowledge",
   "librarian",
-]);
+);
 
 /**
  * Services whose responses contain Term/Triple fields that need translation.
  */
-const TERM_BEARING_RESPONSE_SERVICES = new Set([
+const TERM_BEARING_RESPONSE_SERVICES = HashSet.make(
   "triples",
   "graph-embeddings",
   "knowledge",
   "librarian",
   "graph-rag",
   "agent",
-]);
+);
 
 // ---------- Top-level request / response translators ----------
 
@@ -280,7 +280,7 @@ const TERM_BEARING_RESPONSE_SERVICES = new Set([
  * scalar fields (query strings, limits, etc.).
  */
 export function translateRequest(service: string, body: unknown): unknown {
-  if (TERM_BEARING_REQUEST_SERVICES.has(service)) {
+  if (HashSet.has(TERM_BEARING_REQUEST_SERVICES, service)) {
     return deepClientToInternal(body);
   }
   return body;
@@ -309,7 +309,7 @@ export const translateRequestEffect = (
  * All other services pass through unchanged.
  */
 export function translateResponse(service: string, response: unknown): unknown {
-  if (TERM_BEARING_RESPONSE_SERVICES.has(service)) {
+  if (HashSet.has(TERM_BEARING_RESPONSE_SERVICES, service)) {
     return deepInternalToClient(response);
   }
   return response;

@@ -420,6 +420,19 @@ Notes:
   - `bun run --cwd ts/packages/client test -- src/__tests__/rpc-timeout.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: Gateway Term Service HashSet Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/dispatch/serialize.ts` now uses
+    `effect/HashSet` for static term-bearing request/response service
+    membership instead of native `Set`.
+  - Request and response translators preserve the same deep client/internal
+    term conversion behavior via `HashSet.has` membership checks.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/gateway-dispatcher.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.
@@ -1862,7 +1875,8 @@ Notes:
   - Qdrant graph/doc known-collection caches now use
     `MutableHashSet<string>`. Short-lived local traversal sets remain no-ops.
   - Gateway dispatcher static service registries, streaming membership, and
-    scoped requestor cache now use Effect `HashMap`/`HashSet`.
+    scoped requestor cache now use Effect `HashMap`/`HashSet`; gateway
+    term-bearing service membership sets now use Effect `HashSet` too.
   - FlowManager `() => Effect.gen(...)` factories are normalized to
     `Effect.fn` / `Effect.fnUntraced`. Sibling service factories still need a
     focused scan before treating them as valid migration targets.
