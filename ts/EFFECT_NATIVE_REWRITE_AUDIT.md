@@ -2005,6 +2005,29 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Librarian Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/librarian/service.ts` now defines its reusable
+    librarian generator helpers with `Effect.fn` or `Effect.fnUntraced`
+    instead of arrow functions returning `Effect.gen`.
+  - `consumeOnceEffect` and both per-message response senders use
+    `Effect.fnUntraced` for small hot-path callbacks.
+  - `runLibrarianServiceEffect`, `getDocumentMetadataEffect`,
+    `listChildrenEffect`, `uploadChunkEffect`, `getUploadStatusEffect`, and
+    `abortUploadEffect` use named `Effect.fn` wrappers while preserving their
+    tagged-error behavior and Promise compatibility method surfaces.
+  - The focused scan for librarian-service helper `=> Effect.gen` patterns is
+    clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/librarian-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:

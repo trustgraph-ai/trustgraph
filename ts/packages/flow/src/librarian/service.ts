@@ -254,10 +254,9 @@ const modifyResult = <Value>(
 const uploadBytesReceived = (session: UploadSession): number =>
   [...session.chunks.values()].reduce((sum, chunk) => sum + chunk.length, 0);
 
-const consumeOnceEffect = (
+const consumeOnceEffect = Effect.fnUntraced(function* (
   service: LibrarianService,
-): Effect.Effect<void, LibrarianServiceError> =>
-  Effect.gen(function* () {
+) {
     const state = yield* SynchronizedRef.get(service.state);
     const libConsumer = state.libConsumer;
     if (libConsumer === null) {
@@ -299,10 +298,9 @@ const consumeOnceEffect = (
     }
   });
 
-const runLibrarianServiceEffect = (
+const runLibrarianServiceEffect = Effect.fn("LibrarianService.run")(function* (
   service: LibrarianService,
-): Effect.Effect<void, LibrarianServiceError> =>
-  Effect.gen(function* () {
+) {
     yield* Effect.tryPromise({
       try: () => ensureDirectory(joinPath(service.dataDir, "docs")),
       catch: (cause) => librarianServiceError("ensure-data-dir", cause),
@@ -379,8 +377,9 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
   const dataDir = resolveDataDir(config);
   const persistPath = joinPath(dataDir, "librarian-state.json");
 
-  const getDocumentMetadataEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
-    Effect.gen(function* () {
+  const getDocumentMetadataEffect = Effect.fn("LibrarianService.getDocumentMetadata")(function* (
+    request: LibrarianRequest,
+  ) {
       const current = yield* getService;
       const id = current.documentId(request);
       if (id === undefined || id.length === 0) {
@@ -395,8 +394,9 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       return current.documentResponse(doc);
     });
 
-  const listChildrenEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
-    Effect.gen(function* () {
+  const listChildrenEffect = Effect.fn("LibrarianService.listChildren")(function* (
+    request: LibrarianRequest,
+  ) {
       const current = yield* getService;
       const parentId = current.documentId(request);
       if (parentId === undefined || parentId.length === 0) {
@@ -414,8 +414,9 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       return current.documentsResponse(children);
     });
 
-  const uploadChunkEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
-    Effect.gen(function* () {
+  const uploadChunkEffect = Effect.fn("LibrarianService.uploadChunk")(function* (
+    request: LibrarianRequest,
+  ) {
       const current = yield* getService;
       const req = current.requestRecord(request);
       const uploadId = optionalString(req["upload-id"]);
@@ -456,8 +457,9 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       });
     });
 
-  const getUploadStatusEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
-    Effect.gen(function* () {
+  const getUploadStatusEffect = Effect.fn("LibrarianService.getUploadStatus")(function* (
+    request: LibrarianRequest,
+  ) {
       const current = yield* getService;
       const uploadId = optionalString(current.requestRecord(request)["upload-id"]);
       if (uploadId === undefined) {
@@ -482,8 +484,9 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       };
     });
 
-  const abortUploadEffect = (request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> =>
-    Effect.gen(function* () {
+  const abortUploadEffect = Effect.fn("LibrarianService.abortUpload")(function* (
+    request: LibrarianRequest,
+  ) {
       const current = yield* getService;
       const uploadId = optionalString(current.requestRecord(request)["upload-id"]);
       if (uploadId === undefined) {
@@ -672,8 +675,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
               return;
             }
 
-            const sendResponse = (response: LibrarianResponse): Effect.Effect<void, LibrarianServiceError> =>
-              Effect.gen(function* () {
+            const sendResponse = Effect.fnUntraced(function* (response: LibrarianResponse) {
                 const producer = (yield* SynchronizedRef.get(service.state)).libProducer;
                 if (producer === null) {
                   return yield* librarianServiceError("librarian-respond", "Librarian producer not started");
@@ -1378,8 +1380,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
               return;
             }
 
-            const sendResponse = (response: CollectionManagementResponse): Effect.Effect<void, LibrarianServiceError> =>
-              Effect.gen(function* () {
+            const sendResponse = Effect.fnUntraced(function* (response: CollectionManagementResponse) {
                 const producer = (yield* SynchronizedRef.get(service.state)).colProducer;
                 if (producer === null) {
                   return yield* librarianServiceError("collection-respond", "Collection producer not started");
