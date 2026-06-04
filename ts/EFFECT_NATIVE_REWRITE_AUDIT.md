@@ -481,6 +481,24 @@ Notes:
   - `bun run --cwd ts/packages/flow test`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-04: Agent Service Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/agent/react/service.ts` no longer uses native
+    `switch` for configured tool construction, live tool wiring, or ReAct
+    continuation parsing.
+  - Configured tool construction now uses `Effect.fn` plus `effect/Match` and
+    preserves unknown-tool logging/fallback behavior.
+  - The ReAct parser is exported for focused tests and uses an exhaustive
+    `Match` over continuation sections.
+  - Agent service tests cover configured-tool loading, unknown configured-tool
+    fallback, default descriptions, MCP tool args, continuation parsing, and
+    final-answer parsing.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/agent-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.

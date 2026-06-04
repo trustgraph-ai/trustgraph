@@ -46,7 +46,7 @@ import {
   type MessagingDeliveryError,
   type Spec,
 } from "@trustgraph/base";
-import {Context, Effect, Layer, ManagedRuntime, Ref} from "effect";
+import {Context, Effect, Layer, ManagedRuntime, Match, Ref} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
@@ -133,83 +133,87 @@ export class AgentRuntime extends Context.Service<AgentRuntime, AgentRuntimeServ
   "@trustgraph/flow/agent/react/service/AgentRuntime",
 ) {}
 
-const buildConfiguredTool = (
+const buildConfiguredTool = Effect.fn("AgentService.buildConfiguredTool")(function* (
   toolId: string,
   data: ToolConfigEntry,
-): Effect.Effect<AgentTool | null> =>
-  Effect.gen(function* () {
-    const implType = data.type ?? "";
-    const name = data.name ?? "";
-    const description = data.description ?? "";
-    const config: Record<string, unknown> = { ...data };
+) {
+  const implType = data.type ?? "";
+  const name = data.name ?? "";
+  const description = data.description ?? "";
+  const config: Record<string, unknown> = { ...data };
 
-    if (name.length === 0) {
-      yield* Effect.logWarning(`[AgentService] Skipping tool with no name: ${toolId}`);
-      return null;
-    }
+  if (name.length === 0) {
+    yield* Effect.logWarning(`[AgentService] Skipping tool with no name: ${toolId}`);
+    return null;
+  }
 
-    switch (implType) {
-      case "knowledge-query":
-        return {
-          name,
-          description:
-            description.length > 0
-              ? description
-              : "Query the knowledge graph for information about entities and their relationships.",
-          args: [{ name: "question", type: "string", description: "The question to ask" }],
-          config,
-          execute: () => Promise.resolve(""),
-        };
+  return yield* Match.value(implType).pipe(
+    Match.when("knowledge-query", () =>
+      Effect.succeed({
+        name,
+        description:
+          description.length > 0
+            ? description
+            : "Query the knowledge graph for information about entities and their relationships.",
+        args: [{ name: "question", type: "string", description: "The question to ask" }],
+        config,
+        execute: () => Promise.resolve(""),
+      })
+    ),
 
-      case "document-query":
-        return {
-          name,
-          description:
-            description.length > 0
-              ? description
-              : "Search documents for relevant information.",
-          args: [{ name: "question", type: "string", description: "The question to search for" }],
-          config,
-          execute: () => Promise.resolve(""),
-        };
+    Match.when("document-query", () =>
+      Effect.succeed({
+        name,
+        description:
+          description.length > 0
+            ? description
+            : "Search documents for relevant information.",
+        args: [{ name: "question", type: "string", description: "The question to search for" }],
+        config,
+        execute: () => Promise.resolve(""),
+      })
+    ),
 
-      case "triples-query":
-        return {
-          name,
-          description:
-            description.length > 0
-              ? description
-              : "Query for specific triples in the knowledge graph.",
-          args: [
-            { name: "subject", type: "string", description: "Subject entity (optional)" },
-            { name: "predicate", type: "string", description: "Predicate/relationship (optional)" },
-            { name: "object", type: "string", description: "Object entity (optional)" },
-          ],
-          config,
-          execute: () => Promise.resolve(""),
-        };
+    Match.when("triples-query", () =>
+      Effect.succeed({
+        name,
+        description:
+          description.length > 0
+            ? description
+            : "Query for specific triples in the knowledge graph.",
+        args: [
+          { name: "subject", type: "string", description: "Subject entity (optional)" },
+          { name: "predicate", type: "string", description: "Predicate/relationship (optional)" },
+          { name: "object", type: "string", description: "Object entity (optional)" },
+        ],
+        config,
+        execute: () => Promise.resolve(""),
+      })
+    ),
 
-      case "mcp-tool": {
-        const args: ToolArg[] = (data.arguments ?? []).map((arg) => ({
-          name: arg.name ?? "",
-          type: arg.type ?? "string",
-          description: arg.description ?? "",
-        }));
+    Match.when("mcp-tool", () => {
+      const args: ToolArg[] = (data.arguments ?? []).map((arg) => ({
+        name: arg.name ?? "",
+        type: arg.type ?? "string",
+        description: arg.description ?? "",
+      }));
 
-        return {
-          name,
-          description,
-          args,
-          config,
-          execute: () => Promise.resolve(""),
-        };
-      }
+      return Effect.succeed({
+        name,
+        description,
+        args,
+        config,
+        execute: () => Promise.resolve(""),
+      });
+    }),
 
-      default:
-        yield* Effect.logWarning(`[AgentService] Unknown tool type "${implType}" for ${name}`);
-        return null;
-    }
-  });
+    Match.orElse(() =>
+      Effect.logWarning(`[AgentService] Unknown tool type "${implType}" for ${name}`).pipe(
+        Effect.as(null),
+      )
+    ),
+  );
+});
 
 const loadConfiguredTools = Effect.fn("AgentRuntime.loadConfiguredTools")(function* (
   config: Record<string, unknown>,
@@ -284,30 +288,30 @@ const wireTools = Effect.fn("AgentService.wireTools")(function* (
     const rawImplType = tool.config?.type;
     const implType = Predicate.isString(rawImplType) ? rawImplType : undefined;
 
-    switch (implType) {
-      case "knowledge-query": {
+    return Match.value(implType).pipe(
+      Match.when("knowledge-query", () => {
         const live = createKnowledgeQueryTool(
           graphRag,
           collection,
           onExplain,
         );
         return { ...tool, execute: live.execute };
-      }
-      case "document-query": {
+      }),
+      Match.when("document-query", () => {
         const live = createDocumentQueryTool(
           docRag,
           collection,
         );
         return { ...tool, execute: live.execute };
-      }
-      case "triples-query": {
+      }),
+      Match.when("triples-query", () => {
         const live = createTriplesQueryTool(
           triples,
           collection,
         );
         return { ...tool, execute: live.execute };
-      }
-      case "mcp-tool": {
+      }),
+      Match.when("mcp-tool", () => {
         const live = createMcpTool(
           mcpTool,
           tool.name,
@@ -315,10 +319,9 @@ const wireTools = Effect.fn("AgentService.wireTools")(function* (
           tool.args,
         );
         return { ...tool, execute: live.execute };
-      }
-      default:
-        return tool;
-    }
+      }),
+      Match.orElse(() => tool),
+    );
   });
 });
 
@@ -534,7 +537,7 @@ export const AgentService = makeAgentService;
  * For the MVP this avoids the complexity of the streaming parser --
  * we parse the complete response at once.
  */
-function parseReActResponse(text: string): {
+export function parseReActResponse(text: string): {
   thought: string;
   action: string;
   actionInput: string;
@@ -582,18 +585,19 @@ function parseReActResponse(text: string): {
       currentSection = null;
     } else if (trimmed.length > 0 && currentSection !== null) {
       // Continuation line for current section
-      switch (currentSection) {
-        case "thought":
+      Match.value(currentSection).pipe(
+        Match.when("thought", () => {
           thought += "\n" + trimmed;
-          break;
-        case "action":
+        }),
+        Match.when("action", () => {
           // Action should be a single line (tool name), but handle multi-line
           action += " " + trimmed;
-          break;
-        case "action_input":
+        }),
+        Match.when("action_input", () => {
           actionInput += "\n" + trimmed;
-          break;
-      }
+        }),
+        Match.exhaustive,
+      );
     }
   }
 
