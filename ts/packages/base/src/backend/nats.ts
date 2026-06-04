@@ -24,6 +24,7 @@ import {
   DeliverPolicy,
 } from "nats";
 import { Effect } from "effect";
+import * as MutableHashSet from "effect/MutableHashSet";
 import * as P from "effect/Predicate";
 import * as S from "effect/Schema";
 
@@ -288,7 +289,7 @@ export function makeNatsBackend(url = "nats://localhost:4222"): PubSubBackend {
   let connection: NatsConnection | null = null;
   let js: JetStreamClient | null = null;
   let jsm: JetStreamManager | null = null;
-  const initializedStreams = new Set<string>();
+  const initializedStreams = MutableHashSet.empty<string>();
 
   const ensureConnected = Effect.fn("NatsBackend.ensureConnected")(function* () {
     if (connection === null) {
@@ -313,7 +314,7 @@ export function makeNatsBackend(url = "nats://localhost:4222"): PubSubBackend {
     const parts = subject.split(".");
     const streamName = parts.slice(0, 2).join("_");
 
-    if (initializedStreams.has(streamName)) return streamName;
+    if (MutableHashSet.has(initializedStreams, streamName)) return streamName;
 
     const wildcardSubject = `${parts.slice(0, 2).join(".")}.>`;
 
@@ -338,7 +339,7 @@ export function makeNatsBackend(url = "nats://localhost:4222"): PubSubBackend {
         (error) => Effect.fail(pubSubError(error.operation, error.cause)),
       ),
     );
-    initializedStreams.add(streamName);
+    MutableHashSet.add(initializedStreams, streamName);
     return streamName;
   });
 

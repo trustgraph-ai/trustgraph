@@ -128,6 +128,19 @@ describe("NATS backend", () => {
     });
   });
 
+  it("caches initialized streams through the Effect mutable set", async () => {
+    const backend = makeNatsBackend("nats://test");
+
+    await backend.createProducer<string>({ topic: "tg.test.topic" });
+    await backend.createConsumer<string>({
+      topic: "tg.test.other",
+      subscription: "worker",
+    });
+
+    expect(natsMock.streamsInfo).toHaveBeenCalledTimes(1);
+    expect(natsMock.streamsInfo).toHaveBeenCalledWith("tg_test");
+  });
+
   it("does not create streams for non-missing lookup failures", async () => {
     natsMock.streamsInfo.mockRejectedValueOnce(makeNatsError("PERMISSIONS_VIOLATION"));
     const backend = makeNatsBackend("nats://test");

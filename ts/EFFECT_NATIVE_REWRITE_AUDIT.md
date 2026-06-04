@@ -1963,6 +1963,26 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: NATS MutableHashSet Stream Cache Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/base/src/backend/nats.ts` now tracks initialized stream names
+    in `MutableHashSet<string>` instead of a native `Set`.
+  - `ensureStream` uses `MutableHashSet.has` and `MutableHashSet.add` while
+    preserving the NATS broker adapter boundary and the selective 404
+    create-on-missing behavior.
+  - `ts/packages/base/src/__tests__/nats-backend.test.ts` now proves repeated
+    producer/consumer creation for subjects in the same stream only performs
+    one stream lookup.
+- Verification:
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/nats-backend.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2007,6 +2027,9 @@ Notes:
   - NATS header construction, ack/nak operations, and lookup create-on-missing
     behavior now stay typed. `PubSubBackend` remains an intentional broker
     adapter contract rather than a direct `effect/PubSub` replacement target.
+  - NATS initialized stream cache now uses Effect `MutableHashSet`; keep the
+    rest of the NATS SDK connection/JetStream manager state as an external
+    broker adapter boundary unless moving the whole backend lifecycle.
   - Consumer rate-limit retry timeout behavior is now wired in both legacy and
     Effect-native consumer paths. Effect-native consumer concurrency now owns
     one backend consumer per worker, and request-response pending shutdown now
