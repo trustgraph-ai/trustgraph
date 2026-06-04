@@ -2049,6 +2049,30 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: FlowManager HashMap State Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/flow-manager/service.ts` now stores long-lived
+    flow and blueprint state in immutable `HashMap` snapshots inside the
+    existing `SynchronizedRef`.
+  - Refresh, start, stop, delete, list, get, and config-push paths now use
+    `HashMap.get`, `HashMap.has`, `HashMap.set`, `HashMap.remove`, and
+    `HashMap.size` instead of cloned native `Map` state.
+  - List responses and config-push iteration convert `HashMap` state through
+    sorted entries only at the API/config boundary for deterministic output.
+  - `ts/packages/flow/src/__tests__/flow-manager-service.test.ts` now reads
+    service state through `HashMap.get` plus `Option` and keeps the test fake
+    pubsub `Map` as a compatibility fixture.
+  - The focused scan for native flow-manager map state is clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/flow-manager-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2073,10 +2097,13 @@ Notes:
     core state are complete: `kgCores` and `deCores` now use `HashMap` inside
     `SynchronizedRef`, and plain records remain only at persistence/API
     boundaries.
-  - FlowManager and Librarian ref-backed state slices are still valid larger
-    collection targets. Follow-up service work should focus on scoped layers,
-    schedules where polling semantics allow, and managed persistence providers
-    rather than direct mutable service fields.
+  - FlowManager operation dispatch, helper functions, and ref-backed flow /
+    blueprint state are complete: `flows` and `blueprints` now use `HashMap`
+    inside `SynchronizedRef`, and plain records remain only at config/API
+    boundaries. Librarian ref-backed state remains a larger collection target.
+    Follow-up service work should focus on scoped layers, schedules where
+    polling semantics allow, and managed persistence providers rather than
+    direct mutable service fields.
   - Flow service startup facades now consistently use `ManagedRuntime`, and
     local scripts should delegate to `runMain()` instead of adding local
     `.catch(console.error/process.exit)` wrappers.
@@ -2181,9 +2208,9 @@ Notes:
   - Gateway dispatcher static service registries, streaming membership, and
     scoped requestor cache now use Effect `HashMap`/`HashSet`; gateway
     term-bearing service membership sets now use Effect `HashSet` too.
-  - FlowManager, KnowledgeCore, and ConfigService `() => Effect.gen(...)`
-    factories are normalized to `Effect.fn` / `Effect.fnUntraced`. Librarian
-    helper factories still need a focused follow-up slice.
+  - FlowManager, KnowledgeCore, ConfigService, and Librarian `() =>
+    Effect.gen(...)` factories are normalized to `Effect.fn` /
+    `Effect.fnUntraced`.
   - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
     with `Match.exhaustive`; FlowManager and Librarian operation dispatch now
     use `effect/Match` with runtime-preserving `Match.orElse` fallbacks.
@@ -2199,6 +2226,16 @@ Notes:
   - Long-lived `Map` / `Set` state in remaining ref-backed services can move
     toward Effect collections later; local pure traversal maps/sets remain
     no-ops.
+  - Fresh strict signal sweep after the 2026-06-04 helper and collection
+    slices found no production normal `Error`, raw `try`/`catch`, native
+    `switch`, or Effect-focused type assertions under `ts/packages`.
+  - Remaining real helper-normalization targets from the fresh sweep are
+    retrieval/document-rag, retrieval/graph-rag, embeddings/ollama, base
+    processor flow helpers, and one workbench atom helper.
+  - Remaining real long-lived native collection targets include
+    `gateway/rpc-protocol.ts`, base processor registries, Librarian service /
+    collection manager state, prompt template cache, and a workbench module
+    cache. Local traversal sets and test fakes remain no-op boundaries.
 
 ## Ranked Findings
 

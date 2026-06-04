@@ -1,4 +1,4 @@
-import {Effect, SynchronizedRef} from "effect";
+import {Effect, HashMap, Option, SynchronizedRef} from "effect";
 import {describe, expect, it} from "vitest";
 import {
   topics,
@@ -203,7 +203,7 @@ describe("FlowManagerService operations", () => {
       parameters: {limit: 3},
     });
     let state = await Effect.runPromise(SynchronizedRef.get(service.state));
-    expect(state.flows.get("flow-a")).toMatchObject({
+    expect(Option.getOrUndefined(HashMap.get(state.flows, "flow-a"))).toMatchObject({
       id: "flow-a",
       blueprintName: "default",
       description: "alpha",
@@ -217,7 +217,7 @@ describe("FlowManagerService operations", () => {
     });
     state = await Effect.runPromise(SynchronizedRef.get(service.state));
 
-    expect(state.flows.has("flow-a")).toBe(false);
+    expect(HashMap.has(state.flows, "flow-a")).toBe(false);
     expect(configClient.requests.map((request) => ({
       operation: request.operation,
       keys: request.keys,
@@ -248,13 +248,13 @@ describe("FlowManagerService operations", () => {
     await service.refreshBlueprintsFromConfig();
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
 
-    expect(state.blueprints.get("custom")).toMatchObject({
+    expect(Option.getOrUndefined(HashMap.get(state.blueprints, "custom"))).toMatchObject({
       description: "Custom",
       topics: {input: "topic.in"},
       extra: true,
     });
-    expect(state.blueprints.has("broken")).toBe(false);
-    expect(state.blueprints.has("default")).toBe(true);
+    expect(HashMap.has(state.blueprints, "broken")).toBe(false);
+    expect(HashMap.has(state.blueprints, "default")).toBe(true);
   });
 
   it("serializes duplicate starts through the ref-backed map", async () => {
@@ -268,7 +268,7 @@ describe("FlowManagerService operations", () => {
     ]);
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
 
-    expect(state.flows.get("flow-a")).toMatchObject({id: "flow-a"});
+    expect(Option.getOrUndefined(HashMap.get(state.flows, "flow-a"))).toMatchObject({id: "flow-a"});
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
   });
