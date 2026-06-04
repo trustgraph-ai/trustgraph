@@ -2099,6 +2099,29 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Gateway RPC Protocol Mutable Collections Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/gateway/rpc-protocol.ts` now tracks active socket
+    clients with `MutableHashMap` and `MutableHashSet` instead of native
+    `Map` / `Set` closure state.
+  - The protocol still returns a native `ReadonlySet<number>` snapshot at the
+    `RpcServer.Protocol.clientIds` API boundary because that is the Effect RPC
+    protocol contract.
+  - `ts/packages/flow/src/__tests__/gateway-rpc-protocol.test.ts` now covers
+    server response sends through the registered client and the public
+    `clientIds` snapshot.
+  - The focused scan for native map/set state in `gateway/rpc-protocol.ts` is
+    clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/gateway-rpc-protocol.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2260,10 +2283,10 @@ Notes:
   - Remaining real helper-normalization targets from the fresh sweep are
     retrieval/document-rag, retrieval/graph-rag, embeddings/ollama, base
     processor flow helpers, and one workbench atom helper.
-  - Remaining real long-lived native collection targets include
-    `gateway/rpc-protocol.ts`, base processor registries, Librarian service /
-    collection manager state, prompt template cache, and a workbench module
-    cache. Local traversal sets and test fakes remain no-op boundaries.
+  - Remaining real long-lived native collection targets include base processor
+    registries, Librarian service / collection manager state, prompt template
+    cache, and a workbench module cache. Local traversal sets and test fakes
+    remain no-op boundaries.
 
 ## Ranked Findings
 

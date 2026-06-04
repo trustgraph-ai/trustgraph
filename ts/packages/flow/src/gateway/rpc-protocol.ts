@@ -1,4 +1,7 @@
 import { Effect, Queue, Scope } from "effect";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as MutableHashSet from "effect/MutableHashSet";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import * as RpcMessage from "effect/unstable/rpc/RpcMessage";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
@@ -41,10 +44,10 @@ export const makeSocketRpcProtocol = Effect.gen(function* () {
   const disconnects = yield* Queue.make<number>();
 
   let nextClientId = 0;
-  const clients = new Map<number, {
+  const clients = MutableHashMap.empty<number, {
     readonly write: (response: RpcMessage.FromServerEncoded) => Effect.Effect<void>;
   }>();
-  const clientIds = new Set<number>();
+  const clientIds = MutableHashSet.empty<number>();
 
   let writeRequest!: (
     clientId: number,
@@ -60,8 +63,8 @@ export const makeSocketRpcProtocol = Effect.gen(function* () {
     const clientId = nextClientId++;
 
     yield* Scope.addFinalizerExit(scope, () => {
-      clients.delete(clientId);
-      clientIds.delete(clientId);
+      MutableHashMap.remove(clients, clientId);
+      MutableHashSet.remove(clientIds, clientId);
       return Queue.offer(disconnects, clientId);
     });
 
@@ -80,8 +83,8 @@ export const makeSocketRpcProtocol = Effect.gen(function* () {
         ),
       );
 
-    clients.set(clientId, { write });
-    clientIds.add(clientId);
+    MutableHashMap.set(clients, clientId, { write });
+    MutableHashSet.add(clientIds, clientId);
 
     yield* socket.runRaw((data) =>
       Effect.try({
@@ -126,13 +129,13 @@ export const makeSocketRpcProtocol = Effect.gen(function* () {
     writeRequest = writeRequest_;
     return Effect.succeed({
       disconnects,
-      send: (clientId, response) => {
-        const client = clients.get(clientId);
-        if (client === undefined) return Effect.void;
-        return Effect.orDie(client.write(response));
-      },
+      send: (clientId, response) =>
+        O.match(MutableHashMap.get(clients, clientId), {
+          onNone: () => Effect.void,
+          onSome: (client) => Effect.orDie(client.write(response)),
+        }),
       end: () => Effect.void,
-      clientIds: Effect.sync(() => clientIds),
+      clientIds: Effect.sync(() => new Set(clientIds)),
       initialMessage: Effect.succeedNone,
       supportsAck: true,
       supportsTransferables: false,
