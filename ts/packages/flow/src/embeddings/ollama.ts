@@ -79,52 +79,50 @@ const makeOllamaEmbeddingsFromConfig = ({
   ollamaHost,
   fetchImpl,
 }: ResolvedOllamaEmbeddingsConfig): EmbeddingsServiceShape => ({
-    embed: Effect.fn("OllamaEmbeddings.embed")((texts: ReadonlyArray<string>, model?: string) => {
+    embed: Effect.fn("OllamaEmbeddings.embed")(function* (texts: ReadonlyArray<string>, model?: string) {
       if (texts.length === 0) {
-        return Effect.succeed([]);
+        return [];
       }
 
       const useModel = model ?? defaultModel;
       const url = `${ollamaHost}/api/embed`;
 
-      return Effect.gen(function* () {
-        const body = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)({
-          model: useModel,
-          input: Array.from(texts),
-        }).pipe(
-          Effect.mapError((error) => ollamaEmbeddingsError("ollama.encode-request", error))
-        );
+      const body = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)({
+        model: useModel,
+        input: Array.from(texts),
+      }).pipe(
+        Effect.mapError((error) => ollamaEmbeddingsError("ollama.encode-request", error))
+      );
 
-        const response = yield* Effect.tryPromise({
-          try: () =>
-            fetchImpl(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body,
-            }),
-          catch: (error) => ollamaEmbeddingsError("ollama.fetch", error),
-        });
-
-        if (!response.ok) {
-          const errorBody = yield* Effect.tryPromise({
-            try: () => response.text(),
-            catch: (error) => ollamaEmbeddingsError("ollama.error-body", error),
-          });
-          return yield* ollamaEmbeddingsMessageError(
-            "ollama.embed",
-            `Ollama embeddings request failed (${response.status}): ${errorBody}`,
-          );
-        }
-
-        const data = yield* Effect.tryPromise({
-          try: () => responseJson(response),
-          catch: (error) => ollamaEmbeddingsError("ollama.response-json", error),
-        });
-        const decoded = yield* S.decodeUnknownEffect(OllamaEmbedResponse)(data).pipe(
-          Effect.mapError((error) => ollamaEmbeddingsError("ollama.decode-response", error))
-        );
-        return Array.from(decoded.embeddings, (vector) => Array.from(vector));
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetchImpl(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          }),
+        catch: (error) => ollamaEmbeddingsError("ollama.fetch", error),
       });
+
+      if (!response.ok) {
+        const errorBody = yield* Effect.tryPromise({
+          try: () => response.text(),
+          catch: (error) => ollamaEmbeddingsError("ollama.error-body", error),
+        });
+        return yield* ollamaEmbeddingsMessageError(
+          "ollama.embed",
+          `Ollama embeddings request failed (${response.status}): ${errorBody}`,
+        );
+      }
+
+      const data = yield* Effect.tryPromise({
+        try: () => responseJson(response),
+        catch: (error) => ollamaEmbeddingsError("ollama.response-json", error),
+      });
+      const decoded = yield* S.decodeUnknownEffect(OllamaEmbedResponse)(data).pipe(
+        Effect.mapError((error) => ollamaEmbeddingsError("ollama.decode-response", error))
+      );
+      return Array.from(decoded.embeddings, (vector) => Array.from(vector));
     }),
   });
 

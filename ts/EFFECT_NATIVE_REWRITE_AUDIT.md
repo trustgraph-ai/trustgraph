@@ -2143,6 +2143,27 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Ollama Embeddings Effect.fn Helper Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/embeddings/ollama.ts` now defines the `embed`
+    service method as a named `Effect.fn` generator instead of returning a
+    nested `Effect.gen` from an `Effect.fn` callback.
+  - Empty embedding requests now return through the same generator path without
+    allocating a separate `Effect.succeed` helper.
+  - The public sync factory, effectful layer, `ManagedRuntime` facade, and
+    `NodeRuntime.runMain` entrypoint are unchanged.
+  - The focused scan for Ollama `return Effect.gen(...)` helper patterns is
+    clean.
+- Verification:
+  - `cd ts/packages/flow && bunx --bun vitest run src/__tests__/ollama-embeddings.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2301,9 +2322,8 @@ Notes:
   - Fresh strict signal sweep after the 2026-06-04 helper and collection
     slices found no production normal `Error`, raw `try`/`catch`, native
     `switch`, or Effect-focused type assertions under `ts/packages`.
-  - Remaining real helper-normalization targets from the fresh sweep are
-    embeddings/ollama, base processor flow helpers, and one workbench atom
-    helper.
+  - Remaining real helper-normalization targets from the fresh sweep are base
+    processor flow helpers and one workbench atom helper.
   - Remaining real long-lived native collection targets include base processor
     registries, Librarian service / collection manager state, prompt template
     cache, and a workbench module cache. Local traversal sets and test fakes
