@@ -31,7 +31,7 @@ import {
 } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
-import { Clock, Config, DateTime, Duration, Effect, Layer, ManagedRuntime, Option, Random, SynchronizedRef } from "effect";
+import { Clock, Config, DateTime, Duration, Effect, Layer, ManagedRuntime, Match, Option, Random, SynchronizedRef } from "effect";
 import * as S from "effect/Schema";
 import { makeCollectionManager, type CollectionManager } from "./collection-manager.js";
 import {
@@ -718,84 +718,93 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       handleLibrarianOperation: function(this: LibrarianService, request: LibrarianRequest): Promise<LibrarianResponse> {
         const service = this;
         return Effect.runPromise(
-          Effect.gen(function* () {
-            switch (request.operation) {
-              case "add-document":
-                return yield* Effect.tryPromise({
-                  try: () => service.addDocument(request),
-                  catch: (cause) => librarianServiceError("add-document", cause),
-                });
-              case "remove-document":
-                return yield* Effect.tryPromise({
-                  try: () => service.removeDocument(request),
-                  catch: (cause) => librarianServiceError("remove-document", cause),
-                });
-              case "update-document":
-                return yield* Effect.tryPromise({
-                  try: () => service.updateDocument(request),
-                  catch: (cause) => librarianServiceError("update-document", cause),
-                });
-              case "list-documents":
-                return yield* Effect.try({
-                  try: () => service.listDocuments(request),
-                  catch: (cause) => librarianServiceError("list-documents", cause),
-                });
-              case "get-document-metadata":
-                return yield* getDocumentMetadataEffect(request);
-              case "get-document-content":
-                return yield* Effect.tryPromise({
-                  try: () => service.getDocumentContent(request),
-                  catch: (cause) => librarianServiceError("get-document-content", cause),
-                });
-              case "add-child-document":
-                return yield* Effect.tryPromise({
-                  try: () => service.addChildDocument(request),
-                  catch: (cause) => librarianServiceError("add-child-document", cause),
-                });
-              case "list-children":
-                return yield* listChildrenEffect(request);
-              case "add-processing":
-                return yield* Effect.tryPromise({
-                  try: () => service.addProcessing(request),
-                  catch: (cause) => librarianServiceError("add-processing", cause),
-                });
-              case "remove-processing":
-                return yield* Effect.tryPromise({
-                  try: () => service.removeProcessing(request),
-                  catch: (cause) => librarianServiceError("remove-processing", cause),
-                });
-              case "list-processing":
-                return yield* Effect.try({
-                  try: () => service.listProcessing(request),
-                  catch: (cause) => librarianServiceError("list-processing", cause),
-                });
-              case "begin-upload":
-                return yield* Effect.tryPromise({
-                  try: () => service.beginUpload(request),
-                  catch: (cause) => librarianServiceError("begin-upload", cause),
-                });
-              case "upload-chunk":
-                return yield* uploadChunkEffect(request);
-              case "complete-upload":
-                return yield* Effect.tryPromise({
-                  try: () => service.completeUpload(request),
-                  catch: (cause) => librarianServiceError("complete-upload", cause),
-                });
-              case "get-upload-status":
-                return yield* getUploadStatusEffect(request);
-              case "abort-upload":
-                return yield* abortUploadEffect(request);
-              case "list-uploads":
-                return yield* Effect.tryPromise({
-                  try: () => service.listUploads(request),
-                  catch: (cause) => librarianServiceError("list-uploads", cause),
-                });
-              case "stream-document":
-                return yield* librarianServiceError("stream-document", "stream-document must be handled as a streaming operation");
-              default:
-                return yield* librarianServiceError("operation", `Unknown librarian operation: ${String(request.operation)}`);
-            }
-          }),
+          Match.value(request.operation).pipe(
+            Match.when("add-document", () =>
+              Effect.tryPromise({
+                try: () => service.addDocument(request),
+                catch: (cause) => librarianServiceError("add-document", cause),
+              })
+            ),
+            Match.when("remove-document", () =>
+              Effect.tryPromise({
+                try: () => service.removeDocument(request),
+                catch: (cause) => librarianServiceError("remove-document", cause),
+              })
+            ),
+            Match.when("update-document", () =>
+              Effect.tryPromise({
+                try: () => service.updateDocument(request),
+                catch: (cause) => librarianServiceError("update-document", cause),
+              })
+            ),
+            Match.when("list-documents", () =>
+              Effect.try({
+                try: () => service.listDocuments(request),
+                catch: (cause) => librarianServiceError("list-documents", cause),
+              })
+            ),
+            Match.when("get-document-metadata", () => getDocumentMetadataEffect(request)),
+            Match.when("get-document-content", () =>
+              Effect.tryPromise({
+                try: () => service.getDocumentContent(request),
+                catch: (cause) => librarianServiceError("get-document-content", cause),
+              })
+            ),
+            Match.when("add-child-document", () =>
+              Effect.tryPromise({
+                try: () => service.addChildDocument(request),
+                catch: (cause) => librarianServiceError("add-child-document", cause),
+              })
+            ),
+            Match.when("list-children", () => listChildrenEffect(request)),
+            Match.when("add-processing", () =>
+              Effect.tryPromise({
+                try: () => service.addProcessing(request),
+                catch: (cause) => librarianServiceError("add-processing", cause),
+              })
+            ),
+            Match.when("remove-processing", () =>
+              Effect.tryPromise({
+                try: () => service.removeProcessing(request),
+                catch: (cause) => librarianServiceError("remove-processing", cause),
+              })
+            ),
+            Match.when("list-processing", () =>
+              Effect.try({
+                try: () => service.listProcessing(request),
+                catch: (cause) => librarianServiceError("list-processing", cause),
+              })
+            ),
+            Match.when("begin-upload", () =>
+              Effect.tryPromise({
+                try: () => service.beginUpload(request),
+                catch: (cause) => librarianServiceError("begin-upload", cause),
+              })
+            ),
+            Match.when("upload-chunk", () => uploadChunkEffect(request)),
+            Match.when("complete-upload", () =>
+              Effect.tryPromise({
+                try: () => service.completeUpload(request),
+                catch: (cause) => librarianServiceError("complete-upload", cause),
+              })
+            ),
+            Match.when("get-upload-status", () => getUploadStatusEffect(request)),
+            Match.when("abort-upload", () => abortUploadEffect(request)),
+            Match.when("list-uploads", () =>
+              Effect.tryPromise({
+                try: () => service.listUploads(request),
+                catch: (cause) => librarianServiceError("list-uploads", cause),
+              })
+            ),
+            Match.when("stream-document", () =>
+              Effect.fail(
+                librarianServiceError("stream-document", "stream-document must be handled as a streaming operation"),
+              )
+            ),
+            Match.orElse((operation) =>
+              Effect.fail(librarianServiceError("operation", `Unknown librarian operation: ${String(operation)}`))
+            ),
+          ),
         );
 
         },
@@ -1404,15 +1413,17 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       handleCollectionOperation: function(this: LibrarianService, request: CollectionManagementRequest): Promise<CollectionManagementResponse> {
         const service = this;
         return Effect.runPromise(
-          Effect.gen(function* () {
-            switch (request.operation) {
-              case "list-collections": {
+          Match.value(request.operation).pipe(
+            Match.when("list-collections", () =>
+              Effect.gen(function* () {
                 const user = request.user ?? "";
                 const collections = (yield* SynchronizedRef.get(service.state)).collectionManager.listCollections(user);
                 return { collections };
-              }
+              })
+            ),
 
-              case "update-collection": {
+            Match.when("update-collection", () =>
+              Effect.gen(function* () {
                 const user = request.user ?? "";
                 const collection = request.collection ?? "";
                 const name = request.name ?? collection;
@@ -1433,9 +1444,11 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
                 });
 
                 return { collections };
-              }
+              })
+            ),
 
-              case "delete-collection": {
+            Match.when("delete-collection", () =>
+              Effect.gen(function* () {
                 const user = request.user ?? "";
                 const collection = request.collection ?? "";
 
@@ -1453,12 +1466,12 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
                 });
 
                 return {};
-              }
-
-              default:
-                return yield* librarianServiceError("collection-operation", `Unknown collection operation: ${String(request.operation)}`);
-            }
-          }),
+              })
+            ),
+            Match.orElse((operation) =>
+              Effect.fail(librarianServiceError("collection-operation", `Unknown collection operation: ${String(operation)}`))
+            ),
+          ),
         );
 
         },

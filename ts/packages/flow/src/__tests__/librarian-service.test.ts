@@ -61,6 +61,109 @@ const makeService = (dataDir: string) =>
   });
 
 describe("LibrarianService schema-backed boundaries", () => {
+  it("dispatches librarian operations through the Match-backed handler", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "trustgraph-librarian-service-"));
+    const service = makeService(dir);
+
+    try {
+      await expect(service.handleLibrarianOperation({
+        operation: "list-documents",
+        user: "alice",
+      })).resolves.toEqual({
+        documents: [],
+        "document-metadatas": [],
+      });
+
+      const upload = await service.handleLibrarianOperation({
+        operation: "begin-upload",
+        documentMetadata: sampleDocument,
+        "document-metadata": sampleDocument,
+        "total-size": 12,
+        "chunk-size": 4,
+      });
+      await expect(service.handleLibrarianOperation({
+        operation: "get-upload-status",
+        "upload-id": upload["upload-id"],
+      })).resolves.toMatchObject({
+        "upload-id": upload["upload-id"],
+        "upload-state": "in-progress",
+        "missing-chunks": [0, 1, 2],
+      });
+
+      await expect(service.handleLibrarianOperation({
+        operation: "stream-document",
+        "document-id": "doc-a",
+      })).rejects.toMatchObject({
+        _tag: "LibrarianServiceError",
+        operation: "stream-document",
+        message: "stream-document must be handled as a streaming operation",
+      });
+
+      await expect(service.handleLibrarianOperation(JSON.parse(`{"operation":"unknown-librarian"}`))).rejects.toMatchObject({
+        _tag: "LibrarianServiceError",
+        operation: "operation",
+        message: "Unknown librarian operation: unknown-librarian",
+      });
+    } finally {
+      await rm(dir, {recursive: true, force: true});
+    }
+  });
+
+  it("dispatches collection operations through the Match-backed handler", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "trustgraph-librarian-service-"));
+    const service = makeService(dir);
+
+    try {
+      await expect(service.handleCollectionOperation({
+        operation: "update-collection",
+        user: "alice",
+        collection: "docs",
+        name: "Docs",
+        description: "Documentation",
+        tags: ["reference"],
+      })).resolves.toEqual({
+        collections: [{
+          user: "alice",
+          collection: "docs",
+          name: "Docs",
+          description: "Documentation",
+          tags: ["reference"],
+        }],
+      });
+
+      await expect(service.handleCollectionOperation({
+        operation: "list-collections",
+        user: "alice",
+      })).resolves.toEqual({
+        collections: [{
+          user: "alice",
+          collection: "docs",
+          name: "Docs",
+          description: "Documentation",
+          tags: ["reference"],
+        }],
+      });
+
+      await expect(service.handleCollectionOperation({
+        operation: "delete-collection",
+        user: "alice",
+        collection: "docs",
+      })).resolves.toEqual({});
+      await expect(service.handleCollectionOperation({
+        operation: "list-collections",
+        user: "alice",
+      })).resolves.toEqual({collections: []});
+
+      await expect(service.handleCollectionOperation(JSON.parse(`{"operation":"unknown-collection"}`))).rejects.toMatchObject({
+        _tag: "LibrarianServiceError",
+        operation: "collection-operation",
+        message: "Unknown collection operation: unknown-collection",
+      });
+    } finally {
+      await rm(dir, {recursive: true, force: true});
+    }
+  });
+
   it("returns modeled upload fields without response assertions", async () => {
     const dir = await mkdtemp(join(tmpdir(), "trustgraph-librarian-service-"));
     const service = makeService(dir);

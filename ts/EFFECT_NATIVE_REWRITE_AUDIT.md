@@ -365,6 +365,25 @@ Notes:
   - `bun run --cwd ts/packages/flow test -- src/__tests__/config-service.test.ts`
   - `cd ts && bun run check:tsgo`
 
+### 2026-06-02: Librarian Operation Match Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/flow/src/librarian/service.ts` now dispatches librarian and
+    collection-management operations with `effect/Match` instead of native
+    `switch` statements.
+  - Both dispatchers intentionally use `Match.orElse` rather than
+    `Match.exhaustive` because raw broker message values can still contain
+    unknown runtime operations before a schema boundary rejects them.
+  - Existing tagged `LibrarianServiceError` operation labels are preserved for
+    promise, sync, Effect-helper, stream-only, and unknown-operation branches.
+  - Librarian-service tests now cover representative Match-backed librarian
+    dispatch paths, collection list/update/delete dispatch, and runtime
+    fallback errors without type assertions.
+- Verification:
+  - `bun run --cwd ts/packages/flow test -- src/__tests__/librarian-service.test.ts`
+  - `cd ts && bun run check:tsgo`
+
 ### 2026-06-02: RAG And Agent Requestor Bridge Slice
 
 - Status: migrated, root-verified, committed, and pushed.
@@ -1812,8 +1831,8 @@ Notes:
     `Effect.fn` / `Effect.fnUntraced`. Sibling service factories still need a
     focused scan before treating them as valid migration targets.
   - ConfigService and KnowledgeCore operation dispatch now use `effect/Match`
-    with `Match.exhaustive`; remaining service operation switches are in
-    librarian surfaces.
+    with `Match.exhaustive`; librarian operation dispatch now uses
+    `effect/Match` with runtime-preserving `Match.orElse` fallbacks.
   - Long-lived `Map` / `Set` state in ref-backed services can move toward
     Effect collections later; local pure traversal maps/sets remain no-ops.
 
