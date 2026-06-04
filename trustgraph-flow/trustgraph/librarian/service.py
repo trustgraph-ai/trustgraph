@@ -146,7 +146,8 @@ class Processor(WorkspaceProcessor):
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
-            default_keyspace="librarian"
+            default_keyspace="librarian",
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         # Store resolved configuration

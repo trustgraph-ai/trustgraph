@@ -103,35 +103,19 @@ def resolve_cassandra_config(
     host: Optional[str] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
-    default_keyspace: Optional[str] = None
+    default_keyspace: Optional[str] = None,
+    replication_factor: Optional[int] = None,
 ) -> Tuple[List[str], Optional[str], Optional[str], Optional[str], int]:
-    """
-    Resolve Cassandra configuration from various sources.
-
-    Can accept either argparse args object or explicit parameters.
-    Converts host string to list format for Cassandra driver.
-
-    Args:
-        args: Optional argparse namespace with cassandra_host, cassandra_username, cassandra_password, cassandra_keyspace, cassandra_replication_factor
-        host: Optional explicit host parameter (overrides args)
-        username: Optional explicit username parameter (overrides args)
-        password: Optional explicit password parameter (overrides args)
-        default_keyspace: Optional default keyspace if not specified elsewhere
-
-    Returns:
-        tuple: (hosts_list, username, password, keyspace, replication_factor)
-    """
-    # If args provided, extract values
     keyspace = None
-    replication_factor = 1
     if args is not None:
         host = host or getattr(args, 'cassandra_host', None)
         username = username or getattr(args, 'cassandra_username', None)
         password = password or getattr(args, 'cassandra_password', None)
         keyspace = getattr(args, 'cassandra_keyspace', None)
-        replication_factor = getattr(args, 'cassandra_replication_factor', 1)
+        replication_factor = replication_factor or getattr(
+            args, 'cassandra_replication_factor', None
+        )
 
-    # Apply defaults if still None
     defaults = get_cassandra_defaults()
     host = host or defaults['host']
     username = username or defaults['username']

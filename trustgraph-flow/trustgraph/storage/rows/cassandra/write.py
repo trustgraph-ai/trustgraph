@@ -50,7 +50,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         # Store resolved configuration with proper names

@@ -44,6 +44,8 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
         url, api_key, replication_factor, shard_number = resolve_qdrant_config(
             url=store_uri, api_key=api_key,
+            replication_factor=params.get("qdrant_replication_factor"),
+            shard_number=params.get("qdrant_shard_number"),
         )
 
         super(Processor, self).__init__(
