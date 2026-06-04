@@ -38,6 +38,7 @@ import {
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
 import { Context, Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
+import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -136,7 +137,7 @@ export function runFlowProcessorDefinitionScoped<
   | FlowRequirements
   | ConfigHandlerRequirements
 > {
-  const flows = new Map<string, ActiveFlow>();
+  const flows = MutableHashMap.empty<string, ActiveFlow>();
   let configConsumer: BackendConsumer<ConfigPush> | null = null;
   let lastFlowsJson = "";
   const isRunning = options.isRunning ?? (() => true);
@@ -147,11 +148,11 @@ export function runFlowProcessorDefinitionScoped<
     );
 
   const closeAllFlowsEffect = Effect.gen(function* () {
-    const activeFlows = Array.from(flows.entries());
+    const activeFlows = Array.from(flows);
     for (const [name, activeFlow] of activeFlows) {
       yield* closeFlowEffect(name, activeFlow);
     }
-    flows.clear();
+    MutableHashMap.clear(flows);
   });
 
   const closeConfigConsumerEffect = (): Effect.Effect<void> => {
@@ -215,7 +216,7 @@ export function runFlowProcessorDefinitionScoped<
     const flowsJson = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(flowDefinitions).pipe(
       Effect.catch((error) => Effect.succeed(String(error))),
     );
-    if (lastFlowsJson.length > 0 && flowsJson === lastFlowsJson && flows.size > 0) {
+    if (lastFlowsJson.length > 0 && flowsJson === lastFlowsJson && MutableHashMap.size(flows) > 0) {
       yield* Effect.log(`[${options.id}] Flow definitions unchanged, skipping restart`);
       return;
     }
@@ -225,21 +226,21 @@ export function runFlowProcessorDefinitionScoped<
       if (!(name in flowDefinitions)) {
         yield* Effect.log(`[${options.id}] Stopping removed flow: ${name}`);
         yield* closeFlowEffect(name, activeFlow);
-        flows.delete(name);
+        MutableHashMap.remove(flows, name);
       }
     }
 
     for (const [name, defn] of Object.entries(flowDefinitions)) {
-      const existing = flows.get(name);
+      const existing = O.getOrUndefined(MutableHashMap.get(flows, name));
       if (existing !== undefined) {
         yield* Effect.log(`[${options.id}] Restarting flow "${name}" with updated config`);
         yield* closeFlowEffect(name, existing);
-        flows.delete(name);
+        MutableHashMap.remove(flows, name);
       }
 
       yield* Effect.log(`[${options.id}] Starting flow "${name}"`);
       const activeFlow = yield* startFlowEffect(name, defn);
-      flows.set(name, activeFlow);
+      MutableHashMap.set(flows, name, activeFlow);
       yield* Effect.log(`[${options.id}] Flow "${name}" started`);
     }
   });

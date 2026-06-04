@@ -2290,6 +2290,24 @@ Notes:
   - `cd ts && bun run lint`
   - `git diff --check`
 
+### 2026-06-04: Base Processor Registry MutableHashMap Slice
+
+- Status: migrated and package-verified.
+- Completed:
+  - `ts/packages/base/src/processor/flow.ts` now stores producers, consumers,
+    requestors, and parameters in `MutableHashMap` instead of native `Map`.
+  - `ts/packages/base/src/processor/flow-processor.ts` now tracks active flow
+    scopes in `MutableHashMap`, including `Option`-based lookups and
+    `MutableHashMap.clear` / `remove` / `size` / `set` for lifecycle changes.
+- Verification:
+  - `cd ts && bun run --cwd packages/base build`
+  - `cd ts/packages/base && bunx --bun vitest run src/__tests__/flow-processor-runtime.test.ts src/__tests__/flow-spec-runtime.test.ts`
+  - `cd ts && bun run check:tsgo`
+  - `cd ts && bun run build`
+  - `cd ts && bun run test`
+  - `cd ts && bun run lint`
+  - `git diff --check`
+
 ## Subagent Findings To Preserve
 
 - MCP/workbench:
@@ -2475,8 +2493,8 @@ Notes:
     compatibility facades, gateway/librarian helpers, and CLI command actions.
     The workbench random id helper is complete; the remaining workbench
     `Effect.gen` match is a local one-shot command effect value.
-  - Remaining real long-lived native collection targets include base processor
-    registries and Librarian service state. The standalone Librarian collection
+  - Remaining real long-lived native collection target is Librarian service
+    state. Base processor registries, the standalone Librarian collection
     manager, prompt template cache, and workbench explain triples module cache
     are complete. Local traversal sets and test fakes remain no-op boundaries.
 
