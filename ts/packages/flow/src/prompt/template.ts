@@ -40,7 +40,7 @@ import {
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
@@ -167,9 +167,7 @@ export function makePromptTemplateService(config: PromptTemplateConfig): PromptT
     specifications: runtime.specs,
   });
   for (const handler of runtime.configHandlers) {
-    service.registerConfigHandler((pushedConfig, version) =>
-      Effect.runPromise(handler(pushedConfig, version)),
-    );
+    service.registerConfigHandler(handler);
   }
   Effect.runSync(Effect.log("[PromptTemplate] Service initialized"));
   return service;
@@ -198,12 +196,6 @@ export const program = makeFlowProcessorProgram({
   specs: (config: PromptTemplateConfig) => promptTemplateRuntime(config).specs,
   configHandlers: (config: PromptTemplateConfig) => promptTemplateRuntime(config).configHandlers,
 });
-
-const promptRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return promptRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

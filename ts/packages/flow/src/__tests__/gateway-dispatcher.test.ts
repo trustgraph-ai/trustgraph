@@ -18,6 +18,7 @@ import type {
   Message,
   PubSubBackend,
 } from "@trustgraph/base";
+import { pubSubError } from "@trustgraph/base";
 
 function createMessage<T>(value: T, properties: Record<string, string> = {}): Message<T> {
   return {
@@ -44,32 +45,38 @@ class TopicConsumer<T> implements BackendConsumer<T> {
     this.messages.push(message);
   }
 
-  async receive(): Promise<Message<T> | null> {
-    const message = this.messages.shift();
-    if (message !== undefined || this.closed) return message ?? null;
+  receive(): Effect.Effect<Message<T> | null> {
+    return Effect.promise(() => {
+      const message = this.messages.shift();
+      if (message !== undefined || this.closed) return Promise.resolve(message ?? null);
 
-    return await new Promise((resolve) => {
-      this.waiters.push(resolve);
+      return new Promise((resolve) => {
+        this.waiters.push(resolve);
+      });
     });
   }
 
-  async acknowledge(message: Message<T>): Promise<void> {
-    this.acknowledged.push(message);
+  acknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.acknowledged.push(message);
+    });
   }
 
-  async negativeAcknowledge(message: Message<T>): Promise<void> {
-    this.nacked.push(message);
+  negativeAcknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.nacked.push(message);
+    });
   }
 
-  async unsubscribe(): Promise<void> {}
+  readonly unsubscribe: Effect.Effect<void> = Effect.void;
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closed = true;
     for (const waiter of this.waiters.splice(0)) {
       waiter(null);
     }
     this.closeCount += 1;
-  }
+  });
 }
 
 class RecordingProducer<T> implements BackendProducer<T> {
@@ -82,18 +89,23 @@ class RecordingProducer<T> implements BackendProducer<T> {
     private readonly onSend: (topic: string, message: T, properties?: Record<string, string>) => void,
   ) {}
 
-  async send(message: T, properties?: Record<string, string>): Promise<void> {
-    this.sent.push(properties === undefined ? { message } : { message, properties });
-    this.onSend(this.topic, message, properties);
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void> {
+    return Effect.try({
+      try: () => {
+        this.sent.push(properties === undefined ? { message } : { message, properties });
+        this.onSend(this.topic, message, properties);
+      },
+      catch: (error) => pubSubError(`send:${this.topic}`, error),
+    });
   }
 
-  async flush(): Promise<void> {
+  readonly flush: Effect.Effect<void> = Effect.sync(() => {
     this.flushCount += 1;
-  }
+  });
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class DispatchBackend implements PubSubBackend {
@@ -104,31 +116,35 @@ class DispatchBackend implements PubSubBackend {
   readonly consumersByTopic = new Map<string, TopicConsumer<unknown>>();
   readonly failSendTopics = new Set<string>();
 
-  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
-    this.producerOptions.push(options);
-    let producer = this.producersByTopic.get(options.topic);
-    if (producer === undefined) {
-      producer = new RecordingProducer<unknown>(options.topic, (topic, message, properties) => {
-        this.handleSend(topic, message, properties);
-      });
-      this.producersByTopic.set(options.topic, producer);
-    }
-    return producer as BackendProducer<T>;
+  createProducer<T>(options: CreateProducerOptions): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerOptions.push(options);
+      let producer = this.producersByTopic.get(options.topic);
+      if (producer === undefined) {
+        producer = new RecordingProducer<unknown>(options.topic, (topic, message, properties) => {
+          this.handleSend(topic, message, properties);
+        });
+        this.producersByTopic.set(options.topic, producer);
+      }
+      return producer as BackendProducer<T>;
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    this.consumerOptions.push(options);
-    let consumer = this.consumersByTopic.get(options.topic);
-    if (consumer === undefined) {
-      consumer = new TopicConsumer<unknown>();
-      this.consumersByTopic.set(options.topic, consumer);
-    }
-    return consumer as BackendConsumer<T>;
+  createConsumer<T>(options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      this.consumerOptions.push(options);
+      let consumer = this.consumersByTopic.get(options.topic);
+      if (consumer === undefined) {
+        consumer = new TopicConsumer<unknown>();
+        this.consumersByTopic.set(options.topic, consumer);
+      }
+      return consumer as BackendConsumer<T>;
+    });
   }
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 
   private handleSend(topic: string, message: unknown, properties?: Record<string, string>): void {
     if (this.failSendTopics.has(topic)) {
@@ -230,10 +246,10 @@ describe("gateway dispatcher manager", () => {
       pubsub: backend,
     });
 
-    await manager.start();
-    const first = await manager.dispatchGlobalService("config", { operation: "get" });
-    const second = await manager.dispatchGlobalService("config", { operation: "list" });
-    await manager.stop();
+    await Effect.runPromise(manager.start);
+    const first = await Effect.runPromise(manager.dispatchGlobalService("config", { operation: "get" }));
+    const second = await Effect.runPromise(manager.dispatchGlobalService("config", { operation: "list" }));
+    await Effect.runPromise(manager.stop);
 
     expect(first).toEqual({ ok: true, echo: { operation: "get" } });
     expect(second).toEqual({ ok: true, echo: { operation: "list" } });
@@ -252,12 +268,12 @@ describe("gateway dispatcher manager", () => {
       pubsub: backend,
     });
 
-    await manager.start();
-    const [first, second] = await Promise.all([
+    await Effect.runPromise(manager.start);
+    const [first, second] = await Effect.runPromise(Effect.all([
       manager.dispatchGlobalService("config", { operation: "get" }),
       manager.dispatchGlobalService("config", { operation: "list" }),
-    ]);
-    await manager.stop();
+    ], { concurrency: "unbounded" }));
+    await Effect.runPromise(manager.stop);
 
     expect(first).toEqual({ ok: true, echo: { operation: "get" } });
     expect(second).toEqual({ ok: true, echo: { operation: "list" } });
@@ -274,12 +290,12 @@ describe("gateway dispatcher manager", () => {
     });
 
     await expect(
-      manager.dispatchGlobalService("knowledge", { term: { t: "t" } }),
+      Effect.runPromise(manager.dispatchGlobalService("knowledge", { term: { t: "t" } })),
     ).rejects.toMatchObject({
       _tag: "DispatchSerializationError",
       operation: "client-term-to-internal",
     });
-    await manager.stop();
+    await Effect.runPromise(manager.stop);
 
     expect(backend.producerOptions).toHaveLength(0);
     expect(backend.consumerOptions).toHaveLength(0);
@@ -296,12 +312,12 @@ describe("gateway dispatcher manager", () => {
     });
 
     await expect(
-      manager.publishToTopic("tg.flow.ingest", { text: "hello" }, "msg-1"),
+      Effect.runPromise(manager.publishToTopic("tg.flow.ingest", { text: "hello" }, "msg-1")),
     ).rejects.toMatchObject({
       _tag: "MessagingDeliveryError",
       operation: "send",
     });
-    await manager.stop();
+    await Effect.runPromise(manager.stop);
 
     expect(backend.producersByTopic.get("tg.flow.ingest")?.closeCount).toBe(1);
     expect(backend.closeCount).toBe(0);
@@ -316,10 +332,14 @@ describe("gateway dispatcher manager", () => {
     });
     const chunks: Array<{ readonly response: unknown; readonly complete: boolean }> = [];
 
-    await manager.dispatchGlobalServiceStreaming("knowledge", { query: "hello" }, async (response, complete) => {
-      chunks.push({ response, complete });
-    });
-    await manager.stop();
+    await Effect.runPromise(
+      manager.dispatchGlobalServiceStreaming("knowledge", { query: "hello" }, (response, complete) =>
+        Effect.sync(() => {
+          chunks.push({ response, complete });
+        })
+      ),
+    );
+    await Effect.runPromise(manager.stop);
 
     expect(chunks).toEqual([
       { response: { chunk: 1 }, complete: false },
@@ -337,13 +357,13 @@ describe("gateway dispatcher manager", () => {
     const chunks: Array<{ readonly response: unknown; readonly complete: boolean }> = [];
 
     await Effect.runPromise(
-      manager.dispatchGlobalServiceStreamingEffect("knowledge", { query: "hello" }, (response, complete) =>
+      manager.dispatchGlobalServiceStreaming("knowledge", { query: "hello" }, (response, complete) =>
         Effect.sync(() => {
           chunks.push({ response, complete });
         })
       ),
     );
-    await manager.stop();
+    await Effect.runPromise(manager.stop);
 
     expect(chunks).toEqual([
       { response: { chunk: 1 }, complete: false },

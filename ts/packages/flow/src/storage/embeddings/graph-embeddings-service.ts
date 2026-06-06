@@ -29,7 +29,7 @@ import {
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect } from "effect";
 import {
   QdrantGraphEmbeddingsStoreLive,
   QdrantGraphEmbeddingsStoreService,
@@ -113,12 +113,10 @@ const provideQdrantGraphEmbeddingsStore = (processorId: string) =>
   });
 
 export function makeGraphEmbeddingsStoreService(config: ProcessorConfig): GraphEmbeddingsStoreService {
-  const service = makeFlowProcessor(config, {
+  return makeFlowProcessor(config, {
     specifications: makeGraphEmbeddingsStoreSpecs(),
     provide: provideQdrantGraphEmbeddingsStore(config.id),
   });
-  void Effect.runPromise(Effect.log("[GraphEmbeddingsStore] Service initialized"));
-  return service;
 }
 
 export const GraphEmbeddingsStoreService = makeGraphEmbeddingsStoreService;
@@ -132,12 +130,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeGraphEmbeddingsStoreSpecs(),
   layer: (config) => QdrantGraphEmbeddingsStoreLive(config),
 });
-
-const graphEmbeddingsStoreRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return graphEmbeddingsStoreRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

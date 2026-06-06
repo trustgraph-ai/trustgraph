@@ -7,10 +7,11 @@ import {
   type LlmResult,
   type LlmProvider,
 } from "@trustgraph/base";
-import { Config, Effect, Layer, ManagedRuntime, Match, Ref, Result, Stream } from "effect";
+import { Config, Context, Effect, Layer, Match, Ref, Result, Stream } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
+import type * as Scope from "effect/Scope";
 import { AiError, LanguageModel, Prompt, Response } from "effect/unstable/ai";
 
 export class TextCompletionConfigError extends S.TaggedErrorClass<TextCompletionConfigError>()(
@@ -43,15 +44,15 @@ export interface LanguageModelProviderOptions<Requirements> {
   readonly provider: string;
   readonly defaultModel: string;
   readonly defaultTemperature: number;
-  readonly runtime: ManagedRuntime.ManagedRuntime<Requirements, TextCompletionRuntimeError>;
+  readonly context: Context.Context<Requirements>;
   readonly makeLanguageModel: (
     request: LanguageModelProviderRequest,
   ) => Effect.Effect<LanguageModel.Service, TextCompletionRuntimeError, Requirements>;
 }
 
-export const makeTextCompletionLayer = <E, R>(
-  provider: Effect.Effect<LlmProvider, E, R>,
-): Layer.Layer<Llm, E, R> =>
+export const makeTextCompletionLayer = <ProviderError, E, R>(
+  provider: Effect.Effect<LlmProvider<ProviderError>, E, R>,
+): Layer.Layer<Llm, E, Exclude<R, Scope.Scope>> =>
   Layer.effect(Llm)(
     provider.pipe(
       Effect.map((resolvedProvider) =>
@@ -279,39 +280,25 @@ const languageModelStreamChunk = (
     Match.orElse(() => Effect.succeed(Result.fail(undefined))),
   );
 
-const runLanguageModelStream = <RuntimeRequirements, StreamRequirements extends RuntimeRequirements>(
-  runtime: ManagedRuntime.ManagedRuntime<RuntimeRequirements, TextCompletionRuntimeError>,
-  stream: Stream.Stream<LlmChunk, TextCompletionRuntimeError, StreamRequirements>,
-): AsyncIterable<LlmChunk> => ({
-  [Symbol.asyncIterator]: () => {
-    const iterator = runtime.context().then((context) =>
-      Stream.toAsyncIterableWith(stream, context)[Symbol.asyncIterator]()
-    );
-    return {
-      next: () => iterator.then((current) => current.next()),
-    };
-  },
-});
-
 export const makeLanguageModelProvider = <Requirements>(
   options: LanguageModelProviderOptions<Requirements>,
-): LlmProvider => ({
+): LlmProvider<TextCompletionRuntimeError> => ({
   generateContent: (system, prompt, model, temperature) => {
     const modelName = model ?? options.defaultModel;
     const temp = temperature ?? options.defaultTemperature;
-    return options.runtime.runPromise(
-      Effect.gen(function* () {
-        const languageModel = yield* options.makeLanguageModel({
-          model: modelName,
-          temperature: temp,
-        });
-        const response = yield* languageModel.generateText({
-          prompt: languageModelPrompt(system, prompt),
-        }).pipe(
-          Effect.mapError((error) => effectAiProviderError(options.provider, error)),
-        );
-        return languageModelResult(response, modelName);
-      }),
+    return Effect.gen(function* () {
+      const languageModel = yield* options.makeLanguageModel({
+        model: modelName,
+        temperature: temp,
+      });
+      const response = yield* languageModel.generateText({
+        prompt: languageModelPrompt(system, prompt),
+      }).pipe(
+        Effect.mapError((error) => effectAiProviderError(options.provider, error)),
+      );
+      return languageModelResult(response, modelName);
+    }).pipe(
+      Effect.provideContext(options.context),
     );
   },
   supportsStreaming: () => true,
@@ -333,30 +320,9 @@ export const makeLanguageModelProvider = <Requirements>(
           ),
         );
       }),
+    ).pipe(
+      Stream.provideContext(options.context),
     );
-    return toAsyncGenerator(runLanguageModelStream(options.runtime, stream), (error) =>
-      effectAiProviderError(options.provider, error)
-    );
+    return stream;
   },
 });
-
-export const toAsyncGenerator = (
-  iterable: AsyncIterable<LlmChunk>,
-  mapError: (error: unknown) => TextCompletionRuntimeError,
-): AsyncGenerator<LlmChunk> => {
-  const iterator = iterable[Symbol.asyncIterator]();
-  let generator: AsyncGenerator<LlmChunk>;
-  generator = {
-    next: (value?: unknown) => iterator.next(value),
-    return: (value?: unknown) =>
-      iterator.return === undefined
-        ? Promise.resolve({ done: true, value })
-        : iterator.return(value),
-    throw: (error?: unknown) =>
-      iterator.throw === undefined
-        ? Promise.reject(mapError(error))
-        : iterator.throw(error),
-    [Symbol.asyncIterator]: () => generator,
-  };
-  return generator;
-};

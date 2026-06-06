@@ -10,7 +10,6 @@
 import {
   makeAsyncProcessor,
   type AsyncProcessorRuntime,
-  type ConfigHandler,
   type EffectConfigHandler,
   type ProcessorRuntime,
   type ProcessorConfig,
@@ -38,7 +37,7 @@ import {
 } from "../messaging/runtime.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
-import { Context, Duration, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
+import { Config as EffectConfig, Context, Duration, Effect, Exit, Scope } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
@@ -75,22 +74,38 @@ type FlowProcessorRuntimeRequirements<FlowRequirements> =
   | Scope.Scope
   | FlowRequirements;
 
+type FlowProcessorRunError =
+  | PubSubError
+  | FlowRuntimeError
+  | ProcessorLifecycleError
+  | EffectConfig.ConfigError;
+
 export type FlowProcessorStartEffect<FlowRequirements> = Effect.Effect<
   void,
-  PubSubError | FlowRuntimeError | ProcessorLifecycleError,
+  FlowProcessorRunError,
   FlowProcessorRuntimeRequirements<FlowRequirements>
 >;
 
 export interface FlowProcessorRuntime<FlowRequirements = never>
   extends ProcessorRuntime<
-    PubSubError | FlowRuntimeError | ProcessorLifecycleError,
+    FlowProcessorRunError,
     FlowProcessorRuntimeRequirements<FlowRequirements>
-  > {
+> {
   readonly config: ProcessorConfig;
   readonly pubsub: PubSubBackend;
-  readonly configHandlers: ConfigHandler[];
+  readonly configHandlers: ReadonlyArray<
+    EffectConfigHandler<
+      FlowProcessorRunError,
+      FlowProcessorRuntimeRequirements<FlowRequirements>
+    >
+  >;
   readonly isRunning: () => boolean;
-  readonly registerConfigHandler: (handler: ConfigHandler) => void;
+  readonly registerConfigHandler: (
+    handler: EffectConfigHandler<
+      FlowProcessorRunError,
+      FlowProcessorRuntimeRequirements<FlowRequirements>
+    >,
+  ) => void;
   readonly registerSpecification: (spec: Spec<FlowRequirements>) => void;
   readonly specifications: ReadonlyArray<Spec<FlowRequirements>>;
 }
@@ -103,7 +118,7 @@ export interface MakeFlowProcessorOptions<FlowRequirements = never> {
 }
 
 const ConfigPushSchema = S.Struct({
-  version: S.Number,
+  version: S.Finite,
   config: S.Record(S.String, S.Unknown),
 });
 
@@ -162,10 +177,8 @@ export function runFlowProcessorDefinitionScoped<
     if (consumer === null) {
       return Effect.void;
     }
-    return Effect.tryPromise({
-      try: () => consumer.close(),
-      catch: (error) => pubSubError("close:config-push", error),
-    }).pipe(
+    return consumer.close.pipe(
+      Effect.mapError((error) => pubSubError("close:config-push", error)),
       Effect.catch((error) =>
         Effect.logError(`[${options.id}] Failed to close config consumer`, {
           error: error.message,
@@ -253,10 +266,9 @@ export function runFlowProcessorDefinitionScoped<
       return;
     }
 
-    const msg = yield* Effect.tryPromise({
-      try: () => consumer.receive(2000),
-      catch: (error) => pubSubError("receive:config-push", error),
-    });
+    const msg = yield* consumer.receive(2000).pipe(
+      Effect.mapError((error) => pubSubError("receive:config-push", error)),
+    );
     if (msg === null) {
       return;
     }
@@ -270,10 +282,9 @@ export function runFlowProcessorDefinitionScoped<
       yield* handler(push.config, push.version);
     }
 
-    yield* Effect.tryPromise({
-      try: () => consumer.acknowledge(msg),
-      catch: (error) => pubSubError("acknowledge:config-push", error),
-    });
+    yield* consumer.acknowledge(msg).pipe(
+      Effect.mapError((error) => pubSubError("acknowledge:config-push", error)),
+    );
   });
 
   const processNextConfigPushSafelyEffect = Effect.fn("FlowProcessor.processNextConfigPushSafely")(function* () {
@@ -324,29 +335,19 @@ export function makeFlowProcessor<FlowRequirements = never>(
   const specifications: Array<Spec<FlowRequirements>> = [
     ...(options.specifications ?? []),
   ];
-  const compatibilityRuntime = ManagedRuntime.make(Layer.empty);
   let processor: FlowProcessorRuntime<FlowRequirements>;
   const base: AsyncProcessorRuntime<
-    PubSubError | FlowRuntimeError | ProcessorLifecycleError,
+    FlowProcessorRunError,
     FlowProcessorRuntimeRequirements<FlowRequirements>
   > = makeAsyncProcessor(config, {
-    runEffect: (runtime) => {
-      const configHandlers = runtime.configHandlers.map(
-        (handler): EffectConfigHandler<PubSubError> =>
-          (pushedConfig, version) =>
-            Effect.tryPromise({
-              try: () => handler(pushedConfig, version),
-              catch: (error) => pubSubError("config-handler", error),
-            }),
-      );
-      return runFlowProcessorDefinitionScoped({
+    runEffect: (runtime) =>
+      runFlowProcessorDefinitionScoped({
         id: runtime.config.id,
         pubsub: runtime.pubsub,
         specifications,
-        configHandlers,
+        configHandlers: runtime.configHandlers,
         isRunning: runtime.isRunning,
-      });
-    },
+      }),
   });
 
   const makeStartEffect = (): FlowProcessorStartEffect<FlowRequirements> => {
@@ -381,7 +382,7 @@ export function makeFlowProcessor<FlowRequirements = never>(
     get startEffect() {
       return makeStartEffect();
     },
-    start: (context) => compatibilityRuntime.runPromise(startProcessorEffect(context)),
+    start: (context) => startProcessorEffect(context),
   };
 
   return processor;

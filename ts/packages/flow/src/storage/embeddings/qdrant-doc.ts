@@ -38,7 +38,7 @@ export class QdrantDocEmbeddingsStoreError extends S.TaggedErrorClass<QdrantDocE
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -85,12 +85,10 @@ const randomPointId = Effect.fn("QdrantDocEmbeddings.randomPointId")(function* (
 });
 
 export interface QdrantDocEmbeddingsStore {
-  readonly store: (message: DocEmbeddingsMessage) => Promise<void>;
-  readonly deleteCollection: (user: string, collection: string) => Promise<void>;
-  readonly storeEffect: (
+  readonly store: (
     message: DocEmbeddingsMessage,
   ) => Effect.Effect<void, QdrantDocEmbeddingsStoreError>;
-  readonly deleteCollectionEffect: (
+  readonly deleteCollection: (
     user: string,
     collection: string,
   ) => Effect.Effect<void, QdrantDocEmbeddingsStoreError>;
@@ -133,25 +131,25 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
   ) {
     if (MutableHashSet.has(knownCollections, name)) return;
 
-    const exists = yield* Effect.tryPromise({
-      try: () => client.collectionExists(name),
-      catch: (cause) => qdrantDocEmbeddingsStoreError("collection-exists", cause),
-    });
+    const exists = yield* client.collectionExists(name).pipe(
+      Effect.mapError((cause) => qdrantDocEmbeddingsStoreError("collection-exists", cause)),
+    );
     if (!exists.exists) {
       yield* Effect.log(`[QdrantDocEmbeddings] Creating collection ${name} (dim=${dim})`);
-      yield* Effect.tryPromise({
-        try: () =>
-          client.createCollection(name, {
-            vectors: { size: dim, distance: "Cosine" },
-          }),
-        catch: (cause) => qdrantDocEmbeddingsStoreError("create-collection", cause),
-      });
+      yield* client.createCollection(
+        name,
+        {
+          vectors: { size: dim, distance: "Cosine" },
+        },
+      ).pipe(
+        Effect.mapError((cause) => qdrantDocEmbeddingsStoreError("create-collection", cause)),
+      );
     }
 
     MutableHashSet.add(knownCollections, name);
   });
 
-  const storeEffect = Effect.fn("QdrantDocEmbeddings.store")(function* (message: DocEmbeddingsMessage) {
+  const storeImpl = Effect.fn("QdrantDocEmbeddings.store")(function* (message: DocEmbeddingsMessage) {
     for (const chunk of message.chunks) {
       if (chunk.chunkId.length === 0) continue;
       if (chunk.vector.length === 0) continue;
@@ -162,37 +160,37 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
       yield* ensureCollectionEffect(name, dim);
 
       const id = yield* randomPointId();
-      yield* Effect.tryPromise({
-        try: () =>
-          client.upsert(name, {
-            points: [
-              {
-                id,
-                vector: chunk.vector,
-                payload: {
-                  chunk_id: chunk.chunkId,
-                  ...(chunk.content !== undefined && chunk.content.length > 0
-                    ? { content: chunk.content }
-                    : {}),
-                },
+      yield* client.upsert(
+        name,
+        {
+          points: [
+            {
+              id,
+              vector: chunk.vector,
+              payload: {
+                chunk_id: chunk.chunkId,
+                ...(chunk.content !== undefined && chunk.content.length > 0
+                  ? { content: chunk.content }
+                  : {}),
               },
-            ],
-          }),
-        catch: (cause) => qdrantDocEmbeddingsStoreError("upsert", cause),
-      });
+            },
+          ],
+        },
+      ).pipe(
+        Effect.mapError((cause) => qdrantDocEmbeddingsStoreError("upsert", cause)),
+      );
     }
   });
 
-  const deleteCollectionEffect = Effect.fn("QdrantDocEmbeddings.deleteCollection")(function* (
+  const deleteCollectionImpl = Effect.fn("QdrantDocEmbeddings.deleteCollection")(function* (
     user: string,
     collection: string,
   ) {
     const prefix = `d_${user}_${collection}_`;
 
-    const allCollections = yield* Effect.tryPromise({
-      try: () => client.getCollections(),
-      catch: (cause) => qdrantDocEmbeddingsStoreError("get-collections", cause),
-    });
+    const allCollections = yield* client.getCollections.pipe(
+      Effect.mapError((cause) => qdrantDocEmbeddingsStoreError("get-collections", cause)),
+    );
     const matching = allCollections.collections.filter((c) =>
       c.name.startsWith(prefix),
     );
@@ -203,10 +201,9 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
     }
 
     for (const coll of matching) {
-      yield* Effect.tryPromise({
-        try: () => client.deleteCollection(coll.name),
-        catch: (cause) => qdrantDocEmbeddingsStoreError("delete-collection", cause),
-      });
+      yield* client.deleteCollection(coll.name).pipe(
+        Effect.mapError((cause) => qdrantDocEmbeddingsStoreError("delete-collection", cause)),
+      );
       MutableHashSet.remove(knownCollections, coll.name);
       yield* Effect.log(`[QdrantDocEmbeddings] Deleted collection: ${coll.name}`);
     }
@@ -217,8 +214,8 @@ const makeQdrantDocEmbeddingsStoreFromClient = (
   });
 
   return {
-    store: storeEffect,
-    deleteCollection: deleteCollectionEffect,
+    store: storeImpl,
+    deleteCollection: deleteCollectionImpl,
   };
 };
 
@@ -244,16 +241,9 @@ const withQdrantDocEmbeddingsStore = <A>(
 export function makeQdrantDocEmbeddingsStore(
   config: QdrantDocEmbeddingsConfig = {},
 ): QdrantDocEmbeddingsStore {
-  const storeEffect = (message: DocEmbeddingsMessage) =>
-    withQdrantDocEmbeddingsStore(config, (store) => store.store(message));
-  const deleteCollectionEffect = (user: string, collection: string) =>
-    withQdrantDocEmbeddingsStore(config, (store) => store.deleteCollection(user, collection));
-
   return {
-    store: (message) => Effect.runPromise(storeEffect(message)),
+    store: (message) => withQdrantDocEmbeddingsStore(config, (store) => store.store(message)),
     deleteCollection: (user, collection) =>
-      Effect.runPromise(deleteCollectionEffect(user, collection)),
-    storeEffect,
-    deleteCollectionEffect,
+      withQdrantDocEmbeddingsStore(config, (store) => store.deleteCollection(user, collection)),
   };
 }

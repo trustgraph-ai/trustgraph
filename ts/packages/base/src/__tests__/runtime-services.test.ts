@@ -4,6 +4,7 @@ import * as S from "effect/Schema";
 import {
   PubSub,
   makeAsyncProcessor,
+  pubSubError,
   runProcessorScoped,
   type BackendConsumer,
   type BackendProducer,
@@ -24,39 +25,45 @@ class FakeProducer<T> implements BackendProducer<T> {
   closeCount = 0;
   flushCount = 0;
 
-  async send(message: T, properties?: Record<string, string>): Promise<void> {
-    this.sent.push(
-      properties === undefined
-        ? { message }
-        : { message, properties },
-    );
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.sent.push(
+        properties === undefined
+          ? { message }
+          : { message, properties },
+      );
+    });
   }
 
-  async flush(): Promise<void> {
+  readonly flush: Effect.Effect<void> = Effect.sync(() => {
     this.flushCount += 1;
-  }
+  });
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class FakeConsumer<T> implements BackendConsumer<T> {
   closeCount = 0;
 
-  async receive(): Promise<Message<T> | null> {
-    return null;
+  receive(): Effect.Effect<Message<T> | null> {
+    return Effect.succeed(null);
   }
 
-  async acknowledge(): Promise<void> {}
+  acknowledge(): Effect.Effect<void> {
+    return Effect.void;
+  }
 
-  async negativeAcknowledge(): Promise<void> {}
+  negativeAcknowledge(): Effect.Effect<void> {
+    return Effect.void;
+  }
 
-  async unsubscribe(): Promise<void> {}
+  readonly unsubscribe: Effect.Effect<void> = Effect.void;
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class FakePubSubBackend implements PubSubBackend {
@@ -64,24 +71,30 @@ class FakePubSubBackend implements PubSubBackend {
   producerOptions: CreateProducerOptions | null = null;
   consumerOptions: CreateConsumerOptions | null = null;
 
-  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
-    this.producerOptions = options;
-    return new FakeProducer<T>();
+  createProducer<T>(options: CreateProducerOptions): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerOptions = options;
+      return new FakeProducer<T>();
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    this.consumerOptions = options;
-    return new FakeConsumer<T>();
+  createConsumer<T>(options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      this.consumerOptions = options;
+      return new FakeConsumer<T>();
+    });
   }
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class FailingProducerBackend extends FakePubSubBackend {
-  override async createProducer<T>(): Promise<BackendProducer<T>> {
-    throw RuntimeServicesTestError.make({ message: "producer unavailable" });
+  override createProducer<T>(): Effect.Effect<BackendProducer<T>> {
+    return Effect.fail(
+      pubSubError("createProducer:tg.test.failure", RuntimeServicesTestError.make({ message: "producer unavailable" })),
+    );
   }
 }
 
@@ -90,23 +103,19 @@ const makeRecordingProcessor = (
   events: Array<string>,
 ) => {
   const processor = makeAsyncProcessor(config, {
-    run: async (runtime) => {
+    run: (runtime) => Effect.sync(() => {
       events.push(`run:${runtime.config.manageProcessSignals === false ? "effect-signals" : "class-signals"}`);
-    },
+    }),
   });
-  const stop = processor.stop;
-  processor.stop = async () => {
+  processor.onShutdown(() => Effect.sync(() => {
     events.push("stop");
-    await stop();
-  };
+  }));
   return processor;
 };
 
 const makeFailingProcessor = (config: ProcessorConfig) =>
   makeAsyncProcessor(config, {
-    run: async () => {
-      throw RuntimeServicesTestError.make({ message: "processor failed" });
-    },
+    run: () => Effect.fail(RuntimeServicesTestError.make({ message: "processor failed" })),
   });
 
 const makeNativeRecordingProcessor = (
@@ -122,8 +131,9 @@ const makeNativeRecordingProcessor = (
       }),
   });
   processor.onShutdown(() => {
-    events.push("native-stop");
-    return Promise.resolve();
+    return Effect.sync(() => {
+      events.push("native-stop");
+    });
   });
   return processor;
 };
@@ -138,7 +148,7 @@ describe("Effect runtime services", () => {
         Effect.gen(function* () {
           const pubsub = yield* PubSub;
           const producer = yield* pubsub.createProducer<string>({ topic: "tg.test.topic" });
-          yield* Effect.promise(() => producer.send("hello", { id: "1" }));
+          yield* producer.send("hello", { id: "1" });
 
           expect(backend.producerOptions).toEqual({ topic: "tg.test.topic" });
           expect(pubsub.backend).toBe(backend);

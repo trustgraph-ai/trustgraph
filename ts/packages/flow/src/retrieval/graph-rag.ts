@@ -42,7 +42,10 @@ export interface GraphRagClients {
   prompt: EffectRequestResponse<PromptRequest, PromptResponse>;
 }
 
-export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
+export type ChunkCallback = (
+  text: string,
+  endOfStream: boolean,
+) => Effect.Effect<void, GraphRagEngineError>;
 
 export interface GraphRagQueryOptions {
   readonly collection?: string;
@@ -69,7 +72,7 @@ export class GraphRagEngineError extends S.TaggedErrorClass<GraphRagEngineError>
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -135,7 +138,7 @@ export interface GraphRag {
   readonly query: (
     queryText: string,
     options?: GraphRagQueryOptions,
-  ) => Promise<GraphRagResult>;
+  ) => Effect.Effect<GraphRagResult, GraphRagEngineError>;
 }
 
 export function makeGraphRag(
@@ -144,8 +147,7 @@ export function makeGraphRag(
 ): GraphRag {
   const engine = makeGraphRagEngine();
   return {
-    query: (queryText, options) =>
-      Effect.runPromise(engine.query(clients, queryText, options, config)),
+    query: (queryText, options) => engine.query(clients, queryText, options, config),
   };
 }
 
@@ -403,10 +405,9 @@ const synthesize = Effect.fn("GraphRagEngine.synthesize")(function* (
               return Effect.succeed(resp.endOfStream === true);
             }
             fullText += resp.response;
-            return Effect.tryPromise({
-              try: () => chunkCallback(resp.response, resp.endOfStream === true).then(() => resp.endOfStream === true),
-              catch: (cause) => graphRagError("synthesize-stream-callback", cause),
-            });
+            return chunkCallback(resp.response, resp.endOfStream === true).pipe(
+              Effect.as(resp.endOfStream === true),
+            );
           },
         },
       );
@@ -427,7 +428,7 @@ const synthesize = Effect.fn("GraphRagEngine.synthesize")(function* (
 
 const ScoredEdge = S.Struct({
   id: S.String,
-  score: S.Number,
+  score: S.Finite,
 });
 const ScoredEdgesFromJson = S.Array(ScoredEdge).pipe(S.fromJsonString);
 const ScoredEdgeFromJson = ScoredEdge.pipe(S.fromJsonString);

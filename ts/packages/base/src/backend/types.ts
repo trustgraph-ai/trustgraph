@@ -5,7 +5,9 @@
  * (NATS, Pulsar, Redis Streams) implements these interfaces.
  */
 
+import type { Effect } from "effect";
 import type * as S from "effect/Schema";
+import type { PubSubError } from "../errors.js";
 
 export interface Message<T = unknown> {
   value(): T;
@@ -13,17 +15,17 @@ export interface Message<T = unknown> {
 }
 
 export interface BackendProducer<T = unknown> {
-  send(message: T, properties?: Record<string, string>): Promise<void>;
-  flush(): Promise<void>;
-  close(): Promise<void>;
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void, PubSubError>;
+  flush: Effect.Effect<void, PubSubError>;
+  close: Effect.Effect<void, PubSubError>;
 }
 
 export interface BackendConsumer<T = unknown> {
-  receive(timeoutMs?: number): Promise<Message<T> | null>;
-  acknowledge(message: Message<T>): Promise<void>;
-  negativeAcknowledge(message: Message<T>): Promise<void>;
-  unsubscribe(): Promise<void>;
-  close(): Promise<void>;
+  receive(timeoutMs?: number): Effect.Effect<Message<T> | null, PubSubError>;
+  acknowledge(message: Message<T>): Effect.Effect<void, PubSubError>;
+  negativeAcknowledge(message: Message<T>): Effect.Effect<void, PubSubError>;
+  unsubscribe: Effect.Effect<void, PubSubError>;
+  close: Effect.Effect<void, PubSubError>;
 }
 
 export type ConsumerType = "shared" | "exclusive" | "failover";
@@ -43,7 +45,7 @@ export interface CreateConsumerOptions<T = unknown> {
 }
 
 export interface PubSubBackend {
-  createProducer<T>(options: CreateProducerOptions<T>): Promise<BackendProducer<T>>;
-  createConsumer<T>(options: CreateConsumerOptions<T>): Promise<BackendConsumer<T>>;
-  close(): Promise<void>;
+  createProducer<T>(options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>, PubSubError>;
+  createConsumer<T>(options: CreateConsumerOptions<T>): Effect.Effect<BackendConsumer<T>, PubSubError>;
+  close: Effect.Effect<void, PubSubError>;
 }

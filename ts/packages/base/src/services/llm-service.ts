@@ -32,19 +32,19 @@ export class LlmServiceError extends S.TaggedErrorClass<LlmServiceError>()(
   },
 ) {}
 
-export interface LlmProvider {
+export interface LlmProvider<ProviderError = never> {
   readonly generateContent: (
     system: string,
     prompt: string,
     model?: string,
     temperature?: number,
-  ) => Promise<LlmResult>;
+  ) => Effect.Effect<LlmResult, ProviderError>;
   readonly generateContentStream: (
     system: string,
     prompt: string,
     model?: string,
     temperature?: number,
-  ) => AsyncGenerator<LlmChunk>;
+  ) => Stream.Stream<LlmChunk, ProviderError>;
   readonly supportsStreaming: () => boolean;
 }
 
@@ -60,7 +60,7 @@ export interface LlmServiceShape {
     prompt: string,
     model?: string,
     temperature?: number,
-  ) => AsyncGenerator<LlmChunk>;
+  ) => Stream.Stream<LlmChunk, LlmServiceError>;
   readonly supportsStreaming: () => boolean;
 }
 
@@ -74,24 +74,28 @@ const llmServiceError = (operation: string, cause: unknown) =>
     message: errorMessage(cause),
   });
 
-export const makeLlmServiceShape = (provider: LlmProvider): LlmServiceShape => ({
+export const makeLlmServiceShape = <ProviderError>(
+  provider: LlmProvider<ProviderError>,
+): LlmServiceShape => ({
   generateContent: Effect.fn("Llm.generateContent")((
     system,
     prompt,
     model,
     temperature,
   ) =>
-    Effect.tryPromise({
-      try: () => provider.generateContent(system, prompt, model, temperature),
-      catch: (cause) => llmServiceError("generate-content", cause),
-    }),
+    provider.generateContent(system, prompt, model, temperature).pipe(
+      Effect.mapError((cause) => llmServiceError("generate-content", cause)),
+    ),
   ),
   generateContentStream: (
     system,
     prompt,
     model,
     temperature,
-  ) => provider.generateContentStream(system, prompt, model, temperature),
+  ) =>
+    provider.generateContentStream(system, prompt, model, temperature).pipe(
+      Stream.mapError((cause) => llmServiceError("generate-content-stream", cause)),
+    ),
   supportsStreaming: () => provider.supportsStreaming(),
 });
 
@@ -137,14 +141,11 @@ const sendStreamingResponse = Effect.fn("LlmService.sendStreamingResponse")(func
     ) => Effect.Effect<void, MessagingDeliveryError>;
   },
 ) {
-  yield* Stream.fromAsyncIterable(
-    llm.generateContentStream(
-      msg.system,
-      msg.prompt,
-      msg.model,
-      msg.temperature,
-    ),
-    (cause) => llmServiceError("generate-content-stream", cause),
+  yield* llm.generateContentStream(
+    msg.system,
+    msg.prompt,
+    msg.model,
+    msg.temperature,
   ).pipe(
     Stream.runForEach((chunk) =>
       responseProducer.send(requestId, chunkToResponse(chunk)),
@@ -215,12 +216,14 @@ export const makeLlmSpecs = (): ReadonlyArray<Spec<Llm>> => [
   makeParameterSpec("temperature"),
 ];
 
-export type LlmService = FlowProcessorRuntime<Llm> & LlmProvider;
+export type LlmService<ProviderError = never> =
+  & FlowProcessorRuntime<Llm>
+  & LlmProvider<ProviderError>;
 
-export function makeLlmService(
+export function makeLlmService<ProviderError>(
   config: ProcessorConfig,
-  provider: LlmProvider,
-): LlmService {
+  provider: LlmProvider<ProviderError>,
+): LlmService<ProviderError> {
   const service = makeFlowProcessor(config, {
     specifications: makeLlmSpecs(),
     provide: (effect) =>

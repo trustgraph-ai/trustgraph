@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Effect } from "effect";
 import { makeNatsBackend } from "../backend/nats.js";
 
 const natsMock = vi.hoisted(() => {
@@ -34,6 +35,7 @@ const natsMock = vi.hoisted(() => {
 
   const publish = vi.fn();
   const consumersGet = vi.fn();
+  const consumersInfo = vi.fn();
   const consumersAdd = vi.fn();
   const streamsInfo = vi.fn();
   const streamsAdd = vi.fn();
@@ -50,6 +52,7 @@ const natsMock = vi.hoisted(() => {
     connect,
     consumersAdd,
     consumersGet,
+    consumersInfo,
     decoder,
     drain,
     encoder,
@@ -86,6 +89,7 @@ function resetNatsMock(): void {
 
   natsMock.publish.mockResolvedValue({ duplicate: false, seq: 1, stream: "tg_test" });
   natsMock.consumersGet.mockResolvedValue({ next: natsMock.next });
+  natsMock.consumersInfo.mockResolvedValue({ name: "worker" });
   natsMock.consumersAdd.mockResolvedValue(undefined);
   natsMock.streamsInfo.mockResolvedValue({ config: { name: "tg_test" } });
   natsMock.streamsAdd.mockResolvedValue(undefined);
@@ -108,7 +112,7 @@ function resetNatsMock(): void {
     }),
     jetstreamManager: () =>
       Promise.resolve({
-        consumers: { add: natsMock.consumersAdd },
+        consumers: { add: natsMock.consumersAdd, info: natsMock.consumersInfo },
         streams: {
           add: natsMock.streamsAdd,
           info: natsMock.streamsInfo,
@@ -126,7 +130,7 @@ describe("NATS backend", () => {
     natsMock.streamsInfo.mockRejectedValueOnce(makeNatsError("404", 404));
     const backend = makeNatsBackend("nats://test");
 
-    await backend.createProducer<string>({ topic: "tg.test.topic" });
+    await Effect.runPromise(backend.createProducer<string>({ topic: "tg.test.topic" }));
 
     expect(natsMock.streamsAdd).toHaveBeenCalledWith({
       name: "tg_test",
@@ -137,11 +141,11 @@ describe("NATS backend", () => {
   it("caches initialized streams through the Effect mutable set", async () => {
     const backend = makeNatsBackend("nats://test");
 
-    await backend.createProducer<string>({ topic: "tg.test.topic" });
-    await backend.createConsumer<string>({
+    await Effect.runPromise(backend.createProducer<string>({ topic: "tg.test.topic" }));
+    await Effect.runPromise(backend.createConsumer<string>({
       topic: "tg.test.other",
       subscription: "worker",
-    });
+    }));
 
     expect(natsMock.streamsInfo).toHaveBeenCalledTimes(1);
     expect(natsMock.streamsInfo).toHaveBeenCalledWith("tg_test");
@@ -151,7 +155,9 @@ describe("NATS backend", () => {
     natsMock.streamsInfo.mockRejectedValueOnce(makeNatsError("PERMISSIONS_VIOLATION"));
     const backend = makeNatsBackend("nats://test");
 
-    const error = await backend.createProducer<string>({ topic: "tg.test.topic" }).catch((caught: unknown) => caught);
+    const error = await Effect.runPromise(
+      backend.createProducer<string>({ topic: "tg.test.topic" }),
+    ).catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       _tag: "PubSubError",
@@ -161,15 +167,13 @@ describe("NATS backend", () => {
   });
 
   it("creates durable consumers only when consumer lookup returns a JetStream 404", async () => {
-    natsMock.consumersGet
-      .mockRejectedValueOnce(makeNatsError("404", 404))
-      .mockResolvedValueOnce({ next: natsMock.next });
+    natsMock.consumersInfo.mockRejectedValueOnce(makeNatsError("404", 404));
     const backend = makeNatsBackend("nats://test");
 
-    await backend.createConsumer<string>({
+    await Effect.runPromise(backend.createConsumer<string>({
       topic: "tg.test.topic",
       subscription: "worker",
-    });
+    }));
 
     expect(natsMock.consumersAdd).toHaveBeenCalledWith("tg_test", {
       ack_policy: "explicit",
@@ -180,13 +184,13 @@ describe("NATS backend", () => {
   });
 
   it("does not create durable consumers for non-missing lookup failures", async () => {
-    natsMock.consumersGet.mockRejectedValueOnce(makeNatsError("PERMISSIONS_VIOLATION"));
+    natsMock.consumersInfo.mockRejectedValueOnce(makeNatsError("PERMISSIONS_VIOLATION"));
     const backend = makeNatsBackend("nats://test");
 
-    const error = await backend.createConsumer<string>({
+    const error = await Effect.runPromise(backend.createConsumer<string>({
       topic: "tg.test.topic",
       subscription: "worker",
-    }).catch((caught: unknown) => caught);
+    })).catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       _tag: "PubSubError",
@@ -200,9 +204,11 @@ describe("NATS backend", () => {
       throw "invalid header";
     });
     const backend = makeNatsBackend("nats://test");
-    const producer = await backend.createProducer<string>({ topic: "tg.test.topic" });
+    const producer = await Effect.runPromise(backend.createProducer<string>({ topic: "tg.test.topic" }));
 
-    const error = await producer.send("hello", { bad: "value" }).catch((caught: unknown) => caught);
+    const error = await Effect.runPromise(
+      producer.send("hello", { bad: "value" }),
+    ).catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       _tag: "PubSubError",
@@ -219,19 +225,23 @@ describe("NATS backend", () => {
       throw "nak failed";
     });
     const backend = makeNatsBackend("nats://test");
-    const consumer = await backend.createConsumer<string>({
+    const consumer = await Effect.runPromise(backend.createConsumer<string>({
       topic: "tg.test.topic",
       subscription: "worker",
-    });
-    const message = await consumer.receive(1);
+    }));
+    const message = await Effect.runPromise(consumer.receive(1));
 
     expect(message).not.toBeNull();
     if (message === null) {
       return;
     }
 
-    const ackError = await consumer.acknowledge(message).catch((caught: unknown) => caught);
-    const nakError = await consumer.negativeAcknowledge(message).catch((caught: unknown) => caught);
+    const ackError = await Effect.runPromise(
+      consumer.acknowledge(message),
+    ).catch((caught: unknown) => caught);
+    const nakError = await Effect.runPromise(
+      consumer.negativeAcknowledge(message),
+    ).catch((caught: unknown) => caught);
 
     expect(ackError).toMatchObject({
       _tag: "PubSubError",

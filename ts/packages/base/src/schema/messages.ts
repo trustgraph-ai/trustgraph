@@ -11,7 +11,7 @@ const UnknownRecord = S.Record(S.String, S.Unknown);
 const MutableArray = <A extends S.Top>(schema: A) => schema.pipe(S.Array, S.mutable);
 const OptionalMutableArray = <A extends S.Top>(schema: A) => schema.pipe(S.Array, S.mutable, S.optionalKey);
 const StringArray = MutableArray(S.String);
-const NumberArray = MutableArray(S.Number);
+const NumberArray = MutableArray(S.Finite);
 const NumberArrays = MutableArray(NumberArray);
 
 // Text completion
@@ -19,7 +19,7 @@ export const TextCompletionRequest = S.Struct({
   system: S.String,
   prompt: S.String,
   model: S.optionalKey(S.String),
-  temperature: S.optionalKey(S.Number),
+  temperature: S.optionalKey(S.Finite),
   streaming: S.optionalKey(S.Boolean),
 });
 export type TextCompletionRequest = typeof TextCompletionRequest.Type;
@@ -27,8 +27,8 @@ export type TextCompletionRequest = typeof TextCompletionRequest.Type;
 export const TextCompletionResponse = S.Struct({
   response: S.String,
   model: S.optionalKey(S.String),
-  inToken: S.optionalKey(S.Number),
-  outToken: S.optionalKey(S.Number),
+  inToken: S.optionalKey(S.Finite),
+  outToken: S.optionalKey(S.Finite),
   error: S.optionalKey(TgError),
   endOfStream: S.optionalKey(S.Boolean),
 });
@@ -51,10 +51,10 @@ export type EmbeddingsResponse = typeof EmbeddingsResponse.Type;
 export const GraphRagRequest = S.Struct({
   query: S.String,
   collection: S.optionalKey(S.String),
-  entityLimit: S.optionalKey(S.Number),
-  tripleLimit: S.optionalKey(S.Number),
-  maxSubgraphSize: S.optionalKey(S.Number),
-  maxPathLength: S.optionalKey(S.Number),
+  entityLimit: S.optionalKey(S.Finite),
+  tripleLimit: S.optionalKey(S.Finite),
+  maxSubgraphSize: S.optionalKey(S.Finite),
+  maxPathLength: S.optionalKey(S.Finite),
   streaming: S.optionalKey(S.Boolean),
 });
 export type GraphRagRequest = typeof GraphRagRequest.Type;
@@ -126,7 +126,7 @@ export const TriplesQueryRequest = S.Struct({
   p: S.optionalKey(Term),
   o: S.optionalKey(Term),
   collection: S.optionalKey(S.String),
-  limit: S.optionalKey(S.Number),
+  limit: S.optionalKey(S.Finite),
 });
 export type TriplesQueryRequest = typeof TriplesQueryRequest.Type;
 
@@ -140,7 +140,7 @@ export type TriplesQueryResponse = typeof TriplesQueryResponse.Type;
 export const GraphEmbeddingsRequest = S.Struct({
   vectors: NumberArrays,
   user: S.optionalKey(S.String),
-  limit: S.optionalKey(S.Number),
+  limit: S.optionalKey(S.Finite),
   collection: S.optionalKey(S.String),
 });
 export type GraphEmbeddingsRequest = typeof GraphEmbeddingsRequest.Type;
@@ -154,7 +154,7 @@ export type GraphEmbeddingsResponse = typeof GraphEmbeddingsResponse.Type;
 // Document embeddings query
 export const DocumentEmbeddingsRequest = S.Struct({
   vectors: NumberArrays,
-  limit: S.optionalKey(S.Number),
+  limit: S.optionalKey(S.Finite),
   user: S.optionalKey(S.String),
   collection: S.optionalKey(S.String),
 });
@@ -162,7 +162,7 @@ export type DocumentEmbeddingsRequest = typeof DocumentEmbeddingsRequest.Type;
 
 const DocumentEmbeddingChunk = S.Struct({
   chunkId: S.String,
-  score: S.Number,
+  score: S.Finite,
   content: S.optionalKey(S.String),
 });
 
@@ -193,7 +193,7 @@ export const ConfigRequest = S.StructWithRest(
 export type ConfigRequest = typeof ConfigRequest.Type;
 
 export const ConfigResponse = S.Struct({
-  version: S.optionalKey(S.Number),
+  version: S.optionalKey(S.Finite),
   values: S.optionalKey(S.Unknown),
   directory: S.optionalKey(StringArray),
   config: S.optionalKey(UnknownRecord),
@@ -266,7 +266,7 @@ export type Triples = typeof Triples.Type;
 // Document metadata
 export const DocumentMetadata = S.Struct({
   id: S.String,
-  time: S.Number,
+  time: S.Finite,
   kind: S.String,
   title: S.String,
   comments: S.String,
@@ -284,7 +284,7 @@ export const ProcessingMetadata = S.Struct({
   id: S.String,
   documentId: S.String,
   "document-id": S.optionalKey(S.String),
-  time: S.Number,
+  time: S.Finite,
   flow: S.String,
   user: S.String,
   collection: S.String,
@@ -329,10 +329,10 @@ export const LibrarianRequest = S.StructWithRest(
     content: S.optionalKey(S.String),
     user: S.optionalKey(S.String),
     collection: S.optionalKey(S.String),
-    "total-size": S.optionalKey(S.Number),
-    "chunk-size": S.optionalKey(S.Number),
+    "total-size": S.optionalKey(S.Finite),
+    "chunk-size": S.optionalKey(S.Finite),
     "upload-id": S.optionalKey(S.String),
-    "chunk-index": S.optionalKey(S.Number),
+    "chunk-index": S.optionalKey(S.Finite),
   }),
   [UnknownRecord],
 );
@@ -342,10 +342,10 @@ const UploadSessionInfo = S.Struct({
   "upload-id": S.String,
   "document-id": S.String,
   "document-metadata-json": S.String,
-  "total-size": S.Number,
-  "chunk-size": S.Number,
-  "total-chunks": S.Number,
-  "chunks-received": S.Number,
+  "total-size": S.Finite,
+  "chunk-size": S.Finite,
+  "total-chunks": S.Finite,
+  "chunks-received": S.Finite,
   "created-at": S.String,
 });
 
@@ -363,12 +363,12 @@ export const LibrarianResponse = S.StructWithRest(
     "document-id": S.optionalKey(S.String),
     "object-id": S.optionalKey(S.String),
     "upload-id": S.optionalKey(S.String),
-    "chunk-size": S.optionalKey(S.Number),
-    "chunk-index": S.optionalKey(S.Number),
-    "total-chunks": S.optionalKey(S.Number),
-    "chunks-received": S.optionalKey(S.Number),
-    "bytes-received": S.optionalKey(S.Number),
-    "total-bytes": S.optionalKey(S.Number),
+    "chunk-size": S.optionalKey(S.Finite),
+    "chunk-index": S.optionalKey(S.Finite),
+    "total-chunks": S.optionalKey(S.Finite),
+    "chunks-received": S.optionalKey(S.Finite),
+    "bytes-received": S.optionalKey(S.Finite),
+    "total-bytes": S.optionalKey(S.Finite),
     "upload-state": S.optionalKey(S.String),
     "received-chunks": S.optionalKey(NumberArray),
     "missing-chunks": S.optionalKey(NumberArray),

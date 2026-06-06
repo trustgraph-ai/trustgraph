@@ -24,7 +24,7 @@ import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
-import type { AgentTool, ToolArg } from "./types.js";
+import { agentToolError, type AgentTool, type ToolArg } from "./types.js";
 
 const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
 const decodeTerm = S.decodeUnknownOption(TermSchema);
@@ -88,14 +88,16 @@ export function createKnowledgeQueryTool(
         description: "The question to ask the knowledge graph",
       },
     ],
-    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
+    execute: Effect.fn("KnowledgeQuery.execute")(function* (input: string) {
       const question = parseQuestion(input);
       yield* Effect.log(`[KnowledgeQuery] Executing: "${question.slice(0, 60)}..." collection=${collection}`);
       const request: GraphRagRequest = {
         query: question,
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = yield* client.request(request);
+      const res = yield* client.request(request).pipe(
+        Effect.mapError((cause) => agentToolError("knowledge-query", cause)),
+      );
       yield* Effect.log(`[KnowledgeQuery] Response (${res.response?.length ?? 0} chars): ${res.error !== undefined ? `ERROR: ${res.error.message}` : `${res.response?.slice(0, 300)}...`}`);
 
       const explainTriples = res.explain_triples;
@@ -108,7 +110,7 @@ export function createKnowledgeQueryTool(
 
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
-    })),
+    }),
   };
 }
 
@@ -130,16 +132,18 @@ export function createDocumentQueryTool(
         description: "The question to search documents for",
       },
     ],
-    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
+    execute: Effect.fn("DocumentQuery.execute")(function* (input: string) {
       const question = parseQuestion(input);
       const request: DocumentRagRequest = {
         query: question,
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = yield* client.request(request);
+      const res = yield* client.request(request).pipe(
+        Effect.mapError((cause) => agentToolError("document-query", cause)),
+      );
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       return res.response;
-    })),
+    }),
   };
 }
 
@@ -221,7 +225,7 @@ export function createTriplesQueryTool(
         description: "The object entity to search for (optional)",
       },
     ],
-    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
+    execute: Effect.fn("TriplesQuery.execute")(function* (input: string) {
       const { s, p, o, limit } = parseTriplesInput(input);
       const request: TriplesQueryRequest = {
         limit: limit ?? 20,
@@ -230,7 +234,9 @@ export function createTriplesQueryTool(
         ...(o !== undefined ? { o } : {}),
         ...(collection !== undefined ? { collection } : {}),
       };
-      const res = yield* client.request(request);
+      const res = yield* client.request(request).pipe(
+        Effect.mapError((cause) => agentToolError("triples-query", cause)),
+      );
 
       if (res.error !== undefined) return `Error: ${res.error.message}`;
 
@@ -243,7 +249,7 @@ export function createTriplesQueryTool(
           `(${termToString(t.s)}) -[${termToString(t.p)}]-> (${termToString(t.o)})`,
       );
       return lines.join("\n");
-    })),
+    }),
   };
 }
 
@@ -263,12 +269,14 @@ export function createMcpTool(
     name: toolName,
     description,
     args,
-    execute: (input: string): Promise<string> => Effect.runPromise(Effect.gen(function* () {
-      const res = yield* client.request({ name: toolName, parameters: input });
+    execute: Effect.fn("McpTool.execute")(function* (input: string) {
+      const res = yield* client.request({ name: toolName, parameters: input }).pipe(
+        Effect.mapError((cause) => agentToolError("mcp-tool", cause)),
+      );
       if (res.error !== undefined) return `Error: ${res.error.message}`;
       if (res.text !== undefined) return res.text;
       if (res.object !== undefined) return res.object;
       return "No content";
-    })),
+    }),
   };
 }

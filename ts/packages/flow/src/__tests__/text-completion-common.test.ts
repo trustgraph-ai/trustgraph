@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { LlmChunk } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Context, Effect, Stream } from "effect";
 import { AiError, LanguageModel, Response } from "effect/unstable/ai";
 import {
   llmStreamPart,
@@ -9,10 +8,9 @@ import {
   providerStatusError,
   streamTextCompletionChunks,
   textFromContent,
-  toAsyncGenerator,
 } from "../model/text-completion/common.js";
 
-const languageModelRuntime = ManagedRuntime.make(Layer.empty);
+const languageModelContext = Context.empty();
 
 const usage = (inputTokens: number, outputTokens: number) => ({
   inputTokens: {
@@ -42,12 +40,6 @@ const aiError = (reason: AiError.AiErrorReason) =>
     reason,
   });
 
-const emptyChunkIterator = (): AsyncIterable<LlmChunk> => ({
-  [Symbol.asyncIterator]: () => ({
-    next: () => Promise.resolve({ done: true, value: undefined }),
-  }),
-});
-
 describe("text completion common helpers", () => {
   it("maps provider rate-limit status fields to tagged retry errors", () => {
     expect(providerStatusError("test-provider", { status: 429 })).toMatchObject({
@@ -58,19 +50,6 @@ describe("text completion common helpers", () => {
     expect(providerStatusError("test-provider", { statusCode: 429 })).toMatchObject({
       _tag: "TooManyRequestsError",
       message: "Rate limit exceeded",
-    });
-  });
-
-  it("maps fallback generator throw failures into tagged provider errors", async () => {
-    const generator = toAsyncGenerator(
-      emptyChunkIterator(),
-      (error) => providerRuntimeError("test-provider", error),
-    );
-
-    await expect(generator.throw("provider failed")).rejects.toMatchObject({
-      _tag: "TextCompletionProviderError",
-      provider: "test-provider",
-      message: "provider failed",
     });
   });
 
@@ -117,107 +96,129 @@ describe("text completion common helpers", () => {
     expect(textFromContent([{ text: 1 }])).toBe("");
   });
 
-  it("adapts Effect LanguageModel generateText responses to LlmProvider results", async () => {
-    const provider = makeLanguageModelProvider({
-      provider: "FakeLanguageModel",
-      defaultModel: "fake-model",
-      defaultTemperature: 0.1,
-      runtime: languageModelRuntime,
-      makeLanguageModel: ({ model, temperature }) =>
-        LanguageModel.make({
-          generateText: () =>
-            Effect.succeed([
-              { type: "text", text: `model=${model};temperature=${temperature}` },
-              finishPart(11, 7),
-            ]),
-          streamText: () => Stream.empty,
-        }),
-    });
-
-    await expect(provider.generateContent("system", "prompt", "override-model", 0.4)).resolves.toEqual({
-      text: "model=override-model;temperature=0.4",
-      inToken: 11,
-      outToken: 7,
-      model: "override-model",
-    });
-  });
-
-  it("adapts Effect LanguageModel stream parts to TrustGraph chunks", async () => {
-    const provider = makeLanguageModelProvider({
-      provider: "FakeLanguageModel",
-      defaultModel: "fake-stream-model",
-      defaultTemperature: 0,
-      runtime: languageModelRuntime,
-      makeLanguageModel: () =>
-        LanguageModel.make({
-          generateText: () =>
-            Effect.succeed([
-              { type: "text", text: "unused" },
-              finishPart(1, 1),
-            ]),
-          streamText: () =>
-            Stream.fromArray([
-              Response.makePart("text-start", { id: "part-1" }),
-              { type: "text-delta", id: "part-1", delta: "hel" },
-              { type: "text-delta", id: "part-1", delta: "lo" },
-              finishPart(13, 8),
-            ]),
-        }),
-    });
-
-    const chunks: Array<LlmChunk> = [];
-    for await (const chunk of provider.generateContentStream("system", "prompt")) {
-      chunks.push(chunk);
-    }
-
-    expect(chunks).toEqual([
-      {
-        text: "hel",
-        inToken: null,
-        outToken: null,
-        model: "fake-stream-model",
-        isFinal: false,
-      },
-      {
-        text: "lo",
-        inToken: null,
-        outToken: null,
-        model: "fake-stream-model",
-        isFinal: false,
-      },
-      {
-        text: "",
-        inToken: 13,
-        outToken: 8,
-        model: "fake-stream-model",
-        isFinal: true,
-      },
-    ]);
-  });
-
-  it("maps Effect AI rate and quota failures to TrustGraph retry errors", async () => {
-    const reasons = [
-      new AiError.RateLimitError({}),
-      new AiError.QuotaExhaustedError({}),
-    ];
-
-    for (const reason of reasons) {
+  it.effect(
+    "adapts Effect LanguageModel generateText responses to LlmProvider results",
+    Effect.fnUntraced(function* () {
       const provider = makeLanguageModelProvider({
         provider: "FakeLanguageModel",
         defaultModel: "fake-model",
-        defaultTemperature: 0,
-        runtime: languageModelRuntime,
-        makeLanguageModel: () =>
+        defaultTemperature: 0.1,
+        context: languageModelContext,
+        makeLanguageModel: ({ model, temperature }) =>
           LanguageModel.make({
-            generateText: () => Effect.fail(aiError(reason)),
-            streamText: () => Stream.fail(aiError(reason)),
+            generateText: () =>
+              Effect.succeed([
+                { type: "text", text: `model=${model};temperature=${temperature}` },
+                finishPart(11, 7),
+              ]),
+            streamText: () => Stream.empty,
           }),
       });
 
-      await expect(provider.generateContent("system", "prompt")).rejects.toMatchObject({
-        _tag: "TooManyRequestsError",
-        message: "Rate limit exceeded",
+      const result = yield* provider.generateContent("system", "prompt", "override-model", 0.4);
+      expect(result).toEqual({
+        text: "model=override-model;temperature=0.4",
+        inToken: 11,
+        outToken: 7,
+        model: "override-model",
       });
-    }
-  });
+    }),
+  );
+
+  it.effect(
+    "adapts Effect LanguageModel stream parts to TrustGraph chunks",
+    Effect.fnUntraced(function* () {
+      const provider = makeLanguageModelProvider({
+        provider: "FakeLanguageModel",
+        defaultModel: "fake-stream-model",
+        defaultTemperature: 0,
+        context: languageModelContext,
+        makeLanguageModel: () =>
+          LanguageModel.make({
+            generateText: () =>
+              Effect.succeed([
+                { type: "text", text: "unused" },
+                finishPart(1, 1),
+              ]),
+            streamText: () =>
+              Stream.fromArray([
+                Response.makePart("text-start", { id: "part-1" }),
+                { type: "text-delta", id: "part-1", delta: "hel" },
+                { type: "text-delta", id: "part-1", delta: "lo" },
+                finishPart(13, 8),
+              ]),
+          }),
+      });
+
+      const chunks = yield* Stream.runCollect(
+        provider.generateContentStream("system", "prompt"),
+      );
+
+      expect(Array.from(chunks)).toEqual([
+        {
+          text: "hel",
+          inToken: null,
+          outToken: null,
+          model: "fake-stream-model",
+          isFinal: false,
+        },
+        {
+          text: "lo",
+          inToken: null,
+          outToken: null,
+          model: "fake-stream-model",
+          isFinal: false,
+        },
+        {
+          text: "",
+          inToken: 13,
+          outToken: 8,
+          model: "fake-stream-model",
+          isFinal: true,
+        },
+      ]);
+    }),
+  );
+
+  it.effect(
+    "maps Effect AI rate and quota failures to TrustGraph retry errors",
+    Effect.fnUntraced(function* () {
+      const reasons = [
+        new AiError.RateLimitError({}),
+        new AiError.QuotaExhaustedError({}),
+      ];
+
+      for (const reason of reasons) {
+        const provider = makeLanguageModelProvider({
+          provider: "FakeLanguageModel",
+          defaultModel: "fake-model",
+          defaultTemperature: 0,
+          context: languageModelContext,
+          makeLanguageModel: () =>
+            LanguageModel.make({
+              generateText: () => Effect.fail(aiError(reason)),
+              streamText: () => Stream.fail(aiError(reason)),
+            }),
+        });
+
+        const generateError = yield* provider.generateContent("system", "prompt").pipe(
+          Effect.flip,
+        );
+        expect(generateError).toMatchObject({
+          _tag: "TooManyRequestsError",
+          message: "Rate limit exceeded",
+        });
+
+        const streamError = yield* Stream.runCollect(
+          provider.generateContentStream("system", "prompt"),
+        ).pipe(
+          Effect.flip,
+        );
+        expect(streamError).toMatchObject({
+          _tag: "TooManyRequestsError",
+          message: "Rate limit exceeded",
+        });
+      }
+    }),
+  );
 });

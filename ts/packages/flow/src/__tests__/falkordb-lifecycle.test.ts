@@ -17,30 +17,34 @@ class FakeFalkorDBClient implements FalkorDBStoreClient, FalkorDBQueryClient {
   connectCount = 0;
   disconnectCount = 0;
 
-  async connect(): Promise<void> {
+  readonly connect: Effect.Effect<void> = Effect.sync(() => {
     this.connectCount += 1;
-  }
+  });
 
-  async disconnect(): Promise<void> {
+  readonly disconnect: Effect.Effect<void> = Effect.sync(() => {
     this.disconnectCount += 1;
-  }
+  });
 }
 
 class FakeStoreGraph implements FalkorDBStoreGraph {
   readonly queries: string[] = [];
 
-  async query<T = unknown>(query: string): Promise<{ readonly data?: Array<T> }> {
-    this.queries.push(query);
-    return {};
+  query<T = unknown>(query: string): Effect.Effect<{ readonly data?: Array<T> }> {
+    return Effect.sync(() => {
+      this.queries.push(query);
+      return {};
+    });
   }
 }
 
 class FakeQueryGraph implements FalkorDBQueryGraph {
   readonly queries: string[] = [];
 
-  async query<T = unknown>(query: string): Promise<{ readonly data?: Array<T> }> {
-    this.queries.push(query);
-    return {};
+  query<T = unknown>(query: string): Effect.Effect<{ readonly data?: Array<T> }> {
+    return Effect.sync(() => {
+      this.queries.push(query);
+      return {};
+    });
   }
 }
 

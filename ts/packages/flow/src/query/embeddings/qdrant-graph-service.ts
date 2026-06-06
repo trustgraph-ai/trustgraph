@@ -24,7 +24,7 @@ import {
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect } from "effect";
 import {
   QdrantGraphEmbeddingsQueryLive,
   QdrantGraphEmbeddingsQueryService,
@@ -112,12 +112,10 @@ const provideQdrantGraphEmbeddingsQuery = (processorId: string) =>
   });
 
 export function makeGraphEmbeddingsQueryService(config: ProcessorConfig): GraphEmbeddingsQueryService {
-  const service = makeFlowProcessor(config, {
+  return makeFlowProcessor(config, {
     specifications: makeGraphEmbeddingsQuerySpecs(),
     provide: provideQdrantGraphEmbeddingsQuery(config.id),
   });
-  void Effect.runPromise(Effect.log("[GraphEmbeddingsQuery] Service initialized"));
-  return service;
 }
 
 export const GraphEmbeddingsQueryService = makeGraphEmbeddingsQueryService;
@@ -131,12 +129,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeGraphEmbeddingsQuerySpecs(),
   layer: (config) => QdrantGraphEmbeddingsQueryLive(config),
 });
-
-const graphEmbeddingsQueryRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return graphEmbeddingsQueryRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

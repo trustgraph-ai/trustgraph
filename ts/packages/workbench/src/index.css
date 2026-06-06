@@ -51,6 +51,15 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+:root {
+  --tg-glow-primary-start: rgba(61, 125, 61, 0.35);
+  --tg-glow-primary-mid: rgba(45, 99, 45, 0.15);
+  --tg-glow-secondary-start: rgba(92, 154, 92, 0.28);
+  --tg-glow-secondary-mid: rgba(61, 125, 61, 0.12);
+  --tg-glow-tertiary-start: rgba(33, 78, 33, 0.30);
+  --tg-glow-tertiary-mid: rgba(26, 58, 26, 0.12);
+}
+
 /* Base layer: dark background, light text by default */
 @layer base {
   *,
@@ -182,4 +191,11 @@ html.light {
   --color-success: #16a34a;
   --color-warning: #854d0e;
   --color-error: #b91c1c;
+
+  --tg-glow-primary-start: rgba(61, 125, 61, 0.28);
+  --tg-glow-primary-mid: rgba(92, 154, 92, 0.16);
+  --tg-glow-secondary-start: rgba(45, 99, 45, 0.22);
+  --tg-glow-secondary-mid: rgba(61, 125, 61, 0.12);
+  --tg-glow-tertiary-start: rgba(33, 78, 33, 0.18);
+  --tg-glow-tertiary-mid: rgba(92, 154, 92, 0.10);
 }

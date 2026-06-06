@@ -20,29 +20,29 @@ import type {
 class NoopPubSub implements PubSubBackend {
   readonly sentByTopic = new Map<string, Array<unknown>>();
 
-  async createProducer<T>(options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
-    return {
-      send: async (message) => {
+  createProducer<T>(options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>> {
+    return Effect.succeed({
+      send: (message) => Effect.sync(() => {
         const sent = this.sentByTopic.get(options.topic) ?? [];
         sent.push(message);
         this.sentByTopic.set(options.topic, sent);
-      },
-      flush: async () => undefined,
-      close: async () => undefined,
-    };
+      }),
+      flush: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async createConsumer<T>(_options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    return {
-      receive: async () => null,
-      acknowledge: async () => undefined,
-      negativeAcknowledge: async () => undefined,
-      unsubscribe: async () => undefined,
-      close: async () => undefined,
-    };
+  createConsumer<T>(_options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.succeed({
+      receive: () => Effect.succeed(null),
+      acknowledge: () => Effect.void,
+      negativeAcknowledge: () => Effect.void,
+      unsubscribe: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async close(): Promise<void> {}
+  readonly close: Effect.Effect<void> = Effect.void;
 }
 
 const makeService = (persistPath?: string) =>
@@ -59,9 +59,9 @@ describe("ConfigService operations", () => {
     const putRequest: ConfigRequest = { operation: "put" };
     const deleteRequest: ConfigRequest = { operation: "delete" };
 
-    const putError = await service.handlePut(putRequest)
+    const putError = await Effect.runPromise(service.handlePutEffect(putRequest))
       .catch((caught: unknown) => caught);
-    const deleteError = await service.handleDelete(deleteRequest)
+    const deleteError = await Effect.runPromise(service.handleDeleteEffect(deleteRequest))
       .catch((caught: unknown) => caught);
 
     expect(putError).toBeInstanceOf(ConfigServiceError);
@@ -81,7 +81,7 @@ describe("ConfigService operations", () => {
       ],
     };
 
-    await service.handlePut(putRequest);
+    await Effect.runPromise(service.handlePutEffect(putRequest));
 
     const persisted = await Bun.file(persistPath).json();
     await rm(dir, { recursive: true, force: true });
@@ -107,7 +107,7 @@ describe("ConfigService operations", () => {
     );
     const service = makeService(persistPath);
 
-    await service.loadFromDisk();
+    await Effect.runPromise(service.loadFromDiskEffect);
     const getRequest: ConfigRequest = {
       operation: "get",
       keys: ["prompt", "system"],
@@ -131,7 +131,10 @@ describe("ConfigService operations", () => {
       { operation: "put", values: [{ workspace: "beta", type: "prompt", key: "c", value: "three" }] },
     ];
 
-    await Promise.all(requests.map((request) => service.handlePut(request)));
+    await Effect.runPromise(Effect.all(requests.map((request) => service.handlePutEffect(request)), {
+      concurrency: "unbounded",
+      discard: true,
+    }));
 
     expect(service.handleGet({ operation: "get", keys: ["prompt"] })).toEqual({
       version: 3,
@@ -150,53 +153,53 @@ describe("ConfigService operations", () => {
   it("dispatches all config operations through the Match-backed handler", async () => {
     const service = makeService();
 
-    await expect(service.handleOperation({ operation: "put" })).rejects.toMatchObject({
+    await expect(Effect.runPromise(service.handleOperationEffect({ operation: "put" }))).rejects.toMatchObject({
       _tag: "ConfigServiceError",
       operation: "put",
     });
-    await expect(service.handleOperation({ operation: "delete" })).rejects.toMatchObject({
+    await expect(Effect.runPromise(service.handleOperationEffect({ operation: "delete" }))).rejects.toMatchObject({
       _tag: "ConfigServiceError",
       operation: "delete",
     });
 
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "put",
       values: [{ type: "prompt", key: "system", value: "hello" }],
-    })).resolves.toEqual({ version: 1 });
+    }))).resolves.toEqual({ version: 1 });
 
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "get",
       keys: ["prompt", "system"],
-    })).resolves.toEqual({
+    }))).resolves.toEqual({
       version: 1,
       values: { system: "hello" },
     });
-    await expect(service.handleOperation({ operation: "list" })).resolves.toEqual({
+    await expect(Effect.runPromise(service.handleOperationEffect({ operation: "list" }))).resolves.toEqual({
       version: 1,
       directory: ["prompt"],
     });
-    await expect(service.handleOperation({ operation: "config" })).resolves.toEqual({
+    await expect(Effect.runPromise(service.handleOperationEffect({ operation: "config" }))).resolves.toEqual({
       version: 1,
       config: { prompt: { system: "hello" } },
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "getvalues",
       type: "prompt",
-    })).resolves.toEqual({
+    }))).resolves.toEqual({
       version: 1,
       values: [{ type: "prompt", key: "system", value: "hello" }],
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "getvalues-all-ws",
       type: "prompt",
-    })).resolves.toEqual({
+    }))).resolves.toEqual({
       version: 1,
       values: [{ workspace: "default", type: "prompt", key: "system", value: "hello" }],
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "delete",
       keys: ["prompt", "system"],
-    })).resolves.toEqual({ version: 2 });
+    }))).resolves.toEqual({ version: 2 });
   });
 
   it("pushes config from the stored producer handle", async () => {
@@ -206,10 +209,10 @@ describe("ConfigService operations", () => {
       manageProcessSignals: false,
       pubsub: backend,
     });
-    const pushProducer = await backend.createProducer<{
+    const pushProducer = await Effect.runPromise(backend.createProducer<{
       readonly version: number;
       readonly config: Record<string, unknown>;
-    }>({ topic: topics.configPush });
+    }>({ topic: topics.configPush }));
 
     await Effect.runPromise(
       SynchronizedRef.update(service.state, (state) => ({
@@ -217,11 +220,11 @@ describe("ConfigService operations", () => {
         pushProducer,
       })),
     );
-    await service.pushConfig();
-    await service.handlePut({
+    await Effect.runPromise(service.pushConfigEffect);
+    await Effect.runPromise(service.handlePutEffect({
       operation: "put",
       values: [{ type: "prompt", key: "system", value: "hello" }],
-    });
+    }));
 
     expect(backend.sentByTopic.get(topics.configPush)).toEqual([
       { version: 0, config: {} },

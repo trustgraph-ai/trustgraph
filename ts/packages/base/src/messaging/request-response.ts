@@ -7,12 +7,22 @@
  * Python reference: trustgraph-base/trustgraph/base/request_response_spec.py
  */
 
-import { Effect, Exit, Scope } from "effect";
+import { Config as EffectConfig, Effect, Exit, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
 import { PubSub } from "../backend/pubsub.js";
-import { messagingDeliveryError, messagingLifecycleError } from "../errors.js";
+import {
+  messagingLifecycleError,
+  type MessagingDeliveryError,
+  type MessagingLifecycleError,
+  type MessagingTimeoutError,
+  type PubSubError,
+} from "../errors.js";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
-import { makeEffectRequestResponseFromPubSub, type EffectRequestResponse } from "./runtime.js";
+import {
+  makeEffectRequestResponseFromPubSub,
+  type EffectRequestOptions,
+  type EffectRequestResponse,
+} from "./runtime.js";
 
 export interface RequestResponseOptions {
   pubsub: PubSubBackend;
@@ -22,15 +32,12 @@ export interface RequestResponseOptions {
 }
 
 export interface RequestResponse<TReq, TRes> {
-  readonly start: () => Promise<void>;
-  readonly stop: () => Promise<void>;
-  readonly request: (
+  readonly start: Effect.Effect<void, PubSubError | EffectConfig.ConfigError>;
+  readonly stop: Effect.Effect<void>;
+  readonly request: <E = never, R = never>(
     request: TReq,
-    options?: {
-      timeoutMs?: number;
-      recipient?: (response: TRes) => Promise<boolean>;
-    },
-  ) => Promise<TRes>;
+    options?: EffectRequestOptions<TRes, E, R>,
+  ) => Effect.Effect<TRes, MessagingDeliveryError | MessagingLifecycleError | MessagingTimeoutError | E, R>;
 }
 
 interface RequestResponseRuntime<TReq, TRes> {
@@ -43,44 +50,43 @@ export function makeRequestResponse<TReq, TRes>(
 ): RequestResponse<TReq, TRes> {
   let runtime: RequestResponseRuntime<TReq, TRes> | null = null;
 
+  const start = Effect.fn(`RequestResponse.start:${options.requestTopic}:${options.responseTopic}`)(function* () {
+    if (runtime !== null) return;
+
+    const scope = yield* Scope.make();
+    const startRuntime = Effect.gen(function* () {
+      const config = yield* loadMessagingRuntimeConfig();
+      const requestor = yield* makeEffectRequestResponseFromPubSub<TReq, TRes>(
+        PubSub.fromBackend(options.pubsub),
+        config,
+        {
+          requestTopic: options.requestTopic,
+          responseTopic: options.responseTopic,
+          subscription: options.subscription,
+        },
+      ).pipe(Scope.provide(scope));
+
+      runtime = { scope, requestor };
+    });
+
+    yield* startRuntime.pipe(
+      Effect.catch((error) =>
+        Scope.close(scope, Exit.fail(error)).pipe(
+          Effect.flatMap(() => Effect.fail(error)),
+        ),
+      ),
+    );
+  });
+
   return {
-    start: () =>
-      runtime !== null
-        ? Promise.resolve()
-        : Effect.runPromise(
-            Effect.gen(function* () {
-              const scope = yield* Scope.make();
-              const startRuntime = Effect.gen(function* () {
-                const config = yield* loadMessagingRuntimeConfig();
-                const requestor = yield* makeEffectRequestResponseFromPubSub<TReq, TRes>(
-                  PubSub.fromBackend(options.pubsub),
-                  config,
-                  {
-                    requestTopic: options.requestTopic,
-                    responseTopic: options.responseTopic,
-                    subscription: options.subscription,
-                  },
-                ).pipe(Scope.provide(scope));
-
-                runtime = { scope, requestor };
-              });
-
-              yield* startRuntime.pipe(
-                Effect.catch((error) =>
-                  Scope.close(scope, Exit.fail(error)).pipe(
-                    Effect.flatMap(() => Effect.fail(error)),
-                  ),
-                ),
-              );
-            }),
-          ),
-    stop: () => {
+    start: start(),
+    stop: Effect.suspend(() => {
       const current = runtime;
       runtime = null;
       return current === null
-        ? Promise.resolve()
-        : Effect.runPromise(Scope.close(current.scope, Exit.void));
-    },
+        ? Effect.void
+        : Scope.close(current.scope, Exit.void);
+    }),
     /**
      * Send a request and wait for responses.
      *
@@ -93,34 +99,21 @@ export function makeRequestResponse<TReq, TRes>(
     request: (request, requestOptions) => {
       const current = runtime;
       if (current === null) {
-        return Effect.runPromise(
-          Effect.fail(
-            messagingLifecycleError(
-              `${options.requestTopic}:${options.responseTopic}`,
-              "request",
-              "RequestResponse not started",
-            ),
+        return Effect.fail(
+          messagingLifecycleError(
+            `${options.requestTopic}:${options.responseTopic}`,
+            "request",
+            "RequestResponse not started",
           ),
         );
       }
 
       const timeoutMs = requestOptions?.timeoutMs ?? 300_000;
-      const recipient = requestOptions?.recipient;
 
-      return Effect.runPromise(
-        current.requestor.request(request, {
-          timeoutMs,
-          ...(recipient === undefined
-            ? {}
-            : {
-                recipient: (response) =>
-                  Effect.tryPromise({
-                    try: () => recipient(response),
-                    catch: (error) => messagingDeliveryError(options.responseTopic, "recipient", error),
-                  }),
-              }),
-        }),
-      );
+      return current.requestor.request(request, {
+        ...requestOptions,
+        timeoutMs,
+      });
     },
   };
 }

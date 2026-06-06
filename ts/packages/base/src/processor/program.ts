@@ -7,7 +7,6 @@
 
 import { Config as EffectConfig, Effect, Layer } from "effect";
 import {
-  processorLifecycleError,
   type FlowRuntimeError,
   type ProcessorLifecycleError,
   type PubSubError,
@@ -83,10 +82,7 @@ export const runProcessorScoped = Effect.fn("runProcessorScoped")(function* <
     const processor = make(runtimeConfig);
 
     yield* Effect.addFinalizer(() =>
-      Effect.tryPromise({
-        try: () => processor.stop(),
-        catch: (error) => processorLifecycleError(config.id, "stop", error),
-      }).pipe(
+      processor.stop.pipe(
         Effect.catch((error) =>
           Effect.logError("[Processor] Failed to stop processor", {
             error: error.message,

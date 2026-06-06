@@ -14,6 +14,8 @@ import {
   localName,
   type GraphNode,
   type GraphLink,
+  directedGraphLinkProps,
+  DEFAULT_GRAPH_NODE_COLOR,
 } from "@/lib/graph-utils";
 import type { ExplainEvent } from "@trustgraph/client";
 import type { ForceGraphProps } from "react-force-graph-2d";
@@ -34,7 +36,7 @@ function paintNode(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: 
   const y = node.y ?? 0;
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
-  ctx.fillStyle = node.color ?? "#5b80ff";
+  ctx.fillStyle = node.color ?? DEFAULT_GRAPH_NODE_COLOR;
   ctx.fill();
   const fontSize = Math.max(9 / globalScale, 1.5);
   ctx.font = `${fontSize}px Inter, sans-serif`;
@@ -115,7 +117,7 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
                     nodeCanvasObject={paintNode}
                     linkCanvasObjectMode={() => "after"}
                     linkCanvasObject={paintLink}
-                    linkColor={() => "rgba(120,120,140,0.32)"}
+                    {...directedGraphLinkProps}
                   />
                 </Suspense>
               </div>

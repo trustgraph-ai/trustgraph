@@ -5,23 +5,16 @@
  */
 
 import { Effect } from "effect";
-import * as S from "effect/Schema";
 import type { Spec } from "./types.js";
 import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
-import { type MessageHandler } from "../messaging/consumer.js";
 import {
   ConsumerFactory,
   type EffectMessageHandler,
 } from "../messaging/runtime.js";
 import {
-  messagingHandlerError,
-  TooManyRequestsError,
-  type MessagingHandlerError,
   type PubSubError,
 } from "../errors.js";
-
-const isTooManyRequestsError = S.is(TooManyRequestsError);
 
 declare const ConsumerSpecType: unique symbol;
 
@@ -62,26 +55,5 @@ export function makeConsumerSpec<T, E = never, R = never>(
   return {
     name,
     addEffect,
-    add: (flow, pubsub, definition, context) =>
-      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
-}
-
-export function makeConsumerSpecFromPromise<T>(
-  name: string,
-  handler: MessageHandler<T>,
-  concurrency = 1,
-): ConsumerSpec<T, TooManyRequestsError | MessagingHandlerError> {
-  return makeConsumerSpec<T, TooManyRequestsError | MessagingHandlerError>(
-    name,
-    (message, properties, flow) =>
-      Effect.tryPromise({
-        try: () => handler(message, properties, flow),
-        catch: (error) =>
-          isTooManyRequestsError(error)
-            ? error
-            : messagingHandlerError(name, `${flow.id}-${flow.name}-${name}`, error),
-      }),
-    concurrency,
-  );
 }

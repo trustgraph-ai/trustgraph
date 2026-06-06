@@ -3,8 +3,23 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
+const isWorkbenchQa = process.env.WORKBENCH_QA === "1";
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    {
+      name: "trustgraph-workbench-qa-otel",
+      configureServer(server) {
+        if (!isWorkbenchQa) return;
+        server.middlewares.use("/otel", (_request, response) => {
+          response.statusCode = 204;
+          response.end();
+        });
+      },
+    },
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

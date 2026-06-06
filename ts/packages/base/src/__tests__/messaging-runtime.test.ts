@@ -36,18 +36,20 @@ class RecordingProducer<T> implements BackendProducer<T> {
 
   constructor(private readonly onSend?: (message: T, properties?: Record<string, string>) => void) {}
 
-  async send(message: T, properties?: Record<string, string>): Promise<void> {
-    this.sent.push(properties === undefined ? { message } : { message, properties });
-    this.onSend?.(message, properties);
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.sent.push(properties === undefined ? { message } : { message, properties });
+      this.onSend?.(message, properties);
+    });
   }
 
-  async flush(): Promise<void> {
+  readonly flush: Effect.Effect<void> = Effect.sync(() => {
     this.flushCount += 1;
-  }
+  });
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class ScriptedConsumer<T> implements BackendConsumer<T> {
@@ -64,27 +66,33 @@ class ScriptedConsumer<T> implements BackendConsumer<T> {
     this.messages.push(message);
   }
 
-  async receive(): Promise<Message<T> | null> {
-    const message = this.messages.shift();
-    if (message !== undefined) {
-      return message;
-    }
-    return null;
+  receive(): Effect.Effect<Message<T> | null> {
+    return Effect.sync(() => {
+      const message = this.messages.shift();
+      if (message !== undefined) {
+        return message;
+      }
+      return null;
+    });
   }
 
-  async acknowledge(message: Message<T>): Promise<void> {
-    this.acknowledged.push(message);
+  acknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.acknowledged.push(message);
+    });
   }
 
-  async negativeAcknowledge(message: Message<T>): Promise<void> {
-    this.nacked.push(message);
+  negativeAcknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.nacked.push(message);
+    });
   }
 
-  async unsubscribe(): Promise<void> {}
+  readonly unsubscribe: Effect.Effect<void> = Effect.void;
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class RuntimeBackend implements PubSubBackend {
@@ -100,19 +108,23 @@ class RuntimeBackend implements PubSubBackend {
     this.producer = new RecordingProducer<unknown>(onSend);
   }
 
-  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
-    this.producerOptions = options;
-    return this.producer as BackendProducer<T>;
+  createProducer<T>(options: CreateProducerOptions): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerOptions = options;
+      return this.producer as BackendProducer<T>;
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    this.consumerOptions = options;
-    return this.consumer as BackendConsumer<T>;
+  createConsumer<T>(options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      this.consumerOptions = options;
+      return this.consumer as BackendConsumer<T>;
+    });
   }
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class ConsumerHandle {
@@ -123,31 +135,33 @@ class ConcurrentConsumerBackend implements PubSubBackend {
   readonly consumerOptions: Array<CreateConsumerOptions> = [];
   readonly consumers: Array<ConsumerHandle> = [];
 
-  async createProducer<T>(_options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
-    return {
-      send: async () => {},
-      flush: async () => {},
-      close: async () => {},
-    };
+  createProducer<T>(_options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>> {
+    return Effect.succeed({
+      send: () => Effect.void,
+      flush: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions<T>): Promise<BackendConsumer<T>> {
-    const handle = new ConsumerHandle();
-    this.consumerOptions.push(options);
-    this.consumers.push(handle);
+  createConsumer<T>(options: CreateConsumerOptions<T>): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      const handle = new ConsumerHandle();
+      this.consumerOptions.push(options);
+      this.consumers.push(handle);
 
-    return {
-      receive: async () => null,
-      acknowledge: async () => {},
-      negativeAcknowledge: async () => {},
-      unsubscribe: async () => {},
-      close: async () => {
-        handle.closeCount += 1;
-      },
-    };
+      return {
+        receive: () => Effect.succeed(null),
+        acknowledge: () => Effect.void,
+        negativeAcknowledge: () => Effect.void,
+        unsubscribe: Effect.void,
+        close: Effect.sync(() => {
+          handle.closeCount += 1;
+        }),
+      };
+    });
   }
 
-  async close(): Promise<void> {}
+  readonly close: Effect.Effect<void> = Effect.void;
 }
 
 const flowContext: FlowContext = {

@@ -36,7 +36,7 @@ import type {
   CreateConsumerOptions,
   Message,
 } from "./types.js";
-import { pubSubError } from "../errors.js";
+import { pubSubError, type PubSubError } from "../errors.js";
 
 const sc = StringCodec();
 
@@ -113,7 +113,7 @@ function makeNatsProducer<T>(
 ): BackendProducer<T> {
   const makePublishOptions = (
     properties: Record<string, string> | undefined,
-  ): Effect.Effect<Partial<JetStreamPublishOptions>, ReturnType<typeof pubSubError>> => {
+  ): Effect.Effect<Partial<JetStreamPublishOptions>, PubSubError> => {
     if (properties === undefined || Object.keys(properties).length === 0) {
       return Effect.succeed({});
     }
@@ -131,35 +131,32 @@ function makeNatsProducer<T>(
   };
 
   return {
-    send: (message, properties) =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const encoded = schema !== undefined
-            ? yield* S.encodeUnknownEffect(schema)(message).pipe(
-                Effect.mapError((error) => pubSubError(`encode:${subject}`, error)),
-              )
-            : message;
-          const json = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(encoded).pipe(
-            Effect.mapError((error) => pubSubError(`encode-json:${subject}`, error)),
-          );
-          const data = sc.encode(json);
-          const opts = yield* makePublishOptions(properties);
+    send: Effect.fn(`NatsProducer.send:${subject}`)(function*(message: T, properties?: Record<string, string>) {
+      const encoded = schema !== undefined
+        ? yield* S.encodeUnknownEffect(schema)(message).pipe(
+            Effect.mapError((error) => pubSubError(`encode:${subject}`, error)),
+          )
+        : message;
+      const json = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(encoded).pipe(
+        Effect.mapError((error) => pubSubError(`encode-json:${subject}`, error)),
+      );
+      const data = sc.encode(json);
+      const opts = yield* makePublishOptions(properties);
 
-          yield* Effect.tryPromise({
-            try: () => js.publish(subject, data, opts),
-            catch: (error) => pubSubError(`publish:${subject}`, error),
-          });
-        }),
-      ),
+      yield* Effect.tryPromise({
+        try: () => js.publish(subject, data, opts),
+        catch: (error) => pubSubError(`publish:${subject}`, error),
+      });
+    }),
     // NATS publishes are flushed on the connection level.
-    flush: () => Promise.resolve(),
+    flush: Effect.void,
     // No per-producer cleanup needed for NATS.
-    close: () => Promise.resolve(),
+    close: Effect.void,
   };
 }
 
 interface InitializableBackendConsumer<T> extends BackendConsumer<T> {
-  readonly init: () => Promise<void>;
+  readonly init: Effect.Effect<void, PubSubError>;
 }
 
 function makeNatsConsumer<T>(
@@ -173,115 +170,111 @@ function makeNatsConsumer<T>(
 ): InitializableBackendConsumer<T> {
   let consumer: NatsJsConsumer | null = null;
 
+  const isReceiveTimeoutError = (error: unknown): boolean => {
+    const code = P.isObject(error) ? (error as { readonly code?: unknown }).code : undefined;
+    return code === 408 || code === "408" || code === ErrorCode.Timeout;
+  };
+
   return {
-    init: () =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const existing = yield* Effect.tryPromise({
-            try: () => js.consumers.get(streamName, subscription),
-            catch: (error) => natsLookupError(`get-consumer:${streamName}:${subscription}`, error),
-          }).pipe(
-            Effect.catchIf(
-              isMissingLookupError,
-              () =>
-                Effect.gen(function* () {
-                  const deliverPolicy =
-                    initialPosition === "earliest"
-                      ? DeliverPolicy.All
-                      : DeliverPolicy.New;
+    init: Effect.gen(function* () {
+      yield* Effect.tryPromise({
+        try: () => jsm.consumers.info(streamName, subscription),
+        catch: (error) => natsLookupError(`consumer-info:${streamName}:${subscription}`, error),
+      }).pipe(
+        Effect.catchIf(
+          isMissingLookupError,
+          () =>
+            Effect.gen(function* () {
+              const deliverPolicy =
+                initialPosition === "earliest"
+                  ? DeliverPolicy.All
+                  : DeliverPolicy.New;
 
-                  yield* Effect.tryPromise({
-                    try: () =>
-                      jsm.consumers.add(streamName, {
-                        durable_name: subscription,
-                        ack_policy: AckPolicy.Explicit,
-                        deliver_policy: deliverPolicy,
-                        filter_subject: subject,
-                      }),
-                    catch: (error) => pubSubError(`add-consumer:${streamName}:${subscription}`, error),
-                  });
+              yield* Effect.tryPromise({
+                try: () =>
+                  jsm.consumers.add(streamName, {
+                    durable_name: subscription,
+                    ack_policy: AckPolicy.Explicit,
+                    deliver_policy: deliverPolicy,
+                    filter_subject: subject,
+                  }),
+                catch: (error) => pubSubError(`add-consumer:${streamName}:${subscription}`, error),
+              });
+            }),
+          (error) => Effect.fail(pubSubError(error.operation, error.cause)),
+        ),
+      );
+      consumer = yield* Effect.tryPromise({
+        try: () => js.consumers.get(streamName, subscription),
+        catch: (error) => pubSubError(`get-consumer:${streamName}:${subscription}`, error),
+      });
+    }),
+    receive: Effect.fn(`NatsConsumer.receive:${subject}`)(function*(timeoutMs = 2000) {
+      const current = consumer;
+      if (current === null) {
+        return yield* pubSubError("receive", "Consumer not initialized");
+      }
 
-                  return yield* Effect.tryPromise({
-                    try: () => js.consumers.get(streamName, subscription),
-                    catch: (error) => pubSubError(`get-consumer:${streamName}:${subscription}`, error),
-                  });
-                }),
-              (error) => Effect.fail(pubSubError(error.operation, error.cause)),
-            ),
+      const msg = yield* Effect.tryPromise({
+        try: () => current.next({ expires: timeoutMs }),
+        catch: (error) =>
+          isReceiveTimeoutError(error)
+            ? pubSubError(`receive-timeout:${subject}`, error)
+            : pubSubError(`receive:${subject}`, error),
+      }).pipe(
+        Effect.catchIf(
+          (error) => error.operation === `receive-timeout:${subject}`,
+          () => Effect.succeed(null),
+        ),
+      );
+      if (msg === null) return null;
+
+      const parsed = yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(sc.decode(msg.data)).pipe(
+        Effect.mapError((error) => pubSubError(`decode-json:${subject}`, error)),
+      );
+      const decoded = schema !== undefined
+        ? yield* S.decodeUnknownEffect(schema)(parsed).pipe(
+            Effect.mapError((error) => pubSubError(`decode-schema:${subject}`, error)),
+          )
+        : yield* S.decodeUnknownEffect(S.Any)(parsed).pipe(
+            Effect.mapError((error) => pubSubError(`decode-any:${subject}`, error)),
           );
-          consumer = existing;
-        }),
-      ),
-    receive: (timeoutMs = 2000) =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const current = consumer;
-          if (current === null) {
-            return yield* pubSubError("receive", "Consumer not initialized");
-          }
-
-          // Pull a single message with a timeout using the pull-based API.
-          // consumer.next() returns a JsMsg or null when the timeout expires.
-          const msg = yield* Effect.tryPromise({
-            try: () => current.next({ expires: timeoutMs }),
-            catch: (error) => pubSubError(`receive:${subject}`, error),
-          });
-          if (msg === null) return null;
-
-          const parsed = yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(sc.decode(msg.data)).pipe(
-            Effect.mapError((error) => pubSubError(`decode-json:${subject}`, error)),
-          );
-          const decoded = schema !== undefined
-            ? yield* S.decodeUnknownEffect(schema)(parsed).pipe(
-                Effect.mapError((error) => pubSubError(`decode-schema:${subject}`, error)),
-              )
-            : yield* S.decodeUnknownEffect(S.Any)(parsed).pipe(
-                Effect.mapError((error) => pubSubError(`decode-any:${subject}`, error)),
-              );
-          return makeNatsMessage(msg, decoded);
-        }),
-      ),
-    acknowledge: (message) =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          if (!isNatsMessage(message)) {
-            return yield* pubSubError(`acknowledge:${subject}`, "Message was not produced by NATS backend");
-          }
-          yield* Effect.try({
-            try: () => {
-              message._jsMsg.ack();
-            },
-            catch: (error) => pubSubError(`acknowledge:${subject}`, error),
-          });
-        }),
-      ),
-    negativeAcknowledge: (message) =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          if (!isNatsMessage(message)) {
-            return yield* pubSubError(
-              `negative-acknowledge:${subject}`,
-              "Message was not produced by NATS backend",
-            );
-          }
-          yield* Effect.try({
-            try: () => {
-              message._jsMsg.nak();
-            },
-            catch: (error) => pubSubError(`negative-acknowledge:${subject}`, error),
-          });
-        }),
-      ),
-    unsubscribe: () => {
-      // The pull-based consumer does not have a persistent subscription to drain.
-      // Clearing the reference is sufficient; the durable consumer persists server-side.
+      return makeNatsMessage(msg, decoded);
+    }),
+    acknowledge: Effect.fn(`NatsConsumer.acknowledge:${subject}`)(function*(message: Message<T>) {
+      if (!isNatsMessage(message)) {
+        return yield* pubSubError(
+          `acknowledge:${subject}`,
+          "Message was not produced by NATS backend",
+        );
+      }
+      yield* Effect.try({
+        try: () => {
+          message._jsMsg.ack();
+        },
+        catch: (error) => pubSubError(`acknowledge:${subject}`, error),
+      });
+    }),
+    negativeAcknowledge: Effect.fn(`NatsConsumer.negativeAcknowledge:${subject}`)(function*(message: Message<T>) {
+      if (!isNatsMessage(message)) {
+        return yield* pubSubError(
+          `negative-acknowledge:${subject}`,
+          "Message was not produced by NATS backend",
+        );
+      }
+      yield* Effect.try({
+        try: () => {
+          message._jsMsg.nak();
+        },
+        catch: (error) => pubSubError(`negative-acknowledge:${subject}`, error),
+      });
+    }),
+    unsubscribe: Effect.sync(() => {
       consumer = null;
-      return Promise.resolve();
-    },
-    close: () => {
+    }),
+    close: Effect.sync(() => {
       consumer = null;
-      return Promise.resolve();
-    },
+    }),
   };
 }
 
@@ -319,7 +312,9 @@ export function makeNatsBackend(url = "nats://localhost:4222"): PubSubBackend {
     const wildcardSubject = `${parts.slice(0, 2).join(".")}.>`;
 
     const manager = jsm;
-    if (manager === null) return yield* pubSubError("ensure-stream", "NATS backend not connected");
+    if (manager === null) {
+      return yield* pubSubError("ensure-stream", "NATS backend not connected");
+    }
 
     yield* Effect.tryPromise({
       try: () => manager.streams.info(streamName),
@@ -344,56 +339,48 @@ export function makeNatsBackend(url = "nats://localhost:4222"): PubSubBackend {
   });
 
   return {
-    createProducer: <T>(options: CreateProducerOptions<T>) =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          yield* ensureConnected();
-          yield* ensureStream(options.topic);
-          const client = js;
-          if (client === null) return yield* pubSubError("create-producer", "NATS backend not connected");
-          return makeNatsProducer<T>(client, options.topic, options.schema);
-        }),
-      ),
-    createConsumer: <T>(options: CreateConsumerOptions<T>) =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          yield* ensureConnected();
-          const streamName = yield* ensureStream(options.topic);
-          const client = js;
-          const manager = jsm;
-          if (client === null || manager === null) {
-            return yield* pubSubError("create-consumer", "NATS backend not connected");
-          }
-          const consumer = makeNatsConsumer<T>(
-            client,
-            manager,
-            options.topic,
-            options.subscription,
-            options.initialPosition ?? "latest",
-            streamName,
-            options.schema,
-          );
-          yield* Effect.tryPromise({
-            try: () => consumer.init(),
-            catch: (error) => pubSubError(`init-consumer:${options.topic}`, error),
-          });
-          return consumer;
-        }),
-      ),
-    close: () =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const conn = connection;
-          if (conn !== null) {
-            yield* Effect.tryPromise({
-              try: () => conn.drain(),
-              catch: (error) => pubSubError("close", error),
-            });
-            connection = null;
-            js = null;
-            jsm = null;
-          }
-        }),
-      ),
+    createProducer: Effect.fn("NatsBackend.createProducer")(function*<T>(options: CreateProducerOptions<T>) {
+      yield* ensureConnected();
+      yield* ensureStream(options.topic);
+      const client = js;
+      if (client === null) {
+        return yield* pubSubError("create-producer", "NATS backend not connected");
+      }
+      return makeNatsProducer<T>(client, options.topic, options.schema);
+    }),
+    createConsumer: Effect.fn("NatsBackend.createConsumer")(function*<T>(options: CreateConsumerOptions<T>) {
+      yield* ensureConnected();
+      const streamName = yield* ensureStream(options.topic);
+      const client = js;
+      const manager = jsm;
+      if (client === null || manager === null) {
+        return yield* pubSubError("create-consumer", "NATS backend not connected");
+      }
+      const consumer = makeNatsConsumer<T>(
+        client,
+        manager,
+        options.topic,
+        options.subscription,
+        options.initialPosition ?? "latest",
+        streamName,
+        options.schema,
+      );
+      yield* consumer.init.pipe(
+        Effect.mapError((error) => pubSubError(`init-consumer:${options.topic}`, error)),
+      );
+      return consumer;
+    }),
+    close: Effect.gen(function* () {
+      const conn = connection;
+      if (conn !== null) {
+        yield* Effect.tryPromise({
+          try: () => conn.drain(),
+          catch: (error) => pubSubError("close", error),
+        });
+        connection = null;
+        js = null;
+        jsm = null;
+      }
+    }),
   };
 }

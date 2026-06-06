@@ -113,10 +113,6 @@ const TrustGraphJsonPayload = S.Json.annotateKey({
   description: "JSON-safe payload returned by the TrustGraph gateway",
 })
 
-const ToolErrorCause = S.DefectWithStack.annotateKey({
-  description: "Original exception, schema decoding failure, or gateway error that caused the tool call to fail",
-})
-
 const ToolErrorMessage = S.String.annotateKey({
   description: "Concise human-readable error message suitable for explaining the failure to a user",
 })
@@ -141,7 +137,6 @@ export class TextCompletionSuccess extends S.Class<TextCompletionSuccess>("TextC
 export class TextCompletionError extends S.TaggedErrorClass<TextCompletionError>()(
   "TextCompletionError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -165,6 +160,7 @@ export const TextCompletionTool = annotateTool(
     parameters: TextCompletionParameters,
     success: TextCompletionSuccess,
     failure: TextCompletionError,
+    failureMode: "return",
   }),
   {
     title: "Text Completion",
@@ -185,7 +181,6 @@ export class GraphRagSuccess extends S.Class<GraphRagSuccess>("GraphRagSuccess")
 export class GraphRagError extends S.TaggedErrorClass<GraphRagError>()(
   "GraphRagError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -215,6 +210,7 @@ export const GraphRagTool = annotateTool(
     parameters: GraphRagParameters,
     success: GraphRagSuccess,
     failure: GraphRagError,
+    failureMode: "return",
   }),
   {
     title: "Graph RAG",
@@ -235,7 +231,6 @@ export class DocumentRagSuccess extends S.Class<DocumentRagSuccess>("DocumentRag
 export class DocumentRagError extends S.TaggedErrorClass<DocumentRagError>()(
   "DocumentRagError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -263,6 +258,7 @@ export const DocumentRagTool = annotateTool(
     parameters: DocumentRagParameters,
     success: DocumentRagSuccess,
     failure: DocumentRagError,
+    failureMode: "return",
   }),
   {
     title: "Document RAG",
@@ -283,7 +279,6 @@ export class AgentSuccess extends S.Class<AgentSuccess>("AgentSuccess")(
 export class AgentError extends S.TaggedErrorClass<AgentError>()(
   "AgentError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -303,6 +298,7 @@ export const AgentTool = annotateTool(
     parameters: AgentParameters,
     success: AgentSuccess,
     failure: AgentError,
+    failureMode: "return",
     description: "Ask the TrustGraph agent a question"
   }),
   {
@@ -326,7 +322,6 @@ export class EmbeddingsSuccess extends S.Class<EmbeddingsSuccess>("EmbeddingsSuc
 export class EmbeddingsError extends S.TaggedErrorClass<EmbeddingsError>()(
   "EmbeddingsError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -346,6 +341,7 @@ export const EmbeddingsTool = annotateTool(
     parameters: EmbeddingsParameters,
     success: EmbeddingsSuccess,
     failure: EmbeddingsError,
+    failureMode: "return",
     description: "Generate text embeddings"
   }),
   {
@@ -369,7 +365,6 @@ export class TriplesQuerySuccess extends S.Class<TriplesQuerySuccess>("TriplesQu
 export class TriplesQueryError extends S.TaggedErrorClass<TriplesQueryError>()(
   "TriplesQueryError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -402,6 +397,7 @@ export const TriplesQueryTool = annotateTool(
     parameters: TriplesQueryParameters,
     success: TriplesQuerySuccess,
     failure: TriplesQueryError,
+    failureMode: "return",
     description: "Query the knowledge graph for triples matching a pattern"
   }),
   {
@@ -434,7 +430,6 @@ export class GraphEmbeddingsQuerySuccess extends S.Class<GraphEmbeddingsQuerySuc
 export class GraphEmbeddingsQueryError extends S.TaggedErrorClass<GraphEmbeddingsQueryError>()(
   "GraphEmbeddingsQueryError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -461,6 +456,7 @@ export const GraphEmbeddingsQueryTool = annotateTool(
     parameters: GraphEmbeddingsQueryParameters,
     success: GraphEmbeddingsQuerySuccess,
     failure: GraphEmbeddingsQueryError,
+    failureMode: "return",
     description: "Find entities similar to a text query using vector embeddings"
   }),
   {
@@ -482,7 +478,6 @@ export class GetConfigAllSuccess extends S.Class<GetConfigAllSuccess>("GetConfig
 export class GetConfigAllError extends S.TaggedErrorClass<GetConfigAllError>()(
   "GetConfigAllError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -498,6 +493,7 @@ export const GetConfigAllTool = annotateTool(
     parameters: GetConfigAllParameters,
     success: GetConfigAllSuccess,
     failure: GetConfigAllError,
+    failureMode: "return",
     description: "Get all configuration values"
   }),
   {
@@ -520,7 +516,6 @@ export class GetConfigSuccess extends S.Class<GetConfigSuccess>("GetConfigSucces
 export class GetConfigError extends S.TaggedErrorClass<GetConfigError>()(
   "GetConfigError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -549,6 +544,7 @@ export const GetConfigTool = annotateTool(
     parameters: GetConfigParameters,
     success: GetConfigSuccess,
     failure: GetConfigError,
+    failureMode: "return",
     description: "Get specific configuration values"
   }),
   {
@@ -570,7 +566,6 @@ export class PutConfigSuccess extends S.Class<PutConfigSuccess>("PutConfigSucces
 export class PutConfigError extends S.TaggedErrorClass<PutConfigError>()(
   "PutConfigError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -602,6 +597,7 @@ export const PutConfigTool = annotateTool(
     parameters: PutConfigParameters,
     success: PutConfigSuccess,
     failure: PutConfigError,
+    failureMode: "return",
     description: "Set configuration values"
   }),
   {
@@ -623,7 +619,6 @@ export class DeleteConfigSuccess extends S.Class<DeleteConfigSuccess>("DeleteCon
 export class DeleteConfigError extends S.TaggedErrorClass<DeleteConfigError>()(
   "DeleteConfigError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -646,6 +641,7 @@ export const DeleteConfigTool = annotateTool(
     parameters: DeleteConfigParameters,
     success: DeleteConfigSuccess,
     failure: DeleteConfigError,
+    failureMode: "return",
     description: "Delete a configuration entry"
   }),
   {
@@ -667,7 +663,6 @@ export class GetFlowSuccess extends S.Class<GetFlowSuccess>("GetFlowSuccess")(
 export class GetFlowError extends S.TaggedErrorClass<GetFlowError>()(
   "GetFlowError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -687,6 +682,7 @@ export const GetFlowTool = annotateTool(
     parameters: GetFlowParameters,
     success: GetFlowSuccess,
     failure: GetFlowError,
+    failureMode: "return",
     description: "Get a specific flow definition"
   }),
   {
@@ -710,7 +706,6 @@ export class GetFlowsSuccess extends S.Class<GetFlowsSuccess>("GetFlowsSuccess")
 export class GetFlowsError extends S.TaggedErrorClass<GetFlowsError>()(
   "GetFlowsError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -726,6 +721,7 @@ export const GetFlowsTool = annotateTool(
     parameters: GetFlowsParameters,
     success: GetFlowsSuccess,
     failure: GetFlowsError,
+    failureMode: "return",
     description: "List all available flows"
   }),
   {
@@ -747,7 +743,6 @@ export class StartFlowSuccess extends S.Class<StartFlowSuccess>("StartFlowSucces
 export class StartFlowError extends S.TaggedErrorClass<StartFlowError>()(
   "StartFlowError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -776,6 +771,7 @@ export const StartFlowTool = annotateTool(
     parameters: StartFlowParameters,
     success: StartFlowSuccess,
     failure: StartFlowError,
+    failureMode: "return",
     description: "Start a flow instance"
   }),
   {
@@ -797,7 +793,6 @@ export class StopFlowSuccess extends S.Class<StopFlowSuccess>("StopFlowSuccess")
 export class StopFlowError extends S.TaggedErrorClass<StopFlowError>()(
   "StopFlowError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -817,6 +812,7 @@ export const StopFlowTool = annotateTool(
     parameters: StopFlowParameters,
     success: StopFlowSuccess,
     failure: StopFlowError,
+    failureMode: "return",
     description: "Stop a running flow"
   }),
   {
@@ -840,7 +836,6 @@ export class GetDocumentsSuccess extends S.Class<GetDocumentsSuccess>("GetDocume
 export class GetDocumentsError extends S.TaggedErrorClass<GetDocumentsError>()(
   "GetDocumentsError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -856,6 +851,7 @@ export const GetDocumentsTool = annotateTool(
     parameters: GetDocumentsParameters,
     success: GetDocumentsSuccess,
     failure: GetDocumentsError,
+    failureMode: "return",
     description: "List all documents in the library"
   }),
   {
@@ -877,7 +873,6 @@ export class LoadDocumentSuccess extends S.Class<LoadDocumentSuccess>("LoadDocum
 export class LoadDocumentError extends S.TaggedErrorClass<LoadDocumentError>()(
   "LoadDocumentError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -912,6 +907,7 @@ export const LoadDocumentTool = annotateTool(
     parameters: LoadDocumentParameters,
     success: LoadDocumentSuccess,
     failure: LoadDocumentError,
+    failureMode: "return",
     description: "Upload a document to the library"
   }),
   {
@@ -933,7 +929,6 @@ export class RemoveDocumentSuccess extends S.Class<RemoveDocumentSuccess>("Remov
 export class RemoveDocumentError extends S.TaggedErrorClass<RemoveDocumentError>()(
   "RemoveDocumentError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -956,6 +951,7 @@ export const RemoveDocumentTool = annotateTool(
     parameters: RemoveDocumentParameters,
     success: RemoveDocumentSuccess,
     failure: RemoveDocumentError,
+    failureMode: "return",
     description: "Remove a document from the library"
   }),
   {
@@ -979,7 +975,6 @@ export class GetPromptsSuccess extends S.Class<GetPromptsSuccess>("GetPromptsSuc
 export class GetPromptsError extends S.TaggedErrorClass<GetPromptsError>()(
   "GetPromptsError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -995,6 +990,7 @@ export const GetPromptsTool = annotateTool(
     parameters: GetPromptsParameters,
     success: GetPromptsSuccess,
     failure: GetPromptsError,
+    failureMode: "return",
     description: "List available prompt templates"
   }),
   {
@@ -1016,7 +1012,6 @@ export class GetPromptSuccess extends S.Class<GetPromptSuccess>("GetPromptSucces
 export class GetPromptError extends S.TaggedErrorClass<GetPromptError>()(
   "GetPromptError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -1036,6 +1031,7 @@ export const GetPromptTool = annotateTool(
     parameters: GetPromptParameters,
     success: GetPromptSuccess,
     failure: GetPromptError,
+    failureMode: "return",
     description: "Get a specific prompt template"
   }),
   {
@@ -1059,7 +1055,6 @@ export class GetKnowledgeCoresSuccess extends S.Class<GetKnowledgeCoresSuccess>(
 export class GetKnowledgeCoresError extends S.TaggedErrorClass<GetKnowledgeCoresError>()(
   "GetKnowledgeCoresError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -1075,6 +1070,7 @@ export const GetKnowledgeCoresTool = annotateTool(
     parameters: GetKnowledgeCoresParameters,
     success: GetKnowledgeCoresSuccess,
     failure: GetKnowledgeCoresError,
+    failureMode: "return",
     description: "List available knowledge graph cores"
   }),
   {
@@ -1096,7 +1092,6 @@ export class DeleteKgCoreSuccess extends S.Class<DeleteKgCoreSuccess>("DeleteKgC
 export class DeleteKgCoreError extends S.TaggedErrorClass<DeleteKgCoreError>()(
   "DeleteKgCoreError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -1119,6 +1114,7 @@ export const DeleteKgCoreTool = annotateTool(
     parameters: DeleteKgCoreParameters,
     success: DeleteKgCoreSuccess,
     failure: DeleteKgCoreError,
+    failureMode: "return",
     description: "Delete a knowledge graph core"
   }),
   {
@@ -1140,7 +1136,6 @@ export class LoadKgCoreSuccess extends S.Class<LoadKgCoreSuccess>("LoadKgCoreSuc
 export class LoadKgCoreError extends S.TaggedErrorClass<LoadKgCoreError>()(
   "LoadKgCoreError",
   {
-    cause: ToolErrorCause,
     message: ToolErrorMessage,
   }
 ) {
@@ -1166,6 +1161,7 @@ export const LoadKgCoreTool = annotateTool(
     parameters: LoadKgCoreParameters,
     success: LoadKgCoreSuccess,
     failure: LoadKgCoreError,
+    failureMode: "return",
     description: "Load a knowledge graph core"
   }),
   {
@@ -1384,7 +1380,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
               },
               collection,
             ),
-          catch: (cause) => GraphRagError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GraphRagError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((text) => GraphRagSuccess.make({text})),
         ),
@@ -1392,7 +1388,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       document_rag: ({query, doc_limit, collection}) =>
         Effect.tryPromise({
           try: () => socket.flow(config.flowId).documentRag(query, doc_limit, collection),
-          catch: (cause) => DocumentRagError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => DocumentRagError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((text) => DocumentRagSuccess.make({text})),
         ),
@@ -1410,14 +1406,14 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
                 resume(Effect.succeed(AgentSuccess.make({text: fullAnswer})))
               }
             },
-            (cause) => resume(Effect.fail(AgentError.make({cause, message: toErrorMessage(cause)}))),
+            (cause) => resume(Effect.fail(AgentError.make({message: toErrorMessage(cause)}))),
           )
         }),
 
       embeddings: ({text}) =>
         Effect.tryPromise({
           try: () => socket.flow(config.flowId).embeddings([...text]),
-          catch: (cause) => EmbeddingsError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => EmbeddingsError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((vectors) => EmbeddingsSuccess.make({vectors})),
         ),
@@ -1432,7 +1428,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
               limit,
               collection,
             ),
-          catch: (cause) => TriplesQueryError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => TriplesQueryError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((triples) => TriplesQuerySuccess.make({triples})),
         ),
@@ -1440,7 +1436,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       graph_embeddings_query: ({query, limit, collection}) =>
         Effect.tryPromise({
           try: () => socket.flow(config.flowId).embeddings([query]),
-          catch: (cause) => GraphEmbeddingsQueryError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GraphEmbeddingsQueryError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((vectors) =>
             Effect.tryPromise({
@@ -1449,7 +1445,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
                 limit ?? 10,
                 collection,
               ),
-              catch: (cause) => GraphEmbeddingsQueryError.make({cause, message: toErrorMessage(cause)}),
+              catch: (cause) => GraphEmbeddingsQueryError.make({message: toErrorMessage(cause)}),
             })
           ),
           Effect.map((entities) => GraphEmbeddingsQuerySuccess.make({entities})),
@@ -1458,12 +1454,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_config_all: () =>
         Effect.tryPromise({
           try: () => socket.config().getConfigAll(),
-          catch: (cause) => GetConfigAllError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetConfigAllError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => GetConfigAllError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => GetConfigAllError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((config) => GetConfigAllSuccess.make({config})),
             )
@@ -1473,12 +1469,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_config: ({keys}) =>
         Effect.tryPromise({
           try: () => socket.config().getConfig(keys.map(({type, key}) => ({type, key}))),
-          catch: (cause) => GetConfigError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetConfigError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => GetConfigError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => GetConfigError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((config) => GetConfigSuccess.make({config})),
             )
@@ -1488,12 +1484,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       put_config: ({values}) =>
         Effect.tryPromise({
           try: () => socket.config().putConfig(values.map(({type, key, value}) => ({type, key, value}))),
-          catch: (cause) => PutConfigError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => PutConfigError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => PutConfigError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => PutConfigError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => PutConfigSuccess.make({response})),
             )
@@ -1503,12 +1499,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       delete_config: ({type, key}) =>
         Effect.tryPromise({
           try: () => socket.config().deleteConfig({type, key}),
-          catch: (cause) => DeleteConfigError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => DeleteConfigError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => DeleteConfigError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => DeleteConfigError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => DeleteConfigSuccess.make({response})),
             )
@@ -1518,7 +1514,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_flows: () =>
         Effect.tryPromise({
           try: () => socket.flows().getFlows(),
-          catch: (cause) => GetFlowsError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetFlowsError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((flow_ids) => GetFlowsSuccess.make({flow_ids})),
         ),
@@ -1526,12 +1522,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_flow: ({flow_id}) =>
         Effect.tryPromise({
           try: () => socket.flows().getFlow(flow_id),
-          catch: (cause) => GetFlowError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetFlowError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => GetFlowError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => GetFlowError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((flow) => GetFlowSuccess.make({flow})),
             )
@@ -1547,12 +1543,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
               description,
               parameters === undefined ? undefined : {...parameters},
             ),
-          catch: (cause) => StartFlowError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => StartFlowError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => StartFlowError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => StartFlowError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => StartFlowSuccess.make({response})),
             )
@@ -1562,12 +1558,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       stop_flow: ({flow_id}) =>
         Effect.tryPromise({
           try: () => socket.flows().stopFlow(flow_id),
-          catch: (cause) => StopFlowError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => StopFlowError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => StopFlowError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => StopFlowError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => StopFlowSuccess.make({response})),
             )
@@ -1577,12 +1573,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_documents: () =>
         Effect.tryPromise({
           try: () => socket.librarian().getDocuments(),
-          catch: (cause) => GetDocumentsError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetDocumentsError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonArrayOrFail(
               value,
-              (cause) => GetDocumentsError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => GetDocumentsError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((documents) => GetDocumentsSuccess.make({documents})),
             )
@@ -1600,12 +1596,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
               tags === undefined ? [] : [...tags],
               id,
             ),
-          catch: (cause) => LoadDocumentError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => LoadDocumentError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => LoadDocumentError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => LoadDocumentError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => LoadDocumentSuccess.make({response})),
             )
@@ -1615,12 +1611,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       remove_document: ({id, collection}) =>
         Effect.tryPromise({
           try: () => socket.librarian().removeDocument(id, collection),
-          catch: (cause) => RemoveDocumentError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => RemoveDocumentError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => RemoveDocumentError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => RemoveDocumentError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => RemoveDocumentSuccess.make({response})),
             )
@@ -1630,7 +1626,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_prompts: () =>
         Effect.tryPromise({
           try: () => socket.config().getPrompts(),
-          catch: (cause) => GetPromptsError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetPromptsError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((prompts) => GetPromptsSuccess.make({prompts})),
         ),
@@ -1638,12 +1634,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_prompt: ({id}) =>
         Effect.tryPromise({
           try: () => socket.config().getPrompt(id),
-          catch: (cause) => GetPromptError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetPromptError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => GetPromptError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => GetPromptError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((prompt) => GetPromptSuccess.make({prompt})),
             )
@@ -1653,7 +1649,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       get_knowledge_cores: () =>
         Effect.tryPromise({
           try: () => socket.knowledge().getKnowledgeCores(),
-          catch: (cause) => GetKnowledgeCoresError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => GetKnowledgeCoresError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.map((ids) => GetKnowledgeCoresSuccess.make({ids})),
         ),
@@ -1661,12 +1657,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       delete_kg_core: ({id, collection}) =>
         Effect.tryPromise({
           try: () => socket.knowledge().deleteKgCore(id, collection),
-          catch: (cause) => DeleteKgCoreError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => DeleteKgCoreError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => DeleteKgCoreError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => DeleteKgCoreError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => DeleteKgCoreSuccess.make({response})),
             )
@@ -1676,12 +1672,12 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
       load_kg_core: ({id, flow, collection}) =>
         Effect.tryPromise({
           try: () => socket.knowledge().loadKgCore(id, flow, collection),
-          catch: (cause) => LoadKgCoreError.make({cause, message: toErrorMessage(cause)}),
+          catch: (cause) => LoadKgCoreError.make({message: toErrorMessage(cause)}),
         }).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
-              (cause) => LoadKgCoreError.make({cause, message: toErrorMessage(cause)}),
+              (cause) => LoadKgCoreError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((response) => LoadKgCoreSuccess.make({response})),
             )

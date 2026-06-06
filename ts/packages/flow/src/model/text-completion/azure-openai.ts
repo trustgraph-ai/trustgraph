@@ -18,9 +18,8 @@ import {
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
-  type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Effect, Stream } from "effect";
 import {
   llmStreamPart,
   makeTextCompletionLayer,
@@ -28,7 +27,6 @@ import {
   providerStatusError,
   requiredString,
   streamTextCompletionChunks,
-  toAsyncGenerator,
   type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -89,7 +87,7 @@ const mapAzureOpenAIError = (error: unknown): TextCompletionRuntimeError =>
 const makeAzureOpenAIProviderFromClient = (
   resolved: ResolvedAzureOpenAIConfig,
   client: AzureOpenAI,
-): LlmProvider => {
+): LlmProvider<TextCompletionRuntimeError> => {
   const {
     defaultModel,
     defaultTemperature,
@@ -102,31 +100,29 @@ const makeAzureOpenAIProviderFromClient = (
       prompt: string,
       model?: string,
       temperature?: number,
-    ): Promise<LlmResult> => {
+    ) => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      return Effect.runPromise(
-        Effect.tryPromise({
-          try: () =>
-            client.chat.completions.create({
-              model: modelName,
-              messages: [
-                { role: "system", content: system },
-                { role: "user", content: prompt },
-              ],
-              temperature: temp,
-              max_completion_tokens: maxOutput,
-            }),
-          catch: mapAzureOpenAIError,
-        }).pipe(
-          Effect.map((resp): LlmResult => ({
-            text: resp.choices[0].message.content ?? "",
-            inToken: resp.usage?.prompt_tokens ?? 0,
-            outToken: resp.usage?.completion_tokens ?? 0,
+      return Effect.tryPromise({
+        try: () =>
+          client.chat.completions.create({
             model: modelName,
-          })),
-        ),
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: prompt },
+            ],
+            temperature: temp,
+            max_completion_tokens: maxOutput,
+          }),
+        catch: mapAzureOpenAIError,
+      }).pipe(
+        Effect.map((resp): LlmResult => ({
+          text: resp.choices[0].message.content ?? "",
+          inToken: resp.usage?.prompt_tokens ?? 0,
+          outToken: resp.usage?.completion_tokens ?? 0,
+          model: modelName,
+        })),
       );
     },
     supportsStreaming: () => true,
@@ -135,11 +131,11 @@ const makeAzureOpenAIProviderFromClient = (
       prompt: string,
       model?: string,
       temperature?: number,
-    ): AsyncGenerator<LlmChunk> => {
+    ) => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      const stream = Stream.fromEffect(
+      return Stream.fromEffect(
         Effect.tryPromise({
           try: () =>
             client.chat.completions.create({
@@ -169,13 +165,13 @@ const makeAzureOpenAIProviderFromClient = (
           })
         ),
       );
-
-      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapAzureOpenAIError);
     },
-  } satisfies LlmProvider;
+  } satisfies LlmProvider<TextCompletionRuntimeError>;
 };
 
-export function makeAzureOpenAIProvider(config: AzureOpenAIProcessorConfig): LlmProvider {
+export function makeAzureOpenAIProvider(
+  config: AzureOpenAIProcessorConfig,
+): LlmProvider<TextCompletionRuntimeError> {
   return Effect.runSync(makeAzureOpenAIProviderEffect(config));
 }
 
@@ -216,12 +212,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeLlmSpecs(),
   layer: (config) => makeTextCompletionLayer(makeAzureOpenAIProviderEffect(config)),
 });
-
-const azureOpenAITextCompletionRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return azureOpenAITextCompletionRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

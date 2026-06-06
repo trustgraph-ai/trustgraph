@@ -4,21 +4,19 @@
  * Python reference: trustgraph-cli/trustgraph/cli/invoke_agent.py
  */
 
-import type { Command } from "commander";
 import { Effect } from "effect";
+import * as Argument from "effect/unstable/cli/Argument";
+import * as Command from "effect/unstable/cli/Command";
 import { cliCommandError, withSocket } from "./util.js";
 
-export function registerAgentCommands(program: Command): void {
-  program
-    .command("agent")
-    .description("Ask the TrustGraph agent a question")
-    .argument("<question>", "Question to ask")
-    .action((question: string, _opts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket, opts) =>
-        Effect.gen(function* () {
+export const agentCommand = Command.make("agent", {
+  question: Argument.string("question").pipe(Argument.withDescription("Question to ask")),
+}, ({ question }) =>
+  withSocket((socket, opts) =>
+    Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
 
-          yield* Effect.callback<void, ReturnType<typeof cliCommandError>>((resume) => {
+      yield* Effect.callback<void, ReturnType<typeof cliCommandError>>((resume) => {
           flow.agent(
             question,
             (chunk) => {
@@ -40,7 +38,6 @@ export function registerAgentCommands(program: Command): void {
               (err) => resume(Effect.fail(cliCommandError("agent", err))),
           );
         });
-        }),
-      )),
-    );
-}
+    }),
+  ),
+).pipe(Command.withDescription("Ask the TrustGraph agent a question"));

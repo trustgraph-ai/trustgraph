@@ -1,19 +1,16 @@
+/** @effect-diagnostics nodeBuiltinImport:skip-file effectFnOpportunity:skip-file catchToOrElseSucceed:skip-file */
 /**
- * API Gateway — HTTP + WebSocket server.
- *
- * Replaces the Python aiohttp gateway with Fastify.
- * Uses Effect RPC over WebSocket for streaming client requests.
+ * API Gateway -- Effect HTTP + RPC server.
  *
  * Python reference: trustgraph-flow/trustgraph/gateway/service.py
  */
 
-import Fastify, { type FastifyReply } from "fastify";
-import websocketPlugin from "@fastify/websocket";
-import { NodeRuntime } from "@effect/platform-node";
-import { Cause, Clock, Config, Effect, Exit, Layer, ManagedRuntime, Random, Scope } from "effect";
+import { createServer } from "node:http";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { Clock, Config, Effect, Exit, Layer, Random, Scope } from "effect";
 import * as O from "effect/Option";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
-import * as EffectSocket from "effect/unstable/socket/Socket";
 import {
   formatPrometheusMetrics,
   messagingLifecycleError,
@@ -22,8 +19,8 @@ import {
   toTgError,
   type PubSubBackend,
 } from "@trustgraph/base";
-import { makeDispatcherManager } from "./dispatch/manager.js";
-import { makeGatewayRpcServer } from "./rpc-server.js";
+import { makeDispatcherManager, type DispatcherManager } from "./dispatch/manager.js";
+import { makeGatewayRpcServer, type GatewayRpcServer } from "./rpc-server.js";
 
 export interface GatewayConfig {
   port: number;
@@ -33,231 +30,253 @@ export interface GatewayConfig {
   pubsub?: PubSubBackend;
 }
 
-export function createGateway(config: GatewayConfig) {
-  const app = Fastify({ logger: true });
-  const dispatcher = makeDispatcherManager(config);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
-  const sendDispatchResult = (reply: FastifyReply, result: unknown): unknown => {
-    const err = (result as Record<string, unknown>)?.error as { type?: string; message?: string } | undefined;
-    if (err !== undefined) {
-      const statusCode = err.type === "not-found" ? 404 : 400;
-      return reply.code(statusCode).send(result);
-    }
-    return result;
-  };
+const json = (body: unknown, status = 200) =>
+  HttpServerResponse.jsonUnsafe(body, { status });
 
-  const sendDispatchError = (reply: FastifyReply, error: unknown): unknown =>
-    reply.code(500).send({ error: toTgError(error) });
+const badRequest = (message: string) =>
+  json({ error: { type: "bad-request", message } }, 400);
 
-  return Effect.runPromise(
+const dispatchError = (error: unknown) =>
+  json({ error: toTgError(error) }, 500);
+
+const dispatchResult = (result: unknown) => {
+  const err = isRecord(result) && isRecord(result.error)
+    ? result.error as { readonly type?: string; readonly message?: string }
+    : undefined;
+  if (err !== undefined) {
+    return json(result, err.type === "not-found" ? 404 : 400);
+  }
+  return json(result);
+};
+
+const readJsonRecord = Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const body = yield* request.json;
+  return isRecord(body) ? body : {};
+});
+
+const bearerAuthResponse = (config: GatewayConfig) =>
+  Effect.gen(function* () {
+    if (config.secret === undefined || config.secret.length === 0) return null;
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const auth = request.headers.authorization;
+    return auth === `Bearer ${config.secret}`
+      ? null
+      : json({ error: "Unauthorized" }, 401);
+  });
+
+type RouteRequirements =
+  | HttpServerRequest.HttpServerRequest
+  | HttpRouter.RouteContext;
+
+const withBearerAuth = (
+  config: GatewayConfig,
+  handler: Effect.Effect<HttpServerResponse.HttpServerResponse, never, RouteRequirements>,
+) =>
+  Effect.gen(function* () {
+    const denied = yield* bearerAuthResponse(config);
+    if (denied !== null) return denied;
+    return yield* handler;
+  });
+
+const withDispatchError = <A, E>(
+  effect: Effect.Effect<A, E>,
+  operation: string,
+): Effect.Effect<HttpServerResponse.HttpServerResponse> =>
+  effect.pipe(
+    Effect.mapError((cause) => messagingLifecycleError("gateway", operation, cause)),
+    Effect.map(dispatchResult),
+    Effect.catch((error) => Effect.succeed(dispatchError(error))),
+  );
+
+const workbenchDispatch = (
+  config: GatewayConfig,
+  dispatcher: DispatcherManager,
+) =>
+  withBearerAuth(
+    config,
     Effect.gen(function* () {
-      yield* Effect.tryPromise({
-        try: () => app.register(websocketPlugin),
-        catch: (cause) => messagingLifecycleError("gateway", "register-websocket", cause),
-      });
+      const body = yield* readJsonRecord.pipe(
+        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
+      );
+      const service = typeof body.service === "string" ? body.service : undefined;
+      const payload = isRecord(body.request) ? body.request : undefined;
+      if (service === undefined || service.length === 0 || payload === undefined) {
+        return badRequest("service and request are required");
+      }
 
-      yield* Effect.tryPromise({
-        try: () => dispatcher.start(),
-        catch: (cause) => messagingLifecycleError("gateway", "dispatcher-start", cause),
-      });
+      const dispatch = body.scope === "flow"
+        ? dispatcher.dispatchFlowService(
+            typeof body.flow === "string" ? body.flow : "default",
+            service,
+            payload,
+          )
+        : dispatcher.dispatchGlobalService(service, payload);
+
+      return yield* withDispatchError(dispatch, "workbench-dispatch");
+    }),
+  );
+
+const globalDispatch = (
+  config: GatewayConfig,
+  dispatcher: DispatcherManager,
+) =>
+  withBearerAuth(
+    config,
+    Effect.gen(function* () {
+      const params = yield* HttpRouter.params;
+      const body = yield* readJsonRecord.pipe(
+        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
+      );
+      return yield* withDispatchError(
+        dispatcher.dispatchGlobalService(params.kind ?? "", body),
+        "global-dispatch",
+      );
+    }),
+  );
+
+const flowDispatch = (
+  config: GatewayConfig,
+  dispatcher: DispatcherManager,
+) =>
+  withBearerAuth(
+    config,
+    Effect.gen(function* () {
+      const params = yield* HttpRouter.params;
+      const body = yield* readJsonRecord.pipe(
+        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
+      );
+      return yield* withDispatchError(
+        dispatcher.dispatchFlowService(params.flow ?? "default", params.kind ?? "", body),
+        "flow-dispatch",
+      );
+    }),
+  );
+
+const flowLoad = (
+  config: GatewayConfig,
+  dispatcher: DispatcherManager,
+) =>
+  withBearerAuth(
+    config,
+    Effect.gen(function* () {
+      const params = yield* HttpRouter.params;
+      const body = yield* readJsonRecord.pipe(
+        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
+      );
+      const documentId = typeof body.documentId === "string" ? body.documentId : undefined;
+      if (documentId === undefined || documentId.length === 0) {
+        return badRequest("documentId is required");
+      }
+
+      const user = typeof body.user === "string" ? body.user : "default";
+      const collection = typeof body.collection === "string" ? body.collection : "default";
+      const timestamp = yield* Clock.currentTimeMillis;
+      const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+      const metadata = {
+        id: `load-${timestamp}-${suffix.toString(36).padStart(6, "0")}`,
+        root: documentId,
+        user,
+        collection,
+      };
+
+      yield* dispatcher.publishToTopic("tg.flow.document", { metadata, documentId }).pipe(
+        Effect.mapError((cause) => messagingLifecycleError("gateway", "publish-load", cause)),
+      );
+
+      return json({ status: "processing", documentId, flow: params.flow ?? "default" });
+    }).pipe(
+      Effect.catch((error) => Effect.succeed(dispatchError(error))),
+    ),
+  );
+
+const rpcRoute = (
+  config: GatewayConfig,
+  rpcServer: GatewayRpcServer,
+  rpcScope: Scope.Scope,
+) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const url = new URL(request.url, "http://localhost");
+    const token = url.searchParams.get("token");
+    if (config.secret !== undefined && config.secret.length > 0 && token !== config.secret) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const socket = yield* request.upgrade;
+    yield* rpcServer.onSocket(socket, headersFrom(request.headers)).pipe(
+      Scope.provide(rpcScope),
+    );
+    return HttpServerResponse.empty();
+  }).pipe(
+    Effect.catch((error) => Effect.succeed(dispatchError(error))),
+  );
+
+const metricsRoute =
+  formatPrometheusMetrics.pipe(
+    Effect.map((body) =>
+      HttpServerResponse.text(body, {
+        headers: { "content-type": prometheusContentType },
+      })
+    ),
+  );
+
+const gatewayRoutes = (
+  config: GatewayConfig,
+  dispatcher: DispatcherManager,
+  rpcServer: GatewayRpcServer,
+  rpcScope: Scope.Scope,
+) =>
+  Layer.mergeAll(
+    HttpRouter.add("POST", "/api/v1/workbench/dispatch", workbenchDispatch(config, dispatcher)),
+    HttpRouter.add("POST", "/api/v1/:kind", globalDispatch(config, dispatcher)),
+    HttpRouter.add("POST", "/api/v1/flow/:flow/service/:kind", flowDispatch(config, dispatcher)),
+    HttpRouter.add("POST", "/api/v1/flow/:flow/load", flowLoad(config, dispatcher)),
+    HttpRouter.add("GET", "/api/v1/rpc", rpcRoute(config, rpcServer, rpcScope)),
+    HttpRouter.add("GET", "/api/v1/metrics", metricsRoute),
+  );
+
+export function createGateway(config: GatewayConfig) {
+  return Layer.effectDiscard(
+    Effect.scoped(Effect.gen(function* () {
+      const dispatcher = makeDispatcherManager(config);
+      yield* dispatcher.start.pipe(
+        Effect.mapError((cause) => messagingLifecycleError("gateway", "dispatcher-start", cause)),
+      );
+      yield* Effect.addFinalizer(() =>
+        dispatcher.stop.pipe(
+          Effect.catch((cause) =>
+            Effect.logError("[Gateway] Failed to stop dispatcher", {
+              error: cause.message,
+              operation: cause.operation,
+            }),
+          ),
+        ),
+      );
 
       const rpcScope = yield* Scope.make();
+      yield* Effect.addFinalizer(() => Scope.close(rpcScope, Exit.void));
       const rpcServer = yield* makeGatewayRpcServer(dispatcher).pipe(
         Effect.provideService(RpcSerialization.RpcSerialization, RpcSerialization.ndjson),
         Scope.provide(rpcScope),
       );
 
-      return { rpcScope, rpcServer };
-    }),
-  ).then(({ rpcScope, rpcServer }) => {
-      // Authentication middleware
-      app.addHook("onRequest", (request, reply) => {
-        if (request.url === "/api/v1/metrics") return;
-        if (request.url.startsWith("/api/v1/rpc")) return; // RPC socket auth via query param
-
-        if (config.secret !== undefined && config.secret.length > 0) {
-          const auth = request.headers.authorization;
-          if (auth === undefined || auth !== `Bearer ${config.secret}`) {
-            reply.code(401).send({ error: "Unauthorized" });
-          }
-        }
-      });
-
-      app.post<{
-        Body: {
-          scope?: string;
-          service?: string;
-          flow?: string;
-          request?: Record<string, unknown>;
-        };
-      }>("/api/v1/workbench/dispatch", (request, reply) => {
-        const body = request.body;
-        const service = body.service;
-        const payload = body.request;
-        if (service === undefined || service.length === 0 || payload === undefined) {
-          return reply.code(400).send({
-            error: { type: "bad-request", message: "service and request are required" },
-          });
-        }
-
-        return Effect.runPromise(
-          Effect.tryPromise({
-            try: () =>
-              body.scope === "flow"
-                ? dispatcher.dispatchFlowService(body.flow ?? "default", service, payload)
-                : dispatcher.dispatchGlobalService(service, payload),
-            catch: (cause) => messagingLifecycleError("gateway", "workbench-dispatch", cause),
-          }).pipe(
-            Effect.map((result) => sendDispatchResult(reply, result)),
-            Effect.catch((error) => Effect.succeed(sendDispatchError(reply, error))),
-          ),
-        );
-      });
-
-      // REST endpoint: POST /api/v1/:kind  (global services)
-      app.post<{ Params: { kind: string } }>("/api/v1/:kind", (request, reply) => {
-        const { kind } = request.params;
-        const body = request.body as Record<string, unknown>;
-
-        return Effect.runPromise(
-          Effect.tryPromise({
-            try: () => dispatcher.dispatchGlobalService(kind, body),
-            catch: (cause) => messagingLifecycleError("gateway", "global-dispatch", cause),
-          }).pipe(
-            Effect.map((result) => sendDispatchResult(reply, result)),
-            Effect.catch((error) => Effect.succeed(sendDispatchError(reply, error))),
-          ),
-        );
-      });
-
-      // REST endpoint: POST /api/v1/flow/:flow/service/:kind  (flow-scoped services)
-      app.post<{ Params: { flow: string; kind: string } }>(
-        "/api/v1/flow/:flow/service/:kind",
-        (request, reply) => {
-          const { flow, kind } = request.params;
-          const body = request.body as Record<string, unknown>;
-
-          return Effect.runPromise(
-            Effect.tryPromise({
-              try: () => dispatcher.dispatchFlowService(flow, kind, body),
-              catch: (cause) => messagingLifecycleError("gateway", "flow-dispatch", cause),
-            }).pipe(
-              Effect.map((result) => sendDispatchResult(reply, result)),
-              Effect.catch((error) => Effect.succeed(sendDispatchError(reply, error))),
-            ),
-          );
-        },
+      const serverLayer = HttpRouter.serve(
+        gatewayRoutes(config, dispatcher, rpcServer, rpcScope),
+      ).pipe(
+        Layer.provideMerge(NodeHttpServer.layer(createServer, {
+          port: config.port,
+          host: "0.0.0.0",
+        })),
       );
 
-      // REST endpoint: POST /api/v1/flow/:flow/load  (trigger document processing)
-      app.post<{ Params: { flow: string } }>(
-        "/api/v1/flow/:flow/load",
-        (request, reply) => {
-          const { flow } = request.params;
-          const body = request.body as {
-            documentId?: string;
-            user?: string;
-            collection?: string;
-          };
-
-          if (body.documentId === undefined || body.documentId.length === 0) {
-            return reply.code(400).send({
-              error: { type: "bad-request", message: "documentId is required" },
-            });
-          }
-
-          return Effect.runPromise(
-            Effect.gen(function* () {
-              const user = body.user ?? "default";
-              const collection = body.collection ?? "default";
-              const documentId = body.documentId;
-              const timestamp = yield* Clock.currentTimeMillis;
-              const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
-
-              // Publish Document message to the decode-input topic
-              const topic = "tg.flow.document";
-              const metadata = {
-                id: `load-${timestamp}-${suffix.toString(36).padStart(6, "0")}`,
-                root: documentId,
-                user,
-                collection,
-              };
-
-              yield* Effect.tryPromise({
-                try: () => dispatcher.publishToTopic(topic, { metadata, documentId }),
-                catch: (cause) => messagingLifecycleError("gateway", "publish-load", cause),
-              });
-
-              return { status: "processing", documentId, flow };
-            }).pipe(
-              Effect.catch((error) => Effect.succeed(sendDispatchError(reply, error))),
-            ),
-          );
-        },
-      );
-
-      // Effect RPC WebSocket endpoint: /api/v1/rpc
-      app.get("/api/v1/rpc", { websocket: true }, (socket, request) => {
-        const url = new URL(request.url, `http://${request.headers.host}`);
-        const token = url.searchParams.get("token");
-        if (config.secret !== undefined && config.secret.length > 0 && token !== config.secret) {
-          socket.close(4001, "Unauthorized");
-          return;
-        }
-
-        const program = Effect.scoped(
-          Effect.gen(function* () {
-            const effectSocket = yield* EffectSocket.fromWebSocket(
-              Effect.succeed(socket as unknown as globalThis.WebSocket),
-              { closeCodeIsError: (code) => code !== 1000 },
-            );
-            yield* rpcServer.onSocket(effectSocket, headersFrom(request.headers));
-          }),
-        );
-
-        void Effect.runPromise(
-          program.pipe(
-            Scope.provide(rpcScope),
-            Effect.sandbox,
-            Effect.catch((cause) =>
-              Effect.logError("[Gateway] RPC WebSocket error", { error: Cause.pretty(cause) }).pipe(
-                Effect.flatMap(() =>
-                  Effect.sync(() => {
-                    if (socket.readyState === 1) {
-                      socket.close(1011, "Internal server error");
-                    }
-                  }),
-                ),
-              )
-            ),
-          ),
-        );
-      });
-
-      // Metrics endpoint — returns Effect metrics in Prometheus exposition format.
-      app.get("/api/v1/metrics", (_, reply) => {
-        reply.header("content-type", prometheusContentType);
-        return Effect.runPromise(formatPrometheusMetrics);
-      });
-
-      return {
-        start: () => app.listen({ port: config.port, host: "0.0.0.0" }),
-        stop: () =>
-          Effect.runPromise(
-            Effect.gen(function* () {
-              yield* Effect.tryPromise({
-                try: () => app.close(),
-                catch: (cause) => messagingLifecycleError("gateway", "app-close", cause),
-              });
-              yield* Scope.close(rpcScope, Exit.void);
-              yield* Effect.tryPromise({
-                try: () => dispatcher.stop(),
-                catch: (cause) => messagingLifecycleError("gateway", "dispatcher-stop", cause),
-              });
-            }),
-          ),
-      };
-  });
+      yield* Effect.log(`[Gateway] Listening on port ${config.port}`);
+      return yield* Layer.launch(serverLayer);
+    })),
+  );
 }
 
 function headersFrom(headers: Record<string, string | string[] | number | undefined>): ReadonlyArray<[string, string]> {
@@ -267,10 +286,6 @@ function headersFrom(headers: Record<string, string | string[] | number | undefi
     if (Array.isArray(value)) return value.map((item) => [key, item] satisfies [string, string]);
     return [];
   });
-}
-
-export function run(): Promise<void> {
-  return gatewayRuntime.runPromise(program);
 }
 
 export function runMain(): void {
@@ -290,22 +305,8 @@ export const loadGatewayConfig = Effect.fn("loadGatewayConfig")(function* () {
   } satisfies GatewayConfig;
 });
 
-export const program = Effect.scoped(
-  Effect.gen(function* () {
-    const config = yield* loadGatewayConfig();
-    const gateway = yield* Effect.promise(() => createGateway(config)).pipe(Effect.orDie);
-    yield* Effect.addFinalizer(() => Effect.promise(() => gateway.stop()).pipe(Effect.orDie));
-    yield* Effect.promise(() => gateway.start()).pipe(
-      Effect.orDie,
-      Effect.withSpan("trustgraph.gateway.start", {
-        attributes: {
-          "trustgraph.gateway.port": config.port,
-        },
-      }),
-    );
-    yield* Effect.log(`[Gateway] Listening on port ${config.port}`);
-    return yield* Effect.never;
-  }),
-);
+export const gatewayProgram = (config: GatewayConfig) => Layer.launch(createGateway(config));
 
-const gatewayRuntime = ManagedRuntime.make(Layer.empty);
+export const program = loadGatewayConfig().pipe(
+  Effect.flatMap(gatewayProgram),
+);

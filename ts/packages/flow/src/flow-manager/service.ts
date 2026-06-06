@@ -30,22 +30,44 @@ import {
   type FlowRequest,
   type FlowResponse,
   errorMessage,
+  processorLifecycleError,
 } from "@trustgraph/base";
 import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
-import { Duration, Effect, HashMap, Layer, ManagedRuntime, Match, Option, SynchronizedRef } from "effect";
+import { Duration, Effect, HashMap, Match, Option, SynchronizedRef } from "effect";
 import * as S from "effect/Schema";
 
 // ---------- Internal state types ----------
 
-interface FlowInstance {
-  id: string;
-  blueprintName: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  status: "running" | "stopped";
+class FlowInstanceRunning extends S.Class<FlowInstanceRunning>("FlowInstanceRunning")({
+	id: S.String,
+	blueprintName: S.String,
+	description: S.optionalKey(S.String),
+	parameters: S.Record(S.String, S.Unknown),
+	status: S.tag("running")
+}) {}
+
+class FlowInstanceStopped extends S.Class<FlowInstanceStopped>("FlowInstanceStopped")({
+	id: S.String,
+	blueprintName: S.String,
+	description: S.optionalKey(S.String),
+	parameters: S.Record(S.String, S.Unknown),
+	status: S.tag("stopped")
+}) {
+
 }
+
+export const FlowInstance = S.Union(
+	[
+		FlowInstanceRunning,
+		FlowInstanceStopped
+	]
+).pipe(
+	S.toTaggedUnion("status")
+);
+
+export type FlowInstance = typeof FlowInstance.Type;
 
 interface Blueprint {
   description: string;
@@ -175,35 +197,21 @@ interface FlowManagerServiceState {
 
 export interface FlowManagerService extends AsyncProcessorRuntime<FlowManagerError> {
   readonly state: SynchronizedRef.SynchronizedRef<FlowManagerServiceState>;
-  readonly handleMessage: (msg: Message<FlowRequest>) => Promise<void>;
   readonly handleMessageEffect: (msg: Message<FlowRequest>) => Effect.Effect<void, FlowManagerError>;
-  readonly configRequest: (request: ConfigRequest) => Promise<ConfigResponse>;
   readonly configRequestEffect: (request: ConfigRequest) => Effect.Effect<ConfigResponse, FlowManagerError>;
-  readonly ensureDefaultBlueprint: () => Promise<void>;
   readonly ensureDefaultBlueprintEffect: Effect.Effect<void, FlowManagerError>;
-  readonly refreshBlueprintsFromConfig: () => Promise<void>;
   readonly refreshBlueprintsFromConfigEffect: Effect.Effect<void, FlowManagerError>;
-  readonly refreshFlowsFromConfig: () => Promise<void>;
   readonly refreshFlowsFromConfigEffect: Effect.Effect<void, FlowManagerError>;
-  readonly handleOperation: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handleOperationEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
   readonly handleListBlueprints: () => FlowResponse;
-  readonly handleGetBlueprint: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handleGetBlueprintEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
-  readonly handlePutBlueprint: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handlePutBlueprintEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
-  readonly handleDeleteBlueprint: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handleDeleteBlueprintEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
   readonly handleListFlows: () => FlowResponse;
-  readonly handleGetFlow: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handleGetFlowEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
-  readonly handleStartFlow: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handleStartFlowEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
-  readonly handleStopFlow: (request: FlowRequest) => Promise<FlowResponse>;
   readonly handleStopFlowEffect: (request: FlowRequest) => Effect.Effect<FlowResponse, FlowManagerError>;
-  readonly pushFlowsConfig: () => Promise<void>;
   readonly pushFlowsConfigEffect: Effect.Effect<void>;
-  readonly deleteFlowConfig: (id: string) => Promise<void>;
   readonly deleteFlowConfigEffect: (id: string) => Effect.Effect<void, FlowManagerError>;
 }
 
@@ -259,13 +267,13 @@ function blueprintFromConfig(value: unknown): Blueprint | undefined {
 function flowFromConfig(id: string, value: unknown): FlowInstance | undefined {
   const parsed = parseConfigRecord(value);
   if (parsed === undefined) return undefined;
-  return {
+  return FlowInstanceRunning.make({
     id,
     blueprintName: optionalString(parsed["blueprint-name"]) ?? optionalString(parsed.blueprintName) ?? "default",
     description: optionalString(parsed.description) ?? "",
     parameters: isRecord(parsed.parameters) ? parsed.parameters : {},
     status: "running",
-  };
+  });
 }
 
 const updateHandles = (
@@ -291,10 +299,9 @@ const configRequestEffect = Effect.fn("FlowManager.configRequest")(function* (
   if (configClient === null) {
     return yield* flowManagerError("config-request", "Config client not started");
   }
-  return yield* Effect.tryPromise({
-    try: () => configClient.request(request),
-    catch: (cause) => flowManagerError("config-request", cause),
-  });
+  return yield* configClient.request(request).pipe(
+    Effect.mapError((cause) => flowManagerError("config-request", cause)),
+  );
 });
 
 const ensureDefaultBlueprintEffect = Effect.fn("FlowManager.ensureDefaultBlueprint")(function* (
@@ -571,24 +578,20 @@ const pushFlowsConfigEffect = Effect.fn("FlowManager.pushFlowsConfig")(
       }
     }
 
-    yield* Effect.tryPromise({
-      try: () =>
-        configClient.request({
-          operation: "put",
-          keys: ["flows"],
-          values: flowsConfig,
-        }),
-      catch: (cause) => flowManagerError("put-flows-config", cause),
-    });
-    yield* Effect.tryPromise({
-      try: () =>
-        configClient.request({
-          operation: "put",
-          keys: ["flow"],
-          values: flowRecords,
-        }),
-      catch: (cause) => flowManagerError("put-flow-records", cause),
-    });
+    yield* configClient.request({
+      operation: "put",
+      keys: ["flows"],
+      values: flowsConfig,
+    }).pipe(
+      Effect.mapError((cause) => flowManagerError("put-flows-config", cause)),
+    );
+    yield* configClient.request({
+      operation: "put",
+      keys: ["flow"],
+      values: flowRecords,
+    }).pipe(
+      Effect.mapError((cause) => flowManagerError("put-flow-records", cause)),
+    );
     yield* Effect.log(`[FlowManager] Pushed flows config (${HashMap.size(state.flows)} active flows)`);
   },
   (effect) =>
@@ -605,22 +608,18 @@ const deleteFlowConfigEffect = Effect.fn("FlowManager.deleteFlowConfig")(functio
 ) {
   const configClient = (yield* SynchronizedRef.get(stateRef)).configClient;
   if (configClient === null) return;
-  yield* Effect.tryPromise({
-    try: () =>
-      configClient.request({
-        operation: "delete",
-        keys: ["flows", id],
-      }),
-    catch: (cause) => flowManagerError("delete-flows-config", cause),
-  });
-  yield* Effect.tryPromise({
-    try: () =>
-      configClient.request({
-        operation: "delete",
-        keys: ["flow", id],
-      }),
-    catch: (cause) => flowManagerError("delete-flow-record", cause),
-  });
+  yield* configClient.request({
+    operation: "delete",
+    keys: ["flows", id],
+  }).pipe(
+    Effect.mapError((cause) => flowManagerError("delete-flows-config", cause)),
+  );
+  yield* configClient.request({
+    operation: "delete",
+    keys: ["flow", id],
+  }).pipe(
+    Effect.mapError((cause) => flowManagerError("delete-flow-record", cause)),
+  );
 });
 
 const closeFlowManagerResourcesEffect = Effect.fn("FlowManager.closeResources")(function* (
@@ -630,24 +629,19 @@ const closeFlowManagerResourcesEffect = Effect.fn("FlowManager.closeResources")(
 
   const consumer = state.consumer;
   if (consumer !== null) {
-    yield* Effect.tryPromise({
-      try: () => consumer.close(),
-      catch: (cause) => flowManagerError("consumer-close", cause),
-    });
+    yield* consumer.close.pipe(
+      Effect.mapError((cause) => flowManagerError("consumer-close", cause)),
+    );
   }
   const responseProducer = state.responseProducer;
   if (responseProducer !== null) {
-    yield* Effect.tryPromise({
-      try: () => responseProducer.close(),
-      catch: (cause) => flowManagerError("response-producer-close", cause),
-    });
+    yield* responseProducer.close.pipe(
+      Effect.mapError((cause) => flowManagerError("response-producer-close", cause)),
+    );
   }
   const configClient = state.configClient;
   if (configClient !== null) {
-    yield* Effect.tryPromise({
-      try: () => configClient.stop(),
-      catch: (cause) => flowManagerError("config-client-stop", cause),
-    });
+    yield* configClient.stop;
   }
 
   yield* updateHandles(stateRef, {
@@ -665,17 +659,15 @@ const consumeOnceEffect = Effect.fnUntraced(function* (
     return yield* flowManagerError("consume", "Flow request consumer not started");
   }
 
-  const msg = yield* Effect.tryPromise({
-    try: () => consumer.receive(2000),
-    catch: (cause) => flowManagerError("consume-receive", cause),
-  });
+  const msg = yield* consumer.receive(2000).pipe(
+    Effect.mapError((cause) => flowManagerError("consume-receive", cause)),
+  );
   if (msg === null) return;
 
   yield* service.handleMessageEffect(msg);
-  yield* Effect.tryPromise({
-    try: () => consumer.acknowledge(msg),
-    catch: (cause) => flowManagerError("consume-acknowledge", cause),
-  });
+  yield* consumer.acknowledge(msg).pipe(
+    Effect.mapError((cause) => flowManagerError("consume-acknowledge", cause)),
+  );
 });
 
 const runFlowManagerServiceEffect = Effect.fn("FlowManager.runService")(function* (
@@ -688,32 +680,27 @@ const runFlowManagerServiceEffect = Effect.fn("FlowManager.runService")(function
     subscription: `${service.config.id}-config-client`,
   });
   yield* updateHandles(service.state, { configClient });
-  yield* Effect.tryPromise({
-    try: () => configClient.start(),
-    catch: (cause) => flowManagerError("config-client-start", cause),
-  });
+  yield* configClient.start.pipe(
+    Effect.mapError((cause) => flowManagerError("config-client-start", cause)),
+  );
   yield* ensureDefaultBlueprintEffect(service.state);
   yield* refreshBlueprintsFromConfigEffect(service.state);
 
-  const responseProducer = yield* Effect.tryPromise({
-    try: () =>
-      service.pubsub.createProducer<FlowResponse>({
-        topic: topics.flowResponse,
-        schema: FlowResponseSchema,
-      }),
-    catch: (cause) => flowManagerError("response-producer", cause),
-  });
+  const responseProducer = yield* service.pubsub.createProducer<FlowResponse>({
+    topic: topics.flowResponse,
+    schema: FlowResponseSchema,
+  }).pipe(
+    Effect.mapError((cause) => flowManagerError("response-producer", cause)),
+  );
   yield* updateHandles(service.state, { responseProducer });
 
-  const consumer = yield* Effect.tryPromise({
-    try: () =>
-      service.pubsub.createConsumer<FlowRequest>({
-        topic: topics.flowRequest,
-        subscription: `${service.config.id}-flow-request`,
-        schema: FlowRequestSchema,
-      }),
-    catch: (cause) => flowManagerError("consumer", cause),
-  });
+  const consumer = yield* service.pubsub.createConsumer<FlowRequest>({
+    topic: topics.flowRequest,
+    subscription: `${service.config.id}-flow-request`,
+    schema: FlowRequestSchema,
+  }).pipe(
+    Effect.mapError((cause) => flowManagerError("consumer", cause)),
+  );
   yield* updateHandles(service.state, { consumer });
 
   yield* Effect.log(`[FlowManager] Listening on ${topics.flowRequest}`);
@@ -748,7 +735,6 @@ export function makeFlowManagerService(config: ProcessorConfig): FlowManagerServ
   const base = makeAsyncProcessor<FlowManagerError>(config, {
     runEffect: () => getService.pipe(Effect.flatMap(runFlowManagerServiceEffect)),
   });
-  const baseStop = base.stop;
 
   const handleOperationEffect = Effect.fn("FlowManager.handleOperation")(function* (request: FlowRequest) {
     const op = optionalString(request.operation);
@@ -784,10 +770,9 @@ export function makeFlowManagerService(config: ProcessorConfig): FlowManagerServ
       if (responseProducer === null) {
         return yield* flowManagerError("respond", "Flow response producer not started");
       }
-      yield* Effect.tryPromise({
-        try: () => responseProducer.send(response, { id: requestId }),
-        catch: (cause) => flowManagerError("respond", cause),
-      });
+      yield* responseProducer.send(response, { id: requestId }).pipe(
+        Effect.mapError((cause) => flowManagerError("respond", cause)),
+      );
     });
 
     yield* handleOperationEffect(request).pipe(
@@ -800,50 +785,45 @@ export function makeFlowManagerService(config: ProcessorConfig): FlowManagerServ
     );
   });
 
-  const flowManagerService: FlowManagerService = Object.assign(base, {
+  const serviceStopEffect = closeFlowManagerResourcesEffect(state).pipe(
+    Effect.mapError((cause) => processorLifecycleError(config.id, "stop", cause)),
+    Effect.flatMap(() => base.stop),
+  );
+
+  const serviceBase = Object.create(base, {
+    stop: {
+      value: serviceStopEffect,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+    stopEffect: {
+      value: serviceStopEffect,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+  });
+
+  const flowManagerService = Object.assign(serviceBase, {
     state,
-    handleMessage: (msg: Message<FlowRequest>) => Effect.runPromise(handleMessageEffect(msg)),
     handleMessageEffect,
-    configRequest: (request: ConfigRequest) => Effect.runPromise(configRequestEffect(state, request)),
     configRequestEffect: (request: ConfigRequest) => configRequestEffect(state, request),
-    ensureDefaultBlueprint: () => Effect.runPromise(ensureDefaultBlueprintEffect(state)),
     ensureDefaultBlueprintEffect: ensureDefaultBlueprintEffect(state),
-    refreshBlueprintsFromConfig: () => Effect.runPromise(refreshBlueprintsFromConfigEffect(state)),
     refreshBlueprintsFromConfigEffect: refreshBlueprintsFromConfigEffect(state),
-    refreshFlowsFromConfig: () => Effect.runPromise(refreshFlowsFromConfigEffect(state)),
     refreshFlowsFromConfigEffect: refreshFlowsFromConfigEffect(state),
-    handleOperation: (request: FlowRequest) => Effect.runPromise(handleOperationEffect(request)),
     handleOperationEffect,
     handleListBlueprints: () => handleListBlueprintsWithState(state.pipe(stateSnapshot)),
-    handleGetBlueprint: (request: FlowRequest) => Effect.runPromise(handleGetBlueprintEffect(state, request)),
     handleGetBlueprintEffect: (request: FlowRequest) => handleGetBlueprintEffect(state, request),
-    handlePutBlueprint: (request: FlowRequest) => Effect.runPromise(handlePutBlueprintEffect(state, request)),
     handlePutBlueprintEffect: (request: FlowRequest) => handlePutBlueprintEffect(state, request),
-    handleDeleteBlueprint: (request: FlowRequest) => Effect.runPromise(handleDeleteBlueprintEffect(state, request)),
     handleDeleteBlueprintEffect: (request: FlowRequest) => handleDeleteBlueprintEffect(state, request),
     handleListFlows: () => handleListFlowsWithState(state.pipe(stateSnapshot)),
-    handleGetFlow: (request: FlowRequest) => Effect.runPromise(handleGetFlowEffect(state, request)),
     handleGetFlowEffect: (request: FlowRequest) => handleGetFlowEffect(state, request),
-    handleStartFlow: (request: FlowRequest) => Effect.runPromise(handleStartFlowEffect(state, request)),
     handleStartFlowEffect: (request: FlowRequest) => handleStartFlowEffect(state, request),
-    handleStopFlow: (request: FlowRequest) => Effect.runPromise(handleStopFlowEffect(state, request)),
     handleStopFlowEffect: (request: FlowRequest) => handleStopFlowEffect(state, request),
-    pushFlowsConfig: () => Effect.runPromise(pushFlowsConfigEffect(state)),
     pushFlowsConfigEffect: pushFlowsConfigEffect(state),
-    deleteFlowConfig: (id: string) => Effect.runPromise(deleteFlowConfigEffect(state, id)),
     deleteFlowConfigEffect: (id: string) => deleteFlowConfigEffect(state, id),
-    stop: () =>
-      Effect.runPromise(
-        closeFlowManagerResourcesEffect(state).pipe(
-          Effect.flatMap(() =>
-            Effect.tryPromise({
-              try: () => baseStop(),
-              catch: (cause) => flowManagerError("base-stop", cause),
-            })
-          ),
-        ),
-      ),
-  });
+  }) as FlowManagerService;
 
   service = flowManagerService;
   return flowManagerService;
@@ -855,12 +835,6 @@ export const program = makeProcessorProgram({
   id: "flow-manager",
   make: (config) => makeFlowManagerService(config),
 });
-
-const flowManagerRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return flowManagerRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

@@ -5,7 +5,7 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
-import {Duration, Effect, HashMap, Layer, ManagedRuntime, Match, Option, SynchronizedRef} from "effect";
+import {Duration, Effect, HashMap, Match, Option, SynchronizedRef} from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 import {
@@ -16,6 +16,7 @@ import {
   makeAsyncProcessor,
   makeProcessorProgram,
   optionalStringConfig,
+  processorLifecycleError,
   topics,
   type AsyncProcessorRuntime,
   type BackendConsumer,
@@ -26,7 +27,7 @@ import {
   type Message,
   type ProcessorConfig,
 } from "@trustgraph/base";
-import {readTextFile, writeTextFile} from "../runtime/effect-files.js";
+import {readTextFileEffect, writeTextFileEffect} from "../runtime/effect-files.js";
 
 export interface ConfigServiceConfig extends ProcessorConfig {
   readonly persistPath?: string;
@@ -38,7 +39,7 @@ interface ConfigPush {
 }
 
 const ConfigPushSchema = S.Struct({
-  version: S.Number,
+  version: S.Finite,
   config: S.Record(S.String, S.Unknown),
 });
 
@@ -84,7 +85,7 @@ interface ConfigServiceState {
 }
 
 const PersistedConfigSchema = S.Struct({
-  version: S.optionalKey(S.Number),
+  version: S.optionalKey(S.Finite),
   data: S.optionalKey(S.Record(S.String, S.Record(S.String, S.Unknown))),
   workspaces: S.optionalKey(S.Record(S.String, S.Record(S.String, S.Record(S.String, S.Unknown)))),
 });
@@ -94,24 +95,17 @@ type PersistedConfig = typeof PersistedConfigSchema.Type;
 export interface ConfigService extends AsyncProcessorRuntime<ConfigServiceError> {
   readonly state: SynchronizedRef.SynchronizedRef<ConfigServiceState>;
   readonly persistPath: string | null;
-  readonly handleMessage: (msg: Message<ConfigRequest>) => Promise<void>;
   readonly handleMessageEffect: (msg: Message<ConfigRequest>) => Effect.Effect<void, ConfigServiceError>;
-  readonly handleOperation: (request: ConfigRequest) => Promise<ConfigResponse>;
   readonly handleOperationEffect: (request: ConfigRequest) => Effect.Effect<ConfigResponse, ConfigServiceError>;
   readonly handleGet: (request: ConfigRequest) => ConfigResponse;
-  readonly handlePut: (request: ConfigRequest) => Promise<ConfigResponse>;
   readonly handlePutEffect: (request: ConfigRequest) => Effect.Effect<ConfigResponse, ConfigServiceError>;
-  readonly handleDelete: (request: ConfigRequest) => Promise<ConfigResponse>;
   readonly handleDeleteEffect: (request: ConfigRequest) => Effect.Effect<ConfigResponse, ConfigServiceError>;
   readonly handleList: (request: ConfigRequest) => ConfigResponse;
   readonly handleGetValues: (request: ConfigRequest) => ConfigResponse;
   readonly handleGetValuesAllWorkspaces: (request: ConfigRequest) => ConfigResponse;
   readonly handleConfigDump: (request: ConfigRequest) => ConfigResponse;
-  readonly pushConfig: () => Promise<void>;
   readonly pushConfigEffect: Effect.Effect<void, ConfigServiceError>;
-  readonly persist: () => Promise<void>;
   readonly persistEffect: Effect.Effect<void>;
-  readonly loadFromDisk: () => Promise<void>;
   readonly loadFromDiskEffect: Effect.Effect<void>;
 }
 
@@ -325,10 +319,9 @@ const persistStateEffect = Effect.fn("ConfigService.persistState")(
       Effect.mapError((cause) => configServiceError("persist-encode", cause)),
     );
 
-    yield* Effect.tryPromise({
-      try: () => writeTextFile(persistPath, json),
-      catch: (cause) => configServiceError("persist-write", cause),
-    });
+    yield* writeTextFileEffect(persistPath, json).pipe(
+      Effect.mapError((cause) => configServiceError("persist-write", cause)),
+    );
   },
   (effect) =>
     effect.pipe(
@@ -344,24 +337,21 @@ const pushConfigWithStateEffect = Effect.fn("ConfigService.pushConfigWithState")
   const pushProducer = state.pushProducer;
   if (pushProducer === null) return;
 
-  yield* Effect.tryPromise({
-    try: () =>
-      pushProducer.send({
-        version: state.version,
-        config: configDumpForState(state),
-      }),
-    catch: (cause) => configServiceError("push-config", cause),
-  });
+  yield* pushProducer.send({
+    version: state.version,
+    config: configDumpForState(state),
+  }).pipe(
+    Effect.mapError((cause) => configServiceError("push-config", cause)),
+  );
 
   yield* Effect.log(`[ConfigService] Pushed configuration version ${state.version}`);
 });
 
 const readPersistedConfigEffect = Effect.fn("ConfigService.readPersistedConfig")(
   function* (persistPath: string) {
-    const raw = yield* Effect.tryPromise({
-      try: () => readTextFile(persistPath),
-      catch: (cause) => configServiceError("persist-read", cause),
-    });
+    const raw = yield* readTextFileEffect(persistPath).pipe(
+      Effect.mapError((cause) => configServiceError("persist-read", cause)),
+    );
     return yield* S.decodeUnknownEffect(PersistedConfigJsonSchema)(raw).pipe(
       Effect.mapError((cause) => configServiceError("persist-decode", cause)),
     );
@@ -644,24 +634,21 @@ const closeConfigResourcesEffect = Effect.fn("ConfigService.closeResources")(fun
 
   const consumer = state.consumer;
   if (consumer !== null) {
-    yield* Effect.tryPromise({
-      try: () => consumer.close(),
-      catch: (cause) => configServiceError("close-consumer", cause),
-    });
+    yield* consumer.close.pipe(
+      Effect.mapError((cause) => configServiceError("close-consumer", cause)),
+    );
   }
   const responseProducer = state.responseProducer;
   if (responseProducer !== null) {
-    yield* Effect.tryPromise({
-      try: () => responseProducer.close(),
-      catch: (cause) => configServiceError("close-response-producer", cause),
-    });
+    yield* responseProducer.close.pipe(
+      Effect.mapError((cause) => configServiceError("close-response-producer", cause)),
+    );
   }
   const pushProducer = state.pushProducer;
   if (pushProducer !== null) {
-    yield* Effect.tryPromise({
-      try: () => pushProducer.close(),
-      catch: (cause) => configServiceError("close-push-producer", cause),
-    });
+    yield* pushProducer.close.pipe(
+      Effect.mapError((cause) => configServiceError("close-push-producer", cause)),
+    );
   }
 
   yield* updateHandles(stateRef, {
@@ -680,17 +667,15 @@ const consumeOnceEffect = Effect.fnUntraced(function* (
     return yield* configServiceError("consume", "Config consumer not started");
   }
 
-  const msg = yield* Effect.tryPromise({
-    try: () => consumer.receive(2000),
-    catch: (cause) => configServiceError("consume-receive", cause),
-  });
+  const msg = yield* consumer.receive(2000).pipe(
+    Effect.mapError((cause) => configServiceError("consume-receive", cause)),
+  );
   if (msg === null) return;
 
   yield* service.handleMessageEffect(msg);
-  yield* Effect.tryPromise({
-    try: () => consumer.acknowledge(msg),
-    catch: (cause) => configServiceError("consume-acknowledge", cause),
-  });
+  yield* consumer.acknowledge(msg).pipe(
+    Effect.mapError((cause) => configServiceError("consume-acknowledge", cause)),
+  );
 });
 
 const runConfigServiceEffect = Effect.fn("ConfigService.run")(function* (
@@ -698,35 +683,29 @@ const runConfigServiceEffect = Effect.fn("ConfigService.run")(function* (
 ) {
   yield* service.loadFromDiskEffect;
 
-  const responseProducer = yield* Effect.tryPromise({
-    try: () =>
-      service.pubsub.createProducer<ConfigResponse>({
-        topic: topics.configResponse,
-        schema: ConfigResponseSchema,
-      }),
-    catch: (cause) => configServiceError("response-producer", cause),
-  });
+  const responseProducer = yield* service.pubsub.createProducer<ConfigResponse>({
+    topic: topics.configResponse,
+    schema: ConfigResponseSchema,
+  }).pipe(
+    Effect.mapError((cause) => configServiceError("response-producer", cause)),
+  );
   yield* updateHandles(service.state, {responseProducer});
 
-  const pushProducer = yield* Effect.tryPromise({
-    try: () =>
-      service.pubsub.createProducer<ConfigPush>({
-        topic: topics.configPush,
-        schema: ConfigPushSchema,
-      }),
-    catch: (cause) => configServiceError("push-producer", cause),
-  });
+  const pushProducer = yield* service.pubsub.createProducer<ConfigPush>({
+    topic: topics.configPush,
+    schema: ConfigPushSchema,
+  }).pipe(
+    Effect.mapError((cause) => configServiceError("push-producer", cause)),
+  );
   yield* updateHandles(service.state, {pushProducer});
 
-  const consumer = yield* Effect.tryPromise({
-    try: () =>
-      service.pubsub.createConsumer<ConfigRequest>({
-        topic: topics.configRequest,
-        subscription: `${service.config.id}-config-request`,
-        schema: ConfigRequestSchema,
-      }),
-    catch: (cause) => configServiceError("consumer", cause),
-  });
+  const consumer = yield* service.pubsub.createConsumer<ConfigRequest>({
+    topic: topics.configRequest,
+    subscription: `${service.config.id}-config-request`,
+    schema: ConfigRequestSchema,
+  }).pipe(
+    Effect.mapError((cause) => configServiceError("consumer", cause)),
+  );
   const state = yield* updateHandles(service.state, {consumer});
 
   yield* pushConfigWithStateEffect(state);
@@ -762,7 +741,6 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
   const base = makeAsyncProcessor<ConfigServiceError>(config, {
     runEffect: () => getService.pipe(Effect.flatMap(runConfigServiceEffect)),
   });
-  const baseStop = base.stop;
   const persistPath = config.persistPath ?? null;
 
   const handleOperationEffect = Effect.fn("ConfigService.handleOperation")(function* (
@@ -800,10 +778,9 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
         if (responseProducer === null) {
           return yield* configServiceError("respond", "Config response producer not started");
         }
-        yield* Effect.tryPromise({
-          try: () => responseProducer.send(response, {id: requestId}),
-          catch: (cause) => configServiceError("respond", cause),
-        });
+        yield* responseProducer.send(response, {id: requestId}).pipe(
+          Effect.mapError((cause) => configServiceError("respond", cause)),
+        );
       });
 
       yield* handleOperationEffect(request).pipe(
@@ -830,40 +807,42 @@ export function makeConfigService(config: ConfigServiceConfig): ConfigService {
       yield* Effect.log(`[ConfigService] Loaded persisted config (version=${next.version}, workspaces=${HashMap.size(next.store)})`);
     });
 
-  service = Object.assign(base, {
+  const serviceStopEffect = closeConfigResourcesEffect(state).pipe(
+    Effect.mapError((cause) => processorLifecycleError(config.id, "stop", cause)),
+    Effect.flatMap(() => base.stop),
+  );
+
+  const serviceBase = Object.create(base, {
+    stop: {
+      value: serviceStopEffect,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+    stopEffect: {
+      value: serviceStopEffect,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+  });
+
+  service = Object.assign(serviceBase, {
     state,
     persistPath,
-    handleMessage: (msg: Message<ConfigRequest>) => Effect.runPromise(handleMessageEffect(msg)),
     handleMessageEffect,
-    handleOperation: (request: ConfigRequest) => Effect.runPromise(handleOperationEffect(request)),
     handleOperationEffect,
     handleGet: (request: ConfigRequest) => handleGetWithState(stateSnapshot(state), request),
-    handlePut: (request: ConfigRequest) => Effect.runPromise(handlePutEffect(state, persistPath, request)),
     handlePutEffect: (request: ConfigRequest) => handlePutEffect(state, persistPath, request),
-    handleDelete: (request: ConfigRequest) => Effect.runPromise(handleDeleteEffect(state, persistPath, request)),
     handleDeleteEffect: (request: ConfigRequest) => handleDeleteEffect(state, persistPath, request),
     handleList: (request: ConfigRequest) => handleListWithState(stateSnapshot(state), request),
     handleGetValues: (request: ConfigRequest) => handleGetValuesWithState(stateSnapshot(state), request),
     handleGetValuesAllWorkspaces: (request: ConfigRequest) => handleGetValuesAllWorkspacesWithState(stateSnapshot(state), request),
     handleConfigDump: (request: ConfigRequest) => handleConfigDumpWithState(stateSnapshot(state), request),
-    pushConfig: () => Effect.runPromise(SynchronizedRef.get(state).pipe(Effect.flatMap(pushConfigWithStateEffect))),
     pushConfigEffect: SynchronizedRef.get(state).pipe(Effect.flatMap(pushConfigWithStateEffect)),
-    persist: () => Effect.runPromise(SynchronizedRef.get(state).pipe(Effect.flatMap((current) => persistStateEffect(persistPath, current)))),
     persistEffect: SynchronizedRef.get(state).pipe(Effect.flatMap((current) => persistStateEffect(persistPath, current))),
-    loadFromDisk: () => Effect.runPromise(loadFromDiskEffect()),
     loadFromDiskEffect: loadFromDiskEffect(),
-    stop: () =>
-      Effect.runPromise(
-        closeConfigResourcesEffect(state).pipe(
-          Effect.flatMap(() =>
-            Effect.tryPromise({
-              try: () => baseStop(),
-              catch: (cause) => configServiceError("stop", cause),
-            })
-          ),
-        ),
-      ),
-  });
+  }) as ConfigService;
 
   return service;
 }
@@ -886,12 +865,6 @@ export const program = makeProcessorProgram({
   loadConfig: loadConfigServiceRuntimeConfig(),
   make: (config) => makeConfigService(config),
 });
-
-const configServiceRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return configServiceRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

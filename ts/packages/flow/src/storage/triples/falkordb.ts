@@ -13,8 +13,8 @@ import { Config, Context, Effect, Layer, Match } from "effect";
 import * as S from "effect/Schema";
 
 export interface FalkorDBClosableClient {
-  readonly connect: () => Promise<unknown>;
-  readonly disconnect: () => Promise<unknown>;
+  readonly connect: Effect.Effect<void, FalkorDBTriplesStoreError>;
+  readonly disconnect: Effect.Effect<void, FalkorDBTriplesStoreError>;
 }
 
 export type FalkorDBStoreQueryOptions = Parameters<Graph["query"]>[1];
@@ -23,7 +23,7 @@ export interface FalkorDBStoreGraph {
   readonly query: <T = unknown>(
     query: string,
     options?: FalkorDBStoreQueryOptions,
-  ) => Promise<{ readonly data?: Array<T> }>;
+  ) => Effect.Effect<{ readonly data?: Array<T> }, FalkorDBTriplesStoreError>;
 }
 
 export type FalkorDBStoreClientFactory = (url: string) => FalkorDBClosableClient;
@@ -51,28 +51,39 @@ function getTermValue(term: Term): string {
 }
 
 export interface FalkorDBTriplesStore {
-  readonly createNode: (uri: string, user: string, collection: string) => Promise<void>;
-  readonly createLiteral: (value: string, user: string, collection: string) => Promise<void>;
+  readonly createNode: (
+    uri: string,
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
+  readonly createLiteral: (
+    value: string,
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
   readonly relateNode: (
     src: string,
     uri: string,
     dest: string,
     user: string,
     collection: string,
-  ) => Promise<void>;
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
   readonly relateLiteral: (
     src: string,
     uri: string,
     dest: string,
     user: string,
     collection: string,
-  ) => Promise<void>;
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
   readonly storeTriples: (
     triples: Triple[],
     user?: string,
     collection?: string,
-  ) => Promise<void>;
-  readonly deleteCollection: (user: string, collection: string) => Promise<void>;
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
+  readonly deleteCollection: (
+    user: string,
+    collection: string,
+  ) => Effect.Effect<void, FalkorDBTriplesStoreError>;
 }
 
 export class FalkorDBTriplesStoreError extends S.TaggedErrorClass<FalkorDBTriplesStoreError>()(
@@ -80,7 +91,7 @@ export class FalkorDBTriplesStoreError extends S.TaggedErrorClass<FalkorDBTriple
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -114,6 +125,12 @@ interface FalkorDBStoreConnection {
   readonly client: FalkorDBClosableClient;
   readonly graph: FalkorDBStoreGraph;
 }
+
+const tryFalkorDBPromise = <A>(operation: string, try_: () => PromiseLike<A>) =>
+  Effect.tryPromise({
+    try: try_,
+    catch: (cause) => falkorDBTriplesStoreError(operation, cause),
+  });
 
 interface FalkorDBTriplesStoreEffectShape {
   readonly createNode: (
@@ -187,16 +204,21 @@ const connectFalkorDBTriplesStore = Effect.fn("FalkorDBTriplesStore.connect")(fu
           const client = clientFactory(url);
           return { client, graph: graphFactory(client, database) };
         }
-        const client = createClient({ url });
-        return { client, graph: new Graph(client, database) };
+        const sdkClient = createClient({ url });
+        const client: FalkorDBClosableClient = {
+          connect: tryFalkorDBPromise("connect", () => sdkClient.connect()).pipe(Effect.asVoid),
+          disconnect: tryFalkorDBPromise("disconnect", () => sdkClient.disconnect()).pipe(Effect.asVoid),
+        };
+        const sdkGraph = new Graph(sdkClient, database);
+        const graph: FalkorDBStoreGraph = {
+          query: (query, options) => tryFalkorDBPromise("graph-query", () => sdkGraph.query(query, options)),
+        };
+        return { client, graph };
       },
       catch: (cause) => falkorDBTriplesStoreError("create-client", cause),
     });
 
-    yield* Effect.tryPromise({
-      try: () => client.connect(),
-      catch: (cause) => falkorDBTriplesStoreError("connect", cause),
-    }).pipe(
+    yield* client.connect.pipe(
       Effect.tapError((error) =>
         Effect.logError("[FalkorDBTriplesStore] Connection failed", {
           error: error.message,
@@ -212,10 +234,7 @@ const connectFalkorDBTriplesStore = Effect.fn("FalkorDBTriplesStore.connect")(fu
 const disconnectFalkorDBTriplesStore = (
   connection: FalkorDBStoreConnection,
 ): Effect.Effect<void> =>
-  Effect.tryPromise({
-    try: () => connection.client.disconnect(),
-    catch: (cause) => falkorDBTriplesStoreError("disconnect", cause),
-  }).pipe(
+  connection.client.disconnect.pipe(
     Effect.catch((error) =>
       Effect.logError("[FalkorDBTriplesStore] Disconnect failed", {
         error: error.message,
@@ -239,10 +258,8 @@ const runGraphQuery = (
   query: string,
   options?: FalkorDBStoreQueryOptions,
 ): Effect.Effect<void, FalkorDBTriplesStoreError> =>
-  Effect.tryPromise({
-    try: () => graph.query(query, options),
-    catch: (cause) => falkorDBTriplesStoreError(operation, cause),
-  }).pipe(
+  graph.query(query, options).pipe(
+    Effect.mapError((cause) => falkorDBTriplesStoreError(operation, cause)),
     Effect.asVoid,
   );
 
@@ -390,17 +407,17 @@ const withFalkorDBTriplesStore = <A>(
 export function makeFalkorDBTriplesStore(config: FalkorDBConfig = {}): FalkorDBTriplesStore {
   return {
     createNode: (uri, user, collection) =>
-      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.createNode(uri, user, collection))),
+      withFalkorDBTriplesStore(config, (store) => store.createNode(uri, user, collection)),
     createLiteral: (value, user, collection) =>
-      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.createLiteral(value, user, collection))),
+      withFalkorDBTriplesStore(config, (store) => store.createLiteral(value, user, collection)),
     relateNode: (src, uri, dest, user, collection) =>
-      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.relateNode(src, uri, dest, user, collection))),
+      withFalkorDBTriplesStore(config, (store) => store.relateNode(src, uri, dest, user, collection)),
     relateLiteral: (src, uri, dest, user, collection) =>
-      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.relateLiteral(src, uri, dest, user, collection))),
+      withFalkorDBTriplesStore(config, (store) => store.relateLiteral(src, uri, dest, user, collection)),
     storeTriples: (triples, user = "default", collection = "default") =>
-      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.storeTriples(triples, user, collection))),
+      withFalkorDBTriplesStore(config, (store) => store.storeTriples(triples, user, collection)),
     deleteCollection: (user, collection) =>
-      Effect.runPromise(withFalkorDBTriplesStore(config, (store) => store.deleteCollection(user, collection))),
+      withFalkorDBTriplesStore(config, (store) => store.deleteCollection(user, collection)),
   };
 }
 

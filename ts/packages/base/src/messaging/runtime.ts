@@ -168,10 +168,8 @@ export function makeEffectProducerHandle<T>(
 ): EffectProducer<T> {
   return {
     send: Effect.fn(`Producer.send:${options.topic}`)((id: string, message: T) =>
-      Effect.tryPromise({
-        try: () => backend.send(message, { id }),
-        catch: (error) => messagingDeliveryError(options.topic, "send", error),
-      }).pipe(
+      backend.send(message, { id }).pipe(
+        Effect.mapError((error) => messagingDeliveryError(options.topic, "send", error)),
         Effect.tap(() =>
           options.metrics === undefined
             ? Effect.void
@@ -179,14 +177,12 @@ export function makeEffectProducerHandle<T>(
         ),
       ),
     ),
-    flush: Effect.tryPromise({
-      try: () => backend.flush(),
-      catch: (error) => messagingDeliveryError(options.topic, "flush", error),
-    }),
-    close: Effect.tryPromise({
-      try: () => backend.close(),
-      catch: (error) => messagingDeliveryError(options.topic, "close", error),
-    }),
+    flush: backend.flush.pipe(
+      Effect.mapError((error) => messagingDeliveryError(options.topic, "flush", error)),
+    ),
+    close: backend.close.pipe(
+      Effect.mapError((error) => messagingDeliveryError(options.topic, "close", error)),
+    ),
   };
 }
 
@@ -219,40 +215,36 @@ const closeConsumerBackend = <T>(
   topic: string,
   subscription: string,
 ) =>
-  Effect.tryPromise({
-    try: () => backend.close(),
-    catch: (error) => messagingLifecycleError(`${topic}:${subscription}`, "close-consumer", error),
-  });
+  backend.close.pipe(
+    Effect.mapError((error) => messagingLifecycleError(`${topic}:${subscription}`, "close-consumer", error)),
+  );
 
 const acknowledgeMessage = <T>(
   backend: BackendConsumer<T>,
   message: Message<T>,
   topic: string,
 ) =>
-  Effect.tryPromise({
-    try: () => backend.acknowledge(message),
-    catch: (error) => messagingDeliveryError(topic, "acknowledge", error),
-  });
+  backend.acknowledge(message).pipe(
+    Effect.mapError((error) => messagingDeliveryError(topic, "acknowledge", error)),
+  );
 
 const negativeAcknowledgeMessage = <T>(
   backend: BackendConsumer<T>,
   message: Message<T>,
   topic: string,
 ) =>
-  Effect.tryPromise({
-    try: () => backend.negativeAcknowledge(message),
-    catch: (error) => messagingDeliveryError(topic, "negative-acknowledge", error),
-  });
+  backend.negativeAcknowledge(message).pipe(
+    Effect.mapError((error) => messagingDeliveryError(topic, "negative-acknowledge", error)),
+  );
 
 const receiveMessage = <T>(
   backend: BackendConsumer<T>,
   topic: string,
   timeoutMs: number,
 ) =>
-  Effect.tryPromise({
-    try: () => backend.receive(timeoutMs),
-    catch: (error) => messagingDeliveryError(topic, "receive", error),
-  });
+  backend.receive(timeoutMs).pipe(
+    Effect.mapError((error) => messagingDeliveryError(topic, "receive", error)),
+  );
 
 const handleMessageWithRetry = Effect.fn("handleMessageWithRetry")(function* <T, E, R>(
   options: EffectConsumerOptions<T, E, R>,

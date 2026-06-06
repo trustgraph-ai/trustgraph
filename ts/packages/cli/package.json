@@ -12,21 +12,20 @@
     "test": "bunx --bun vitest run --passWithNoTests --exclude=dist/**"
   },
   "dependencies": {
+    "@effect/ai-anthropic": "4.0.0-beta.78",
+    "@effect/ai-openai": "4.0.0-beta.78",
+    "@effect/ai-openrouter": "4.0.0-beta.78",
+    "@effect/atom-react": "4.0.0-beta.78",
+    "@effect/openapi-generator": "4.0.0-beta.78",
+    "@effect/opentelemetry": "4.0.0-beta.78",
+    "@effect/platform-browser": "4.0.0-beta.78",
+    "@effect/platform-bun": "4.0.0-beta.78",
     "@trustgraph/base": "workspace:*",
     "@trustgraph/client": "workspace:*",
-    "commander": "^13.1.0",
-    "@effect/ai-anthropic": "4.0.0-beta.75",
-    "@effect/ai-openai": "4.0.0-beta.75",
-    "@effect/ai-openrouter": "4.0.0-beta.75",
-    "@effect/atom-react": "4.0.0-beta.75",
-    "@effect/openapi-generator": "4.0.0-beta.75",
-    "@effect/opentelemetry": "4.0.0-beta.75",
-    "@effect/platform-browser": "4.0.0-beta.75",
-    "@effect/platform-bun": "4.0.0-beta.75",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.0-beta.75",
+    "@effect/vitest": "4.0.0-beta.78",
     "@types/ws": "^8.5.0",
     "typescript": "^5.8.0",
     "vitest": "^4.1.6"

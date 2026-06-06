@@ -15,6 +15,7 @@ import {
   makeAsyncProcessor,
   makeProcessorProgram,
   optionalStringConfig,
+  processorLifecycleError,
   topics,
   type AsyncProcessorRuntime,
   type BackendConsumer,
@@ -24,17 +25,18 @@ import {
   type KnowledgeResponse,
   type Message,
   type ProcessorConfig,
+  type PubSubError,
 } from "@trustgraph/base";
-import {Duration, Effect, HashMap, Layer, ManagedRuntime, Match, SynchronizedRef} from "effect";
+import {Duration, Effect, HashMap, Match, SynchronizedRef} from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
-import {ensureDirectory, joinPath, readTextFile, writeTextFile} from "../runtime/effect-files.js";
+import {ensureDirectoryEffect, joinPath, readTextFileEffect, writeTextFileEffect} from "../runtime/effect-files.js";
 
 export interface KnowledgeCoreServiceConfig extends ProcessorConfig {
   readonly dataDir?: string;
 }
 
-const NumberArray = S.Array(S.Number).pipe(S.mutable);
+const NumberArray = S.Array(S.Finite).pipe(S.mutable);
 const NumberArrays = S.Array(NumberArray).pipe(S.mutable);
 
 const GraphEmbeddingSchema = S.Struct({
@@ -98,35 +100,20 @@ export interface KnowledgeCoreService extends AsyncProcessorRuntime<KnowledgeCor
   readonly coreKey: (user: string, id: string) => string;
   readonly graphEmbeddings: (request: KnowledgeRequest) => ReadonlyArray<GraphEmbedding>;
   readonly documentEmbeddings: (request: KnowledgeRequest) => DocumentEmbeddingsCore | undefined;
-  readonly handleMessage: (msg: Message<KnowledgeRequest>) => Promise<void>;
   readonly handleMessageEffect: (msg: Message<KnowledgeRequest>) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly handleOperation: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly handleOperationEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly listKgCores: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly listKgCoresEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly getKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly getKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly deleteKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly deleteKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly putKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly putKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly loadKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly loadKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly unloadKgCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly unloadKgCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly listDeCores: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly listDeCoresEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly getDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly getDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly deleteDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly deleteDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly putDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly putDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly loadDeCore: (request: KnowledgeRequest, requestId: string) => Promise<void>;
   readonly loadDeCoreEffect: (request: KnowledgeRequest, requestId: string) => Effect.Effect<void, KnowledgeCoreServiceError>;
-  readonly persist: () => Promise<void>;
   readonly persistEffect: Effect.Effect<void, never>;
-  readonly loadFromDisk: () => Promise<void>;
   readonly loadFromDiskEffect: Effect.Effect<void, never>;
 }
 
@@ -204,20 +191,12 @@ const updateHandles = (
     responseProducer: handles.responseProducer === undefined ? state.responseProducer : handles.responseProducer,
   }));
 
-const tryPromise = <A>(
-  operation: string,
-  evaluate: () => Promise<A>,
-): Effect.Effect<A, KnowledgeCoreServiceError> =>
-  Effect.tryPromise({
-    try: evaluate,
-    catch: (cause) => knowledgeCoreServiceError(operation, cause),
-  });
-
 const closeResource = (
-  resource: {readonly close: () => Promise<void>},
+  resource: {readonly close: Effect.Effect<void, PubSubError>},
   operation: string,
 ): Effect.Effect<void> =>
-  tryPromise(operation, () => resource.close()).pipe(
+  resource.close.pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError(operation, cause)),
     Effect.catch((error) =>
       Effect.logError("[KnowledgeCoreService] Failed to close resource", {
         error: error.message,
@@ -237,12 +216,16 @@ const sendResponse = Effect.fnUntraced(function* (
     return yield* knowledgeCoreServiceError(operation, "Knowledge response producer not started");
   }
 
-  yield* tryPromise(operation, () => responseProducer.send(response, {id: requestId}));
+  yield* responseProducer.send(response, {id: requestId}).pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError(operation, cause)),
+  );
 });
 
 const readPersistedKnowledgeEffect = Effect.fn("KnowledgeCoreService.readPersistedKnowledge")(
   function* (persistPath: string) {
-    const raw = yield* tryPromise("load-read", () => readTextFile(persistPath));
+    const raw = yield* readTextFileEffect(persistPath).pipe(
+      Effect.mapError((cause) => knowledgeCoreServiceError("load-read", cause)),
+    );
     const current = S.decodeUnknownOption(PersistedKnowledgeSnapshotJsonSchema)(raw);
     if (O.isSome(current)) {
       return {
@@ -282,7 +265,9 @@ const persistStateEffect = Effect.fn("KnowledgeCoreService.persistState")(
     const json = yield* S.encodeUnknownEffect(S.UnknownFromJsonString)(snapshot).pipe(
       Effect.mapError((cause) => knowledgeCoreServiceError("persist-encode", cause)),
     );
-    yield* tryPromise("persist-write", () => writeTextFile(persistPath, json));
+    yield* writeTextFileEffect(persistPath, json).pipe(
+      Effect.mapError((cause) => knowledgeCoreServiceError("persist-write", cause)),
+    );
   },
   (effect) =>
     effect.pipe(
@@ -317,12 +302,16 @@ const closeKnowledgeResourcesEffect = Effect.fn("KnowledgeCoreService.closeResou
 
   const consumer = state.consumer;
   if (consumer !== null) {
-    yield* tryPromise("close-consumer", () => consumer.close());
+    yield* consumer.close.pipe(
+      Effect.mapError((cause) => knowledgeCoreServiceError("close-consumer", cause)),
+    );
   }
 
   const responseProducer = state.responseProducer;
   if (responseProducer !== null) {
-    yield* tryPromise("close-response-producer", () => responseProducer.close());
+    yield* responseProducer.close.pipe(
+      Effect.mapError((cause) => knowledgeCoreServiceError("close-response-producer", cause)),
+    );
   }
 
   yield* updateHandles(stateRef, {
@@ -339,33 +328,39 @@ const consumeOnceEffect = Effect.fnUntraced(function* (
     return yield* knowledgeCoreServiceError("consume", "Knowledge request consumer not started");
   }
 
-  const msg = yield* tryPromise("consume-receive", () => consumer.receive(2000));
+  const msg = yield* consumer.receive(2000).pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError("consume-receive", cause)),
+  );
   if (msg === null) return;
 
   yield* service.handleMessageEffect(msg);
-  yield* tryPromise("consume-acknowledge", () => consumer.acknowledge(msg));
+  yield* consumer.acknowledge(msg).pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError("consume-acknowledge", cause)),
+  );
 });
 
 const runKnowledgeCoreServiceEffect = Effect.fn("KnowledgeCoreService.run")(function* (
   service: KnowledgeCoreService,
 ) {
-  yield* tryPromise("ensure-directory", () => ensureDirectory(service.dataDir));
+  yield* ensureDirectoryEffect(service.dataDir).pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError("ensure-directory", cause)),
+  );
   yield* service.loadFromDiskEffect;
 
-  const responseProducer = yield* tryPromise("response-producer", () =>
-    service.pubsub.createProducer<KnowledgeResponse>({
-      topic: topics.knowledgeResponse,
-      schema: KnowledgeResponseSchema,
-    }),
+  const responseProducer = yield* service.pubsub.createProducer<KnowledgeResponse>({
+    topic: topics.knowledgeResponse,
+    schema: KnowledgeResponseSchema,
+  }).pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError("response-producer", cause)),
   );
   yield* updateHandles(service.state, {responseProducer});
 
-  const consumer = yield* tryPromise("consumer", () =>
-    service.pubsub.createConsumer<KnowledgeRequest>({
-      topic: topics.knowledgeRequest,
-      subscription: `${service.config.id}-knowledge-request`,
-      schema: KnowledgeRequestSchema,
-    }),
+  const consumer = yield* service.pubsub.createConsumer<KnowledgeRequest>({
+    topic: topics.knowledgeRequest,
+    subscription: `${service.config.id}-knowledge-request`,
+    schema: KnowledgeRequestSchema,
+  }).pipe(
+    Effect.mapError((cause) => knowledgeCoreServiceError("consumer", cause)),
   );
   yield* updateHandles(service.state, {consumer});
 
@@ -504,12 +499,11 @@ const loadKgCoreEffect = Effect.fn("loadKgCoreEffect")(function* (
 
     if (core.triples.length > 0) {
       yield* Effect.acquireUseRelease(
-        tryPromise("triples-producer", () =>
-          service.pubsub.createProducer<unknown>({topic: "tg.flow.triples"}),
+        service.pubsub.createProducer<unknown>({topic: "tg.flow.triples"}).pipe(
+          Effect.mapError((cause) => knowledgeCoreServiceError("triples-producer", cause)),
         ),
         (producer) =>
-          tryPromise("send-triples", () =>
-            producer.send({
+          producer.send({
               metadata: {
                 id: coreId,
                 root: coreId,
@@ -517,8 +511,9 @@ const loadKgCoreEffect = Effect.fn("loadKgCoreEffect")(function* (
                 collection: request.collection ?? "default",
               },
               triples: core.triples,
-            }),
-          ),
+            }).pipe(
+              Effect.mapError((cause) => knowledgeCoreServiceError("send-triples", cause)),
+            ),
         (producer) => closeResource(producer, "close-triples-producer"),
       );
     }
@@ -637,7 +632,6 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
   const base = makeAsyncProcessor<KnowledgeCoreServiceError>(config, {
     runEffect: () => getService.pipe(Effect.flatMap(runKnowledgeCoreServiceEffect)),
   });
-  const baseStop = base.stop;
 
   const handleOperationEffect = Effect.fn("KnowledgeCoreService.handleOperation")(function* (
     request: KnowledgeRequest,
@@ -699,54 +693,50 @@ export function makeKnowledgeCoreService(config: KnowledgeCoreServiceConfig): Kn
     yield* Effect.log(`[KnowledgeCoreService] Loaded persisted state (kg=${HashMap.size(next.kgCores)}, de=${HashMap.size(next.deCores)})`);
   });
 
-  service = Object.assign(base, {
+  const serviceStopEffect = closeKnowledgeResourcesEffect(state).pipe(
+    Effect.mapError((cause) => processorLifecycleError(config.id, "stop", cause)),
+    Effect.flatMap(() => base.stop),
+  );
+
+  const serviceBase = Object.create(base, {
+    stop: {
+      value: serviceStopEffect,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+    stopEffect: {
+      value: serviceStopEffect,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+  });
+
+  service = Object.assign(serviceBase, {
     state,
     dataDir,
     persistPath,
     coreKey,
     graphEmbeddings: graphEmbeddingsFor,
     documentEmbeddings: documentEmbeddingsFor,
-    handleMessage: (msg: Message<KnowledgeRequest>) => Effect.runPromise(handleMessageEffect(msg)),
     handleMessageEffect,
-    handleOperation: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(handleOperationEffect(request, requestId)),
     handleOperationEffect,
-    listKgCores: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(listKgCoresEffect(state, request, requestId)),
     listKgCoresEffect: (request: KnowledgeRequest, requestId: string) => listKgCoresEffect(state, request, requestId),
-    getKgCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(getKgCoreEffect(state, request, requestId)),
     getKgCoreEffect: (request: KnowledgeRequest, requestId: string) => getKgCoreEffect(state, request, requestId),
-    deleteKgCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(deleteKgCoreEffect(state, persistPath, request, requestId)),
     deleteKgCoreEffect: (request: KnowledgeRequest, requestId: string) => deleteKgCoreEffect(state, persistPath, request, requestId),
-    putKgCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(putKgCoreEffect(state, persistPath, request, requestId)),
     putKgCoreEffect: (request: KnowledgeRequest, requestId: string) => putKgCoreEffect(state, persistPath, request, requestId),
-    loadKgCore: (request: KnowledgeRequest, requestId: string) =>
-      Effect.runPromise(getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId)))),
     loadKgCoreEffect: (request: KnowledgeRequest, requestId: string) =>
       getService.pipe(Effect.flatMap((current) => loadKgCoreEffect(state, current, request, requestId))),
-    unloadKgCore: (_request: KnowledgeRequest, requestId: string) => Effect.runPromise(sendResponse(state, {}, requestId)),
     unloadKgCoreEffect: (_request: KnowledgeRequest, requestId: string) => sendResponse(state, {}, requestId),
-    listDeCores: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(listDeCoresEffect(state, request, requestId)),
     listDeCoresEffect: (request: KnowledgeRequest, requestId: string) => listDeCoresEffect(state, request, requestId),
-    getDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(getDeCoreEffect(state, request, requestId)),
     getDeCoreEffect: (request: KnowledgeRequest, requestId: string) => getDeCoreEffect(state, request, requestId),
-    deleteDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(deleteDeCoreEffect(state, persistPath, request, requestId)),
     deleteDeCoreEffect: (request: KnowledgeRequest, requestId: string) => deleteDeCoreEffect(state, persistPath, request, requestId),
-    putDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(putDeCoreEffect(state, persistPath, request, requestId)),
     putDeCoreEffect: (request: KnowledgeRequest, requestId: string) => putDeCoreEffect(state, persistPath, request, requestId),
-    loadDeCore: (request: KnowledgeRequest, requestId: string) => Effect.runPromise(loadDeCoreEffect(state, request, requestId)),
     loadDeCoreEffect: (request: KnowledgeRequest, requestId: string) => loadDeCoreEffect(state, request, requestId),
-    persist: () => Effect.runPromise(SynchronizedRef.get(state).pipe(Effect.flatMap((current) => persistStateEffect(persistPath, current)))),
     persistEffect: SynchronizedRef.get(state).pipe(Effect.flatMap((current) => persistStateEffect(persistPath, current))),
-    loadFromDisk: () => Effect.runPromise(loadFromDiskEffect()),
     loadFromDiskEffect: loadFromDiskEffect(),
-    stop: () =>
-      Effect.runPromise(
-        closeKnowledgeResourcesEffect(state).pipe(
-          Effect.flatMap(() =>
-            tryPromise("base-stop", () => baseStop())
-          ),
-        ),
-      ),
-  });
+  }) as KnowledgeCoreService;
 
   return service;
 }
@@ -769,12 +759,6 @@ export const program = makeProcessorProgram({
   loadConfig: loadKnowledgeCoreServiceRuntimeConfig(),
   make: (config) => makeKnowledgeCoreService(config),
 });
-
-const knowledgeCoreRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return knowledgeCoreRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

@@ -5,7 +5,7 @@
  */
 
 import { NodeRuntime } from "@effect/platform-node";
-import { Config, Effect, Layer, ManagedRuntime } from "effect";
+import { Config, Effect, Layer } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import {
@@ -25,7 +25,7 @@ export interface OllamaEmbeddingsConfig extends ProcessorConfig {
   fetch?: typeof fetch;
 }
 
-const EmbeddingVector = S.Array(S.Number);
+const EmbeddingVector = S.Array(S.Finite);
 
 const OllamaEmbedResponse = S.Struct({
   embeddings: S.Array(EmbeddingVector),
@@ -71,9 +71,6 @@ const loadOllamaEmbeddingsConfig = Effect.fn("OllamaEmbeddings.loadConfig")(func
   } satisfies ResolvedOllamaEmbeddingsConfig;
 });
 
-const responseJson = (response: Response): Promise<unknown> =>
-  response.json();
-
 const makeOllamaEmbeddingsFromConfig = ({
   defaultModel,
   ollamaHost,
@@ -116,7 +113,7 @@ const makeOllamaEmbeddingsFromConfig = ({
       }
 
       const data = yield* Effect.tryPromise({
-        try: () => responseJson(response),
+        try: () => response.json(),
         catch: (error) => ollamaEmbeddingsError("ollama.response-json", error),
       });
       const decoded = yield* S.decodeUnknownEffect(OllamaEmbedResponse)(data).pipe(
@@ -165,12 +162,6 @@ export const program = makeFlowProcessorProgram<OllamaEmbeddingsConfig, Embeddin
   specs: () => makeEmbeddingsSpecs(),
   layer: (config) => OllamaEmbeddingsLive(config),
 });
-
-const ollamaEmbeddingsRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return ollamaEmbeddingsRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

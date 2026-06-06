@@ -16,9 +16,8 @@ import {
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
-  type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Effect, Stream } from "effect";
 import {
   llmStreamPart,
   makeTextCompletionLayer,
@@ -27,7 +26,6 @@ import {
   requiredString,
   streamTextCompletionChunks,
   textFromContent,
-  toAsyncGenerator,
   type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -71,7 +69,7 @@ const mapMistralError = (error: unknown): TextCompletionRuntimeError =>
 const makeMistralProviderFromClient = (
   resolved: ResolvedMistralConfig,
   client: Mistral,
-): LlmProvider => {
+): LlmProvider<TextCompletionRuntimeError> => {
   const {
     defaultModel,
     defaultTemperature,
@@ -84,31 +82,29 @@ const makeMistralProviderFromClient = (
       prompt: string,
       model?: string,
       temperature?: number,
-    ): Promise<LlmResult> => {
+    ) => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      return Effect.runPromise(
-        Effect.tryPromise({
-          try: () =>
-            client.chat.complete({
-              model: modelName,
-              messages: [
-                { role: "system", content: system },
-                { role: "user", content: prompt },
-              ],
-              temperature: temp,
-              maxTokens: maxOutput,
-            }),
-          catch: mapMistralError,
-        }).pipe(
-          Effect.map((resp): LlmResult => ({
-            text: textFromContent(resp.choices?.[0]?.message?.content),
-            inToken: resp.usage?.promptTokens ?? 0,
-            outToken: resp.usage?.completionTokens ?? 0,
+      return Effect.tryPromise({
+        try: () =>
+          client.chat.complete({
             model: modelName,
-          })),
-        ),
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: prompt },
+            ],
+            temperature: temp,
+            maxTokens: maxOutput,
+          }),
+        catch: mapMistralError,
+      }).pipe(
+        Effect.map((resp): LlmResult => ({
+          text: textFromContent(resp.choices?.[0]?.message?.content),
+          inToken: resp.usage?.promptTokens ?? 0,
+          outToken: resp.usage?.completionTokens ?? 0,
+          model: modelName,
+        })),
       );
     },
     supportsStreaming: () => true,
@@ -117,11 +113,11 @@ const makeMistralProviderFromClient = (
       prompt: string,
       model?: string,
       temperature?: number,
-    ): AsyncGenerator<LlmChunk> => {
+    ) => {
       const modelName = model ?? defaultModel;
       const temp = temperature ?? defaultTemperature;
 
-      const stream = Stream.fromEffect(
+      return Stream.fromEffect(
         Effect.tryPromise({
           try: () =>
             client.chat.stream({
@@ -149,13 +145,13 @@ const makeMistralProviderFromClient = (
           })
         ),
       );
-
-      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapMistralError);
     },
-  } satisfies LlmProvider;
+  } satisfies LlmProvider<TextCompletionRuntimeError>;
 };
 
-export function makeMistralProvider(config: MistralProcessorConfig): LlmProvider {
+export function makeMistralProvider(
+  config: MistralProcessorConfig,
+): LlmProvider<TextCompletionRuntimeError> {
   return Effect.runSync(makeMistralProviderEffect(config));
 }
 
@@ -191,12 +187,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeLlmSpecs(),
   layer: (config) => makeTextCompletionLayer(makeMistralProviderEffect(config)),
 });
-
-const mistralTextCompletionRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return mistralTextCompletionRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

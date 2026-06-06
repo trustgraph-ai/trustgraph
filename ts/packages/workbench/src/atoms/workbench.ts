@@ -353,12 +353,12 @@ const ChatMessageSchema = S.Struct({
   id: S.String,
   role: S.Union([S.Literal("user"), S.Literal("assistant"), S.Literal("system")]),
   content: S.String,
-  timestamp: S.Number,
+  timestamp: S.Finite,
   isStreaming: S.optionalKey(S.Boolean),
   metadata: S.optionalKey(S.Struct({
     model: S.optionalKey(S.String),
-    inTokens: S.optionalKey(S.Number),
-    outTokens: S.optionalKey(S.Number),
+    inTokens: S.optionalKey(S.Finite),
+    outTokens: S.optionalKey(S.Finite),
   })),
   agentPhases: S.optionalKey(S.Struct({
     think: S.String,

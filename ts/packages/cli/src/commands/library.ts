@@ -4,8 +4,11 @@
  * Manages documents stored in the TrustGraph library.
  */
 
-import type { Command } from "commander";
 import { Effect, Match } from "effect";
+import * as O from "effect/Option";
+import * as Argument from "effect/unstable/cli/Argument";
+import * as Command from "effect/unstable/cli/Command";
+import * as Flag from "effect/unstable/cli/Flag";
 import { cliCommandError, withSocket, writeJson } from "./util.js";
 
 function basenamePath(filepath: string): string {
@@ -30,98 +33,106 @@ export function guessMimeType(filepath: string): string {
   );
 }
 
-export function registerLibraryCommands(program: Command): void {
-  const library = program
-    .command("library")
-    .description("Document library management");
-
-  library
-    .command("list")
-    .description("List documents in the library")
-    .action((_opts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const list = Command.make("list", {}, () =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const lib = socket.librarian();
-          const docs = yield* Effect.tryPromise({
-            try: () => lib.getDocuments(),
-            catch: (error) => cliCommandError("library.list", error),
-          });
-          yield* writeJson(docs);
-        }),
-      )),
-    );
+      const docs = yield* Effect.tryPromise({
+        try: () => lib.getDocuments(),
+        catch: (error) => cliCommandError("library.list", error),
+      });
+      yield* writeJson(docs);
+    }),
+  ),
+).pipe(Command.withDescription("List documents in the library"));
 
-  library
-    .command("load")
-    .description("Load a document into the library")
-    .argument("<file>", "Path to the file to load")
-    .option("-t, --title <title>", "Document title")
-    .option("-m, --mime-type <type>", "MIME type (auto-detected if omitted)")
-    .option("-c, --comments <text>", "Comments", "")
-    .option("--tags <tags...>", "Document tags")
-    .option("--id <id>", "Optional document ID")
-    .action((file: string, cmdOpts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const load = Command.make("load", {
+  file: Argument.string("file").pipe(Argument.withDescription("Path to the file to load")),
+  title: Flag.string("title").pipe(
+    Flag.withAlias("t"),
+    Flag.withDescription("Document title"),
+    Flag.optional,
+  ),
+  mimeType: Flag.string("mime-type").pipe(
+    Flag.withAlias("m"),
+    Flag.withDescription("MIME type (auto-detected if omitted)"),
+    Flag.optional,
+  ),
+  comments: Flag.string("comments").pipe(
+    Flag.withAlias("c"),
+    Flag.withDescription("Comments"),
+    Flag.withDefault(""),
+  ),
+  tags: Flag.string("tags").pipe(
+    Flag.withDescription("Document tags"),
+    Flag.atMost(Number.MAX_SAFE_INTEGER),
+  ),
+  id: Flag.string("id").pipe(
+    Flag.withDescription("Optional document ID"),
+    Flag.optional,
+  ),
+}, ({ file, title, mimeType, comments, tags, id }) =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const lib = socket.librarian();
-          const data = new Uint8Array(yield* Effect.tryPromise({
-            try: () => Bun.file(file).arrayBuffer(),
-            catch: (error) => cliCommandError("library.load.read-file", error),
-          }));
-        const b64 = Buffer.from(data).toString("base64");
-        const mimeType = (cmdOpts.mimeType as string | undefined) ?? guessMimeType(file);
-        const title = (cmdOpts.title as string | undefined) ?? basenamePath(file);
-        const comments = cmdOpts.comments as string;
-        const tags: string[] = (cmdOpts.tags as string[] | undefined) ?? [];
+      const data = new Uint8Array(yield* Effect.tryPromise({
+        try: () => Bun.file(file).arrayBuffer(),
+        catch: (error) => cliCommandError("library.load.read-file", error),
+      }));
+      const b64 = Buffer.from(data).toString("base64");
+      const resolvedMimeType = O.getOrUndefined(mimeType) ?? guessMimeType(file);
+      const resolvedTitle = O.getOrUndefined(title) ?? basenamePath(file);
 
-          const resp = yield* Effect.tryPromise({
-            try: () =>
-              lib.loadDocument(
-                b64,
-                mimeType,
-                title,
-                comments,
-                tags,
-                cmdOpts.id as string | undefined,
-              ),
-            catch: (error) => cliCommandError("library.load", error),
-          });
-          yield* writeJson(resp);
-        }),
-      )),
-    );
+      const resp = yield* Effect.tryPromise({
+        try: () =>
+          lib.loadDocument(
+            b64,
+            resolvedMimeType,
+            resolvedTitle,
+            comments,
+            Array.from(tags),
+            O.getOrUndefined(id),
+          ),
+        catch: (error) => cliCommandError("library.load", error),
+      });
+      yield* writeJson(resp);
+    }),
+  ),
+).pipe(Command.withDescription("Load a document into the library"));
 
-  library
-    .command("remove")
-    .description("Remove a document from the library")
-    .argument("<id>", "Document ID to remove")
-    .option("--collection <name>", "Collection name")
-    .action((id: string, cmdOpts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const remove = Command.make("remove", {
+  id: Argument.string("id").pipe(Argument.withDescription("Document ID to remove")),
+  collection: Flag.string("collection").pipe(
+    Flag.withDescription("Collection name"),
+    Flag.optional,
+  ),
+}, ({ id, collection }) =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const lib = socket.librarian();
-          const resp = yield* Effect.tryPromise({
-            try: () => lib.removeDocument(id, cmdOpts.collection as string | undefined),
-            catch: (error) => cliCommandError("library.remove", error),
-          });
-          yield* writeJson(resp);
-        }),
-      )),
-    );
+      const resp = yield* Effect.tryPromise({
+        try: () => lib.removeDocument(id, O.getOrUndefined(collection)),
+        catch: (error) => cliCommandError("library.remove", error),
+      });
+      yield* writeJson(resp);
+    }),
+  ),
+).pipe(Command.withDescription("Remove a document from the library"));
 
-  library
-    .command("processing")
-    .description("List documents currently being processed")
-    .action((_opts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const processing = Command.make("processing", {}, () =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const lib = socket.librarian();
-          const items = yield* Effect.tryPromise({
-            try: () => lib.getProcessing(),
-            catch: (error) => cliCommandError("library.processing", error),
-          });
-          yield* writeJson(items);
-        }),
-      )),
-    );
-}
+      const items = yield* Effect.tryPromise({
+        try: () => lib.getProcessing(),
+        catch: (error) => cliCommandError("library.processing", error),
+      });
+      yield* writeJson(items);
+    }),
+  ),
+).pipe(Command.withDescription("List documents currently being processed"));
+
+export const libraryCommand = Command.make("library").pipe(
+  Command.withDescription("Document library management"),
+  Command.withSubcommands([list, load, remove, processing]),
+);

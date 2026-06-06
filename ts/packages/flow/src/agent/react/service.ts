@@ -46,7 +46,7 @@ import {
   type MessagingDeliveryError,
   type Spec,
 } from "@trustgraph/base";
-import {Context, Effect, Layer, ManagedRuntime, Match, Ref} from "effect";
+import {Context, Effect, Layer, Match, Ref} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
@@ -63,13 +63,6 @@ import { filterToolsByGroupAndState } from "../tool-filter.js";
 import type { AgentTool, ToolArg } from "./types.js";
 
 const MAX_ITERATIONS = 10;
-
-class AgentToolExecutionError extends S.TaggedErrorClass<AgentToolExecutionError>()(
-  "AgentToolExecutionError",
-  {
-    message: S.String,
-  },
-) {}
 
 const AgentResponseProducer = makeProducerSpec<AgentResponse>("agent-response");
 const AgentLlmClient = makeRequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
@@ -157,7 +150,7 @@ const buildConfiguredTool = Effect.fn("AgentService.buildConfiguredTool")(functi
             : "Query the knowledge graph for information about entities and their relationships.",
         args: [{ name: "question", type: "string", description: "The question to ask" }],
         config,
-        execute: () => Promise.resolve(""),
+        execute: () => Effect.succeed(""),
       })
     ),
 
@@ -170,7 +163,7 @@ const buildConfiguredTool = Effect.fn("AgentService.buildConfiguredTool")(functi
             : "Search documents for relevant information.",
         args: [{ name: "question", type: "string", description: "The question to search for" }],
         config,
-        execute: () => Promise.resolve(""),
+        execute: () => Effect.succeed(""),
       })
     ),
 
@@ -187,7 +180,7 @@ const buildConfiguredTool = Effect.fn("AgentService.buildConfiguredTool")(functi
           { name: "object", type: "string", description: "Object entity (optional)" },
         ],
         config,
-        execute: () => Promise.resolve(""),
+        execute: () => Effect.succeed(""),
       })
     ),
 
@@ -203,7 +196,7 @@ const buildConfiguredTool = Effect.fn("AgentService.buildConfiguredTool")(functi
         description,
         args,
         config,
-        execute: () => Promise.resolve(""),
+        execute: () => Effect.succeed(""),
       });
     }),
 
@@ -355,12 +348,9 @@ const executeTool = (
   tool: AgentTool,
   input: string,
 ): Effect.Effect<string> =>
-  Effect.tryPromise({
-    try: () => tool.execute(input),
-    catch: (cause) => AgentToolExecutionError.make({ message: errorMessage(cause) }),
-  }).pipe(
-    Effect.catch((error: AgentToolExecutionError) =>
-      Effect.succeed(`Error executing tool: ${error.message}`),
+  tool.execute(input).pipe(
+    Effect.catch((cause) =>
+      Effect.succeed(`Error executing tool: ${errorMessage(cause)}`),
     ),
   );
 
@@ -520,9 +510,9 @@ export function makeAgentService(config: ProcessorConfig): AgentService {
     provide: (effect) => effect.pipe(Effect.provideService(AgentRuntime, runtime)),
   });
   service.registerConfigHandler((pushedConfig, version) =>
-    Effect.runPromise(onToolsConfig(pushedConfig, version).pipe(
+    onToolsConfig(pushedConfig, version).pipe(
       Effect.provideService(AgentRuntime, runtime),
-    )),
+    ),
   );
   Effect.runSync(Effect.log("[AgentService] Service initialized"));
   return service;
@@ -615,12 +605,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, AgentRun
   configHandlers: () => makeAgentConfigHandlers(),
   layer: () => AgentRuntimeLive,
 });
-
-const agentRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return agentRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

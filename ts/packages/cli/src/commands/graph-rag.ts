@@ -4,65 +4,72 @@
  * Python reference: trustgraph-cli/trustgraph/cli/invoke_graph_rag.py
  */
 
-import type { Command } from "commander";
 import { Effect } from "effect";
+import * as O from "effect/Option";
+import * as Argument from "effect/unstable/cli/Argument";
+import * as Command from "effect/unstable/cli/Command";
+import * as Flag from "effect/unstable/cli/Flag";
 import { cliCommandError, withSocket, writeLine } from "./util.js";
 
-export function registerGraphRagCommands(program: Command): void {
-  program
-    .command("graph-rag")
-    .description("Query the knowledge graph using RAG")
-    .argument("<query>", "Natural language query")
-    .option("--entity-limit <n>", "Max entities", "50")
-    .option("--triple-limit <n>", "Max triples per entity", "30")
-    .option("--collection <name>", "Collection name")
-    .action((query: string, cmdOpts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket, opts) =>
-        Effect.gen(function* () {
+export const graphRagCommand = Command.make("graph-rag", {
+  query: Argument.string("query").pipe(Argument.withDescription("Natural language query")),
+  entityLimit: Flag.integer("entity-limit").pipe(
+    Flag.withDescription("Max entities"),
+    Flag.withDefault(50),
+  ),
+  tripleLimit: Flag.integer("triple-limit").pipe(
+    Flag.withDescription("Max triples per entity"),
+    Flag.withDefault(30),
+  ),
+  collection: Flag.string("collection").pipe(
+    Flag.withDescription("Collection name"),
+    Flag.optional,
+  ),
+}, ({ query, entityLimit, tripleLimit, collection }) =>
+  withSocket((socket, opts) =>
+    Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
-        const collection = cmdOpts.collection as string | undefined;
-          const response = yield* Effect.tryPromise({
-            try: () =>
-              flow.graphRag(
-                query,
-                {
-                  entityLimit: parseInt(cmdOpts.entityLimit, 10),
-                  tripleLimit: parseInt(cmdOpts.tripleLimit, 10),
-                },
-                collection,
-              ),
-            catch: (error) => cliCommandError("graph-rag", error),
-          });
-          yield* writeLine(response);
-        }),
-      )),
-    );
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          flow.graphRag(
+            query,
+            {
+              entityLimit,
+              tripleLimit,
+            },
+            O.getOrUndefined(collection),
+          ),
+        catch: (error) => cliCommandError("graph-rag", error),
+      });
+      yield* writeLine(response);
+    }),
+  ),
+).pipe(Command.withDescription("Query the knowledge graph using RAG"));
 
-  program
-    .command("document-rag")
-    .description("Query documents using RAG")
-    .argument("<query>", "Natural language query")
-    .option("--doc-limit <n>", "Max documents", "20")
-    .option("--collection <name>", "Collection name")
-    .action((query: string, cmdOpts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket, opts) =>
-        Effect.gen(function* () {
+export const documentRagCommand = Command.make("document-rag", {
+  query: Argument.string("query").pipe(Argument.withDescription("Natural language query")),
+  docLimit: Flag.integer("doc-limit").pipe(
+    Flag.withDescription("Max documents"),
+    Flag.withDefault(20),
+  ),
+  collection: Flag.string("collection").pipe(
+    Flag.withDescription("Collection name"),
+    Flag.optional,
+  ),
+}, ({ query, docLimit, collection }) =>
+  withSocket((socket, opts) =>
+    Effect.gen(function* () {
         const flow = socket.flow(opts.flow);
-        const docLimit = cmdOpts.docLimit as string | undefined;
-        const collection = cmdOpts.collection as string | undefined;
-          const response = yield* Effect.tryPromise({
-            try: () =>
-              flow.documentRag(
-                query,
-                docLimit !== undefined && docLimit.length > 0
-                  ? parseInt(docLimit, 10)
-                  : undefined,
-                collection,
-              ),
-            catch: (error) => cliCommandError("document-rag", error),
-          });
-          yield* writeLine(response);
-        }),
-      )),
-    );
-}
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          flow.documentRag(
+            query,
+            docLimit,
+            O.getOrUndefined(collection),
+          ),
+        catch: (error) => cliCommandError("document-rag", error),
+      });
+      yield* writeLine(response);
+    }),
+  ),
+).pipe(Command.withDescription("Query documents using RAG"));

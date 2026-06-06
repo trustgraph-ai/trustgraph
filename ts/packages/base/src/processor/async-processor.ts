@@ -8,7 +8,7 @@
 
 import type { PubSubBackend } from "../backend/types.js";
 import { makeNatsBackend } from "../backend/nats.js";
-import { Context, Effect, Layer, ManagedRuntime } from "effect";
+import { Cause, Config as EffectConfig, Context, Effect } from "effect";
 import { processorLifecycleError, type ProcessorLifecycleError } from "../errors.js";
 import { loadProcessorRuntimeConfig } from "../runtime/config.js";
 
@@ -23,7 +23,7 @@ export interface ProcessorConfig {
 export type ConfigHandler = (
   config: Record<string, unknown>,
   version: number,
-) => Promise<void>;
+) => Effect.Effect<void, Cause.UnknownError>;
 
 export type EffectConfigHandler<E = never, R = never> = (
   config: Record<string, unknown>,
@@ -36,8 +36,10 @@ declare const processorRunRequirementsType: unique symbol;
 export interface ProcessorRuntime<RunError = ProcessorLifecycleError, RunRequirements = never> {
   readonly [processorRunErrorType]?: RunError;
   readonly [processorRunRequirementsType]?: RunRequirements;
-  readonly start: (context: Context.Context<RunRequirements>) => Promise<void>;
-  readonly stop: () => Promise<void>;
+  readonly start: (
+    context: Context.Context<RunRequirements>,
+  ) => Effect.Effect<void, RunError | ProcessorLifecycleError>;
+  readonly stop: Effect.Effect<void, ProcessorLifecycleError>;
   startEffect: Effect.Effect<void, RunError | ProcessorLifecycleError, RunRequirements>;
   stopEffect: Effect.Effect<void, ProcessorLifecycleError>;
 }
@@ -48,12 +50,16 @@ export interface AsyncProcessorRuntime<
 > extends ProcessorRuntime<RunError, RunRequirements> {
   readonly config: ProcessorConfig;
   readonly pubsub: PubSubBackend;
-  readonly configHandlers: ConfigHandler[];
+  readonly configHandlers: Array<EffectConfigHandler<RunError | ProcessorLifecycleError, RunRequirements>>;
   readonly running: boolean;
   readonly isRunning: () => boolean;
-  readonly registerConfigHandler: (handler: ConfigHandler) => void;
-  readonly onShutdown: (callback: () => Promise<void>) => void;
-  readonly run: (context: Context.Context<RunRequirements>) => Promise<void>;
+  readonly registerConfigHandler: (
+    handler: EffectConfigHandler<RunError | ProcessorLifecycleError, RunRequirements>,
+  ) => void;
+  readonly onShutdown: (callback: () => Effect.Effect<void, Cause.UnknownError>) => void;
+  readonly run: (
+    context: Context.Context<RunRequirements>,
+  ) => Effect.Effect<void, RunError | ProcessorLifecycleError>;
   runEffect: Effect.Effect<void, RunError | ProcessorLifecycleError, RunRequirements>;
 }
 
@@ -63,7 +69,7 @@ export interface AsyncProcessorRuntimeOptions<
 > {
   readonly run?: (
     processor: AsyncProcessorRuntime<RunError, RunRequirements>,
-  ) => Promise<void>;
+  ) => Effect.Effect<void, RunError, RunRequirements>;
   readonly runEffect?: (
     processor: AsyncProcessorRuntime<RunError, RunRequirements>,
   ) => Effect.Effect<void, RunError, RunRequirements>;
@@ -74,8 +80,6 @@ interface RegisteredSignalHandler {
   readonly handler: () => void;
 }
 
-const asyncProcessorRuntime = ManagedRuntime.make(Layer.empty);
-
 export function makeAsyncProcessor<
   RunError = ProcessorLifecycleError,
   RunRequirements = never,
@@ -85,8 +89,8 @@ export function makeAsyncProcessor<
 ): AsyncProcessorRuntime<RunError, RunRequirements> {
   const pubsub = config.pubsub ?? makeNatsBackend(config.pubsubUrl ?? "nats://localhost:4222");
   const ownsPubSub = config.pubsub === undefined;
-  const configHandlers: ConfigHandler[] = [];
-  const shutdownCallbacks: Array<() => Promise<void>> = [];
+  const configHandlers: Array<EffectConfigHandler<RunError | ProcessorLifecycleError, RunRequirements>> = [];
+  const shutdownCallbacks: Array<() => Effect.Effect<void, Cause.UnknownError>> = [];
   let running = false;
   let signalHandlers: RegisteredSignalHandler[] = [];
 
@@ -96,12 +100,16 @@ export function makeAsyncProcessor<
     }
 
     const shutdown = () => {
-      void asyncProcessorRuntime.runPromise(
+      Effect.runFork(
         Effect.log(`[${config.id}] Shutting down...`).pipe(
-          Effect.flatMap(() => processor.stopEffect),
+          Effect.flatMap(() => processor.stop),
           Effect.mapError((error) => processorLifecycleError(config.id, "signal-shutdown", error)),
+          Effect.match({
+            onFailure: () => process.exit(1),
+            onSuccess: () => process.exit(0),
+          }),
         ),
-      ).then(() => process.exit(0), () => process.exit(1));
+      );
     };
     const handlers: RegisteredSignalHandler[] = [
       { signal: "SIGINT", handler: shutdown },
@@ -131,8 +139,10 @@ export function makeAsyncProcessor<
     registerConfigHandler: (handler) => {
       configHandlers.push(handler);
     },
-    start: (context) => asyncProcessorRuntime.runPromise(Effect.provide(processor.startEffect, context)),
-    stop: () => asyncProcessorRuntime.runPromise(processor.stopEffect),
+    start: (context) => Effect.provide(processor.startEffect, context),
+    get stop() {
+      return processor.stopEffect;
+    },
     onShutdown: (callback) => {
       shutdownCallbacks.push(callback);
     },
@@ -161,30 +171,27 @@ export function makeAsyncProcessor<
         });
 
         for (const cb of shutdownCallbacks) {
-          yield* Effect.tryPromise({
-            try: () => cb(),
-            catch: (error) => processorLifecycleError(config.id, "shutdown-callback", error),
-          });
+          yield* cb().pipe(
+            Effect.mapError((error) => processorLifecycleError(config.id, "shutdown-callback", error)),
+          );
         }
 
         if (ownsPubSub) {
-          yield* Effect.tryPromise({
-            try: () => pubsub.close(),
-            catch: (error) => processorLifecycleError(config.id, "close-pubsub", error),
-          });
+          yield* pubsub.close.pipe(
+            Effect.mapError((error) => processorLifecycleError(config.id, "close-pubsub", error)),
+          );
         }
       });
       return stopProcessor();
     },
-    run: (context) => asyncProcessorRuntime.runPromise(Effect.provide(processor.runEffect, context)),
+    run: (context) => Effect.provide(processor.runEffect, context),
     get runEffect() {
       if (options.runEffect !== undefined) {
         return options.runEffect(processor);
       }
-      return Effect.tryPromise({
-        try: () => options.run?.(processor) ?? Promise.resolve(),
-        catch: (error) => processorLifecycleError(config.id, "start", error),
-      });
+      return options.run?.(processor).pipe(
+        Effect.mapError((error) => processorLifecycleError(config.id, "start", error)),
+      ) ?? Effect.void;
     },
   };
 
@@ -201,21 +208,18 @@ export const AsyncProcessor = Object.assign(
     return makeAsyncProcessor(config);
   },
   {
-    launch<T extends ProcessorRuntime<unknown, never>>(
+    launch<RunError, T extends ProcessorRuntime<RunError, never>>(
       this: new (config: ProcessorConfig) => T,
       id: string,
-    ): Promise<void> {
+    ): Effect.Effect<void, ProcessorLifecycleError | EffectConfig.ConfigError> {
       const ProcessorCtor = this;
-      return asyncProcessorRuntime.runPromise(
-        Effect.gen(function* () {
-          const config = yield* loadProcessorRuntimeConfig(id);
-          const processor = new ProcessorCtor(config);
-          yield* Effect.tryPromise({
-            try: () => processor.start(Context.empty()),
-            catch: (error) => processorLifecycleError(id, "launch", error),
-          });
-        }),
-      );
+      return Effect.gen(function* () {
+        const config = yield* loadProcessorRuntimeConfig(id);
+        const processor = new ProcessorCtor(config);
+        yield* processor.start(Context.empty()).pipe(
+          Effect.mapError((error) => processorLifecycleError(id, "launch", error)),
+        );
+      });
     },
   },
 ) as unknown as {
@@ -225,8 +229,8 @@ export const AsyncProcessor = Object.assign(
   <RunError = ProcessorLifecycleError, RunRequirements = never>(
     config: ProcessorConfig,
   ): AsyncProcessor<RunError, RunRequirements>;
-  launch<T extends ProcessorRuntime<unknown, never>>(
+  launch<RunError, T extends ProcessorRuntime<RunError, never>>(
     this: new (config: ProcessorConfig) => T,
     id: string,
-  ): Promise<void>;
+  ): Effect.Effect<void, ProcessorLifecycleError | EffectConfig.ConfigError>;
 };

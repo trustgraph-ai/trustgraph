@@ -4,96 +4,99 @@
  * Python reference: trustgraph-cli/trustgraph/cli/start_flow.py, stop_flow.py, etc.
  */
 
-import type { Command } from "commander";
 import { Effect } from "effect";
 import * as S from "effect/Schema";
+import * as Argument from "effect/unstable/cli/Argument";
+import * as Command from "effect/unstable/cli/Command";
+import * as Flag from "effect/unstable/cli/Flag";
 import { cliCommandError, withSocket, writeJson } from "./util.js";
 
-export function registerFlowCommands(program: Command): void {
-  const flow = program
-    .command("flow")
-    .description("Flow management");
-
-  flow
-    .command("list")
-    .description("List active flows")
-    .action((_opts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const list = Command.make("list", {}, () =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const flows = socket.flows();
-          const ids = yield* Effect.tryPromise({
-            try: () => flows.getFlows(),
-            catch: (error) => cliCommandError("flow.list", error),
-          });
-          yield* writeJson(ids);
-        }),
-      )),
-    );
+      const ids = yield* Effect.tryPromise({
+        try: () => flows.getFlows(),
+        catch: (error) => cliCommandError("flow.list", error),
+      });
+      yield* writeJson(ids);
+    }),
+  ),
+).pipe(Command.withDescription("List active flows"));
 
-  flow
-    .command("get")
-    .description("Get a flow definition")
-    .argument("<id>", "Flow ID")
-    .action((id: string, _opts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const get = Command.make("get", {
+  id: Argument.string("id").pipe(Argument.withDescription("Flow ID")),
+}, ({ id }) =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const flows = socket.flows();
-          const def = yield* Effect.tryPromise({
-            try: () => flows.getFlow(id),
-            catch: (error) => cliCommandError("flow.get", error),
-          });
-          yield* writeJson(def);
-        }),
-      )),
-    );
+      const def = yield* Effect.tryPromise({
+        try: () => flows.getFlow(id),
+        catch: (error) => cliCommandError("flow.get", error),
+      });
+      yield* writeJson(def);
+    }),
+  ),
+).pipe(Command.withDescription("Get a flow definition"));
 
-  flow
-    .command("start")
-    .description("Start a flow")
-    .argument("<id>", "Flow ID")
-    .requiredOption("-b, --blueprint <name>", "Blueprint name")
-    .option("-d, --description <text>", "Flow description", "")
-    .option("-p, --parameters <json>", "Parameters as JSON")
-    .action((id: string, cmdOpts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const start = Command.make("start", {
+  id: Argument.string("id").pipe(Argument.withDescription("Flow ID")),
+  blueprint: Flag.string("blueprint").pipe(
+    Flag.withAlias("b"),
+    Flag.withDescription("Blueprint name"),
+  ),
+  description: Flag.string("description").pipe(
+    Flag.withAlias("d"),
+    Flag.withDescription("Flow description"),
+    Flag.withDefault(""),
+  ),
+  parameters: Flag.string("parameters").pipe(
+    Flag.withAlias("p"),
+    Flag.withDescription("Parameters as JSON"),
+    Flag.optional,
+  ),
+}, ({ id, blueprint, description, parameters }) =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const flows = socket.flows();
-        const rawParameters = cmdOpts.parameters as string | undefined;
-        const params = rawParameters !== undefined && rawParameters.length > 0
+      const rawParameters = parameters._tag === "Some" ? parameters.value : undefined;
+      const params = rawParameters !== undefined && rawParameters.length > 0
           ? yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(rawParameters).pipe(
               Effect.flatMap(S.decodeUnknownEffect(S.Record(S.String, S.Unknown))),
               Effect.mapError((error) => cliCommandError("flow.start.parameters", error)),
             )
           : undefined;
-          const resp = yield* Effect.tryPromise({
-            try: () =>
-              flows.startFlow(
-                id,
-                cmdOpts.blueprint as string,
-                cmdOpts.description as string,
-                params,
-              ),
-            catch: (error) => cliCommandError("flow.start", error),
-          });
-          yield* writeJson(resp);
-        }),
-      )),
-    );
+      const resp = yield* Effect.tryPromise({
+        try: () =>
+          flows.startFlow(
+            id,
+            blueprint,
+            description,
+            params,
+          ),
+        catch: (error) => cliCommandError("flow.start", error),
+      });
+      yield* writeJson(resp);
+    }),
+  ),
+).pipe(Command.withDescription("Start a flow"));
 
-  flow
-    .command("stop")
-    .description("Stop a flow")
-    .argument("<id>", "Flow ID")
-    .action((id: string, _opts, cmd) =>
-      Effect.runPromise(withSocket(cmd, (socket) =>
-        Effect.gen(function* () {
+const stop = Command.make("stop", {
+  id: Argument.string("id").pipe(Argument.withDescription("Flow ID")),
+}, ({ id }) =>
+  withSocket((socket) =>
+    Effect.gen(function* () {
         const flows = socket.flows();
-          const resp = yield* Effect.tryPromise({
-            try: () => flows.stopFlow(id),
-            catch: (error) => cliCommandError("flow.stop", error),
-          });
-          yield* writeJson(resp);
-        }),
-      )),
-    );
-}
+      const resp = yield* Effect.tryPromise({
+        try: () => flows.stopFlow(id),
+        catch: (error) => cliCommandError("flow.stop", error),
+      });
+      yield* writeJson(resp);
+    }),
+  ),
+).pipe(Command.withDescription("Stop a flow"));
+
+export const flowCommand = Command.make("flow").pipe(
+  Command.withDescription("Flow management"),
+  Command.withSubcommands([list, get, start, stop]),
+);

@@ -26,14 +26,14 @@ import {
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect } from "effect";
 import * as S from "effect/Schema";
 import { recursiveSplit } from "./recursive-splitter.js";
 
 const DEFAULT_CHUNK_SIZE = 2000;
 const DEFAULT_CHUNK_OVERLAP = 100;
-const ChunkSizeParameter = makeParameterSpec("chunk-size", S.Number);
-const ChunkOverlapParameter = makeParameterSpec("chunk-overlap", S.Number);
+const ChunkSizeParameter = makeParameterSpec("chunk-size", S.Finite);
+const ChunkOverlapParameter = makeParameterSpec("chunk-overlap", S.Finite);
 const ChunkOutputProducer = makeProducerSpec<Chunk>("chunk-output");
 const ChunkTriplesProducer = makeProducerSpec<Triples>("chunk-triples");
 
@@ -107,12 +107,6 @@ export const program = makeFlowProcessorProgram({
   id: "chunking",
   specs: () => makeChunkingSpecs(),
 });
-
-const chunkingRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return chunkingRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

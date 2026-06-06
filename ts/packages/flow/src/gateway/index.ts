@@ -1,4 +1,4 @@
-export { createGateway, run, type GatewayConfig } from "./server.js";
+export { createGateway, program, runMain, type GatewayConfig } from "./server.js";
 export {
   dispatcherManagerFlowServiceNames,
   dispatcherManagerGlobalServiceNames,

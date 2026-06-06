@@ -1,8 +1,8 @@
 /**
  * Effect-native pub/sub capability for runtime composition.
  *
- * The existing Promise-based backend protocol stays available as the
- * compatibility bridge while service code moves to `Context.Service`/Layers.
+ * The backend protocol is Effect-native; this service provides the
+ * Context.Service/Layer boundary used by runtime composition.
  */
 
 import { Config, Context, Effect, Layer } from "effect";
@@ -15,17 +15,17 @@ import type {
   PubSubBackend,
 } from "./types.js";
 import { makeNatsBackend } from "./nats.js";
-import { pubSubError } from "../errors.js";
+import type { PubSubError } from "../errors.js";
 
 export interface PubSubService {
   readonly backend: PubSubBackend;
   readonly createProducer: <T>(
     options: CreateProducerOptions<T>,
-  ) => Effect.Effect<BackendProducer<T>, ReturnType<typeof pubSubError>>;
+  ) => Effect.Effect<BackendProducer<T>, PubSubError>;
   readonly createConsumer: <T>(
     options: CreateConsumerOptions<T>,
-  ) => Effect.Effect<BackendConsumer<T>, ReturnType<typeof pubSubError>>;
-  readonly close: Effect.Effect<void, ReturnType<typeof pubSubError>>;
+  ) => Effect.Effect<BackendConsumer<T>, PubSubError>;
+  readonly close: Effect.Effect<void, PubSubError>;
 }
 
 export class PubSub extends Context.Service<PubSub, PubSubService>()("@trustgraph/base/backend/pubsub") {
@@ -41,20 +41,9 @@ export class PubSub extends Context.Service<PubSub, PubSubService>()("@trustgrap
 export function makePubSubService(backend: PubSubBackend): PubSubService {
   return {
     backend,
-    createProducer: <T>(options: CreateProducerOptions<T>) =>
-      Effect.tryPromise({
-        try: () => backend.createProducer<T>(options),
-        catch: (error) => pubSubError(`createProducer:${options.topic}`, error),
-      }),
-    createConsumer: <T>(options: CreateConsumerOptions<T>) =>
-      Effect.tryPromise({
-        try: () => backend.createConsumer<T>(options),
-        catch: (error) => pubSubError(`createConsumer:${options.topic}`, error),
-      }),
-    close: Effect.tryPromise({
-      try: () => backend.close(),
-      catch: (error) => pubSubError("close", error),
-    }),
+    createProducer: <T>(options: CreateProducerOptions<T>) => backend.createProducer<T>(options),
+    createConsumer: <T>(options: CreateConsumerOptions<T>) => backend.createConsumer<T>(options),
+    close: backend.close,
   };
 }
 

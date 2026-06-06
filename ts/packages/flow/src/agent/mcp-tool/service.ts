@@ -31,7 +31,7 @@ import {
   type MessagingDeliveryError,
   type Spec,
 } from "@trustgraph/base";
-import { Context, Effect, Layer, ManagedRuntime, Ref } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -342,9 +342,9 @@ export function makeMcpToolService(config: ProcessorConfig): McpToolService {
     provide: (effect) => effect.pipe(Effect.provideService(McpToolRuntime, runtime)),
   });
   service.registerConfigHandler((pushedConfig, version) =>
-    Effect.runPromise(onMcpConfig(pushedConfig, version).pipe(
+    onMcpConfig(pushedConfig, version).pipe(
       Effect.provideService(McpToolRuntime, runtime),
-    )),
+    ),
   );
   return service;
 }
@@ -357,12 +357,6 @@ export const program = makeFlowProcessorProgram<ProcessorConfig, never, McpToolR
   configHandlers: () => makeMcpToolConfigHandlers(),
   layer: () => McpToolRuntimeLive,
 });
-
-const mcpToolRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return mcpToolRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

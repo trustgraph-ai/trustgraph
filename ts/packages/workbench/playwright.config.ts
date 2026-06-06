@@ -18,7 +18,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: `bun run dev -- --host 127.0.0.1 --port ${port} --strictPort`,
+    command: `WORKBENCH_QA=1 bun run dev -- --host 127.0.0.1 --port ${port} --strictPort`,
     cwd: ".",
     url: baseURL,
     reuseExistingServer: false,

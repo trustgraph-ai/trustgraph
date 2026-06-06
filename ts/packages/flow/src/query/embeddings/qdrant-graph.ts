@@ -39,7 +39,7 @@ export class QdrantGraphEmbeddingsQueryError extends S.TaggedErrorClass<QdrantGr
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -81,8 +81,7 @@ const decodeGraphPointPayload = (payload: unknown) =>
   S.decodeUnknownEffect(GraphPointPayloadSchema)(payload).pipe(Effect.option);
 
 export interface QdrantGraphEmbeddingsQuery {
-  readonly query: (request: GraphEmbeddingsQueryRequest) => Promise<ReadonlyArray<EntityMatch>>;
-  readonly queryEffect: (
+  readonly query: (
     request: GraphEmbeddingsQueryRequest,
   ) => Effect.Effect<ReadonlyArray<EntityMatch>, QdrantGraphEmbeddingsQueryError>;
 }
@@ -104,7 +103,7 @@ const makeQdrantGraphEmbeddingsQueryFromClient = (
   client: QdrantClientLike,
 ): QdrantGraphEmbeddingsQueryServiceShape => {
 
-  const queryEffect = Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (
+  const queryImpl = Effect.fn("QdrantGraphEmbeddingsQuery.query")(function* (
     request: GraphEmbeddingsQueryRequest,
   ) {
     const { vector, user, collection, limit } = request;
@@ -117,10 +116,9 @@ const makeQdrantGraphEmbeddingsQueryFromClient = (
     const collectionName = `t_${user}_${collection}_${dim}`;
 
     // Check if collection exists -- return empty if not
-    const exists = yield* Effect.tryPromise({
-      try: () => client.collectionExists(collectionName),
-      catch: (cause) => qdrantGraphEmbeddingsQueryError("collection-exists", cause),
-    });
+    const exists = yield* client.collectionExists(collectionName).pipe(
+      Effect.mapError((cause) => qdrantGraphEmbeddingsQueryError("collection-exists", cause)),
+    );
     if (!exists.exists) {
       yield* Effect.log(
         `[QdrantGraphQuery] Collection ${collectionName} does not exist, returning empty results`,
@@ -130,15 +128,16 @@ const makeQdrantGraphEmbeddingsQueryFromClient = (
 
     // Query 2x the limit so we have a better chance of getting `limit`
     // unique entities after deduplication (same heuristic as Python impl)
-    const searchResult = yield* Effect.tryPromise({
-      try: () =>
-        client.search(collectionName, {
-          vector,
-          limit: limit * 2,
-          with_payload: true,
-        }),
-      catch: (cause) => qdrantGraphEmbeddingsQueryError("search", cause),
-    });
+    const searchResult = yield* client.search(
+      collectionName,
+      {
+        vector,
+        limit: limit * 2,
+        with_payload: true,
+      },
+    ).pipe(
+      Effect.mapError((cause) => qdrantGraphEmbeddingsQueryError("search", cause)),
+    );
 
     const entitySet = new Set<string>();
     const entities: EntityMatch[] = [];
@@ -168,7 +167,7 @@ const makeQdrantGraphEmbeddingsQueryFromClient = (
   });
 
   return {
-    query: queryEffect,
+    query: queryImpl,
   };
 };
 
@@ -194,12 +193,8 @@ const withQdrantGraphEmbeddingsQuery = <A>(
 export function makeQdrantGraphEmbeddingsQuery(
   config: QdrantGraphQueryConfig = {},
 ): QdrantGraphEmbeddingsQuery {
-  const queryEffect = (request: GraphEmbeddingsQueryRequest) =>
-    withQdrantGraphEmbeddingsQuery(config, (query) => query.query(request));
-
   return {
-    query: (request) => Effect.runPromise(queryEffect(request)),
-    queryEffect,
+    query: (request) => withQdrantGraphEmbeddingsQuery(config, (query) => query.query(request)),
   };
 }
 

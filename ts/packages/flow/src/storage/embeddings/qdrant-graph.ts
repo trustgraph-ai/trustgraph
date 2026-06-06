@@ -38,7 +38,7 @@ export class QdrantGraphEmbeddingsStoreError extends S.TaggedErrorClass<QdrantGr
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -96,12 +96,10 @@ function getTermValue(term: Term): string | null {
 }
 
 export interface QdrantGraphEmbeddingsStore {
-  readonly store: (message: GraphEmbeddingsMessage) => Promise<void>;
-  readonly deleteCollection: (user: string, collection: string) => Promise<void>;
-  readonly storeEffect: (
+  readonly store: (
     message: GraphEmbeddingsMessage,
   ) => Effect.Effect<void, QdrantGraphEmbeddingsStoreError>;
-  readonly deleteCollectionEffect: (
+  readonly deleteCollection: (
     user: string,
     collection: string,
   ) => Effect.Effect<void, QdrantGraphEmbeddingsStoreError>;
@@ -134,25 +132,25 @@ const makeQdrantGraphEmbeddingsStoreFromClient = (
   ) {
     if (MutableHashSet.has(knownCollections, name)) return;
 
-    const exists = yield* Effect.tryPromise({
-      try: () => client.collectionExists(name),
-      catch: (cause) => qdrantGraphEmbeddingsStoreError("collection-exists", cause),
-    });
+    const exists = yield* client.collectionExists(name).pipe(
+      Effect.mapError((cause) => qdrantGraphEmbeddingsStoreError("collection-exists", cause)),
+    );
     if (!exists.exists) {
       yield* Effect.log(`[QdrantGraphEmbeddings] Creating collection ${name} (dim=${dim})`);
-      yield* Effect.tryPromise({
-        try: () =>
-          client.createCollection(name, {
-            vectors: { size: dim, distance: "Cosine" },
-          }),
-        catch: (cause) => qdrantGraphEmbeddingsStoreError("create-collection", cause),
-      });
+      yield* client.createCollection(
+        name,
+        {
+          vectors: { size: dim, distance: "Cosine" },
+        },
+      ).pipe(
+        Effect.mapError((cause) => qdrantGraphEmbeddingsStoreError("create-collection", cause)),
+      );
     }
 
     MutableHashSet.add(knownCollections, name);
   });
 
-  const storeEffect = Effect.fn("QdrantGraphEmbeddings.store")(function* (message: GraphEmbeddingsMessage) {
+  const storeImpl = Effect.fn("QdrantGraphEmbeddings.store")(function* (message: GraphEmbeddingsMessage) {
     for (const entry of message.entities) {
       const entityValue = getTermValue(entry.entity);
       if (entityValue === null || entityValue.length === 0) continue;
@@ -169,32 +167,32 @@ const makeQdrantGraphEmbeddingsStoreFromClient = (
       }
 
       const id = yield* randomPointId();
-      yield* Effect.tryPromise({
-        try: () =>
-          client.upsert(name, {
-            points: [
-              {
-                id,
-                vector: entry.vector,
-                payload,
-              },
-            ],
-          }),
-        catch: (cause) => qdrantGraphEmbeddingsStoreError("upsert", cause),
-      });
+      yield* client.upsert(
+        name,
+        {
+          points: [
+            {
+              id,
+              vector: entry.vector,
+              payload,
+            },
+          ],
+        },
+      ).pipe(
+        Effect.mapError((cause) => qdrantGraphEmbeddingsStoreError("upsert", cause)),
+      );
     }
   });
 
-  const deleteCollectionEffect = Effect.fn("QdrantGraphEmbeddings.deleteCollection")(function* (
+  const deleteCollectionImpl = Effect.fn("QdrantGraphEmbeddings.deleteCollection")(function* (
     user: string,
     collection: string,
   ) {
     const prefix = `t_${user}_${collection}_`;
 
-    const allCollections = yield* Effect.tryPromise({
-      try: () => client.getCollections(),
-      catch: (cause) => qdrantGraphEmbeddingsStoreError("get-collections", cause),
-    });
+    const allCollections = yield* client.getCollections.pipe(
+      Effect.mapError((cause) => qdrantGraphEmbeddingsStoreError("get-collections", cause)),
+    );
     const matching = allCollections.collections.filter((c) =>
       c.name.startsWith(prefix),
     );
@@ -205,10 +203,9 @@ const makeQdrantGraphEmbeddingsStoreFromClient = (
     }
 
     for (const coll of matching) {
-      yield* Effect.tryPromise({
-        try: () => client.deleteCollection(coll.name),
-        catch: (cause) => qdrantGraphEmbeddingsStoreError("delete-collection", cause),
-      });
+      yield* client.deleteCollection(coll.name).pipe(
+        Effect.mapError((cause) => qdrantGraphEmbeddingsStoreError("delete-collection", cause)),
+      );
       MutableHashSet.remove(knownCollections, coll.name);
       yield* Effect.log(`[QdrantGraphEmbeddings] Deleted collection: ${coll.name}`);
     }
@@ -219,8 +216,8 @@ const makeQdrantGraphEmbeddingsStoreFromClient = (
   });
 
   return {
-    store: storeEffect,
-    deleteCollection: deleteCollectionEffect,
+    store: storeImpl,
+    deleteCollection: deleteCollectionImpl,
   };
 };
 
@@ -246,17 +243,10 @@ const withQdrantGraphEmbeddingsStore = <A>(
 export function makeQdrantGraphEmbeddingsStore(
   config: QdrantGraphEmbeddingsConfig = {},
 ): QdrantGraphEmbeddingsStore {
-  const storeEffect = (message: GraphEmbeddingsMessage) =>
-    withQdrantGraphEmbeddingsStore(config, (store) => store.store(message));
-  const deleteCollectionEffect = (user: string, collection: string) =>
-    withQdrantGraphEmbeddingsStore(config, (store) => store.deleteCollection(user, collection));
-
   return {
-    store: (message) => Effect.runPromise(storeEffect(message)),
+    store: (message) => withQdrantGraphEmbeddingsStore(config, (store) => store.store(message)),
     deleteCollection: (user, collection) =>
-      Effect.runPromise(deleteCollectionEffect(user, collection)),
-    storeEffect,
-    deleteCollectionEffect,
+      withQdrantGraphEmbeddingsStore(config, (store) => store.deleteCollection(user, collection)),
   };
 }
 

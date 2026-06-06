@@ -31,7 +31,6 @@ import {
   type DispatchSerializationError,
 } from "./serialize.js";
 
-export type Responder = (response: unknown, complete: boolean) => Promise<void>;
 export type EffectResponder<E = never, R = never> = (
   response: unknown,
   complete: boolean,
@@ -106,18 +105,13 @@ function topicName(name: string): string {
 // ---------- Manager ----------
 
 export interface DispatcherManager {
-  readonly start: () => Promise<void>;
-  readonly stop: () => Promise<void>;
+  readonly start: Effect.Effect<void, MessagingLifecycleError>;
+  readonly stop: Effect.Effect<void, MessagingLifecycleError>;
   readonly dispatchGlobalService: (
     kind: string,
     request: Record<string, unknown>,
-  ) => Promise<unknown>;
-  readonly dispatchGlobalServiceStreaming: (
-    kind: string,
-    request: Record<string, unknown>,
-    responder: Responder,
-  ) => Promise<void>;
-  readonly dispatchGlobalServiceStreamingEffect: <E = never, R = never>(
+  ) => Effect.Effect<unknown, DispatcherStreamError>;
+  readonly dispatchGlobalServiceStreaming: <E = never, R = never>(
     kind: string,
     request: Record<string, unknown>,
     responder: EffectResponder<E, R>,
@@ -126,14 +120,8 @@ export interface DispatcherManager {
     flow: string,
     kind: string,
     request: Record<string, unknown>,
-  ) => Promise<unknown>;
-  readonly dispatchFlowServiceStreaming: (
-    flow: string,
-    kind: string,
-    request: Record<string, unknown>,
-    responder: Responder,
-  ) => Promise<void>;
-  readonly dispatchFlowServiceStreamingEffect: <E = never, R = never>(
+  ) => Effect.Effect<unknown, DispatcherStreamError>;
+  readonly dispatchFlowServiceStreaming: <E = never, R = never>(
     flow: string,
     kind: string,
     request: Record<string, unknown>,
@@ -143,7 +131,7 @@ export interface DispatcherManager {
     topic: string,
     message: unknown,
     id?: string,
-  ) => Promise<void>;
+  ) => Effect.Effect<void, MessagingDeliveryError>;
 }
 
 export const dispatcherManagerFlowServiceNames = (): readonly string[] => [
@@ -214,8 +202,6 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     runtime = nextRuntime;
   });
 
-  const start = (): Promise<void> => Effect.runPromise(startEffect());
-
   const stopEffect = Effect.fn("DispatcherManager.stop")(function* () {
     const current = runtime;
     runtime = null;
@@ -225,14 +211,11 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     }
 
     if (ownsPubSub) {
-      yield* Effect.tryPromise({
-        try: () => pubsub.close(),
-        catch: (cause) => messagingLifecycleError("gateway-dispatcher", "close-pubsub", cause),
-      });
+      yield* pubsub.close.pipe(
+        Effect.mapError((cause) => messagingLifecycleError("gateway-dispatcher", "close-pubsub", cause)),
+      );
     }
   });
-
-  const stop = (): Promise<void> => Effect.runPromise(stopEffect());
 
   // ---------- Internal helpers ----------
 
@@ -303,13 +286,7 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
 
   // ---------- Global service dispatch ----------
 
-  const dispatchGlobalService = (
-    kind: string,
-    request: Record<string, unknown>,
-  ): Promise<unknown> =>
-    Effect.runPromise(dispatchGlobalServiceEffect(kind, request));
-
-  const dispatchGlobalServiceEffect = Effect.fn("DispatcherManager.dispatchGlobalService")(function* (
+  const dispatchGlobalService = Effect.fn("DispatcherManager.dispatchGlobalService")(function* (
     kind: string,
     request: Record<string, unknown>,
   ) {
@@ -321,7 +298,7 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     return yield* translateResponseEffect(kind, response);
   });
 
-  const dispatchGlobalServiceStreamingEffect = Effect.fn("DispatcherManager.dispatchGlobalServiceStreaming")(function* <
+  const dispatchGlobalServiceStreaming = Effect.fn("DispatcherManager.dispatchGlobalServiceStreaming")(function* <
     E,
     R,
   >(
@@ -342,34 +319,9 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     });
   });
 
-  const dispatchGlobalServiceStreaming = (
-    kind: string,
-    request: Record<string, unknown>,
-    responder: Responder,
-  ): Promise<void> =>
-    Effect.runPromise(
-      dispatchGlobalServiceStreamingEffect(kind, request, (response, complete) =>
-        Effect.tryPromise({
-          try: () => responder(response, complete),
-          catch: (error) => messagingDeliveryError(
-            resolveGlobalTopics(kind).responseTopic,
-            "stream-responder",
-            error,
-          ),
-        })
-      ),
-    );
-
   // ---------- Flow-scoped service dispatch ----------
 
-  const dispatchFlowService = (
-    flow: string,
-    kind: string,
-    request: Record<string, unknown>,
-  ): Promise<unknown> =>
-    Effect.runPromise(dispatchFlowServiceEffect(flow, kind, request));
-
-  const dispatchFlowServiceEffect = Effect.fn("DispatcherManager.dispatchFlowService")(function* (
+  const dispatchFlowService = Effect.fn("DispatcherManager.dispatchFlowService")(function* (
     flow: string,
     kind: string,
     request: Record<string, unknown>,
@@ -386,7 +338,7 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     return yield* translateResponseEffect(kind, response);
   });
 
-  const dispatchFlowServiceStreamingEffect = Effect.fn("DispatcherManager.dispatchFlowServiceStreaming")(function* <
+  const dispatchFlowServiceStreaming = Effect.fn("DispatcherManager.dispatchFlowServiceStreaming")(function* <
     E,
     R,
   >(
@@ -412,65 +364,40 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     });
   });
 
-  const dispatchFlowServiceStreaming = (
-    flow: string,
-    kind: string,
-    request: Record<string, unknown>,
-    responder: Responder,
-  ): Promise<void> =>
-    Effect.runPromise(
-      dispatchFlowServiceStreamingEffect(flow, kind, request, (response, complete) =>
-        Effect.tryPromise({
-          try: () => responder(response, complete),
-          catch: (error) => messagingDeliveryError(
-            resolveFlowTopics(kind).responseTopic,
-            "stream-responder",
-            error,
-          ),
-        })
-      ),
-    );
-
   // ---------- Fire-and-forget publish ----------
 
   /**
    * Publish a single message to an arbitrary topic (no request/response).
    * Used for injecting documents into the processing pipeline.
    */
-  const publishToTopic = (topic: string, message: unknown, id?: string): Promise<void> =>
-    Effect.runPromise(
-      Effect.acquireUseRelease(
-        Effect.tryPromise({
-          try: () => pubsub.createProducer<unknown>({ topic }),
-          catch: (cause) => messagingDeliveryError(topic, "create-producer", cause),
-        }),
-        (producer) =>
-          Effect.gen(function* () {
-            const timestamp = yield* Clock.currentTimeMillis;
-            const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
-            const messageId = id ?? `pub-${timestamp}-${suffix.toString(36).padStart(6, "0")}`;
-
-            yield* Effect.tryPromise({
-              try: () => producer.send(message, { id: messageId }),
-              catch: (cause) => messagingDeliveryError(topic, "send", cause),
-            });
-          }),
-        (producer) => Effect.tryPromise({
-          try: () => producer.close(),
-          catch: (cause) => messagingDeliveryError(topic, "close-producer", cause),
-        }),
+  const publishToTopic = (topic: string, message: unknown, id?: string) =>
+    Effect.acquireUseRelease(
+      pubsub.createProducer<unknown>({ topic }).pipe(
+        Effect.mapError((cause) => messagingDeliveryError(topic, "create-producer", cause)),
       ),
+      (producer) =>
+        Effect.gen(function* () {
+          const timestamp = yield* Clock.currentTimeMillis;
+          const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+          const messageId = id ?? `pub-${timestamp}-${suffix.toString(36).padStart(6, "0")}`;
+
+          yield* producer.send(message, { id: messageId }).pipe(
+            Effect.mapError((cause) => messagingDeliveryError(topic, "send", cause)),
+          );
+        }),
+      (producer) =>
+        producer.close.pipe(
+          Effect.mapError((cause) => messagingDeliveryError(topic, "close-producer", cause)),
+        ),
     );
 
   return {
-    start,
-    stop,
+    start: startEffect(),
+    stop: stopEffect(),
     dispatchGlobalService,
     dispatchGlobalServiceStreaming,
-    dispatchGlobalServiceStreamingEffect,
     dispatchFlowService,
     dispatchFlowServiceStreaming,
-    dispatchFlowServiceStreamingEffect,
     publishToTopic,
   };
 }

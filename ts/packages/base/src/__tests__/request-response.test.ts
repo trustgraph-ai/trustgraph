@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Effect } from "effect";
 import {
   makeRequestResponse,
   type BackendConsumer,
@@ -23,18 +24,20 @@ class RecordingProducer<T> implements BackendProducer<T> {
 
   constructor(private readonly onSend?: (message: T, properties?: Record<string, string>) => void) {}
 
-  async send(message: T, properties?: Record<string, string>): Promise<void> {
-    this.sent.push(properties === undefined ? { message } : { message, properties });
-    this.onSend?.(message, properties);
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.sent.push(properties === undefined ? { message } : { message, properties });
+      this.onSend?.(message, properties);
+    });
   }
 
-  async flush(): Promise<void> {
+  readonly flush: Effect.Effect<void> = Effect.sync(() => {
     this.flushCount += 1;
-  }
+  });
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class WaitingConsumer<T> implements BackendConsumer<T> {
@@ -55,32 +58,38 @@ class WaitingConsumer<T> implements BackendConsumer<T> {
     this.messages.push(message);
   }
 
-  async receive(): Promise<Message<T> | null> {
-    const message = this.messages.shift();
-    if (message !== undefined || this.closed) return message ?? null;
+  receive(): Effect.Effect<Message<T> | null> {
+    return Effect.promise(() => {
+      const message = this.messages.shift();
+      if (message !== undefined || this.closed) return Promise.resolve(message ?? null);
 
-    return await new Promise((resolve) => {
-      this.waiters.push(resolve);
+      return new Promise((resolve) => {
+        this.waiters.push(resolve);
+      });
     });
   }
 
-  async acknowledge(message: Message<T>): Promise<void> {
-    this.acknowledged.push(message);
+  acknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.acknowledged.push(message);
+    });
   }
 
-  async negativeAcknowledge(message: Message<T>): Promise<void> {
-    this.nacked.push(message);
+  negativeAcknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.nacked.push(message);
+    });
   }
 
-  async unsubscribe(): Promise<void> {}
+  readonly unsubscribe: Effect.Effect<void> = Effect.void;
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closed = true;
     for (const waiter of this.waiters.splice(0)) {
       waiter(null);
     }
     this.closeCount += 1;
-  }
+  });
 }
 
 class RuntimeBackend implements PubSubBackend {
@@ -96,19 +105,23 @@ class RuntimeBackend implements PubSubBackend {
     this.producer = new RecordingProducer<unknown>(onSend);
   }
 
-  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
-    this.producerOptions = options;
-    return this.producer as BackendProducer<T>;
+  createProducer<T>(options: CreateProducerOptions): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerOptions = options;
+      return this.producer as BackendProducer<T>;
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    this.consumerOptions = options;
-    return this.consumer as BackendConsumer<T>;
+  createConsumer<T>(options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      this.consumerOptions = options;
+      return this.consumer as BackendConsumer<T>;
+    });
   }
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 describe("RequestResponse compatibility facade", () => {
@@ -127,9 +140,9 @@ describe("RequestResponse compatibility facade", () => {
       subscription: "sub",
     });
 
-    await requestor.start();
-    const response = await requestor.request("request", { timeoutMs: 250 });
-    await requestor.stop();
+    await Effect.runPromise(requestor.start);
+    const response = await Effect.runPromise(requestor.request("request", { timeoutMs: 250 }));
+    await Effect.runPromise(requestor.stop);
 
     expect(response).toBe("response");
     expect(backend.producerOptions).toEqual({ topic: "request-topic" });
@@ -150,9 +163,11 @@ describe("RequestResponse compatibility facade", () => {
       subscription: "sub",
     });
 
-    await requestor.start();
-    const error = await requestor.request("request", { timeoutMs: 5 }).catch((caught: unknown) => caught);
-    await requestor.stop();
+    await Effect.runPromise(requestor.start);
+    const error = await Effect.runPromise(
+      requestor.request("request", { timeoutMs: 5 }),
+    ).catch((caught: unknown) => caught);
+    await Effect.runPromise(requestor.stop);
 
     expect(error).toMatchObject({
       _tag: "MessagingTimeoutError",
@@ -171,7 +186,9 @@ describe("RequestResponse compatibility facade", () => {
       subscription: "sub",
     });
 
-    const error = await requestor.request("request").catch((caught: unknown) => caught);
+    const error = await Effect.runPromise(
+      requestor.request("request"),
+    ).catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       _tag: "MessagingLifecycleError",

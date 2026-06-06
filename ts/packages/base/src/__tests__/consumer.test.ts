@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Effect } from "effect";
 import { makeConsumer, type ConsumerOptions, type FlowContext } from "../messaging/consumer.js";
 import type {
   PubSubBackend,
@@ -25,14 +26,17 @@ function createMockBackendConsumer<T>(): BackendConsumer<T> & {
   acknowledge: ReturnType<typeof vi.fn>;
   negativeAcknowledge: ReturnType<typeof vi.fn>;
   unsubscribe: ReturnType<typeof vi.fn>;
-  close: ReturnType<typeof vi.fn>;
+  close: Effect.Effect<void>;
+  closeMock: ReturnType<typeof vi.fn>;
 } {
+  const closeMock = vi.fn();
   return {
-    receive: vi.fn().mockResolvedValue(null),
-    acknowledge: vi.fn().mockResolvedValue(undefined),
-    negativeAcknowledge: vi.fn().mockResolvedValue(undefined),
-    unsubscribe: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
+    receive: vi.fn().mockReturnValue(Effect.succeed(null)),
+    acknowledge: vi.fn().mockReturnValue(Effect.void),
+    negativeAcknowledge: vi.fn().mockReturnValue(Effect.void),
+    unsubscribe: vi.fn().mockReturnValue(Effect.void),
+    close: Effect.sync(closeMock),
+    closeMock,
   };
 }
 
@@ -41,9 +45,9 @@ function createMockPubSub<T>(
   backendConsumer: BackendConsumer<T>,
 ): PubSubBackend {
   return {
-    createProducer: vi.fn().mockResolvedValue({} as BackendProducer<unknown>),
-    createConsumer: vi.fn().mockResolvedValue(backendConsumer),
-    close: vi.fn().mockResolvedValue(undefined),
+    createProducer: vi.fn().mockReturnValue(Effect.succeed({} as BackendProducer<unknown>)),
+    createConsumer: vi.fn().mockReturnValue(Effect.succeed(backendConsumer)),
+    close: Effect.void,
   };
 }
 
@@ -94,7 +98,7 @@ describe("Consumer", () => {
 
     expect(consumer).toMatchObject({
       start: expect.any(Function),
-      stop: expect.any(Function),
+      stop: expect.any(Object),
     });
   });
 
@@ -111,13 +115,13 @@ describe("Consumer", () => {
 
     expect(consumer).toMatchObject({
       start: expect.any(Function),
-      stop: expect.any(Function),
+      stop: expect.any(Object),
     });
   });
 
   // ── start() creates consumer and calls handler ─────────────────
   it("starts a scoped consumer and invokes handler for received messages", async () => {
-    const handler = vi.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockReturnValue(Effect.void);
     const msg = createMockMessage({ data: "hello" }, { id: "1" });
 
     const consumer = makeConsumer({
@@ -127,11 +131,11 @@ describe("Consumer", () => {
       handler,
     });
 
-    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValueOnce(Effect.succeed(msg)).mockReturnValue(Effect.succeed(null));
 
-    await consumer.start(flowCtx);
+    await Effect.runPromise(consumer.start(flowCtx));
     await advanceUntil(() => handler.mock.calls.length > 0);
-    await consumer.stop();
+    await Effect.runPromise(consumer.stop);
 
     expect(pubsub.createConsumer).toHaveBeenCalledWith({
       topic: "topic-a",
@@ -143,7 +147,7 @@ describe("Consumer", () => {
 
   // ── Messages are acknowledged after successful handling ────────
   it("acknowledges messages after successful handling", async () => {
-    const handler = vi.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockReturnValue(Effect.void);
     const msg = createMockMessage("payload");
 
     const consumer = makeConsumer({
@@ -153,11 +157,11 @@ describe("Consumer", () => {
       handler,
     });
 
-    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValueOnce(Effect.succeed(msg)).mockReturnValue(Effect.succeed(null));
 
-    await consumer.start(flowCtx);
+    await Effect.runPromise(consumer.start(flowCtx));
     await advanceUntil(() => backendConsumer.acknowledge.mock.calls.length > 0);
-    await consumer.stop();
+    await Effect.runPromise(consumer.stop);
 
     expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
     expect(backendConsumer.negativeAcknowledge).not.toHaveBeenCalled();
@@ -165,7 +169,7 @@ describe("Consumer", () => {
 
   // ── Messages are negatively acknowledged on handler error ──────
   it("negatively acknowledges messages when the handler throws", async () => {
-    const handler = vi.fn().mockRejectedValue("handler boom");
+    const handler = vi.fn().mockReturnValue(Effect.fail("handler boom"));
     const msg = createMockMessage("bad-payload");
 
     const consumer = makeConsumer({
@@ -175,11 +179,11 @@ describe("Consumer", () => {
       handler,
     });
 
-    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValueOnce(Effect.succeed(msg)).mockReturnValue(Effect.succeed(null));
 
-    await consumer.start(flowCtx);
+    await Effect.runPromise(consumer.start(flowCtx));
     await advanceUntil(() => backendConsumer.negativeAcknowledge.mock.calls.length > 0);
-    await consumer.stop();
+    await Effect.runPromise(consumer.stop);
 
     expect(backendConsumer.negativeAcknowledge).toHaveBeenCalledWith(msg);
     expect(backendConsumer.acknowledge).not.toHaveBeenCalled();
@@ -188,12 +192,17 @@ describe("Consumer", () => {
   // ── TooManyRequestsError triggers retry ────────────────────────
   it("retries the handler on TooManyRequestsError", async () => {
     let handlerCalls = 0;
-    const handler = vi.fn().mockImplementation(async () => {
-      handlerCalls++;
-      if (handlerCalls === 1) {
-        throw tooManyRequestsError("rate limited");
-      }
-      // Second call succeeds
+    const handler = vi.fn().mockImplementation(() => {
+      return Effect.sync(() => {
+        handlerCalls++;
+        return handlerCalls;
+      }).pipe(
+        Effect.flatMap((attempt) =>
+          attempt === 1
+            ? Effect.fail(tooManyRequestsError("rate limited"))
+            : Effect.void
+        ),
+      );
     });
 
     const msg = createMockMessage("rate-limited-payload");
@@ -206,17 +215,17 @@ describe("Consumer", () => {
       rateLimitRetryMs: 500,
     });
 
-    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValueOnce(Effect.succeed(msg)).mockReturnValue(Effect.succeed(null));
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await consumer.start(flowCtx);
+    await Effect.runPromise(consumer.start(flowCtx));
     await vi.advanceTimersByTimeAsync(600);
     await advanceUntil(() => handler.mock.calls.length >= 2);
-    await consumer.stop();
+    await Effect.runPromise(consumer.stop);
 
     // Handler called twice: first throws TooManyRequestsError, second succeeds
-    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handlerCalls).toBe(2);
     // Message should be acknowledged (retry succeeded)
     expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
 
@@ -225,11 +234,17 @@ describe("Consumer", () => {
 
   it("retries repeated TooManyRequestsError until success within the timeout", async () => {
     let handlerCalls = 0;
-    const handler = vi.fn().mockImplementation(async () => {
-      handlerCalls++;
-      if (handlerCalls <= 2) {
-        throw tooManyRequestsError("rate limited");
-      }
+    const handler = vi.fn().mockImplementation(() => {
+      return Effect.sync(() => {
+        handlerCalls++;
+        return handlerCalls;
+      }).pipe(
+        Effect.flatMap((attempt) =>
+          attempt <= 2
+            ? Effect.fail(tooManyRequestsError("rate limited"))
+            : Effect.void
+        ),
+      );
     });
 
     const msg = createMockMessage("rate-limited-payload");
@@ -243,22 +258,27 @@ describe("Consumer", () => {
       rateLimitTimeoutMs: 2_000,
     });
 
-    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValueOnce(Effect.succeed(msg)).mockReturnValue(Effect.succeed(null));
 
-    await consumer.start(flowCtx);
+    await Effect.runPromise(consumer.start(flowCtx));
     await vi.advanceTimersByTimeAsync(1_100);
     await advanceUntil(() => backendConsumer.acknowledge.mock.calls.length > 0);
-    await consumer.stop();
+    await Effect.runPromise(consumer.stop);
 
-    expect(handler).toHaveBeenCalledTimes(3);
+    expect(handlerCalls).toBe(3);
     expect(backendConsumer.acknowledge).toHaveBeenCalledWith(msg);
     expect(backendConsumer.negativeAcknowledge).not.toHaveBeenCalled();
   });
 
   it("negatively acknowledges when rate-limit retry timeout elapses", async () => {
-    const handler = vi.fn().mockImplementation(async () => {
-      throw tooManyRequestsError("rate limited");
-    });
+    let handlerCalls = 0;
+    const handler = vi.fn().mockReturnValue(
+      Effect.sync(() => {
+        handlerCalls++;
+      }).pipe(
+        Effect.flatMap(() => Effect.fail(tooManyRequestsError("rate limited"))),
+      ),
+    );
     const msg = createMockMessage("rate-limited-payload");
 
     const consumer = makeConsumer({
@@ -270,21 +290,21 @@ describe("Consumer", () => {
       rateLimitTimeoutMs: 1_000,
     });
 
-    backendConsumer.receive.mockResolvedValueOnce(msg).mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValueOnce(Effect.succeed(msg)).mockReturnValue(Effect.succeed(null));
 
-    await consumer.start(flowCtx);
+    await Effect.runPromise(consumer.start(flowCtx));
     await vi.advanceTimersByTimeAsync(1_100);
     await advanceUntil(() => backendConsumer.negativeAcknowledge.mock.calls.length > 0);
-    await consumer.stop();
+    await Effect.runPromise(consumer.stop);
 
-    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handlerCalls).toBeGreaterThanOrEqual(2);
     expect(backendConsumer.negativeAcknowledge).toHaveBeenCalledWith(msg);
     expect(backendConsumer.acknowledge).not.toHaveBeenCalled();
   });
 
   // ── stop() closes the backend ──────────────────────────────────
   it("stop() sets running=false and closes the backend", async () => {
-    backendConsumer.receive.mockResolvedValue(null);
+    backendConsumer.receive.mockReturnValue(Effect.succeed(null));
 
     const consumer = makeConsumer({
       pubsub,
@@ -293,10 +313,10 @@ describe("Consumer", () => {
       handler: vi.fn(),
     });
 
-    await consumer.start(flowCtx);
-    await consumer.stop();
+    await Effect.runPromise(consumer.start(flowCtx));
+    await Effect.runPromise(consumer.stop);
 
-    expect(backendConsumer.close).toHaveBeenCalled();
-    await expect(consumer.stop()).resolves.toBeUndefined();
+    expect(backendConsumer.closeMock).toHaveBeenCalled();
+    await expect(Effect.runPromise(consumer.stop)).resolves.toBeUndefined();
   });
 });

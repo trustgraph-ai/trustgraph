@@ -13,8 +13,8 @@ import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 
 export interface FalkorDBClosableClient {
-  readonly connect: () => Promise<unknown>;
-  readonly disconnect: () => Promise<unknown>;
+  readonly connect: Effect.Effect<void, FalkorDBTriplesQueryError>;
+  readonly disconnect: Effect.Effect<void, FalkorDBTriplesQueryError>;
 }
 
 export type FalkorDBQueryOptions = Parameters<Graph["query"]>[1];
@@ -23,7 +23,7 @@ export interface FalkorDBQueryGraph {
   readonly query: <T = unknown>(
     query: string,
     options?: FalkorDBQueryOptions,
-  ) => Promise<{ readonly data?: Array<T> }>;
+  ) => Effect.Effect<{ readonly data?: Array<T> }, FalkorDBTriplesQueryError>;
 }
 
 export type FalkorDBQueryClientFactory = (url: string) => FalkorDBClosableClient;
@@ -73,7 +73,7 @@ export interface FalkorDBTriplesQuery {
     p?: Term,
     o?: Term,
     limit?: number,
-  ) => Promise<Triple[]>;
+  ) => Effect.Effect<ReadonlyArray<Triple>, FalkorDBTriplesQueryError>;
 }
 
 export class FalkorDBTriplesQueryError extends S.TaggedErrorClass<FalkorDBTriplesQueryError>()(
@@ -81,7 +81,7 @@ export class FalkorDBTriplesQueryError extends S.TaggedErrorClass<FalkorDBTriple
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -112,6 +112,12 @@ interface FalkorDBQueryConnection {
   readonly client: FalkorDBClosableClient;
   readonly graph: FalkorDBQueryGraph;
 }
+
+const tryFalkorDBPromise = <A>(operation: string, try_: () => PromiseLike<A>) =>
+  Effect.tryPromise({
+    try: try_,
+    catch: (cause) => falkorDBTriplesQueryError(operation, cause),
+  });
 
 const resolveFalkorDBQueryConfig = Effect.fn("FalkorDBTriplesQuery.resolveConfig")(function* (
   config: FalkorDBQueryConfig,
@@ -149,16 +155,21 @@ const connectFalkorDBTriplesQuery = Effect.fn("FalkorDBTriplesQuery.connect")(fu
           const client = clientFactory(url);
           return { client, graph: graphFactory(client, database) };
         }
-        const client = createClient({ url });
-        return { client, graph: new Graph(client, database) };
+        const sdkClient = createClient({ url });
+        const client: FalkorDBClosableClient = {
+          connect: tryFalkorDBPromise("connect", () => sdkClient.connect()).pipe(Effect.asVoid),
+          disconnect: tryFalkorDBPromise("disconnect", () => sdkClient.disconnect()).pipe(Effect.asVoid),
+        };
+        const sdkGraph = new Graph(sdkClient, database);
+        const graph: FalkorDBQueryGraph = {
+          query: (query, options) => tryFalkorDBPromise("graph-query", () => sdkGraph.query(query, options)),
+        };
+        return { client, graph };
       },
       catch: (cause) => falkorDBTriplesQueryError("create-client", cause),
     });
 
-    yield* Effect.tryPromise({
-      try: () => client.connect(),
-      catch: (cause) => falkorDBTriplesQueryError("connect", cause),
-    }).pipe(
+    yield* client.connect.pipe(
       Effect.tapError((error) =>
         Effect.logError("[FalkorDBTriplesQuery] Connection failed", {
           error: error.message,
@@ -174,10 +185,7 @@ const connectFalkorDBTriplesQuery = Effect.fn("FalkorDBTriplesQuery.connect")(fu
 const disconnectFalkorDBTriplesQuery = (
   connection: FalkorDBQueryConnection,
 ): Effect.Effect<void> =>
-  Effect.tryPromise({
-    try: () => connection.client.disconnect(),
-    catch: (cause) => falkorDBTriplesQueryError("disconnect", cause),
-  }).pipe(
+  connection.client.disconnect.pipe(
     Effect.catch((error) =>
       Effect.logError("[FalkorDBTriplesQuery] Disconnect failed", {
         error: error.message,
@@ -201,10 +209,8 @@ const queryRows = (
   query: string,
   options?: FalkorDBQueryOptions,
 ): Effect.Effect<ReadonlyArray<unknown>, FalkorDBTriplesQueryError> =>
-  Effect.tryPromise({
-    try: () => graph.query<unknown>(query, options),
-    catch: (cause) => falkorDBTriplesQueryError(operation, cause),
-  }).pipe(
+  graph.query<unknown>(query, options).pipe(
+    Effect.mapError((cause) => falkorDBTriplesQueryError(operation, cause)),
     Effect.map((result) => result.data ?? []),
   );
 
@@ -480,9 +486,7 @@ export function makeFalkorDBTriplesQuery(
 ): FalkorDBTriplesQuery {
   return {
     queryTriples: (s, p, o, limit = 100) =>
-      Effect.runPromise(
-        withFalkorDBTriplesQuery(config, (query) => query.queryTriples(s, p, o, limit)),
-      ).then((triples) => Array.from(triples)),
+      withFalkorDBTriplesQuery(config, (query) => query.queryTriples(s, p, o, limit)),
   };
 }
 

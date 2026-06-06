@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { Effect } from "effect";
 import {
   makeProducer,
+  pubSubError,
   type BackendConsumer,
   type BackendProducer,
   type CreateConsumerOptions,
@@ -15,30 +17,33 @@ class ProducerBackend implements PubSubBackend {
   flushCount = 0;
   failFlush = false;
 
-  async createProducer<T>(options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
-    this.producerTopics.push(options.topic);
+  createProducer<T>(options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerTopics.push(options.topic);
 
-    return {
-      send: async (message, properties) => {
+      return {
+        send: (message, properties) => Effect.sync(() => {
         this.sent.push(properties === undefined ? { message } : { message, properties });
-      },
-      flush: async () => {
-        this.flushCount += 1;
-        if (this.failFlush) {
-          return Promise.reject("flush failed");
-        }
-      },
-      close: async () => {
-        this.closeCount += 1;
-      },
-    };
+        }),
+        flush: Effect.suspend(() => {
+          this.flushCount += 1;
+          if (this.failFlush) {
+            return Effect.fail(pubSubError("flush", "flush failed"));
+          }
+          return Effect.void;
+        }),
+        close: Effect.sync(() => {
+          this.closeCount += 1;
+        }),
+      };
+    });
   }
 
-  createConsumer<T>(_options: CreateConsumerOptions<T>): Promise<BackendConsumer<T>> {
-    return Promise.reject("consumer not supported");
+  createConsumer<T>(_options: CreateConsumerOptions<T>): Effect.Effect<BackendConsumer<T>> {
+    return Effect.fail(pubSubError("create-consumer", "consumer not supported"));
   }
 
-  async close(): Promise<void> {}
+  readonly close: Effect.Effect<void> = Effect.void;
 }
 
 describe("Producer", () => {
@@ -46,9 +51,9 @@ describe("Producer", () => {
     const backend = new ProducerBackend();
     const producer = makeProducer<string>(backend, "tg.test.producer");
 
-    await producer.start();
-    await producer.send("message-1", "hello");
-    await producer.stop();
+    await Effect.runPromise(producer.start);
+    await Effect.runPromise(producer.send("message-1", "hello"));
+    await Effect.runPromise(producer.stop);
 
     expect(backend.producerTopics).toEqual(["tg.test.producer"]);
     expect(backend.sent).toEqual([
@@ -56,9 +61,11 @@ describe("Producer", () => {
     ]);
     expect(backend.flushCount).toBe(1);
     expect(backend.closeCount).toBe(1);
-    await expect(producer.stop()).resolves.toBeUndefined();
+    await expect(Effect.runPromise(producer.stop)).resolves.toBeUndefined();
 
-    const error = await producer.send("message-2", "late").catch((caught: unknown) => caught);
+    const error = await Effect.runPromise(
+      producer.send("message-2", "late"),
+    ).catch((caught: unknown) => caught);
     expect(error).toMatchObject({
       _tag: "MessagingLifecycleError",
       operation: "send",
@@ -70,10 +77,10 @@ describe("Producer", () => {
     const backend = new ProducerBackend();
     const producer = makeProducer<string>(backend, "tg.test.producer");
 
-    await producer.start();
+    await Effect.runPromise(producer.start);
     backend.failFlush = true;
 
-    const error = await producer.stop().catch((caught: unknown) => caught);
+    const error = await Effect.runPromise(producer.stop).catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       _tag: "MessagingDeliveryError",

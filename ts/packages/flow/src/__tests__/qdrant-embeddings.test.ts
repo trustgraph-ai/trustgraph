@@ -33,44 +33,51 @@ class FakeQdrantClient implements QdrantClientLike {
   readonly deletedCollections: string[] = [];
   searchResults: ReadonlyArray<QdrantScoredPoint> = [];
 
-  async collectionExists(collectionName: string): Promise<{ readonly exists: boolean }> {
-    this.collectionExistsCalls.push(collectionName);
-    return { exists: this.collections.has(collectionName) };
+  collectionExists(collectionName: string): Effect.Effect<{ readonly exists: boolean }> {
+    return Effect.sync(() => {
+      this.collectionExistsCalls.push(collectionName);
+      return { exists: this.collections.has(collectionName) };
+    });
   }
 
-  async createCollection(
+  createCollection(
     collectionName: string,
     options: { readonly vectors: { readonly size: number; readonly distance: "Cosine" } },
-  ): Promise<void> {
-    this.collections.add(collectionName);
-    this.createdCollections.push({ name: collectionName, size: options.vectors.size });
+  ): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.collections.add(collectionName);
+      this.createdCollections.push({ name: collectionName, size: options.vectors.size });
+    });
   }
 
-  async upsert(
+  upsert(
     collectionName: string,
     options: { readonly points: ReadonlyArray<FakePoint> },
-  ): Promise<void> {
-    this.upserts.push({ collectionName, points: options.points });
+  ): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.upserts.push({ collectionName, points: options.points });
+    });
   }
 
-  async getCollections(): Promise<{ readonly collections: ReadonlyArray<{ readonly name: string }> }> {
-    return { collections: Array.from(this.collections, (name) => ({ name })) };
+  readonly getCollections: Effect.Effect<{ readonly collections: ReadonlyArray<{ readonly name: string }> }> =
+    Effect.sync(() => ({ collections: Array.from(this.collections, (name) => ({ name })) }));
+
+  deleteCollection(collectionName: string): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.collections.delete(collectionName);
+      this.deletedCollections.push(collectionName);
+    });
   }
 
-  async deleteCollection(collectionName: string): Promise<void> {
-    this.collections.delete(collectionName);
-    this.deletedCollections.push(collectionName);
-  }
-
-  async search(
+  search(
     _collectionName: string,
     _options: {
       readonly vector: ReadonlyArray<number>;
       readonly limit: number;
       readonly with_payload: boolean;
     },
-  ): Promise<ReadonlyArray<QdrantScoredPoint>> {
-    return this.searchResults;
+  ): Effect.Effect<ReadonlyArray<QdrantScoredPoint>> {
+    return Effect.sync(() => this.searchResults);
   }
 }
 
@@ -206,22 +213,22 @@ describe("Qdrant embeddings", () => {
     });
 
     await Effect.runPromise(
-      store.storeEffect({
+      store.store({
         user: "alice",
         collection: "docs",
         chunks: [{ chunkId: "chunk-a", vector: [1, 2], content: "alpha" }],
       }),
     );
     await Effect.runPromise(
-      store.storeEffect({
+      store.store({
         user: "alice",
         collection: "docs",
         chunks: [{ chunkId: "chunk-b", vector: [2, 1], content: "beta" }],
       }),
     );
-    await Effect.runPromise(store.deleteCollectionEffect("alice", "docs"));
+    await Effect.runPromise(store.deleteCollection("alice", "docs"));
     await Effect.runPromise(
-      store.storeEffect({
+      store.store({
         user: "alice",
         collection: "docs",
         chunks: [{ chunkId: "chunk-c", vector: [1, 1], content: "gamma" }],

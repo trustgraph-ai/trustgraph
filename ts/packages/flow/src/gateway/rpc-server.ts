@@ -40,10 +40,9 @@ const makeGatewayRpcHandlers = (dispatcher: DispatcherManager) =>
   TrustGraphRpcs.toLayer(Effect.succeed(
     TrustGraphRpcs.of({
       Dispatch: (payload) =>
-        Effect.tryPromise({
-          try: () => dispatchOne(dispatcher, payload),
-          catch: (cause) => DispatchError.make({ message: errorMessage(cause) }),
-        }),
+        dispatchOne(dispatcher, payload).pipe(
+          Effect.mapError((cause) => DispatchError.make({ message: errorMessage(cause) })),
+        ),
       DispatchStream: Effect.fn("GatewayRpc.DispatchStream")(function* (payload) {
         const queue = yield* Queue.bounded<DispatchStreamChunk, DispatchError | Cause.Done>(16);
         yield* Effect.addFinalizer(() => Queue.shutdown(queue));
@@ -64,7 +63,7 @@ const makeGatewayRpcHandlers = (dispatcher: DispatcherManager) =>
 function dispatchOne(
   dispatcher: DispatcherManager,
   payload: DispatchPayload,
-): Promise<unknown> {
+): Effect.Effect<unknown, DispatcherStreamError> {
   if (payload.scope === "flow") {
     return dispatcher.dispatchFlowService(
       payload.flow ?? "default",
@@ -81,7 +80,7 @@ function dispatchStreamEffect(
   responder: (response: unknown, complete: boolean) => Effect.Effect<void>,
 ): Effect.Effect<void, DispatcherStreamError> {
   if (payload.scope === "flow") {
-    return dispatcher.dispatchFlowServiceStreamingEffect(
+    return dispatcher.dispatchFlowServiceStreaming(
       payload.flow ?? "default",
       payload.service,
       payload.request,
@@ -89,7 +88,7 @@ function dispatchStreamEffect(
     );
   }
 
-  return dispatcher.dispatchGlobalServiceStreamingEffect(
+  return dispatcher.dispatchGlobalServiceStreaming(
     payload.service,
     payload.request,
     responder,

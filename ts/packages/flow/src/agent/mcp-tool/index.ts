@@ -1,1 +1,1 @@
-export { McpToolService, run, runMain } from "./service.js";
+export { McpToolService, program, runMain } from "./service.js";

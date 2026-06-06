@@ -19,29 +19,29 @@ import {FlowManagerError, makeFlowManagerService} from "../flow-manager/service.
 class NoopPubSub implements PubSubBackend {
   readonly sentByTopic = new Map<string, Array<unknown>>();
 
-  async createProducer<T>(options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
-    return {
-      send: async (message) => {
+  createProducer<T>(options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>> {
+    return Effect.succeed({
+      send: (message) => Effect.sync(() => {
         const sent = this.sentByTopic.get(options.topic) ?? [];
         sent.push(message);
         this.sentByTopic.set(options.topic, sent);
-      },
-      flush: async () => undefined,
-      close: async () => undefined,
-    };
+      }),
+      flush: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async createConsumer<T>(_options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    return {
-      receive: async () => null,
-      acknowledge: async () => undefined,
-      negativeAcknowledge: async () => undefined,
-      unsubscribe: async () => undefined,
-      close: async () => undefined,
-    };
+  createConsumer<T>(_options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.succeed({
+      receive: () => Effect.succeed(null),
+      acknowledge: () => Effect.void,
+      negativeAcknowledge: () => Effect.void,
+      unsubscribe: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async close(): Promise<void> {}
+  readonly close: Effect.Effect<void> = Effect.void;
 }
 
 class RecordingConfigClient implements RequestResponse<ConfigRequest, ConfigResponse> {
@@ -53,25 +53,27 @@ class RecordingConfigClient implements RequestResponse<ConfigRequest, ConfigResp
     private readonly legacyFlows: Array<{readonly key: string; readonly value: unknown}> = [],
   ) {}
 
-  async start(): Promise<void> {}
+  readonly start: Effect.Effect<void> = Effect.void;
 
-  async stop(): Promise<void> {}
+  readonly stop: Effect.Effect<void> = Effect.void;
 
-  async request(request: ConfigRequest): Promise<ConfigResponse> {
-    this.requests.push(request);
-    if (request.operation !== "getvalues") return {};
+  request(request: ConfigRequest): Effect.Effect<ConfigResponse> {
+    return Effect.sync(() => {
+      this.requests.push(request);
+      if (request.operation !== "getvalues") return {};
 
-    if (request.type === "flow-blueprint") {
-      return {values: this.blueprints};
-    }
-    if (request.type === "flow") {
-      return {values: this.flows};
-    }
-    if (request.type === "flows") {
-      return {values: this.legacyFlows};
-    }
+      if (request.type === "flow-blueprint") {
+        return {values: this.blueprints};
+      }
+      if (request.type === "flow") {
+        return {values: this.flows};
+      }
+      if (request.type === "flows") {
+        return {values: this.legacyFlows};
+      }
 
-    return {values: []};
+      return {values: []};
+    });
   }
 }
 
@@ -97,9 +99,9 @@ const seedResponseProducer = async (
   backend: NoopPubSub,
   service: ReturnType<typeof makeFlowManagerService>,
 ) => {
-  const responseProducer = await backend.createProducer<FlowResponse>({
+  const responseProducer = await Effect.runPromise(backend.createProducer<FlowResponse>({
     topic: topics.flowResponse,
-  });
+  }));
   await Effect.runPromise(
     SynchronizedRef.update(service.state, (state) => ({
       ...state,
@@ -127,43 +129,43 @@ describe("FlowManagerService operations", () => {
     const service = makeService();
     await seedConfigClient(service, configClient);
 
-    await expect(service.handleOperation({operation: "list-blueprints"})).resolves.toEqual({
+    await expect(Effect.runPromise(service.handleOperationEffect({operation: "list-blueprints"}))).resolves.toEqual({
       "blueprint-names": ["custom", "default"],
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "get-blueprint",
       "blueprint-name": "custom",
-    })).resolves.toMatchObject({
+    }))).resolves.toMatchObject({
       "blueprint-definition": "{\"description\":\"Custom\",\"topics\":{\"input\":\"topic.in\"}}",
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "put-blueprint",
       "blueprint-name": "added",
       "blueprint-definition": {description: "Added", topics: {input: "topic.added"}},
-    })).resolves.toEqual({});
-    await expect(service.handleOperation({
+    }))).resolves.toEqual({});
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "delete-blueprint",
       "blueprint-name": "custom",
-    })).resolves.toEqual({});
-    await expect(service.handleOperation({operation: "list-flows"})).resolves.toEqual({
+    }))).resolves.toEqual({});
+    await expect(Effect.runPromise(service.handleOperationEffect({operation: "list-flows"}))).resolves.toEqual({
       "flow-ids": ["flow-a"],
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "get-flow",
       "flow-id": "flow-a",
-    })).resolves.toEqual({
+    }))).resolves.toEqual({
       flow: "{\"blueprint-name\":\"custom\",\"description\":\"Alpha\",\"parameters\":{\"limit\":3}}",
     });
-    await expect(service.handleOperation({
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "start-flow",
       "flow-id": "flow-b",
       "blueprint-name": "custom",
-    })).resolves.toEqual({});
-    await expect(service.handleOperation({
+    }))).resolves.toEqual({});
+    await expect(Effect.runPromise(service.handleOperationEffect({
       operation: "stop-flow",
       "flow-id": "flow-a",
-    })).resolves.toEqual({});
-    await expect(service.handleOperation({operation: "unknown-flow"})).rejects.toMatchObject({
+    }))).resolves.toEqual({});
+    await expect(Effect.runPromise(service.handleOperationEffect({operation: "unknown-flow"}))).rejects.toMatchObject({
       _tag: "FlowManagerError",
       operation: "operation",
       message: "Unknown flow operation: unknown-flow",
@@ -180,9 +182,9 @@ describe("FlowManagerService operations", () => {
   it("uses tagged errors for invalid flow mutations", async () => {
     const service = makeService();
 
-    const startError = await service.handleStartFlow({operation: "start-flow"})
+    const startError = await Effect.runPromise(service.handleStartFlowEffect({operation: "start-flow"}))
       .catch((caught: unknown) => caught);
-    const stopError = await service.handleStopFlow({operation: "stop-flow"})
+    const stopError = await Effect.runPromise(service.handleStopFlowEffect({operation: "stop-flow"}))
       .catch((caught: unknown) => caught);
 
     expect(startError).toBeInstanceOf(FlowManagerError);
@@ -196,12 +198,12 @@ describe("FlowManagerService operations", () => {
     const service = makeService();
     await seedConfigClient(service, configClient);
 
-    await service.handleStartFlow({
+    await Effect.runPromise(service.handleStartFlowEffect({
       operation: "start-flow",
       "flow-id": "flow-a",
       description: "alpha",
       parameters: {limit: 3},
-    });
+    }));
     let state = await Effect.runPromise(SynchronizedRef.get(service.state));
     expect(Option.getOrUndefined(HashMap.get(state.flows, "flow-a"))).toMatchObject({
       id: "flow-a",
@@ -211,10 +213,10 @@ describe("FlowManagerService operations", () => {
       status: "running",
     });
 
-    await service.handleStopFlow({
+    await Effect.runPromise(service.handleStopFlowEffect({
       operation: "stop-flow",
       "flow-id": "flow-a",
-    });
+    }));
     state = await Effect.runPromise(SynchronizedRef.get(service.state));
 
     expect(HashMap.has(state.flows, "flow-a")).toBe(false);
@@ -245,7 +247,7 @@ describe("FlowManagerService operations", () => {
     const service = makeService();
     await seedConfigClient(service, configClient);
 
-    await service.refreshBlueprintsFromConfig();
+    await Effect.runPromise(service.refreshBlueprintsFromConfigEffect);
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
 
     expect(Option.getOrUndefined(HashMap.get(state.blueprints, "custom"))).toMatchObject({
@@ -263,8 +265,8 @@ describe("FlowManagerService operations", () => {
     await seedConfigClient(service, configClient);
 
     const results = await Promise.allSettled([
-      service.handleStartFlow({operation: "start-flow", "flow-id": "flow-a"}),
-      service.handleStartFlow({operation: "start-flow", "flow-id": "flow-a"}),
+      Effect.runPromise(service.handleStartFlowEffect({operation: "start-flow", "flow-id": "flow-a"})),
+      Effect.runPromise(service.handleStartFlowEffect({operation: "start-flow", "flow-id": "flow-a"})),
     ]);
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
 

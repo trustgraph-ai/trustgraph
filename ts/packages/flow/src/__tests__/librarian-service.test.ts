@@ -1,6 +1,7 @@
 import {mkdtemp, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
+import {Effect} from "effect";
 import {describe, expect, it} from "vitest";
 import {
   type BackendConsumer,
@@ -15,25 +16,25 @@ import {
 import {makeLibrarianService} from "../librarian/service.js";
 
 class NoopPubSub implements PubSubBackend {
-  async createProducer<T>(_options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
-    return {
-      send: async () => undefined,
-      flush: async () => undefined,
-      close: async () => undefined,
-    };
+  createProducer<T>(_options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>> {
+    return Effect.succeed({
+      send: () => Effect.void,
+      flush: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async createConsumer<T>(_options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    return {
-      receive: async () => null,
-      acknowledge: async (_message: Message<T>) => undefined,
-      negativeAcknowledge: async (_message: Message<T>) => undefined,
-      unsubscribe: async () => undefined,
-      close: async () => undefined,
-    };
+  createConsumer<T>(_options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.succeed({
+      receive: () => Effect.succeed(null),
+      acknowledge: (_message: Message<T>) => Effect.void,
+      negativeAcknowledge: (_message: Message<T>) => Effect.void,
+      unsubscribe: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async close(): Promise<void> {}
+  readonly close: Effect.Effect<void> = Effect.void;
 }
 
 const sampleTriple: Triple = {
@@ -66,40 +67,40 @@ describe("LibrarianService schema-backed boundaries", () => {
     const service = makeService(dir);
 
     try {
-      await expect(service.handleLibrarianOperation({
+      await expect(Effect.runPromise(service.handleLibrarianOperation({
         operation: "list-documents",
         user: "alice",
-      })).resolves.toEqual({
+      }))).resolves.toEqual({
         documents: [],
         "document-metadatas": [],
       });
 
-      const upload = await service.handleLibrarianOperation({
+      const upload = await Effect.runPromise(service.handleLibrarianOperation({
         operation: "begin-upload",
         documentMetadata: sampleDocument,
         "document-metadata": sampleDocument,
         "total-size": 12,
         "chunk-size": 4,
-      });
-      await expect(service.handleLibrarianOperation({
+      }));
+      await expect(Effect.runPromise(service.handleLibrarianOperation({
         operation: "get-upload-status",
         "upload-id": upload["upload-id"],
-      })).resolves.toMatchObject({
+      }))).resolves.toMatchObject({
         "upload-id": upload["upload-id"],
         "upload-state": "in-progress",
         "missing-chunks": [0, 1, 2],
       });
 
-      await expect(service.handleLibrarianOperation({
+      await expect(Effect.runPromise(service.handleLibrarianOperation({
         operation: "stream-document",
         "document-id": "doc-a",
-      })).rejects.toMatchObject({
+      }))).rejects.toMatchObject({
         _tag: "LibrarianServiceError",
         operation: "stream-document",
         message: "stream-document must be handled as a streaming operation",
       });
 
-      await expect(service.handleLibrarianOperation(JSON.parse(`{"operation":"unknown-librarian"}`))).rejects.toMatchObject({
+      await expect(Effect.runPromise(service.handleLibrarianOperation(JSON.parse(`{"operation":"unknown-librarian"}`)))).rejects.toMatchObject({
         _tag: "LibrarianServiceError",
         operation: "operation",
         message: "Unknown librarian operation: unknown-librarian",
@@ -114,14 +115,14 @@ describe("LibrarianService schema-backed boundaries", () => {
     const service = makeService(dir);
 
     try {
-      await expect(service.handleCollectionOperation({
+      await expect(Effect.runPromise(service.handleCollectionOperation({
         operation: "update-collection",
         user: "alice",
         collection: "docs",
         name: "Docs",
         description: "Documentation",
         tags: ["reference"],
-      })).resolves.toEqual({
+      }))).resolves.toEqual({
         collections: [{
           user: "alice",
           collection: "docs",
@@ -131,10 +132,10 @@ describe("LibrarianService schema-backed boundaries", () => {
         }],
       });
 
-      await expect(service.handleCollectionOperation({
+      await expect(Effect.runPromise(service.handleCollectionOperation({
         operation: "list-collections",
         user: "alice",
-      })).resolves.toEqual({
+      }))).resolves.toEqual({
         collections: [{
           user: "alice",
           collection: "docs",
@@ -144,17 +145,17 @@ describe("LibrarianService schema-backed boundaries", () => {
         }],
       });
 
-      await expect(service.handleCollectionOperation({
+      await expect(Effect.runPromise(service.handleCollectionOperation({
         operation: "delete-collection",
         user: "alice",
         collection: "docs",
-      })).resolves.toEqual({});
-      await expect(service.handleCollectionOperation({
+      }))).resolves.toEqual({});
+      await expect(Effect.runPromise(service.handleCollectionOperation({
         operation: "list-collections",
         user: "alice",
-      })).resolves.toEqual({collections: []});
+      }))).resolves.toEqual({collections: []});
 
-      await expect(service.handleCollectionOperation(JSON.parse(`{"operation":"unknown-collection"}`))).rejects.toMatchObject({
+      await expect(Effect.runPromise(service.handleCollectionOperation(JSON.parse(`{"operation":"unknown-collection"}`)))).rejects.toMatchObject({
         _tag: "LibrarianServiceError",
         operation: "collection-operation",
         message: "Unknown collection operation: unknown-collection",
@@ -168,18 +169,18 @@ describe("LibrarianService schema-backed boundaries", () => {
     const dir = await mkdtemp(join(tmpdir(), "trustgraph-librarian-service-"));
     const service = makeService(dir);
 
-    const response = await service.beginUpload({
+    const response = await Effect.runPromise(service.beginUpload({
       operation: "begin-upload",
       documentMetadata: sampleDocument,
       "document-metadata": sampleDocument,
       "total-size": 12,
       "chunk-size": 4,
-    });
+    }));
     const uploadId = response["upload-id"];
-    const status = await service.getUploadStatus({
+    const status = await Effect.runPromise(service.getUploadStatus({
       operation: "get-upload-status",
       "upload-id": uploadId,
-    });
+    }));
     await rm(dir, {recursive: true, force: true});
 
     expect(uploadId).toEqual(expect.any(String));
@@ -202,8 +203,8 @@ describe("LibrarianService schema-backed boundaries", () => {
     );
     const service = makeService(dir);
 
-    await service.loadFromDisk();
-    const documents = service.listDocuments({operation: "list-documents", user: "alice"}).documents;
+    await Effect.runPromise(service.loadFromDisk);
+    const documents = (await Effect.runPromise(service.listDocuments({operation: "list-documents", user: "alice"}))).documents;
     await rm(dir, {recursive: true, force: true});
 
     expect(documents).toEqual([{
@@ -217,15 +218,15 @@ describe("LibrarianService schema-backed boundaries", () => {
     const dir = await mkdtemp(join(tmpdir(), "trustgraph-librarian-service-"));
     const service = makeService(dir);
 
-    const valid = await service.normaliseDocumentMetadata({
+    const valid = await Effect.runPromise(service.normaliseDocumentMetadata({
       ...sampleDocument,
       metadata: [sampleTriple],
-    });
-    const invalid = await service.normaliseDocumentMetadata({
+    }));
+    const invalid = await Effect.runPromise(service.normaliseDocumentMetadata({
       ...sampleDocument,
       id: "doc-b",
       metadata: [{not: "a triple"}],
-    });
+    }));
     await rm(dir, {recursive: true, force: true});
 
     expect(valid.metadata).toEqual([sampleTriple]);

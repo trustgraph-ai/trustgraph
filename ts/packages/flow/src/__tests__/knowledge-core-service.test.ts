@@ -20,29 +20,29 @@ import {makeKnowledgeCoreService} from "../cores/service.js";
 class NoopPubSub implements PubSubBackend {
   readonly sentByTopic = new Map<string, Array<unknown>>();
 
-  async createProducer<T>(options: CreateProducerOptions<T>): Promise<BackendProducer<T>> {
-    return {
-      send: async (message) => {
+  createProducer<T>(options: CreateProducerOptions<T>): Effect.Effect<BackendProducer<T>> {
+    return Effect.succeed({
+      send: (message) => Effect.sync(() => {
         const sent = this.sentByTopic.get(options.topic) ?? [];
         sent.push(message);
         this.sentByTopic.set(options.topic, sent);
-      },
-      flush: async () => undefined,
-      close: async () => undefined,
-    };
+      }),
+      flush: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async createConsumer<T>(_options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    return {
-      receive: async () => null,
-      acknowledge: async (_message: Message<T>) => undefined,
-      negativeAcknowledge: async (_message: Message<T>) => undefined,
-      unsubscribe: async () => undefined,
-      close: async () => undefined,
-    };
+  createConsumer<T>(_options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.succeed({
+      receive: () => Effect.succeed(null),
+      acknowledge: (_message: Message<T>) => Effect.void,
+      negativeAcknowledge: (_message: Message<T>) => Effect.void,
+      unsubscribe: Effect.void,
+      close: Effect.void,
+    });
   }
 
-  async close(): Promise<void> {}
+  readonly close: Effect.Effect<void> = Effect.void;
 }
 
 const sampleTriple: Triple = {
@@ -63,9 +63,9 @@ const seedResponseProducer = async (
   backend: NoopPubSub,
   service: ReturnType<typeof makeKnowledgeCoreService>,
 ) => {
-  const responseProducer = await backend.createProducer<KnowledgeResponse>({
+  const responseProducer = await Effect.runPromise(backend.createProducer<KnowledgeResponse>({
     topic: topics.knowledgeResponse,
-  });
+  }));
   await Effect.runPromise(
     SynchronizedRef.update(service.state, (state) => ({
       ...state,
@@ -94,15 +94,15 @@ describe("KnowledgeCoreService operations", () => {
       ],
     };
 
-    await service.putKgCore(request, "put-1");
+    await Effect.runPromise(service.putKgCoreEffect(request, "put-1"));
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
     const core = Option.getOrUndefined(HashMap.get(state.kgCores, "alice:core-a"));
 
-    await service.getKgCore({
+    await Effect.runPromise(service.getKgCoreEffect({
       operation: "get-kg-core",
       user: "alice",
       id: "core-a",
-    }, "get-1");
+    }, "get-1"));
     await rm(dir, {recursive: true, force: true});
 
     expect(core?.triples).toEqual([sampleTriple]);
@@ -142,14 +142,14 @@ describe("KnowledgeCoreService operations", () => {
     const service = makeService(dir, backend);
     await seedResponseProducer(backend, service);
 
-    await Promise.all([
-      service.putKgCore({
+    await Effect.runPromise(Effect.all([
+      service.putKgCoreEffect({
         operation: "put-kg-core",
         user: "alice",
         id: "core-b",
         triples: [sampleTriple],
       }, "put-a"),
-      service.putKgCore({
+      service.putKgCoreEffect({
         operation: "put-kg-core",
         user: "alice",
         id: "core-b",
@@ -161,7 +161,10 @@ describe("KnowledgeCoreService operations", () => {
           },
         ],
       }, "put-b"),
-    ]);
+    ], {
+      concurrency: "unbounded",
+      discard: true,
+    }));
 
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
     await rm(dir, {recursive: true, force: true});
@@ -183,7 +186,7 @@ describe("KnowledgeCoreService operations", () => {
     );
     const service = makeService(dir);
 
-    await service.loadFromDisk();
+    await Effect.runPromise(service.loadFromDiskEffect);
     const state = await Effect.runPromise(SynchronizedRef.get(service.state));
     await rm(dir, {recursive: true, force: true});
 

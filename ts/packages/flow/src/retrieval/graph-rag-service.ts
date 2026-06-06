@@ -33,7 +33,7 @@ import {
   type TriplesQueryRequest,
   type TriplesQueryResponse,
 } from "@trustgraph/base";
-import {Effect, Layer, ManagedRuntime} from "effect";
+import {Effect} from "effect";
 import {
   GraphRagEngine,
   GraphRagEngineError,
@@ -172,12 +172,6 @@ export const program = makeFlowProcessorProgram({
   specs: makeGraphRagSpecs,
   layer: () => GraphRagLive,
 });
-
-const graphRagRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return graphRagRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

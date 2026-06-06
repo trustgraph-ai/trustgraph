@@ -84,16 +84,16 @@ export type RowSchema = typeof RowSchema.Type;
 
 export const LlmResult = S.Struct({
   text: S.String,
-  inToken: S.Number,
-  outToken: S.Number,
+  inToken: S.Finite,
+  outToken: S.Finite,
   model: S.String,
 });
 export type LlmResult = typeof LlmResult.Type;
 
 export const LlmChunk = S.Struct({
   text: S.String,
-  inToken: S.NullOr(S.Number),
-  outToken: S.NullOr(S.Number),
+  inToken: S.NullOr(S.Finite),
+  outToken: S.NullOr(S.Finite),
   model: S.String,
   isFinal: S.Boolean,
 });

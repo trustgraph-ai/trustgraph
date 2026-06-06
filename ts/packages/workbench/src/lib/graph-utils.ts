@@ -1,6 +1,6 @@
 import type { Triple, Term } from "@trustgraph/client";
 import { Match } from "effect";
-import type { NodeObject, LinkObject } from "react-force-graph-2d";
+import type { ForceGraphProps, NodeObject, LinkObject } from "react-force-graph-2d";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -31,6 +31,32 @@ export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
 }
+
+export const DEFAULT_GRAPH_NODE_COLOR = "#82b582";
+
+const GRAPH_NODE_PALETTE = [
+  DEFAULT_GRAPH_NODE_COLOR,
+  "#5c9a5c",
+  "#3d7d3d",
+  "#aed1ae",
+  "#22c55e",
+  "#eab308",
+  "#a1a1aa",
+  "#71717a",
+];
+
+export const directedGraphLinkProps = {
+  autoPauseRedraw: false,
+  linkColor: "rgba(161,161,170,0.55)",
+  linkWidth: 1.4,
+  linkDirectionalArrowLength: 9,
+  linkDirectionalArrowRelPos: 0.58,
+  linkDirectionalArrowColor: "rgba(174,209,174,0.98)",
+  linkDirectionalParticles: 1,
+  linkDirectionalParticleSpeed: 0.005,
+  linkDirectionalParticleWidth: 2.2,
+  linkDirectionalParticleColor: "rgba(92,154,92,0.95)",
+} satisfies Partial<ForceGraphProps<GraphNode, GraphLink>>;
 
 // ---------------------------------------------------------------------------
 // Term helpers
@@ -66,8 +92,8 @@ export function hashColor(s: string): string {
   for (let i = 0; i < s.length; i++) {
     hash = s.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const hue = ((hash % 360) + 360) % 360;
-  return `hsl(${hue}, 60%, 55%)`;
+  const index = Math.abs(hash) % GRAPH_NODE_PALETTE.length;
+  return GRAPH_NODE_PALETTE[index];
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +129,7 @@ export function triplesToGraph(triples: Triple[]): {
       nodeMap.set(uri, {
         id: uri,
         label: labelMap.get(uri) ?? localName(uri),
-        color: type !== undefined ? hashColor(localName(type)) : "#5b80ff",
+        color: hashColor(type !== undefined ? localName(type) : uri),
         degree: 0,
       });
     }

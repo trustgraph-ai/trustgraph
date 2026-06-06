@@ -24,7 +24,7 @@ import {
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect } from "effect";
 import {
   FalkorDBTriplesQueryLive,
   FalkorDBTriplesQueryService,
@@ -98,12 +98,10 @@ const provideFalkorDBTriplesQuery = (processorId: string) =>
   });
 
 export function makeTriplesQueryService(config: ProcessorConfig): TriplesQueryService {
-  const service = makeFlowProcessor(config, {
+  return makeFlowProcessor(config, {
     specifications: makeTriplesQuerySpecs(),
     provide: provideFalkorDBTriplesQuery(config.id),
   });
-  void Effect.runPromise(Effect.log("[TriplesQuery] Service initialized"));
-  return service;
 }
 
 export const TriplesQueryService = makeTriplesQueryService;
@@ -117,12 +115,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeTriplesQuerySpecs(),
   layer: (config) => FalkorDBTriplesQueryLive(config),
 });
-
-const triplesQueryRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return triplesQueryRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

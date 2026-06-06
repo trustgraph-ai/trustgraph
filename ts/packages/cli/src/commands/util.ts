@@ -2,10 +2,12 @@
  * Shared CLI utilities.
  */
 
-import type { Command } from "commander";
 import { createTrustGraphSocket, type BaseApi } from "@trustgraph/client";
 import { Duration, Effect } from "effect";
+import * as O from "effect/Option";
 import * as S from "effect/Schema";
+import * as Command from "effect/unstable/cli/Command";
+import * as Flag from "effect/unstable/cli/Flag";
 
 export interface CliOpts {
   gateway: string;
@@ -14,12 +16,42 @@ export interface CliOpts {
   flow: string;
 }
 
-export function getOpts(cmd: Command): CliOpts {
-  // Walk up to root command to get global options
-  let root = cmd;
-  while (root.parent !== null) root = root.parent;
-  return root.opts() as CliOpts;
-}
+export const rootCommand = Command.make("tg").pipe(
+  Command.withDescription("TrustGraph CLI - interact with TrustGraph services"),
+  Command.withSharedFlags({
+    gateway: Flag.string("gateway").pipe(
+      Flag.withAlias("g"),
+      Flag.withDescription("Gateway WebSocket URL"),
+      Flag.withDefault("ws://localhost:8088/api/v1/rpc"),
+    ),
+    user: Flag.string("user").pipe(
+      Flag.withAlias("u"),
+      Flag.withDescription("User identifier"),
+      Flag.withDefault("cli"),
+    ),
+    token: Flag.string("token").pipe(
+      Flag.withAlias("t"),
+      Flag.withDescription("Authentication token"),
+      Flag.optional,
+    ),
+    flow: Flag.string("flow").pipe(
+      Flag.withAlias("f"),
+      Flag.withDescription("Flow ID"),
+      Flag.withDefault("default"),
+    ),
+  }),
+);
+
+export const getOpts = Effect.gen(function* () {
+  const opts = yield* rootCommand;
+  const base = {
+    gateway: opts.gateway,
+    user: opts.user,
+    flow: opts.flow,
+  };
+  const token = O.getOrUndefined(opts.token);
+  return token === undefined ? base : { ...base, token } satisfies CliOpts;
+});
 
 export class CliCommandError extends S.TaggedErrorClass<CliCommandError>()(
   "CliCommandError",
@@ -78,19 +110,16 @@ export function createSocketEffect(opts: CliOpts): Effect.Effect<BaseApi, CliCom
   );
 }
 
-export function createSocket(opts: CliOpts): Promise<BaseApi> {
-  return Effect.runPromise(createSocketEffect(opts));
-}
-
-export const withSocket = <A, E, R>(
-  cmd: Command,
+export const withSocket = Effect.fn("withSocket")(function* <A, E, R>(
   use: (socket: BaseApi, opts: CliOpts) => Effect.Effect<A, E, R>,
-) =>
-  Effect.acquireUseRelease(
-    createSocketEffect(getOpts(cmd)),
-    (socket) => use(socket, getOpts(cmd)),
+) {
+  const opts = yield* getOpts;
+  return yield* Effect.acquireUseRelease(
+    createSocketEffect(opts),
+    (socket) => use(socket, opts),
     (socket) =>
       Effect.sync(() => {
         socket.close();
       }),
   );
+});

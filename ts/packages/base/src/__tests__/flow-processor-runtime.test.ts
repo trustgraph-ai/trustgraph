@@ -58,17 +58,19 @@ class RecordingProducer<T> implements BackendProducer<T> {
   closeCount = 0;
   flushCount = 0;
 
-  async send(message: T, properties?: Record<string, string>): Promise<void> {
-    this.sent.push(properties === undefined ? { message } : { message, properties });
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.sent.push(properties === undefined ? { message } : { message, properties });
+    });
   }
 
-  async flush(): Promise<void> {
+  readonly flush: Effect.Effect<void> = Effect.sync(() => {
     this.flushCount += 1;
-  }
+  });
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class PushConsumer<T> implements BackendConsumer<T> {
@@ -88,33 +90,39 @@ class PushConsumer<T> implements BackendConsumer<T> {
     this.messages.push(message);
   }
 
-  async receive(): Promise<Message<T> | null> {
-    const message = this.messages.shift();
-    if (message !== undefined || this.closed) {
-      return message ?? null;
-    }
-    return await new Promise((resolve) => {
-      this.waiters.push(resolve);
+  receive(): Effect.Effect<Message<T> | null> {
+    return Effect.promise(() => {
+      const message = this.messages.shift();
+      if (message !== undefined || this.closed) {
+        return Promise.resolve(message ?? null);
+      }
+      return new Promise((resolve) => {
+        this.waiters.push(resolve);
+      });
     });
   }
 
-  async acknowledge(message: Message<T>): Promise<void> {
-    this.acknowledged.push(message);
+  acknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.acknowledged.push(message);
+    });
   }
 
-  async negativeAcknowledge(message: Message<T>): Promise<void> {
-    this.nacked.push(message);
+  negativeAcknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.nacked.push(message);
+    });
   }
 
-  async unsubscribe(): Promise<void> {}
+  readonly unsubscribe: Effect.Effect<void> = Effect.void;
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closed = true;
     for (const waiter of this.waiters.splice(0)) {
       waiter(null);
     }
     this.closeCount += 1;
-  }
+  });
 }
 
 class FlowProcessorBackend implements PubSubBackend {
@@ -124,24 +132,28 @@ class FlowProcessorBackend implements PubSubBackend {
   readonly producers: Array<RecordingProducer<unknown>> = [];
   closeCount = 0;
 
-  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
-    this.producerOptions.push(options);
-    const producer = new RecordingProducer<unknown>();
-    this.producers.push(producer);
-    return producer as BackendProducer<T>;
+  createProducer<T>(options: CreateProducerOptions): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerOptions.push(options);
+      const producer = new RecordingProducer<unknown>();
+      this.producers.push(producer);
+      return producer as BackendProducer<T>;
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    this.consumerOptions.push(options);
-    if (options.topic === topics.configPush) {
-      return this.configConsumer as unknown as BackendConsumer<T>;
-    }
-    return new PushConsumer<T>();
+  createConsumer<T>(options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      this.consumerOptions.push(options);
+      if (options.topic === topics.configPush) {
+        return this.configConsumer as unknown as BackendConsumer<T>;
+      }
+      return new PushConsumer<T>();
+    });
   }
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 
   pushConfig(version: number, flows: Record<string, unknown>): void {
     this.pushFlowConfig(version, flows);
@@ -159,9 +171,9 @@ class TestFlowProcessor extends FlowProcessor {
   ) {
     super(config);
     this.registerSpecification(makeProducerSpec<string>("output"));
-    this.registerConfigHandler(async (_config, version) => {
+    this.registerConfigHandler((_config, version) => Effect.sync(() => {
       this.events.push(`handler:${version}`);
-    });
+    }));
   }
 }
 

@@ -4,7 +4,7 @@
  * Python reference: trustgraph-base/trustgraph/base/flow.py
  */
 
-import { Config as EffectConfig, Context, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
+import { Config as EffectConfig, Context, Effect, Exit, Scope } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
@@ -15,6 +15,9 @@ import {
   flowResourceNotFoundError,
   type FlowParameterDecodeError,
   type FlowResourceNotFoundError,
+  type MessagingDeliveryError,
+  type MessagingLifecycleError,
+  type MessagingTimeoutError,
   type PubSubError,
 } from "../errors.js";
 import {
@@ -43,26 +46,26 @@ export interface FlowDefinition {
 }
 
 export interface FlowProducer<T> {
-  readonly send: (id: string, message: T) => Promise<void>;
-  readonly flush: () => Promise<void>;
-  readonly stop: () => Promise<void>;
+  readonly send: (id: string, message: T) => Effect.Effect<void, MessagingDeliveryError>;
+  readonly flush: Effect.Effect<void, MessagingDeliveryError>;
+  readonly stop: Effect.Effect<void, MessagingDeliveryError>;
 }
 
 export interface FlowConsumer {
-  readonly stop: () => Promise<void>;
+  readonly stop: Effect.Effect<void, MessagingLifecycleError>;
 }
 
-export interface FlowRequestOptions<TRes> {
+export interface FlowRequestOptions<TRes, E = never, R = never> {
   readonly timeoutMs?: number;
-  readonly recipient?: (response: TRes) => Promise<boolean>;
+  readonly recipient?: (response: TRes) => Effect.Effect<boolean, E, R>;
 }
 
 export interface FlowRequestor<TReq, TRes> {
-  readonly request: (
+  readonly request: <E = never, R = never>(
     request: TReq,
-    options?: FlowRequestOptions<TRes>,
-  ) => Promise<TRes>;
-  readonly stop: () => Promise<void>;
+    options?: FlowRequestOptions<TRes, E, R>,
+  ) => Effect.Effect<TRes, MessagingDeliveryError | MessagingLifecycleError | MessagingTimeoutError | E, R>;
+  readonly stop: Effect.Effect<void, MessagingLifecycleError | MessagingDeliveryError>;
 }
 
 type FlowParameterError = FlowResourceNotFoundError | FlowParameterDecodeError;
@@ -71,19 +74,14 @@ export interface Flow<Requirements = never> {
   readonly name: string;
   readonly processorId: string;
   startEffect: Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
-  start: (context: Context.Context<Requirements>) => Promise<void>;
-  stop: () => Promise<void>;
+  start: (context: Context.Context<Requirements>) => Effect.Effect<void, PubSubError | EffectConfig.ConfigError>;
+  stop: Effect.Effect<void>;
   stopEffect: Effect.Effect<void>;
-  runInCompatibilityScopeEffect: <A, E>(
+  runInRuntimeScopeEffect: <A, E>(
     effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
     runtimePubsub: PubSubBackend,
     context: Context.Context<Requirements>,
   ) => Effect.Effect<A, E | EffectConfig.ConfigError>;
-  runInCompatibilityScope: <A, E>(
-    effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
-    runtimePubsub: PubSubBackend,
-    context: Context.Context<Requirements>,
-  ) => Promise<A>;
   clearResources: () => void;
   registerProducer: <T>(registerName: string, producer: EffectProducer<T>) => void;
   registerConsumer: (registerName: string, consumer: EffectConsumer) => void;
@@ -108,13 +106,15 @@ export interface Flow<Requirements = never> {
     (parameterName: string): Effect.Effect<unknown, FlowResourceNotFoundError>;
   };
   producer: {
-    <T>(producerSpec: ProducerSpec<T>): FlowProducer<T>;
-    (producerName: string): FlowProducer<never>;
+    <T>(producerSpec: ProducerSpec<T>): Effect.Effect<FlowProducer<T>, FlowResourceNotFoundError>;
+    (producerName: string): Effect.Effect<FlowProducer<never>, FlowResourceNotFoundError>;
   };
-  consumer: (consumerName: string) => FlowConsumer;
+  consumer: (consumerName: string) => Effect.Effect<FlowConsumer, FlowResourceNotFoundError>;
   requestor: {
-    <TReq, TRes>(requestorSpec: RequestResponseSpec<TReq, TRes>): FlowRequestor<TReq, TRes>;
-    (requestorName: string): FlowRequestor<never, unknown>;
+    <TReq, TRes>(
+      requestorSpec: RequestResponseSpec<TReq, TRes>,
+    ): Effect.Effect<FlowRequestor<TReq, TRes>, FlowResourceNotFoundError>;
+    (requestorName: string): Effect.Effect<FlowRequestor<never, unknown>, FlowResourceNotFoundError>;
   };
   parameter: {
     <T>(parameterSpec: ParameterSpec<T>): T;
@@ -133,21 +133,20 @@ export function makeFlow<Requirements = never>(
   const consumers = MutableHashMap.empty<string, EffectConsumer>();
   const requestors = MutableHashMap.empty<string, EffectRequestResponse<never, unknown>>();
   const parameters = MutableHashMap.empty<string, unknown>();
-  let compatibilityScope: Scope.Closeable | null = null;
-  const compatibilityRuntime = ManagedRuntime.make(Layer.empty);
+  let runtimeScope: Scope.Closeable | null = null;
 
-  const ensureCompatibilityScopeEffect = Effect.fn("Flow.ensureCompatibilityScope")(function* () {
-    if (compatibilityScope !== null) {
-      return compatibilityScope;
+  const ensureRuntimeScopeEffect = Effect.fn("Flow.ensureRuntimeScope")(function* () {
+    if (runtimeScope !== null) {
+      return runtimeScope;
     }
     const scope = yield* Scope.make();
-    compatibilityScope = scope;
+    runtimeScope = scope;
     return scope;
   });
 
-  const toEffectRequestOptions = <TRes>(
-    options: FlowRequestOptions<TRes> | undefined,
-  ): EffectRequestOptions<TRes> | undefined => {
+  const toEffectRequestOptions = <TRes, E, R>(
+    options: FlowRequestOptions<TRes, E, R> | undefined,
+  ): EffectRequestOptions<TRes, E, R> | undefined => {
     if (options === undefined) {
       return undefined;
     }
@@ -157,7 +156,7 @@ export function makeFlow<Requirements = never>(
       ...(recipient === undefined
         ? {}
         : {
-            recipient: (response: TRes) => Effect.promise(() => recipient(response)),
+            recipient,
           }),
     };
   };
@@ -198,12 +197,6 @@ export function makeFlow<Requirements = never>(
       : Effect.succeed(producer);
   };
 
-  const getProducer = (producerName: string): EffectProducer<never> => {
-    const producer = O.getOrUndefined(MutableHashMap.get(producers, producerName));
-    if (producer === undefined) throw flowResourceNotFoundError(name, "producer", producerName);
-    return producer;
-  };
-
   const getRequestorEffect = (
     requestorName: string,
   ): Effect.Effect<EffectRequestResponse<never, unknown>, FlowResourceNotFoundError> => {
@@ -213,31 +206,21 @@ export function makeFlow<Requirements = never>(
       : Effect.succeed(requestor);
   };
 
-  const getRequestor = (
-    requestorName: string,
-  ): EffectRequestResponse<never, unknown> => {
-    const requestor = O.getOrUndefined(MutableHashMap.get(requestors, requestorName));
-    if (requestor === undefined) throw flowResourceNotFoundError(name, "requestor", requestorName);
-    return requestor;
-  };
-
   const toFlowProducer = <T>(producer: EffectProducer<T>): FlowProducer<T> => ({
-    send: (id, message) => compatibilityRuntime.runPromise(producer.send(id, message)),
-    flush: () => compatibilityRuntime.runPromise(producer.flush),
-    stop: () => compatibilityRuntime.runPromise(producer.flush.pipe(Effect.flatMap(() => producer.close))),
+    send: producer.send,
+    flush: producer.flush,
+    stop: producer.flush.pipe(Effect.flatMap(() => producer.close)),
   });
 
   const toFlowRequestor = <TReq, TRes>(
     requestor: EffectRequestResponse<TReq, TRes>,
   ): FlowRequestor<TReq, TRes> => ({
     request: (request, options) =>
-      compatibilityRuntime.runPromise(
-        requestor.request(
-          request,
-          toEffectRequestOptions(options),
-        ),
+      requestor.request(
+        request,
+        toEffectRequestOptions(options),
       ),
-    stop: () => compatibilityRuntime.runPromise(requestor.stop),
+    stop: requestor.stop,
   });
 
   function producerEffect<T>(
@@ -303,32 +286,26 @@ export function makeFlow<Requirements = never>(
     return decodeParameter(parameter, value);
   }
 
-  function producer<T>(producerSpec: ProducerSpec<T>): FlowProducer<T>;
-  function producer(producerName: string): FlowProducer<never>;
+  function producer<T>(producerSpec: ProducerSpec<T>): Effect.Effect<FlowProducer<T>, FlowResourceNotFoundError>;
+  function producer(producerName: string): Effect.Effect<FlowProducer<never>, FlowResourceNotFoundError>;
   function producer<T>(producer: string | ProducerSpec<T>) {
     if (typeof producer === "string") {
-      return toFlowProducer(getProducer(producer));
+      return getProducerEffect(producer).pipe(Effect.map(toFlowProducer));
     }
-    if (!MutableHashMap.has(producers, producer.name)) {
-      throw flowResourceNotFoundError(name, "producer", producer.name);
-    }
-    return toFlowProducer(compatibilityRuntime.runSync(producer.producerEffect(flow)));
+    return producer.producerEffect(flow).pipe(Effect.map(toFlowProducer));
   }
 
   function requestor<TReq, TRes>(
     requestorSpec: RequestResponseSpec<TReq, TRes>,
-  ): FlowRequestor<TReq, TRes>;
-  function requestor(requestorName: string): FlowRequestor<never, unknown>;
+  ): Effect.Effect<FlowRequestor<TReq, TRes>, FlowResourceNotFoundError>;
+  function requestor(requestorName: string): Effect.Effect<FlowRequestor<never, unknown>, FlowResourceNotFoundError>;
   function requestor<TReq, TRes>(
     requestor: string | RequestResponseSpec<TReq, TRes>,
   ) {
     if (typeof requestor === "string") {
-      return toFlowRequestor(getRequestor(requestor));
+      return getRequestorEffect(requestor).pipe(Effect.map(toFlowRequestor));
     }
-    if (!MutableHashMap.has(requestors, requestor.name)) {
-      throw flowResourceNotFoundError(name, "requestor", requestor.name);
-    }
-    return toFlowRequestor(compatibilityRuntime.runSync(requestor.requestorEffect(flow)));
+    return requestor.requestorEffect(flow).pipe(Effect.map(toFlowRequestor));
   }
 
   const flow: Flow<Requirements> = {
@@ -339,33 +316,31 @@ export function makeFlow<Requirements = never>(
         yield* spec.addEffect(flow, definition);
       }
     }).pipe(Effect.withSpan("Flow.startEffect")),
-    start(context: Context.Context<Requirements>): Promise<void> {
-      return compatibilityRuntime.runPromise(
-        Effect.gen(function* () {
-          if (compatibilityScope !== null) {
-            yield* flow.stopEffect;
-          }
-          yield* flow.runInCompatibilityScopeEffect(flow.startEffect, pubsub, context);
-        }),
-      );
+    start(context: Context.Context<Requirements>): Effect.Effect<void, PubSubError | EffectConfig.ConfigError> {
+      return Effect.gen(function* () {
+        if (runtimeScope !== null) {
+          yield* flow.stop;
+        }
+        yield* flow.runInRuntimeScopeEffect(flow.startEffect, pubsub, context);
+      });
     },
-    stop(): Promise<void> {
-      return compatibilityRuntime.runPromise(flow.stopEffect);
+    get stop() {
+      return flow.stopEffect;
     },
     stopEffect: Effect.gen(function* () {
-      const scope = compatibilityScope;
-      compatibilityScope = null;
+      const scope = runtimeScope;
+      runtimeScope = null;
       if (scope !== null) {
         yield* Scope.close(scope, Exit.void);
       }
       flow.clearResources();
     }).pipe(Effect.withSpan("Flow.stopEffect")),
-    runInCompatibilityScopeEffect: Effect.fn("Flow.runInCompatibilityScopeEffect")(function* <A, E>(
+    runInRuntimeScopeEffect: Effect.fn("Flow.runInRuntimeScopeEffect")(function* <A, E>(
       effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
       runtimePubsub: PubSubBackend,
       context: Context.Context<Requirements>,
     ) {
-      const scope = yield* ensureCompatibilityScopeEffect();
+      const scope = yield* ensureRuntimeScopeEffect();
       const pubsubService = makePubSubService(runtimePubsub);
       const messagingConfig = yield* loadMessagingRuntimeConfig();
       return yield* Effect.provide(
@@ -381,13 +356,6 @@ export function makeFlow<Requirements = never>(
         context,
       );
     }),
-    runInCompatibilityScope<A, E>(
-      effect: Effect.Effect<A, E, SpecRuntimeRequirements | Requirements>,
-      runtimePubsub: PubSubBackend,
-      context: Context.Context<Requirements>,
-    ): Promise<A> {
-      return compatibilityRuntime.runPromise(flow.runInCompatibilityScopeEffect(effect, runtimePubsub, context));
-    },
     clearResources(): void {
       MutableHashMap.clear(producers);
       MutableHashMap.clear(consumers);
@@ -416,12 +384,12 @@ export function makeFlow<Requirements = never>(
     requestorEffect,
     parameterEffect,
     producer,
-    consumer(consumerName: string): FlowConsumer {
-      const c = O.getOrUndefined(MutableHashMap.get(consumers, consumerName));
-      if (c === undefined) throw flowResourceNotFoundError(name, "consumer", consumerName);
-      return {
-        stop: () => compatibilityRuntime.runPromise(c.stop),
-      };
+    consumer(consumerName: string): Effect.Effect<FlowConsumer, FlowResourceNotFoundError> {
+      return flow.consumerEffect(consumerName).pipe(
+        Effect.map((c) => ({
+          stop: c.stop,
+        })),
+      );
     },
     requestor,
     parameter,

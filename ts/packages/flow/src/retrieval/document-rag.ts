@@ -26,7 +26,10 @@ export interface DocumentRagClients {
   prompt: EffectRequestResponse<PromptRequest, PromptResponse>;
 }
 
-export type ChunkCallback = (text: string, endOfStream: boolean) => Promise<void>;
+export type ChunkCallback = (
+  text: string,
+  endOfStream: boolean,
+) => Effect.Effect<void, DocumentRagEngineError>;
 
 export interface DocumentRagQueryOptions {
   readonly collection?: string;
@@ -39,7 +42,7 @@ export class DocumentRagEngineError extends S.TaggedErrorClass<DocumentRagEngine
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -82,14 +85,13 @@ export interface DocumentRag {
   readonly query: (
     queryText: string,
     options?: DocumentRagQueryOptions,
-  ) => Promise<string>;
+  ) => Effect.Effect<string, DocumentRagEngineError>;
 }
 
 export function makeDocumentRag(clients: DocumentRagClients): DocumentRag {
   const engine = makeDocumentRagEngine();
   return {
-    query: (queryText, options) =>
-      Effect.runPromise(engine.query(clients, queryText, options)),
+    query: (queryText, options) => engine.query(clients, queryText, options),
   };
 }
 

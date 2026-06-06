@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+/** @effect-diagnostics strictEffectProvide:skip-file */
+
 /**
  * Unified TrustGraph CLI.
  *
@@ -9,32 +11,33 @@
  * Python reference: trustgraph-cli/trustgraph/cli/
  */
 
-import { Command } from "commander";
-import { registerAgentCommands } from "./commands/agent.js";
-import { registerGraphRagCommands } from "./commands/graph-rag.js";
-import { registerConfigCommands } from "./commands/config.js";
-import { registerFlowCommands } from "./commands/flow.js";
-import { registerLibraryCommands } from "./commands/library.js";
-import { registerTriplesCommands } from "./commands/triples.js";
-import { registerEmbeddingsCommands } from "./commands/embeddings.js";
+import { BunRuntime, BunServices } from "@effect/platform-bun";
+import { Effect } from "effect";
+import * as Command from "effect/unstable/cli/Command";
+import { agentCommand } from "./commands/agent.js";
+import { configCommand } from "./commands/config.js";
+import { embeddingsCommand } from "./commands/embeddings.js";
+import { flowCommand } from "./commands/flow.js";
+import { graphRagCommand, documentRagCommand } from "./commands/graph-rag.js";
+import { libraryCommand } from "./commands/library.js";
+import { triplesCommand } from "./commands/triples.js";
+import { rootCommand } from "./commands/util.js";
 
-const program = new Command();
+export const cli = rootCommand.pipe(
+  Command.withSubcommands([
+    agentCommand,
+    graphRagCommand,
+    documentRagCommand,
+    configCommand,
+    flowCommand,
+    libraryCommand,
+    triplesCommand,
+    embeddingsCommand,
+  ]),
+);
 
-program
-  .name("tg")
-  .description("TrustGraph CLI — interact with TrustGraph services")
-  .version("0.1.0")
-  .option("-g, --gateway <url>", "Gateway WebSocket URL", "ws://localhost:8088/api/v1/rpc")
-  .option("-u, --user <id>", "User identifier", "cli")
-  .option("-t, --token <token>", "Authentication token")
-  .option("-f, --flow <id>", "Flow ID", "default");
+export const program = Command.run(cli, { version: "0.1.0" }).pipe(
+  Effect.provide(BunServices.layer),
+);
 
-registerAgentCommands(program);
-registerGraphRagCommands(program);
-registerConfigCommands(program);
-registerFlowCommands(program);
-registerLibraryCommands(program);
-registerTriplesCommands(program);
-registerEmbeddingsCommands(program);
-
-program.parse();
+BunRuntime.runMain(program);

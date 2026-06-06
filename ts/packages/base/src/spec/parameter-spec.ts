@@ -4,9 +4,8 @@
  * Python reference: trustgraph-base/trustgraph/base/parameter_spec.py
  */
 
-import { Effect, type Context } from "effect";
+import { Effect } from "effect";
 import * as S from "effect/Schema";
-import type { PubSubBackend } from "../backend/types.js";
 import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
 import type { PubSubError } from "../errors.js";
@@ -23,12 +22,6 @@ export interface ParameterSpec<T = unknown> {
     flow: Flow<Requirements>,
     definition: FlowDefinition,
   ) => Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
-  readonly add: <Requirements = never>(
-    flow: Flow<Requirements>,
-    pubsub: PubSubBackend,
-    definition: FlowDefinition,
-    context: Context.Context<Requirements>,
-  ) => Promise<void>;
 }
 
 export function makeParameterSpec(name: string): ParameterSpec<unknown>;
@@ -51,12 +44,5 @@ export function makeParameterSpec<T>(
     name,
     schema: parameterSchema,
     addEffect,
-    add: <Requirements = never>(
-      flow: Flow<Requirements>,
-      pubsub: PubSubBackend,
-      definition: FlowDefinition,
-      context: Context.Context<Requirements>,
-    ) =>
-      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }

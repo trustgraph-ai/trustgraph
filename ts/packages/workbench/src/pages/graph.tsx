@@ -27,6 +27,8 @@ import {
   termValue,
   type GraphNode,
   type GraphLink,
+  directedGraphLinkProps,
+  DEFAULT_GRAPH_NODE_COLOR,
 } from "@/lib/graph-utils";
 import type { ForceGraphProps } from "react-force-graph-2d";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +122,7 @@ function paintNode(showLabels: boolean) {
     const y = node.y ?? 0;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = node.color ?? "#5b80ff";
+    ctx.fillStyle = node.color ?? DEFAULT_GRAPH_NODE_COLOR;
     ctx.fill();
     if (!showLabels || globalScale < 0.7) return;
     const fontSize = Math.max(10 / globalScale, 2);
@@ -257,7 +259,7 @@ export default function GraphPage() {
               nodeCanvasObject={paintNode(view.showLabels)}
               linkCanvasObjectMode={() => "after"}
               linkCanvasObject={paintLink}
-              linkColor={() => "rgba(120,120,140,0.32)"}
+              {...directedGraphLinkProps}
               nodePointerAreaPaint={(node, color, ctx) => {
                 ctx.fillStyle = color;
                 ctx.beginPath();

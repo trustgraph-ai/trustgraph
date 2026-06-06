@@ -7,10 +7,9 @@
  * Python reference: trustgraph-base/trustgraph/base/prompt_client_spec.py
  */
 
-import { Effect, type Context } from "effect";
+import { Effect } from "effect";
 import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
-import type { PubSubBackend } from "../backend/types.js";
 import {
   flowResourceNotFoundError,
   type FlowResourceNotFoundError,
@@ -33,12 +32,6 @@ export interface RequestResponseSpec<TReq, TRes> {
     flow: Flow<Requirements>,
     definition: FlowDefinition,
   ) => Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
-  readonly add: <Requirements = never>(
-    flow: Flow<Requirements>,
-    pubsub: PubSubBackend,
-    definition: FlowDefinition,
-    context: Context.Context<Requirements>,
-  ) => Promise<void>;
   readonly requestorEffect: <Requirements = never>(
     flow: Flow<Requirements>,
   ) => Effect.Effect<EffectRequestResponse<TReq, TRes>, FlowResourceNotFoundError>;
@@ -99,7 +92,5 @@ export function makeRequestResponseSpec<TReq, TRes>(
     name,
     requestorEffect,
     addEffect,
-    add: (flow, pubsub, definition, context) =>
-      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }

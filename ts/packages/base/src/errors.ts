@@ -104,7 +104,7 @@ export class MessagingTimeoutError extends S.TaggedErrorClass<MessagingTimeoutEr
   {
     message: S.String,
     operation: S.String,
-    timeoutMs: S.Number,
+    timeoutMs: S.Finite,
   },
 ) {}
 

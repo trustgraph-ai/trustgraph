@@ -4,7 +4,6 @@ import * as S from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 import {
   makeConsumerSpec,
-  makeConsumerSpecFromPromise,
   Flow,
   MessagingRuntimeLive,
   makeParameterSpec,
@@ -34,18 +33,20 @@ class RecordingProducer<T> implements BackendProducer<T> {
 
   constructor(private readonly onSend?: (message: T, properties?: Record<string, string>) => void) {}
 
-  async send(message: T, properties?: Record<string, string>): Promise<void> {
-    this.sent.push(properties === undefined ? { message } : { message, properties });
-    this.onSend?.(message, properties);
+  send(message: T, properties?: Record<string, string>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.sent.push(properties === undefined ? { message } : { message, properties });
+      this.onSend?.(message, properties);
+    });
   }
 
-  async flush(): Promise<void> {
+  readonly flush: Effect.Effect<void> = Effect.sync(() => {
     this.flushCount += 1;
-  }
+  });
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 class ScriptedConsumer<T> implements BackendConsumer<T> {
@@ -72,33 +73,39 @@ class ScriptedConsumer<T> implements BackendConsumer<T> {
     this.messages.push(message);
   }
 
-  async receive(): Promise<Message<T> | null> {
-    const message = this.messages.shift();
-    if (message !== undefined || !this.waitForMessages || this.closed) {
-      return message ?? null;
-    }
-    return await new Promise((resolve) => {
-      this.waiters.push(resolve);
+  receive(): Effect.Effect<Message<T> | null> {
+    return Effect.promise(() => {
+      const message = this.messages.shift();
+      if (message !== undefined || !this.waitForMessages || this.closed) {
+        return Promise.resolve(message ?? null);
+      }
+      return new Promise((resolve) => {
+        this.waiters.push(resolve);
+      });
     });
   }
 
-  async acknowledge(message: Message<T>): Promise<void> {
-    this.acknowledged.push(message);
+  acknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.acknowledged.push(message);
+    });
   }
 
-  async negativeAcknowledge(message: Message<T>): Promise<void> {
-    this.nacked.push(message);
+  negativeAcknowledge(message: Message<T>): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.nacked.push(message);
+    });
   }
 
-  async unsubscribe(): Promise<void> {}
+  readonly unsubscribe: Effect.Effect<void> = Effect.void;
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closed = true;
     for (const waiter of this.waiters.splice(0)) {
       waiter(null);
     }
     this.closeCount += 1;
-  }
+  });
 }
 
 class RuntimeBackend implements PubSubBackend {
@@ -114,19 +121,23 @@ class RuntimeBackend implements PubSubBackend {
     this.producer = new RecordingProducer<unknown>(onSend);
   }
 
-  async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
-    this.producerOptions = options;
-    return this.producer as BackendProducer<T>;
+  createProducer<T>(options: CreateProducerOptions): Effect.Effect<BackendProducer<T>> {
+    return Effect.sync(() => {
+      this.producerOptions = options;
+      return this.producer as BackendProducer<T>;
+    });
   }
 
-  async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
-    this.consumerOptions = options;
-    return this.consumer as BackendConsumer<T>;
+  createConsumer<T>(options: CreateConsumerOptions): Effect.Effect<BackendConsumer<T>> {
+    return Effect.sync(() => {
+      this.consumerOptions = options;
+      return this.consumer as BackendConsumer<T>;
+    });
   }
 
-  async close(): Promise<void> {
+  readonly close: Effect.Effect<void> = Effect.sync(() => {
     this.closeCount += 1;
-  }
+  });
 }
 
 const fastMessagingConfig = ConfigProvider.layer(
@@ -187,7 +198,7 @@ describe("Effect-native flow specifications", () => {
   );
 
   it.effect(
-    "runs Promise handlers through the explicit makeConsumerSpec compatibility helper",
+    "runs Effect handlers through makeConsumerSpec",
     Effect.fnUntraced(function* () {
       const message = createMessage("payload", { id: "request-1" });
       const consumer = new ScriptedConsumer<string>([message]);
@@ -199,11 +210,11 @@ describe("Effect-native flow specifications", () => {
         backend,
         {},
         [
-          makeConsumerSpecFromPromise<string>(
+          makeConsumerSpec<string>(
             "input",
-            async (value, properties, flowContext: FlowContext) => {
+            (value, properties, flowContext: FlowContext) => Effect.sync(() => {
               handled.push(`${flowContext.name}:${properties.id}:${value}`);
-            },
+            }),
           ),
         ],
       );
@@ -226,7 +237,7 @@ describe("Effect-native flow specifications", () => {
   );
 
   it.effect(
-    "registers request-response specs through Effect queues and keeps the Promise facade working",
+    "registers request-response specs through Effect queues and exposes Effect requestors",
     Effect.fnUntraced(function* () {
       const responseConsumer = new ScriptedConsumer<string>([], true);
       const backend = new RuntimeBackend(
@@ -257,10 +268,8 @@ describe("Effect-native flow specifications", () => {
             yield* flow.startEffect;
             const duplicateSpecError = yield* flow.requestorEffect(duplicateRequestResponseSpec).pipe(Effect.flip);
             expect(duplicateSpecError._tag).toBe("FlowResourceNotFoundError");
-            const requestor = flow.requestor(requestResponseSpec);
-            const fiber = yield* Effect.promise(() =>
-              requestor.request("request", { timeoutMs: 250 }),
-            ).pipe(Effect.forkChild);
+            const requestor = yield* flow.requestor(requestResponseSpec);
+            const fiber = yield* requestor.request("request", { timeoutMs: 250 }).pipe(Effect.forkChild);
             yield* TestClock.adjust(Duration.millis(5));
             return yield* Fiber.join(fiber);
           }),
@@ -299,7 +308,8 @@ describe("Effect-native flow specifications", () => {
             const legacyParameter = yield* flow.parameterEffect("present");
             const parameterError = yield* flow.parameterEffect("missing-parameter").pipe(Effect.flip);
             const invalidParameterError = yield* flow.parameterEffect(invalidParameter).pipe(Effect.flip);
-            return { producerError, parameter, legacyParameter, parameterError, invalidParameterError };
+            const legacyProducerError = yield* flow.producer("missing-producer").pipe(Effect.flip);
+            return { producerError, legacyProducerError, parameter, legacyParameter, parameterError, invalidParameterError };
           }),
         ),
       );
@@ -313,10 +323,10 @@ describe("Effect-native flow specifications", () => {
       expect(errors.parameterError.resourceType).toBe("parameter");
       expect(errors.invalidParameterError._tag).toBe("FlowParameterDecodeError");
       expect(errors.invalidParameterError.parameterName).toBe("present");
+      expect(errors.legacyProducerError._tag).toBe("FlowResourceNotFoundError");
       expect(flow.parameter(presentParameter)).toBe(42);
       expect(flow.parameter("present")).toBe(42);
       expect(() => flow.parameter(invalidParameter)).toThrow("failed schema decoding");
-      expect(() => flow.producer("missing-producer")).toThrow("not found");
     }),
   );
 });

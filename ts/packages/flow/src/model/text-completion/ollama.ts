@@ -16,16 +16,14 @@ import {
   type LlmProvider,
   type ProcessorConfig,
   type LlmResult,
-  type LlmChunk,
 } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime, Stream } from "effect";
+import { Effect, Stream } from "effect";
 import {
   llmStreamPart,
   makeTextCompletionLayer,
   optionalStringConfig,
   providerRuntimeError,
   streamTextCompletionChunks,
-  toAsyncGenerator,
   type TextCompletionConfigError,
   type TextCompletionRuntimeError,
 } from "./common.ts";
@@ -59,7 +57,7 @@ const mapOllamaError = (error: unknown): TextCompletionRuntimeError =>
 const makeOllamaProviderFromClient = (
   resolved: ResolvedOllamaConfig,
   client: Ollama,
-): LlmProvider => {
+): LlmProvider<TextCompletionRuntimeError> => {
   const { defaultModel } = resolved;
 
   return {
@@ -68,27 +66,25 @@ const makeOllamaProviderFromClient = (
       prompt: string,
       model?: string,
       _temperature?: number,
-    ): Promise<LlmResult> => {
+    ) => {
       const modelName = model ?? defaultModel;
       const fullPrompt = system + "\n\n" + prompt;
 
-      return Effect.runPromise(
-        Effect.tryPromise({
-          try: () =>
-            client.generate({
-              model: modelName,
-              prompt: fullPrompt,
-              stream: false,
-            }),
-          catch: mapOllamaError,
-        }).pipe(
-          Effect.map((resp): LlmResult => ({
-            text: resp.response,
-            inToken: resp.prompt_eval_count ?? 0,
-            outToken: resp.eval_count ?? 0,
+      return Effect.tryPromise({
+        try: () =>
+          client.generate({
             model: modelName,
-          })),
-        ),
+            prompt: fullPrompt,
+            stream: false,
+          }),
+        catch: mapOllamaError,
+      }).pipe(
+        Effect.map((resp): LlmResult => ({
+          text: resp.response,
+          inToken: resp.prompt_eval_count ?? 0,
+          outToken: resp.eval_count ?? 0,
+          model: modelName,
+        })),
       );
     },
     supportsStreaming: () => true,
@@ -97,11 +93,11 @@ const makeOllamaProviderFromClient = (
       prompt: string,
       model?: string,
       _temperature?: number,
-    ): AsyncGenerator<LlmChunk> => {
+    ) => {
       const modelName = model ?? defaultModel;
       const fullPrompt = system + "\n\n" + prompt;
 
-      const stream = Stream.fromEffect(
+      return Stream.fromEffect(
         Effect.tryPromise({
           try: () =>
             client.generate({
@@ -125,13 +121,13 @@ const makeOllamaProviderFromClient = (
           })
         ),
       );
-
-      return toAsyncGenerator(Stream.toAsyncIterable(stream), mapOllamaError);
     },
-  } satisfies LlmProvider;
+  } satisfies LlmProvider<TextCompletionRuntimeError>;
 };
 
-export function makeOllamaProvider(config: OllamaProcessorConfig): LlmProvider {
+export function makeOllamaProvider(
+  config: OllamaProcessorConfig,
+): LlmProvider<TextCompletionRuntimeError> {
   return Effect.runSync(makeOllamaProviderEffect(config));
 }
 
@@ -169,12 +165,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeLlmSpecs(),
   layer: (config) => makeTextCompletionLayer(makeOllamaProviderEffect(config)),
 });
-
-const ollamaTextCompletionRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return ollamaTextCompletionRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

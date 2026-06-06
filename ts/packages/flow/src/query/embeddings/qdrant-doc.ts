@@ -37,7 +37,7 @@ export class QdrantDocEmbeddingsQueryError extends S.TaggedErrorClass<QdrantDocE
   {
     message: S.String,
     operation: S.String,
-    cause: S.DefectWithStack,
+    cause: S.Defect({ includeStack: true }),
   },
 ) {}
 
@@ -73,8 +73,7 @@ const decodeDocPointPayload = (payload: unknown) =>
   S.decodeUnknownEffect(DocPointPayloadSchema)(payload).pipe(Effect.option);
 
 export interface QdrantDocEmbeddingsQuery {
-  readonly query: (request: DocEmbeddingsQueryRequest) => Promise<ReadonlyArray<ChunkMatch>>;
-  readonly queryEffect: (
+  readonly query: (
     request: DocEmbeddingsQueryRequest,
   ) => Effect.Effect<ReadonlyArray<ChunkMatch>, QdrantDocEmbeddingsQueryError>;
 }
@@ -95,7 +94,7 @@ const makeQdrantDocEmbeddingsQueryClient = (
 const makeQdrantDocEmbeddingsQueryFromClient = (
   client: QdrantClientLike,
 ): QdrantDocEmbeddingsQueryServiceShape => {
-  const queryEffect = Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request: DocEmbeddingsQueryRequest) {
+  const queryImpl = Effect.fn("QdrantDocEmbeddingsQuery.query")(function* (request: DocEmbeddingsQueryRequest) {
     const { vector, user, collection, limit } = request;
 
     if (vector.length === 0) {
@@ -106,10 +105,9 @@ const makeQdrantDocEmbeddingsQueryFromClient = (
     const collectionName = `d_${user}_${collection}_${dim}`;
 
     // Check if collection exists -- return empty if not
-    const exists = yield* Effect.tryPromise({
-      try: () => client.collectionExists(collectionName),
-      catch: (cause) => qdrantDocEmbeddingsQueryError("collection-exists", cause),
-    });
+    const exists = yield* client.collectionExists(collectionName).pipe(
+      Effect.mapError((cause) => qdrantDocEmbeddingsQueryError("collection-exists", cause)),
+    );
     if (!exists.exists) {
       yield* Effect.log(
         `[QdrantDocQuery] Collection ${collectionName} does not exist, returning empty results`,
@@ -117,15 +115,16 @@ const makeQdrantDocEmbeddingsQueryFromClient = (
       return [];
     }
 
-    const searchResult = yield* Effect.tryPromise({
-      try: () =>
-        client.search(collectionName, {
-          vector,
-          limit,
-          with_payload: true,
-        }),
-      catch: (cause) => qdrantDocEmbeddingsQueryError("search", cause),
-    });
+    const searchResult = yield* client.search(
+      collectionName,
+      {
+        vector,
+        limit,
+        with_payload: true,
+      },
+    ).pipe(
+      Effect.mapError((cause) => qdrantDocEmbeddingsQueryError("search", cause)),
+    );
 
     const chunks: ChunkMatch[] = [];
     for (const point of searchResult) {
@@ -146,7 +145,7 @@ const makeQdrantDocEmbeddingsQueryFromClient = (
   });
 
   return {
-    query: queryEffect,
+    query: queryImpl,
   };
 };
 
@@ -172,12 +171,8 @@ const withQdrantDocEmbeddingsQuery = <A>(
 export function makeQdrantDocEmbeddingsQuery(
   config: QdrantDocQueryConfig = {},
 ): QdrantDocEmbeddingsQuery {
-  const queryEffect = (request: DocEmbeddingsQueryRequest) =>
-    withQdrantDocEmbeddingsQuery(config, (query) => query.query(request));
-
   return {
-    query: (request) => Effect.runPromise(queryEffect(request)),
-    queryEffect,
+    query: (request) => withQdrantDocEmbeddingsQuery(config, (query) => query.query(request)),
   };
 }
 

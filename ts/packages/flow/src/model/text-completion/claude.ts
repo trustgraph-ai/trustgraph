@@ -14,7 +14,7 @@ import {
   type LlmProvider,
   type ProcessorConfig,
 } from "@trustgraph/base";
-import { Effect, Layer, ManagedRuntime, Redacted } from "effect";
+import { Effect, Layer, Redacted } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import {
   makeLanguageModelProvider,
@@ -55,30 +55,31 @@ const loadClaudeConfig = Effect.fn("loadClaudeConfig")(function* (config: Claude
   } satisfies ResolvedClaudeConfig;
 });
 
-const makeClaudeRuntime = (apiKey: string) =>
-  ManagedRuntime.make(
-    AnthropicClient.layer({
-      apiKey: Redacted.make(apiKey),
-    }).pipe(
-      Layer.provide(FetchHttpClient.layer),
-    ),
+const makeClaudeLayer = (apiKey: string) =>
+  AnthropicClient.layer({
+    apiKey: Redacted.make(apiKey),
+  }).pipe(
+    Layer.provide(FetchHttpClient.layer),
   );
 
-export function makeClaudeProvider(config: ClaudeProcessorConfig): LlmProvider {
-  return Effect.runSync(makeClaudeProviderEffect(config));
+export function makeClaudeProvider(
+  config: ClaudeProcessorConfig,
+): LlmProvider<TextCompletionRuntimeError> {
+  return Effect.runSync(Effect.scoped(makeClaudeProviderEffect(config)));
 }
 
 export const makeClaudeProviderEffect = Effect.fn("makeClaudeProvider")(function* (
   config: ClaudeProcessorConfig,
 ) {
   const resolved = yield* loadClaudeConfig(config);
+  const context = yield* Layer.build(makeClaudeLayer(resolved.apiKey));
 
   yield* Effect.log("[Claude] LLM service initialized");
   return makeLanguageModelProvider({
     provider: "Claude",
     defaultModel: resolved.defaultModel,
     defaultTemperature: resolved.defaultTemperature,
-    runtime: makeClaudeRuntime(resolved.apiKey),
+    context,
     makeLanguageModel: ({ model, temperature }) =>
       AnthropicLanguageModel.make({
         model,
@@ -109,12 +110,6 @@ export const program = makeFlowProcessorProgram<
   specs: () => makeLlmSpecs(),
   layer: (config) => makeTextCompletionLayer(makeClaudeProviderEffect(config)),
 });
-
-const claudeTextCompletionRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return claudeTextCompletionRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

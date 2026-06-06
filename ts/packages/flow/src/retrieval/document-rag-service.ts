@@ -31,7 +31,7 @@ import {
   type TextCompletionRequest,
   type TextCompletionResponse,
 } from "@trustgraph/base";
-import {Effect, Layer, ManagedRuntime} from "effect";
+import {Effect} from "effect";
 import {
   DocumentRagEngine,
   DocumentRagEngineError,
@@ -138,12 +138,6 @@ export const program = makeFlowProcessorProgram({
   specs: makeDocumentRagSpecs,
   layer: () => DocumentRagLive,
 });
-
-const documentRagRuntime = ManagedRuntime.make(Layer.empty);
-
-export function run(): Promise<void> {
-  return documentRagRuntime.runPromise(program);
-}
 
 export function runMain(): void {
   NodeRuntime.runMain(program);

@@ -4,10 +4,9 @@
  * Python reference: trustgraph-base/trustgraph/base/producer_spec.py
  */
 
-import { Effect, type Context } from "effect";
+import { Effect } from "effect";
 import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
-import type { PubSubBackend } from "../backend/types.js";
 import {
   flowResourceNotFoundError,
   type FlowResourceNotFoundError,
@@ -27,12 +26,6 @@ export interface ProducerSpec<T> {
     flow: Flow<Requirements>,
     definition: FlowDefinition,
   ) => Effect.Effect<void, PubSubError, SpecRuntimeRequirements | Requirements>;
-  readonly add: <Requirements = never>(
-    flow: Flow<Requirements>,
-    pubsub: PubSubBackend,
-    definition: FlowDefinition,
-    context: Context.Context<Requirements>,
-  ) => Promise<void>;
   readonly producerEffect: <Requirements = never>(
     flow: Flow<Requirements>,
   ) => Effect.Effect<EffectProducer<T>, FlowResourceNotFoundError>;
@@ -84,7 +77,5 @@ export function makeProducerSpec<T>(name: string): ProducerSpec<T> {
     name,
     producerEffect,
     addEffect,
-    add: (flow, pubsub, definition, context) =>
-      flow.runInCompatibilityScope(addEffect(flow, definition), pubsub, context),
   };
 }
