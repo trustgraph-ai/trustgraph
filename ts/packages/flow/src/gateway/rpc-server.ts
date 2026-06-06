@@ -1,23 +1,23 @@
 import { Cause, Effect, Layer, Queue, Scope } from "effect";
+import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as RpcServer from "effect/unstable/rpc/RpcServer";
-import type * as Socket from "effect/unstable/socket/Socket";
 import { errorMessage } from "@trustgraph/base";
 import type { DispatcherManager, DispatcherStreamError } from "./dispatch/manager.js";
 import { DispatchError, DispatchPayload, DispatchStreamChunk, TrustGraphRpcs } from "./rpc-contract.js";
-import { makeSocketRpcProtocol } from "./rpc-protocol.js";
 
 export interface GatewayRpcServer {
-  readonly onSocket: (
-    socket: Socket.Socket,
-    headers?: ReadonlyArray<[string, string]>,
-  ) => Effect.Effect<void, never, Scope.Scope>;
+  readonly httpEffect: Effect.Effect<
+    HttpServerResponse.HttpServerResponse,
+    never,
+    Scope.Scope | HttpServerRequest.HttpServerRequest
+  >;
 }
 
 export const makeGatewayRpcServer = Effect.fn("makeGatewayRpcServer")(function* (
   dispatcher: DispatcherManager,
 ) {
-  const { onSocket, protocol } = yield* makeSocketRpcProtocol;
+  const { httpEffect, protocol } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;
 
   const serverLayer = RpcServer.layer(TrustGraphRpcs, {
     disableFatalDefects: true,
@@ -30,9 +30,7 @@ export const makeGatewayRpcServer = Effect.fn("makeGatewayRpcServer")(function* 
   yield* Layer.launch(serverLayer).pipe(Effect.forkScoped);
 
   return {
-    onSocket: Effect.fn("GatewayRpc.onSocket")(function* (socket, headers) {
-      yield* onSocket(socket, headers);
-    }),
+    httpEffect,
   } satisfies GatewayRpcServer;
 });
 

@@ -30,7 +30,6 @@ export const rootCommand = Command.make("tg").pipe(
       Flag.withDefault("cli"),
     ),
     token: Flag.string("token").pipe(
-      Flag.withAlias("t"),
       Flag.withDescription("Authentication token"),
       Flag.optional,
     ),

@@ -384,3 +384,17 @@ export function makeNatsBackend(url = "nats://localhost:4222"): PubSubBackend {
     }),
   };
 }
+
+export const makeNatsBackendScoped = (url = "nats://localhost:4222") =>
+  Effect.acquireRelease(
+    Effect.sync(() => makeNatsBackend(url)),
+    (backend) =>
+      backend.close.pipe(
+        Effect.catch((error) =>
+          Effect.logError("[NatsBackend] Failed to close scoped backend", {
+            error: error.message,
+            operation: error.operation,
+          })
+        ),
+      ),
+  );

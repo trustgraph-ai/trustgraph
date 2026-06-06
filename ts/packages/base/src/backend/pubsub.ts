@@ -14,7 +14,7 @@ import type {
   CreateProducerOptions,
   PubSubBackend,
 } from "./types.js";
-import { makeNatsBackend } from "./nats.js";
+import { makeNatsBackendScoped } from "./nats.js";
 import type { PubSubError } from "../errors.js";
 
 export interface PubSubService {
@@ -49,9 +49,9 @@ export function makePubSubService(backend: PubSubBackend): PubSubService {
 
 export function pubSubLayer(backend: PubSubBackend): Layer.Layer<PubSub> {
   return Layer.effect(PubSub)(
-    Effect.gen(function* () {
-      const service = makePubSubService(backend);
-      yield* Effect.addFinalizer(() =>
+    Effect.acquireRelease(
+      Effect.sync(() => makePubSubService(backend)),
+      (service) =>
         service.close.pipe(
           Effect.catch((error) =>
             Effect.logError("[PubSub] Failed to close backend", {
@@ -59,32 +59,28 @@ export function pubSubLayer(backend: PubSubBackend): Layer.Layer<PubSub> {
               operation: error.operation,
             }),
           ),
-        ),
-      );
-      return PubSub.of(service);
-    }),
+        )
+    ).pipe(
+      Effect.map(PubSub.of),
+    ),
   );
 }
 
 export function makeNatsPubSubLayer(url = "nats://localhost:4222"): Layer.Layer<PubSub> {
-  return pubSubLayer(makeNatsBackend(url));
+  return Layer.effect(PubSub)(
+    makeNatsBackendScoped(url).pipe(
+      Effect.map(makePubSubService),
+      Effect.map(PubSub.of),
+    ),
+  );
 }
 
 export const NatsPubSubLive = Layer.effect(PubSub)(
   Effect.gen(function* () {
     const natsUrl = O.getOrUndefined(yield* Config.string("NATS_URL").pipe(Config.option));
     const pulsarHost = O.getOrUndefined(yield* Config.string("PULSAR_HOST").pipe(Config.option));
-    const service = makePubSubService(makeNatsBackend(natsUrl ?? pulsarHost ?? "nats://localhost:4222"));
-    yield* Effect.addFinalizer(() =>
-      service.close.pipe(
-        Effect.catch((error) =>
-          Effect.logError("[PubSub] Failed to close NATS backend", {
-            error: error.message,
-            operation: error.operation,
-          }),
-        ),
-      ),
-    );
+    const backend = yield* makeNatsBackendScoped(natsUrl ?? pulsarHost ?? "nats://localhost:4222");
+    const service = makePubSubService(backend);
     return PubSub.of(service);
   }),
 );

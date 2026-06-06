@@ -54,9 +54,24 @@ const dispatchResult = (result: unknown) => {
 
 const readJsonRecord = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
-  const body = yield* request.json;
-  return isRecord(body) ? body : {};
+  const body = yield* request.json.pipe(
+    Effect.mapError(() => "request body must be valid JSON"),
+  );
+  if (!isRecord(body)) {
+    return yield* Effect.fail("request body must be a JSON object");
+  }
+  return body;
 });
+
+const withJsonRecord = <R>(
+  use: (body: Record<string, unknown>) => Effect.Effect<HttpServerResponse.HttpServerResponse, never, R>,
+): Effect.Effect<HttpServerResponse.HttpServerResponse, never, HttpServerRequest.HttpServerRequest | R> =>
+  readJsonRecord.pipe(
+    Effect.matchEffect({
+      onFailure: (message) => Effect.succeed(badRequest(message)),
+      onSuccess: use,
+    }),
+  );
 
 const bearerAuthResponse = (config: GatewayConfig) =>
   Effect.gen(function* () {
@@ -98,26 +113,25 @@ const workbenchDispatch = (
 ) =>
   withBearerAuth(
     config,
-    Effect.gen(function* () {
-      const body = yield* readJsonRecord.pipe(
-        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
-      );
-      const service = typeof body.service === "string" ? body.service : undefined;
-      const payload = isRecord(body.request) ? body.request : undefined;
-      if (service === undefined || service.length === 0 || payload === undefined) {
-        return badRequest("service and request are required");
-      }
+    withJsonRecord((body) =>
+      Effect.gen(function* () {
+        const service = typeof body.service === "string" ? body.service : undefined;
+        const payload = isRecord(body.request) ? body.request : undefined;
+        if (service === undefined || service.length === 0 || payload === undefined) {
+          return badRequest("service and request are required");
+        }
 
-      const dispatch = body.scope === "flow"
-        ? dispatcher.dispatchFlowService(
-            typeof body.flow === "string" ? body.flow : "default",
-            service,
-            payload,
-          )
-        : dispatcher.dispatchGlobalService(service, payload);
+        const dispatch = body.scope === "flow"
+          ? dispatcher.dispatchFlowService(
+              typeof body.flow === "string" ? body.flow : "default",
+              service,
+              payload,
+            )
+          : dispatcher.dispatchGlobalService(service, payload);
 
-      return yield* withDispatchError(dispatch, "workbench-dispatch");
-    }),
+        return yield* withDispatchError(dispatch, "workbench-dispatch");
+      })
+    ),
   );
 
 const globalDispatch = (
@@ -128,12 +142,11 @@ const globalDispatch = (
     config,
     Effect.gen(function* () {
       const params = yield* HttpRouter.params;
-      const body = yield* readJsonRecord.pipe(
-        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
-      );
-      return yield* withDispatchError(
-        dispatcher.dispatchGlobalService(params.kind ?? "", body),
-        "global-dispatch",
+      return yield* withJsonRecord((body) =>
+        withDispatchError(
+          dispatcher.dispatchGlobalService(params.kind ?? "", body),
+          "global-dispatch",
+        )
       );
     }),
   );
@@ -146,12 +159,11 @@ const flowDispatch = (
     config,
     Effect.gen(function* () {
       const params = yield* HttpRouter.params;
-      const body = yield* readJsonRecord.pipe(
-        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
-      );
-      return yield* withDispatchError(
-        dispatcher.dispatchFlowService(params.flow ?? "default", params.kind ?? "", body),
-        "flow-dispatch",
+      return yield* withJsonRecord((body) =>
+        withDispatchError(
+          dispatcher.dispatchFlowService(params.flow ?? "default", params.kind ?? "", body),
+          "flow-dispatch",
+        )
       );
     }),
   );
@@ -164,33 +176,34 @@ const flowLoad = (
     config,
     Effect.gen(function* () {
       const params = yield* HttpRouter.params;
-      const body = yield* readJsonRecord.pipe(
-        Effect.catch(() => Effect.succeed<Record<string, unknown>>({})),
+      return yield* withJsonRecord((body) =>
+        Effect.gen(function* () {
+          const documentId = typeof body.documentId === "string" ? body.documentId : undefined;
+          if (documentId === undefined || documentId.length === 0) {
+            return badRequest("documentId is required");
+          }
+
+          const user = typeof body.user === "string" ? body.user : "default";
+          const collection = typeof body.collection === "string" ? body.collection : "default";
+          const timestamp = yield* Clock.currentTimeMillis;
+          const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
+          const metadata = {
+            id: `load-${timestamp}-${suffix.toString(36).padStart(6, "0")}`,
+            root: documentId,
+            user,
+            collection,
+          };
+
+          yield* dispatcher.publishToTopic("tg.flow.document", { metadata, documentId }).pipe(
+            Effect.mapError((cause) => messagingLifecycleError("gateway", "publish-load", cause)),
+          );
+
+          return json({ status: "processing", documentId, flow: params.flow ?? "default" });
+        }).pipe(
+          Effect.catch((error) => Effect.succeed(dispatchError(error))),
+        )
       );
-      const documentId = typeof body.documentId === "string" ? body.documentId : undefined;
-      if (documentId === undefined || documentId.length === 0) {
-        return badRequest("documentId is required");
-      }
-
-      const user = typeof body.user === "string" ? body.user : "default";
-      const collection = typeof body.collection === "string" ? body.collection : "default";
-      const timestamp = yield* Clock.currentTimeMillis;
-      const suffix = yield* Random.nextIntBetween(0, 36 ** 6, { halfOpen: true });
-      const metadata = {
-        id: `load-${timestamp}-${suffix.toString(36).padStart(6, "0")}`,
-        root: documentId,
-        user,
-        collection,
-      };
-
-      yield* dispatcher.publishToTopic("tg.flow.document", { metadata, documentId }).pipe(
-        Effect.mapError((cause) => messagingLifecycleError("gateway", "publish-load", cause)),
-      );
-
-      return json({ status: "processing", documentId, flow: params.flow ?? "default" });
-    }).pipe(
-      Effect.catch((error) => Effect.succeed(dispatchError(error))),
-    ),
+    }),
   );
 
 const rpcRoute = (
@@ -206,14 +219,10 @@ const rpcRoute = (
       return json({ error: "Unauthorized" }, 401);
     }
 
-    const socket = yield* request.upgrade;
-    yield* rpcServer.onSocket(socket, headersFrom(request.headers)).pipe(
+    return yield* rpcServer.httpEffect.pipe(
       Scope.provide(rpcScope),
     );
-    return HttpServerResponse.empty();
-  }).pipe(
-    Effect.catch((error) => Effect.succeed(dispatchError(error))),
-  );
+  });
 
 const metricsRoute =
   formatPrometheusMetrics.pipe(
@@ -224,7 +233,7 @@ const metricsRoute =
     ),
   );
 
-const gatewayRoutes = (
+export const makeGatewayRoutes = (
   config: GatewayConfig,
   dispatcher: DispatcherManager,
   rpcServer: GatewayRpcServer,
@@ -265,7 +274,7 @@ export function createGateway(config: GatewayConfig) {
       );
 
       const serverLayer = HttpRouter.serve(
-        gatewayRoutes(config, dispatcher, rpcServer, rpcScope),
+        makeGatewayRoutes(config, dispatcher, rpcServer, rpcScope),
       ).pipe(
         Layer.provideMerge(NodeHttpServer.layer(createServer, {
           port: config.port,
@@ -277,15 +286,6 @@ export function createGateway(config: GatewayConfig) {
       return yield* Layer.launch(serverLayer);
     })),
   );
-}
-
-function headersFrom(headers: Record<string, string | string[] | number | undefined>): ReadonlyArray<[string, string]> {
-  return Object.entries(headers).flatMap(([key, value]) => {
-    if (typeof value === "string") return [[key, value] satisfies [string, string]];
-    if (typeof value === "number") return [[key, String(value)] satisfies [string, string]];
-    if (Array.isArray(value)) return value.map((item) => [key, item] satisfies [string, string]);
-    return [];
-  });
 }
 
 export function runMain(): void {

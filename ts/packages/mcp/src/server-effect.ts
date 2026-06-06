@@ -1,12 +1,11 @@
-import {OpenAiClient, OpenAiLanguageModel} from "@effect/ai-openai";
 import {BunHttpServer, BunRuntime} from "@effect/platform-bun";
 import {NodeRuntime, NodeStdio} from "@effect/platform-node";
 import {createTrustGraphSocket, type BaseApi, type Term as ClientTerm} from "@trustgraph/client";
-import {Config, Context, Effect, Layer, Redacted} from "effect";
+import {Config, Context, Effect, Layer} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
-import {LanguageModel, McpServer, Prompt, Tool, Toolkit} from "effect/unstable/ai";
-import {FetchHttpClient, HttpRouter} from "effect/unstable/http";
+import {McpServer, Tool, Toolkit} from "effect/unstable/ai";
+import {HttpRouter} from "effect/unstable/http";
 import {HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi} from "effect/unstable/httpapi";
 import * as S from "effect/Schema";
 
@@ -160,7 +159,7 @@ export const TextCompletionTool = annotateTool(
     parameters: TextCompletionParameters,
     success: TextCompletionSuccess,
     failure: TextCompletionError,
-    failureMode: "return",
+    failureMode: "error",
   }),
   {
     title: "Text Completion",
@@ -210,7 +209,7 @@ export const GraphRagTool = annotateTool(
     parameters: GraphRagParameters,
     success: GraphRagSuccess,
     failure: GraphRagError,
-    failureMode: "return",
+    failureMode: "error",
   }),
   {
     title: "Graph RAG",
@@ -258,7 +257,7 @@ export const DocumentRagTool = annotateTool(
     parameters: DocumentRagParameters,
     success: DocumentRagSuccess,
     failure: DocumentRagError,
-    failureMode: "return",
+    failureMode: "error",
   }),
   {
     title: "Document RAG",
@@ -298,7 +297,7 @@ export const AgentTool = annotateTool(
     parameters: AgentParameters,
     success: AgentSuccess,
     failure: AgentError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Ask the TrustGraph agent a question"
   }),
   {
@@ -341,7 +340,7 @@ export const EmbeddingsTool = annotateTool(
     parameters: EmbeddingsParameters,
     success: EmbeddingsSuccess,
     failure: EmbeddingsError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Generate text embeddings"
   }),
   {
@@ -397,7 +396,7 @@ export const TriplesQueryTool = annotateTool(
     parameters: TriplesQueryParameters,
     success: TriplesQuerySuccess,
     failure: TriplesQueryError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Query the knowledge graph for triples matching a pattern"
   }),
   {
@@ -456,7 +455,7 @@ export const GraphEmbeddingsQueryTool = annotateTool(
     parameters: GraphEmbeddingsQueryParameters,
     success: GraphEmbeddingsQuerySuccess,
     failure: GraphEmbeddingsQueryError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Find entities similar to a text query using vector embeddings"
   }),
   {
@@ -493,7 +492,7 @@ export const GetConfigAllTool = annotateTool(
     parameters: GetConfigAllParameters,
     success: GetConfigAllSuccess,
     failure: GetConfigAllError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Get all configuration values"
   }),
   {
@@ -544,7 +543,7 @@ export const GetConfigTool = annotateTool(
     parameters: GetConfigParameters,
     success: GetConfigSuccess,
     failure: GetConfigError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Get specific configuration values"
   }),
   {
@@ -597,7 +596,7 @@ export const PutConfigTool = annotateTool(
     parameters: PutConfigParameters,
     success: PutConfigSuccess,
     failure: PutConfigError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Set configuration values"
   }),
   {
@@ -641,7 +640,7 @@ export const DeleteConfigTool = annotateTool(
     parameters: DeleteConfigParameters,
     success: DeleteConfigSuccess,
     failure: DeleteConfigError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Delete a configuration entry"
   }),
   {
@@ -682,7 +681,7 @@ export const GetFlowTool = annotateTool(
     parameters: GetFlowParameters,
     success: GetFlowSuccess,
     failure: GetFlowError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Get a specific flow definition"
   }),
   {
@@ -721,7 +720,7 @@ export const GetFlowsTool = annotateTool(
     parameters: GetFlowsParameters,
     success: GetFlowsSuccess,
     failure: GetFlowsError,
-    failureMode: "return",
+    failureMode: "error",
     description: "List all available flows"
   }),
   {
@@ -771,7 +770,7 @@ export const StartFlowTool = annotateTool(
     parameters: StartFlowParameters,
     success: StartFlowSuccess,
     failure: StartFlowError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Start a flow instance"
   }),
   {
@@ -812,7 +811,7 @@ export const StopFlowTool = annotateTool(
     parameters: StopFlowParameters,
     success: StopFlowSuccess,
     failure: StopFlowError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Stop a running flow"
   }),
   {
@@ -851,7 +850,7 @@ export const GetDocumentsTool = annotateTool(
     parameters: GetDocumentsParameters,
     success: GetDocumentsSuccess,
     failure: GetDocumentsError,
-    failureMode: "return",
+    failureMode: "error",
     description: "List all documents in the library"
   }),
   {
@@ -907,7 +906,7 @@ export const LoadDocumentTool = annotateTool(
     parameters: LoadDocumentParameters,
     success: LoadDocumentSuccess,
     failure: LoadDocumentError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Upload a document to the library"
   }),
   {
@@ -951,7 +950,7 @@ export const RemoveDocumentTool = annotateTool(
     parameters: RemoveDocumentParameters,
     success: RemoveDocumentSuccess,
     failure: RemoveDocumentError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Remove a document from the library"
   }),
   {
@@ -990,7 +989,7 @@ export const GetPromptsTool = annotateTool(
     parameters: GetPromptsParameters,
     success: GetPromptsSuccess,
     failure: GetPromptsError,
-    failureMode: "return",
+    failureMode: "error",
     description: "List available prompt templates"
   }),
   {
@@ -1031,7 +1030,7 @@ export const GetPromptTool = annotateTool(
     parameters: GetPromptParameters,
     success: GetPromptSuccess,
     failure: GetPromptError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Get a specific prompt template"
   }),
   {
@@ -1070,7 +1069,7 @@ export const GetKnowledgeCoresTool = annotateTool(
     parameters: GetKnowledgeCoresParameters,
     success: GetKnowledgeCoresSuccess,
     failure: GetKnowledgeCoresError,
-    failureMode: "return",
+    failureMode: "error",
     description: "List available knowledge graph cores"
   }),
   {
@@ -1114,7 +1113,7 @@ export const DeleteKgCoreTool = annotateTool(
     parameters: DeleteKgCoreParameters,
     success: DeleteKgCoreSuccess,
     failure: DeleteKgCoreError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Delete a knowledge graph core"
   }),
   {
@@ -1161,7 +1160,7 @@ export const LoadKgCoreTool = annotateTool(
     parameters: LoadKgCoreParameters,
     success: LoadKgCoreSuccess,
     failure: LoadKgCoreError,
-    failureMode: "return",
+    failureMode: "error",
     description: "Load a knowledge graph core"
   }),
   {
@@ -1207,8 +1206,6 @@ export interface TrustGraphMcpOptions {
   readonly name?: string | undefined
   readonly version?: string | undefined
   readonly mcpPath?: HttpRouter.PathInput | undefined
-  readonly openAiModel?: string | undefined
-  readonly openAiApiKey?: string | undefined
   readonly port?: number | undefined
 }
 
@@ -1220,8 +1217,6 @@ export interface TrustGraphMcpConfigShape {
   readonly name: string
   readonly version: string
   readonly mcpPath: HttpRouter.PathInput
-  readonly openAiModel: string
-  readonly openAiApiKey: Redacted.Redacted | undefined
   readonly port: number
 }
 
@@ -1244,9 +1239,6 @@ export const loadTrustGraphMcpConfig = Effect.fn("loadTrustGraphMcpConfig")(func
   const gatewaySecret = O.getOrUndefined(yield* Config.string("GATEWAY_SECRET").pipe(Config.option))
   const token = readNonEmpty(gatewaySecret)
   const flowId = O.getOrUndefined(yield* Config.string("FLOW_ID").pipe(Config.option))
-  const openAiModel = O.getOrUndefined(yield* Config.string("OPENAI_MODEL").pipe(Config.option))
-  const openAiApiKey = O.getOrUndefined(yield* Config.redacted("OPENAI_API_KEY").pipe(Config.option))
-  const openAiToken = O.getOrUndefined(yield* Config.redacted("OPENAI_TOKEN").pipe(Config.option))
   const port = O.getOrUndefined(yield* Config.string("PORT").pipe(Config.option))
 
   return {
@@ -1257,10 +1249,6 @@ export const loadTrustGraphMcpConfig = Effect.fn("loadTrustGraphMcpConfig")(func
     name: options.name ?? "trustgraph",
     version: options.version ?? "0.1.0",
     mcpPath: options.mcpPath ?? "/mcp",
-    openAiModel: options.openAiModel ?? openAiModel ?? "gpt-4.1",
-    openAiApiKey: options.openAiApiKey === undefined
-      ? openAiApiKey ?? openAiToken
-      : Redacted.make(options.openAiApiKey),
     port: options.port ?? parsePort(readNonEmpty(port)),
   }
 })
@@ -1328,46 +1316,19 @@ const decodeJsonArrayOrFail = <E>(
 const asIriTerm = (value: string | undefined): ClientTerm | undefined =>
   value !== undefined && value.length > 0 ? {t: "i", i: value} : undefined
 
-const openAiApiKeyOptions = (apiKey: Redacted.Redacted | undefined) =>
-  apiKey === undefined
-    ? {}
-    : {apiKey}
-
-const makeOpenAiProviderLayerFromConfig = (
-  config: TrustGraphMcpConfigShape,
-) =>
-  OpenAiLanguageModel.layer({
-    model: config.openAiModel,
-    config: {
-      strictJsonSchema: true,
-    },
-  }).pipe(
-    Layer.provide(OpenAiClient.layer(openAiApiKeyOptions(config.openAiApiKey))),
-    Layer.provide(FetchHttpClient.layer),
-  )
-
-export const makeOpenAiProviderLayer = (
-  options: TrustGraphMcpOptions = {},
-) =>
-  Layer.unwrap(
-    loadTrustGraphMcpConfig(options).pipe(
-      Effect.map(makeOpenAiProviderLayerFromConfig),
-    ),
-  )
-
 export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
   Effect.gen(function*() {
     const config = yield* TrustGraphMcpConfig
     const socket = yield* TrustGraphSocket
-    const model = yield* LanguageModel.LanguageModel
 
     return TrustGraphMcpToolkit.of({
-      text_completion: Effect.fn("TrustGraphMcp.text_completion")(function*({system, prompt}) {
-        const response = yield* model.generateText({
-          prompt: Prompt.make(prompt).pipe(Prompt.setSystem(system)),
-        })
-        return TextCompletionSuccess.make({text: response.text})
-      }),
+      text_completion: ({system, prompt}) =>
+        Effect.tryPromise({
+          try: () => socket.flow(config.flowId).textCompletion(system, prompt),
+          catch: (cause) => TextCompletionError.make({message: toErrorMessage(cause)}),
+        }).pipe(
+          Effect.map((text) => TextCompletionSuccess.make({text})),
+        ),
 
       graph_rag: ({query, entity_limit, triple_limit, collection}) =>
         Effect.tryPromise({
@@ -1722,7 +1683,7 @@ export const TrustGraphMcpHttpApiRoutes = HttpApiBuilder.layer(
 const makeTrustGraphMcpHttpLayerFromConfig = (
   config: TrustGraphMcpConfigShape,
 ) => {
-  const tools = makeTrustGraphMcpToolkitLayerFromConfig(config)
+  const tools = makeTrustGraphMcpToolkitLayer()
 
   return Layer.mergeAll(
     TrustGraphMcpHttpApiRoutes,
@@ -1738,18 +1699,15 @@ const makeTrustGraphMcpHttpLayerFromConfig = (
   )
 }
 
-const makeTrustGraphMcpToolkitLayerFromConfig = (
-  config: TrustGraphMcpConfigShape,
-) =>
+const makeTrustGraphMcpToolkitLayer = () =>
   McpServer.toolkit(TrustGraphMcpToolkit).pipe(
     Layer.provide(TrustGraphMcpToolkitLive),
-    Layer.provide(makeOpenAiProviderLayerFromConfig(config)),
   )
 
 const makeTrustGraphMcpStdioLayerFromConfig = (
   config: TrustGraphMcpConfigShape,
 ) =>
-  makeTrustGraphMcpToolkitLayerFromConfig(config).pipe(
+  makeTrustGraphMcpToolkitLayer().pipe(
     Layer.provide(McpServer.layerStdio({
       name: config.name,
       version: config.version,

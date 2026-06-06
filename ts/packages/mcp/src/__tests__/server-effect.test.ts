@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
 import type { BaseApi } from "@trustgraph/client";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer } from "effect";
 import * as S from "effect/Schema";
-import { LanguageModel, McpServer } from "effect/unstable/ai";
+import { McpServer } from "effect/unstable/ai";
 import * as McpSchema from "effect/unstable/ai/McpSchema";
 import { FetchHttpClient, HttpRouter } from "effect/unstable/http";
 import { RpcSerialization } from "effect/unstable/rpc";
@@ -52,7 +52,7 @@ interface FakeSocketCalls {
 }
 
 interface NativeTestClientOptions {
-  readonly languageText?: string | undefined;
+  readonly textCompletion?: (() => Promise<string>) | undefined;
   readonly graphRag?: (() => Promise<string>) | undefined;
 }
 
@@ -60,6 +60,7 @@ const decodeJsonText = S.decodeUnknownSync(S.UnknownFromJsonString);
 
 const makeFakeSocket = (
   options: {
+    readonly textCompletion?: (() => Promise<string>) | undefined;
     readonly graphRag?: (() => Promise<string>) | undefined;
   } = {},
 ) => {
@@ -73,7 +74,9 @@ const makeFakeSocket = (
     flow: (flowId: string) => {
       calls.flowIds.push(flowId);
       return {
-        textCompletion: () => Promise.resolve("legacy text completion should not be used"),
+        textCompletion: () => options.textCompletion === undefined
+          ? Promise.resolve("gateway text completion")
+          : options.textCompletion(),
         graphRag: (query: string, ragOptions: unknown, collection?: string) => {
           calls.graphRag.push({ query, options: ragOptions, collection });
           return options.graphRag === undefined
@@ -121,15 +124,6 @@ const makeFakeSocket = (
   return { socket, calls };
 };
 
-const makeLanguageModelLayer = (text: string) =>
-  Layer.effect(
-    LanguageModel.LanguageModel,
-    LanguageModel.make({
-      generateText: () => Effect.succeed([{ type: "text", text }]),
-      streamText: () => Stream.empty,
-    }),
-  );
-
 const testConfig = TrustGraphMcpConfig.of({
   gatewayUrl: "ws://localhost:8088/api/v1/rpc",
   user: "mcp-test",
@@ -138,8 +132,6 @@ const testConfig = TrustGraphMcpConfig.of({
   name: "trustgraph",
   version: "0.1.0-test",
   mcpPath: "/mcp",
-  openAiModel: "test-model",
-  openAiApiKey: undefined,
   port: 3000,
 });
 
@@ -151,10 +143,12 @@ const makeNativeTestClient = (
 const makeNativeTestClientEffect = Effect.fn("makeNativeTestClient")(function*(
   options: NativeTestClientOptions,
 ) {
-  const { socket, calls } = makeFakeSocket({ graphRag: options.graphRag });
+  const { socket, calls } = makeFakeSocket({
+    textCompletion: options.textCompletion,
+    graphRag: options.graphRag,
+  });
   const serverLayer = McpServer.toolkit(TrustGraphMcpToolkit).pipe(
     Layer.provide(TrustGraphMcpToolkitLive),
-    Layer.provide(makeLanguageModelLayer(options.languageText ?? "direct ai answer")),
     Layer.provide(Layer.succeed(TrustGraphSocket, TrustGraphSocket.of(socket))),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, testConfig)),
     Layer.provide(McpServer.layerHttp({
@@ -225,7 +219,6 @@ describe("Effect MCP server", () => {
           gatewayUrl: "ws://localhost:8088/api/v1/rpc",
           user: "mcp-test",
           flowId: "default",
-          openAiApiKey: "test-key",
         }),
       ).toBeDefined();
 
@@ -252,11 +245,11 @@ describe("Effect MCP server", () => {
   );
 
   it.effect(
-    "calls text_completion through the direct Effect language model",
+    "calls text_completion through the configured TrustGraph flow",
     Effect.fnUntraced(function*() {
       yield* Effect.scoped(Effect.gen(function*() {
         const { client, calls } = yield* makeNativeTestClient({
-          languageText: "direct model response",
+          textCompletion: () => Promise.resolve("gateway model response"),
         });
 
         const result = yield* client["tools/call"]({
@@ -268,9 +261,9 @@ describe("Effect MCP server", () => {
         });
 
         expect(result.isError).toBe(false);
-        expect(result.structuredContent).toEqual({ text: "direct model response" });
-        expect(decodeJsonText(textContent(result))).toEqual({ text: "direct model response" });
-        expect(calls.flowIds).toEqual([]);
+        expect(result.structuredContent).toEqual({ text: "gateway model response" });
+        expect(decodeJsonText(textContent(result))).toEqual({ text: "gateway model response" });
+        expect(calls.flowIds).toEqual(["default"]);
       }));
     }),
   );
@@ -319,12 +312,32 @@ describe("Effect MCP server", () => {
           },
         });
 
-        expect(result.structuredContent).toEqual({
-          _tag: "GraphRagError",
-          message: "gateway unavailable",
+        expect(result.isError).toBe(true);
+        expect(result.structuredContent).toBeUndefined();
+        expect(textContent(result)).toContain("gateway unavailable");
+      }));
+    }),
+  );
+
+  it.effect(
+    "returns MCP errors for text_completion failures",
+    Effect.fnUntraced(function*() {
+      yield* Effect.scoped(Effect.gen(function*() {
+        const { client } = yield* makeNativeTestClient({
+          textCompletion: () => Promise.reject(new Error("text service down")),
         });
-        expect(result.structuredContent).not.toHaveProperty("cause");
-        expect(decodeJsonText(textContent(result))).toEqual(result.structuredContent);
+
+        const result = yield* client["tools/call"]({
+          name: "text_completion",
+          arguments: {
+            system: "You are concise.",
+            prompt: "Say hello.",
+          },
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.structuredContent).toBeUndefined();
+        expect(textContent(result)).toContain("text service down");
       }));
     }),
   );

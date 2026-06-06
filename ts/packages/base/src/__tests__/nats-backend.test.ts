@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect } from "effect";
-import { makeNatsBackend } from "../backend/nats.js";
+import { makeNatsBackend, makeNatsBackendScoped } from "../backend/nats.js";
 
 const natsMock = vi.hoisted(() => {
   const S = require("effect/Schema");
@@ -251,5 +251,18 @@ describe("NATS backend", () => {
       _tag: "PubSubError",
       operation: "negative-acknowledge:tg.test.topic",
     });
+  });
+
+  it("drains the connection when a scoped NATS backend closes", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const backend = yield* makeNatsBackendScoped("nats://test");
+          yield* backend.createProducer<string>({ topic: "tg.test.topic" });
+        }),
+      ),
+    );
+
+    expect(natsMock.drain).toHaveBeenCalledTimes(1);
   });
 });
