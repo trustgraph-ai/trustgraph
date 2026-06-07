@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 default_ident = "document-decoder"
 
 
+def _looks_like_pdf(content):
+    return content.lstrip().startswith(b"%PDF-")
+
+
 class Processor(FlowProcessor):
 
     def __init__(self, **params):
@@ -94,33 +98,37 @@ class Processor(FlowProcessor):
                 )
                 return
 
-        with tempfile.NamedTemporaryFile(delete_on_close=False, suffix='.pdf') as fp:
+        # Check if we should fetch from librarian or use inline data
+        if v.document_id:
+            # Fetch from librarian via Pulsar
+            logger.info(f"Fetching document {v.document_id} from librarian...")
+
+            content = await flow.librarian.fetch_document_content(
+                document_id=v.document_id,
+
+            )
+
+            # Content is base64 encoded
+            if isinstance(content, str):
+                content = content.encode('utf-8')
+            decoded_content = base64.b64decode(content)
+
+            logger.info(f"Fetched {len(decoded_content)} bytes from librarian")
+        else:
+            # Use inline data (backward compatibility)
+            decoded_content = base64.b64decode(v.data)
+
+        if not _looks_like_pdf(decoded_content):
+            logger.error(
+                f"Document {v.metadata.id} is not valid PDF content. "
+                f"Ignoring document."
+            )
+            return
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as fp:
             temp_path = fp.name
-
-            # Check if we should fetch from librarian or use inline data
-            if v.document_id:
-                # Fetch from librarian via Pulsar
-                logger.info(f"Fetching document {v.document_id} from librarian...")
-                fp.close()
-
-                content = await flow.librarian.fetch_document_content(
-                    document_id=v.document_id,
-    
-                )
-
-                # Content is base64 encoded
-                if isinstance(content, str):
-                    content = content.encode('utf-8')
-                decoded_content = base64.b64decode(content)
-
-                with open(temp_path, 'wb') as f:
-                    f.write(decoded_content)
-
-                logger.info(f"Fetched {len(decoded_content)} bytes from librarian")
-            else:
-                # Use inline data (backward compatibility)
-                fp.write(base64.b64decode(v.data))
-                fp.close()
+            fp.write(decoded_content)
+            fp.close()
 
             global PyPDFLoader
             if PyPDFLoader is None:
