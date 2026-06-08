@@ -80,14 +80,14 @@ def _set_exception_if_pending(fut, exc):
         fut.set_exception(exc)
 
 
-async def async_execute_paged(session, query, parameters=None, fetch_size=100):
+async def async_execute_paged(session, query, parameters=None, fetch_size=5000):
     """Execute a CQL query with page-by-page iteration.
 
     Uses synchronous session.execute() inside run_in_executor so that
     the driver's ResultSet paging works correctly without materialising
     the entire result set in memory.
 
-    Yields one page of rows at a time (as a list).
+    Returns all pages as a list of lists.
     """
     loop = asyncio.get_running_loop()
 
@@ -111,3 +111,50 @@ async def async_execute_paged(session, query, parameters=None, fetch_size=100):
     return await loop.run_in_executor(
         None, _fetch_all_pages
     )
+
+
+async def async_scan(
+    session, query, parameters=None, row_filter=None,
+    limit=None, fetch_size=5000,
+):
+    """Scan a CQL query page-by-page, applying a filter and limit.
+
+    Only matching rows accumulate in memory.  Each page is discarded
+    after processing, so peak memory is bounded by fetch_size plus
+    the number of matching rows (capped by limit).
+
+    Args:
+        session: cassandra.cluster.Session
+        query: CQL statement string
+        parameters: bind params
+        row_filter: callable(row) -> bool, or None to accept all
+        limit: max results to return, or None for unlimited
+        fetch_size: rows per Cassandra page fetch
+
+    Returns:
+        List of matching rows.
+    """
+    loop = asyncio.get_running_loop()
+
+    if isinstance(query, str):
+        stmt = SimpleStatement(query, fetch_size=fetch_size)
+    else:
+        stmt = query
+        stmt.fetch_size = fetch_size
+
+    def _scan():
+        results = []
+        result_set = session.execute(stmt, parameters)
+        while True:
+            for row in result_set.current_rows:
+                if row_filter is None or row_filter(row):
+                    results.append(row)
+                    if limit and len(results) >= limit:
+                        return results
+            if result_set.has_more_pages:
+                result_set.fetch_next_page()
+            else:
+                break
+        return results
+
+    return await loop.run_in_executor(None, _scan)

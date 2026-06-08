@@ -172,7 +172,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                         description=field_def.get("description", ""),
                         required=field_def.get("required", False),
                         enum_values=field_def.get("enum", []),
-                        indexed=field_def.get("indexed", False)
+                        indexed=field_def.get("indexed", False),
                     )
                     fields.append(field)
 
