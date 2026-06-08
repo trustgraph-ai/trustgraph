@@ -24,7 +24,7 @@ from .... schema import RowsQueryRequest, RowsQueryResponse, GraphQLError
 from .... schema import Error, RowSchema, Field as SchemaField
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
-from .... tables.cassandra_async import async_execute
+from .... tables.cassandra_async import async_execute, async_execute_paged, async_scan
 
 from ... graphql import GraphQLSchemaBuilder, SortDirection
 
@@ -180,7 +180,7 @@ class Processor(FlowProcessor):
                         description=field_def.get("description", ""),
                         required=field_def.get("required", False),
                         enum_values=field_def.get("enum", []),
-                        indexed=field_def.get("indexed", False)
+                        indexed=field_def.get("indexed", False),
                     )
                     fields.append(field)
 
@@ -232,6 +232,8 @@ class Processor(FlowProcessor):
         for index_name in index_names:
             if index_name in filters:
                 value = filters[index_name]
+                if value == "" or value is None:
+                    continue
                 # Single field index -> single element list
                 index_value = [str(value)]
                 return (index_name, index_value)
@@ -282,11 +284,13 @@ class Processor(FlowProcessor):
                 query += f" LIMIT {limit}"
 
             try:
-                rows = await async_execute(self.session, query, params)
-                for row in rows:
-                    # Convert data map to dict with proper field names
-                    row_dict = dict(row.data) if row.data else {}
-                    results.append(row_dict)
+                pages = await async_execute_paged(
+                    self.session, query, params
+                )
+                for page in pages:
+                    for row in page:
+                        row_dict = dict(row.data) if row.data else {}
+                        results.append(row_dict)
             except Exception as e:
                 logger.error(f"Failed to query rows: {e}", exc_info=True)
                 raise
@@ -308,8 +312,6 @@ class Processor(FlowProcessor):
             # Query using the first index (arbitrary choice for scan)
             primary_index = index_names[0]
 
-            # We need to scan all values for this index
-            # This requires ALLOW FILTERING or a different approach
             query = f"""
             SELECT data, source FROM {safe_keyspace}.rows
             WHERE collection = %s
@@ -320,17 +322,18 @@ class Processor(FlowProcessor):
             params = [collection, schema_name, primary_index]
 
             try:
-                rows = await async_execute(self.session, query, params)
-
-                for row in rows:
+                def row_filter(row):
                     row_dict = dict(row.data) if row.data else {}
+                    return self._matches_filters(row_dict, filters, row_schema)
 
-                    # Apply post-filters
-                    if self._matches_filters(row_dict, filters, row_schema):
-                        results.append(row_dict)
-
-                        if limit and len(results) >= limit:
-                            break
+                matched_rows = await async_scan(
+                    self.session, query, params,
+                    row_filter=row_filter,
+                    limit=limit,
+                )
+                for row in matched_rows:
+                    row_dict = dict(row.data) if row.data else {}
+                    results.append(row_dict)
 
             except Exception as e:
                 logger.error(f"Failed to scan rows: {e}", exc_info=True)
@@ -363,7 +366,7 @@ class Processor(FlowProcessor):
             # Parse filter key for operator
             if '_' in filter_key:
                 parts = filter_key.rsplit('_', 1)
-                if parts[1] in ['gt', 'gte', 'lt', 'lte', 'contains', 'in']:
+                if parts[1] in ['gt', 'gte', 'lt', 'lte', 'contains', 'in', 'not', 'startsWith', 'endsWith', 'not_in']:
                     field_name = parts[0]
                     operator = parts[1]
                 else:
@@ -399,6 +402,18 @@ class Processor(FlowProcessor):
                         return False
                 elif operator == 'in':
                     if str(row_value) not in [str(v) for v in filter_value]:
+                        return False
+                elif operator == 'not':
+                    if str(row_value) == str(filter_value):
+                        return False
+                elif operator == 'startsWith':
+                    if not str(row_value).startswith(str(filter_value)):
+                        return False
+                elif operator == 'endsWith':
+                    if not str(row_value).endswith(str(filter_value)):
+                        return False
+                elif operator == 'not_in':
+                    if str(row_value) in [str(v) for v in filter_value]:
                         return False
             except (ValueError, TypeError):
                 return False
