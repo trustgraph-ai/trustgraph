@@ -1,9 +1,13 @@
 post:
   tags:
     - Knowledge
-  summary: Knowledge graph core management
+  summary: Knowledge graph core management (workspace-scoped)
   description: |
-    Manage knowledge graph cores - persistent storage of triples and embeddings.
+    Manage knowledge graph cores - persistent storage of triples and
+    embeddings.
+
+    This is a **workspace-scoped** service. All operations apply to the
+    workspace associated with the authenticated bearer token.
 
     ## Knowledge Cores
 

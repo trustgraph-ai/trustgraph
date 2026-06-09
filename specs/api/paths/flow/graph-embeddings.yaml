@@ -5,6 +5,10 @@ post:
   description: |
     Query graph embeddings to find similar entities by vector similarity.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## Graph Embeddings Query Overview
 
     Find entities semantically similar to a query vector:

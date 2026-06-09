@@ -3,6 +3,7 @@ import asyncio
 import uuid
 import logging
 from . librarian import LibrarianRequestor
+from ... schema import librarian_request_queue, librarian_response_queue
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -23,10 +24,13 @@ class DocumentStreamExport:
 
         response = await ok()
 
+        uid = str(uuid.uuid4())
         lr = LibrarianRequestor(
             backend=self.backend,
-            consumer="api-gateway-doc-stream-" + str(uuid.uuid4()),
-            subscriber="api-gateway-doc-stream-" + str(uuid.uuid4()),
+            consumer="api-gateway-doc-stream-" + uid,
+            subscriber="api-gateway-doc-stream-" + uid,
+            request_queue=f"{librarian_request_queue}:{workspace}",
+            response_queue=f"{librarian_response_queue}:{workspace}",
         )
 
         try:

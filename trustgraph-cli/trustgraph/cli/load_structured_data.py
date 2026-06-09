@@ -78,7 +78,7 @@ def load_structured_data(
         logger.info("Step 1: Analyzing data to discover best matching schema...")
         
         # Step 1: Auto-discover schema (reuse discover_schema logic)
-        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, workspace=workspace)
+        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, token=token, workspace=workspace)
         if not discovered_schema:
             logger.error("Failed to discover suitable schema automatically")
             print("❌ Could not automatically determine the best schema for your data.")
@@ -90,7 +90,7 @@ def load_structured_data(
         
         # Step 2: Auto-generate descriptor
         logger.info("Step 2: Generating descriptor configuration...")
-        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, flow, logger, workspace=workspace)
+        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, flow, logger, token=token, workspace=workspace)
         if not auto_descriptor:
             logger.error("Failed to generate descriptor automatically")
             print("❌ Could not automatically generate descriptor configuration.")
@@ -172,7 +172,7 @@ def load_structured_data(
         logger.info(f"Sample chars: {sample_chars} characters")
         
         # Use the helper function to discover schema (get raw response for display)
-        response = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=True, workspace=workspace)
+        response = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=True, token=token, workspace=workspace)
         
         if response:
             # Debug: print response type and content 
@@ -203,7 +203,7 @@ def load_structured_data(
         # If no schema specified, discover it first
         if not schema_name:
             logger.info("No schema specified, auto-discovering...")
-            schema_name = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, workspace=workspace)
+            schema_name = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, token=token, workspace=workspace)
             if not schema_name:
                 print("Error: Could not determine schema automatically.")
                 print("Please specify a schema using --schema-name or run --discover-schema first.")
@@ -213,7 +213,7 @@ def load_structured_data(
             logger.info(f"Target schema: {schema_name}")
         
         # Generate descriptor using helper function
-        descriptor = _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger, workspace=workspace)
+        descriptor = _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger, token=token, workspace=workspace)
         
         if descriptor:
             # Output the generated descriptor
@@ -293,7 +293,7 @@ def load_structured_data(
 
         # Send to TrustGraph
         print(f"🚀 Importing {len(output_records)} records to TrustGraph...")
-        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size, token=token)
+        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size, token=token, workspace=workspace)
         
         # Get summary info from descriptor
         format_info = descriptor.get('format', {})
@@ -603,7 +603,7 @@ def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None, worksp
 
 
 # Helper functions for auto mode
-def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=False, workspace="default"):
+def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=False, token=None, workspace="default"):
     """Auto-discover the best matching schema for the input data
     
     Args:
@@ -626,7 +626,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, retur
         # Import API modules
         from trustgraph.api import Api
         from trustgraph.api.types import ConfigKey
-        api = Api(api_url, workspace=workspace)
+        api = Api(api_url, token=token, workspace=workspace)
         config_api = api.config()
         
         # Get available schemas
@@ -707,7 +707,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, retur
         return None
 
 
-def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger, workspace="default"):
+def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, flow, logger, token=None, workspace="default"):
     """Auto-generate descriptor configuration for the discovered schema"""
     try:
         # Read sample data
@@ -717,7 +717,7 @@ def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, fl
         # Import API modules
         from trustgraph.api import Api
         from trustgraph.api.types import ConfigKey
-        api = Api(api_url, workspace=workspace)
+        api = Api(api_url, token=token, workspace=workspace)
         config_api = api.config()
         
         # Get schema definition

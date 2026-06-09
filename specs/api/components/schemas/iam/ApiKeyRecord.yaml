@@ -1,0 +1,38 @@
+type: object
+description: API key record returned by IAM operations.
+properties:
+  id:
+    type: string
+    description: Key identifier.
+    examples:
+      - key_xyz789
+  user_id:
+    type: string
+    description: Owning user identifier.
+    examples:
+      - usr_abc123
+  name:
+    type: string
+    description: Operator-facing label.
+    examples:
+      - laptop
+  prefix:
+    type: string
+    description: |
+      First 4 characters of the plaintext key, for identification
+      in listings.  Never enough to reconstruct the key.
+    examples:
+      - tg_a
+  expires:
+    type: string
+    description: Expiry timestamp (ISO-8601 UTC).  Empty if no expiry.
+    examples:
+      - "2027-01-01T00:00:00Z"
+  created:
+    type: string
+    description: Creation timestamp (ISO-8601 UTC).
+    examples:
+      - "2026-01-15T10:30:00Z"
+  last_used:
+    type: string
+    description: Last-used timestamp (ISO-8601 UTC).  Empty if never used.

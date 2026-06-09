@@ -12,31 +12,32 @@ from qdrant_client import QdrantClient
 from .... schema import GraphEmbeddingsResponse, EntityMatch
 from .... schema import Error, Term, IRI, LITERAL
 from .... base import GraphEmbeddingsQueryService
+from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "graph-embeddings-query"
 
-default_store_uri = 'http://localhost:6333'
-
 class Processor(GraphEmbeddingsQueryService):
 
     def __init__(self, **params):
 
-        store_uri = params.get("store_uri", default_store_uri)
+        store_uri = params.get("store_uri")
+        api_key = params.get("api_key")
 
-        #optional api key
-        api_key = params.get("api_key", None)
+        url, api_key, _, _ = resolve_qdrant_config(
+            url=store_uri, api_key=api_key,
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "store_uri": store_uri,
+                "store_uri": url,
                 "api_key": api_key,
             }
         )
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.qdrant = QdrantClient(url=url, api_key=api_key)
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
@@ -104,18 +105,7 @@ class Processor(GraphEmbeddingsQueryService):
     def add_args(parser):
 
         GraphEmbeddingsQueryService.add_args(parser)
-
-        parser.add_argument(
-            '-t', '--store-uri',
-            default=default_store_uri,
-            help=f'Qdrant store URI (default: {default_store_uri})'
-        )
-        
-        parser.add_argument(
-            '-k', '--api-key',
-            default=None,
-            help=f'API key for qdrant (default: None)'
-        )
+        add_qdrant_args(parser)
 
 def run():
 

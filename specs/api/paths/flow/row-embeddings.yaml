@@ -4,6 +4,11 @@ post:
   summary: Row Embeddings Query - semantic search on structured data
   description: |
     Query row embeddings to find similar rows by vector similarity on indexed fields.
+
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     Enables fuzzy/semantic matching on structured data.
 
     ## Row Embeddings Query Overview

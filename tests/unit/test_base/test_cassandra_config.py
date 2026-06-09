@@ -410,3 +410,56 @@ class TestEdgeCases:
         assert hosts == ['mixed-host']
         assert username is None  # Stays None
         assert password == 'mixed-pass'
+
+
+class TestReplicationFactorParamPath:
+
+    def test_explicit_kwarg(self):
+        with patch.dict(os.environ, {}, clear=True):
+            _, _, _, _, rf = resolve_cassandra_config(
+                replication_factor=3,
+            )
+            assert rf == 3
+
+    def test_kwarg_overrides_env(self):
+        with patch.dict(os.environ, {'CASSANDRA_REPLICATION_FACTOR': '5'}, clear=True):
+            _, _, _, _, rf = resolve_cassandra_config(
+                replication_factor=3,
+            )
+            assert rf == 3
+
+    def test_env_fallback_when_kwarg_none(self):
+        with patch.dict(os.environ, {'CASSANDRA_REPLICATION_FACTOR': '5'}, clear=True):
+            _, _, _, _, rf = resolve_cassandra_config(
+                replication_factor=None,
+            )
+            assert rf == 5
+
+    def test_default_when_no_kwarg_no_env(self):
+        with patch.dict(os.environ, {}, clear=True):
+            _, _, _, _, rf = resolve_cassandra_config()
+            assert rf == 1
+
+    def test_params_dict_path(self):
+        with patch.dict(os.environ, {}, clear=True):
+            params = {'cassandra_replication_factor': 3}
+            _, _, _, _, rf = resolve_cassandra_config(
+                replication_factor=params.get('cassandra_replication_factor'),
+            )
+            assert rf == 3
+
+    def test_params_dict_overrides_env(self):
+        with patch.dict(os.environ, {'CASSANDRA_REPLICATION_FACTOR': '5'}, clear=True):
+            params = {'cassandra_replication_factor': 3}
+            _, _, _, _, rf = resolve_cassandra_config(
+                replication_factor=params.get('cassandra_replication_factor'),
+            )
+            assert rf == 3
+
+    def test_params_dict_missing_falls_to_env(self):
+        with patch.dict(os.environ, {'CASSANDRA_REPLICATION_FACTOR': '5'}, clear=True):
+            params = {}
+            _, _, _, _, rf = resolve_cassandra_config(
+                replication_factor=params.get('cassandra_replication_factor'),
+            )
+            assert rf == 5

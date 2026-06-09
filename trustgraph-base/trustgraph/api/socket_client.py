@@ -167,7 +167,8 @@ class SocketClient:
             )
 
         if resp.get("type") == "auth-ok":
-            self.workspace = resp.get("workspace", self.workspace)
+            if self.workspace == "default":
+                self.workspace = resp.get("workspace", self.workspace)
         elif resp.get("type") == "auth-failed":
             await self._socket.close()
             raise ProtocolException(
@@ -501,6 +502,7 @@ class SocketClient:
 
     def put_kg_core(
         self, id: str, triples=None, graph_embeddings=None,
+        library_metadata=None, library_blob=None,
     ) -> Dict[str, Any]:
         request = {
             "operation": "put-kg-core",
@@ -511,6 +513,10 @@ class SocketClient:
             request["triples"] = triples
         if graph_embeddings is not None:
             request["graph-embeddings"] = graph_embeddings
+        if library_metadata is not None:
+            request["library-metadata"] = library_metadata
+        if library_blob is not None:
+            request["library-blob"] = library_blob
         return self._send_request_sync("knowledge", None, request)
 
     def get_de_core(self, id: str) -> Iterator[Dict[str, Any]]:

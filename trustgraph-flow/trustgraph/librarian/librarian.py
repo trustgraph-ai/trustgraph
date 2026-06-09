@@ -162,6 +162,9 @@ class Librarian:
             request.document_id
         )
 
+        if object_id is None:
+            raise RequestError(f"Document not found: {request.document_id}")
+
         content = await self.blob_store.get(
             object_id
         )

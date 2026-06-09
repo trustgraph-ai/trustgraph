@@ -5,6 +5,10 @@ post:
   description: |
     Convert natural language questions to structured GraphQL queries.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## NLP Query Overview
 
     Transforms user questions into executable GraphQL:

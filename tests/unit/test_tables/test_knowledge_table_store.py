@@ -35,9 +35,9 @@ def _make_store():
 class TestGetGraphEmbeddings:
 
     @pytest.mark.asyncio
-    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
+    @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
     async def test_row_converts_to_entity_embeddings_with_singular_vector(
-        self, mock_async_execute
+        self, mock_async_execute_paged
     ):
         """
         Cassandra rows return entities as a list of [entity_tuple, vector]
@@ -57,7 +57,7 @@ class TestGetGraphEmbeddings:
         store = _make_store()
         store.cassandra = Mock()
         store.get_graph_embeddings_stmt = Mock()
-        mock_async_execute.return_value = [fake_row]
+        mock_async_execute_paged.return_value = [[fake_row]]
 
         received = []
 
@@ -66,7 +66,7 @@ class TestGetGraphEmbeddings:
 
         await store.get_graph_embeddings("alice", "doc-1", receiver)
 
-        mock_async_execute.assert_called_once_with(
+        mock_async_execute_paged.assert_called_once_with(
             store.cassandra,
             store.get_graph_embeddings_stmt,
             ("alice", "doc-1"),
@@ -96,8 +96,8 @@ class TestGetGraphEmbeddings:
         assert ge.entities[2].entity.value == "a literal entity"
 
     @pytest.mark.asyncio
-    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
-    async def test_empty_entities_blob_yields_empty_list(self, mock_async_execute):
+    @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
+    async def test_empty_entities_blob_yields_empty_list(self, mock_async_execute_paged):
         """row[3] being None / empty must produce a GraphEmbeddings with
         no entities, not raise."""
         fake_row = (None, None, None, None)
@@ -105,7 +105,7 @@ class TestGetGraphEmbeddings:
         store = _make_store()
         store.cassandra = Mock()
         store.get_graph_embeddings_stmt = Mock()
-        mock_async_execute.return_value = [fake_row]
+        mock_async_execute_paged.return_value = [[fake_row]]
 
         received = []
 
@@ -118,8 +118,8 @@ class TestGetGraphEmbeddings:
         assert received[0].entities == []
 
     @pytest.mark.asyncio
-    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
-    async def test_multiple_rows_each_emit_one_message(self, mock_async_execute):
+    @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
+    async def test_multiple_rows_each_emit_one_message(self, mock_async_execute_paged):
         fake_rows = [
             (None, None, None, [
                 (("http://example.org/a", True), [1.0]),
@@ -132,7 +132,7 @@ class TestGetGraphEmbeddings:
         store = _make_store()
         store.cassandra = Mock()
         store.get_graph_embeddings_stmt = Mock()
-        mock_async_execute.return_value = fake_rows
+        mock_async_execute_paged.return_value = [fake_rows]
 
         received = []
 
@@ -153,9 +153,9 @@ class TestGetTriples:
     the same Metadata construction. Cover it for parity."""
 
     @pytest.mark.asyncio
-    @patch('trustgraph.tables.knowledge.async_execute', new_callable=AsyncMock)
-    async def test_row_converts_to_triples(self, mock_async_execute):
-        # row[3] is a list of (s_val, s_uri, p_val, p_uri, o_val, o_uri)
+    @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
+    async def test_row_converts_to_triples(self, mock_async_execute_paged):
+        # row[3] is a list of (s_val, s_uri, p_val, p_uri, o_val, o_uri, graph)
         fake_row = (
             None, None, None,
             [
@@ -163,6 +163,7 @@ class TestGetTriples:
                     "http://example.org/alice", True,
                     "http://example.org/knows", True,
                     "http://example.org/bob", True,
+                    "urn:graph:source",
                 ),
             ],
         )
@@ -170,7 +171,7 @@ class TestGetTriples:
         store = _make_store()
         store.cassandra = Mock()
         store.get_triples_stmt = Mock()
-        mock_async_execute.return_value = [fake_row]
+        mock_async_execute_paged.return_value = [[fake_row]]
 
         received = []
 
@@ -191,3 +192,33 @@ class TestGetTriples:
         assert t.s.iri == "http://example.org/alice"
         assert t.p.iri == "http://example.org/knows"
         assert t.o.iri == "http://example.org/bob"
+        assert t.g == "urn:graph:source"
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.tables.knowledge.async_execute_paged', new_callable=AsyncMock)
+    async def test_empty_graph_name_becomes_none(self, mock_async_execute_paged):
+        fake_row = (
+            None, None, None,
+            [
+                (
+                    "http://example.org/alice", True,
+                    "http://example.org/knows", True,
+                    "http://example.org/bob", True,
+                    "",
+                ),
+            ],
+        )
+
+        store = _make_store()
+        store.cassandra = Mock()
+        store.get_triples_stmt = Mock()
+        mock_async_execute_paged.return_value = [[fake_row]]
+
+        received = []
+
+        async def receiver(msg):
+            received.append(msg)
+
+        await store.get_triples("w", "d", receiver)
+
+        assert received[0].triples[0].g is None

@@ -5,6 +5,10 @@ post:
   description: |
     Retrieval-Augmented Generation over knowledge graph.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## Graph RAG Overview
 
     Graph RAG combines:

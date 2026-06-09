@@ -101,6 +101,7 @@ class Processor(AsyncProcessor):
             username=cassandra_username,
             password=cassandra_password,
             default_keyspace="iam",
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         self.cassandra_host = hosts

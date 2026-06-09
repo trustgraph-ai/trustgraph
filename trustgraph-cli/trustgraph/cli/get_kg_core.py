@@ -47,6 +47,31 @@ def write_ge(f, data):
     )
     f.write(msgpack.packb(msg, use_bin_type=True))
 
+def write_library_metadata(f, data):
+    msg = (
+        "lm",
+        {
+            "i": data["id"],
+            "k": data.get("kind", ""),
+            "t": data.get("title", ""),
+            "p": data.get("parent-id", ""),
+            "d": data.get("document-type", ""),
+            "c": data.get("comments", ""),
+            "g": data.get("tags", []),
+        }
+    )
+    f.write(msgpack.packb(msg, use_bin_type=True))
+
+def write_library_blob(f, data):
+    msg = (
+        "lb",
+        {
+            "i": data["id"],
+            "d": data.get("data", b""),
+        }
+    )
+    f.write(msgpack.packb(msg, use_bin_type=True))
+
 def fetch(url, workspace, id, output, token=None):
 
     api = Api(url=url, token=token, workspace=workspace)
@@ -55,6 +80,8 @@ def fetch(url, workspace, id, output, token=None):
     try:
         ge = 0
         t = 0
+        lm = 0
+        lb = 0
 
         with open(output, "wb") as f:
 
@@ -68,7 +95,15 @@ def fetch(url, workspace, id, output, token=None):
                     ge += 1
                     write_ge(f, response["graph-embeddings"])
 
-        print(f"Got: {t} triple, {ge} GE messages.")
+                if "library-metadata" in response:
+                    lm += 1
+                    write_library_metadata(f, response["library-metadata"])
+
+                if "library-blob" in response:
+                    lb += 1
+                    write_library_blob(f, response["library-blob"])
+
+        print(f"Got: {t} triple, {ge} GE, {lm} library metadata, {lb} library blob messages.")
 
     finally:
         socket.close()

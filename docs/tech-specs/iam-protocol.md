@@ -224,6 +224,7 @@ class ApiKeyRecord:
 | `enable-user` | `user_id`, `workspace` (optional integrity check) | — | Re-enables a previously disabled user; does not restore API keys. |
 | `delete-user` | `user_id`, `workspace` (optional integrity check) | — | Hard-delete; removes user record, username lookup, and all the user's API keys. |
 | `create-workspace` | `workspace_record` | `workspace` | System-level. |
+| `list-my-workspaces` | `actor` (gateway-injected) | `workspaces` | Returns the workspaces the calling user has access to. OSS: the user's home workspace; if the caller holds the `admin` role, returns all workspaces instead. Enterprise regimes return whatever workspaces the user has been granted access to. |
 | `list-workspaces` | — | `workspaces` | System-level. |
 | `get-workspace` | `workspace_record` (id only) | `workspace` | System-level. |
 | `update-workspace` | `workspace_record` | `workspace` | System-level. |

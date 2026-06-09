@@ -47,16 +47,18 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         cassandra_password = params.get("cassandra_password")
 
         # Resolve configuration with environment variable fallback
-        hosts, username, password, keyspace, _ = resolve_cassandra_config(
+        hosts, username, password, keyspace, replication_factor = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         # Store resolved configuration with proper names
         self.cassandra_host = hosts  # Store as list
         self.cassandra_username = username
         self.cassandra_password = password
+        self.replication_factor = replication_factor
 
         # Config key for schemas
         self.config_key = params.get("config_type", "schema")
@@ -170,7 +172,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                         description=field_def.get("description", ""),
                         required=field_def.get("required", False),
                         enum_values=field_def.get("enum", []),
-                        indexed=field_def.get("indexed", False)
+                        indexed=field_def.get("indexed", False),
                     )
                     fields.append(field)
 
@@ -232,7 +234,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         CREATE KEYSPACE IF NOT EXISTS {safe_keyspace}
         WITH REPLICATION = {{
             'class': 'SimpleStrategy',
-            'replication_factor': 1
+            'replication_factor': {self.replication_factor}
         }}
         """
 

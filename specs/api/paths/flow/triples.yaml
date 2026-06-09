@@ -5,6 +5,10 @@ post:
   description: |
     Query knowledge graph using subject-predicate-object patterns.
 
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
     ## Triples Query Overview
 
     Query RDF triples with flexible pattern matching:

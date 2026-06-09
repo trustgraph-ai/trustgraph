@@ -259,6 +259,8 @@ class TestGraphEmbeddingsNullProtection:
         proc.collection_exists = MagicMock(return_value=True)
         proc._cache_lock = asyncio.Lock()
         proc._known_collections = set()
+        proc.replication_factor = 1
+        proc.shard_number = 1
 
         msg = MagicMock()
         msg.metadata.collection = "graphs"

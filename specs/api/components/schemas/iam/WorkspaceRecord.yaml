@@ -1,0 +1,21 @@
+type: object
+description: Workspace record returned by IAM operations.
+properties:
+  id:
+    type: string
+    description: Workspace identifier.
+    examples:
+      - default
+  name:
+    type: string
+    description: Human-readable workspace name.
+    examples:
+      - Default Workspace
+  enabled:
+    type: boolean
+    description: Whether the workspace is enabled.
+  created:
+    type: string
+    description: Creation timestamp (ISO-8601 UTC).
+    examples:
+      - "2026-01-01T00:00:00Z"

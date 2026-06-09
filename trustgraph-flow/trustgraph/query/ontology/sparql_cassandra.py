@@ -116,7 +116,7 @@ class CassandraTripleStore(Store if RDFLIB_AVAILABLE else object):
         # Create keyspace
         self.session.execute(f"""
             CREATE KEYSPACE IF NOT EXISTS {self.keyspace}
-            WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}}
+            WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': {self.cassandra_config.get('replication_factor', 1)}}}
         """)
 
         # Create triples table optimized for SPARQL queries

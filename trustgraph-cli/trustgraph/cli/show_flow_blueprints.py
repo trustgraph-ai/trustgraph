@@ -105,7 +105,7 @@ async def fetch_data(client, workspace):
     return blueprint_names, blueprints, param_type_defs
 
 async def _show_flow_blueprints_async(url, token=None, workspace="default"):
-    async with AsyncSocketClient(url, timeout=60, token=token) as client:
+    async with AsyncSocketClient(url, timeout=60, token=token, workspace=workspace) as client:
         return await fetch_data(client, workspace)
 
 def show_flow_blueprints(url, token=None, workspace="default"):

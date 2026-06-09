@@ -8,6 +8,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 from datetime import datetime
 
 from .. base import WorkspaceProcessor, Consumer, Producer, Publisher, Subscriber
@@ -54,6 +55,16 @@ default_object_store_access_key = "object-user"
 default_object_store_secret_key = "object-password"
 default_object_store_use_ssl = False
 default_object_store_region = None
+
+# Environment variables consulted as a fallback when the
+# corresponding params field is not set in the processor-group YAML
+# or via CLI.  Intended for K8s Secret / env-var injection so
+# credentials never have to live in the YAML (and thus in git).
+ENV_OBJECT_STORE_ENDPOINT = "OBJECT_STORE_ENDPOINT"
+ENV_OBJECT_STORE_ACCESS_KEY = "OBJECT_STORE_ACCESS_KEY"
+ENV_OBJECT_STORE_SECRET_KEY = "OBJECT_STORE_SECRET_KEY"
+ENV_OBJECT_STORE_USE_SSL = "OBJECT_STORE_USE_SSL"
+ENV_OBJECT_STORE_REGION = "OBJECT_STORE_REGION"
 default_cassandra_host = "cassandra"
 default_min_chunk_size = 1  # No minimum by default (for Garage)
 
@@ -89,22 +100,36 @@ class Processor(WorkspaceProcessor):
             "config_response_queue", default_config_response_queue
         )
 
-        object_store_endpoint = params.get("object_store_endpoint", default_object_store_endpoint)
-        object_store_access_key = params.get(
-            "object_store_access_key",
-            default_object_store_access_key
+        # Resolve object-store config.  Precedence: explicit params
+        # (CLI / processor-group YAML) → environment variable →
+        # hardcoded default.  The env-var path lets K8s Secrets feed
+        # credentials without them appearing in the YAML.
+        object_store_endpoint = (
+            params.get("object_store_endpoint")
+            or os.environ.get(ENV_OBJECT_STORE_ENDPOINT)
+            or default_object_store_endpoint
         )
-        object_store_secret_key = params.get(
-            "object_store_secret_key",
-            default_object_store_secret_key
+        object_store_access_key = (
+            params.get("object_store_access_key")
+            or os.environ.get(ENV_OBJECT_STORE_ACCESS_KEY)
+            or default_object_store_access_key
         )
-        object_store_use_ssl = params.get(
-            "object_store_use_ssl",
-            default_object_store_use_ssl
+        object_store_secret_key = (
+            params.get("object_store_secret_key")
+            or os.environ.get(ENV_OBJECT_STORE_SECRET_KEY)
+            or default_object_store_secret_key
         )
-        object_store_region = params.get(
-            "object_store_region",
-            default_object_store_region
+        object_store_use_ssl = params.get("object_store_use_ssl")
+        if object_store_use_ssl is None:
+            env_ssl = os.environ.get(ENV_OBJECT_STORE_USE_SSL)
+            if env_ssl is not None:
+                object_store_use_ssl = env_ssl.lower() in ("true", "1", "yes")
+            else:
+                object_store_use_ssl = default_object_store_use_ssl
+        object_store_region = (
+            params.get("object_store_region")
+            or os.environ.get(ENV_OBJECT_STORE_REGION)
+            or default_object_store_region
         )
 
         min_chunk_size = params.get(
@@ -121,7 +146,8 @@ class Processor(WorkspaceProcessor):
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password,
-            default_keyspace="librarian"
+            default_keyspace="librarian",
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         # Store resolved configuration

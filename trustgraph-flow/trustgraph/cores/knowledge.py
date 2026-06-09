@@ -1,6 +1,7 @@
 
 from .. schema import KnowledgeResponse, Error, Triples, GraphEmbeddings
-from .. schema import DocumentEmbeddings
+from .. schema import DocumentEmbeddings, LibraryMetadata, LibraryBlob
+from .. schema import LibrarianRequest, DocumentMetadata
 from .. knowledge import hash
 from .. exceptions import RequestError
 from .. tables.knowledge import KnowledgeTableStore
@@ -18,13 +19,16 @@ class KnowledgeManager:
 
     def __init__(
             self, cassandra_host, cassandra_username, cassandra_password,
-            keyspace, flow_config, replication_factor=1,
+            keyspace, flow_config, librarian=None, replication_factor=1,
     ):
 
         self.table_store = KnowledgeTableStore(
             cassandra_host, cassandra_username, cassandra_password, keyspace,
             replication_factor
         )
+
+        self.librarian = librarian
+        self._pending_library_metadata = {}
 
         self.loader_queue = asyncio.Queue(maxsize=20)
         self.background_task = None
@@ -86,6 +90,9 @@ class KnowledgeManager:
             publish_ge,
         )
 
+        if self.librarian:
+            await self._stream_library_docs(request.id, respond)
+
         logger.debug("Knowledge core retrieval complete")
 
         await respond(
@@ -121,6 +128,12 @@ class KnowledgeManager:
             await self.table_store.add_graph_embeddings(
                 workspace, request.graph_embeddings
             )
+
+        if request.library_metadata and self.librarian:
+            await self._put_library_metadata(request.library_metadata, workspace)
+
+        if request.library_blob and self.librarian:
+            await self._put_library_blob(request.library_blob, workspace)
 
         await respond(
             KnowledgeResponse(
@@ -249,6 +262,112 @@ class KnowledgeManager:
             )
 
         await self.loader_queue.put((request, respond, workspace))
+
+    async def _stream_library_docs(self, document_id, respond):
+
+        try:
+            root_meta = await self.librarian.fetch_document_metadata(
+                document_id
+            )
+        except Exception as e:
+            logger.warning(f"Could not fetch library metadata for {document_id}: {e}")
+            return
+
+        if root_meta is None:
+            return
+
+        await self._stream_one_doc(root_meta, respond)
+
+        try:
+            resp = await self.librarian.request(
+                LibrarianRequest(
+                    operation="list-children",
+                    document_id=document_id,
+                )
+            )
+        except Exception as e:
+            logger.warning(f"Could not list children for {document_id}: {e}")
+            return
+
+        for child_meta in resp.document_metadatas:
+            await self._stream_one_doc(child_meta, respond)
+
+    async def _stream_one_doc(self, doc_meta, respond):
+
+        lm = LibraryMetadata(
+            id=doc_meta.id,
+            kind=doc_meta.kind,
+            title=doc_meta.title,
+            parent_id=doc_meta.parent_id,
+            document_type=doc_meta.document_type,
+            comments=doc_meta.comments,
+            tags=doc_meta.tags or [],
+        )
+
+        await respond(
+            KnowledgeResponse(library_metadata=lm)
+        )
+
+        try:
+            content = await self.librarian.fetch_document_content(
+                doc_meta.id
+            )
+        except Exception as e:
+            logger.warning(f"Could not fetch content for {doc_meta.id}: {e}")
+            return
+
+        await respond(
+            KnowledgeResponse(
+                library_blob=LibraryBlob(
+                    id=doc_meta.id,
+                    data=content,
+                )
+            )
+        )
+
+    async def _put_library_metadata(self, lm, workspace):
+        self._pending_library_metadata[lm.id] = lm
+
+    async def _put_library_blob(self, lb, workspace):
+
+        lm = self._pending_library_metadata.pop(lb.id, None)
+        if lm is None:
+            logger.warning(
+                f"Received library blob for {lb.id} with no preceding metadata"
+            )
+            return
+
+        doc_meta = DocumentMetadata(
+            id=lm.id,
+            kind=lm.kind,
+            title=lm.title,
+            parent_id=lm.parent_id,
+            document_type=lm.document_type,
+            comments=lm.comments,
+            tags=lm.tags or [],
+        )
+
+        if lm.parent_id:
+            operation = "add-child-document"
+        else:
+            operation = "add-document"
+
+        try:
+            await self.librarian.request(
+                LibrarianRequest(
+                    operation=operation,
+                    document_id=lm.id,
+                    document_metadata=doc_meta,
+                    content=lb.data,
+                )
+            )
+        except RuntimeError as e:
+            if "already exists" in str(e):
+                logger.debug(f"Library document {lm.id} already exists, skipping")
+            else:
+                logger.warning(f"Could not save library document {lm.id}: {e}")
+        except Exception as e:
+            logger.warning(f"Could not save library document {lm.id}: {e}")
 
     async def core_loader(self):
 

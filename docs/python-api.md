@@ -1,9 +1,3 @@
----
-layout: default
-title: "TrustGraph Python API Reference"
-nav_order: 5
----
-
 # TrustGraph Python API Reference
 
 ## Installation
@@ -135,7 +129,7 @@ Enter synchronous context manager.
 
 Exit synchronous context manager and close connections.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None, workspace: str = 'default')`
 
 Initialize the TrustGraph API client.
 
@@ -269,7 +263,6 @@ flow = async_socket.flow("default")
 # Stream agent responses
 async for chunk in flow.agent(
     question="Explain quantum computing",
-    user="trustgraph",
     streaming=True
 ):
     if hasattr(chunk, 'content'):
@@ -339,11 +332,10 @@ logical groupings for isolation and access control.
 collection = api.collection()
 
 # List collections
-colls = collection.list_collections(user="trustgraph")
+colls = collection.list_collections()
 
 # Update collection metadata
 collection.update_collection(
-    user="trustgraph",
     collection="default",
     name="Default Collection",
     description="Main data collection"
@@ -405,10 +397,10 @@ Get a Knowledge client for managing knowledge graph cores.
 knowledge = api.knowledge()
 
 # List available KG cores
-cores = knowledge.list_kg_cores(user="trustgraph")
+cores = knowledge.list_kg_cores()
 
 # Load a KG core
-knowledge.load_kg_core(id="core-123", user="trustgraph")
+knowledge.load_kg_core(id="core-123")
 ```
 
 ### `library(self)`
@@ -430,13 +422,12 @@ library.add_document(
     document=b"Document content",
     id="doc-123",
     metadata=[],
-    user="trustgraph",
     title="My Document",
     comments="Test document"
 )
 
 # List documents
-docs = library.get_documents(user="trustgraph")
+docs = library.get_documents()
 ```
 
 ### `metrics(self)`
@@ -502,7 +493,6 @@ flow = socket.flow("default")
 # Stream agent responses
 for chunk in flow.agent(
     question="Explain quantum computing",
-    user="trustgraph",
     streaming=True
 ):
     if hasattr(chunk, 'content'):
@@ -539,49 +529,13 @@ Initialize Flow client.
 
 Delete a flow blueprint.
 
-**Arguments:**
-
-- `blueprint_name`: Name of the blueprint to delete
-
-**Example:**
-
-```python
-api.flow().delete_blueprint("old-blueprint")
-```
-
 ### `get(self, id)`
 
-Get the definition of a running flow instance.
-
-**Arguments:**
-
-- `id`: Flow instance ID
-
-**Returns:** dict: Flow instance definition
-
-**Example:**
-
-```python
-flow_def = api.flow().get("default")
-print(flow_def)
-```
+Get the definition of a flow instance.
 
 ### `get_blueprint(self, blueprint_name)`
 
 Get a flow blueprint definition by name.
-
-**Arguments:**
-
-- `blueprint_name`: Name of the blueprint to retrieve
-
-**Returns:** dict: Blueprint definition as a dictionary
-
-**Example:**
-
-```python
-blueprint = api.flow().get_blueprint("default")
-print(blueprint)  # Blueprint configuration
-```
 
 ### `id(self, id='default')`
 
@@ -605,48 +559,15 @@ response = flow.text_completion(
 
 ### `list(self)`
 
-List all active flow instances.
-
-**Returns:** list[str]: List of flow instance IDs
-
-**Example:**
-
-```python
-flows = api.flow().list()
-print(flows)  # ['default', 'flow-1', 'flow-2', ...]
-```
+List flow instances in the current workspace.
 
 ### `list_blueprints(self)`
 
-List all available flow blueprints.
-
-**Returns:** list[str]: List of blueprint names
-
-**Example:**
-
-```python
-blueprints = api.flow().list_blueprints()
-print(blueprints)  # ['default', 'custom-flow', ...]
-```
+List blueprints in the current workspace.
 
 ### `put_blueprint(self, blueprint_name, definition)`
 
 Create or update a flow blueprint.
-
-**Arguments:**
-
-- `blueprint_name`: Name for the blueprint
-- `definition`: Blueprint definition dictionary
-
-**Example:**
-
-```python
-definition = {
-    "services": ["text-completion", "graph-rag"],
-    "parameters": {"model": "gpt-4"}
-}
-api.flow().put_blueprint("my-blueprint", definition)
-```
 
 ### `request(self, path=None, request=None)`
 
@@ -667,37 +588,9 @@ Make a flow-scoped API request.
 
 Start a new flow instance from a blueprint.
 
-**Arguments:**
-
-- `blueprint_name`: Name of the blueprint to instantiate
-- `id`: Unique identifier for the flow instance
-- `description`: Human-readable description
-- `parameters`: Optional parameters dictionary
-
-**Example:**
-
-```python
-api.flow().start(
-    blueprint_name="default",
-    id="my-flow",
-    description="My custom flow",
-    parameters={"model": "gpt-4"}
-)
-```
-
 ### `stop(self, id)`
 
 Stop a running flow instance.
-
-**Arguments:**
-
-- `id`: Flow instance ID to stop
-
-**Example:**
-
-```python
-api.flow().stop("my-flow")
-```
 
 
 ---
@@ -734,7 +627,7 @@ Initialize FlowInstance.
 - `api`: Parent Flow client
 - `id`: Flow instance identifier
 
-### `agent(self, question, user='trustgraph', state=None, group=None, history=None)`
+### `agent(self, question, state=None, group=None, history=None)`
 
 Execute an agent operation with reasoning and tool use capabilities.
 
@@ -744,7 +637,6 @@ state across interactions. This is a synchronous non-streaming version.
 **Arguments:**
 
 - `question`: User question or instruction
-- `user`: User identifier (default: "trustgraph")
 - `state`: Optional state dictionary for stateful conversations
 - `group`: Optional group identifier for multi-user contexts
 - `history`: Optional conversation history as list of message dicts
@@ -759,8 +651,7 @@ flow = api.flow().id("default")
 # Simple question
 answer = flow.agent(
     question="What is the capital of France?",
-    user="trustgraph"
-)
+    )
 
 # With conversation history
 history = [
@@ -768,9 +659,7 @@ history = [
     {"role": "assistant", "content": "Hi! How can I help?"}
 ]
 answer = flow.agent(
-    question="Tell me about Paris",
-    user="trustgraph",
-    history=history
+    question="Tell me about Paris",history=history
 )
 ```
 
@@ -796,7 +685,7 @@ Perform combined data diagnosis: detect type and generate descriptor.
 
 **Returns:** dict with detected_type, confidence, descriptor, and metadata
 
-### `document_embeddings_query(self, text, user, collection, limit=10)`
+### `document_embeddings_query(self, text, collection, limit=10)`
 
 Query document chunks using semantic similarity.
 
@@ -806,7 +695,6 @@ input text, using vector embeddings.
 **Arguments:**
 
 - `text`: Query text for semantic search
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 - `limit`: Maximum number of results (default: 10)
 
@@ -817,15 +705,13 @@ input text, using vector embeddings.
 ```python
 flow = api.flow().id("default")
 results = flow.document_embeddings_query(
-    text="machine learning algorithms",
-    user="trustgraph",
-    collection="research-papers",
+    text="machine learning algorithms",collection="research-papers",
     limit=5
 )
 # results contains {"chunks": [{"chunk_id": "doc1/p0/c0", "score": 0.95}, ...]}
 ```
 
-### `document_rag(self, query, user='trustgraph', collection='default', doc_limit=10)`
+### `document_rag(self, query, collection='default', doc_limit=10)`
 
 Execute document-based Retrieval-Augmented Generation (RAG) query.
 
@@ -835,7 +721,6 @@ then generates a response using an LLM with those chunks as context.
 **Arguments:**
 
 - `query`: Natural language query
-- `user`: User/keyspace identifier (default: "trustgraph")
 - `collection`: Collection identifier (default: "default")
 - `doc_limit`: Maximum document chunks to retrieve (default: 10)
 
@@ -846,9 +731,7 @@ then generates a response using an LLM with those chunks as context.
 ```python
 flow = api.flow().id("default")
 response = flow.document_rag(
-    query="Summarize the key findings",
-    user="trustgraph",
-    collection="research-papers",
+    query="Summarize the key findings",collection="research-papers",
     doc_limit=5
 )
 print(response)
@@ -888,7 +771,7 @@ Generate a descriptor for structured data mapping to a specific schema.
 
 **Returns:** dict with descriptor and metadata
 
-### `graph_embeddings_query(self, text, user, collection, limit=10)`
+### `graph_embeddings_query(self, text, collection, limit=10)`
 
 Query knowledge graph entities using semantic similarity.
 
@@ -898,7 +781,6 @@ similar to the input text, using vector embeddings.
 **Arguments:**
 
 - `text`: Query text for semantic search
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 - `limit`: Maximum number of results (default: 10)
 
@@ -909,15 +791,13 @@ similar to the input text, using vector embeddings.
 ```python
 flow = api.flow().id("default")
 results = flow.graph_embeddings_query(
-    text="physicist who discovered radioactivity",
-    user="trustgraph",
-    collection="scientists",
+    text="physicist who discovered radioactivity",collection="scientists",
     limit=5
 )
 # results contains {"entities": [{"entity": {...}, "score": 0.95}, ...]}
 ```
 
-### `graph_rag(self, query, user='trustgraph', collection='default', entity_limit=50, triple_limit=30, max_subgraph_size=150, max_path_length=2, edge_score_limit=30, edge_limit=25)`
+### `graph_rag(self, query, collection='default', entity_limit=50, triple_limit=30, max_subgraph_size=150, max_path_length=2, edge_score_limit=30, edge_limit=25)`
 
 Execute graph-based Retrieval-Augmented Generation (RAG) query.
 
@@ -927,7 +807,6 @@ traversing entity relationships, then generates a response using an LLM.
 **Arguments:**
 
 - `query`: Natural language query
-- `user`: User/keyspace identifier (default: "trustgraph")
 - `collection`: Collection identifier (default: "default")
 - `entity_limit`: Maximum entities to retrieve (default: 50)
 - `triple_limit`: Maximum triples per entity (default: 30)
@@ -943,16 +822,14 @@ traversing entity relationships, then generates a response using an LLM.
 ```python
 flow = api.flow().id("default")
 response = flow.graph_rag(
-    query="Tell me about Marie Curie's discoveries",
-    user="trustgraph",
-    collection="scientists",
+    query="Tell me about Marie Curie's discoveries",collection="scientists",
     entity_limit=20,
     max_path_length=3
 )
 print(response)
 ```
 
-### `load_document(self, document, id=None, metadata=None, user=None, collection=None)`
+### `load_document(self, document, id=None, metadata=None, collection=None)`
 
 Load a binary document for processing.
 
@@ -964,7 +841,6 @@ processing through the flow's document pipeline.
 - `document`: Document content as bytes
 - `id`: Optional document identifier (auto-generated if None)
 - `metadata`: Optional metadata (list of Triples or object with emit method)
-- `user`: User/keyspace identifier (optional)
 - `collection`: Collection identifier (optional)
 
 **Returns:** dict: Processing response
@@ -982,13 +858,11 @@ flow = api.flow().id("default")
 with open("research.pdf", "rb") as f:
     result = flow.load_document(
         document=f.read(),
-        id="research-001",
-        user="trustgraph",
-        collection="papers"
+        id="research-001",collection="papers"
     )
 ```
 
-### `load_text(self, text, id=None, metadata=None, charset='utf-8', user=None, collection=None)`
+### `load_text(self, text, id=None, metadata=None, charset='utf-8', collection=None)`
 
 Load text content for processing.
 
@@ -1001,7 +875,6 @@ text pipeline.
 - `id`: Optional document identifier (auto-generated if None)
 - `metadata`: Optional metadata (list of Triples or object with emit method)
 - `charset`: Character encoding (default: "utf-8")
-- `user`: User/keyspace identifier (optional)
 - `collection`: Collection identifier (optional)
 
 **Returns:** dict: Processing response
@@ -1020,9 +893,7 @@ text_content = b"This is the document content..."
 result = flow.load_text(
     text=text_content,
     id="text-001",
-    charset="utf-8",
-    user="trustgraph",
-    collection="documents"
+    charset="utf-8",collection="documents"
 )
 ```
 
@@ -1114,7 +985,7 @@ Make a service request on this flow instance.
 
 **Returns:** dict: Service response
 
-### `row_embeddings_query(self, text, schema_name, user='trustgraph', collection='default', index_name=None, limit=10)`
+### `row_embeddings_query(self, text, schema_name, collection='default', index_name=None, limit=10)`
 
 Query row data using semantic similarity on indexed fields.
 
@@ -1126,7 +997,6 @@ on structured data.
 
 - `text`: Query text for semantic search
 - `schema_name`: Schema name to search within
-- `user`: User/keyspace identifier (default: "trustgraph")
 - `collection`: Collection identifier (default: "default")
 - `index_name`: Optional index name to filter search to specific index
 - `limit`: Maximum number of results (default: 10)
@@ -1141,9 +1011,7 @@ flow = api.flow().id("default")
 # Search for customers by name similarity
 results = flow.row_embeddings_query(
     text="John Smith",
-    schema_name="customers",
-    user="trustgraph",
-    collection="sales",
+    schema_name="customers",collection="sales",
     limit=5
 )
 
@@ -1156,7 +1024,7 @@ results = flow.row_embeddings_query(
 )
 ```
 
-### `rows_query(self, query, user='trustgraph', collection='default', variables=None, operation_name=None)`
+### `rows_query(self, query, collection='default', variables=None, operation_name=None)`
 
 Execute a GraphQL query against structured rows in the knowledge graph.
 
@@ -1166,7 +1034,6 @@ with filtering, aggregation, and relationship traversal.
 **Arguments:**
 
 - `query`: GraphQL query string
-- `user`: User/keyspace identifier (default: "trustgraph")
 - `collection`: Collection identifier (default: "default")
 - `variables`: Optional query variables dictionary
 - `operation_name`: Optional operation name for multi-operation documents
@@ -1193,9 +1060,7 @@ query = '''
 }
 '''
 result = flow.rows_query(
-    query=query,
-    user="trustgraph",
-    collection="scientists"
+    query=query,collection="scientists"
 )
 
 # Query with variables
@@ -1224,14 +1089,13 @@ Select matching schemas for a data sample using prompt analysis.
 
 **Returns:** dict with schema_matches array and metadata
 
-### `sparql_query(self, query, user='trustgraph', collection='default', limit=10000)`
+### `sparql_query(self, query, collection='default', limit=10000)`
 
 Execute a SPARQL query against the knowledge graph.
 
 **Arguments:**
 
 - `query`: SPARQL 1.1 query string
-- `user`: User/keyspace identifier (default: "trustgraph")
 - `collection`: Collection identifier (default: "default")
 - `limit`: Safety limit on results (default: 10000)
 
@@ -1241,7 +1105,7 @@ Execute a SPARQL query against the knowledge graph.
 
 - `ProtocolException`: If an error occurs
 
-### `structured_query(self, question, user='trustgraph', collection='default')`
+### `structured_query(self, question, collection='default')`
 
 Execute a natural language question against structured data.
 Combines NLP query conversion and GraphQL execution.
@@ -1249,7 +1113,6 @@ Combines NLP query conversion and GraphQL execution.
 **Arguments:**
 
 - `question`: Natural language question
-- `user`: Cassandra keyspace identifier (default: "trustgraph")
 - `collection`: Data collection identifier (default: "default")
 
 **Returns:** dict with data and optional errors
@@ -1263,20 +1126,21 @@ Execute text completion using the flow's LLM.
 - `system`: System prompt defining the assistant's behavior
 - `prompt`: User prompt/question
 
-**Returns:** str: Generated response text
+**Returns:** TextCompletionResult: Result with text, in_token, out_token, model
 
 **Example:**
 
 ```python
 flow = api.flow().id("default")
-response = flow.text_completion(
+result = flow.text_completion(
     system="You are a helpful assistant",
     prompt="What is quantum computing?"
 )
-print(response)
+print(result.text)
+print(f"Tokens: {result.in_token} in, {result.out_token} out")
 ```
 
-### `triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=10000)`
+### `triples_query(self, s=None, p=None, o=None, collection=None, limit=10000)`
 
 Query knowledge graph triples using pattern matching.
 
@@ -1288,7 +1152,6 @@ object patterns. Unspecified parameters act as wildcards.
 - `s`: Subject URI (optional, use None for wildcard)
 - `p`: Predicate URI (optional, use None for wildcard)
 - `o`: Object URI or Literal (optional, use None for wildcard)
-- `user`: User/keyspace identifier (optional)
 - `collection`: Collection identifier (optional)
 - `limit`: Maximum results to return (default: 10000)
 
@@ -1307,9 +1170,7 @@ flow = api.flow().id("default")
 
 # Find all triples about a specific subject
 triples = flow.triples_query(
-    s=Uri("http://example.org/person/marie-curie"),
-    user="trustgraph",
-    collection="scientists"
+    s=Uri("http://example.org/person/marie-curie"),collection="scientists"
 )
 
 # Find all instances of a specific relationship
@@ -1446,9 +1307,7 @@ flow = async_flow.id("default")
 
 # Use flow services
 result = await flow.graph_rag(
-    query="What is TrustGraph?",
-    user="trustgraph",
-    collection="default"
+    query="What is TrustGraph?",collection="default"
 )
 ```
 
@@ -1607,7 +1466,7 @@ Initialize async flow instance.
 - `flow`: Parent AsyncFlow client
 - `flow_id`: Flow identifier
 
-### `agent(self, question: str, user: str, state: Dict | None = None, group: str | None = None, history: List | None = None, **kwargs: Any) -> Dict[str, Any]`
+### `agent(self, question: str, state: Dict | None = None, group: str | None = None, history: List | None = None, **kwargs: Any) -> Dict[str, Any]`
 
 Execute an agent operation (non-streaming).
 
@@ -1621,7 +1480,6 @@ and observations, use AsyncSocketFlowInstance.agent() instead.
 **Arguments:**
 
 - `question`: User question or instruction
-- `user`: User identifier
 - `state`: Optional state dictionary for conversation context
 - `group`: Optional group identifier for session management
 - `history`: Optional conversation history list
@@ -1638,12 +1496,11 @@ flow = async_flow.id("default")
 # Execute agent
 result = await flow.agent(
     question="What is the capital of France?",
-    user="trustgraph"
-)
+    )
 print(f"Answer: {result.get('response')}")
 ```
 
-### `document_rag(self, query: str, user: str, collection: str, doc_limit: int = 10, **kwargs: Any) -> str`
+### `document_rag(self, query: str, collection: str, doc_limit: int = 10, **kwargs: Any) -> str`
 
 Execute document-based RAG query (non-streaming).
 
@@ -1657,7 +1514,6 @@ use AsyncSocketFlowInstance.document_rag() instead.
 **Arguments:**
 
 - `query`: User query text
-- `user`: User identifier
 - `collection`: Collection identifier containing documents
 - `doc_limit`: Maximum number of document chunks to retrieve (default: 10)
 - `**kwargs`: Additional service-specific parameters
@@ -1672,9 +1528,7 @@ flow = async_flow.id("default")
 
 # Query documents
 response = await flow.document_rag(
-    query="What does the documentation say about authentication?",
-    user="trustgraph",
-    collection="docs",
+    query="What does the documentation say about authentication?",collection="docs",
     doc_limit=5
 )
 print(response)
@@ -1707,7 +1561,7 @@ vectors = result.get("vectors")
 print(f"Embedding dimension: {len(vectors[0][0])}")
 ```
 
-### `graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs: Any)`
+### `graph_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs: Any)`
 
 Query graph embeddings for semantic entity search.
 
@@ -1717,7 +1571,6 @@ most relevant to the input text. Returns entities ranked by similarity.
 **Arguments:**
 
 - `text`: Query text for semantic search
-- `user`: User identifier
 - `collection`: Collection identifier containing graph embeddings
 - `limit`: Maximum number of results to return (default: 10)
 - `**kwargs`: Additional service-specific parameters
@@ -1732,9 +1585,7 @@ flow = async_flow.id("default")
 
 # Find related entities
 results = await flow.graph_embeddings_query(
-    text="machine learning algorithms",
-    user="trustgraph",
-    collection="tech-kb",
+    text="machine learning algorithms",collection="tech-kb",
     limit=5
 )
 
@@ -1742,7 +1593,7 @@ for entity in results.get("entities", []):
     print(f"{entity['name']}: {entity['score']}")
 ```
 
-### `graph_rag(self, query: str, user: str, collection: str, max_subgraph_size: int = 1000, max_subgraph_count: int = 5, max_entity_distance: int = 3, **kwargs: Any) -> str`
+### `graph_rag(self, query: str, collection: str, max_subgraph_size: int = 1000, max_subgraph_count: int = 5, max_entity_distance: int = 3, **kwargs: Any) -> str`
 
 Execute graph-based RAG query (non-streaming).
 
@@ -1756,7 +1607,6 @@ use AsyncSocketFlowInstance.graph_rag() instead.
 **Arguments:**
 
 - `query`: User query text
-- `user`: User identifier
 - `collection`: Collection identifier containing the knowledge graph
 - `max_subgraph_size`: Maximum number of triples per subgraph (default: 1000)
 - `max_subgraph_count`: Maximum number of subgraphs to retrieve (default: 5)
@@ -1773,9 +1623,7 @@ flow = async_flow.id("default")
 
 # Query knowledge graph
 response = await flow.graph_rag(
-    query="What are the relationships between these entities?",
-    user="trustgraph",
-    collection="medical-kb",
+    query="What are the relationships between these entities?",collection="medical-kb",
     max_subgraph_count=3
 )
 print(response)
@@ -1799,7 +1647,7 @@ Internal method for calling services within this flow instance.
 - `ProtocolException`: If request fails or response is invalid
 - `ApplicationException`: If service returns an error
 
-### `row_embeddings_query(self, text: str, schema_name: str, user: str = 'trustgraph', collection: str = 'default', index_name: str | None = None, limit: int = 10, **kwargs: Any)`
+### `row_embeddings_query(self, text: str, schema_name: str, collection: str = 'default', index_name: str | None = None, limit: int = 10, **kwargs: Any)`
 
 Query row embeddings for semantic search on structured data.
 
@@ -1811,7 +1659,6 @@ fuzzy/semantic matching on structured data.
 
 - `text`: Query text for semantic search
 - `schema_name`: Schema name to search within
-- `user`: User identifier (default: "trustgraph")
 - `collection`: Collection identifier (default: "default")
 - `index_name`: Optional index name to filter search to specific index
 - `limit`: Maximum number of results to return (default: 10)
@@ -1828,9 +1675,7 @@ flow = async_flow.id("default")
 # Search for customers by name similarity
 results = await flow.row_embeddings_query(
     text="John Smith",
-    schema_name="customers",
-    user="trustgraph",
-    collection="sales",
+    schema_name="customers",collection="sales",
     limit=5
 )
 
@@ -1838,7 +1683,7 @@ for match in results.get("matches", []):
     print(f"{match['index_name']}: {match['index_value']} (score: {match['score']})")
 ```
 
-### `rows_query(self, query: str, user: str, collection: str, variables: Dict | None = None, operation_name: str | None = None, **kwargs: Any)`
+### `rows_query(self, query: str, collection: str, variables: Dict | None = None, operation_name: str | None = None, **kwargs: Any)`
 
 Execute a GraphQL query on stored rows.
 
@@ -1848,7 +1693,6 @@ queries with variables and named operations.
 **Arguments:**
 
 - `query`: GraphQL query string
-- `user`: User identifier
 - `collection`: Collection identifier containing rows
 - `variables`: Optional GraphQL query variables
 - `operation_name`: Optional operation name for multi-operation queries
@@ -1874,9 +1718,7 @@ query = '''
 '''
 
 result = await flow.rows_query(
-    query=query,
-    user="trustgraph",
-    collection="users",
+    query=query,collection="users",
     variables={"status": "active"}
 )
 
@@ -1884,12 +1726,11 @@ for user in result.get("data", {}).get("users", []):
     print(f"{user['name']}: {user['email']}")
 ```
 
-### `text_completion(self, system: str, prompt: str, **kwargs: Any) -> str`
+### `text_completion(self, system: str, prompt: str, **kwargs: Any) -> trustgraph.api.types.TextCompletionResult`
 
 Generate text completion (non-streaming).
 
 Generates a text response from an LLM given a system prompt and user prompt.
-Returns the complete response text.
 
 Note: This method does not support streaming. For streaming text generation,
 use AsyncSocketFlowInstance.text_completion() instead.
@@ -1900,7 +1741,7 @@ use AsyncSocketFlowInstance.text_completion() instead.
 - `prompt`: User prompt or question
 - `**kwargs`: Additional service-specific parameters
 
-**Returns:** str: Complete generated text response
+**Returns:** TextCompletionResult: Result with text, in_token, out_token, model
 
 **Example:**
 
@@ -1908,15 +1749,15 @@ use AsyncSocketFlowInstance.text_completion() instead.
 async_flow = await api.async_flow()
 flow = async_flow.id("default")
 
-# Generate text
-response = await flow.text_completion(
+result = await flow.text_completion(
     system="You are a helpful assistant.",
     prompt="Explain quantum computing in simple terms."
 )
-print(response)
+print(result.text)
+print(f"Tokens: {result.in_token} in, {result.out_token} out")
 ```
 
-### `triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs: Any)`
+### `triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs: Any)`
 
 Query RDF triples using pattern matching.
 
@@ -1928,7 +1769,6 @@ object patterns. Patterns use None as a wildcard to match any value.
 - `s`: Subject pattern (None for wildcard)
 - `p`: Predicate pattern (None for wildcard)
 - `o`: Object pattern (None for wildcard)
-- `user`: User identifier (None for all users)
 - `collection`: Collection identifier (None for all collections)
 - `limit`: Maximum number of triples to return (default: 100)
 - `**kwargs`: Additional service-specific parameters
@@ -1943,9 +1783,7 @@ flow = async_flow.id("default")
 
 # Find all triples with a specific predicate
 results = await flow.triples_query(
-    p="knows",
-    user="trustgraph",
-    collection="social",
+    p="knows",collection="social",
     limit=50
 )
 
@@ -1970,7 +1808,7 @@ for streaming responses.
 
 ### Methods
 
-### `__init__(self, url: str, timeout: int, token: str | None) -> None`
+### `__init__(self, url: str, timeout: int, token: str | None, workspace: str = 'default') -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -1979,6 +1817,14 @@ Initialize self.  See help(type(self)) for accurate signature.
 Close the persistent WebSocket connection.
 
 ### `flow(self, flow_id: str) -> 'SocketFlowInstance'`
+
+### `get_de_core(self, id: str) -> Iterator[Dict[str, Any]]`
+
+### `get_kg_core(self, id: str) -> Iterator[Dict[str, Any]]`
+
+### `put_de_core(self, id: str, document_embeddings=None) -> Dict[str, Any]`
+
+### `put_kg_core(self, id: str, triples=None, graph_embeddings=None) -> Dict[str, Any]`
 
 
 ---
@@ -2000,23 +1846,26 @@ streaming support for real-time responses.
 
 Initialize self.  See help(type(self)) for accurate signature.
 
-### `agent(self, question: str, user: str, state: Dict[str, Any] | None = None, group: str | None = None, history: List[Dict[str, Any]] | None = None, streaming: bool = False, **kwargs: Any) -> Dict[str, Any] | Iterator[trustgraph.api.types.StreamingChunk]`
+### `agent(self, question: str, state: Dict[str, Any] | None = None, group: str | None = None, history: List[Dict[str, Any]] | None = None, streaming: bool = False, **kwargs: Any) -> Dict[str, Any] | Iterator[trustgraph.api.types.StreamingChunk]`
 
 Execute an agent operation with streaming support.
 
-### `agent_explain(self, question: str, user: str, collection: str, state: Dict[str, Any] | None = None, group: str | None = None, history: List[Dict[str, Any]] | None = None, **kwargs: Any) -> Iterator[trustgraph.api.types.StreamingChunk | trustgraph.api.types.ProvenanceEvent]`
+### `agent_explain(self, question: str, collection: str, state: Dict[str, Any] | None = None, group: str | None = None, history: List[Dict[str, Any]] | None = None, **kwargs: Any) -> Iterator[trustgraph.api.types.StreamingChunk | trustgraph.api.types.ProvenanceEvent]`
 
 Execute an agent operation with explainability support.
 
-### `document_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs: Any) -> Dict[str, Any]`
+### `document_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs: Any) -> Dict[str, Any]`
 
 Query document chunks using semantic similarity.
 
-### `document_rag(self, query: str, user: str, collection: str, doc_limit: int = 10, streaming: bool = False, **kwargs: Any) -> str | Iterator[str]`
+### `document_rag(self, query: str, collection: str, doc_limit: int = 10, streaming: bool = False, **kwargs: Any) -> trustgraph.api.types.TextCompletionResult | Iterator[trustgraph.api.types.RAGChunk]`
 
 Execute document-based RAG query with optional streaming.
 
-### `document_rag_explain(self, query: str, user: str, collection: str, doc_limit: int = 10, **kwargs: Any) -> Iterator[trustgraph.api.types.RAGChunk | trustgraph.api.types.ProvenanceEvent]`
+Non-streaming: returns a TextCompletionResult with text and token counts.
+Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+
+### `document_rag_explain(self, query: str, collection: str, doc_limit: int = 10, **kwargs: Any) -> Iterator[trustgraph.api.types.RAGChunk | trustgraph.api.types.ProvenanceEvent]`
 
 Execute document-based RAG query with explainability support.
 
@@ -2024,15 +1873,18 @@ Execute document-based RAG query with explainability support.
 
 Generate vector embeddings for one or more texts.
 
-### `graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs: Any) -> Dict[str, Any]`
+### `graph_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs: Any) -> Dict[str, Any]`
 
 Query knowledge graph entities using semantic similarity.
 
-### `graph_rag(self, query: str, user: str, collection: str, entity_limit: int = 50, triple_limit: int = 30, max_subgraph_size: int = 1000, max_path_length: int = 2, edge_score_limit: int = 30, edge_limit: int = 25, streaming: bool = False, **kwargs: Any) -> str | Iterator[str]`
+### `graph_rag(self, query: str, collection: str, entity_limit: int = 50, triple_limit: int = 30, max_subgraph_size: int = 1000, max_path_length: int = 2, edge_score_limit: int = 30, edge_limit: int = 25, streaming: bool = False, **kwargs: Any) -> trustgraph.api.types.TextCompletionResult | Iterator[trustgraph.api.types.RAGChunk]`
 
 Execute graph-based RAG query with optional streaming.
 
-### `graph_rag_explain(self, query: str, user: str, collection: str, entity_limit: int = 50, triple_limit: int = 30, max_subgraph_size: int = 1000, max_path_length: int = 2, edge_score_limit: int = 30, edge_limit: int = 25, **kwargs: Any) -> Iterator[trustgraph.api.types.RAGChunk | trustgraph.api.types.ProvenanceEvent]`
+Non-streaming: returns a TextCompletionResult with text and token counts.
+Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+
+### `graph_rag_explain(self, query: str, collection: str, entity_limit: int = 50, triple_limit: int = 30, max_subgraph_size: int = 1000, max_path_length: int = 2, edge_score_limit: int = 30, edge_limit: int = 25, **kwargs: Any) -> Iterator[trustgraph.api.types.RAGChunk | trustgraph.api.types.ProvenanceEvent]`
 
 Execute graph-based RAG query with explainability support.
 
@@ -2040,31 +1892,37 @@ Execute graph-based RAG query with explainability support.
 
 Execute a Model Context Protocol (MCP) tool.
 
-### `prompt(self, id: str, variables: Dict[str, str], streaming: bool = False, **kwargs: Any) -> str | Iterator[str]`
+### `prompt(self, id: str, variables: Dict[str, str], streaming: bool = False, **kwargs: Any) -> trustgraph.api.types.TextCompletionResult | Iterator[trustgraph.api.types.RAGChunk]`
 
 Execute a prompt template with optional streaming.
 
-### `row_embeddings_query(self, text: str, schema_name: str, user: str = 'trustgraph', collection: str = 'default', index_name: str | None = None, limit: int = 10, **kwargs: Any) -> Dict[str, Any]`
+Non-streaming: returns a TextCompletionResult with text and token counts.
+Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+
+### `row_embeddings_query(self, text: str, schema_name: str, collection: str = 'default', index_name: str | None = None, limit: int = 10, **kwargs: Any) -> Dict[str, Any]`
 
 Query row data using semantic similarity on indexed fields.
 
-### `rows_query(self, query: str, user: str, collection: str, variables: Dict[str, Any] | None = None, operation_name: str | None = None, **kwargs: Any) -> Dict[str, Any]`
+### `rows_query(self, query: str, collection: str, variables: Dict[str, Any] | None = None, operation_name: str | None = None, **kwargs: Any) -> Dict[str, Any]`
 
 Execute a GraphQL query against structured rows.
 
-### `sparql_query_stream(self, query: str, user: str = 'trustgraph', collection: str = 'default', limit: int = 10000, batch_size: int = 20, **kwargs: Any) -> Iterator[Dict[str, Any]]`
+### `sparql_query_stream(self, query: str, collection: str = 'default', limit: int = 10000, batch_size: int = 20, **kwargs: Any) -> Iterator[Dict[str, Any]]`
 
 Execute a SPARQL query with streaming batches.
 
-### `text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> str | Iterator[str]`
+### `text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> trustgraph.api.types.TextCompletionResult | Iterator[trustgraph.api.types.RAGChunk]`
 
 Execute text completion with optional streaming.
 
-### `triples_query(self, s: str | Dict[str, Any] | None = None, p: str | Dict[str, Any] | None = None, o: str | Dict[str, Any] | None = None, g: str | None = None, user: str | None = None, collection: str | None = None, limit: int = 100, **kwargs: Any) -> List[Dict[str, Any]]`
+Non-streaming: returns a TextCompletionResult with text and token counts.
+Streaming: returns an iterator of RAGChunk (with token counts on the final chunk).
+
+### `triples_query(self, s: str | Dict[str, Any] | None = None, p: str | Dict[str, Any] | None = None, o: str | Dict[str, Any] | None = None, g: str | None = None, collection: str | None = None, limit: int = 100, **kwargs: Any) -> List[Dict[str, Any]]`
 
 Query knowledge graph triples using pattern matching.
 
-### `triples_query_stream(self, s: str | Dict[str, Any] | None = None, p: str | Dict[str, Any] | None = None, o: str | Dict[str, Any] | None = None, g: str | None = None, user: str | None = None, collection: str | None = None, limit: int = 100, batch_size: int = 20, **kwargs: Any) -> Iterator[List[Dict[str, Any]]]`
+### `triples_query_stream(self, s: str | Dict[str, Any] | None = None, p: str | Dict[str, Any] | None = None, o: str | Dict[str, Any] | None = None, g: str | None = None, collection: str | None = None, limit: int = 100, batch_size: int = 20, **kwargs: Any) -> Iterator[List[Dict[str, Any]]]`
 
 Query knowledge graph triples with streaming batches.
 
@@ -2095,7 +1953,7 @@ Or call connect()/aclose() manually.
 
 ### `__aexit__(self, exc_type, exc_val, exc_tb)`
 
-### `__init__(self, url: str, timeout: int, token: str | None)`
+### `__init__(self, url: str, timeout: int, token: str | None, workspace: str = 'default')`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -2105,7 +1963,8 @@ Close the persistent WebSocket connection cleanly.
 
 ### `connect(self)`
 
-Establish the persistent websocket connection.
+Establish the persistent websocket connection and run the
+first-frame auth handshake.
 
 ### `flow(self, flow_id: str)`
 
@@ -2128,11 +1987,11 @@ Asynchronous WebSocket flow instance
 
 Initialize self.  See help(type(self)) for accurate signature.
 
-### `agent(self, question: str, user: str, state: Dict[str, Any] | None = None, group: str | None = None, history: list | None = None, streaming: bool = False, **kwargs) -> Dict[str, Any] | AsyncIterator`
+### `agent(self, question: str, state: Dict[str, Any] | None = None, group: str | None = None, history: list | None = None, streaming: bool = False, **kwargs) -> Dict[str, Any] | AsyncIterator`
 
 Agent with optional streaming
 
-### `document_rag(self, query: str, user: str, collection: str, doc_limit: int = 10, streaming: bool = False, **kwargs)`
+### `document_rag(self, query: str, collection: str, doc_limit: int = 10, streaming: bool = False, **kwargs)`
 
 Document RAG with optional streaming
 
@@ -2140,11 +1999,11 @@ Document RAG with optional streaming
 
 Generate text embeddings
 
-### `graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs)`
+### `graph_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs)`
 
 Query graph embeddings for semantic search
 
-### `graph_rag(self, query: str, user: str, collection: str, max_subgraph_size: int = 1000, max_subgraph_count: int = 5, max_entity_distance: int = 3, streaming: bool = False, **kwargs)`
+### `graph_rag(self, query: str, collection: str, max_subgraph_size: int = 1000, max_subgraph_count: int = 5, max_entity_distance: int = 3, streaming: bool = False, **kwargs)`
 
 Graph RAG with optional streaming
 
@@ -2156,19 +2015,22 @@ Execute MCP tool
 
 Execute prompt with optional streaming
 
-### `row_embeddings_query(self, text: str, schema_name: str, user: str = 'trustgraph', collection: str = 'default', index_name: str | None = None, limit: int = 10, **kwargs)`
+### `row_embeddings_query(self, text: str, schema_name: str, collection: str = 'default', index_name: str | None = None, limit: int = 10, **kwargs)`
 
 Query row embeddings for semantic search on structured data
 
-### `rows_query(self, query: str, user: str, collection: str, variables: Dict | None = None, operation_name: str | None = None, **kwargs)`
+### `rows_query(self, query: str, collection: str, variables: Dict | None = None, operation_name: str | None = None, **kwargs)`
 
 GraphQL query against structured rows
 
 ### `text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs)`
 
-Text completion with optional streaming
+Text completion with optional streaming.
 
-### `triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs)`
+Non-streaming: returns a TextCompletionResult with text and token counts.
+Streaming: returns an async iterator of RAGChunk (with token counts on the final chunk).
+
+### `triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs)`
 
 Triple pattern query
 
@@ -2366,7 +2228,7 @@ for improved RAG performance.
 
 - `flow`: Flow identifier
 - `contexts`: Iterator yielding context dictionaries
-- `metadata`: Metadata dict with id, metadata, user, collection
+- `metadata`: Metadata dict with id, metadata, collection
 - `batch_size`: Number of contexts per batch (default 100)
 - `**kwargs`: Additional parameters (reserved for future use)
 
@@ -2384,7 +2246,7 @@ def context_generator():
 bulk.import_entity_contexts(
     flow="default",
     contexts=context_generator(),
-    metadata={"id": "doc1", "metadata": [], "user": "user1", "collection": "default"}
+    metadata={"id": "doc1", "metadata": [], "collection": "default"}
 )
 ```
 
@@ -2457,7 +2319,7 @@ Efficiently uploads large numbers of triples via WebSocket streaming.
 
 - `flow`: Flow identifier
 - `triples`: Iterator yielding Triple objects
-- `metadata`: Metadata dict with id, metadata, user, collection
+- `metadata`: Metadata dict with id, metadata, collection
 - `batch_size`: Number of triples per batch (default 100)
 - `**kwargs`: Additional parameters (reserved for future use)
 
@@ -2478,7 +2340,7 @@ def triple_generator():
 bulk.import_triples(
     flow="default",
     triples=triple_generator(),
-    metadata={"id": "doc1", "metadata": [], "user": "user1", "collection": "default"}
+    metadata={"id": "doc1", "metadata": [], "collection": "default"}
 )
 ```
 
@@ -2611,7 +2473,7 @@ Initialize explainability client.
 - `retry_delay`: Delay between retries in seconds (default: 0.2)
 - `max_retries`: Maximum retry attempts (default: 10)
 
-### `detect_session_type(self, session_uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None) -> str`
+### `detect_session_type(self, session_uri: str, graph: str | None = None, collection: str | None = None) -> str`
 
 Detect whether a session is GraphRAG or Agent type.
 
@@ -2619,12 +2481,11 @@ Detect whether a session is GraphRAG or Agent type.
 
 - `session_uri`: The session/question URI
 - `graph`: Named graph
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 
 **Returns:** "graphrag" or "agent"
 
-### `fetch_agent_trace(self, session_uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None, api: Any = None, max_content: int = 10000) -> Dict[str, Any]`
+### `fetch_agent_trace(self, session_uri: str, graph: str | None = None, collection: str | None = None, api: Any = None, max_content: int = 10000) -> Dict[str, Any]`
 
 Fetch the complete Agent trace starting from a session URI.
 
@@ -2637,14 +2498,13 @@ Follows the provenance chain for all patterns:
 
 - `session_uri`: The agent session/question URI
 - `graph`: Named graph (default: urn:graph:retrieval)
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 - `api`: TrustGraph Api instance for librarian access (optional)
 - `max_content`: Maximum content length for conclusion
 
 **Returns:** Dict with question, steps (mixed entity list), conclusion/synthesis
 
-### `fetch_docrag_trace(self, question_uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None, api: Any = None, max_content: int = 10000) -> Dict[str, Any]`
+### `fetch_docrag_trace(self, question_uri: str, graph: str | None = None, collection: str | None = None, api: Any = None, max_content: int = 10000) -> Dict[str, Any]`
 
 Fetch the complete DocumentRAG trace starting from a question URI.
 
@@ -2655,14 +2515,13 @@ Follows the provenance chain:
 
 - `question_uri`: The question entity URI
 - `graph`: Named graph (default: urn:graph:retrieval)
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 - `api`: TrustGraph Api instance for librarian access (optional)
 - `max_content`: Maximum content length for synthesis
 
 **Returns:** Dict with question, grounding, exploration, synthesis entities
 
-### `fetch_document_content(self, document_uri: str, api: Any, user: str | None = None, max_content: int = 10000) -> str`
+### `fetch_document_content(self, document_uri: str, api: Any, max_content: int = 10000) -> str`
 
 Fetch content from the librarian by document URI.
 
@@ -2670,12 +2529,11 @@ Fetch content from the librarian by document URI.
 
 - `document_uri`: The document URI in the librarian
 - `api`: TrustGraph Api instance for librarian access
-- `user`: User identifier for librarian
 - `max_content`: Maximum content length to return
 
 **Returns:** The document content as a string
 
-### `fetch_edge_selection(self, uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None) -> trustgraph.api.explainability.EdgeSelection | None`
+### `fetch_edge_selection(self, uri: str, graph: str | None = None, collection: str | None = None) -> trustgraph.api.explainability.EdgeSelection | None`
 
 Fetch an edge selection entity (used by Focus).
 
@@ -2683,12 +2541,11 @@ Fetch an edge selection entity (used by Focus).
 
 - `uri`: The edge selection URI
 - `graph`: Named graph to query
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 
 **Returns:** EdgeSelection or None if not found
 
-### `fetch_entity(self, uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None) -> trustgraph.api.explainability.ExplainEntity | None`
+### `fetch_entity(self, uri: str, graph: str | None = None, collection: str | None = None) -> trustgraph.api.explainability.ExplainEntity | None`
 
 Fetch an explainability entity by URI with eventual consistency handling.
 
@@ -2703,12 +2560,11 @@ Uses quiescence detection:
 
 - `uri`: The entity URI to fetch
 - `graph`: Named graph to query (e.g., "urn:graph:retrieval")
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 
 **Returns:** ExplainEntity subclass or None if not found
 
-### `fetch_focus_with_edges(self, uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None) -> trustgraph.api.explainability.Focus | None`
+### `fetch_focus_with_edges(self, uri: str, graph: str | None = None, collection: str | None = None) -> trustgraph.api.explainability.Focus | None`
 
 Fetch a Focus entity and all its edge selections.
 
@@ -2716,12 +2572,11 @@ Fetch a Focus entity and all its edge selections.
 
 - `uri`: The Focus entity URI
 - `graph`: Named graph to query
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 
 **Returns:** Focus with populated edge_selections, or None
 
-### `fetch_graphrag_trace(self, question_uri: str, graph: str | None = None, user: str | None = None, collection: str | None = None, api: Any = None, max_content: int = 10000) -> Dict[str, Any]`
+### `fetch_graphrag_trace(self, question_uri: str, graph: str | None = None, collection: str | None = None, api: Any = None, max_content: int = 10000) -> Dict[str, Any]`
 
 Fetch the complete GraphRAG trace starting from a question URI.
 
@@ -2731,46 +2586,42 @@ Follows the provenance chain: Question -> Grounding -> Exploration -> Focus -> S
 
 - `question_uri`: The question entity URI
 - `graph`: Named graph (default: urn:graph:retrieval)
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 - `api`: TrustGraph Api instance for librarian access (optional)
 - `max_content`: Maximum content length for synthesis
 
 **Returns:** Dict with question, grounding, exploration, focus, synthesis entities
 
-### `list_sessions(self, graph: str | None = None, user: str | None = None, collection: str | None = None, limit: int = 50) -> List[trustgraph.api.explainability.Question]`
+### `list_sessions(self, graph: str | None = None, collection: str | None = None, limit: int = 50) -> List[trustgraph.api.explainability.Question]`
 
 List all explainability sessions (questions) in a collection.
 
 **Arguments:**
 
 - `graph`: Named graph (default: urn:graph:retrieval)
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 - `limit`: Maximum number of sessions to return
 
 **Returns:** List of Question entities sorted by timestamp (newest first)
 
-### `resolve_edge_labels(self, edge: Dict[str, str], user: str | None = None, collection: str | None = None) -> Tuple[str, str, str]`
+### `resolve_edge_labels(self, edge: Dict[str, str], collection: str | None = None) -> Tuple[str, str, str]`
 
 Resolve labels for all components of an edge triple.
 
 **Arguments:**
 
 - `edge`: Dict with "s", "p", "o" keys
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 
 **Returns:** Tuple of (s_label, p_label, o_label)
 
-### `resolve_label(self, uri: str, user: str | None = None, collection: str | None = None) -> str`
+### `resolve_label(self, uri: str, collection: str | None = None) -> str`
 
 Resolve rdfs:label for a URI, with caching.
 
 **Arguments:**
 
 - `uri`: The URI to get label for
-- `user`: User/keyspace identifier
 - `collection`: Collection identifier
 
 **Returns:** The label if found, otherwise the URI itself
@@ -3114,15 +2965,20 @@ from trustgraph.api import ConfigValue
 
 Configuration key-value pair.
 
+**Attributes:**
+
+- `responses to getvalues`: all-ws; empty otherwise.
+
 **Fields:**
 
 - `type`: <class 'str'>
 - `key`: <class 'str'>
 - `value`: <class 'str'>
+- `workspace`: <class 'str'>
 
 ### Methods
 
-### `__init__(self, type: str, key: str, value: str) -> None`
+### `__init__(self, type: str, key: str, value: str, workspace: str = '') -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3149,14 +3005,13 @@ Metadata for a document in the library.
 - `title`: <class 'str'>
 - `comments`: <class 'str'>
 - `metadata`: typing.List[trustgraph.api.types.Triple]
-- `user`: <class 'str'>
 - `tags`: typing.List[str]
 - `parent_id`: <class 'str'>
 - `document_type`: <class 'str'>
 
 ### Methods
 
-### `__init__(self, id: str, time: datetime.datetime, kind: str, title: str, comments: str, metadata: List[trustgraph.api.types.Triple], user: str, tags: List[str], parent_id: str = '', document_type: str = 'source') -> None`
+### `__init__(self, id: str, time: datetime.datetime, kind: str, title: str, comments: str, metadata: List[trustgraph.api.types.Triple], tags: List[str], parent_id: str = '', document_type: str = 'source') -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3177,13 +3032,12 @@ Metadata for an active document processing job.
 - `document_id`: <class 'str'>
 - `time`: <class 'datetime.datetime'>
 - `flow`: <class 'str'>
-- `user`: <class 'str'>
 - `collection`: <class 'str'>
 - `tags`: typing.List[str]
 
 ### Methods
 
-### `__init__(self, id: str, document_id: str, time: datetime.datetime, flow: str, user: str, collection: str, tags: List[str]) -> None`
+### `__init__(self, id: str, document_id: str, time: datetime.datetime, flow: str, collection: str, tags: List[str]) -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3198,8 +3052,8 @@ from trustgraph.api import CollectionMetadata
 
 Metadata for a data collection.
 
-Collections provide logical grouping and isolation for documents and
-knowledge graph data.
+Collections provide logical grouping within a workspace for documents
+and knowledge graph data.
 
 **Attributes:**
 
@@ -3207,7 +3061,6 @@ knowledge graph data.
 
 **Fields:**
 
-- `user`: <class 'str'>
 - `collection`: <class 'str'>
 - `name`: <class 'str'>
 - `description`: <class 'str'>
@@ -3215,7 +3068,7 @@ knowledge graph data.
 
 ### Methods
 
-### `__init__(self, user: str, collection: str, name: str, description: str, tags: List[str]) -> None`
+### `__init__(self, collection: str, name: str, description: str, tags: List[str]) -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3262,12 +3115,12 @@ These chunks show how the agent is thinking about the problem.
 
 - `content`: <class 'str'>
 - `end_of_message`: <class 'bool'>
-- `chunk_type`: <class 'str'>
+- `message_type`: <class 'str'>
 - `message_id`: <class 'str'>
 
 ### Methods
 
-### `__init__(self, content: str, end_of_message: bool = False, chunk_type: str = 'thought', message_id: str = '') -> None`
+### `__init__(self, content: str, end_of_message: bool = False, message_type: str = 'thought', message_id: str = '') -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3289,12 +3142,12 @@ These chunks show what the agent learned from using tools.
 
 - `content`: <class 'str'>
 - `end_of_message`: <class 'bool'>
-- `chunk_type`: <class 'str'>
+- `message_type`: <class 'str'>
 - `message_id`: <class 'str'>
 
 ### Methods
 
-### `__init__(self, content: str, end_of_message: bool = False, chunk_type: str = 'observation', message_id: str = '') -> None`
+### `__init__(self, content: str, end_of_message: bool = False, message_type: str = 'observation', message_id: str = '') -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3314,19 +3167,22 @@ its reasoning and tool use.
 
 **Attributes:**
 
-- `chunk_type: Always "final`: answer"
+- `message_type: Always "final`: answer"
 
 **Fields:**
 
 - `content`: <class 'str'>
 - `end_of_message`: <class 'bool'>
-- `chunk_type`: <class 'str'>
+- `message_type`: <class 'str'>
 - `end_of_dialog`: <class 'bool'>
 - `message_id`: <class 'str'>
+- `in_token`: int | None
+- `out_token`: int | None
+- `model`: str | None
 
 ### Methods
 
-### `__init__(self, content: str, end_of_message: bool = False, chunk_type: str = 'final-answer', end_of_dialog: bool = False, message_id: str = '') -> None`
+### `__init__(self, content: str, end_of_message: bool = False, message_type: str = 'final-answer', end_of_dialog: bool = False, message_id: str = '', in_token: int | None = None, out_token: int | None = None, model: str | None = None) -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3348,13 +3204,44 @@ and other generative services.
 
 - `content`: <class 'str'>
 - `end_of_message`: <class 'bool'>
-- `chunk_type`: <class 'str'>
+- `message_type`: <class 'str'>
 - `end_of_stream`: <class 'bool'>
 - `error`: typing.Dict[str, str] | None
+- `in_token`: int | None
+- `out_token`: int | None
+- `model`: str | None
 
 ### Methods
 
-### `__init__(self, content: str, end_of_message: bool = False, chunk_type: str = 'rag', end_of_stream: bool = False, error: Dict[str, str] | None = None) -> None`
+### `__init__(self, content: str, end_of_message: bool = False, message_type: str = 'rag', end_of_stream: bool = False, error: Dict[str, str] | None = None, in_token: int | None = None, out_token: int | None = None, model: str | None = None) -> None`
+
+Initialize self.  See help(type(self)) for accurate signature.
+
+
+---
+
+## `TextCompletionResult`
+
+```python
+from trustgraph.api import TextCompletionResult
+```
+
+Result from a text completion request.
+
+Returned by text_completion() in both streaming and non-streaming modes.
+In streaming mode, text is None (chunks are delivered via the iterator).
+In non-streaming mode, text contains the complete response.
+
+**Fields:**
+
+- `text`: str | None
+- `in_token`: int | None
+- `out_token`: int | None
+- `model`: str | None
+
+### Methods
+
+### `__init__(self, text: str | None, in_token: int | None = None, out_token: int | None = None, model: str | None = None) -> None`
 
 Initialize self.  See help(type(self)) for accurate signature.
 
@@ -3575,3 +3462,4 @@ Base class for all TrustGraph service errors
 
 
 ---
+

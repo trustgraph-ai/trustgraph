@@ -418,7 +418,14 @@ class Processor(FlowProcessor):
         doc_uri_str = document_uri(source_doc_id)
 
         # Extract elements using unstructured
-        elements = self.extract_elements(blob, mime_type)
+        try:
+            elements = self.extract_elements(blob, mime_type)
+        except Exception as e:
+            logger.error(
+                f"Failed to extract elements from {source_doc_id}: "
+                f"{type(e).__name__}: {e}"
+            )
+            return
 
         if not elements:
             logger.warning("No elements extracted from document")

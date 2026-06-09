@@ -26,7 +26,7 @@ get:
 
     ### Request Message Format
 
-    **Global Service Request** (no flow parameter):
+    **Workspace-Scoped Service Request** (no flow parameter):
     ```json
     {
       "id": "req-123",
@@ -38,7 +38,7 @@ get:
     }
     ```
 
-    **Flow-Hosted Service Request** (with flow parameter):
+    **Flow-Scoped Service Request** (with flow parameter):
     ```json
     {
       "id": "req-456",
@@ -54,7 +54,7 @@ get:
     **Request Fields**:
     - `id` (string, required): Client-generated unique identifier for this request within the session. Used to match responses to requests.
     - `service` (string, required): Service identifier (e.g., "config", "agent", "document-rag"). Same as `{kind}` in REST URLs.
-    - `flow` (string, optional): Flow ID for flow-hosted services. Omit for global services.
+    - `flow` (string, optional): Flow ID for flow-scoped services. Omit for workspace-scoped and global services.
     - `request` (object, required): Service-specific request payload. Same structure as REST API request body.
 
     ### Response Message Format
@@ -96,14 +96,14 @@ get:
     | `POST /api/v1/config` | `{"service": "config"}` |
     | `POST /api/v1/flow/{flow}/service/agent` | `{"service": "agent", "flow": "my-flow"}` |
 
-    **Global Services** (no `flow` parameter):
+    **Workspace-Scoped Services** (no `flow` parameter, workspace from token):
     - `config` - Configuration management
     - `flow` - Flow lifecycle and blueprints
     - `librarian` - Document library management
     - `knowledge` - Knowledge graph core management
     - `collection-management` - Collection metadata
 
-    **Flow-Hosted Services** (require `flow` parameter):
+    **Flow-Scoped Services** (require `flow` parameter, workspace from token):
     - AI services: `agent`, `text-completion`, `prompt`, `document-rag`, `graph-rag`
     - Embeddings: `embeddings`, `graph-embeddings`, `document-embeddings`
     - Query: `triples`, `objects`, `nlp-query`, `structured-query`
@@ -146,9 +146,11 @@ get:
 
     ## Authentication
 
-    When `GATEWAY_SECRET` is set, include bearer token:
-    - As query parameter: `ws://localhost:8088/api/v1/socket?token=<token>`
-    - Or in WebSocket subprotocol header
+    The `/api/v1/socket` endpoint uses in-band authentication.
+    The WebSocket handshake is accepted unconditionally.  After
+    connecting, the client sends a bearer token as the first frame.
+    The gateway resolves the token to an identity and workspace.
+    All subsequent requests operate within that workspace context.
 
     ## Benefits Over REST
 

@@ -27,7 +27,8 @@ class Processor(FlowProcessor):
             host=params.get("cassandra_host"),
             username=params.get("cassandra_username"),
             password=params.get("cassandra_password"),
-            default_keyspace='knowledge'
+            default_keyspace='knowledge',
+            replication_factor=params.get("cassandra_replication_factor"),
         )
 
         super(Processor, self).__init__(

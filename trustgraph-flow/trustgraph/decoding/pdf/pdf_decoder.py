@@ -129,7 +129,15 @@ class Processor(FlowProcessor):
                 )
                 PyPDFLoader = _cls
             loader = PyPDFLoader(temp_path)
-            pages = loader.load()
+            try:
+                pages = loader.load()
+            except Exception as e:
+                source_doc_id = v.document_id or v.metadata.id
+                logger.error(
+                    f"Failed to decode PDF {source_doc_id}: "
+                    f"{type(e).__name__}: {e}"
+                )
+                return
 
             # Get the source document ID
             source_doc_id = v.document_id or v.metadata.id

@@ -40,6 +40,23 @@ def read_message(unpacked, id):
             },
             "triples": msg["t"],
         }
+    elif unpacked[0] == "lm":
+        msg = unpacked[1]
+        return "lm", {
+            "id": msg["i"],
+            "kind": msg.get("k", ""),
+            "title": msg.get("t", ""),
+            "parent-id": msg.get("p", ""),
+            "document-type": msg.get("d", ""),
+            "comments": msg.get("c", ""),
+            "tags": msg.get("g", []),
+        }
+    elif unpacked[0] == "lb":
+        msg = unpacked[1]
+        return "lb", {
+            "id": msg["i"],
+            "data": msg.get("d", b""),
+        }
     else:
         raise RuntimeError("Unpacked unexpected messsage type", unpacked[0])
 
@@ -51,6 +68,8 @@ def put(url, workspace, id, input, token=None):
     try:
         ge = 0
         t = 0
+        lm = 0
+        lb = 0
 
         with open(input, "rb") as f:
 
@@ -73,10 +92,18 @@ def put(url, workspace, id, input, token=None):
                     t += 1
                     socket.put_kg_core(id, triples=msg)
 
+                elif kind == "lm":
+                    lm += 1
+                    socket.put_kg_core(id, library_metadata=msg)
+
+                elif kind == "lb":
+                    lb += 1
+                    socket.put_kg_core(id, library_blob=msg)
+
                 else:
                     raise RuntimeError("Unexpected message kind", kind)
 
-        print(f"Put: {t} triple, {ge} GE messages.")
+        print(f"Put: {t} triple, {ge} GE, {lm} library metadata, {lb} library blob messages.")
 
     finally:
         socket.close()

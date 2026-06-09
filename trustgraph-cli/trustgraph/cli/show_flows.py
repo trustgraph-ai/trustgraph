@@ -213,7 +213,7 @@ async def fetch_show_flows(client, workspace):
 
 async def _show_flows_async(url, token=None, workspace="default"):
 
-    async with AsyncSocketClient(url, timeout=60, token=token) as client:
+    async with AsyncSocketClient(url, timeout=60, token=token, workspace=workspace) as client:
         return await fetch_show_flows(client, workspace)
 
 def show_flows(url, token=None, workspace="default"):

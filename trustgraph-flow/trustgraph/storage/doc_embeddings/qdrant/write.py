@@ -14,29 +14,36 @@ from qdrant_client.models import Distance, VectorParams
 from .... base import DocumentEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "doc-embeddings-write"
 
-default_store_uri = 'http://localhost:6333'
-
 class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
     def __init__(self, **params):
 
-        store_uri = params.get("store_uri", default_store_uri)
-        api_key = params.get("api_key", None)
+        store_uri = params.get("store_uri")
+        api_key = params.get("api_key")
+
+        url, api_key, replication_factor, shard_number = resolve_qdrant_config(
+            url=store_uri, api_key=api_key,
+            replication_factor=params.get("qdrant_replication_factor"),
+            shard_number=params.get("qdrant_shard_number"),
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "store_uri": store_uri,
+                "store_uri": url,
                 "api_key": api_key,
             }
         )
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.qdrant = QdrantClient(url=url, api_key=api_key)
+        self.replication_factor = replication_factor
+        self.shard_number = shard_number
         self._cache_lock = asyncio.Lock()
         self._known_collections: set[str] = set()
 
@@ -61,6 +68,8 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                     vectors_config=VectorParams(
                         size=dim, distance=Distance.COSINE
                     ),
+                    replication_factor=self.replication_factor,
+                    shard_number=self.shard_number,
                 )
             self._known_collections.add(collection_name)
 
@@ -109,18 +118,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
     def add_args(parser):
 
         DocumentEmbeddingsStoreService.add_args(parser)
-
-        parser.add_argument(
-            '-t', '--store-uri',
-            default=default_store_uri,
-            help=f'Qdrant URI (default: {default_store_uri})'
-        )
-        
-        parser.add_argument(
-            '-k', '--api-key',
-            default=None,
-            help=f'Qdrant API key (default: None)'
-        )
+        add_qdrant_args(parser)
 
     async def create_collection(self, workspace: str, collection: str, metadata: dict):
         """

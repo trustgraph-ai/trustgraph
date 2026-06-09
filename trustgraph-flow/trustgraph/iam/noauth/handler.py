@@ -106,7 +106,7 @@ class NoAuthHandler:
             ):
                 return IamResponse()
 
-            if op == "list-workspaces":
+            if op in ("list-workspaces", "list-my-workspaces"):
                 return IamResponse()
 
             if op in ("create-api-key", "list-api-keys", "revoke-api-key"):

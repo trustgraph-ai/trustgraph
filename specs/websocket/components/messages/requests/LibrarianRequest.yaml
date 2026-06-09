@@ -1,5 +1,5 @@
 type: object
-description: WebSocket request for librarian service (global service)
+description: WebSocket request for librarian service (workspace-scoped service)
 required:
   - id
   - service

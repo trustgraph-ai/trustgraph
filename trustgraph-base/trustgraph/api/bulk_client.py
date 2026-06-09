@@ -34,7 +34,7 @@ class BulkClient:
     Note: For true async support, use AsyncBulkClient instead.
     """
 
-    def __init__(self, url: str, timeout: int, token: Optional[str]) -> None:
+    def __init__(self, url: str, timeout: int, token: Optional[str], workspace: str = "default") -> None:
         """
         Initialize synchronous bulk client.
 
@@ -42,10 +42,12 @@ class BulkClient:
             url: Base URL for TrustGraph API (HTTP/HTTPS will be converted to WS/WSS)
             timeout: WebSocket timeout in seconds
             token: Optional bearer token for authentication
+            workspace: Workspace for data isolation
         """
         self.url: str = self._convert_to_ws_url(url)
         self.timeout: int = timeout
         self.token: Optional[str] = token
+        self.workspace: str = workspace
 
     def _convert_to_ws_url(self, url: str) -> str:
         """Convert HTTP URL to WebSocket URL"""
@@ -57,6 +59,18 @@ class BulkClient:
             return url
         else:
             return f"ws://{url}"
+
+    def _build_ws_url(self, path: str) -> str:
+        """Build a WebSocket URL with token and workspace query params."""
+        ws_url = f"{self.url}{path}"
+        params = []
+        if self.token:
+            params.append(f"token={self.token}")
+        if self.workspace:
+            params.append(f"workspace={self.workspace}")
+        if params:
+            ws_url = f"{ws_url}?{'&'.join(params)}"
+        return ws_url
 
     def _run_async(self, coro: Coroutine[Any, Any, Any]) -> Any:
         """Run async coroutine synchronously"""
@@ -116,9 +130,7 @@ class BulkClient:
         metadata: Optional[Dict[str, Any]], batch_size: int
     ) -> None:
         """Async implementation of triple import"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/triples"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/import/triples")
 
         if metadata is None:
             metadata = {"id": "", "metadata": [], "collection": "default"}
@@ -194,9 +206,7 @@ class BulkClient:
 
     async def _export_triples_async(self, flow: str) -> Iterator[Triple]:
         """Async implementation of triple export"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/export/triples"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/export/triples")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for raw_message in websocket:
@@ -238,9 +248,7 @@ class BulkClient:
 
     async def _import_graph_embeddings_async(self, flow: str, embeddings: Iterator[Dict[str, Any]]) -> None:
         """Async implementation of graph embeddings import"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/graph-embeddings"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/import/graph-embeddings")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             for embedding in embeddings:
@@ -296,9 +304,7 @@ class BulkClient:
 
     async def _export_graph_embeddings_async(self, flow: str) -> Iterator[Dict[str, Any]]:
         """Async implementation of graph embeddings export"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/export/graph-embeddings"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/export/graph-embeddings")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for raw_message in websocket:
@@ -336,9 +342,7 @@ class BulkClient:
 
     async def _import_document_embeddings_async(self, flow: str, embeddings: Iterator[Dict[str, Any]]) -> None:
         """Async implementation of document embeddings import"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/document-embeddings"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/import/document-embeddings")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             for embedding in embeddings:
@@ -394,9 +398,7 @@ class BulkClient:
 
     async def _export_document_embeddings_async(self, flow: str) -> Iterator[Dict[str, Any]]:
         """Async implementation of document embeddings export"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/export/document-embeddings"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/export/document-embeddings")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for raw_message in websocket:
@@ -446,9 +448,7 @@ class BulkClient:
         metadata: Optional[Dict[str, Any]], batch_size: int
     ) -> None:
         """Async implementation of entity contexts import"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/entity-contexts"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/import/entity-contexts")
 
         if metadata is None:
             metadata = {"id": "", "metadata": [], "collection": "default"}
@@ -522,9 +522,7 @@ class BulkClient:
 
     async def _export_entity_contexts_async(self, flow: str) -> Iterator[Dict[str, Any]]:
         """Async implementation of entity contexts export"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/export/entity-contexts"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/export/entity-contexts")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for raw_message in websocket:
@@ -562,9 +560,7 @@ class BulkClient:
 
     async def _import_rows_async(self, flow: str, rows: Iterator[Dict[str, Any]]) -> None:
         """Async implementation of rows import"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/rows"
-        if self.token:
-            ws_url = f"{ws_url}?token={self.token}"
+        ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/import/rows")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             for row in rows:
