@@ -49,7 +49,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
     async def test_on_message_success(self, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test successful PDF processing"""
         # Mock PDF content
-        pdf_content = b"fake pdf content"
+        pdf_content = b"%PDF-1.7\nfake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
 
         # Mock PyPDFLoader
@@ -92,9 +92,51 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
     @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    async def test_on_message_rejects_librarian_content_that_is_not_pdf(self, mock_pdf_loader_class, mock_producer, mock_consumer):
+        """Test rejecting non-PDF content before invoking the PDF loader"""
+        html_content = b"<html><body>Not found</body></html>"
+        html_base64 = base64.b64encode(html_content)
+
+        mock_metadata = Metadata(id="test-doc")
+        mock_document = Document(metadata=mock_metadata, document_id="doc-123")
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
+
+        mock_output_flow = AsyncMock()
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "output": mock_output_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
+        mock_flow.librarian.fetch_document_metadata = AsyncMock(
+            return_value=MagicMock(kind="application/pdf")
+        )
+        mock_flow.librarian.fetch_document_content = AsyncMock(
+            return_value=html_base64
+        )
+        mock_flow.librarian.save_child_document = AsyncMock()
+
+        config = {
+            'id': 'test-pdf-decoder',
+            'taskgroup': AsyncMock()
+        }
+
+        processor = Processor(**config)
+
+        await processor.on_message(mock_msg, None, mock_flow)
+
+        mock_pdf_loader_class.assert_not_called()
+        mock_output_flow.send.assert_not_called()
+        mock_triples_flow.send.assert_not_called()
+        mock_flow.librarian.save_child_document.assert_not_called()
+
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_empty_pdf(self, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test handling of empty PDF"""
-        pdf_content = b"fake pdf content"
+        pdf_content = b"%PDF-1.7\nfake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
 
         mock_loader = MagicMock()
@@ -126,7 +168,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_unicode_content(self, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test handling of unicode content in PDF"""
-        pdf_content = b"fake pdf content"
+        pdf_content = b"%PDF-1.7\nfake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
 
         mock_loader = MagicMock()
