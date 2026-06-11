@@ -37,7 +37,7 @@ import {
 import { makeProcessorProgram } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
-import { Duration, Effect, HashMap, Match, Option, SynchronizedRef } from "effect";
+import { Array as A, Duration, Effect, HashMap, Match, Option, Order, SynchronizedRef } from "effect";
 import * as S from "effect/Schema";
 
 // ---------- Internal state types ----------
@@ -236,8 +236,11 @@ const isStringRecord = (value: unknown): value is Record<string, string> =>
 const getHashMapValue = <K, V>(store: HashMap.HashMap<K, V>, key: K): V | undefined =>
   Option.getOrUndefined(HashMap.get(store, key));
 
-const sortedEntries = <A>(store: HashMap.HashMap<string, A>): ReadonlyArray<readonly [string, A]> =>
-  HashMap.toEntries(store).sort(([left], [right]) => left.localeCompare(right));
+const sortedEntries = <Value>(store: HashMap.HashMap<string, Value>): ReadonlyArray<readonly [string, Value]> =>
+  A.sort(
+    HashMap.toEntries(store),
+    Order.make<readonly [string, Value]>(([left], [right]) => Order.String(left, right)),
+  );
 
 const sortedKeys = <A>(store: HashMap.HashMap<string, A>): Array<string> =>
   sortedEntries(store).map(([key]) => key);

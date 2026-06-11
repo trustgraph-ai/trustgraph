@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useAtom, useAtomValue } from "@effect/atom-react";
+import { Array as A, Order } from "effect";
 import { Network, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import {
@@ -74,7 +75,7 @@ export function ExplainGraph({ explainEvents, collection }: ExplainGraphProps) {
   const loading = expanded && resultLoading(result, triples);
   const error = resultError(result);
   const { data: graphData, typeMap } = triplesToGraph(triples);
-  const uniqueTypes = Array.from(new Set(Array.from(typeMap.values()).map(localName))).sort();
+  const uniqueTypes = A.sort(Array.from(new Set(Array.from(typeMap.values()).map(localName))), Order.String);
 
   return (
     <div className="mt-2 rounded-md border border-border/50">

@@ -20,7 +20,7 @@ import type {
   TriplesQueryResponse,
 } from "@trustgraph/base";
 import { Triple, errorMessage } from "@trustgraph/base";
-import { Context, Effect, Layer, Match } from "effect";
+import { Array as A, Context, Effect, Layer, Match, Order } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
@@ -348,8 +348,10 @@ const scoreEdges = Effect.fn("GraphRagEngine.scoreEdges")(function* (
 
     yield* Effect.log(`[GraphRag] Edge scoring LLM response (first 500 chars): ${llmResp.response.slice(0, 500)}`);
 
-    const scored = parseScoredEdges(llmResp.response);
-    scored.sort((a, b) => b.score - a.score);
+    const scored = A.sort(
+      parseScoredEdges(llmResp.response),
+      Order.make<typeof ScoredEdge.Type>((left, right) => Order.Number(right.score, left.score)),
+    );
     const topN = scored.slice(0, config.edgeLimit);
 
     const result: Triple[] = [];

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useAtom, useAtomRefresh, useAtomValue } from "@effect/atom-react";
+import { Array as A, Order } from "effect";
 import {
   Rotate3d,
   Search,
@@ -180,7 +181,7 @@ export default function GraphPage() {
   const selectedNode = view.selectedNodeId !== null
     ? data.nodes.find((node) => node.id === view.selectedNodeId)
     : undefined;
-  const uniqueTypes = Array.from(new Set(Array.from(typeMap.values()).map(localName))).sort();
+  const uniqueTypes = A.sort(Array.from(new Set(Array.from(typeMap.values()).map(localName))), Order.String);
 
   return (
     <div className="flex h-full flex-col">

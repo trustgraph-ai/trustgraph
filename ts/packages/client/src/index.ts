@@ -6,8 +6,13 @@ export * from "./models/Triple.js";
 export * from "./models/messages.js";
 export * from "./models/namespaces.js";
 
-// Export socket client
-export * from "./socket/trustgraph-socket.js";
+// Export retained compatibility types from the legacy socket shim.
+export type {
+  ConnectionState,
+  ExplainEvent,
+  GraphRagOptions,
+  StreamingMetadata,
+} from "./socket/trustgraph-socket.js";
 export * from "./socket/effect-rpc-client.js";
 export * from "./rpc/contract.js";
 

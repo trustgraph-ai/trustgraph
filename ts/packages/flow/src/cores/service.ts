@@ -29,7 +29,7 @@ import {
   processorLifecycleError,
   topics,
 } from "@trustgraph/base";
-import {Duration, Effect, HashMap, Match, SynchronizedRef} from "effect";
+import {Array as A, Duration, Effect, HashMap, Match, Order, SynchronizedRef} from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import {ensureDirectoryEffect, joinPath, readTextFileEffect, writeTextFileEffect} from "../runtime/effect-files.js";
@@ -137,8 +137,11 @@ const cloneKnowledgeCore = (core: KnowledgeCore): KnowledgeCore => ({
   })),
 });
 
-const sortedEntries = <A>(store: HashMap.HashMap<string, A>): ReadonlyArray<readonly [string, A]> =>
-  HashMap.toEntries(store).sort(([left], [right]) => left.localeCompare(right));
+const sortedEntries = <Value>(store: HashMap.HashMap<string, Value>): ReadonlyArray<readonly [string, Value]> =>
+  A.sort(
+    HashMap.toEntries(store),
+    Order.make<readonly [string, Value]>(([left], [right]) => Order.String(left, right)),
+  );
 
 const toPersistedSnapshot = (state: KnowledgeCoreServiceState): PersistedKnowledgeSnapshot => {
   const kg: Record<string, KnowledgeCore> = {};

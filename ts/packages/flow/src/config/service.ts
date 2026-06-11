@@ -5,7 +5,7 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
-import {Duration, Effect, HashMap, Match, Option, SynchronizedRef} from "effect";
+import {Array as A, Duration, Effect, HashMap, Match, Option, Order, SynchronizedRef} from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 import type {
@@ -122,26 +122,27 @@ const initialState = (): ConfigServiceState => ({
 const getHashMapValue = <K, V>(store: HashMap.HashMap<K, V>, key: K): V | undefined =>
   Option.getOrUndefined(HashMap.get(store, key));
 
-const compareText = (left: string, right: string): number =>
-  left.localeCompare(right);
-
-const compareWorkspace = (left: string, right: string): number =>
+const workspaceOrder = Order.make<string>((left, right) =>
   left === right
     ? 0
     : left === DEFAULT_WORKSPACE
       ? -1
       : right === DEFAULT_WORKSPACE
         ? 1
-        : compareText(left, right);
+        : Order.String(left, right)
+);
+
+const orderByKey = <A>(order: Order.Order<string>): Order.Order<readonly [string, A]> =>
+  Order.mapInput(order, ([key]) => key);
 
 const workspaceEntries = (store: ConfigStore): ReadonlyArray<readonly [string, WorkspaceStore]> =>
-  HashMap.toEntries(store).sort(([left], [right]) => compareWorkspace(left, right));
+  A.sort(HashMap.toEntries(store), orderByKey<WorkspaceStore>(workspaceOrder));
 
 const namespaceEntries = (store: WorkspaceStore): ReadonlyArray<readonly [string, NamespaceStore]> =>
-  HashMap.toEntries(store).sort(([left], [right]) => compareText(left, right));
+  A.sort(HashMap.toEntries(store), orderByKey<NamespaceStore>(Order.String));
 
 const valueEntries = (store: NamespaceStore): ReadonlyArray<readonly [string, unknown]> =>
-  HashMap.toEntries(store).sort(([left], [right]) => compareText(left, right));
+  A.sort(HashMap.toEntries(store), orderByKey<unknown>(Order.String));
 
 const toPersistedWorkspaces = (
   store: ConfigStore,

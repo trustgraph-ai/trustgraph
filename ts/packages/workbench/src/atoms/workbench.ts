@@ -19,8 +19,9 @@ import {
   GatewayWorkbenchHttpApi,
   TrustGraphRpcs,
 } from "@trustgraph/client";
+import type { WorkbenchQaApi } from "@/qa/mock-api";
 import type { Scope, } from "effect";
-import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S, Stream } from "effect";
+import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Order, Random, Schema as S, Stream } from "effect";
 import * as A from "effect/Array";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as Predicate from "effect/Predicate";
@@ -802,9 +803,9 @@ function ensureNoGatewayResponseError<A>(operation: string, value: A): Effect.Ef
     : Effect.fail(WorkbenchPromiseError.make({ cause: value, message: `${operation}: ${message}` }));
 }
 
-function qaBaseApi(): import("@trustgraph/client").BaseApi | undefined {
+function qaBaseApi(): WorkbenchQaApi | undefined {
   if (typeof window === "undefined") return undefined;
-  return (window as Window & { __TRUSTGRAPH_WORKBENCH_QA_API__?: import("@trustgraph/client").BaseApi }).__TRUSTGRAPH_WORKBENCH_QA_API__;
+  return (window as Window & { __TRUSTGRAPH_WORKBENCH_QA_API__?: WorkbenchQaApi }).__TRUSTGRAPH_WORKBENCH_QA_API__;
 }
 
 function makeWorkbenchGatewayApi(settings: Settings) {
@@ -897,9 +898,7 @@ function makeWorkbenchGatewayApi(settings: Settings) {
         Effect.map((response) => {
           const config = asJsonRecord(response.config);
           const promptNs = asJsonRecord(config.prompt);
-          return Object.keys(promptNs)
-            .filter((key) => key !== "system")
-            .sort()
+          return A.sort(Object.keys(promptNs).filter((key) => key !== "system"), Order.String)
             .map((id) => ({ id, name: id }));
         }),
       ),
@@ -1826,9 +1825,9 @@ function explainTriplesKey(input: ExplainTriplesInput): string {
   const graphs = input.events
     .map((event) => event.explainGraph ?? event.explainId ?? "")
     .filter((id) => id.length > 0)
-    .sort()
+  const sortedGraphs = A.sort(graphs, Order.String)
     .join(explainGraphSeparator);
-  return [input.flowId, input.collection, graphs].join(atomFamilyKeySeparator);
+  return [input.flowId, input.collection, sortedGraphs].join(atomFamilyKeySeparator);
 }
 
 const graphTriplesAtomByKey = Atom.family((key: string) => {

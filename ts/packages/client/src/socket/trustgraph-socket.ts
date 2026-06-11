@@ -7,7 +7,7 @@ import type {
   RpcConnectionState,
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
-import { Match, Option, Schema as S } from "effect";
+import { Array as A, Match, Option, Order, Schema as S } from "effect";
 import * as Predicate from "effect/Predicate";
 
 // Import all message types for different services
@@ -1240,9 +1240,7 @@ export function makeFlowsApi(api: BaseApi) {
         return this.getConfigAll().then((r) => {
           const config = r as { config?: { prompt?: Record<string, unknown> } };
           const promptNs = config.config?.prompt ?? {};
-          return Object.keys(promptNs)
-            .filter((k) => k !== "system")
-            .sort()
+          return A.sort(Object.keys(promptNs).filter((k) => k !== "system"), Order.String)
             .map((id) => ({ id, name: id }));
         });
       },
@@ -2204,9 +2202,7 @@ export function makeConfigApi(api: BaseApi) {
         return this.getConfigAll().then((r) => {
           const config = r as { config?: { prompt?: Record<string, unknown> } };
           const promptNs = config.config?.prompt ?? {};
-          return Object.keys(promptNs)
-            .filter((k) => k !== "system")
-            .sort()
+          return A.sort(Object.keys(promptNs).filter((k) => k !== "system"), Order.String)
             .map((id) => ({ id, name: id }));
         });
       },

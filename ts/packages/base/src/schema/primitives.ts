@@ -75,12 +75,12 @@ export const Field = S.Struct({
 });
 export type Field = typeof Field.Type;
 
-export const RowSchema = S.Struct({
+export const Row = S.Struct({
   name: S.String,
   description: S.optionalKey(S.String),
   fields: S.Array(Field).pipe(S.mutable),
 });
-export type RowSchema = typeof RowSchema.Type;
+export type Row = typeof Row.Type;
 
 export const LlmResult = S.Struct({
   text: S.String,

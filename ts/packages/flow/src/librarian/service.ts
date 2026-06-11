@@ -35,7 +35,7 @@ import {
 } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
-import { Clock, Config, DateTime, Duration, Effect, Match, Option, Random, SynchronizedRef } from "effect";
+import { Clock, Config, DateTime, Duration, Effect, Match, Option, Order, Random, SynchronizedRef } from "effect";
 import * as A from "effect/Array";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as S from "effect/Schema";
@@ -479,7 +479,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       if (session === undefined) {
         return yield* librarianServiceError("get-upload-status", `Upload not found: ${uploadId}`);
       }
-      const receivedChunks = Array.from(MutableHashMap.keys(session.chunks)).sort((a, b) => a - b);
+      const receivedChunks = A.sort(Array.from(MutableHashMap.keys(session.chunks)), Order.Number);
       const receivedSet = new Set(receivedChunks);
       const missingChunks = Array.from({ length: session.totalChunks }, (_, i) => i).filter((i) => !receivedSet.has(i));
       return {

@@ -11,6 +11,7 @@
 
 import { BunRuntime } from "@effect/platform-bun";
 import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
+import { DispatchInput, makeEffectRpcClient } from "@trustgraph/client";
 import { Config, Effect, Option as O, Schema as S } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
@@ -18,17 +19,6 @@ const DEFAULT_GATEWAY_URL = "http://localhost:8088";
 const DEFAULT_LLM_MODEL = "qwen2.5:0.5b";
 const DEFAULT_FALKORDB_URL = "redis://localhost:6380";
 const DEFAULT_PIPELINE_WAIT = 20;
-
-interface RpcSocket {
-  close: () => void;
-  makeRequest: <RequestType extends object, ResponseType>(
-    service: string,
-    request: RequestType,
-    timeout?: number,
-    retries?: number,
-    flow?: string,
-  ) => Promise<ResponseType>;
-}
 
 interface PipelineConfig {
   readonly gatewayUrl: string;
@@ -299,33 +289,24 @@ const testTextCompletion = (config: PipelineConfig) => catchTest("Text completio
 }));
 
 const testWebSocket = (config: PipelineConfig) => catchTest("Effect RPC WebSocket", Effect.gen(function* () {
-  let socket: RpcSocket | undefined;
-  return yield* Effect.gen(function* () {
-    const { createTrustGraphSocket } = yield* Effect.tryPromise({
-      try: () => import("../packages/client/src/socket/trustgraph-socket.js"),
-      catch: (cause) => pipelineError("websocket.import", cause),
-    });
+  const gatewayWsUrl = config.gatewayUrl.replace(/^http/, "ws").replace(/\/$/, "");
+  const response = yield* Effect.scoped(
+    Effect.gen(function*() {
+      const client = yield* makeEffectRpcClient(`${gatewayWsUrl}/api/v1/rpc`);
+      return yield* client.dispatch(
+        DispatchInput.make({
+          scope: "global",
+          service: "config",
+          request: { operation: "list", keys: [] },
+        }),
+        { timeoutMs: 5_000 },
+      );
+    }),
+  ).pipe(Effect.timeout("5 seconds"));
 
-    const gatewayWsUrl = config.gatewayUrl.replace(/^http/, "ws").replace(/\/$/, "");
-    socket = createTrustGraphSocket(
-      "pipeline",
-      config.gatewaySecret,
-      `${gatewayWsUrl}/api/v1/rpc`,
-    );
-    const response = yield* Effect.tryPromise({
-      try: () =>
-        socket?.makeRequest<Record<string, unknown>, Record<string, unknown>>(
-        "config",
-        { operation: "list", keys: [] },
-        5000,
-      ) ?? Promise.resolve({}),
-      catch: (cause) => pipelineError("websocket.request", cause),
-    }).pipe(Effect.timeout("5 seconds"));
-
-    log("websocket/rpc-response", response);
-    pass("Effect RPC WebSocket round-trip works");
-    return true;
-  }).pipe(Effect.ensuring(Effect.sync(() => socket?.close())));
+  log("websocket/rpc-response", response);
+  pass("Effect RPC WebSocket round-trip works");
+  return true;
 }));
 
 // ─── Librarian Tests ──────────────────────────────────────────────────

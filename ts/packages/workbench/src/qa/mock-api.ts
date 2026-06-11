@@ -1,8 +1,25 @@
-import type { BaseApi, DocumentMetadata, ProcessingMetadata, StreamingMetadata, Triple } from "@trustgraph/client";
-import { makeBaseApiWithRpc, } from "@trustgraph/client";
-import { Match, Option, Schema as S } from "effect";
+import type { DocumentMetadata, ProcessingMetadata, StreamingMetadata, Triple } from "@trustgraph/client";
+import { Array as A, Match, Option, Order, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;
+
+export interface WorkbenchQaApi {
+  readonly makeRequest: <RequestType extends object, ResponseType>(
+    service: string,
+    request: RequestType,
+    timeout?: number,
+    retries?: number,
+    flow?: string,
+  ) => Promise<ResponseType>;
+  readonly makeRequestMulti: <RequestType extends object, ResponseType>(
+    service: string,
+    request: RequestType,
+    receiver: (resp: unknown) => boolean,
+    timeout?: number,
+    retries?: number,
+    flow?: string,
+  ) => Promise<ResponseType>;
+}
 
 const UnknownRecord = S.Record(S.String, S.Unknown);
 const ConfigValuesRecord = S.Record(S.String, UnknownRecord);
@@ -358,7 +375,9 @@ function dispatchFlow(state: MockState, request: Record<string, unknown>): unkno
     const id = stringValue(request["flow-id"], "default");
     return { flow: encodeJson(state.flows.definitions[id] ?? { id, description: "Mock flow" }) };
   }
-  if (operation === "list-blueprints") return { "blueprint-names": Object.keys(state.flows.blueprints).sort() };
+  if (operation === "list-blueprints") {
+    return { "blueprint-names": A.sort(Object.keys(state.flows.blueprints), Order.String) };
+  }
   if (operation === "get-blueprint") {
     const name = stringValue(request["blueprint-name"], "qa-blueprint");
     return { "blueprint-definition": encodeJson(state.flows.blueprints[name] ?? {}) };
@@ -563,33 +582,37 @@ function dispatchStream<ResponseType>(
   return Promise.resolve({} as ResponseType);
 }
 
-export function makeMockBaseApi(fixture: MockWorkbenchFixture = {}): BaseApi {
+export function makeMockBaseApi(fixture: MockWorkbenchFixture = {}): WorkbenchQaApi {
   const state = createState(fixture);
-  const token = state.settings.apiKey.length > 0 ? state.settings.apiKey : undefined;
-  return makeBaseApiWithRpc(state.settings.user, token, state.settings.gatewayUrl, {
-    dispatch: (input) =>
+  return {
+    makeRequest: <RequestType extends object, ResponseType>(
+      service: string,
+      request: RequestType,
+      _timeout?: number,
+      _retries?: number,
+      flow?: string,
+    ): Promise<ResponseType> =>
       Promise.resolve(
         dispatchRequest(
           state,
-          input.service,
-          input.request,
-          input.flow,
-        ),
+          service,
+          request as Record<string, unknown>,
+          flow,
+        ) as ResponseType,
       ),
-    dispatchStream: (input, receiver) =>
-      dispatchStream(state, input.service, (message) => {
+    makeRequestMulti: <RequestType extends object, ResponseType>(
+      service: string,
+      _request: RequestType,
+      receiver: (resp: unknown) => boolean,
+    ): Promise<ResponseType> =>
+      dispatchStream(state, service, (message) => {
         const chunk = message as { response?: unknown; complete?: boolean };
         return receiver({
           response: chunk.response,
           complete: chunk.complete === true,
         });
-      }).then(() => undefined),
-    subscribe: (listener) => {
-      listener({ status: token === undefined ? "connected" : "connected" });
-      return () => {};
-    },
-    close: () => Promise.resolve(),
-  });
+      }).then(() => ({}) as ResponseType),
+  };
 }
 
 export function qaSettingsFromFixture(fixture: MockWorkbenchFixture = {}) {

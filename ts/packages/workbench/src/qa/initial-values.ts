@@ -8,7 +8,7 @@ import {
   flowIdAtom,
   settingsAtom,
 } from "@/atoms/workbench";
-import type { BaseApi } from "@trustgraph/client";
+import type { WorkbenchQaApi } from "@/qa/mock-api";
 import { MockWorkbenchFixture, makeMockBaseApi, qaSettingsFromFixture, } from "@/qa/mock-api";
 import { Schema as S } from "effect";
 
@@ -21,7 +21,7 @@ export class WorkbenchQaWindowConfig extends S.Class<WorkbenchQaWindowConfig>("W
 declare global {
   interface Window {
     __TRUSTGRAPH_WORKBENCH_QA__?: WorkbenchQaWindowConfig;
-    __TRUSTGRAPH_WORKBENCH_QA_API__?: BaseApi;
+    __TRUSTGRAPH_WORKBENCH_QA_API__?: WorkbenchQaApi;
   }
 }
 

@@ -9,7 +9,7 @@ import type {
 import {
   makeTrustGraphGatewayClientScoped,
 } from "@trustgraph/client";
-import {Clock, Config, Context, Effect, Layer} from "effect";
+import {Array as A, Clock, Config, Context, Effect, Layer, Order} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import {McpServer, Tool, Toolkit} from "effect/unstable/ai";
@@ -1775,9 +1775,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ).pipe(
           Effect.map((response) => {
             const promptNs = asRecord(asRecord(response.config).prompt)
-            const prompts = Object.keys(promptNs)
-              .filter((key) => key !== "system")
-              .sort()
+            const prompts = A.sort(Object.keys(promptNs).filter((key) => key !== "system"), Order.String)
               .map((id) => ({id, name: id}))
             return GetPromptsSuccess.make({prompts})
           }),
