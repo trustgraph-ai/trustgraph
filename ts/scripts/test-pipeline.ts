@@ -11,7 +11,7 @@
 
 import { BunRuntime } from "@effect/platform-bun";
 import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
-import { DispatchInput, makeEffectRpcClient } from "@trustgraph/client";
+import { DispatchInput, makeEffectRpcClient } from "../packages/client/src/index.js";
 import { Config, Effect, Option as O, Schema as S } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 

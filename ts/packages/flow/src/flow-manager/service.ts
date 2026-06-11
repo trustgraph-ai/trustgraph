@@ -703,6 +703,7 @@ const runFlowManagerServiceEffect = Effect.fn("FlowManager.runService")(function
     topic: topics.flowRequest,
     subscription: `${service.config.id}-flow-request`,
     schema: FlowRequestSchema,
+    initialPosition: "earliest",
   }).pipe(
     Effect.mapError((cause) => flowManagerError("consumer", cause)),
   );

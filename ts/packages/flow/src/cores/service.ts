@@ -364,6 +364,7 @@ const runKnowledgeCoreServiceEffect = Effect.fn("KnowledgeCoreService.run")(func
     topic: topics.knowledgeRequest,
     subscription: `${service.config.id}-knowledge-request`,
     schema: KnowledgeRequestSchema,
+    initialPosition: "earliest",
   }).pipe(
     Effect.mapError((cause) => knowledgeCoreServiceError("consumer", cause)),
   );

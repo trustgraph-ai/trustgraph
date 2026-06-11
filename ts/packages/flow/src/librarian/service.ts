@@ -337,12 +337,14 @@ const runLibrarianServiceEffect = Effect.fn("LibrarianService.run")(function* (
     const libConsumer = yield* service.pubsub.createConsumer<LibrarianRequest>({
       topic: topics.librarianRequest,
       subscription: `${service.config.id}-librarian-request`,
+      initialPosition: "earliest",
     }).pipe(
       Effect.mapError((cause) => librarianServiceError("librarian-consumer", cause)),
     );
     const colConsumer = yield* service.pubsub.createConsumer<CollectionManagementRequest>({
       topic: topics.collectionManagementRequest,
       subscription: `${service.config.id}-collection-management-request`,
+      initialPosition: "earliest",
     }).pipe(
       Effect.mapError((cause) => librarianServiceError("collection-consumer", cause)),
     );

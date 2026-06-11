@@ -706,6 +706,7 @@ const runConfigServiceEffect = Effect.fn("ConfigService.run")(function* (
     topic: topics.configRequest,
     subscription: `${service.config.id}-config-request`,
     schema: ConfigRequestSchema,
+    initialPosition: "earliest",
   }).pipe(
     Effect.mapError((cause) => configServiceError("consumer", cause)),
   );
