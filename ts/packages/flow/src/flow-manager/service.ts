@@ -14,21 +14,23 @@
  * Python reference: trustgraph-flow/trustgraph/flow/service.py
  */
 
+import type {
+  ProcessorConfig,
+  AsyncProcessorRuntime,
+  BackendConsumer,
+  BackendProducer,
+  RequestResponse,
+  ConfigRequest,
+  ConfigResponse,
+  FlowRequest,
+  FlowResponse,
+} from "@trustgraph/base";
 import {
   makeAsyncProcessor,
-  type ProcessorConfig,
-  type AsyncProcessorRuntime,
-  type BackendConsumer,
-  type BackendProducer,
   topics,
   makeRequestResponse,
-  type RequestResponse,
-  type ConfigRequest,
-  type ConfigResponse,
   FlowRequest as FlowRequestSchema,
   FlowResponse as FlowResponseSchema,
-  type FlowRequest,
-  type FlowResponse,
   errorMessage,
   processorLifecycleError,
 } from "@trustgraph/base";

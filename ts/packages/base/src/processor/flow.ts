@@ -4,30 +4,35 @@
  * Python reference: trustgraph-base/trustgraph/base/flow.py
  */
 
-import { Config as EffectConfig, Context, Effect, Exit, Scope } from "effect";
+import type { Config as EffectConfig, Context, } from "effect";
+import { Effect, Exit, Scope } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import type { PubSubBackend } from "../backend/types.js";
 import { makePubSubService } from "../backend/pubsub.js";
+import type {
+  FlowParameterDecodeError,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  MessagingLifecycleError,
+  MessagingTimeoutError,
+  PubSubError,
+} from "../errors.js";
 import {
   flowParameterDecodeError,
   flowResourceNotFoundError,
-  type FlowParameterDecodeError,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type MessagingLifecycleError,
-  type MessagingTimeoutError,
-  type PubSubError,
 } from "../errors.js";
+import type {
+  EffectConsumer,
+  EffectProducer,
+  EffectRequestOptions,
+  EffectRequestResponse,
+} from "../messaging/runtime.js";
 import {
   ConsumerFactory,
   ProducerFactory,
   RequestResponseFactory,
-  type EffectConsumer,
-  type EffectProducer,
-  type EffectRequestOptions,
-  type EffectRequestResponse,
   makeConsumerFactoryService,
   makeProducerFactoryService,
   makeRequestResponseFactoryService,

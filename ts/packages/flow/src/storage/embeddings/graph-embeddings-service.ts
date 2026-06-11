@@ -9,33 +9,37 @@
  * Python reference: trustgraph-flow/trustgraph/storage/graph_embeddings/qdrant/service.py
  */
 
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowProcessorStartEffect,
+  FlowContext,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  MessagingLifecycleError,
+  MessagingTimeoutError,
+  EntityContexts,
+  EmbeddingsRequest,
+  EmbeddingsResponse,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeRequestResponseSpec,
   processorLifecycleError,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowProcessorStartEffect,
-  type FlowContext,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type MessagingLifecycleError,
-  type MessagingTimeoutError,
-  type EntityContexts,
-  type EmbeddingsRequest,
-  type EmbeddingsResponse,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 import { Effect } from "effect";
+import type {
+  QdrantGraphEmbeddingsConfig,
+  QdrantGraphEmbeddingsStoreError,
+} from "./qdrant-graph.js";
 import {
   QdrantGraphEmbeddingsStoreLive,
   QdrantGraphEmbeddingsStoreService,
   makeQdrantGraphEmbeddingsStoreServiceEffect,
-  type QdrantGraphEmbeddingsConfig,
-  type QdrantGraphEmbeddingsStoreError,
 } from "./qdrant-graph.js";
 
 type GraphEmbeddingsStoreRequirements = QdrantGraphEmbeddingsStoreService;

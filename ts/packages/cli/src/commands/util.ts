@@ -2,11 +2,13 @@
  * Shared CLI utilities.
  */
 
+import type {
+  BaseApi,
+  TrustGraphGatewayClient,
+} from "@trustgraph/client";
 import {
   createTrustGraphSocket,
   makeTrustGraphGatewayClientScoped,
-  type BaseApi,
-  type TrustGraphGatewayClient,
 } from "@trustgraph/client";
 import { Duration, Effect } from "effect";
 import * as O from "effect/Option";

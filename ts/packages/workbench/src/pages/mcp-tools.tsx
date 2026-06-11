@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
+import type {
+  McpServerEntry,
+  ToolEntry,
+} from "@/atoms/workbench";
 import {
   deleteMcpServerAtom,
   deleteMcpToolAtom,
@@ -31,8 +35,6 @@ import {
   resultLoading,
   saveMcpServerAtom,
   saveMcpToolAtom,
-  type McpServerEntry,
-  type ToolEntry,
 } from "@/atoms/workbench";
 
 const INPUT_CLASS =

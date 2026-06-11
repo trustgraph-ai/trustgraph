@@ -10,29 +10,31 @@
  * Python reference: trustgraph-flow/trustgraph/extract/knowledge/service.py
  */
 
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowContext,
+  Chunk,
+  Triples,
+  EntityContexts,
+  EntityContext,
+  PromptRequest,
+  PromptResponse,
+  TextCompletionRequest,
+  TextCompletionResponse,
+  Triple,
+  Term,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  EffectRequestResponse,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
   makeRequestResponseSpec,
   makeFlowProcessorProgram,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowContext,
-  type Chunk,
-  type Triples,
-  type EntityContexts,
-  type EntityContext,
-  type PromptRequest,
-  type PromptResponse,
-  type TextCompletionRequest,
-  type TextCompletionResponse,
-  type Triple,
-  type Term,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type EffectRequestResponse,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { Effect } from "effect";
@@ -375,7 +377,7 @@ function jsonCandidates(raw: string): ReadonlyArray<string> {
     const partial = arrayMatch[0];
     const lastBrace = partial.lastIndexOf("}");
     if (lastBrace > 0) {
-      candidates.push(partial.slice(0, lastBrace + 1) + "]");
+      candidates.push(`${partial.slice(0, lastBrace + 1)}]`);
     }
   }
 

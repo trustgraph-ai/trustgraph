@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import {
+import type {
   BaseApi,
+} from "../socket/trustgraph-socket";
+import {
   ConfigApi,
   KnowledgeApi,
   LibrarianApi,

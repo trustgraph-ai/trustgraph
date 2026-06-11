@@ -1,18 +1,22 @@
+import type {
+  LlmChunk,
+  LlmResult,
+  LlmProvider,
+} from "@trustgraph/base";
 import {
   Llm,
   TooManyRequestsError,
   errorMessage,
   makeLlmServiceShape,
-  type LlmChunk,
-  type LlmResult,
-  type LlmProvider,
 } from "@trustgraph/base";
-import { Config, Context, Effect, Layer, Match, Ref, Result, Stream } from "effect";
+import type { Context, } from "effect";
+import { Config, Effect, Layer, Match, Ref, Result, Stream } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
 import type * as Scope from "effect/Scope";
-import { AiError, LanguageModel, Prompt, Response } from "effect/unstable/ai";
+import type { LanguageModel, Prompt, Response } from "effect/unstable/ai";
+import { AiError, } from "effect/unstable/ai";
 
 export class TextCompletionConfigError extends S.TaggedErrorClass<TextCompletionConfigError>()(
   "TextCompletionConfigError",

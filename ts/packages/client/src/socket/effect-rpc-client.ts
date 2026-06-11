@@ -4,7 +4,8 @@ import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as Socket from "effect/unstable/socket/Socket";
-import { DispatchPayload, DispatchError, TrustGraphRpcs, type DispatchStreamChunk } from "../rpc/contract.js";
+import type { DispatchStreamChunk } from "../rpc/contract.js";
+import { DispatchPayload, DispatchError, TrustGraphRpcs, } from "../rpc/contract.js";
 
 type TrustGraphRpcClient = RpcClient.RpcClient<
   RpcGroup.Rpcs<typeof TrustGraphRpcs>,

@@ -3,7 +3,8 @@ import { Effect, Exit, Scope } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 import type { DispatcherManager } from "../gateway/dispatch/manager.js";
 import type { GatewayRpcServer } from "../gateway/rpc-server.js";
-import { makeGatewayRoutes, type GatewayConfig } from "../gateway/server.js";
+import type { GatewayConfig } from "../gateway/server.js";
+import { makeGatewayRoutes, } from "../gateway/server.js";
 
 interface DispatchCall {
   readonly scope: "global" | "flow";

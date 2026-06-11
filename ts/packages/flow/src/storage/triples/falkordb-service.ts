@@ -8,26 +8,30 @@
  * Python reference: trustgraph-flow/trustgraph/storage/triples/falkordb/service.py
  */
 
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowProcessorStartEffect,
+  FlowContext,
+  Triples,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   processorLifecycleError,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowProcessorStartEffect,
-  type FlowContext,
-  type Triples,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 import { Effect } from "effect";
+import type {
+  FalkorDBConfig,
+  FalkorDBTriplesStoreError,
+} from "./falkordb.js";
 import {
   FalkorDBTriplesStoreLive,
   FalkorDBTriplesStoreService,
   makeFalkorDBTriplesStoreServiceScoped,
-  type FalkorDBConfig,
-  type FalkorDBTriplesStoreError,
 } from "./falkordb.js";
 
 const onStoreTriplesMessage = Effect.fn("TriplesStoreService.onMessage")(function* (

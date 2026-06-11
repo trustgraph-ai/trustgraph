@@ -134,8 +134,8 @@
   .animate-\[glow-drift-2_15s_ease-in-out_infinite\],
   .animate-\[glow-drift-3_25s_ease-in-out_infinite\],
   .animate-\[glow-fade-in_1\.2s_ease-out_forwards\] {
-    animation: none !important;
-    opacity: 0.7 !important;
+    animation: none;
+    opacity: 0.7;
   }
 }
 

@@ -15,8 +15,10 @@ import type {
   TriplesQueryRequest,
   TriplesQueryResponse,
 } from "@trustgraph/base";
-import { makeDocumentRagEngine, type DocumentRagClients } from "../retrieval/document-rag.js";
-import { makeGraphRagEngine, type GraphRagClients } from "../retrieval/graph-rag.js";
+import type { DocumentRagClients } from "../retrieval/document-rag.js";
+import { makeDocumentRagEngine, } from "../retrieval/document-rag.js";
+import type { GraphRagClients } from "../retrieval/graph-rag.js";
+import { makeGraphRagEngine, } from "../retrieval/graph-rag.js";
 
 const requestor = <TReq, TRes>(
   handler: (request: TReq) => TRes,

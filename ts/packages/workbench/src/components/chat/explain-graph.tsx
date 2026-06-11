@@ -9,11 +9,13 @@ import {
   resultError,
   resultLoading,
 } from "@/atoms/workbench";
+import type {
+  GraphNode,
+  GraphLink,
+} from "@/lib/graph-utils";
 import {
   triplesToGraph,
   localName,
-  type GraphNode,
-  type GraphLink,
   directedGraphLinkProps,
   DEFAULT_GRAPH_NODE_COLOR,
 } from "@/lib/graph-utils";

@@ -8,12 +8,14 @@ import { Effect } from "effect";
 import type { Spec } from "./types.js";
 import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
-import {
-  ConsumerFactory,
-  type EffectMessageHandler,
+import type {
+  EffectMessageHandler,
 } from "../messaging/runtime.js";
 import {
-  type PubSubError,
+  ConsumerFactory,
+} from "../messaging/runtime.js";
+import type {
+  PubSubError,
 } from "../errors.js";
 
 declare const ConsumerSpecType: unique symbol;

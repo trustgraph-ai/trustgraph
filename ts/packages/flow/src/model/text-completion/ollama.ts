@@ -8,24 +8,28 @@
 
 import { Ollama } from "ollama";
 import { NodeRuntime } from "@effect/platform-node";
+import type {
+  Llm,
+  LlmProvider,
+  ProcessorConfig,
+  LlmResult,
+} from "@trustgraph/base";
 import {
   makeLlmService,
   makeFlowProcessorProgram,
   makeLlmSpecs,
-  type Llm,
-  type LlmProvider,
-  type ProcessorConfig,
-  type LlmResult,
 } from "@trustgraph/base";
 import { Effect, Stream } from "effect";
+import type {
+  TextCompletionConfigError,
+  TextCompletionRuntimeError,
+} from "./common.ts";
 import {
   llmStreamPart,
   makeTextCompletionLayer,
   optionalStringConfig,
   providerRuntimeError,
   streamTextCompletionChunks,
-  type TextCompletionConfigError,
-  type TextCompletionRuntimeError,
 } from "./common.ts";
 
 export type OllamaProcessorConfig = ProcessorConfig & {
@@ -68,7 +72,7 @@ const makeOllamaProviderFromClient = (
       _temperature?: number,
     ) => {
       const modelName = model ?? defaultModel;
-      const fullPrompt = system + "\n\n" + prompt;
+      const fullPrompt = `${system}\n\n${prompt}`;
 
       return Effect.tryPromise({
         try: () =>
@@ -95,7 +99,7 @@ const makeOllamaProviderFromClient = (
       _temperature?: number,
     ) => {
       const modelName = model ?? defaultModel;
-      const fullPrompt = system + "\n\n" + prompt;
+      const fullPrompt = `${system}\n\n${prompt}`;
 
       return Stream.fromEffect(
         Effect.tryPromise({

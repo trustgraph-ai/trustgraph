@@ -15,26 +15,28 @@
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { TextItem } from "pdfjs-dist/types/src/display/api.js";
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowContext,
+  FlowResourceNotFoundError,
+  Document,
+  TextDocument,
+  Triples,
+  Triple,
+  Term,
+  LibrarianRequest,
+  LibrarianResponse,
+  MessagingDeliveryError,
+  MessagingLifecycleError,
+  MessagingTimeoutError,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
   makeRequestResponseSpec,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowContext,
-  type FlowResourceNotFoundError,
-  type Document,
-  type TextDocument,
-  type Triples,
-  type Triple,
-  type Term,
-  type LibrarianRequest,
-  type LibrarianResponse,
-  type MessagingDeliveryError,
-  type MessagingLifecycleError,
-  type MessagingTimeoutError,
-  type Spec,
   errorMessage,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";

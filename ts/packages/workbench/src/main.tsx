@@ -13,7 +13,13 @@ function AppRoot() {
   return <App />;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (rootElement === null) {
+  // Host boundary: the workbench cannot render without its mount point.
+  throw new Error("Workbench root element #root not found");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <RegistryProvider defaultIdleTTL={1_000} initialValues={getWorkbenchQaInitialValues()}>
       <AppRoot />

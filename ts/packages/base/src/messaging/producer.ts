@@ -8,11 +8,14 @@ import type { PubSubBackend } from "../backend/types.js";
 import type { ProducerMetrics } from "../metrics/index.ts";
 import { Effect, Exit, Scope } from "effect";
 import { PubSub } from "../backend/pubsub.js";
-import { makeEffectProducerFromPubSub, type EffectProducer } from "./runtime.js";
+import type { EffectProducer } from "./runtime.js";
+import { makeEffectProducerFromPubSub, } from "./runtime.js";
+import type {
+  MessagingDeliveryError,
+  MessagingLifecycleError,
+} from "../errors.js";
 import {
   messagingLifecycleError,
-  type MessagingDeliveryError,
-  type MessagingLifecycleError,
 } from "../errors.js";
 
 export interface Producer<T> {

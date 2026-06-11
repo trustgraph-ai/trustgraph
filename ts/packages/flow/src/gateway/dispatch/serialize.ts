@@ -18,6 +18,10 @@
  * Python reference: trustgraph-base/trustgraph/messaging/translators/primitives.py
  */
 
+import type {
+  Term,
+  Triple,
+} from "@trustgraph/base";
 import {
   BlankTerm,
   errorMessage,
@@ -26,8 +30,6 @@ import {
   Term as TermSchema,
   Triple as TripleSchema,
   TripleTerm,
-  type Term,
-  type Triple,
 } from "@trustgraph/base";
 import { Effect, HashSet, Match } from "effect";
 import * as O from "effect/Option";

@@ -1,4 +1,5 @@
-import { QdrantClient, type QdrantClientParams } from "@qdrant/js-client-rest";
+import type { QdrantClientParams } from "@qdrant/js-client-rest";
+import { QdrantClient, } from "@qdrant/js-client-rest";
 import { errorMessage } from "@trustgraph/base";
 import { Effect } from "effect";
 import * as S from "effect/Schema";

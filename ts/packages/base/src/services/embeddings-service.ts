@@ -5,11 +5,13 @@
  */
 
 import { Context, Effect } from "effect";
+import type {
+  EmbeddingsError,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+} from "../errors.js";
 import {
   errorMessage,
-  type EmbeddingsError,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
 } from "../errors.js";
 import type { FlowContext } from "../messaging/consumer.js";
 import { makeFlowProcessor } from "../processor/index.ts";

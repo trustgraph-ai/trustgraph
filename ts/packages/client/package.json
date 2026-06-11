@@ -19,7 +19,8 @@
     "build": "bunx --bun tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "bunx --bun vitest run"
+    "test": "bunx --bun vitest run",
+    "lint": "bunx --bun biome check src"
   },
   "dependencies": {
     "effect": "4.0.0-beta.78"
@@ -36,7 +37,6 @@
     "@effect/vitest": "4.0.0-beta.78",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.0",
-
     "typescript": "^5.8.0",
     "vitest": "^4.1.6",
     "happy-dom": "^20.0.0"

@@ -19,14 +19,16 @@ import {
   settingsAtom,
 } from "@/atoms/workbench";
 import type { Triple } from "@trustgraph/client";
+import type {
+  GraphNode,
+  GraphLink,
+} from "@/lib/graph-utils";
 import {
   localName,
   triplesToGraph,
   RDFS_LABEL,
   RDF_TYPE,
   termValue,
-  type GraphNode,
-  type GraphLink,
   directedGraphLinkProps,
   DEFAULT_GRAPH_NODE_COLOR,
 } from "@/lib/graph-utils";

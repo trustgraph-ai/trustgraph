@@ -8,16 +8,22 @@
 
 import { Mistral } from "@mistralai/mistralai";
 import { NodeRuntime } from "@effect/platform-node";
+import type {
+  Llm,
+  LlmProvider,
+  ProcessorConfig,
+  LlmResult,
+} from "@trustgraph/base";
 import {
   makeLlmService,
   makeFlowProcessorProgram,
   makeLlmSpecs,
-  type Llm,
-  type LlmProvider,
-  type ProcessorConfig,
-  type LlmResult,
 } from "@trustgraph/base";
 import { Effect, Stream } from "effect";
+import type {
+  TextCompletionConfigError,
+  TextCompletionRuntimeError,
+} from "./common.ts";
 import {
   llmStreamPart,
   makeTextCompletionLayer,
@@ -26,8 +32,6 @@ import {
   requiredString,
   streamTextCompletionChunks,
   textFromContent,
-  type TextCompletionConfigError,
-  type TextCompletionRuntimeError,
 } from "./common.ts";
 
 export type MistralProcessorConfig = ProcessorConfig & {

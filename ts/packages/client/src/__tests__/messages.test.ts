@@ -342,7 +342,7 @@ describe("Message Types", () => {
         type: "library-error",
       });
       expect(response["document-metadatas"]).toHaveLength(1);
-      expect(response["document-metadatas"]![0].id).toBe("doc-1");
+      expect(response["document-metadatas"]?.[0].id).toBe("doc-1");
     });
   });
 

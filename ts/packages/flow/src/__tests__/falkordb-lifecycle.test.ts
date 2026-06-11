@@ -1,16 +1,20 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+import type {
+  FalkorDBClosableClient as FalkorDBQueryClient,
+  FalkorDBQueryGraph,
+} from "../query/triples/falkordb.js";
 import {
   FalkorDBTriplesQueryLive,
   FalkorDBTriplesQueryService,
-  type FalkorDBClosableClient as FalkorDBQueryClient,
-  type FalkorDBQueryGraph,
 } from "../query/triples/falkordb.js";
+import type {
+  FalkorDBClosableClient as FalkorDBStoreClient,
+  FalkorDBStoreGraph,
+} from "../storage/triples/falkordb.js";
 import {
   FalkorDBTriplesStoreLive,
   FalkorDBTriplesStoreService,
-  type FalkorDBClosableClient as FalkorDBStoreClient,
-  type FalkorDBStoreGraph,
 } from "../storage/triples/falkordb.js";
 
 class FakeFalkorDBClient implements FalkorDBStoreClient, FalkorDBQueryClient {

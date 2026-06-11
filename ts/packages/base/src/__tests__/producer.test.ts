@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  PubSubBackend,
+} from "../index.js";
 import {
   makeProducer,
   pubSubError,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type PubSubBackend,
 } from "../index.js";
 
 class ProducerBackend implements PubSubBackend {

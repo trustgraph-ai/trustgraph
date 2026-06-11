@@ -16,6 +16,9 @@ import {
   Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type {
+  UploadForm,
+} from "@/atoms/workbench";
 import {
   documentMetadataAtom,
   encodeJsonUnknownString,
@@ -31,7 +34,6 @@ import {
   submitUploadDocumentAtom,
   uploadDialogOpenAtom,
   uploadFormAtom,
-  type UploadForm,
 } from "@/atoms/workbench";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";

@@ -3,6 +3,9 @@
  */
 
 import { randomUUID } from "node:crypto";
+import type {
+  Scope,
+} from "effect";
 import {
   Context,
   Deferred,
@@ -14,7 +17,6 @@ import {
   Ref,
   Result,
   Schedule,
-  Scope,
   Stream,
 } from "effect";
 import * as O from "effect/Option";
@@ -26,7 +28,16 @@ import type {
   CreateProducerOptions,
   Message,
 } from "../backend/types.js";
-import { PubSub, type PubSubService } from "../backend/pubsub.js";
+import type { PubSubService } from "../backend/pubsub.js";
+import { PubSub, } from "../backend/pubsub.js";
+import type {
+  FlowRuntimeError,
+  MessagingDeliveryError,
+  MessagingHandlerError,
+  MessagingLifecycleError,
+  MessagingTimeoutError,
+  PubSubError,
+} from "../errors.js";
 import {
   flowRuntimeError,
   messagingDeliveryError,
@@ -34,20 +45,16 @@ import {
   messagingLifecycleError,
   messagingTimeoutError,
   TooManyRequestsError,
-  type FlowRuntimeError,
-  type MessagingDeliveryError,
-  type MessagingHandlerError,
-  type MessagingLifecycleError,
-  type MessagingTimeoutError,
-  type PubSubError,
 } from "../errors.js";
 import type { ProducerMetrics } from "../metrics/index.js";
 import type { FlowContext } from "./consumer.js";
 import type { Flow } from "../processor/flow.js";
 import type { SpecRuntimeRequirements } from "../spec/types.js";
+import type {
+  MessagingRuntimeConfig,
+} from "../runtime/messaging-config.js";
 import {
   loadMessagingRuntimeConfig,
-  type MessagingRuntimeConfig,
 } from "../runtime/messaging-config.js";
 
 const isTooManyRequestsError = S.is(TooManyRequestsError);

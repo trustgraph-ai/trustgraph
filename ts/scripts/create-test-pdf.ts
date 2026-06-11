@@ -6,7 +6,7 @@
  */
 
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 
 const PAGE_1 = `Acme Corporation: Company Overview
 

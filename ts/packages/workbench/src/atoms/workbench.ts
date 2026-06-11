@@ -1,25 +1,29 @@
 import { Clipboard as BrowserClipboard } from "@effect/platform-browser";
 import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore";
+import type {
+  GraphRagOptions,
+  BaseApi,
+  BeginUploadResponse,
+  ChunkedUploadDocumentMetadata,
+  CompleteUploadResponse,
+  ConnectionState,
+  DocumentMetadata,
+  ExplainEvent,
+  StreamingMetadata,
+  Term,
+  Triple,
+  UploadChunkResponse,
+} from "@trustgraph/client";
 import {
   DispatchPayload,
   GatewayWorkbenchHttpApi,
-  type GraphRagOptions,
   makeBaseApi,
   TrustGraphRpcs,
-  type BaseApi,
-  type BeginUploadResponse,
-  type ChunkedUploadDocumentMetadata,
-  type CompleteUploadResponse,
-  type ConnectionState,
-  type DocumentMetadata,
-  type ExplainEvent,
-  type StreamingMetadata,
-  type Term,
-  type Triple,
-  type UploadChunkResponse,
 } from "@trustgraph/client";
-import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S, Scope, Stream } from "effect";
+import type { Scope, } from "effect";
+import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S, Stream } from "effect";
+import * as A from "effect/Array";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as Predicate from "effect/Predicate";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
@@ -28,7 +32,7 @@ import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
+import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import * as AtomHttpApi from "effect/unstable/reactivity/AtomHttpApi";
 import * as AtomRpc from "effect/unstable/reactivity/AtomRpc";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
@@ -1490,14 +1494,15 @@ function updateConversation(get: Atom.FnContext, f: (current: ConversationState)
 }
 
 function updateLastMessage(get: Atom.FnContext, updater: (prev: ChatMessage) => ChatMessage): void {
-  updateConversation(get, (current) => {
-    if (current.messages.length === 0) return current;
-    const last = current.messages[current.messages.length - 1]!;
-    return {
-      ...current,
-      messages: [...current.messages.slice(0, -1), updater(last)],
-    };
-  });
+  updateConversation(get, (current) =>
+    A.matchRight(current.messages, {
+      onEmpty: () => current,
+      onNonEmpty: (init, last) => ({
+        ...current,
+        messages: [...init, updater(last)],
+      }),
+    }),
+  );
 }
 
 function refreshConfigAtoms(get: Atom.FnContext): void {

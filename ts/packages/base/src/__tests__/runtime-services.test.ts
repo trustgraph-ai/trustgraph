@@ -1,18 +1,20 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import * as S from "effect/Schema";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  Message,
+  ProcessorConfig,
+  PubSubBackend,
+} from "../index.js";
 import {
   PubSub,
   makeAsyncProcessor,
   pubSubError,
   runProcessorScoped,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type Message,
-  type ProcessorConfig,
-  type PubSubBackend,
 } from "../index.js";
 
 class RuntimeServicesTestError extends S.TaggedErrorClass<RuntimeServicesTestError>()(

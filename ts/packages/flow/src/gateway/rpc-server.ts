@@ -1,10 +1,12 @@
-import { Cause, Effect, Layer, Queue, Scope } from "effect";
-import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import type { Cause, Scope } from "effect";
+import { Effect, Layer, Queue, } from "effect";
+import type { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as RpcServer from "effect/unstable/rpc/RpcServer";
 import { errorMessage } from "@trustgraph/base";
 import type { DispatcherManager, DispatcherStreamError } from "./dispatch/manager.js";
-import { DispatchError, DispatchPayload, DispatchStreamChunk, TrustGraphRpcs } from "./rpc-contract.js";
+import type { DispatchPayload, } from "./rpc-contract.js";
+import { DispatchError, DispatchStreamChunk, TrustGraphRpcs } from "./rpc-contract.js";
 
 export interface GatewayRpcServer {
   readonly httpEffect: Effect.Effect<

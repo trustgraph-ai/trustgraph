@@ -7,23 +7,28 @@
  * Python reference: trustgraph-base/trustgraph/base/flow_processor.py
  */
 
+import type {
+  AsyncProcessorRuntime,
+  EffectConfigHandler,
+  ProcessorRuntime,
+  ProcessorConfig,
+} from "./async-processor.js";
 import {
   makeAsyncProcessor,
-  type AsyncProcessorRuntime,
-  type EffectConfigHandler,
-  type ProcessorRuntime,
-  type ProcessorConfig,
 } from "./async-processor.js";
 import type { Spec } from "../spec/types.js";
 import type { BackendConsumer, PubSubBackend } from "../backend/types.js";
-import { Flow, type FlowDefinition } from "./flow.js";
+import type { FlowDefinition } from "./flow.js";
+import { Flow, } from "./flow.js";
 import { topics } from "../schema/topics.js";
+import type {
+  FlowRuntimeError,
+  ProcessorLifecycleError,
+  PubSubError,
+} from "../errors.js";
 import {
   errorMessage,
   pubSubError,
-  type FlowRuntimeError,
-  type ProcessorLifecycleError,
-  type PubSubError,
 } from "../errors.js";
 import {
   ConsumerFactory,
@@ -37,7 +42,8 @@ import {
 } from "../messaging/runtime.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
-import { Config as EffectConfig, Context, Duration, Effect, Exit, Scope } from "effect";
+import type { Config as EffectConfig, Context, } from "effect";
+import { Duration, Effect, Exit, Scope } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";

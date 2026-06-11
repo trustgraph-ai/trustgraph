@@ -6,10 +6,12 @@
 
 import { Context, Effect, Stream } from "effect";
 import * as S from "effect/Schema";
+import type {
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+} from "../errors.js";
 import {
   errorMessage,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
 } from "../errors.js";
 import type { FlowContext } from "../messaging/consumer.js";
 import { makeFlowProcessor } from "../processor/index.ts";

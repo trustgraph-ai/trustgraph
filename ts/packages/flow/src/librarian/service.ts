@@ -10,32 +10,36 @@
  * Python reference: trustgraph-flow/trustgraph/librarian/service/service.py
  */
 
+import type {
+  ProcessorConfig,
+  AsyncProcessorRuntime,
+  BackendConsumer,
+  BackendProducer,
+  LibrarianRequest,
+  LibrarianResponse,
+  CollectionManagementRequest,
+  CollectionManagementResponse,
+  DocumentMetadata,
+  ProcessingMetadata,
+} from "@trustgraph/base";
 import {
   errorMessage,
   makeAsyncProcessor,
   makeProcessorProgram,
-  type ProcessorConfig,
-  type AsyncProcessorRuntime,
-  type BackendConsumer,
-  type BackendProducer,
   topics,
-  type LibrarianRequest,
-  type LibrarianResponse,
-  type CollectionManagementRequest,
-  type CollectionManagementResponse,
   DocumentMetadata as DocumentMetadataSchema,
-  type DocumentMetadata,
   ProcessingMetadata as ProcessingMetadataSchema,
-  type ProcessingMetadata,
   Triple as TripleSchema,
   processorLifecycleError,
 } from "@trustgraph/base";
 import type { Message } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { Clock, Config, DateTime, Duration, Effect, Match, Option, Random, SynchronizedRef } from "effect";
+import * as A from "effect/Array";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as S from "effect/Schema";
-import { makeCollectionManager, type CollectionManager } from "./collection-manager.js";
+import type { CollectionManager } from "./collection-manager.js";
+import { makeCollectionManager, } from "./collection-manager.js";
 import {
   ensureDirectoryEffect,
   joinPath,
@@ -127,13 +131,10 @@ const decodePersistedLibrarianState = (
   );
 
 const randomUuid: Effect.Effect<string> = Effect.gen(function* () {
-  const bytes: number[] = [];
-  for (let index = 0; index < 16; index += 1) {
-    bytes.push(yield* Random.nextIntBetween(0, 255));
-  }
-
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const raw = yield* Effect.forEach(A.range(0, 15), () => Random.nextIntBetween(0, 255));
+  const bytes = A.map(raw, (byte, index) =>
+    index === 6 ? (byte & 0x0f) | 0x40 : index === 8 ? (byte & 0x3f) | 0x80 : byte,
+  );
 
   const hex = bytes.map((byte) => byte.toString(16).padStart(2, "0"));
   return [
@@ -760,25 +761,24 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
       handleLibrarianOperation: function(this: LibrarianService, request: LibrarianRequest): Effect.Effect<LibrarianResponse, LibrarianServiceError> {
-        const service = this;
         return Match.value(request.operation).pipe(
-            Match.when("add-document", () => service.addDocument(request)),
-            Match.when("remove-document", () => service.removeDocument(request)),
-            Match.when("update-document", () => service.updateDocument(request)),
-            Match.when("list-documents", () => service.listDocuments(request)),
+            Match.when("add-document", () => this.addDocument(request)),
+            Match.when("remove-document", () => this.removeDocument(request)),
+            Match.when("update-document", () => this.updateDocument(request)),
+            Match.when("list-documents", () => this.listDocuments(request)),
             Match.when("get-document-metadata", () => getDocumentMetadataEffect(request)),
-            Match.when("get-document-content", () => service.getDocumentContent(request)),
-            Match.when("add-child-document", () => service.addChildDocument(request)),
+            Match.when("get-document-content", () => this.getDocumentContent(request)),
+            Match.when("add-child-document", () => this.addChildDocument(request)),
             Match.when("list-children", () => listChildrenEffect(request)),
-            Match.when("add-processing", () => service.addProcessing(request)),
-            Match.when("remove-processing", () => service.removeProcessing(request)),
-            Match.when("list-processing", () => service.listProcessing(request)),
-            Match.when("begin-upload", () => service.beginUpload(request)),
+            Match.when("add-processing", () => this.addProcessing(request)),
+            Match.when("remove-processing", () => this.removeProcessing(request)),
+            Match.when("list-processing", () => this.listProcessing(request)),
+            Match.when("begin-upload", () => this.beginUpload(request)),
             Match.when("upload-chunk", () => uploadChunkEffect(request)),
-            Match.when("complete-upload", () => service.completeUpload(request)),
+            Match.when("complete-upload", () => this.completeUpload(request)),
             Match.when("get-upload-status", () => getUploadStatusEffect(request)),
             Match.when("abort-upload", () => abortUploadEffect(request)),
-            Match.when("list-uploads", () => service.listUploads(request)),
+            Match.when("list-uploads", () => this.listUploads(request)),
             Match.when("stream-document", () =>
               Effect.fail(
                 librarianServiceError("stream-document", "stream-document must be handled as a streaming operation"),
@@ -1427,7 +1427,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
       // ---------- Persistence ----------
 
       persist: Effect.gen(function* () {
-            const current = service!;
+            const current = yield* getService;
             const serviceState = yield* SynchronizedRef.get(current.state);
             const data = {
               documents: Object.fromEntries(serviceState.documents),
@@ -1448,7 +1448,7 @@ export function makeLibrarianService(config: LibrarianServiceConfig): LibrarianS
 
 
       loadFromDisk: Effect.gen(function* () {
-            const current = service!;
+            const current = yield* getService;
             const parsed = yield* Effect.gen(function* () {
               const raw = yield* readTextFileEffect(current.persistPath).pipe(
                 Effect.mapError((cause) => librarianServiceError("persist-read", cause)),

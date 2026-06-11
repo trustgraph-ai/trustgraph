@@ -7,20 +7,25 @@
 import type { PubSubBackend } from "../backend/types.js";
 import { PubSub } from "../backend/pubsub.js";
 import type { Flow } from "../processor/flow.js";
-import {
+import type {
   MessagingHandlerError,
+  MessagingLifecycleError,
+} from "../errors.js";
+import {
   TooManyRequestsError,
   messagingHandlerError,
   messagingLifecycleError,
-  type MessagingLifecycleError,
 } from "../errors.js";
-import { Config as EffectConfig, Effect, Exit, Scope } from "effect";
+import type { Config as EffectConfig, } from "effect";
+import { Effect, Exit, Scope } from "effect";
 import * as P from "effect/Predicate";
 import * as S from "effect/Schema";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
+import type {
+  EffectConsumer,
+} from "./runtime.js";
 import {
   makeEffectConsumerFromPubSub,
-  type EffectConsumer,
 } from "./runtime.js";
 
 export type MessageHandler<T> = (

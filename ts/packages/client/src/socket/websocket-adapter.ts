@@ -56,8 +56,7 @@ export interface IsomorphicWebSocket {
   addEventListener(type: "close", listener: (event: WsCloseEvent) => void): void;
   addEventListener(type: "open", listener: (event: WsEvent) => void): void;
   addEventListener(type: "error", listener: (event: WsEvent) => void): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  removeEventListener(type: string, listener: (...args: any[]) => void): void;
+  removeEventListener(type: string, listener: (...args: ReadonlyArray<never>) => void): void;
 }
 
 /** Constructor signature for an isomorphic WebSocket implementation. */

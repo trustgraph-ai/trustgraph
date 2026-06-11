@@ -3,15 +3,15 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {Effect} from "effect";
 import {describe, expect, it} from "vitest";
-import {
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type DocumentMetadata,
-  type Message,
-  type PubSubBackend,
-  type Triple,
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  DocumentMetadata,
+  Message,
+  PubSubBackend,
+  Triple,
 } from "@trustgraph/base";
 import {makeLibrarianService} from "../librarian/service.js";
 

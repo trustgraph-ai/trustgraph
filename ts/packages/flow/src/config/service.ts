@@ -8,6 +8,16 @@ import {NodeRuntime} from "@effect/platform-node";
 import {Duration, Effect, HashMap, Match, Option, SynchronizedRef} from "effect";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
+import type {
+  AsyncProcessorRuntime,
+  BackendConsumer,
+  BackendProducer,
+  ConfigOperation,
+  ConfigRequest,
+  ConfigResponse,
+  Message,
+  ProcessorConfig,
+} from "@trustgraph/base";
 import {
   ConfigRequest as ConfigRequestSchema,
   ConfigResponse as ConfigResponseSchema,
@@ -18,14 +28,6 @@ import {
   optionalStringConfig,
   processorLifecycleError,
   topics,
-  type AsyncProcessorRuntime,
-  type BackendConsumer,
-  type BackendProducer,
-  type ConfigOperation,
-  type ConfigRequest,
-  type ConfigResponse,
-  type Message,
-  type ProcessorConfig,
 } from "@trustgraph/base";
 import {readTextFileEffect, writeTextFileEffect} from "../runtime/effect-files.js";
 

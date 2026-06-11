@@ -24,19 +24,21 @@
  * Python reference: trustgraph-flow/trustgraph/prompt/template/service.py
  */
 
+import type {
+  ProcessorConfig,
+  EffectConfigHandler,
+  FlowContext,
+  FlowProcessorRuntime,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  PromptRequest,
+  PromptResponse,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
-  type ProcessorConfig,
-  type EffectConfigHandler,
-  type FlowContext,
-  type FlowProcessorRuntime,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type PromptRequest,
-  type PromptResponse,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";

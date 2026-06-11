@@ -1,4 +1,5 @@
-import { makeBaseApiWithRpc, type BaseApi, type DocumentMetadata, type ProcessingMetadata, type StreamingMetadata, type Triple } from "@trustgraph/client";
+import type { BaseApi, DocumentMetadata, ProcessingMetadata, StreamingMetadata, Triple } from "@trustgraph/client";
+import { makeBaseApiWithRpc, } from "@trustgraph/client";
 import { Clock, Effect, Match, Option, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;

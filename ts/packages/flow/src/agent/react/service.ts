@@ -19,6 +19,27 @@
 import {
   NodeRuntime,
 } from "@effect/platform-node";
+import type {
+  ProcessorConfig,
+  FlowContext,
+  FlowProcessorRuntime,
+  AgentRequest,
+  AgentResponse,
+  TextCompletionRequest,
+  TextCompletionResponse,
+  GraphRagRequest,
+  GraphRagResponse,
+  DocumentRagRequest,
+  DocumentRagResponse,
+  TriplesQueryRequest,
+  TriplesQueryResponse,
+  ToolRequest,
+  ToolResponse,
+  EffectConfigHandler,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
@@ -26,37 +47,19 @@ import {
   makeRequestResponseSpec,
   makeFlowProcessorProgram,
   errorMessage,
-  type ProcessorConfig,
-  type FlowContext,
-  type FlowProcessorRuntime,
-  type AgentRequest,
-  type AgentResponse,
-  type TextCompletionRequest,
-  type TextCompletionResponse,
-  type GraphRagRequest,
-  type GraphRagResponse,
-  type DocumentRagRequest,
-  type DocumentRagResponse,
-  type TriplesQueryRequest,
-  type TriplesQueryResponse,
-  type ToolRequest,
-  type ToolResponse,
-  type EffectConfigHandler,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type Spec,
 } from "@trustgraph/base";
 import {Context, Effect, Layer, Match, Ref} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
-
+import type {
+  ExplainData,
+} from "./tools.js";
 import {
   createKnowledgeQueryTool,
   createDocumentQueryTool,
   createTriplesQueryTool,
   createMcpTool,
-  type ExplainData,
 } from "./tools.js";
 import { buildReActPrompt } from "./prompt.js";
 import { filterToolsByGroupAndState } from "../tool-filter.js";
@@ -550,9 +553,9 @@ export function parseReActResponse(text: string): {
       const firstLine = trimmed.slice("Final Answer:".length).trim();
       const remainingLines = lines.slice(i + 1).join("\n").trim();
       finalAnswer =
-        firstLine + (remainingLines.length > 0 ? "\n" + remainingLines : "");
+        firstLine + (remainingLines.length > 0 ? `\n${remainingLines}` : "");
       break;
-    } else if (trimmed.startsWith("Thought:")) {
+    }if (trimmed.startsWith("Thought:")) {
       currentSection = "thought";
       const content = trimmed.slice("Thought:".length).trim();
       if (content.length > 0) {
@@ -577,14 +580,14 @@ export function parseReActResponse(text: string): {
       // Continuation line for current section
       Match.value(currentSection).pipe(
         Match.when("thought", () => {
-          thought += "\n" + trimmed;
+          thought += `\n${trimmed}`;
         }),
         Match.when("action", () => {
           // Action should be a single line (tool name), but handle multi-line
-          action += " " + trimmed;
+          action += ` ${trimmed}`;
         }),
         Match.when("action_input", () => {
-          actionInput += "\n" + trimmed;
+          actionInput += `\n${trimmed}`;
         }),
         Match.exhaustive,
       );

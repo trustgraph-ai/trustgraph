@@ -2,6 +2,15 @@ import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Duration, Effect, Fiber } from "effect";
 import * as S from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  FlowContext,
+  Message,
+  PubSubBackend,
+} from "../index.js";
 import {
   makeConsumerSpec,
   Flow,
@@ -10,13 +19,6 @@ import {
   makeProducerSpec,
   PubSub,
   makeRequestResponseSpec,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type FlowContext,
-  type Message,
-  type PubSubBackend,
 } from "../index.js";
 
 function createMessage<T>(value: T, properties: Record<string, string> = {}): Message<T> {

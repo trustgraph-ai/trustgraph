@@ -1,15 +1,18 @@
 import type * as Atom from "effect/unstable/reactivity/Atom";
+import type {
+  FeatureSwitches,
+  Settings,
+  WorkbenchApiFactory,
+} from "@/atoms/workbench";
 import {
   apiFactoryAtom,
   DEFAULT_SETTINGS,
   flowIdAtom,
   settingsAtom,
-  type FeatureSwitches,
-  type Settings,
-  type WorkbenchApiFactory,
 } from "@/atoms/workbench";
 import type { BaseApi } from "@trustgraph/client";
-import { makeMockBaseApi, qaSettingsFromFixture, type MockWorkbenchFixture } from "@/qa/mock-api";
+import type { MockWorkbenchFixture } from "@/qa/mock-api";
+import { makeMockBaseApi, qaSettingsFromFixture, } from "@/qa/mock-api";
 
 export interface WorkbenchQaWindowConfig {
   readonly enabled?: boolean;

@@ -7,13 +7,17 @@
 import { Effect } from "effect";
 import type { SpecRuntimeRequirements } from "./types.js";
 import type { Flow, FlowDefinition } from "../processor/flow.js";
-import {
-  flowResourceNotFoundError,
-  type FlowResourceNotFoundError,
-  type PubSubError,
+import type {
+  FlowResourceNotFoundError,
+  PubSubError,
 } from "../errors.js";
 import {
-  type EffectProducer,
+  flowResourceNotFoundError,
+} from "../errors.js";
+import type {
+  EffectProducer,
+} from "../messaging/runtime.js";
+import {
   ProducerFactory,
 } from "../messaging/runtime.js";
 

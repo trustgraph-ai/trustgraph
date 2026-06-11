@@ -9,20 +9,22 @@
  * Python reference: trustgraph-flow/trustgraph/chunking/recursive_splitter/service.py
  */
 
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowContext,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  TextDocument,
+  Chunk,
+  Triples,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
   makeParameterSpec,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowContext,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type TextDocument,
-  type Chunk,
-  type Triples,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";

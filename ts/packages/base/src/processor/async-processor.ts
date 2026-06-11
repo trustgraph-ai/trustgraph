@@ -8,8 +8,10 @@
 
 import type { PubSubBackend } from "../backend/types.js";
 import { makeNatsBackend, makeNatsBackendScoped } from "../backend/nats.js";
-import { Cause, Config as EffectConfig, Context, Effect } from "effect";
-import { processorLifecycleError, type ProcessorLifecycleError } from "../errors.js";
+import type { Cause, Config as EffectConfig, } from "effect";
+import { Context, Effect } from "effect";
+import type { ProcessorLifecycleError } from "../errors.js";
+import { processorLifecycleError, } from "../errors.js";
 import { loadProcessorRuntimeConfig } from "../runtime/config.js";
 
 export interface ProcessorConfig {

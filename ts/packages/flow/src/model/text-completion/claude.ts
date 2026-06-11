@@ -6,23 +6,27 @@
 
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { NodeRuntime } from "@effect/platform-node";
+import type {
+  Llm,
+  LlmProvider,
+  ProcessorConfig,
+} from "@trustgraph/base";
 import {
   makeLlmService,
   makeFlowProcessorProgram,
   makeLlmSpecs,
-  type Llm,
-  type LlmProvider,
-  type ProcessorConfig,
 } from "@trustgraph/base";
 import { Effect, Layer, Redacted } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
+import type {
+  TextCompletionConfigError,
+  TextCompletionRuntimeError,
+} from "./common.ts";
 import {
   makeLanguageModelProvider,
   makeTextCompletionLayer,
   optionalStringConfig,
   requiredString,
-  type TextCompletionConfigError,
-  type TextCompletionRuntimeError,
 } from "./common.ts";
 
 export type ClaudeProcessorConfig = ProcessorConfig & {

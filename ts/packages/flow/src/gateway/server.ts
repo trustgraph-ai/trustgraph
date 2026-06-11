@@ -12,17 +12,21 @@ import * as O from "effect/Option";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
+import type {
+  PubSubBackend,
+} from "@trustgraph/base";
 import {
   formatPrometheusMetrics,
   messagingLifecycleError,
   optionalStringConfig,
   prometheusContentType,
   toTgError,
-  type PubSubBackend,
 } from "@trustgraph/base";
 import { GatewayWorkbenchHttpApi } from "@trustgraph/client/rpc/contract";
-import { makeDispatcherManagerScoped, type DispatcherManager } from "./dispatch/manager.js";
-import { makeGatewayRpcServer, type GatewayRpcServer } from "./rpc-server.js";
+import type { DispatcherManager } from "./dispatch/manager.js";
+import { makeDispatcherManagerScoped, } from "./dispatch/manager.js";
+import type { GatewayRpcServer } from "./rpc-server.js";
+import { makeGatewayRpcServer, } from "./rpc-server.js";
 
 export interface GatewayConfig {
   port: number;

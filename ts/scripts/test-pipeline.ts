@@ -517,7 +517,7 @@ async function testFullPipeline(): Promise<boolean> {
 
     // 4. Wait for pipeline to complete (PDF decode + chunking + extraction + storage)
     // This involves multiple LLM calls so give it time
-    const waitSecs = parseInt(process.env.PIPELINE_WAIT ?? "20", 10);
+    const waitSecs = Number.parseInt(process.env.PIPELINE_WAIT ?? "20", 10);
     for (let i = waitSecs; i > 0; i--) {
       process.stdout.write(`\r  Waiting... ${i}s remaining `);
       await new Promise((r) => setTimeout(r, 1000));
@@ -574,17 +574,16 @@ async function testFullPipeline(): Promise<boolean> {
     if (triplesFound && embeddingsFound) {
       pass("Full pipeline: PDF decoded, triples stored, embeddings stored");
       return true;
-    } else if (triplesFound) {
+    }if (triplesFound) {
       pass("Full pipeline: triples stored (embeddings pending)");
       return true;
-    } else if (embeddingsFound) {
+    }if (embeddingsFound) {
       pass("Full pipeline: embeddings stored (triples pending)");
       return true;
-    } else {
+    }
       // Pipeline triggered but stores not populated yet — partial success
       pass("Full pipeline: triggered successfully (stores may need more time)");
       return true;
-    }
   } catch (err) {
     fail("Full pipeline", err);
     return false;

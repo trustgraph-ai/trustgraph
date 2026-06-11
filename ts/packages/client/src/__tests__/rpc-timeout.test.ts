@@ -1,8 +1,10 @@
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { DispatchError, DispatchStreamChunk } from "../rpc/contract";
-import { type DispatchInput, type RpcConnectionState, withDispatchRequestPolicy } from "../socket/effect-rpc-client";
-import { type ConnectionState, makeBaseApiWithRpc } from "../socket/trustgraph-socket";
+import type { DispatchInput, RpcConnectionState, } from "../socket/effect-rpc-client";
+import { withDispatchRequestPolicy } from "../socket/effect-rpc-client";
+import type { ConnectionState, } from "../socket/trustgraph-socket";
+import { makeBaseApiWithRpc } from "../socket/trustgraph-socket";
 
 const input: DispatchInput = {
   scope: "global",

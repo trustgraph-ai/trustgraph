@@ -7,30 +7,34 @@
  * Python reference: trustgraph-flow/trustgraph/query/triples/falkordb/service.py
  */
 
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowProcessorStartEffect,
+  FlowContext,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  TriplesQueryRequest,
+  TriplesQueryResponse,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
   processorLifecycleError,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowProcessorStartEffect,
-  type FlowContext,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type TriplesQueryRequest,
-  type TriplesQueryResponse,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 import { Effect } from "effect";
+import type {
+  FalkorDBQueryConfig,
+  FalkorDBTriplesQueryError,
+} from "./falkordb.js";
 import {
   FalkorDBTriplesQueryLive,
   FalkorDBTriplesQueryService,
   makeFalkorDBTriplesQueryServiceScoped,
-  type FalkorDBQueryConfig,
-  type FalkorDBTriplesQueryError,
 } from "./falkordb.js";
 
 const TriplesResponseProducer = makeProducerSpec<TriplesQueryResponse>("triples-response");

@@ -4,7 +4,9 @@
   "scripts": {
     "build": "bunx --bun turbo build",
     "dev": "bunx --bun turbo dev",
-    "lint": "bunx --bun turbo lint",
+    "lint": "bunx --bun turbo lint && bun run lint:laws",
+    "lint:laws": "bun scripts/check-effect-laws.ts && bun scripts/inventory-native-classes.ts",
+    "lint:laws:baseline": "bun scripts/check-effect-laws.ts --write-baseline",
     "test": "bunx --bun turbo test",
     "check": "bun run check:tsgo",
     "check:tsgo": "effect-tsgo patch && tsgo -b tsconfig.json",
@@ -44,6 +46,7 @@
     "llm:mistral": "bun scripts/run-llm-mistral.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2",
     "@effect/platform-bun": "4.0.0-beta.78",
     "@effect/tsgo": "0.14.0",
     "@effect/vitest": "4.0.0-beta.78",
@@ -55,7 +58,6 @@
     "pdf-lib": "^1.17.1",
     "tsx": "^4.21.0",
     "turbo": "^2.5.0",
-
     "typescript": "^5.8.0",
     "vitest": "^4.1.6"
   },

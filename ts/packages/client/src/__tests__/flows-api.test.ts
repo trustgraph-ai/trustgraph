@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { BaseApi } from "../socket/trustgraph-socket";
 import { FlowsApi, TrustGraphSocketError } from "../socket/trustgraph-socket";
-import { FlowResponse } from "../models/messages";
+import type { FlowResponse } from "../models/messages";
 
 describe("FlowsApi", () => {
   let mockApi: {
@@ -12,8 +13,7 @@ describe("FlowsApi", () => {
     mockApi = {
       makeRequest: vi.fn(),
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    flowsApi = FlowsApi(mockApi as any);
+    flowsApi = FlowsApi(mockApi as unknown as BaseApi);
   });
 
   describe("startFlow", () => {

@@ -1,10 +1,12 @@
 // Import core types and classes for the TrustGraph API
 import type { Term, Triple } from "../models/Triple.js";
+import type {
+  EffectRpcClient,
+  DispatchInput,
+  DispatchOptions,
+  RpcConnectionState,
+} from "./effect-rpc-client.js";
 import {
-  type EffectRpcClient,
-  type DispatchInput,
-  type DispatchOptions,
-  type RpcConnectionState,
   makeEffectRpcClient,
 } from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
@@ -479,7 +481,7 @@ export function makeBaseApi(
       hasApiKey: isNonEmptyString(token),
     }),
   );
-  let lastError: string | undefined = undefined;
+  let lastError: string | undefined ;
   let rpcState: RpcConnectionState = { status: "connecting" };
 
   const api = {
@@ -536,7 +538,7 @@ export function makeBaseApi(
      * Format: {clientTag}-{incrementingNumber}
      */
     getNextId() {
-      const mid = api.tag + "-" + api.id.toString();
+      const mid = `${api.tag}-${api.id.toString()}`;
       api.id++;
       return mid;
     },
@@ -2530,11 +2532,10 @@ export function makeKnowledgeApi(api: BaseApi) {
             // End of stream - notify receiver and signal completion
             receiver(msg, true);
             return true;
-          } else {
+          }
             // Regular message - continue streaming
             receiver(msg, false);
             return false;
-          }
         };
 
         return this.api.makeRequestMulti<LibraryRequest, LibraryResponse>(

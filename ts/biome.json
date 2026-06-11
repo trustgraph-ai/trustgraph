@@ -1,0 +1,95 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "root": true,
+  "files": {
+    "includes": [
+      "packages/*/src/**",
+      "scripts/**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.turbo",
+      "!**/__snapshots__"
+    ]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "security": {
+        "noGlobalEval": "error"
+      },
+      "a11y": {
+        "useFocusableInteractive": "off",
+        "useAriaPropsForRole": "off",
+        "useSemanticElements": "off",
+        "useKeyWithClickEvents": "off",
+        "noStaticElementInteractions": "off",
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off",
+        "noLabelWithoutControl": "off"
+      },
+      "complexity": {
+        "noBannedTypes": "off",
+        "noForEach": "off",
+        "noUselessFragments": "off"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "off",
+        "useHookAtTopLevel": "off",
+        "useYield": "off",
+        "noChildrenProp": "off"
+      },
+      "performance": {
+        "noDelete": "off",
+        "noAccumulatingSpread": "off"
+      },
+      "suspicious": {
+        "noDebugger": "error",
+        "noExplicitAny": "error",
+        "noConfusingVoidType": "off",
+        "noAssignInExpressions": "off",
+        "noArrayIndexKey": "off",
+        "noDoubleEquals": "off",
+        "noThenProperty": "off",
+        "noRedeclare": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useImportType": {
+          "level": "error",
+          "options": {
+            "style": "separatedType"
+          }
+        },
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error",
+        "noParameterAssign": "off",
+        "noUnusedTemplateLiteral": "off"
+      }
+    }
+  }
+}

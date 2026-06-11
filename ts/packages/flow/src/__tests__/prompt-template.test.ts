@@ -1,19 +1,21 @@
 import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Fiber } from "effect";
 import * as S from "effect/Schema";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  Message,
+  PromptRequest,
+  PromptResponse,
+  PubSubBackend,
+} from "@trustgraph/base";
 import {
   MessagingRuntimeLive,
   PubSub,
   runProcessorScoped,
   topics,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type Message,
-  type PromptRequest,
-  type PromptResponse,
-  type PubSubBackend,
 } from "@trustgraph/base";
 import { PromptTemplateService } from "../prompt/template.js";
 

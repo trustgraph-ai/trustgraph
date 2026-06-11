@@ -4,7 +4,8 @@
  * Python reference: trustgraph-base/trustgraph/base/metrics.py
  */
 
-import { Effect, Metric } from "effect";
+import type { Effect, } from "effect";
+import { Metric } from "effect";
 import { PrometheusMetrics } from "effect/unstable/observability";
 
 export const prometheusContentType = "text/plain; version=0.0.4; charset=utf-8";

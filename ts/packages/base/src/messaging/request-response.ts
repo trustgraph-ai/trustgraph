@@ -7,21 +7,26 @@
  * Python reference: trustgraph-base/trustgraph/base/request_response_spec.py
  */
 
-import { Config as EffectConfig, Effect, Exit, Scope } from "effect";
+import type { Config as EffectConfig, } from "effect";
+import { Effect, Exit, Scope } from "effect";
 import type { PubSubBackend } from "../backend/types.js";
 import { PubSub } from "../backend/pubsub.js";
+import type {
+  MessagingDeliveryError,
+  MessagingLifecycleError,
+  MessagingTimeoutError,
+  PubSubError,
+} from "../errors.js";
 import {
   messagingLifecycleError,
-  type MessagingDeliveryError,
-  type MessagingLifecycleError,
-  type MessagingTimeoutError,
-  type PubSubError,
 } from "../errors.js";
 import { loadMessagingRuntimeConfig } from "../runtime/index.ts";
+import type {
+  EffectRequestOptions,
+  EffectRequestResponse,
+} from "./runtime.js";
 import {
   makeEffectRequestResponseFromPubSub,
-  type EffectRequestOptions,
-  type EffectRequestResponse,
 } from "./runtime.js";
 
 export interface RequestResponseOptions {

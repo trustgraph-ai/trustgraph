@@ -8,7 +8,8 @@
  */
 
 import { createClient, Graph } from "falkordb";
-import { errorMessage, type Term, type Triple } from "@trustgraph/base";
+import type { Term, Triple } from "@trustgraph/base";
+import { errorMessage, } from "@trustgraph/base";
 import { Config, Context, Effect, Layer, Match } from "effect";
 import * as S from "effect/Schema";
 

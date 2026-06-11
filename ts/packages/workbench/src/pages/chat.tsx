@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import type {
+  ChatMessage,
+} from "@/atoms/workbench";
 import {
   agentPhaseExpandedAtom,
   cancelChatAtom,
@@ -27,7 +30,6 @@ import {
   setConversationInputAtom,
   settingsAtom,
   submitMessageAtom,
-  type ChatMessage,
 } from "@/atoms/workbench";
 import { AutoTextarea } from "@/components/ui/textarea";
 import { MessageActions } from "@/components/chat/message-actions";

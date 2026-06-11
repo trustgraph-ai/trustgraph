@@ -3,17 +3,19 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {Effect, HashMap, Option, SynchronizedRef} from "effect";
 import {describe, expect, it} from "vitest";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  KnowledgeRequest,
+  KnowledgeResponse,
+  Message,
+  PubSubBackend,
+  Triple,
+} from "@trustgraph/base";
 import {
   topics,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type KnowledgeRequest,
-  type KnowledgeResponse,
-  type Message,
-  type PubSubBackend,
-  type Triple,
 } from "@trustgraph/base";
 import {makeKnowledgeCoreService} from "../cores/service.js";
 

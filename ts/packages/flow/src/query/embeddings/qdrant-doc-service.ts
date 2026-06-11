@@ -7,30 +7,34 @@
  * Python reference: trustgraph-flow/trustgraph/query/doc_embeddings/qdrant/service.py
  */
 
+import type {
+  ProcessorConfig,
+  FlowProcessorRuntime,
+  FlowProcessorStartEffect,
+  FlowContext,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  DocumentEmbeddingsRequest,
+  DocumentEmbeddingsResponse,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
   processorLifecycleError,
-  type ProcessorConfig,
-  type FlowProcessorRuntime,
-  type FlowProcessorStartEffect,
-  type FlowContext,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type DocumentEmbeddingsRequest,
-  type DocumentEmbeddingsResponse,
-  type Spec,
 } from "@trustgraph/base";
 import { NodeRuntime } from "@effect/platform-node";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 import { Effect } from "effect";
+import type {
+  QdrantDocQueryConfig,
+  QdrantDocEmbeddingsQueryError,
+} from "./qdrant-doc.js";
 import {
   QdrantDocEmbeddingsQueryLive,
   QdrantDocEmbeddingsQueryService,
   makeQdrantDocEmbeddingsQueryServiceEffect,
-  type QdrantDocQueryConfig,
-  type QdrantDocEmbeddingsQueryError,
 } from "./qdrant-doc.js";
 
 const DocumentEmbeddingsResponseProducer = makeProducerSpec<DocumentEmbeddingsResponse>("document-embeddings-response");

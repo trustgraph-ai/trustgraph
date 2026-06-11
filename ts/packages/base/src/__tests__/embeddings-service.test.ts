@@ -1,6 +1,16 @@
 import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Fiber } from "effect";
 import * as S from "effect/Schema";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  EmbeddingsRequest,
+  EmbeddingsResponse,
+  Message,
+  PubSubBackend,
+} from "../index.js";
 import {
   Embeddings,
   EmbeddingsService,
@@ -9,14 +19,6 @@ import {
   embeddingsError,
   runProcessorScoped,
   topics,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type EmbeddingsRequest,
-  type EmbeddingsResponse,
-  type Message,
-  type PubSubBackend,
 } from "../index.js";
 
 class WaitForTimeout extends S.TaggedErrorClass<WaitForTimeout>()(

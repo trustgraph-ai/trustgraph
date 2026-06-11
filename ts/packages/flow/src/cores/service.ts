@@ -5,6 +5,17 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
+import type {
+  AsyncProcessorRuntime,
+  BackendConsumer,
+  BackendProducer,
+  KnowledgeOperation,
+  KnowledgeRequest,
+  KnowledgeResponse,
+  Message,
+  ProcessorConfig,
+  PubSubError,
+} from "@trustgraph/base";
 import {
   KnowledgeRequest as KnowledgeRequestSchema,
   KnowledgeResponse as KnowledgeResponseSchema,
@@ -17,15 +28,6 @@ import {
   optionalStringConfig,
   processorLifecycleError,
   topics,
-  type AsyncProcessorRuntime,
-  type BackendConsumer,
-  type BackendProducer,
-  type KnowledgeOperation,
-  type KnowledgeRequest,
-  type KnowledgeResponse,
-  type Message,
-  type ProcessorConfig,
-  type PubSubError,
 } from "@trustgraph/base";
 import {Duration, Effect, HashMap, Match, SynchronizedRef} from "effect";
 import * as O from "effect/Option";

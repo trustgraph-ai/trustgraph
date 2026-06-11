@@ -7,7 +7,8 @@
 import { Effect } from "effect";
 import * as Argument from "effect/unstable/cli/Argument";
 import * as Command from "effect/unstable/cli/Command";
-import { cliCommandError, withGatewayClient, type CliCommandError } from "./util.js";
+import type { CliCommandError } from "./util.js";
+import { cliCommandError, withGatewayClient, } from "./util.js";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)

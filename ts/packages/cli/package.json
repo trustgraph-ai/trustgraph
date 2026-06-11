@@ -9,7 +9,8 @@
     "build": "bunx --bun tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "bunx --bun vitest run --passWithNoTests --exclude=dist/**"
+    "test": "bunx --bun vitest run --passWithNoTests --exclude=dist/**",
+    "lint": "bunx --bun biome check src"
   },
   "dependencies": {
     "@effect/platform-bun": "4.0.0-beta.78",

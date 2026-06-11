@@ -1,7 +1,8 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { notificationsAtom, removeNotificationAtom, type Notification } from "@/atoms/workbench";
+import type { Notification } from "@/atoms/workbench";
+import { notificationsAtom, removeNotificationAtom, } from "@/atoms/workbench";
 
 const typeStyles: Record<Notification["type"], string> = {
   success: "border-success/40 bg-success/10 text-success",

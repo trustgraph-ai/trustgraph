@@ -8,16 +8,18 @@
  * Python reference: trustgraph-base/trustgraph/base/pulsar_backend.py
  */
 
+import type {
+  NatsConnection,
+  JetStreamClient,
+  JetStreamManager,
+  Consumer as NatsJsConsumer,
+  JsMsg,
+  JetStreamPublishOptions,
+} from "nats";
 import {
   connect,
   ErrorCode,
-  type NatsConnection,
-  type JetStreamClient,
-  type JetStreamManager,
-  type Consumer as NatsJsConsumer,
   headers,
-  type JsMsg,
-  type JetStreamPublishOptions,
   NatsError,
   StringCodec,
   AckPolicy,
@@ -36,7 +38,8 @@ import type {
   CreateConsumerOptions,
   Message,
 } from "./types.js";
-import { pubSubError, type PubSubError } from "../errors.js";
+import type { PubSubError } from "../errors.js";
+import { pubSubError, } from "../errors.js";
 
 const sc = StringCodec();
 

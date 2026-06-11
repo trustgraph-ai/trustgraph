@@ -8,39 +8,43 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
+import type {
+  FlowContext,
+  FlowProcessorRuntime,
+  FlowResourceNotFoundError,
+  GraphEmbeddingsRequest,
+  GraphEmbeddingsResponse,
+  GraphRagRequest,
+  GraphRagResponse,
+  EmbeddingsRequest,
+  EmbeddingsResponse,
+  MessagingDeliveryError,
+  ProcessorConfig,
+  PromptRequest,
+  PromptResponse,
+  Spec,
+  TextCompletionRequest,
+  TextCompletionResponse,
+  TriplesQueryRequest,
+  TriplesQueryResponse,
+} from "@trustgraph/base";
 import {
   makeConsumerSpec,
   makeFlowProcessor,
   makeProducerSpec,
   makeRequestResponseSpec,
   makeFlowProcessorProgram,
-  type FlowContext,
-  type FlowProcessorRuntime,
-  type FlowResourceNotFoundError,
-  type GraphEmbeddingsRequest,
-  type GraphEmbeddingsResponse,
-  type GraphRagRequest,
-  type GraphRagResponse,
-  type EmbeddingsRequest,
-  type EmbeddingsResponse,
-  type MessagingDeliveryError,
-  type ProcessorConfig,
-  type PromptRequest,
-  type PromptResponse,
-  type Spec,
-  type TextCompletionRequest,
-  type TextCompletionResponse,
-  type TriplesQueryRequest,
-  type TriplesQueryResponse,
 } from "@trustgraph/base";
 import {Effect} from "effect";
+import type {
+  GraphRagEngineError,
+  GraphRagClients,
+  GraphRagConfig,
+} from "./graph-rag.js";
 import {
   GraphRagEngine,
-  GraphRagEngineError,
   GraphRagLive,
   makeGraphRagEngine,
-  type GraphRagClients,
-  type GraphRagConfig,
 } from "./graph-rag.js";
 
 const GraphRagResponseProducer = makeProducerSpec<GraphRagResponse>("graph-rag-response");

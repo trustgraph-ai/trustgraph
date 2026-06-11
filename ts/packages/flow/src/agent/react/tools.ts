@@ -23,8 +23,8 @@ import { Effect, Match } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as S from "effect/Schema";
-
-import { agentToolError, type AgentTool, type ToolArg } from "./types.js";
+import type { AgentTool, ToolArg } from "./types.js";
+import { agentToolError, } from "./types.js";
 
 const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
 const decodeTerm = S.decodeUnknownOption(TermSchema);

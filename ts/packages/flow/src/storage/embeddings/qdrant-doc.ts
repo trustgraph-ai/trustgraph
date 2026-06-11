@@ -13,7 +13,8 @@ import { Config, Effect, Random } from "effect";
 import * as MutableHashSet from "effect/MutableHashSet";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
-import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
+import type { QdrantClientFactory, QdrantClientLike } from "../../qdrant/client.js";
+import { makeQdrantClient, } from "../../qdrant/client.js";
 
 export interface QdrantDocEmbeddingsConfig {
   url?: string;

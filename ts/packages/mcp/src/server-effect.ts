@@ -1,11 +1,13 @@
 import {BunHttpServer, BunRuntime} from "@effect/platform-bun";
 import {NodeRuntime, NodeStdio} from "@effect/platform-node";
+import type {
+  BaseApi,
+  Term as ClientTerm,
+  TrustGraphGatewayClient,
+} from "@trustgraph/client";
 import {
   createTrustGraphSocket,
   makeTrustGraphGatewayClientScoped,
-  type BaseApi,
-  type Term as ClientTerm,
-  type TrustGraphGatewayClient,
 } from "@trustgraph/client";
 import {Config, Context, Effect, Layer} from "effect";
 import * as O from "effect/Option";

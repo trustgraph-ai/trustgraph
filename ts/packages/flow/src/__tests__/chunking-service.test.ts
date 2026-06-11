@@ -2,19 +2,21 @@ import { describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Fiber } from "effect";
 import * as EffectChunk from "effect/Chunk";
 import * as S from "effect/Schema";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  Chunk,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  Message,
+  PubSubBackend,
+  TextDocument,
+} from "@trustgraph/base";
 import {
   MessagingRuntimeLive,
   PubSub,
   runProcessorScoped,
   topics,
-  type BackendConsumer,
-  type BackendProducer,
-  type Chunk,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type Message,
-  type PubSubBackend,
-  type TextDocument,
 } from "@trustgraph/base";
 import { ChunkingService } from "../chunking/service.js";
 import { recursiveSplit } from "../chunking/recursive-splitter.js";

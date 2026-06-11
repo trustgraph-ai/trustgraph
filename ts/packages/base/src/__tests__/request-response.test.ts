@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  Message,
+  PubSubBackend,
+} from "../index.js";
 import {
   makeRequestResponse,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type Message,
-  type PubSubBackend,
 } from "../index.js";
 
 function createMessage<T>(value: T, properties: Record<string, string> = {}): Message<T> {

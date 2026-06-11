@@ -17,7 +17,8 @@
     "build": "bunx --bun tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "bunx --bun vitest run"
+    "test": "bunx --bun vitest run",
+    "lint": "bunx --bun biome check src"
   },
   "dependencies": {
     "effect": "4.0.0-beta.78",

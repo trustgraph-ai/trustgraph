@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Effect } from "effect";
-import { makeConsumer, type ConsumerOptions, type FlowContext } from "../messaging/consumer.js";
+import type { FlowContext } from "../messaging/consumer.js";
+import { makeConsumer, } from "../messaging/consumer.js";
 import type {
   PubSubBackend,
   BackendConsumer,
   Message,
   BackendProducer,
-  CreateProducerOptions,
-  CreateConsumerOptions,
 } from "../backend/types.js";
 import { tooManyRequestsError } from "../errors.js";
 import type { Flow } from "../processor/flow.js";

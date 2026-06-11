@@ -5,11 +5,12 @@
  * executable path while the processor internals remain Promise-based.
  */
 
-import { Config as EffectConfig, Effect, Layer } from "effect";
-import {
-  type FlowRuntimeError,
-  type ProcessorLifecycleError,
-  type PubSubError,
+import type { Config as EffectConfig, } from "effect";
+import { Effect, Layer } from "effect";
+import type {
+  FlowRuntimeError,
+  ProcessorLifecycleError,
+  PubSubError,
 } from "../errors.js";
 import { makeNatsBackendScoped } from "../backend/nats.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
@@ -23,9 +24,11 @@ import {
   makeRequestResponseFactoryService,
   runFlowRuntimeScoped,
 } from "../messaging/runtime.js";
+import type {
+  ProcessorRuntimeConfigOptions,
+} from "../runtime/config.js";
 import {
   loadProcessorRuntimeConfig,
-  type ProcessorRuntimeConfigOptions,
 } from "../runtime/config.js";
 import { loadMessagingRuntimeConfig } from "../runtime/messaging-config.js";
 import type {

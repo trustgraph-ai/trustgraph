@@ -123,16 +123,18 @@ export function triplesToGraph(triples: Triple[]): {
   const nodeMap = new Map<string, GraphNode>();
   const links: GraphLink[] = [];
 
-  const ensureNode = (uri: string): void => {
-    if (!nodeMap.has(uri)) {
-      const type = typeMap.get(uri);
-      nodeMap.set(uri, {
-        id: uri,
-        label: labelMap.get(uri) ?? localName(uri),
-        color: hashColor(type !== undefined ? localName(type) : uri),
-        degree: 0,
-      });
-    }
+  const ensureNode = (uri: string): GraphNode => {
+    const existing = nodeMap.get(uri);
+    if (existing !== undefined) return existing;
+    const type = typeMap.get(uri);
+    const node: GraphNode = {
+      id: uri,
+      label: labelMap.get(uri) ?? localName(uri),
+      color: hashColor(type !== undefined ? localName(type) : uri),
+      degree: 0,
+    };
+    nodeMap.set(uri, node);
+    return node;
   };
 
   for (const t of triples) {
@@ -151,10 +153,8 @@ export function triplesToGraph(triples: Triple[]): {
     const oIsEntity = isIri(t.o) || t.o.t === "l";
     if (!sIsEntity || !oIsEntity) continue;
 
-    ensureNode(sVal);
-    ensureNode(oVal);
-    nodeMap.get(sVal)!.degree++;
-    nodeMap.get(oVal)!.degree++;
+    ensureNode(sVal).degree++;
+    ensureNode(oVal).degree++;
 
     links.push({
       source: sVal,

@@ -14,22 +14,23 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { NodeRuntime } from "@effect/platform-node";
-
+import type {
+  ProcessorConfig,
+  FlowContext,
+  FlowProcessorRuntime,
+  ToolRequest,
+  ToolResponse,
+  EffectConfigHandler,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  Spec,
+} from "@trustgraph/base";
 import {
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
   makeFlowProcessorProgram,
   errorMessage,
-  type ProcessorConfig,
-  type FlowContext,
-  type FlowProcessorRuntime,
-  type ToolRequest,
-  type ToolResponse,
-  type EffectConfigHandler,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type Spec,
 } from "@trustgraph/base";
 import { Context, Effect, Layer, Ref } from "effect";
 import * as O from "effect/Option";

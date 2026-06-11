@@ -30,7 +30,7 @@ function isToolAvailable(
   const config = tool.config ?? {};
 
   // Get tool groups (default to ["default"])
-  let toolGroups = config["group"] as string[] | string | undefined;
+  let toolGroups = config.group as string[] | string | undefined;
   if (toolGroups === undefined) toolGroups = ["default"];
   if (!Array.isArray(toolGroups)) toolGroups = [toolGroups];
 
@@ -56,6 +56,6 @@ function isToolAvailable(
  * Get the next state after successful tool execution.
  */
 export function getNextState(tool: AgentTool, currentState: string): string {
-  const nextState = tool.config?.["state"] as string | undefined;
+  const nextState = tool.config?.state as string | undefined;
   return nextState ?? currentState;
 }

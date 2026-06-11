@@ -1,18 +1,20 @@
 import {Effect, HashMap, Option, SynchronizedRef} from "effect";
 import {describe, expect, it} from "vitest";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  ConfigRequest,
+  ConfigResponse,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  FlowRequest,
+  FlowResponse,
+  Message,
+  PubSubBackend,
+  RequestResponse,
+} from "@trustgraph/base";
 import {
   topics,
-  type BackendConsumer,
-  type BackendProducer,
-  type ConfigRequest,
-  type ConfigResponse,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type FlowRequest,
-  type FlowResponse,
-  type Message,
-  type PubSubBackend,
-  type RequestResponse,
 } from "@trustgraph/base";
 import {FlowManagerError, makeFlowManagerService} from "../flow-manager/service.js";
 

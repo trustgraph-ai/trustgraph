@@ -10,11 +10,13 @@
  * Python reference: trustgraph-flow/trustgraph/query/graph_embeddings/qdrant/service.py
  */
 
-import { errorMessage, type Term } from "@trustgraph/base";
+import type { Term } from "@trustgraph/base";
+import { errorMessage, } from "@trustgraph/base";
 import { Config, Context, Effect, Layer } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
-import { makeQdrantClient, type QdrantClientFactory, type QdrantClientLike } from "../../qdrant/client.js";
+import type { QdrantClientFactory, QdrantClientLike } from "../../qdrant/client.js";
+import { makeQdrantClient, } from "../../qdrant/client.js";
 
 export interface QdrantGraphQueryConfig {
   url?: string;

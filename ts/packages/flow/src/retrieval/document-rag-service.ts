@@ -8,36 +8,40 @@
  */
 
 import {NodeRuntime} from "@effect/platform-node";
+import type {
+  DocumentEmbeddingsRequest,
+  DocumentEmbeddingsResponse,
+  DocumentRagRequest,
+  DocumentRagResponse,
+  EmbeddingsRequest,
+  EmbeddingsResponse,
+  FlowContext,
+  FlowProcessorRuntime,
+  FlowResourceNotFoundError,
+  MessagingDeliveryError,
+  ProcessorConfig,
+  PromptRequest,
+  PromptResponse,
+  Spec,
+  TextCompletionRequest,
+  TextCompletionResponse,
+} from "@trustgraph/base";
 import {
   makeConsumerSpec,
   makeFlowProcessor,
   makeProducerSpec,
   makeRequestResponseSpec,
   makeFlowProcessorProgram,
-  type DocumentEmbeddingsRequest,
-  type DocumentEmbeddingsResponse,
-  type DocumentRagRequest,
-  type DocumentRagResponse,
-  type EmbeddingsRequest,
-  type EmbeddingsResponse,
-  type FlowContext,
-  type FlowProcessorRuntime,
-  type FlowResourceNotFoundError,
-  type MessagingDeliveryError,
-  type ProcessorConfig,
-  type PromptRequest,
-  type PromptResponse,
-  type Spec,
-  type TextCompletionRequest,
-  type TextCompletionResponse,
 } from "@trustgraph/base";
 import {Effect} from "effect";
+import type {
+  DocumentRagEngineError,
+  DocumentRagClients,
+} from "./document-rag.js";
 import {
   DocumentRagEngine,
-  DocumentRagEngineError,
   DocumentRagLive,
   makeDocumentRagEngine,
-  type DocumentRagClients,
 } from "./document-rag.js";
 
 const DocumentRagResponseProducer = makeProducerSpec<DocumentRagResponse>("document-rag-response");

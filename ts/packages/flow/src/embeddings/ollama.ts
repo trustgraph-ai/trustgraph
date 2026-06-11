@@ -8,14 +8,16 @@ import { NodeRuntime } from "@effect/platform-node";
 import { Config, Effect, Layer } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
+import type {
+  EmbeddingsServiceShape,
+  ProcessorConfig,
+} from "@trustgraph/base";
 import {
   Embeddings,
   EmbeddingsError,
   errorMessage,
   makeEmbeddingsService,
   makeEmbeddingsSpecs,
-  type EmbeddingsServiceShape,
-  type ProcessorConfig,
 } from "@trustgraph/base";
 import { makeFlowProcessorProgram } from "@trustgraph/base";
 

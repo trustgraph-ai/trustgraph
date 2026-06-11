@@ -1,6 +1,15 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Duration, Effect, Fiber } from "effect";
 import * as TestClock from "effect/testing/TestClock";
+import type {
+  BackendConsumer,
+  BackendProducer,
+  CreateConsumerOptions,
+  CreateProducerOptions,
+  FlowContext,
+  Message,
+  PubSubBackend,
+} from "../index.js";
 import {
   PubSub,
   defaultMessagingRuntimeConfig,
@@ -11,13 +20,6 @@ import {
   runEffectProducerScoped,
   runFlowScoped,
   tooManyRequestsError,
-  type BackendConsumer,
-  type BackendProducer,
-  type CreateConsumerOptions,
-  type CreateProducerOptions,
-  type FlowContext,
-  type Message,
-  type PubSubBackend,
 } from "../index.js";
 import type { Flow } from "../processor/flow.js";
 import { Flow as RuntimeFlow } from "../processor/flow.js";

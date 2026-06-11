@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DispatchStreamChunk, type BaseApi, type TrustGraphGatewayClient } from "@trustgraph/client";
+import type { BaseApi, TrustGraphGatewayClient } from "@trustgraph/client";
+import { DispatchStreamChunk, } from "@trustgraph/client";
 import { Effect, Layer, Stream } from "effect";
 import * as S from "effect/Schema";
 import { McpServer } from "effect/unstable/ai";
@@ -226,7 +227,7 @@ const makeNativeTestClientEffect = Effect.fn("makeNativeTestClient")(function*(
 const textContent = (result: McpSchema.CallToolResult): string => {
   const [content] = result.content;
   expect(content?.type).toBe("text");
-  return "text" in content! ? content.text : "";
+  return content !== undefined && "text" in content ? content.text : "";
 };
 
 describe("Effect MCP server", () => {
