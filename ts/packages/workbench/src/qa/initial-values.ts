@@ -2,10 +2,8 @@ import type * as Atom from "effect/unstable/reactivity/Atom";
 import type {
   FeatureSwitches,
   Settings,
-  WorkbenchApiFactory,
 } from "@/atoms/workbench";
 import {
-  apiFactoryAtom,
   DEFAULT_SETTINGS,
   flowIdAtom,
   settingsAtom,
@@ -45,12 +43,8 @@ export function getWorkbenchQaInitialValues(): Iterable<readonly [Atom.Atom<unkn
   if (config?.enabled !== true) return undefined;
   const fixture = config.fixture ?? {};
   const api = makeMockBaseApi(fixture);
-  const apiFactory: WorkbenchApiFactory = {
-    create: () => api,
-  };
   window.__TRUSTGRAPH_WORKBENCH_QA_API__ = api;
   return [
-    [apiFactoryAtom as Atom.Atom<unknown>, apiFactory],
     [settingsAtom as Atom.Atom<unknown>, qaSettings(fixture)],
     [flowIdAtom as Atom.Atom<unknown>, config.flowId ?? "default"],
   ];

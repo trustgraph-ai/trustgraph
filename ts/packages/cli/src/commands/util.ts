@@ -3,14 +3,13 @@
  */
 
 import type {
-  BaseApi,
+  DispatchOptions,
   TrustGraphGatewayClient,
 } from "@trustgraph/client";
 import {
-  createTrustGraphSocket,
   makeTrustGraphGatewayClientScoped,
 } from "@trustgraph/client";
-import { Duration, Effect } from "effect";
+import { Effect } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 import * as Command from "effect/unstable/cli/Command";
@@ -85,37 +84,6 @@ export const writeJson = (value: unknown) =>
     Effect.flatMap(writeLine),
   );
 
-/**
- * Create a BaseApi socket client and wait for the connection to be established.
- * The client auto-connects; we listen for the first "connected/authenticated"
- * state before handing it back to the caller.
- */
-export function createSocketEffect(opts: CliOpts): Effect.Effect<BaseApi, CliCommandError> {
-  const socket = createTrustGraphSocket(opts.user, opts.token, opts.gateway);
-
-  return Effect.callback<void, CliCommandError>((resume) => {
-    const unsub = socket.onConnectionStateChange((state) => {
-      if (state.status === "authenticated" || state.status === "unauthenticated") {
-        unsub();
-        resume(Effect.void);
-      } else if (state.status === "failed") {
-        unsub();
-        resume(Effect.fail(cliCommandError("connect", state.lastError ?? "WebSocket connection failed")));
-      }
-    });
-
-    return Effect.sync(() => {
-      unsub();
-    });
-  }).pipe(
-    Effect.timeout(Duration.seconds(15)),
-    Effect.catchTag("TimeoutError", () =>
-      Effect.fail(cliCommandError("connect", "Timed out waiting for WebSocket connection")),
-    ),
-    Effect.as(socket),
-  );
-}
-
 function gatewayUrlWithToken(opts: CliOpts): string {
   if (opts.token === undefined || opts.token.length === 0) return opts.gateway;
   const separator = opts.gateway.includes("?") ? "&" : "?";
@@ -133,16 +101,37 @@ export const withGatewayClient = Effect.fn("withGatewayClient")(function* <A, E,
   );
 });
 
-export const withSocket = Effect.fn("withSocket")(function* <A, E, R>(
-  use: (socket: BaseApi, opts: CliOpts) => Effect.Effect<A, E, R>,
+export interface GatewayDispatchOptions {
+  readonly flow?: string;
+  readonly timeoutMs?: number;
+  readonly retries?: number;
+}
+
+export const gatewayDispatch = Effect.fn("gatewayDispatch")(function*(
+  client: TrustGraphGatewayClient,
+  operation: string,
+  service: string,
+  request: Record<string, unknown>,
+  options: GatewayDispatchOptions = {},
 ) {
-  const opts = yield* getOpts;
-  return yield* Effect.acquireUseRelease(
-    createSocketEffect(opts),
-    (socket) => use(socket, opts),
-    (socket) =>
-      Effect.sync(() => {
-        socket.close();
-      }),
+  const input = options.flow === undefined
+    ? {
+        scope: "global" as const,
+        service,
+        request,
+      }
+    : {
+        scope: "flow" as const,
+        service,
+        flow: options.flow,
+        request,
+      };
+  const dispatchOptions: DispatchOptions = {
+    ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+    ...(options.retries !== undefined ? { retries: options.retries } : {}),
+  };
+
+  return yield* client.dispatch(input, dispatchOptions).pipe(
+    Effect.mapError((error) => cliCommandError(operation, error)),
   );
 });

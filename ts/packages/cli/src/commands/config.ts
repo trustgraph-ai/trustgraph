@@ -7,16 +7,12 @@
 import { Effect } from "effect";
 import * as Argument from "effect/unstable/cli/Argument";
 import * as Command from "effect/unstable/cli/Command";
-import { cliCommandError, withSocket, writeJson } from "./util.js";
+import { gatewayDispatch, withGatewayClient, writeJson } from "./util.js";
 
 const show = Command.make("show", {}, () =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const cfg = socket.config();
-      const resp = yield* Effect.tryPromise({
-        try: () => cfg.getConfigAll(),
-        catch: (error) => cliCommandError("config.show", error),
-      });
+      const resp = yield* gatewayDispatch(client, "config.show", "config", { operation: "config" }, { timeoutMs: 60000 });
       yield* writeJson(resp);
     }),
   ),
@@ -25,19 +21,17 @@ const show = Command.make("show", {}, () =>
 const get = Command.make("get", {
   key: Argument.string("key").pipe(Argument.withDescription("Config key (format: type/key)")),
 }, ({ key }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const cfg = socket.config();
-        // Support "type/key" format; fall back to using the whole string as key
-        const parts = key.split("/");
-        const configKey =
-          parts.length >= 2
-            ? { type: parts[0], key: parts.slice(1).join("/") }
-            : { type: "config", key };
-      const resp = yield* Effect.tryPromise({
-        try: () => cfg.getConfig([configKey]),
-        catch: (error) => cliCommandError("config.get", error),
-      });
+      const parts = key.split("/");
+      const configKey =
+        parts.length >= 2
+          ? { type: parts[0], key: parts.slice(1).join("/") }
+          : { type: "config", key };
+      const resp = yield* gatewayDispatch(client, "config.get", "config", {
+        operation: "get",
+        keys: [configKey],
+      }, { timeoutMs: 60000 });
       yield* writeJson(resp);
     }),
   ),
@@ -47,18 +41,17 @@ const set = Command.make("set", {
   key: Argument.string("key").pipe(Argument.withDescription("Config key (format: type/key)")),
   value: Argument.string("value").pipe(Argument.withDescription("Config value (JSON)")),
 }, ({ key, value }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const cfg = socket.config();
-        const parts = key.split("/");
-        const configEntry =
-          parts.length >= 2
-            ? { type: parts[0], key: parts.slice(1).join("/"), value }
-            : { type: "config", key, value };
-      const resp = yield* Effect.tryPromise({
-        try: () => cfg.putConfig([configEntry]),
-        catch: (error) => cliCommandError("config.set", error),
-      });
+      const parts = key.split("/");
+      const configEntry =
+        parts.length >= 2
+          ? { type: parts[0], key: parts.slice(1).join("/"), value }
+          : { type: "config", key, value };
+      const resp = yield* gatewayDispatch(client, "config.set", "config", {
+        operation: "put",
+        values: [configEntry],
+      }, { timeoutMs: 60000 });
       yield* writeJson(resp);
     }),
   ),
@@ -70,13 +63,12 @@ const list = Command.make("list", {
     Argument.withDefault("config"),
   ),
 }, ({ type }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const cfg = socket.config();
-      const resp = yield* Effect.tryPromise({
-        try: () => cfg.list(type),
-        catch: (error) => cliCommandError("config.list", error),
-      });
+      const resp = yield* gatewayDispatch(client, "config.list", "config", {
+        operation: "list",
+        type,
+      }, { timeoutMs: 60000 });
       yield* writeJson(resp);
     }),
   ),
@@ -85,18 +77,17 @@ const list = Command.make("list", {
 const deleteCommand = Command.make("delete", {
   key: Argument.string("key").pipe(Argument.withDescription("Config key (format: type/key)")),
 }, ({ key }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const cfg = socket.config();
-        const parts = key.split("/");
-        const configKey =
-          parts.length >= 2
-            ? { type: parts[0], key: parts.slice(1).join("/") }
-            : { type: "config", key };
-      const resp = yield* Effect.tryPromise({
-        try: () => cfg.deleteConfig(configKey),
-        catch: (error) => cliCommandError("config.delete", error),
-      });
+      const parts = key.split("/");
+      const configKey =
+        parts.length >= 2
+          ? { type: parts[0], key: parts.slice(1).join("/") }
+          : { type: "config", key };
+      const resp = yield* gatewayDispatch(client, "config.delete", "config", {
+        operation: "delete",
+        keys: [configKey],
+      }, { timeoutMs: 30000 });
       yield* writeJson(resp);
     }),
   ),

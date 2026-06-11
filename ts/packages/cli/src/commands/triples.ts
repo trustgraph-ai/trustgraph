@@ -9,7 +9,7 @@ import { Effect } from "effect";
 import * as O from "effect/Option";
 import * as Command from "effect/unstable/cli/Command";
 import * as Flag from "effect/unstable/cli/Flag";
-import { cliCommandError, withSocket, writeJson } from "./util.js";
+import { gatewayDispatch, withGatewayClient, writeJson } from "./util.js";
 
 export const triplesCommand = Command.make("triples", {
   subject: Flag.string("subject").pipe(
@@ -37,9 +37,8 @@ export const triplesCommand = Command.make("triples", {
     Flag.optional,
   ),
 }, ({ subject, predicate, object, limit, collection }) =>
-  withSocket((socket, opts) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const flow = socket.flow(opts.flow);
       const subjectValue = O.getOrUndefined(subject);
       const predicateValue = O.getOrUndefined(predicate);
       const objectValue = O.getOrUndefined(object);
@@ -53,18 +52,16 @@ export const triplesCommand = Command.make("triples", {
           ? { t: "i", i: objectValue }
           : undefined;
 
-      const triples = yield* Effect.tryPromise({
-        try: () =>
-          flow.triplesQuery(
-            s,
-            p,
-            o,
-            limit,
-            O.getOrUndefined(collection),
-          ),
-        catch: (error) => cliCommandError("triples", error),
-      });
-      yield* writeJson(triples);
+      const response = yield* gatewayDispatch(client, "triples", "triples", {
+        limit,
+        user: opts.user,
+        collection: O.getOrUndefined(collection) ?? "default",
+        ...(s !== undefined ? { s } : {}),
+        ...(p !== undefined ? { p } : {}),
+        ...(o !== undefined ? { o } : {}),
+      }, { flow: opts.flow, timeoutMs: 30000 });
+      const record = response as Record<string, unknown>;
+      yield* writeJson(record.triples ?? record.response ?? []);
     }),
   ),
 ).pipe(Command.withDescription("Query knowledge graph triples"));

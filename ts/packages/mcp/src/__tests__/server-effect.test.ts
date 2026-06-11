@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { BaseApi, TrustGraphGatewayClient } from "@trustgraph/client";
-import { DispatchStreamChunk, } from "@trustgraph/client";
+import type { DispatchInput, TrustGraphGatewayClient } from "@trustgraph/client";
+import { DispatchError, DispatchStreamChunk, } from "@trustgraph/client";
 import { Effect, Layer, Stream } from "effect";
 import * as S from "effect/Schema";
 import { McpServer } from "effect/unstable/ai";
@@ -15,7 +15,6 @@ import {
   TrustGraphMcpToolkit,
   TrustGraphMcpToolkitLive,
   TrustGraphGateway,
-  TrustGraphSocket,
 } from "../server-effect.js";
 
 const expectedToolNames = [
@@ -61,7 +60,7 @@ interface NativeTestClientOptions {
 const decodeJsonText = S.decodeUnknownSync(S.UnknownFromJsonString);
 
 const makeFakeSocket = (
-  options: {
+  _options: {
     readonly textCompletion?: (() => Promise<string>) | undefined;
     readonly graphRag?: (() => Promise<string>) | undefined;
   } = {},
@@ -71,66 +70,62 @@ const makeFakeSocket = (
     graphRag: [],
   };
 
-  const socket = {
-    close: () => {},
-    flow: (flowId: string) => {
-      calls.flowIds.push(flowId);
-      return {
-        textCompletion: () => options.textCompletion === undefined
-          ? Promise.resolve("gateway text completion")
-          : options.textCompletion(),
-        graphRag: (query: string, ragOptions: unknown, collection?: string) => {
-          calls.graphRag.push({ query, options: ragOptions, collection });
-          return options.graphRag === undefined
-            ? Promise.resolve("graph rag answer")
-            : options.graphRag();
-        },
-        documentRag: () => Promise.resolve("document rag answer"),
-        agent: (
-          _question: string,
-          _onThought: () => void,
-          _onObservation: () => void,
-          onAnswer: (chunk: string, complete: boolean) => void,
-        ) => onAnswer("agent answer", true),
-        embeddings: () => Promise.resolve([[0.25, 0.75]]),
-        triplesQuery: () => Promise.resolve([]),
-        graphEmbeddingsQuery: () => Promise.resolve([]),
-      };
-    },
-    config: () => ({
-      getConfigAll: () => Promise.resolve({}),
-      getConfig: () => Promise.resolve({}),
-      putConfig: () => Promise.resolve({ ok: true }),
-      deleteConfig: () => Promise.resolve({ ok: true }),
-      getPrompts: () => Promise.resolve([]),
-      getPrompt: () => Promise.resolve({}),
-    }),
-    flows: () => ({
-      getFlows: () => Promise.resolve(["default"]),
-      getFlow: () => Promise.resolve({}),
-      startFlow: () => Promise.resolve({ ok: true }),
-      stopFlow: () => Promise.resolve({ ok: true }),
-    }),
-    librarian: () => ({
-      getDocuments: () => Promise.resolve([]),
-      loadDocument: () => Promise.resolve({ ok: true }),
-      removeDocument: () => Promise.resolve({ ok: true }),
-    }),
-    knowledge: () => ({
-      getKnowledgeCores: () => Promise.resolve([]),
-      deleteKgCore: () => Promise.resolve({ ok: true }),
-      loadKgCore: () => Promise.resolve({ ok: true }),
-    }),
-  } as unknown as BaseApi;
-
-  return { socket, calls };
+  return { calls };
 };
 
-const makeFakeGateway = (): TrustGraphGatewayClient => ({
+const makeFakeGateway = (
+  calls: FakeSocketCalls,
+  options: NativeTestClientOptions = {},
+): TrustGraphGatewayClient => ({
   state: Effect.succeed({ status: "connected" }),
   changes: Stream.empty,
   subscribe: () => Effect.succeed(Effect.void),
-  dispatch: () => Effect.succeed({}),
+  dispatch: Effect.fn("FakeTrustGraphGateway.dispatch")(function*(input: DispatchInput) {
+      if (input.flow !== undefined) calls.flowIds.push(input.flow);
+      if (input.service === "text-completion") {
+        const response = options.textCompletion === undefined
+          ? "gateway text completion"
+          : yield* Effect.tryPromise({
+              try: options.textCompletion,
+              catch: (cause) => DispatchError.make({
+                message: cause instanceof Error ? cause.message : String(cause),
+              }),
+            });
+        return { response };
+      }
+      if (input.service === "graph-rag") {
+        calls.graphRag.push({
+          query: String(input.request.query ?? ""),
+          options: {
+            entityLimit: input.request["entity-limit"],
+            tripleLimit: input.request["triple-limit"],
+          },
+          collection: typeof input.request.collection === "string" ? input.request.collection : undefined,
+        });
+        const response = options.graphRag === undefined
+          ? "graph rag answer"
+          : yield* Effect.tryPromise({
+              try: options.graphRag,
+              catch: (cause) => DispatchError.make({
+                message: cause instanceof Error ? cause.message : String(cause),
+              }),
+            });
+        return { response };
+      }
+      if (input.service === "document-rag") return { response: "document rag answer" };
+      if (input.service === "embeddings") return { vectors: [[0.25, 0.75]] };
+      if (input.service === "triples") return { triples: [] };
+      if (input.service === "graph-embeddings") return { entities: [] };
+      if (input.service === "config") return {};
+      if (input.service === "flow" && input.request.operation === "list-flows") return { "flow-ids": ["default"] };
+      if (input.service === "flow" && input.request.operation === "get-flow") return { flow: "{}" };
+      if (input.service === "flow") return { ok: true };
+      if (input.service === "librarian" && input.request.operation === "list-documents") return { "document-metadatas": [] };
+      if (input.service === "librarian") return { ok: true };
+      if (input.service === "knowledge" && input.request.operation === "list-kg-cores") return { ids: [] };
+      if (input.service === "knowledge") return { ok: true };
+      return {};
+    }),
   dispatchStream: () => Stream.empty,
   runDispatchStream: (_input, receiver) =>
     Effect.sync(() => {
@@ -168,15 +163,14 @@ const makeNativeTestClient = (
 const makeNativeTestClientEffect = Effect.fn("makeNativeTestClient")(function*(
   options: NativeTestClientOptions,
 ) {
-  const { socket, calls } = makeFakeSocket({
+  const { calls } = makeFakeSocket({
     textCompletion: options.textCompletion,
     graphRag: options.graphRag,
   });
-  const gateway = makeFakeGateway();
+  const gateway = makeFakeGateway(calls, options);
   const serverLayer = McpServer.toolkit(TrustGraphMcpToolkit).pipe(
     Layer.provide(TrustGraphMcpToolkitLive),
     Layer.provide(Layer.succeed(TrustGraphGateway, TrustGraphGateway.of(gateway))),
-    Layer.provide(Layer.succeed(TrustGraphSocket, TrustGraphSocket.of(socket))),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, testConfig)),
     Layer.provide(McpServer.layerHttp({
       name: "trustgraph",

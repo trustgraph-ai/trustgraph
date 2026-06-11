@@ -4,12 +4,12 @@
  * Manages documents stored in the TrustGraph library.
  */
 
-import { Effect, Match } from "effect";
+import { Clock, Effect, Match } from "effect";
 import * as O from "effect/Option";
 import * as Argument from "effect/unstable/cli/Argument";
 import * as Command from "effect/unstable/cli/Command";
 import * as Flag from "effect/unstable/cli/Flag";
-import { cliCommandError, withSocket, writeJson } from "./util.js";
+import { cliCommandError, gatewayDispatch, withGatewayClient, writeJson } from "./util.js";
 
 function basenamePath(filepath: string): string {
   const normalized = filepath.replace(/\/+$/, "");
@@ -34,14 +34,14 @@ export function guessMimeType(filepath: string): string {
 }
 
 const list = Command.make("list", {}, () =>
-  withSocket((socket) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const lib = socket.librarian();
-      const docs = yield* Effect.tryPromise({
-        try: () => lib.getDocuments(),
-        catch: (error) => cliCommandError("library.list", error),
-      });
-      yield* writeJson(docs);
+      const response = yield* gatewayDispatch(client, "library.list", "librarian", {
+        operation: "list-documents",
+        user: opts.user,
+      }, { timeoutMs: 60000 });
+      const record = response as Record<string, unknown>;
+      yield* writeJson(record["document-metadatas"] ?? record.documents ?? []);
     }),
   ),
 ).pipe(Command.withDescription("List documents in the library"));
@@ -72,9 +72,8 @@ const load = Command.make("load", {
     Flag.optional,
   ),
 }, ({ file, title, mimeType, comments, tags, id }) =>
-  withSocket((socket) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const lib = socket.librarian();
       const data = new Uint8Array(yield* Effect.tryPromise({
         try: () => Bun.file(file).arrayBuffer(),
         catch: (error) => cliCommandError("library.load.read-file", error),
@@ -82,19 +81,25 @@ const load = Command.make("load", {
       const b64 = Buffer.from(data).toString("base64");
       const resolvedMimeType = O.getOrUndefined(mimeType) ?? guessMimeType(file);
       const resolvedTitle = O.getOrUndefined(title) ?? basenamePath(file);
-
-      const resp = yield* Effect.tryPromise({
-        try: () =>
-          lib.loadDocument(
-            b64,
-            resolvedMimeType,
-            resolvedTitle,
-            comments,
-            Array.from(tags),
-            O.getOrUndefined(id),
-          ),
-        catch: (error) => cliCommandError("library.load", error),
-      });
+      const timestamp = yield* Clock.currentTimeMillis;
+      const documentId = O.getOrUndefined(id);
+      const documentMetadata = {
+        time: Math.floor(timestamp / 1000),
+        kind: resolvedMimeType,
+        title: resolvedTitle,
+        comments,
+        user: opts.user,
+        tags: Array.from(tags),
+        "document-type": "source",
+        documentType: "source",
+        ...(documentId !== undefined ? { id: documentId } : {}),
+      };
+      const resp = yield* gatewayDispatch(client, "library.load", "librarian", {
+        operation: "add-document",
+        "document-metadata": documentMetadata,
+        documentMetadata,
+        content: b64,
+      }, { timeoutMs: 30000 });
       yield* writeJson(resp);
     }),
   ),
@@ -107,27 +112,29 @@ const remove = Command.make("remove", {
     Flag.optional,
   ),
 }, ({ id, collection }) =>
-  withSocket((socket) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const lib = socket.librarian();
-      const resp = yield* Effect.tryPromise({
-        try: () => lib.removeDocument(id, O.getOrUndefined(collection)),
-        catch: (error) => cliCommandError("library.remove", error),
-      });
+      const resp = yield* gatewayDispatch(client, "library.remove", "librarian", {
+        operation: "remove-document",
+        "document-id": id,
+        documentId: id,
+        user: opts.user,
+        collection: O.getOrUndefined(collection) ?? "default",
+      }, { timeoutMs: 30000 });
       yield* writeJson(resp);
     }),
   ),
 ).pipe(Command.withDescription("Remove a document from the library"));
 
 const processing = Command.make("processing", {}, () =>
-  withSocket((socket) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const lib = socket.librarian();
-      const items = yield* Effect.tryPromise({
-        try: () => lib.getProcessing(),
-        catch: (error) => cliCommandError("library.processing", error),
-      });
-      yield* writeJson(items);
+      const response = yield* gatewayDispatch(client, "library.processing", "librarian", {
+        operation: "list-processing",
+        user: opts.user,
+      }, { timeoutMs: 60000 });
+      const record = response as Record<string, unknown>;
+      yield* writeJson(record["processing-metadatas"] ?? record.processing ?? record["processing-metadata"] ?? []);
     }),
   ),
 ).pipe(Command.withDescription("List documents currently being processed"));

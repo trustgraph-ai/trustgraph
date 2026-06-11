@@ -1,15 +1,15 @@
 import {BunHttpServer, BunRuntime} from "@effect/platform-bun";
 import {NodeRuntime, NodeStdio} from "@effect/platform-node";
 import type {
-  BaseApi,
+  EntityMatch as ClientEntityMatch,
   Term as ClientTerm,
+  Triple as ClientTriple,
   TrustGraphGatewayClient,
 } from "@trustgraph/client";
 import {
-  createTrustGraphSocket,
   makeTrustGraphGatewayClientScoped,
 } from "@trustgraph/client";
-import {Config, Context, Effect, Layer} from "effect";
+import {Clock, Config, Context, Effect, Layer} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import {McpServer, Tool, Toolkit} from "effect/unstable/ai";
@@ -1279,22 +1279,6 @@ export class TrustGraphMcpConfig extends Context.Service<TrustGraphMcpConfig, Tr
     )
 }
 
-export class TrustGraphSocket extends Context.Service<TrustGraphSocket, BaseApi>()(
-  "@trustgraph/mcp/server-effect/TrustGraphSocket",
-) {
-  static readonly layer = Layer.effect(
-    TrustGraphSocket,
-    Effect.gen(function*() {
-      const config = yield* TrustGraphMcpConfig
-      const socket = yield* Effect.acquireRelease(
-        Effect.sync(() => createTrustGraphSocket(config.user, config.token, config.gatewayUrl)),
-        (socket) => Effect.sync(() => socket.close()),
-      )
-      return TrustGraphSocket.of(socket)
-    }),
-  )
-}
-
 export class TrustGraphGateway extends Context.Service<TrustGraphGateway, TrustGraphGatewayClient>()(
   "@trustgraph/mcp/server-effect/TrustGraphGateway",
 ) {
@@ -1360,6 +1344,36 @@ const decodeJsonArrayOrFail = <E>(
 const asIriTerm = (value: string | undefined): ClientTerm | undefined =>
   value !== undefined && value.length > 0 ? {t: "i", i: value} : undefined
 
+const dispatchGlobal = <E>(
+  gateway: TrustGraphGatewayClient,
+  service: string,
+  request: Record<string, unknown>,
+  makeError: (cause: unknown) => E,
+  options: {readonly timeoutMs?: number; readonly retries?: number} = {},
+) =>
+  gateway.dispatch({scope: "global", service, request}, options).pipe(
+    Effect.map(asRecord),
+    Effect.mapError(makeError),
+  )
+
+const dispatchFlow = <E>(
+  gateway: TrustGraphGatewayClient,
+  config: TrustGraphMcpConfigShape,
+  service: string,
+  request: Record<string, unknown>,
+  makeError: (cause: unknown) => E,
+  options: {readonly timeoutMs?: number; readonly retries?: number} = {},
+) =>
+  gateway.dispatch({
+    scope: "flow",
+    flow: config.flowId,
+    service,
+    request,
+  }, options).pipe(
+    Effect.map(asRecord),
+    Effect.mapError(makeError),
+  )
+
 const runAgentTool = Effect.fn("TrustGraphMcpToolkit.agent")(function*(
   gateway: TrustGraphGatewayClient,
   config: TrustGraphMcpConfigShape,
@@ -1411,90 +1425,134 @@ const runAgentTool = Effect.fn("TrustGraphMcpToolkit.agent")(function*(
 export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
   Effect.gen(function*() {
     const config = yield* TrustGraphMcpConfig
-    const socket = yield* TrustGraphSocket
     const gateway = yield* TrustGraphGateway
 
     return TrustGraphMcpToolkit.of({
       text_completion: ({system, prompt}) =>
-        Effect.tryPromise({
-          try: () => socket.flow(config.flowId).textCompletion(system, prompt),
-          catch: (cause) => TextCompletionError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((text) => TextCompletionSuccess.make({text})),
+        dispatchFlow(
+          gateway,
+          config,
+          "text-completion",
+          {system, prompt},
+          (cause) => TextCompletionError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
+          Effect.map((response) => TextCompletionSuccess.make({text: stringProperty(response, "response") ?? ""})),
         ),
 
       graph_rag: ({query, entity_limit, triple_limit, collection}) =>
-        Effect.tryPromise({
-          try: () =>
-            socket.flow(config.flowId).graphRag(
-              query,
-              {
-                ...(entity_limit !== undefined ? {entityLimit: entity_limit} : {}),
-                ...(triple_limit !== undefined ? {tripleLimit: triple_limit} : {}),
-              },
-              collection,
-            ),
-          catch: (cause) => GraphRagError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((text) => GraphRagSuccess.make({text})),
+        dispatchFlow(
+          gateway,
+          config,
+          "graph-rag",
+          {
+            query,
+            user: config.user,
+            collection: collection ?? "default",
+            ...(entity_limit !== undefined ? {"entity-limit": entity_limit} : {}),
+            ...(triple_limit !== undefined ? {"triple-limit": triple_limit} : {}),
+          },
+          (cause) => GraphRagError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.map((response) => GraphRagSuccess.make({text: stringProperty(response, "response") ?? ""})),
         ),
 
       document_rag: ({query, doc_limit, collection}) =>
-        Effect.tryPromise({
-          try: () => socket.flow(config.flowId).documentRag(query, doc_limit, collection),
-          catch: (cause) => DocumentRagError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((text) => DocumentRagSuccess.make({text})),
+        dispatchFlow(
+          gateway,
+          config,
+          "document-rag",
+          {
+            query,
+            user: config.user,
+            collection: collection ?? "default",
+            ...(doc_limit !== undefined ? {"doc-limit": doc_limit} : {}),
+          },
+          (cause) => DocumentRagError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.map((response) => DocumentRagSuccess.make({text: stringProperty(response, "response") ?? ""})),
         ),
 
       agent: ({question}) => runAgentTool(gateway, config, question),
 
       embeddings: ({text}) =>
-        Effect.tryPromise({
-          try: () => socket.flow(config.flowId).embeddings([...text]),
-          catch: (cause) => EmbeddingsError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((vectors) => EmbeddingsSuccess.make({vectors})),
+        dispatchFlow(
+          gateway,
+          config,
+          "embeddings",
+          {texts: [...text]},
+          (cause) => EmbeddingsError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
+          Effect.map((response) => EmbeddingsSuccess.make({
+            vectors: Array.isArray(response.vectors) ? response.vectors as number[][] : [],
+          })),
         ),
 
       triples_query: ({s, p, o, limit, collection}) =>
-        Effect.tryPromise({
-          try: () =>
-            socket.flow(config.flowId).triplesQuery(
-              asIriTerm(s),
-              asIriTerm(p),
-              asIriTerm(o),
-              limit,
-              collection,
-            ),
-          catch: (cause) => TriplesQueryError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((triples) => TriplesQuerySuccess.make({triples})),
+        dispatchFlow(
+          gateway,
+          config,
+          "triples",
+          {
+            limit: limit ?? 20,
+            user: config.user,
+            collection: collection ?? "default",
+            ...(asIriTerm(s) !== undefined ? {s: asIriTerm(s)} : {}),
+            ...(asIriTerm(p) !== undefined ? {p: asIriTerm(p)} : {}),
+            ...(asIriTerm(o) !== undefined ? {o: asIriTerm(o)} : {}),
+          },
+          (cause) => TriplesQueryError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
+          Effect.map((response) => TriplesQuerySuccess.make({
+            triples: Array.isArray(response.triples ?? response.response)
+              ? (response.triples ?? response.response) as ClientTriple[]
+              : [],
+          })),
         ),
 
       graph_embeddings_query: ({query, limit, collection}) =>
-        Effect.tryPromise({
-          try: () => socket.flow(config.flowId).embeddings([query]),
-          catch: (cause) => GraphEmbeddingsQueryError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.flatMap((vectors) =>
-            Effect.tryPromise({
-              try: () => socket.flow(config.flowId).graphEmbeddingsQuery(
-                vectors[0] ?? [],
-                limit ?? 10,
-                collection,
-              ),
-              catch: (cause) => GraphEmbeddingsQueryError.make({message: toErrorMessage(cause)}),
-            })
-          ),
-          Effect.map((entities) => GraphEmbeddingsQuerySuccess.make({entities})),
+        dispatchFlow(
+          gateway,
+          config,
+          "embeddings",
+          {texts: [query]},
+          (cause) => GraphEmbeddingsQueryError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
+          Effect.flatMap((embeddingResponse) => {
+            const vectors = Array.isArray(embeddingResponse.vectors) ? embeddingResponse.vectors : []
+            const firstVector = Array.isArray(vectors[0]) ? vectors[0] as number[] : []
+            return dispatchFlow(
+              gateway,
+              config,
+              "graph-embeddings",
+              {
+                vector: firstVector,
+                limit: limit ?? 10,
+                user: config.user,
+                collection: collection ?? "default",
+              },
+              (cause) => GraphEmbeddingsQueryError.make({message: toErrorMessage(cause)}),
+              {timeoutMs: 30_000},
+            )
+          }),
+          Effect.map((response) => GraphEmbeddingsQuerySuccess.make({
+            entities: Array.isArray(response.entities) ? response.entities as ClientEntityMatch[] : [],
+          })),
         ),
 
       get_config_all: () =>
-        Effect.tryPromise({
-          try: () => socket.config().getConfigAll(),
-          catch: (cause) => GetConfigAllError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "config",
+          {operation: "config"},
+          (cause) => GetConfigAllError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1506,10 +1564,13 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       get_config: ({keys}) =>
-        Effect.tryPromise({
-          try: () => socket.config().getConfig(keys.map(({type, key}) => ({type, key}))),
-          catch: (cause) => GetConfigError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "config",
+          {operation: "get", keys: keys.map(({type, key}) => ({type, key}))},
+          (cause) => GetConfigError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1521,10 +1582,13 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       put_config: ({values}) =>
-        Effect.tryPromise({
-          try: () => socket.config().putConfig(values.map(({type, key, value}) => ({type, key, value}))),
-          catch: (cause) => PutConfigError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "config",
+          {operation: "put", values: values.map(({type, key, value}) => ({type, key, value}))},
+          (cause) => PutConfigError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1536,10 +1600,13 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       delete_config: ({type, key}) =>
-        Effect.tryPromise({
-          try: () => socket.config().deleteConfig({type, key}),
-          catch: (cause) => DeleteConfigError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "config",
+          {operation: "delete", keys: [{type, key}]},
+          (cause) => DeleteConfigError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1551,21 +1618,29 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       get_flows: () =>
-        Effect.tryPromise({
-          try: () => socket.flows().getFlows(),
-          catch: (cause) => GetFlowsError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((flow_ids) => GetFlowsSuccess.make({flow_ids})),
+        dispatchGlobal(
+          gateway,
+          "flow",
+          {operation: "list-flows"},
+          (cause) => GetFlowsError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.map((response) => GetFlowsSuccess.make({
+            flow_ids: Array.isArray(response["flow-ids"]) ? response["flow-ids"] as string[] : [],
+          })),
         ),
 
       get_flow: ({flow_id}) =>
-        Effect.tryPromise({
-          try: () => socket.flows().getFlow(flow_id),
-          catch: (cause) => GetFlowError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.flatMap((value) =>
+        dispatchGlobal(
+          gateway,
+          "flow",
+          {operation: "get-flow", "flow-id": flow_id},
+          (cause) => GetFlowError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.flatMap((response) =>
             decodeJsonOrFail(
-              value,
+              response.flow,
               (cause) => GetFlowError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((flow) => GetFlowSuccess.make({flow})),
@@ -1574,16 +1649,19 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       start_flow: ({flow_id, blueprint_name, description, parameters}) =>
-        Effect.tryPromise({
-          try: () =>
-            socket.flows().startFlow(
-              flow_id,
-              blueprint_name,
-              description,
-              parameters === undefined ? undefined : {...parameters},
-            ),
-          catch: (cause) => StartFlowError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "flow",
+          {
+            operation: "start-flow",
+            "flow-id": flow_id,
+            "blueprint-name": blueprint_name,
+            description,
+            ...(parameters === undefined ? {} : {parameters: {...parameters}}),
+          },
+          (cause) => StartFlowError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1595,10 +1673,13 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       stop_flow: ({flow_id}) =>
-        Effect.tryPromise({
-          try: () => socket.flows().stopFlow(flow_id),
-          catch: (cause) => StopFlowError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "flow",
+          {operation: "stop-flow", "flow-id": flow_id},
+          (cause) => StopFlowError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1610,13 +1691,16 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       get_documents: () =>
-        Effect.tryPromise({
-          try: () => socket.librarian().getDocuments(),
-          catch: (cause) => GetDocumentsError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "librarian",
+          {operation: "list-documents", user: config.user},
+          (cause) => GetDocumentsError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonArrayOrFail(
-              value,
+              value["document-metadatas"] ?? value.documents ?? [],
               (cause) => GetDocumentsError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((documents) => GetDocumentsSuccess.make({documents})),
@@ -1624,34 +1708,53 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
           ),
         ),
 
-      load_document: ({document, mime_type, title, comments, tags, id}) =>
-        Effect.tryPromise({
-          try: () =>
-            socket.librarian().loadDocument(
-              document,
-              mime_type,
-              title,
-              comments ?? "",
-              tags === undefined ? [] : [...tags],
-              id,
-            ),
-          catch: (cause) => LoadDocumentError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.flatMap((value) =>
-            decodeJsonOrFail(
-              value,
-              (cause) => LoadDocumentError.make({message: toErrorMessage(cause)}),
-            ).pipe(
-              Effect.map((response) => LoadDocumentSuccess.make({response})),
-            )
-          ),
-        ),
+      load_document: Effect.fn("TrustGraphMcpToolkit.load_document")(function*({document, mime_type, title, comments, tags, id}) {
+          const timestamp = yield* Clock.currentTimeMillis
+          const metadata = {
+            time: Math.floor(timestamp / 1000),
+            kind: mime_type,
+            title,
+            comments: comments ?? "",
+            user: config.user,
+            tags: tags === undefined ? [] : [...tags],
+            "document-type": "source",
+            documentType: "source",
+            ...(id === undefined ? {} : {id}),
+          }
+          const value = yield* dispatchGlobal(
+            gateway,
+            "librarian",
+            {
+              operation: "add-document",
+              "document-metadata": metadata,
+              documentMetadata: metadata,
+              content: document,
+            },
+            (cause) => LoadDocumentError.make({message: toErrorMessage(cause)}),
+            {timeoutMs: 30_000},
+          )
+          return yield* decodeJsonOrFail(
+            value,
+            (cause) => LoadDocumentError.make({message: toErrorMessage(cause)}),
+          ).pipe(
+            Effect.map((response) => LoadDocumentSuccess.make({response})),
+          )
+        }),
 
       remove_document: ({id, collection}) =>
-        Effect.tryPromise({
-          try: () => socket.librarian().removeDocument(id, collection),
-          catch: (cause) => RemoveDocumentError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "librarian",
+          {
+            operation: "remove-document",
+            "document-id": id,
+            documentId: id,
+            user: config.user,
+            collection: collection ?? "default",
+          },
+          (cause) => RemoveDocumentError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1663,21 +1766,34 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       get_prompts: () =>
-        Effect.tryPromise({
-          try: () => socket.config().getPrompts(),
-          catch: (cause) => GetPromptsError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((prompts) => GetPromptsSuccess.make({prompts})),
+        dispatchGlobal(
+          gateway,
+          "config",
+          {operation: "config"},
+          (cause) => GetPromptsError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.map((response) => {
+            const promptNs = asRecord(asRecord(response.config).prompt)
+            const prompts = Object.keys(promptNs)
+              .filter((key) => key !== "system")
+              .sort()
+              .map((id) => ({id, name: id}))
+            return GetPromptsSuccess.make({prompts})
+          }),
         ),
 
       get_prompt: ({id}) =>
-        Effect.tryPromise({
-          try: () => socket.config().getPrompt(id),
-          catch: (cause) => GetPromptError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.flatMap((value) =>
+        dispatchGlobal(
+          gateway,
+          "config",
+          {operation: "config"},
+          (cause) => GetPromptError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.flatMap((response) =>
             decodeJsonOrFail(
-              value,
+              asRecord(asRecord(response.config).prompt)[id] ?? null,
               (cause) => GetPromptError.make({message: toErrorMessage(cause)}),
             ).pipe(
               Effect.map((prompt) => GetPromptSuccess.make({prompt})),
@@ -1686,18 +1802,31 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       get_knowledge_cores: () =>
-        Effect.tryPromise({
-          try: () => socket.knowledge().getKnowledgeCores(),
-          catch: (cause) => GetKnowledgeCoresError.make({message: toErrorMessage(cause)}),
-        }).pipe(
-          Effect.map((ids) => GetKnowledgeCoresSuccess.make({ids})),
+        dispatchGlobal(
+          gateway,
+          "knowledge",
+          {operation: "list-kg-cores", user: config.user},
+          (cause) => GetKnowledgeCoresError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 60_000},
+        ).pipe(
+          Effect.map((response) => GetKnowledgeCoresSuccess.make({
+            ids: Array.isArray(response.ids) ? response.ids as string[] : [],
+          })),
         ),
 
       delete_kg_core: ({id, collection}) =>
-        Effect.tryPromise({
-          try: () => socket.knowledge().deleteKgCore(id, collection),
-          catch: (cause) => DeleteKgCoreError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "knowledge",
+          {
+            operation: "delete-kg-core",
+            id,
+            user: config.user,
+            collection: collection ?? "default",
+          },
+          (cause) => DeleteKgCoreError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1709,10 +1838,19 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
         ),
 
       load_kg_core: ({id, flow, collection}) =>
-        Effect.tryPromise({
-          try: () => socket.knowledge().loadKgCore(id, flow, collection),
-          catch: (cause) => LoadKgCoreError.make({message: toErrorMessage(cause)}),
-        }).pipe(
+        dispatchGlobal(
+          gateway,
+          "knowledge",
+          {
+            operation: "load-kg-core",
+            id,
+            flow,
+            user: config.user,
+            collection: collection ?? "default",
+          },
+          (cause) => LoadKgCoreError.make({message: toErrorMessage(cause)}),
+          {timeoutMs: 30_000},
+        ).pipe(
           Effect.flatMap((value) =>
             decodeJsonOrFail(
               value,
@@ -1773,7 +1911,6 @@ const makeTrustGraphMcpHttpLayerFromConfig = (
       path: config.mcpPath,
     })),
     Layer.provide(TrustGraphGateway.layer),
-    Layer.provide(TrustGraphSocket.layer),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
   )
 }
@@ -1793,7 +1930,6 @@ const makeTrustGraphMcpStdioLayerFromConfig = (
     })),
     Layer.provide(NodeStdio.layer),
     Layer.provide(TrustGraphGateway.layer),
-    Layer.provide(TrustGraphSocket.layer),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
   )
 

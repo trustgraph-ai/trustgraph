@@ -9,16 +9,14 @@ import * as S from "effect/Schema";
 import * as Argument from "effect/unstable/cli/Argument";
 import * as Command from "effect/unstable/cli/Command";
 import * as Flag from "effect/unstable/cli/Flag";
-import { cliCommandError, withSocket, writeJson } from "./util.js";
+import { cliCommandError, gatewayDispatch, withGatewayClient, writeJson } from "./util.js";
 
 const list = Command.make("list", {}, () =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const flows = socket.flows();
-      const ids = yield* Effect.tryPromise({
-        try: () => flows.getFlows(),
-        catch: (error) => cliCommandError("flow.list", error),
-      });
+      const response = yield* gatewayDispatch(client, "flow.list", "flow", { operation: "list-flows" }, { timeoutMs: 60000 });
+      const record = response as Record<string, unknown>;
+      const ids = Array.isArray(record["flow-ids"]) ? record["flow-ids"] : [];
       yield* writeJson(ids);
     }),
   ),
@@ -27,13 +25,16 @@ const list = Command.make("list", {}, () =>
 const get = Command.make("get", {
   id: Argument.string("id").pipe(Argument.withDescription("Flow ID")),
 }, ({ id }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const flows = socket.flows();
-      const def = yield* Effect.tryPromise({
-        try: () => flows.getFlow(id),
-        catch: (error) => cliCommandError("flow.get", error),
-      });
+      const response = yield* gatewayDispatch(client, "flow.get", "flow", {
+        operation: "get-flow",
+        "flow-id": id,
+      }, { timeoutMs: 60000 });
+      const record = response as Record<string, unknown>;
+      const def = typeof record.flow === "string"
+        ? yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(record.flow)
+        : record.flow;
       yield* writeJson(def);
     }),
   ),
@@ -56,26 +57,23 @@ const start = Command.make("start", {
     Flag.optional,
   ),
 }, ({ id, blueprint, description, parameters }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const flows = socket.flows();
       const rawParameters = parameters._tag === "Some" ? parameters.value : undefined;
       const params = rawParameters !== undefined && rawParameters.length > 0
-          ? yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(rawParameters).pipe(
+              ? yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(rawParameters).pipe(
               Effect.flatMap(S.decodeUnknownEffect(S.Record(S.String, S.Unknown))),
               Effect.mapError((error) => cliCommandError("flow.start.parameters", error)),
             )
           : undefined;
-      const resp = yield* Effect.tryPromise({
-        try: () =>
-          flows.startFlow(
-            id,
-            blueprint,
-            description,
-            params,
-          ),
-        catch: (error) => cliCommandError("flow.start", error),
-      });
+      const request = {
+        operation: "start-flow",
+        "flow-id": id,
+        "blueprint-name": blueprint,
+        description,
+        ...(params !== undefined && Object.keys(params).length > 0 ? { parameters: params } : {}),
+      };
+      const resp = yield* gatewayDispatch(client, "flow.start", "flow", request, { timeoutMs: 30000 });
       yield* writeJson(resp);
     }),
   ),
@@ -84,13 +82,12 @@ const start = Command.make("start", {
 const stop = Command.make("stop", {
   id: Argument.string("id").pipe(Argument.withDescription("Flow ID")),
 }, ({ id }) =>
-  withSocket((socket) =>
+  withGatewayClient((client) =>
     Effect.gen(function* () {
-        const flows = socket.flows();
-      const resp = yield* Effect.tryPromise({
-        try: () => flows.stopFlow(id),
-        catch: (error) => cliCommandError("flow.stop", error),
-      });
+      const resp = yield* gatewayDispatch(client, "flow.stop", "flow", {
+        operation: "stop-flow",
+        "flow-id": id,
+      }, { timeoutMs: 30000 });
       yield* writeJson(resp);
     }),
   ),

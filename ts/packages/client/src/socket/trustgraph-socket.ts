@@ -1,16 +1,13 @@
 // Import core types and classes for the TrustGraph API
-import type { Term, Triple } from "../models/Triple.js";
+import { Triple } from "../models/Triple.js";
+import type { Term } from "../models/Triple.js";
 import type {
-  EffectRpcClient,
   DispatchInput,
   DispatchOptions,
   RpcConnectionState,
 } from "./effect-rpc-client.js";
-import {
-  makeEffectRpcClient,
-} from "./effect-rpc-client.js";
 import { getDefaultSocketUrl, getRandomValues } from "./websocket-adapter.js";
-import { Clock, Effect, Fiber, Match, Option, Result, Schema as S, Stream, SubscriptionRef } from "effect";
+import { Match, Option, Schema as S } from "effect";
 import * as Predicate from "effect/Predicate";
 
 // Import all message types for different services
@@ -89,19 +86,32 @@ export interface GraphRagOptions {
   pathLength?: number;
 }
 
-// Metadata included in final streaming message
-export interface StreamingMetadata {
-  in_token?: number;
-  out_token?: number;
-  model?: string;
+export interface LegacyRpcClient {
+  readonly subscribe: (listener: (state: RpcConnectionState) => void) => () => void;
+  readonly dispatch: (
+    input: DispatchInput,
+    options?: DispatchOptions,
+  ) => Promise<unknown>;
+  readonly dispatchStream: (
+    input: DispatchInput,
+    receiver: (chunk: { readonly response: unknown; readonly complete: boolean }) => boolean,
+    options?: DispatchOptions,
+  ) => Promise<unknown>;
+  readonly close: () => Promise<void>;
 }
 
-// Explainability event data
-export interface ExplainEvent {
-  explainId: string;
-  explainGraph: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
-  explainTriples?: Triple[];  // Inline subgraph triples (when available)
-}
+// Metadata included in final streaming message
+export class StreamingMetadata extends S.Class<StreamingMetadata>("StreamingMetadata")({
+  in_token: S.optionalKey(S.Finite),
+  out_token: S.optionalKey(S.Finite),
+  model: S.optionalKey(S.String),
+}, { description: "Token and model metadata attached to a final streaming chunk." }) {}
+
+export class ExplainEvent extends S.Class<ExplainEvent>("ExplainEvent")({
+  explainId: S.String,
+  explainGraph: S.String,
+  explainTriples: S.optionalKey(S.Array(Triple).pipe(S.mutable)),
+}, { description: "Explainability graph reference or inline triples for a stream." }) {}
 
 // Configuration constants
 const SOCKET_URL = getDefaultSocketUrl(); // WebSocket endpoint path (isomorphic)
@@ -155,7 +165,11 @@ function dispatchOptions(
 }
 
 function streamingMetadataFrom(source: unknown): StreamingMetadata | undefined {
-  const metadata: StreamingMetadata = {};
+  const metadata: {
+    in_token?: number;
+    out_token?: number;
+    model?: string;
+  } = {};
   let hasMetadata = false;
 
   const inToken = numberProperty(source, "in_token");
@@ -185,12 +199,12 @@ function throwIfResponseError(error: ResponseError | undefined): void {
 
 const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
 
-export interface ConfigValueEntry {
-  workspace?: string;
-  type?: string;
-  key: string;
-  value: unknown;
-}
+export class ConfigValueEntry extends S.Class<ConfigValueEntry>("ConfigValueEntry")({
+  workspace: S.optionalKey(S.String),
+  type: S.optionalKey(S.String),
+  key: S.String,
+  value: S.Unknown,
+}, { description: "Config key/value entry returned from the TrustGraph config service." }) {}
 
 function asConfigValues(response: unknown): ConfigValueEntry[] {
   if (response === null || typeof response !== "object") return [];
@@ -201,9 +215,12 @@ function asConfigValues(response: unknown): ConfigValueEntry[] {
     const item = value as Record<string, unknown>;
     const key = item.key;
     if (typeof key !== "string") return [];
-    const entry: ConfigValueEntry = { key, value: item.value };
-    if (typeof item.workspace === "string") entry.workspace = item.workspace;
-    if (typeof item.type === "string") entry.type = item.type;
+    const entry: ConfigValueEntry = {
+      key,
+      value: item.value,
+      ...(typeof item.workspace === "string" ? { workspace: item.workspace } : {}),
+      ...(typeof item.type === "string" ? { type: item.type } : {}),
+    };
     return [entry];
   });
 }
@@ -222,15 +239,11 @@ function parseResponseJson(value: string | undefined, operation: string): unknow
 }
 
 const currentEpochSeconds = (): number =>
-  Math.floor(Effect.runSync(Clock.currentTimeMillis) / 1000);
+  Math.floor((globalThis.performance.timeOrigin + globalThis.performance.now()) / 1000);
 
-const logClientInfo = (message: string): void => {
-  Effect.runFork(Effect.log(message));
-};
+const logClientInfo = (_message: string): void => {};
 
-const logClientError = (message: string, error: unknown): void => {
-  Effect.runFork(Effect.logError(message, { error: toErrorMessage(error, message) }));
-};
+const logClientError = (_message: string, _error: unknown): void => {};
 
 const runLegacyStreamingRequest = (
   operation: string,
@@ -238,18 +251,9 @@ const runLegacyStreamingRequest = (
   request: () => Promise<unknown>,
   onError: (message: string) => void,
 ): Promise<unknown | void> =>
-  Effect.runPromise(
-    Effect.tryPromise({
-      try: request,
-      catch: (error) => socketError(operation, toErrorMessage(error, "Unknown error")),
-    }).pipe(
-      Effect.catch((error) =>
-        Effect.sync(() => {
-          onError(`${label} request failed: ${error.message}`);
-        })
-      ),
-    ),
-  );
+  request().catch((error) => {
+    onError(`${label} request failed: ${toErrorMessage(error, `${operation} failed`)}`);
+  });
 
 const StreamingEnvelopeSchema = S.Struct({
   response: S.optionalKey(S.Unknown),
@@ -453,34 +457,35 @@ function makeid(length: number) {
  * functionality
  */
 // Connection state interface for UI consumption
-export interface ConnectionState {
-  status:
-    | "connecting"
-    | "connected"
-    | "reconnecting"
-    | "failed"
-    | "authenticated"
-    | "unauthenticated";
-  hasApiKey: boolean;
-  reconnectAttempt?: number;
-  maxAttempts?: number;
-  nextRetryIn?: number;
-  lastError?: string;
-}
+export class ConnectionState extends S.Class<ConnectionState>("ConnectionState")({
+  status: S.Literals([
+    "connecting",
+    "connected",
+    "reconnecting",
+    "failed",
+    "authenticated",
+    "unauthenticated",
+  ]),
+  hasApiKey: S.Boolean,
+  reconnectAttempt: S.optionalKey(S.Finite),
+  maxAttempts: S.optionalKey(S.Finite),
+  nextRetryIn: S.optionalKey(S.Finite),
+  lastError: S.optionalKey(S.String),
+}, { description: "Workbench-facing TrustGraph gateway connection state." }) {}
 
 export function makeBaseApi(
   user: string,
-  token?: string,
-  socketUrl?: string,
-  rpcFactory: (url: string) => EffectRpcClient = makeEffectRpcClient,
+  token: string | undefined,
+  socketUrl: string | undefined,
+  rpcFactory: (url: string) => LegacyRpcClient,
 ) {
-  let rpc: EffectRpcClient;
-  const connectionStateRef = Effect.runSync(
-    SubscriptionRef.make<ConnectionState>({
-      status: "connecting",
-      hasApiKey: isNonEmptyString(token),
-    }),
-  );
+  let rpc: LegacyRpcClient;
+  let unsubscribeRpc: (() => void) | undefined;
+  const connectionStateListeners = new Set<(state: ConnectionState) => void>();
+  let connectionState: ConnectionState = {
+    status: "connecting",
+    hasApiKey: isNonEmptyString(token),
+  };
   let lastError: string | undefined ;
   let rpcState: RpcConnectionState = { status: "connecting" };
 
@@ -495,27 +500,10 @@ export function makeBaseApi(
      * Subscribe to connection state changes for UI updates
      */
     onConnectionStateChange(listener: (state: ConnectionState) => void) {
-      let latest = SubscriptionRef.getUnsafe(connectionStateRef);
-      listener(latest);
-      let replaySeen = false;
-      const fiber = Effect.runFork(
-        SubscriptionRef.changes(connectionStateRef).pipe(
-          Stream.runForEach((state) =>
-            Effect.sync(() => {
-              if (!replaySeen) {
-                replaySeen = true;
-                if (state === latest) return;
-              }
-              latest = state;
-              notifyConnectionStateListener(listener, state);
-            })
-          ),
-        ),
-      );
-
-      // Return unsubscribe function
+      connectionStateListeners.add(listener);
+      notifyConnectionStateListener(listener, connectionState);
       return () => {
-        Effect.runFork(Fiber.interrupt(fiber));
+        connectionStateListeners.delete(listener);
       };
     },
 
@@ -523,13 +511,9 @@ export function makeBaseApi(
      * Closes the WebSocket connection and cleans up
      */
     close() {
-      Effect.runFork(
-        Effect.tryPromise({
-          try: () => rpc.close(),
-          catch: (error) => socketError("socket-close", toErrorMessage(error, "Socket close failed")),
-        }).pipe(
-          Effect.catch((error) => Effect.sync(() => logClientError("[socket close error]", error))),
-        ),
+      unsubscribeRpc?.();
+      void rpc.close().catch((error) =>
+        logClientError("[socket close error]", socketError("socket-close", toErrorMessage(error, "Socket close failed")))
       );
     },
 
@@ -643,10 +627,8 @@ export function makeBaseApi(
     const state: ConnectionState = {
       status,
       hasApiKey,
+      ...(lastError !== undefined ? { lastError } : {}),
     };
-    if (lastError !== undefined) {
-      state.lastError = lastError;
-    }
 
     return state;
   };
@@ -655,21 +637,24 @@ export function makeBaseApi(
     listener: (state: ConnectionState) => void,
     state: ConnectionState,
   ): void => {
-    const result = Result.try({
-      try: () => listener(state),
-      catch: (error) =>
+    try {
+      listener(state);
+    } catch (error) {
+      logClientError(
+        "Error in connection state listener",
         socketError(
           "connection-state-listener",
           toErrorMessage(error, "Error in connection state listener"),
         ),
-    });
-    if (Result.isFailure(result)) {
-      logClientError("Error in connection state listener", result.failure);
+      );
     }
   };
 
   const publishConnectionState = () => {
-    Effect.runSync(SubscriptionRef.set(connectionStateRef, getConnectionState()));
+    connectionState = getConnectionState();
+    for (const listener of connectionStateListeners) {
+      notifyConnectionStateListener(listener, connectionState);
+    }
   };
 
   const connectionStatusFromRpc = (hasApiKey: boolean): ConnectionState["status"] =>
@@ -712,7 +697,7 @@ export function makeBaseApi(
   };
 
   rpc = rpcFactory(socketUrlWithToken());
-  rpc.subscribe((state) => {
+  unsubscribeRpc = rpc.subscribe((state) => {
     rpcState = state;
     lastError = state.lastError;
     publishConnectionState();
@@ -726,13 +711,12 @@ export function makeBaseApi(
 }
 
 export type BaseApi = ReturnType<typeof makeBaseApi>;
-export const BaseApi = makeBaseApi;
 
 export function makeBaseApiWithRpc(
   user: string,
   token: string | undefined,
   socketUrl: string | undefined,
-  rpc: EffectRpcClient,
+  rpc: LegacyRpcClient,
 ): BaseApi {
   return makeBaseApi(user, token, socketUrl, () => rpc);
 }
@@ -833,13 +817,9 @@ export function makeLibrarianApi(api: BaseApi) {
           tags,
           "document-type": "source",
           documentType: "source",
+          ...(id !== undefined ? { id } : {}),
+          ...(metadata !== undefined ? { metadata } : {}),
         };
-        if (id !== undefined) {
-          documentMetadata.id = id;
-        }
-        if (metadata !== undefined) {
-          documentMetadata.metadata = metadata;
-        }
 
         return this.api.makeRequest<LibraryRequest, LibraryResponse>(
           "librarian",
@@ -929,10 +909,8 @@ export function makeLibrarianApi(api: BaseApi) {
           "document-metadata": metadata,
           documentMetadata: metadata,
           "total-size": totalSize,
+          ...(chunkSize !== undefined ? { "chunk-size": chunkSize } : {}),
         };
-        if (chunkSize !== undefined) {
-          request["chunk-size"] = chunkSize;
-        }
 
         return this.api
           .makeRequest<BeginUploadRequest, BeginUploadResponse>(
@@ -1124,10 +1102,8 @@ export function makeLibrarianApi(api: BaseApi) {
           operation: "stream-document",
           "document-id": documentId,
           user: this.api.user,
+          ...(chunkSize !== undefined ? { "chunk-size": chunkSize } : {}),
         };
-        if (chunkSize !== undefined) {
-          request["chunk-size"] = chunkSize;
-        }
 
         this.api.makeRequestMulti<StreamDocumentRequest, StreamDocumentResponse>(
           "librarian",
@@ -1369,12 +1345,8 @@ export function makeFlowsApi(api: BaseApi) {
           "flow-id": id,
           "blueprint-name": blueprint_name,
           description: description,
+          ...(parameters !== undefined && Object.keys(parameters).length > 0 ? { parameters } : {}),
         };
-
-        // Only include parameters if provided and not empty
-        if (parameters !== undefined && Object.keys(parameters).length > 0) {
-          request.parameters = parameters;
-        }
 
         return this.api
           .makeRequest<FlowRequest, FlowResponse>("flow", request, 30000)
@@ -1447,19 +1419,11 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           query: text,
           user: this.api.user,
           collection: withDefault(collection, "default"),
+          ...(options?.entityLimit !== undefined ? { "entity-limit": options.entityLimit } : {}),
+          ...(options?.tripleLimit !== undefined ? { "triple-limit": options.tripleLimit } : {}),
+          ...(options?.maxSubgraphSize !== undefined ? { "max-subgraph-size": options.maxSubgraphSize } : {}),
+          ...(options?.pathLength !== undefined ? { "max-path-length": options.pathLength } : {}),
         };
-        if (options?.entityLimit !== undefined) {
-          request["entity-limit"] = options.entityLimit;
-        }
-        if (options?.tripleLimit !== undefined) {
-          request["triple-limit"] = options.tripleLimit;
-        }
-        if (options?.maxSubgraphSize !== undefined) {
-          request["max-subgraph-size"] = options.maxSubgraphSize;
-        }
-        if (options?.pathLength !== undefined) {
-          request["max-path-length"] = options.pathLength;
-        }
 
         return this.api
           .makeRequest<GraphRagRequest, GraphRagResponse>(
@@ -1539,10 +1503,8 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             const event: ExplainEvent = {
               explainId: explainId ?? "",
               explainGraph: stringProperty(resp, "explain_graph") ?? "",
+              ...(explainTriples !== undefined ? { explainTriples } : {}),
             };
-            if (explainTriples !== undefined) {
-              event.explainTriples = explainTriples;
-            }
             onExplain?.(event);
             return false;
           }
@@ -1635,10 +1597,8 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
             const event: ExplainEvent = {
               explainId: explainId ?? "",
               explainGraph: stringProperty(resp, "explain_graph") ?? "",
+              ...(explainTriples !== undefined ? { explainTriples } : {}),
             };
-            if (explainTriples !== undefined) {
-              event.explainTriples = explainTriples;
-            }
             onExplain?.(event);
             // If this message also carries answer text, fall through to chunk handling.
             // If it's a standalone explain event (no answer text), stop here.
@@ -1668,19 +1628,11 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           user: this.api.user,
           collection: withDefault(collection, "default"),
           streaming: true,
+          ...(options?.entityLimit !== undefined ? { "entity-limit": options.entityLimit } : {}),
+          ...(options?.tripleLimit !== undefined ? { "triple-limit": options.tripleLimit } : {}),
+          ...(options?.maxSubgraphSize !== undefined ? { "max-subgraph-size": options.maxSubgraphSize } : {}),
+          ...(options?.pathLength !== undefined ? { "max-path-length": options.pathLength } : {}),
         };
-        if (options?.entityLimit !== undefined) {
-          request["entity-limit"] = options.entityLimit;
-        }
-        if (options?.tripleLimit !== undefined) {
-          request["triple-limit"] = options.tripleLimit;
-        }
-        if (options?.maxSubgraphSize !== undefined) {
-          request["max-subgraph-size"] = options.maxSubgraphSize;
-        }
-        if (options?.pathLength !== undefined) {
-          request["max-path-length"] = options.pathLength;
-        }
 
         void runLegacyStreamingRequest(
           "graph-rag-stream",
@@ -1765,10 +1717,8 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           user: this.api.user,
           collection: withDefault(collection, "default"),
           streaming: true,
+          ...(docLimit !== undefined ? { "doc-limit": docLimit } : {}),
         };
-        if (docLimit !== undefined) {
-          request["doc-limit"] = docLimit;
-        }
 
         void runLegacyStreamingRequest(
           "document-rag-stream",
@@ -1968,19 +1918,11 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           limit: limit ?? 20,
           user: this.api.user,
           collection: withDefault(collection, "default"),
+          ...(s !== undefined ? { s } : {}),
+          ...(p !== undefined ? { p } : {}),
+          ...(o !== undefined ? { o } : {}),
+          ...(graph !== undefined ? { g: graph } : {}),
         };
-        if (s !== undefined) {
-          request.s = s;
-        }
-        if (p !== undefined) {
-          request.p = p;
-        }
-        if (o !== undefined) {
-          request.o = o;
-        }
-        if (graph !== undefined) {
-          request.g = graph;
-        }
 
         return this.api
           .makeRequest<TriplesQueryRequest, TriplesQueryResponse>(
@@ -2005,13 +1947,9 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
       ) {
         const request: LoadDocumentRequest = {
           data: document,
+          ...(id !== undefined ? { id } : {}),
+          ...(metadata !== undefined ? { metadata } : {}),
         };
-        if (id !== undefined) {
-          request.id = id;
-        }
-        if (metadata !== undefined) {
-          request.metadata = metadata;
-        }
 
         return this.api.makeRequest<LoadDocumentRequest, LoadDocumentResponse>(
           "document-load",
@@ -2035,16 +1973,10 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
       ) {
         const request: LoadTextRequest = {
           text,
+          ...(id !== undefined ? { id } : {}),
+          ...(metadata !== undefined ? { metadata } : {}),
+          ...(charset !== undefined ? { charset } : {}),
         };
-        if (id !== undefined) {
-          request.id = id;
-        }
-        if (metadata !== undefined) {
-          request.metadata = metadata;
-        }
-        if (charset !== undefined) {
-          request.charset = charset;
-        }
 
         return this.api.makeRequest<LoadTextRequest, LoadTextResponse>(
           "text-load",
@@ -2070,13 +2002,9 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           query,
           user: this.api.user,
           collection: withDefault(collection, "default"),
+          ...(variables !== undefined ? { variables } : {}),
+          ...(operationName !== undefined ? { operation_name: operationName } : {}),
         };
-        if (variables !== undefined) {
-          request.variables = variables;
-        }
-        if (operationName !== undefined) {
-          request.operation_name = operationName;
-        }
 
         return this.api
           .makeRequest<RowsQueryRequest, RowsQueryResponse>(
@@ -2167,11 +2095,8 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
           user: this.api.user,
           collection: withDefault(collection, "default"),
           limit: limit ?? 10,
+          ...(indexName !== undefined ? { index_name: indexName } : {}),
         };
-
-        if (indexName !== undefined) {
-          request.index_name = indexName;
-        }
 
         return this.api
           .makeRequest<RowEmbeddingsQueryRequest, RowEmbeddingsQueryResponse>(
@@ -2664,16 +2589,3 @@ export function makeCollectionManagementApi(api: BaseApi) {
 
 export type CollectionManagementApi = ReturnType<typeof makeCollectionManagementApi>;
 export const CollectionManagementApi = makeCollectionManagementApi;
-
-/**
- * Factory function to create a new TrustGraph WebSocket connection
- * This is the main entry point for using the TrustGraph API
- * @param user - User identifier for API requests
- * @param token - Optional authentication token for secure connections
- * @param socketUrl - Optional WebSocket URL (defaults to /api/v1/rpc for browser, provide full URL for Node.js)
- */
-export const createTrustGraphSocket = (
-  user: string,
-  token?: string,
-  socketUrl?: string,
-): BaseApi => makeBaseApi(user, token, socketUrl);

@@ -3,7 +3,6 @@ import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore";
 import type {
   GraphRagOptions,
-  BaseApi,
   BeginUploadResponse,
   ChunkedUploadDocumentMetadata,
   CompleteUploadResponse,
@@ -18,7 +17,6 @@ import type {
 import {
   DispatchPayload,
   GatewayWorkbenchHttpApi,
-  makeBaseApi,
   TrustGraphRpcs,
 } from "@trustgraph/client";
 import type { Scope, } from "effect";
@@ -203,10 +201,6 @@ export class Settings extends S.Class<Settings>("Settings")({
   gatewayUrl: S.String,
   featureSwitches: FeatureSwitches,
 }, { description: "Persisted workbench connection and display settings." }) {}
-
-export interface WorkbenchApiFactory {
-  readonly create: (settings: Settings) => BaseApi;
-}
 
 export type Theme = "dark" | "light";
 
@@ -764,7 +758,11 @@ function explainTriplesFrom(source: unknown): Triple[] | undefined {
 }
 
 function streamingMetadataFrom(source: unknown): StreamingMetadata | undefined {
-  const metadata: StreamingMetadata = {};
+  const metadata: {
+    in_token?: number;
+    out_token?: number;
+    model?: string;
+  } = {};
   let hasMetadata = false;
 
   const inToken = numberProperty(source, "in_token");
@@ -804,9 +802,9 @@ function ensureNoGatewayResponseError<A>(operation: string, value: A): Effect.Ef
     : Effect.fail(WorkbenchPromiseError.make({ cause: value, message: `${operation}: ${message}` }));
 }
 
-function qaBaseApi(): BaseApi | undefined {
+function qaBaseApi(): import("@trustgraph/client").BaseApi | undefined {
   if (typeof window === "undefined") return undefined;
-  return (window as Window & { __TRUSTGRAPH_WORKBENCH_QA_API__?: BaseApi }).__TRUSTGRAPH_WORKBENCH_QA_API__;
+  return (window as Window & { __TRUSTGRAPH_WORKBENCH_QA_API__?: import("@trustgraph/client").BaseApi }).__TRUSTGRAPH_WORKBENCH_QA_API__;
 }
 
 function makeWorkbenchGatewayApi(settings: Settings) {
@@ -1016,9 +1014,9 @@ function makeWorkbenchGatewayApi(settings: Settings) {
             tags,
             "document-type": "source",
             documentType: "source",
+            ...(id !== undefined ? { id } : {}),
+            ...(metadata !== undefined ? { metadata } : {}),
           };
-          if (id !== undefined) documentMetadata.id = id;
-          if (metadata !== undefined) documentMetadata.metadata = metadata;
           return yield* dispatch("librarian", {
             operation: "add-document",
             "document-metadata": documentMetadata,
@@ -1184,10 +1182,8 @@ function makeWorkbenchGatewayApi(settings: Settings) {
             const event: ExplainEvent = {
               explainId: explainId ?? "",
               explainGraph: stringProperty(resp, "explain_graph") ?? "",
+              ...(explainTriples !== undefined ? { explainTriples } : {}),
             };
-            if (explainTriples !== undefined) {
-              event.explainTriples = explainTriples;
-            }
             onExplain?.(event);
             if (
               stringProperty(resp, "response") === undefined &&
@@ -1305,10 +1301,8 @@ function makeWorkbenchGatewayApi(settings: Settings) {
             const event: ExplainEvent = {
               explainId: explainId ?? "",
               explainGraph: stringProperty(resp, "explain_graph") ?? "",
+              ...(explainTriples !== undefined ? { explainTriples } : {}),
             };
-            if (explainTriples !== undefined) {
-              event.explainTriples = explainTriples;
-            }
             onExplain?.(event);
             return false;
           }
@@ -1621,34 +1615,14 @@ export const toggleThemeAtom = Atom.writable(
 // Socket lifecycle
 // ---------------------------------------------------------------------------
 
-const liveApiFactory: WorkbenchApiFactory = {
-  create: (settings) =>
-    makeBaseApi(
-      settings.user,
-      settings.apiKey.length > 0 ? settings.apiKey : undefined,
-      settings.gatewayUrl.length > 0 ? settings.gatewayUrl : undefined,
-    ),
-};
-
-export const apiFactoryAtom = Atom.make<WorkbenchApiFactory>(liveApiFactory).pipe(Atom.keepAlive);
-
-export const apiAtom = Atom.make((get) => {
-  const settings = get(settingsAtom);
-  const api = get(apiFactoryAtom).create(settings);
-  get.addFinalizer(() => api.close());
-  return api;
-}).pipe(Atom.keepAlive);
-
 export const connectionStateAtom = Atom.make((get) => {
-  const api = get(apiAtom);
-  const fallback: ConnectionState = {
-    status: "connecting",
-    hasApiKey: get(settingsAtom).apiKey.length > 0,
+  const settings = get(settingsAtom);
+  const hasApiKey = settings.apiKey.length > 0;
+  const state: ConnectionState = {
+    status: hasApiKey ? "authenticated" : "unauthenticated",
+    hasApiKey,
   };
-  const previous = Option.getOrElse(get.self<ConnectionState>(), () => fallback);
-  const unsubscribe = api.onConnectionStateChange((state) => get.setSelf(state));
-  get.addFinalizer(unsubscribe);
-  return previous;
+  return state;
 }).pipe(Atom.keepAlive);
 
 // ---------------------------------------------------------------------------

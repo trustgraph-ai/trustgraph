@@ -9,7 +9,7 @@ import * as O from "effect/Option";
 import * as Argument from "effect/unstable/cli/Argument";
 import * as Command from "effect/unstable/cli/Command";
 import * as Flag from "effect/unstable/cli/Flag";
-import { cliCommandError, withSocket, writeLine } from "./util.js";
+import { gatewayDispatch, withGatewayClient, writeLine } from "./util.js";
 
 export const graphRagCommand = Command.make("graph-rag", {
   query: Argument.string("query").pipe(Argument.withDescription("Natural language query")),
@@ -26,22 +26,17 @@ export const graphRagCommand = Command.make("graph-rag", {
     Flag.optional,
   ),
 }, ({ query, entityLimit, tripleLimit, collection }) =>
-  withSocket((socket, opts) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const flow = socket.flow(opts.flow);
-      const response = yield* Effect.tryPromise({
-        try: () =>
-          flow.graphRag(
-            query,
-            {
-              entityLimit,
-              tripleLimit,
-            },
-            O.getOrUndefined(collection),
-          ),
-        catch: (error) => cliCommandError("graph-rag", error),
-      });
-      yield* writeLine(response);
+      const response = yield* gatewayDispatch(client, "graph-rag", "graph-rag", {
+        query,
+        user: opts.user,
+        collection: O.getOrUndefined(collection) ?? "default",
+        "entity-limit": entityLimit,
+        "triple-limit": tripleLimit,
+      }, { flow: opts.flow, timeoutMs: 60000 });
+      const record = response as Record<string, unknown>;
+      yield* writeLine(typeof record.response === "string" ? record.response : "");
     }),
   ),
 ).pipe(Command.withDescription("Query the knowledge graph using RAG"));
@@ -57,19 +52,16 @@ export const documentRagCommand = Command.make("document-rag", {
     Flag.optional,
   ),
 }, ({ query, docLimit, collection }) =>
-  withSocket((socket, opts) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const flow = socket.flow(opts.flow);
-      const response = yield* Effect.tryPromise({
-        try: () =>
-          flow.documentRag(
-            query,
-            docLimit,
-            O.getOrUndefined(collection),
-          ),
-        catch: (error) => cliCommandError("document-rag", error),
-      });
-      yield* writeLine(response);
+      const response = yield* gatewayDispatch(client, "document-rag", "document-rag", {
+        query,
+        user: opts.user,
+        collection: O.getOrUndefined(collection) ?? "default",
+        "doc-limit": docLimit,
+      }, { flow: opts.flow, timeoutMs: 60000 });
+      const record = response as Record<string, unknown>;
+      yield* writeLine(typeof record.response === "string" ? record.response : "");
     }),
   ),
 ).pipe(Command.withDescription("Query documents using RAG"));

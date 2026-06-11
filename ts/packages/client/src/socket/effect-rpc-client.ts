@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Exit, Fiber, Layer, Ref, Scope, Stream, SubscriptionRef } from "effect";
+import { Cause, Context, Effect, Fiber, Layer, Ref, Schema as S, Scope, Stream, SubscriptionRef } from "effect";
 import type * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
@@ -19,17 +19,17 @@ class TrustGraphRpcClientService extends Context.Service<
 
 export type RpcConnectionStatus = "connecting" | "connected" | "failed" | "closed";
 
-export interface RpcConnectionState {
-  status: RpcConnectionStatus;
-  lastError?: string;
-}
+export class RpcConnectionState extends S.Class<RpcConnectionState>("RpcConnectionState")({
+  status: S.Literals(["connecting", "connected", "failed", "closed"]),
+  lastError: S.optionalKey(S.String),
+}, { description: "Current Effect RPC gateway connection state." }) {}
 
-export interface DispatchInput {
-  scope: "global" | "flow";
-  service: string;
-  flow?: string;
-  request: Record<string, unknown>;
-}
+export class DispatchInput extends S.Class<DispatchInput>("DispatchInput")({
+  scope: S.Literals(["global", "flow"]),
+  service: S.String,
+  flow: S.optionalKey(S.String),
+  request: S.Record(S.String, S.Unknown),
+}, { description: "TrustGraph gateway dispatch target and request payload." }) {}
 
 export interface DispatchOptions {
   readonly timeoutMs?: number;
@@ -73,20 +73,6 @@ export interface TrustGraphGatewayClientOptions {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_REQUEST_ATTEMPTS = 3;
-
-export interface EffectRpcClient {
-  readonly subscribe: (listener: (state: RpcConnectionState) => void) => () => void;
-  readonly dispatch: (
-    input: DispatchInput,
-    options?: DispatchOptions,
-  ) => Promise<unknown>;
-  readonly dispatchStream: (
-    input: DispatchInput,
-    receiver: (chunk: DispatchStreamChunk) => boolean,
-    options?: DispatchOptions,
-  ) => Promise<DispatchStreamChunk | undefined>;
-  readonly close: () => Promise<void>;
-}
 
 const makeClientLayer = (
   options: TrustGraphGatewayClientOptions,
@@ -234,59 +220,12 @@ export function makeEffectRpcClient(
   url: string,
   onConnect?: () => void,
   onDisconnect?: () => void,
-): EffectRpcClient {
-  const stateRef = Effect.runSync(SubscriptionRef.make<RpcConnectionState>({ status: "connecting" }));
-  const closedRef = Effect.runSync(Ref.make(false));
-  const scope = Effect.runSync(Scope.make());
-  const options: TrustGraphGatewayClientOptions = {
+): Effect.Effect<TrustGraphGatewayClient, never, Scope.Scope> {
+  return makeTrustGraphGatewayClientScoped({
     url,
-    stateRef,
-    closedRef,
     ...(onConnect === undefined ? {} : { onConnect }),
     ...(onDisconnect === undefined ? {} : { onDisconnect }),
-  };
-  const clientPromise = Effect.runPromise(
-    makeTrustGraphGatewayClientScoped(options).pipe(Scope.provide(scope)),
-  );
-
-  return {
-    subscribe: (listener) => {
-      let unsubscribe: Effect.Effect<void> | undefined;
-      let cancelled = false;
-      listener(SubscriptionRef.getUnsafe(stateRef));
-      void clientPromise.then((client) =>
-        Effect.runPromise(client.subscribe(listener)).then((release) => {
-          if (cancelled) {
-            return Effect.runPromise(release);
-          }
-          unsubscribe = release;
-        })
-      );
-
-      return () => {
-        cancelled = true;
-        if (unsubscribe !== undefined) {
-          Effect.runFork(unsubscribe);
-        }
-      };
-    },
-    dispatch: (input, options = {}) =>
-      clientPromise.then((client) =>
-        Effect.runPromise(client.dispatch(input, options))
-      ),
-    dispatchStream: (input, receiver, options = {}) =>
-      clientPromise.then((client) =>
-        Effect.runPromise(client.runDispatchStream(input, receiver, options))
-      ),
-    close: () =>
-      clientPromise.then((client) =>
-        Effect.runPromise(
-          client.close.pipe(
-            Effect.andThen(Scope.close(scope, Exit.void)),
-          ),
-        )
-      ),
-  };
+  });
 }
 
 export function withDispatchRequestPolicy<A, E, R>(
