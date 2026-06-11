@@ -5,8 +5,11 @@
  * extractor can identify. Writes to data/test.pdf.
  */
 
+import { BunRuntime } from "@effect/platform-bun";
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import { Effect } from "effect";
+import * as FileSystem from "effect/FileSystem";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { writeFileSync, mkdirSync } from "node:fs";
 
 const PAGE_1 = `Acme Corporation: Company Overview
 
@@ -24,10 +27,11 @@ CloudSync was officially launched in January 2024. The platform competes with es
 
 Acme Corporation is headquartered in San Francisco, California. The company employs approximately 200 people across engineering, sales, and operations departments.`;
 
-async function main(): Promise<void> {
-  const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+const main = Effect.fn("createTestPdf.main")(function*() {
+  const fs = yield* FileSystem.FileSystem;
+  const pdf = yield* Effect.promise(() => PDFDocument.create());
+  const font = yield* Effect.promise(() => pdf.embedFont(StandardFonts.Helvetica));
+  const boldFont = yield* Effect.promise(() => pdf.embedFont(StandardFonts.HelveticaBold));
 
   for (const [i, text] of [PAGE_1, PAGE_2].entries()) {
     const page = pdf.addPage([612, 792]); // US Letter
@@ -54,14 +58,11 @@ async function main(): Promise<void> {
     }
   }
 
-  const pdfBytes = await pdf.save();
+  const pdfBytes = yield* Effect.promise(() => pdf.save());
 
-  mkdirSync("data", { recursive: true });
-  writeFileSync("data/test.pdf", pdfBytes);
+  yield* fs.makeDirectory("data", { recursive: true });
+  yield* fs.writeFile("data/test.pdf", pdfBytes);
   console.log(`Created data/test.pdf (${pdfBytes.length} bytes, 2 pages)`);
-}
-
-main().catch((err) => {
-  console.error("Failed to create test PDF:", err);
-  process.exit(1);
 });
+
+BunRuntime.runMain(main().pipe(Effect.provide(BunFileSystem.layer)));

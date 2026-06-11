@@ -16,17 +16,21 @@
  * Also seeds config via the gateway if it's running.
  */
 
+import { BunRuntime } from "@effect/platform-bun";
+import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
+import { Array as A, Config, Effect, Order, Schema as S } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { createClient, Graph } from "falkordb";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const FALKORDB_URL = process.env.FALKORDB_URL ?? "redis://localhost:6380";
-const QDRANT_URL = process.env.QDRANT_URL ?? "http://localhost:6333";
-const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
-const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://localhost:8088";
-const EMBED_MODEL = process.env.EMBED_MODEL ?? "mxbai-embed-large";
+const DEFAULT_FALKORDB_URL = "redis://localhost:6380";
+const DEFAULT_QDRANT_URL = "http://localhost:6333";
+const DEFAULT_OLLAMA_URL = "http://localhost:11434";
+const DEFAULT_GATEWAY_URL = "http://localhost:8088";
+const DEFAULT_EMBED_MODEL = "mxbai-embed-large";
 
 const USER = "default";
 const COLLECTION = "default";
@@ -43,6 +47,125 @@ interface RawTriple {
   /** true if object is another entity (Node), false if it's a literal value */
   oIsEntity: boolean;
 }
+
+interface DemoConfig {
+  readonly falkorDbUrl: string;
+  readonly qdrantUrl: string;
+  readonly ollamaUrl: string;
+  readonly gatewayUrl: string;
+  readonly embedModel: string;
+}
+
+class SeedDemoError extends S.TaggedErrorClass<SeedDemoError>()(
+  "SeedDemoError",
+  {
+    operation: S.String,
+    message: S.String,
+  },
+) {}
+
+const GatewayErrorBody = S.Struct({
+  message: S.optionalKey(S.String),
+});
+
+const ConfigPushResponse = S.Struct({
+  version: S.optionalKey(S.Number),
+  error: S.optionalKey(GatewayErrorBody),
+});
+
+const OllamaEmbedResponse = S.Struct({
+  embeddings: S.Array(S.Array(S.Number)),
+});
+
+const loadConfig = Effect.fn("seed-demo.loadConfig")(function* () {
+  return {
+    falkorDbUrl: yield* Config.string("FALKORDB_URL").pipe(Config.withDefault(DEFAULT_FALKORDB_URL)),
+    qdrantUrl: yield* Config.string("QDRANT_URL").pipe(Config.withDefault(DEFAULT_QDRANT_URL)),
+    ollamaUrl: yield* Config.string("OLLAMA_URL").pipe(Config.withDefault(DEFAULT_OLLAMA_URL)),
+    gatewayUrl: yield* Config.string("GATEWAY_URL").pipe(Config.withDefault(DEFAULT_GATEWAY_URL)),
+    embedModel: yield* Config.string("EMBED_MODEL").pipe(Config.withDefault(DEFAULT_EMBED_MODEL)),
+  } satisfies DemoConfig;
+});
+
+const scriptError = (operation: string, cause: unknown) =>
+  SeedDemoError.make({
+    operation,
+    message: String(cause),
+  });
+
+const stringifyJson = (operation: string, value: unknown) =>
+  S.encodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.mapError((cause) => scriptError(operation, cause)),
+  );
+
+const decodeJsonText = (operation: string, value: string) =>
+  S.decodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.mapError((cause) => scriptError(operation, cause)),
+  );
+
+const decodeWith = <A, I, R>(operation: string, schema: S.Codec<A, I, R>) => (value: unknown) =>
+  S.decodeUnknownEffect(schema)(value).pipe(
+    Effect.mapError((cause) => scriptError(operation, cause)),
+  );
+
+const readResponseText = Effect.fn("seed-demo.readResponseText")(function* (
+  operation: string,
+  response: HttpClientResponse.HttpClientResponse,
+) {
+  return yield* response.text.pipe(
+    Effect.mapError((cause) => scriptError(`${operation}.read-response`, cause)),
+  );
+});
+
+const executeOkText = Effect.fn("seed-demo.executeOkText")(function* (
+  operation: string,
+  request: HttpClientRequest.HttpClientRequest,
+) {
+  const response = yield* HttpClient.execute(request).pipe(
+    Effect.flatMap(HttpClientResponse.filterStatusOk),
+    Effect.mapError((cause) => scriptError(`${operation}.http`, cause)),
+  );
+  return yield* readResponseText(operation, response);
+});
+
+const postJsonText = Effect.fn("seed-demo.postJsonText")(function* (
+  operation: string,
+  url: string,
+  body: unknown,
+) {
+  const bodyText = yield* stringifyJson(`${operation}.encode-request`, body);
+  const request = HttpClientRequest.post(url, { acceptJson: true }).pipe(
+    HttpClientRequest.bodyText(bodyText, "application/json"),
+  );
+  return yield* executeOkText(operation, request);
+});
+
+const putJsonText = Effect.fn("seed-demo.putJsonText")(function* (
+  operation: string,
+  url: string,
+  body: unknown,
+) {
+  const bodyText = yield* stringifyJson(`${operation}.encode-request`, body);
+  const request = HttpClientRequest.put(url, { acceptJson: true }).pipe(
+    HttpClientRequest.bodyText(bodyText, "application/json"),
+  );
+  return yield* executeOkText(operation, request);
+});
+
+const httpAvailable = Effect.fn("seed-demo.httpAvailable")(function* (url: string) {
+  return yield* HttpClient.get(url).pipe(
+    Effect.timeout("3 seconds"),
+    Effect.map((response) => response.status >= 200 && response.status < 300),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+});
+
+const resourceExists = Effect.fn("seed-demo.resourceExists")(function* (url: string) {
+  return yield* HttpClient.get(url).pipe(
+    Effect.map((response) => response.status >= 200 && response.status < 300),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+});
 
 // ---------------------------------------------------------------------------
 // Demo Knowledge Graph — AI Industry
@@ -473,16 +596,16 @@ function collectEntities(triples: RawTriple[]): string[] {
       entities.add(t.o);
     }
   }
-  return [...entities].sort();
+  return A.sort(Array.from(entities), Order.String);
 }
 
 // ---------------------------------------------------------------------------
 // Connectivity checks
 // ---------------------------------------------------------------------------
 
-async function checkFalkorDB(): Promise<boolean> {
+async function checkFalkorDB(config: DemoConfig): Promise<boolean> {
   try {
-    const client = createClient({ url: FALKORDB_URL });
+    const client = createClient({ url: config.falkorDbUrl });
     await client.connect();
     await client.ping();
     await client.disconnect();
@@ -492,39 +615,18 @@ async function checkFalkorDB(): Promise<boolean> {
   }
 }
 
-async function checkQdrant(): Promise<boolean> {
-  try {
-    const res = await fetch(`${QDRANT_URL}/collections`, { signal: AbortSignal.timeout(3000) });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+const checkQdrant = (config: DemoConfig) => httpAvailable(`${config.qdrantUrl}/collections`);
 
-async function checkOllama(): Promise<boolean> {
-  try {
-    const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+const checkOllama = (config: DemoConfig) => httpAvailable(`${config.ollamaUrl}/api/tags`);
 
-async function checkGateway(): Promise<boolean> {
-  try {
-    const res = await fetch(`${GATEWAY_URL}/api/v1/metrics`, { signal: AbortSignal.timeout(3000) });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+const checkGateway = (config: DemoConfig) => httpAvailable(`${config.gatewayUrl}/api/v1/metrics`);
 
 // ---------------------------------------------------------------------------
 // FalkorDB seeding
 // ---------------------------------------------------------------------------
 
-async function seedFalkorDB(triples: RawTriple[]): Promise<void> {
-  const client = createClient({ url: FALKORDB_URL });
+async function seedFalkorDB(config: DemoConfig, triples: RawTriple[]): Promise<void> {
+  const client = createClient({ url: config.falkorDbUrl });
   await client.connect();
   const graph = new Graph(client, DATABASE);
 
@@ -581,19 +683,16 @@ async function seedFalkorDB(triples: RawTriple[]): Promise<void> {
 // Ollama embeddings
 // ---------------------------------------------------------------------------
 
-async function embed(texts: string[]): Promise<number[][]> {
-  const res = await fetch(`${OLLAMA_URL}/api/embed`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: EMBED_MODEL, input: texts }),
+const embed = Effect.fn("seed-demo.embed")(function* (config: DemoConfig, texts: string[]) {
+  const responseText = yield* postJsonText("ollama.embed", `${config.ollamaUrl}/api/embed`, {
+    model: config.embedModel,
+    input: texts,
   });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Ollama embed failed (${res.status}): ${body}`);
-  }
-  const data = (await res.json()) as { embeddings: number[][] };
+  const data = yield* decodeJsonText("ollama.embed.decode-json", responseText).pipe(
+    Effect.flatMap(decodeWith("ollama.embed.decode-response", OllamaEmbedResponse)),
+  );
   return data.embeddings;
-}
+});
 
 // ---------------------------------------------------------------------------
 // Document chunks for Doc RAG
@@ -705,7 +804,7 @@ const DOCUMENT_CHUNKS: Array<{ id: string; content: string }> = [
 // Qdrant seeding (document embeddings)
 // ---------------------------------------------------------------------------
 
-async function seedDocumentChunks(): Promise<void> {
+const seedDocumentChunks = Effect.fn("seed-demo.seedDocumentChunks")(function* (config: DemoConfig) {
   // Embed all chunk content
   const BATCH_SIZE = 32;
   const allVectors: number[][] = [];
@@ -713,7 +812,7 @@ async function seedDocumentChunks(): Promise<void> {
 
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
-    const vecs = await embed(batch);
+    const vecs = yield* embed(config, batch);
     allVectors.push(...vecs);
     process.stdout.write(
       `\r  Embedding doc chunks: ${Math.min(i + BATCH_SIZE, texts.length)}/${texts.length}`,
@@ -725,14 +824,10 @@ async function seedDocumentChunks(): Promise<void> {
   const collectionName = `d_${USER}_${COLLECTION}_${dim}`;
 
   // Create collection if needed
-  const existsRes = await fetch(`${QDRANT_URL}/collections/${collectionName}`);
-  if (!existsRes.ok) {
-    await fetch(`${QDRANT_URL}/collections/${collectionName}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        vectors: { size: dim, distance: "Cosine" },
-      }),
+  const exists = yield* resourceExists(`${config.qdrantUrl}/collections/${collectionName}`);
+  if (!exists) {
+    yield* putJsonText("qdrant.create-doc-collection", `${config.qdrantUrl}/collections/${collectionName}`, {
+      vectors: { size: dim, distance: "Cosine" },
     });
     console.log(`  Created Qdrant collection: ${collectionName} (dim=${dim})`);
   } else {
@@ -749,32 +844,28 @@ async function seedDocumentChunks(): Promise<void> {
     },
   }));
 
-  const res = await fetch(`${QDRANT_URL}/collections/${collectionName}/points`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ points }),
+  yield* putJsonText("qdrant.upsert-doc-points", `${config.qdrantUrl}/collections/${collectionName}/points`, {
+    points,
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Qdrant doc upsert failed: ${body}`);
-  }
-
   console.log(`  Qdrant: ${points.length} document chunk embeddings stored in ${collectionName}`);
-}
+});
 
 // ---------------------------------------------------------------------------
 // Qdrant seeding (graph embeddings)
 // ---------------------------------------------------------------------------
 
-async function seedQdrant(entities: string[]): Promise<void> {
+const seedQdrant = Effect.fn("seed-demo.seedQdrant")(function* (
+  config: DemoConfig,
+  entities: string[],
+) {
   // Batch embed in groups of 32
   const BATCH_SIZE = 32;
   const allVectors: number[][] = [];
 
   for (let i = 0; i < entities.length; i += BATCH_SIZE) {
     const batch = entities.slice(i, i + BATCH_SIZE);
-    const vecs = await embed(batch);
+    const vecs = yield* embed(config, batch);
     allVectors.push(...vecs);
     process.stdout.write(
       `\r  Embedding entities: ${Math.min(i + BATCH_SIZE, entities.length)}/${entities.length}`,
@@ -786,14 +877,10 @@ async function seedQdrant(entities: string[]): Promise<void> {
   const collectionName = `t_${USER}_${COLLECTION}_${dim}`;
 
   // Create collection if needed
-  const existsRes = await fetch(`${QDRANT_URL}/collections/${collectionName}`);
-  if (!existsRes.ok) {
-    await fetch(`${QDRANT_URL}/collections/${collectionName}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        vectors: { size: dim, distance: "Cosine" },
-      }),
+  const exists = yield* resourceExists(`${config.qdrantUrl}/collections/${collectionName}`);
+  if (!exists) {
+    yield* putJsonText("qdrant.create-entity-collection", `${config.qdrantUrl}/collections/${collectionName}`, {
+      vectors: { size: dim, distance: "Cosine" },
     });
     console.log(`  Created Qdrant collection: ${collectionName} (dim=${dim})`);
   } else {
@@ -811,41 +898,44 @@ async function seedQdrant(entities: string[]): Promise<void> {
       payload: { entity },
     }));
 
-    const res = await fetch(`${QDRANT_URL}/collections/${collectionName}/points`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ points }),
+    yield* putJsonText("qdrant.upsert-entity-points", `${config.qdrantUrl}/collections/${collectionName}/points`, {
+      points,
     });
-
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Qdrant upsert failed: ${body}`);
-    }
 
     upserted += points.length;
     process.stdout.write(`\r  Upserting to Qdrant: ${upserted}/${entities.length}`);
   }
   console.log();
   console.log(`  Qdrant: ${upserted} entity embeddings stored`);
-}
+});
 
 // ---------------------------------------------------------------------------
 // Config seeding (via gateway)
 // ---------------------------------------------------------------------------
 
-async function seedConfig(): Promise<void> {
-  async function pushConfig(keys: string[], values: Record<string, unknown>): Promise<void> {
-    const res = await fetch(`${GATEWAY_URL}/api/v1/config`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operation: "put", keys, values }),
+const seedConfig = Effect.fn("seed-demo.seedConfig")(function* (config: DemoConfig) {
+  const pushConfig = Effect.fn("seed-demo.seedConfig.pushConfig")(function* (
+    keys: ReadonlyArray<string>,
+    values: Record<string, unknown>,
+  ) {
+    const responseText = yield* postJsonText("config.put", `${config.gatewayUrl}/api/v1/config`, {
+      operation: "put",
+      keys,
+      values,
     });
-    const data = (await res.json()) as { error?: { message: string }; version?: number };
-    if (data.error) throw new Error(`Config push failed: ${data.error.message}`);
-    console.log(`  Config [${keys.join("/")}] → version ${data.version}`);
-  }
+    const data = yield* decodeJsonText("config.put.decode-json", responseText).pipe(
+      Effect.flatMap(decodeWith("config.put.decode-response", ConfigPushResponse)),
+    );
+    if (data.error !== undefined) {
+      return yield* SeedDemoError.make({
+        operation: "config.put",
+        message: data.error.message ?? "unknown gateway error",
+      });
+    }
+    console.log(`  Config [${keys.join("/")}] → version ${data.version ?? "unknown"}`);
+  });
 
-  await pushConfig(["prompt"], {
+  yield* pushConfig(["prompt"], {
     "extract-relationships": {
       system: "You are a helpful assistant that extracts structured knowledge from text.",
       prompt: [
@@ -914,7 +1004,7 @@ async function seedConfig(): Promise<void> {
     },
   });
 
-  await pushConfig(["flows"], {
+  yield* pushConfig(["flows"], {
     default: {
       topics: {
         "decode-input": "tg.flow.document",
@@ -951,36 +1041,49 @@ async function seedConfig(): Promise<void> {
       },
     },
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-async function main(): Promise<void> {
+const main = Effect.fn("seed-demo.main")(function* () {
+  const config = yield* loadConfig();
+
   console.log("╔══════════════════════════════════════════════════════════╗");
   console.log("║       TrustGraph Demo Seeder — AI Industry KG          ║");
   console.log("╚══════════════════════════════════════════════════════════╝\n");
 
   // Check services
-  const [hasFalkor, hasQdrant, hasOllama, hasGateway] = await Promise.all([
-    checkFalkorDB(),
-    checkQdrant(),
-    checkOllama(),
-    checkGateway(),
-  ]);
+  const availability = yield* Effect.all({
+    falkor: Effect.tryPromise({
+      try: () => checkFalkorDB(config),
+      catch: (cause) => scriptError("check-falkordb", cause),
+    }).pipe(Effect.catch(() => Effect.succeed(false))),
+    qdrant: checkQdrant(config),
+    ollama: checkOllama(config),
+    gateway: checkGateway(config),
+  }, { concurrency: "unbounded" });
+
+  const hasFalkor = availability.falkor;
+  const hasQdrant = availability.qdrant;
+  const hasOllama = availability.ollama;
+  const hasGateway = availability.gateway;
 
   console.log("Service availability:");
-  console.log(`  FalkorDB (${FALKORDB_URL}): ${hasFalkor ? "✓" : "✗"}`);
-  console.log(`  Qdrant   (${QDRANT_URL}):   ${hasQdrant ? "✓" : "✗"}`);
-  console.log(`  Ollama   (${OLLAMA_URL}):  ${hasOllama ? "✓" : "✗"}`);
-  console.log(`  Gateway  (${GATEWAY_URL}):  ${hasGateway ? "✓" : "✗"}`);
+  console.log(`  FalkorDB (${config.falkorDbUrl}): ${hasFalkor ? "✓" : "✗"}`);
+  console.log(`  Qdrant   (${config.qdrantUrl}):   ${hasQdrant ? "✓" : "✗"}`);
+  console.log(`  Ollama   (${config.ollamaUrl}):  ${hasOllama ? "✓" : "✗"}`);
+  console.log(`  Gateway  (${config.gatewayUrl}):  ${hasGateway ? "✓" : "✗"}`);
   console.log();
 
   if (!hasFalkor && !hasQdrant && !hasGateway) {
     console.error("No services available. Start the TrustGraph stack first:");
     console.error("  cd ts/deploy && docker compose up -d falkordb qdrant ollama nats");
-    process.exit(1);
+    return yield* SeedDemoError.make({
+      operation: "service-check",
+      message: "no seed targets available",
+    });
   }
 
   const triples = buildTriples();
@@ -991,7 +1094,10 @@ async function main(): Promise<void> {
   // Seed FalkorDB
   if (hasFalkor) {
     console.log("── Seeding FalkorDB ──");
-    await seedFalkorDB(triples);
+    yield* Effect.tryPromise({
+      try: () => seedFalkorDB(config, triples),
+      catch: (cause) => scriptError("seed-falkordb", cause),
+    });
     console.log();
   } else {
     console.log("⚠ Skipping FalkorDB (not available)\n");
@@ -1000,11 +1106,11 @@ async function main(): Promise<void> {
   // Seed Qdrant (requires Ollama for embeddings)
   if (hasQdrant && hasOllama) {
     console.log("── Seeding Qdrant (entity embeddings) ──");
-    await seedQdrant(entities);
+    yield* seedQdrant(config, entities);
     console.log();
 
     console.log("── Seeding Qdrant (document chunk embeddings) ──");
-    await seedDocumentChunks();
+    yield* seedDocumentChunks(config);
     console.log();
   } else if (hasQdrant) {
     console.log("⚠ Skipping Qdrant embeddings (Ollama not available for embedding generation)\n");
@@ -1015,7 +1121,7 @@ async function main(): Promise<void> {
   // Seed config via gateway
   if (hasGateway) {
     console.log("── Seeding Config (prompt templates + flows) ──");
-    await seedConfig();
+    yield* seedConfig(config);
     console.log();
   } else {
     console.log("⚠ Skipping config (gateway not available — run `pnpm seed` separately)\n");
@@ -1036,9 +1142,6 @@ async function main(): Promise<void> {
   console.log("  • What is the Transformer architecture?");
   console.log("  • Tell me about Demis Hassabis and his achievements");
   console.log("═══════════════════════════════════════════════════════════");
-}
-
-main().catch((err) => {
-  console.error("\nSeed failed:", err);
-  process.exit(1);
 });
+
+BunRuntime.runMain(main().pipe(Effect.provide(BunHttpClient.layer)));

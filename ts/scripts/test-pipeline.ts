@@ -9,7 +9,15 @@
  * Usage: pnpm tsx scripts/test-pipeline.ts
  */
 
-const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://localhost:8088";
+import { BunRuntime } from "@effect/platform-bun";
+import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
+import { Config, Effect, Option as O, Schema as S } from "effect";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+
+const DEFAULT_GATEWAY_URL = "http://localhost:8088";
+const DEFAULT_LLM_MODEL = "qwen2.5:0.5b";
+const DEFAULT_FALKORDB_URL = "redis://localhost:6380";
+const DEFAULT_PIPELINE_WAIT = 20;
 
 interface RpcSocket {
   close: () => void;
@@ -22,24 +30,111 @@ interface RpcSocket {
   ) => Promise<ResponseType>;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-
-async function post(path: string, body: unknown): Promise<unknown> {
-  const res = await fetch(`${GATEWAY_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { status: res.status, body: text };
-  }
+interface PipelineConfig {
+  readonly gatewayUrl: string;
+  readonly gatewaySecret: string | undefined;
+  readonly llmModel: string;
+  readonly pipelineWaitSeconds: number;
+  readonly falkorDbUrl: string;
+  readonly skipPipeline: boolean;
+  readonly skipLlm: boolean;
+  readonly skipLibrarian: boolean;
+  readonly skipAgent: boolean;
 }
 
+class PipelineTestError extends S.TaggedErrorClass<PipelineTestError>()(
+  "PipelineTestError",
+  {
+    operation: S.String,
+    message: S.String,
+  },
+) {}
+
+const QdrantCollectionsResponse = S.Struct({
+  result: S.optionalKey(S.Struct({
+    collections: S.optionalKey(S.Array(S.Struct({ name: S.String }))),
+  })),
+});
+
+const pipelineError = (operation: string, cause: unknown) =>
+  PipelineTestError.make({
+    operation,
+    message: String(cause),
+  });
+
+const skipFlag = (name: string) =>
+  Config.string(name).pipe(
+    Config.withDefault("0"),
+    Config.map((value) => value === "1"),
+  );
+
+const loadConfig = Effect.fn("test-pipeline.loadConfig")(function* () {
+  const gatewaySecret = yield* Config.string("GATEWAY_SECRET").pipe(Config.option);
+  return {
+    gatewayUrl: yield* Config.string("GATEWAY_URL").pipe(Config.withDefault(DEFAULT_GATEWAY_URL)),
+    gatewaySecret: O.getOrUndefined(gatewaySecret),
+    llmModel: yield* Config.string("LLM_MODEL").pipe(Config.withDefault(DEFAULT_LLM_MODEL)),
+    pipelineWaitSeconds: yield* Config.number("PIPELINE_WAIT").pipe(Config.withDefault(DEFAULT_PIPELINE_WAIT)),
+    falkorDbUrl: yield* Config.string("FALKORDB_URL").pipe(Config.withDefault(DEFAULT_FALKORDB_URL)),
+    skipPipeline: yield* skipFlag("SKIP_PIPELINE"),
+    skipLlm: yield* skipFlag("SKIP_LLM"),
+    skipLibrarian: yield* skipFlag("SKIP_LIBRARIAN"),
+    skipAgent: yield* skipFlag("SKIP_AGENT"),
+  } satisfies PipelineConfig;
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+
+const stringifyJson = (operation: string, value: unknown) =>
+  S.encodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.mapError((cause) => pipelineError(operation, cause)),
+  );
+
+const decodeJsonText = (operation: string, value: string) =>
+  S.decodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.mapError((cause) => pipelineError(operation, cause)),
+  );
+
+const post = Effect.fn("test-pipeline.post")(function* (
+  config: PipelineConfig,
+  path: string,
+  body: unknown,
+) {
+  const bodyText = yield* stringifyJson("post.encode-request", body);
+  const request = HttpClientRequest.post(`${config.gatewayUrl}${path}`, { acceptJson: true }).pipe(
+    HttpClientRequest.bodyText(bodyText, "application/json"),
+  );
+  const response = yield* HttpClient.execute(request).pipe(
+    Effect.mapError((cause) => pipelineError("post.http", cause)),
+  );
+  const text = yield* response.text.pipe(
+    Effect.mapError((cause) => pipelineError("post.read-response", cause)),
+  );
+  return yield* decodeJsonText("post.decode-response", text).pipe(
+    Effect.catch(() => Effect.succeed({ status: response.status, body: text })),
+  );
+});
+
+const getJson = Effect.fn("test-pipeline.getJson")(function* (url: string) {
+  const response = yield* HttpClient.get(url, { acceptJson: true }).pipe(
+    Effect.mapError((cause) => pipelineError("get.http", cause)),
+  );
+  const text = yield* response.text.pipe(
+    Effect.mapError((cause) => pipelineError("get.read-response", cause)),
+  );
+  return yield* decodeJsonText("get.decode-response", text);
+});
+
+const gatewayReachable = Effect.fn("test-pipeline.gatewayReachable")(function* (config: PipelineConfig) {
+  return yield* HttpClient.get(`${config.gatewayUrl}/api/v1/metrics`).pipe(
+    Effect.map((response) => response.status >= 200 && response.status < 300),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+});
+
 function log(label: string, data: unknown): void {
-  console.log(`\n[${label}]`, JSON.stringify(data, null, 2));
+  console.log(`\n[${label}]`);
+  console.dir(data, { depth: null });
 }
 
 function pass(test: string): void {
@@ -50,11 +145,18 @@ function fail(test: string, err: unknown): void {
   console.error(`  ✗ ${test}:`, err);
 }
 
+const catchTest = <R, E>(name: string, effect: Effect.Effect<boolean, E, R>) =>
+  effect.pipe(
+    Effect.catch((err) => {
+      fail(name, err);
+      return Effect.succeed(false);
+    }),
+  );
+
 // ─── Tests ────────────────────────────────────────────────────────────
 
-async function testConfigList(): Promise<boolean> {
-  try {
-    const res = await post("/api/v1/config", { operation: "list", keys: [] });
+const testConfigList = (config: PipelineConfig) => catchTest("Config list", Effect.gen(function* () {
+    const res = yield* post(config, "/api/v1/config", { operation: "list", keys: [] });
     log("config/list", res);
     if (typeof res === "object" && res !== null && "version" in res) {
       pass("Config list returns version");
@@ -62,15 +164,10 @@ async function testConfigList(): Promise<boolean> {
     }
     fail("Config list", "unexpected response");
     return false;
-  } catch (err) {
-    fail("Config list", err);
-    return false;
-  }
-}
+}));
 
-async function testConfigPut(): Promise<boolean> {
-  try {
-    const res = await post("/api/v1/config", {
+const testConfigPut = (config: PipelineConfig) => catchTest("Config put", Effect.gen(function* () {
+    const res = yield* post(config, "/api/v1/config", {
       operation: "put",
       keys: ["test"],
       values: { greeting: "hello from trustgraph-ts!" },
@@ -82,15 +179,10 @@ async function testConfigPut(): Promise<boolean> {
     }
     fail("Config put", "unexpected response");
     return false;
-  } catch (err) {
-    fail("Config put", err);
-    return false;
-  }
-}
+}));
 
-async function testConfigGet(): Promise<boolean> {
-  try {
-    const res = await post("/api/v1/config", {
+const testConfigGet = (config: PipelineConfig) => catchTest("Config get", Effect.gen(function* () {
+    const res = yield* post(config, "/api/v1/config", {
       operation: "get",
       keys: ["test"],
     });
@@ -103,22 +195,17 @@ async function testConfigGet(): Promise<boolean> {
     }
     fail("Config get", "value mismatch");
     return false;
-  } catch (err) {
-    fail("Config get", err);
-    return false;
-  }
-}
+}));
 
-async function testConfigDelete(): Promise<boolean> {
-  try {
-    const res = await post("/api/v1/config", {
+const testConfigDelete = (config: PipelineConfig) => catchTest("Config delete", Effect.gen(function* () {
+    const res = yield* post(config, "/api/v1/config", {
       operation: "delete",
       keys: ["test"],
     });
     log("config/delete", res);
 
     // Verify it's gone
-    const check = await post("/api/v1/config", {
+    const check = yield* post(config, "/api/v1/config", {
       operation: "get",
       keys: ["test"],
     }) as Record<string, unknown>;
@@ -130,16 +217,11 @@ async function testConfigDelete(): Promise<boolean> {
     }
     fail("Config delete", "value still present");
     return false;
-  } catch (err) {
-    fail("Config delete", err);
-    return false;
-  }
-}
+}));
 
-async function testPushFlowConfig(): Promise<boolean> {
-  try {
+const testPushFlowConfig = (config: PipelineConfig) => catchTest("Flow config push", Effect.gen(function* () {
     // Push a full flow definition with all service topic mappings
-    const res = await post("/api/v1/config", {
+    const res = yield* post(config, "/api/v1/config", {
       operation: "put",
       keys: ["flows"],
       values: {
@@ -193,21 +275,14 @@ async function testPushFlowConfig(): Promise<boolean> {
     }
     fail("Flow config push", "unexpected response");
     return false;
-  } catch (err) {
-    fail("Flow config push", err);
-    return false;
-  }
-}
+}));
 
-async function testTextCompletion(): Promise<boolean> {
-  try {
+const testTextCompletion = (config: PipelineConfig) => catchTest("Text completion", Effect.gen(function* () {
     console.log("\n  Sending text-completion request (may take a few seconds)...");
-    // Use model from env or default to qwen2.5:0.5b (Ollama-compatible)
-    const model = process.env.LLM_MODEL ?? "qwen2.5:0.5b";
-    const res = await post("/api/v1/flow/default/service/text-completion", {
+    const res = yield* post(config, "/api/v1/flow/default/service/text-completion", {
       system: "You are a helpful assistant. Reply in one sentence.",
       prompt: "What is 2+2?",
-      model,
+      model: config.llmModel,
     });
     log("text-completion", res);
     const r = res as Record<string, unknown>;
@@ -221,55 +296,45 @@ async function testTextCompletion(): Promise<boolean> {
     }
     fail("Text completion", "unexpected response");
     return false;
-  } catch (err) {
-    fail("Text completion", err);
-    return false;
-  }
-}
+}));
 
-async function testWebSocket(): Promise<boolean> {
+const testWebSocket = (config: PipelineConfig) => catchTest("Effect RPC WebSocket", Effect.gen(function* () {
   let socket: RpcSocket | undefined;
-  try {
-    const { createTrustGraphSocket } = await import(
-      "../packages/client/src/socket/trustgraph-socket.js"
-    );
+  return yield* Effect.gen(function* () {
+    const { createTrustGraphSocket } = yield* Effect.tryPromise({
+      try: () => import("../packages/client/src/socket/trustgraph-socket.js"),
+      catch: (cause) => pipelineError("websocket.import", cause),
+    });
 
-    const gatewayWsUrl = GATEWAY_URL.replace(/^http/, "ws").replace(/\/$/, "");
+    const gatewayWsUrl = config.gatewayUrl.replace(/^http/, "ws").replace(/\/$/, "");
     socket = createTrustGraphSocket(
       "pipeline",
-      process.env.GATEWAY_SECRET,
+      config.gatewaySecret,
       `${gatewayWsUrl}/api/v1/rpc`,
     );
-    const response = await Promise.race([
-      socket.makeRequest<Record<string, unknown>, Record<string, unknown>>(
+    const response = yield* Effect.tryPromise({
+      try: () =>
+        socket?.makeRequest<Record<string, unknown>, Record<string, unknown>>(
         "config",
         { operation: "list", keys: [] },
         5000,
-      ),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("connection timeout")), 5000)
-      ),
-    ]);
+      ) ?? Promise.resolve({}),
+      catch: (cause) => pipelineError("websocket.request", cause),
+    }).pipe(Effect.timeout("5 seconds"));
 
     log("websocket/rpc-response", response);
     pass("Effect RPC WebSocket round-trip works");
     return true;
-  } catch (err) {
-    fail("Effect RPC WebSocket", err);
-    return false;
-  } finally {
-    socket?.close();
-  }
-}
+  }).pipe(Effect.ensuring(Effect.sync(() => socket?.close())));
+}));
 
 // ─── Librarian Tests ──────────────────────────────────────────────────
 
 let testDocId = "";
 
-async function testLibrarianAdd(): Promise<boolean> {
-  try {
+const testLibrarianAdd = (config: PipelineConfig) => catchTest("Librarian add-document", Effect.gen(function* () {
     const content = Buffer.from("Hello from TrustGraph TypeScript!").toString("base64");
-    const res = await post("/api/v1/librarian", {
+    const res = yield* post(config, "/api/v1/librarian", {
       operation: "add-document",
       user: "test-user",
       collection: "test-collection",
@@ -299,15 +364,10 @@ async function testLibrarianAdd(): Promise<boolean> {
     }
     fail("Librarian add-document", "no documentMetadata.id in response");
     return false;
-  } catch (err) {
-    fail("Librarian add-document", err);
-    return false;
-  }
-}
+}));
 
-async function testLibrarianList(): Promise<boolean> {
-  try {
-    const res = await post("/api/v1/librarian", {
+const testLibrarianList = (config: PipelineConfig) => catchTest("Librarian list-documents", Effect.gen(function* () {
+    const res = yield* post(config, "/api/v1/librarian", {
       operation: "list-documents",
       user: "test-user",
     });
@@ -320,19 +380,14 @@ async function testLibrarianList(): Promise<boolean> {
     }
     fail("Librarian list-documents", "empty or missing documents array");
     return false;
-  } catch (err) {
-    fail("Librarian list-documents", err);
-    return false;
-  }
-}
+}));
 
-async function testLibrarianGetContent(): Promise<boolean> {
+const testLibrarianGetContent = (config: PipelineConfig) => catchTest("Librarian get-content", Effect.gen(function* () {
   if (!testDocId) {
     fail("Librarian get-content", "no document ID from add test");
     return false;
   }
-  try {
-    const res = await post("/api/v1/librarian", {
+    const res = yield* post(config, "/api/v1/librarian", {
       operation: "get-document-content",
       documentId: testDocId,
       user: "test-user",
@@ -350,19 +405,14 @@ async function testLibrarianGetContent(): Promise<boolean> {
     }
     fail("Librarian get-content", "no content in response");
     return false;
-  } catch (err) {
-    fail("Librarian get-content", err);
-    return false;
-  }
-}
+}));
 
-async function testLibrarianDelete(): Promise<boolean> {
+const testLibrarianDelete = (config: PipelineConfig) => catchTest("Librarian delete", Effect.gen(function* () {
   if (!testDocId) {
     fail("Librarian delete", "no document ID from add test");
     return false;
   }
-  try {
-    const res = await post("/api/v1/librarian", {
+    const res = yield* post(config, "/api/v1/librarian", {
       operation: "remove-document",
       documentId: testDocId,
       user: "test-user",
@@ -370,7 +420,7 @@ async function testLibrarianDelete(): Promise<boolean> {
     log("librarian/delete", res);
 
     // Verify it's gone
-    const listRes = await post("/api/v1/librarian", {
+    const listRes = yield* post(config, "/api/v1/librarian", {
       operation: "list-documents",
       user: "test-user",
     }) as Record<string, unknown>;
@@ -381,19 +431,14 @@ async function testLibrarianDelete(): Promise<boolean> {
     }
     fail("Librarian remove-document", "document still present after delete");
     return false;
-  } catch (err) {
-    fail("Librarian delete", err);
-    return false;
-  }
-}
+}));
 
 // ─── Document Load Test ──────────────────────────────────────────────
 
-async function testDocumentLoad(): Promise<boolean> {
-  try {
+const testDocumentLoad = (config: PipelineConfig) => catchTest("Document load", Effect.gen(function* () {
     // First upload a test document via librarian
     const content = Buffer.from("Test document for pipeline processing.").toString("base64");
-    const addRes = await post("/api/v1/librarian", {
+    const addRes = yield* post(config, "/api/v1/librarian", {
       operation: "add-document",
       user: "test-user",
       collection: "test-collection",
@@ -418,23 +463,18 @@ async function testDocumentLoad(): Promise<boolean> {
     const docId = meta.id as string;
 
     // Trigger document processing via the load endpoint
-    const res = await fetch(`${GATEWAY_URL}/api/v1/flow/default/load`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        documentId: docId,
-        user: "test-user",
-        collection: "test-collection",
-      }),
+    const data = yield* post(config, "/api/v1/flow/default/load", {
+      documentId: docId,
+      user: "test-user",
+      collection: "test-collection",
     });
-    const data = await res.json() as Record<string, unknown>;
     log("document-load", data);
 
     if (data.status === "processing") {
       pass(`Document load triggered for ${docId.slice(0, 8)}...`);
 
       // Clean up the test document
-      await post("/api/v1/librarian", {
+      yield* post(config, "/api/v1/librarian", {
         operation: "remove-document",
         documentId: docId,
         user: "test-user",
@@ -444,21 +484,25 @@ async function testDocumentLoad(): Promise<boolean> {
     }
     fail("Document load", "unexpected response");
     return false;
-  } catch (err) {
-    fail("Document load", err);
-    return false;
-  }
-}
+}));
 
 // ─── Full Pipeline Test (real PDF) ───────────────────────────────────
 
-async function testFullPipeline(): Promise<boolean> {
-  try {
+const testFullPipeline = (config: PipelineConfig) => catchTest("Full pipeline", Effect.gen(function* () {
     // 1. Generate a test PDF in memory using pdf-lib
-    const { PDFDocument, StandardFonts } = await import("pdf-lib");
+    const { PDFDocument, StandardFonts } = yield* Effect.tryPromise({
+      try: () => import("pdf-lib"),
+      catch: (cause) => pipelineError("full-pipeline.import-pdf-lib", cause),
+    });
 
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const pdfDoc = yield* Effect.tryPromise({
+      try: () => PDFDocument.create(),
+      catch: (cause) => pipelineError("full-pipeline.create-pdf", cause),
+    });
+    const font = yield* Effect.tryPromise({
+      try: () => pdfDoc.embedFont(StandardFonts.Helvetica),
+      catch: (cause) => pipelineError("full-pipeline.embed-font", cause),
+    });
 
     const texts = [
       "Alice Johnson is a senior engineer at Acme Corporation. Acme develops CloudSync, a cloud storage platform. CloudSync uses Amazon Web Services for hosting.",
@@ -470,13 +514,16 @@ async function testFullPipeline(): Promise<boolean> {
       page.drawText(text, { x: 50, y: 700, size: 11, font, maxWidth: 500 });
     }
 
-    const pdfBytes = await pdfDoc.save();
+    const pdfBytes = yield* Effect.tryPromise({
+      try: () => pdfDoc.save(),
+      catch: (cause) => pipelineError("full-pipeline.save-pdf", cause),
+    });
     const content = Buffer.from(pdfBytes).toString("base64");
 
     console.log(`  Generated test PDF: ${pdfBytes.length} bytes, 2 pages`);
 
     // 2. Upload to librarian as application/pdf
-    const addRes = await post("/api/v1/librarian", {
+    const addRes = yield* post(config, "/api/v1/librarian", {
       operation: "add-document",
       user: "test",
       collection: "test",
@@ -502,61 +549,76 @@ async function testFullPipeline(): Promise<boolean> {
     console.log(`  Uploaded PDF as document ${docId.slice(0, 8)}...`);
 
     // 3. Trigger pipeline processing
-    const loadRes = await fetch(`${GATEWAY_URL}/api/v1/flow/default/load`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: docId, user: "test", collection: "test" }),
+    const loadData = yield* post(config, "/api/v1/flow/default/load", {
+      documentId: docId,
+      user: "test",
+      collection: "test",
     });
-    const loadData = await loadRes.json() as Record<string, unknown>;
 
-    if (loadData.status !== "processing") {
-      fail("Full pipeline", `load returned: ${JSON.stringify(loadData)}`);
+    const loadRecord = loadData as Record<string, unknown>;
+    if (loadRecord.status !== "processing") {
+      fail("Full pipeline", `load returned: ${String(loadData)}`);
       return false;
     }
     console.log("  Pipeline triggered, waiting for processing...");
 
     // 4. Wait for pipeline to complete (PDF decode + chunking + extraction + storage)
     // This involves multiple LLM calls so give it time
-    const waitSecs = Number.parseInt(process.env.PIPELINE_WAIT ?? "20", 10);
-    for (let i = waitSecs; i > 0; i--) {
+    for (let i = config.pipelineWaitSeconds; i > 0; i--) {
       process.stdout.write(`\r  Waiting... ${i}s remaining `);
-      await new Promise((r) => setTimeout(r, 1000));
+      yield* Effect.sleep("1 second");
     }
     console.log("\r  Processing wait complete.              ");
 
     // 5. Verify triples in FalkorDB
     let triplesFound = false;
-    try {
-      const { createClient } = await import("falkordb");
-      const client = createClient({
-        url: process.env.FALKORDB_URL ?? "redis://localhost:6380",
-      });
-      await client.connect();
-      const graph = client.graph("falkordb");
-      const result = await graph.query("MATCH (n:Node) RETURN count(n) as cnt");
-      const count = result.data?.[0]?.[0] ?? 0;
-      await client.disconnect();
+    const falkorCount = yield* Effect.tryPromise({
+      try: async () => {
+        const { createClient } = await import("falkordb");
+        const client = createClient({
+          url: config.falkorDbUrl,
+        });
+        await client.connect();
+        const graph = client.graph("falkordb");
+        const result = await graph.query("MATCH (n:Node) RETURN count(n) as cnt");
+        const count = result.data?.[0]?.[0] ?? 0;
+        await client.disconnect();
+        return count;
+      },
+      catch: (cause) => pipelineError("full-pipeline.falkordb", cause),
+    }).pipe(
+      Effect.catch((err) => {
+        const errStr = String(err);
+        if (errStr.includes("Cannot find package") || errStr.includes("MODULE_NOT_FOUND")) {
+          console.log("  FalkorDB check skipped: falkordb package not available at workspace root");
+        } else {
+          console.log(`  FalkorDB check failed: ${err}`);
+        }
+        return Effect.succeed(undefined);
+      }),
+    );
 
-      if (typeof count === "number" && count > 0) {
-        console.log(`  FalkorDB: ${count} nodes found`);
+      if (typeof falkorCount === "number" && falkorCount > 0) {
+        console.log(`  FalkorDB: ${falkorCount} nodes found`);
         triplesFound = true;
       } else {
-        console.log(`  FalkorDB: no nodes found (count=${count})`);
+        console.log(`  FalkorDB: no nodes found (count=${falkorCount})`);
       }
-    } catch (err) {
-      const errStr = String(err);
-      if (errStr.includes("Cannot find package") || errStr.includes("MODULE_NOT_FOUND")) {
-        console.log("  FalkorDB check skipped: falkordb package not available at workspace root");
-      } else {
-        console.log(`  FalkorDB check failed: ${err}`);
-      }
-    }
 
     // 6. Verify embeddings in Qdrant
     let embeddingsFound = false;
-    try {
-      const qdrantRes = await fetch("http://localhost:6333/collections");
-      const qdrantData = await qdrantRes.json() as { result?: { collections?: Array<{ name: string }> } };
+    const qdrantData = yield* getJson("http://localhost:6333/collections").pipe(
+      Effect.flatMap((value) =>
+        S.decodeUnknownEffect(QdrantCollectionsResponse)(value).pipe(
+          Effect.mapError((cause) => pipelineError("full-pipeline.qdrant.decode", cause)),
+        )
+      ),
+      Effect.catch((err) => {
+        console.log(`  Qdrant check failed: ${err}`);
+        return Effect.succeed(undefined);
+      }),
+    );
+    if (qdrantData !== undefined) {
       const collections = qdrantData.result?.collections ?? [];
       const testCollections = collections.filter((c) => c.name.startsWith("t_test_test_"));
 
@@ -566,8 +628,6 @@ async function testFullPipeline(): Promise<boolean> {
       } else {
         console.log(`  Qdrant: no test collections found (total: ${collections.length} collections)`);
       }
-    } catch (err) {
-      console.log(`  Qdrant check failed: ${err}`);
     }
 
     // 7. Report results
@@ -584,21 +644,15 @@ async function testFullPipeline(): Promise<boolean> {
       // Pipeline triggered but stores not populated yet — partial success
       pass("Full pipeline: triggered successfully (stores may need more time)");
       return true;
-  } catch (err) {
-    fail("Full pipeline", err);
-    return false;
-  }
-}
+}));
 
 // ─── Agent Test ───────────────────────────────────────────────────────
 
-async function testAgentQuery(): Promise<boolean> {
-  try {
+const testAgentQuery = (config: PipelineConfig) => catchTest("Agent", Effect.gen(function* () {
     console.log("\n  Sending agent request (may take a few seconds)...");
-    const model = process.env.LLM_MODEL ?? "qwen2.5:0.5b";
-    const res = await post("/api/v1/flow/default/service/agent", {
+    const res = yield* post(config, "/api/v1/flow/default/service/agent", {
       question: "What is the capital of France?",
-      model,
+      model: config.llmModel,
     });
     log("agent", res);
     const r = res as Record<string, unknown>;
@@ -615,91 +669,94 @@ async function testAgentQuery(): Promise<boolean> {
     }
     fail("Agent", "unexpected response format");
     return false;
-  } catch (err) {
-    fail("Agent", err);
-    return false;
-  }
-}
+}));
 
 // ─── Main ─────────────────────────────────────────────────────────────
 
-async function main(): Promise<void> {
+const main = Effect.fn("test-pipeline.main")(function* () {
+  const config = yield* loadConfig();
+
   console.log("╔══════════════════════════════════════════════════╗");
   console.log("║  TrustGraph TypeScript — Integration Test       ║");
   console.log("╚══════════════════════════════════════════════════╝");
-  console.log(`\nGateway: ${GATEWAY_URL}`);
+  console.log(`\nGateway: ${config.gatewayUrl}`);
 
   // Check gateway is reachable
-  try {
-    const res = await fetch(`${GATEWAY_URL}/api/v1/metrics`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const isReachable = yield* gatewayReachable(config);
+  if (isReachable) {
     pass("Gateway reachable");
-  } catch (err) {
-    fail("Gateway reachable", err);
+  } else {
+    fail("Gateway reachable", "metrics endpoint unavailable");
     console.error("\n⚠ Gateway not running. Start it first:");
     console.error("  pnpm tsx scripts/run-gateway.ts");
-    process.exit(1);
+    return yield* PipelineTestError.make({
+      operation: "gateway-reachable",
+      message: "gateway metrics endpoint unavailable",
+    });
   }
 
   let passed = 0;
   let failed = 0;
-  const run = async (name: string, fn: () => Promise<boolean>) => {
+  const run = Effect.fn("test-pipeline.run")(function* (
+    name: string,
+    test: Effect.Effect<boolean, never, HttpClient.HttpClient>,
+  ) {
     console.log(`\n── ${name} ──`);
-    if (await fn()) passed++;
+    if (yield* test) passed++;
     else failed++;
-  };
+  });
 
   // Config CRUD tests
-  await run("Config List", testConfigList);
-  await run("Config Put", testConfigPut);
-  await run("Config Get", testConfigGet);
-  await run("Config Delete", testConfigDelete);
+  yield* run("Config List", testConfigList(config));
+  yield* run("Config Put", testConfigPut(config));
+  yield* run("Config Get", testConfigGet(config));
+  yield* run("Config Delete", testConfigDelete(config));
 
   // WebSocket test
-  await run("WebSocket Round-Trip", testWebSocket);
+  yield* run("WebSocket Round-Trip", testWebSocket(config));
 
   // Flow config push
-  await run("Push Flow Config", testPushFlowConfig);
+  yield* run("Push Flow Config", testPushFlowConfig(config));
 
   // Document pipeline load test (requires librarian + gateway)
-  if (process.env.SKIP_PIPELINE !== "1" && process.env.SKIP_LIBRARIAN !== "1") {
+  if (!config.skipPipeline && !config.skipLibrarian) {
     console.log("\n  (Testing document load — set SKIP_PIPELINE=1 to skip)");
-    await run("Document Load", testDocumentLoad);
+    yield* run("Document Load", testDocumentLoad(config));
   } else {
     console.log("\n  (Skipping document pipeline load test)");
   }
 
   // LLM test (only if a running LLM service is available)
-  if (process.env.SKIP_LLM !== "1") {
+  if (!config.skipLlm) {
     console.log("\n  (Testing text-completion — set SKIP_LLM=1 to skip)");
-    await run("Text Completion", testTextCompletion);
+    yield* run("Text Completion", testTextCompletion(config));
   } else {
     console.log("\n  (SKIP_LLM=1 — skipping LLM test)");
   }
 
   // Librarian tests (only if librarian service is running)
-  if (process.env.SKIP_LIBRARIAN !== "1") {
+  if (!config.skipLibrarian) {
     console.log("\n  (Testing librarian — set SKIP_LIBRARIAN=1 to skip)");
-    await run("Librarian Add", testLibrarianAdd);
-    await run("Librarian List", testLibrarianList);
-    await run("Librarian Get Content", testLibrarianGetContent);
-    await run("Librarian Delete", testLibrarianDelete);
+    yield* run("Librarian Add", testLibrarianAdd(config));
+    yield* run("Librarian List", testLibrarianList(config));
+    yield* run("Librarian Get Content", testLibrarianGetContent(config));
+    yield* run("Librarian Delete", testLibrarianDelete(config));
   } else {
     console.log("\n  (SKIP_LIBRARIAN=1 — skipping librarian tests)");
   }
 
   // Full pipeline test (real PDF → decode → chunk → extract → store)
-  if (process.env.SKIP_PIPELINE !== "1" && process.env.SKIP_LLM !== "1") {
+  if (!config.skipPipeline && !config.skipLlm) {
     console.log("\n  (Testing full pipeline with real PDF — set SKIP_PIPELINE=1 to skip)");
-    await run("Full Pipeline", testFullPipeline);
+    yield* run("Full Pipeline", testFullPipeline(config));
   } else {
     console.log("\n  (Skipping full pipeline test)");
   }
 
   // Agent test (only if agent + LLM services are running)
-  if (process.env.SKIP_AGENT !== "1" && process.env.SKIP_LLM !== "1") {
+  if (!config.skipAgent && !config.skipLlm) {
     console.log("\n  (Testing agent — set SKIP_AGENT=1 to skip)");
-    await run("Agent Query", testAgentQuery);
+    yield* run("Agent Query", testAgentQuery(config));
   } else {
     console.log("\n  (Skipping agent test)");
   }
@@ -708,7 +765,12 @@ async function main(): Promise<void> {
   console.log(`  Results: ${passed} passed, ${failed} failed`);
   console.log("══════════════════════════════════════════════════\n");
 
-  process.exit(failed > 0 ? 1 : 0);
-}
+  if (failed > 0) {
+    return yield* PipelineTestError.make({
+      operation: "results",
+      message: `${failed} integration test(s) failed`,
+    });
+  }
+});
 
-main();
+BunRuntime.runMain(main().pipe(Effect.provide(BunHttpClient.layer)));

@@ -1,5 +1,8 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { BunRuntime } from "@effect/platform-bun";
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import { Array as A, Effect, Layer, Order, Path, Schema as S } from "effect";
+import * as FileSystem from "effect/FileSystem";
+import type { PlatformError } from "effect/PlatformError";
 import ts from "typescript";
 
 type Scope = "production" | "non-production";
@@ -17,10 +20,8 @@ interface ClassFinding {
 }
 
 const root = process.cwd();
-const packagesSrc = join(root, "packages");
-const scriptsDir = join(root, "scripts");
-
 const sourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
+const ignoredDirectories = new Set(["dist", "node_modules", ".turbo"]);
 const effectClassPatterns = [
   /\bS\.(Class|TaggedClass|TaggedErrorClass|ErrorClass)\b/,
   /\bSchema\.(Class|TaggedClass|TaggedErrorClass|ErrorClass)\b/,
@@ -33,6 +34,11 @@ const effectClassPatterns = [
   /\bEffect\.Service\b/,
 ];
 
+class InventoryFailed extends S.TaggedErrorClass<InventoryFailed>()(
+  "InventoryFailed",
+  { message: S.String },
+) {}
+
 function extensionOf(path: string): string {
   const match = path.match(/\.[cm]?tsx?$/);
   return match?.[0] ?? "";
@@ -42,30 +48,32 @@ function isSourceFile(path: string): boolean {
   return sourceExtensions.has(extensionOf(path));
 }
 
-function walk(dir: string): string[] {
-  if (!existsSync(dir)) {
-    return [];
-  }
+const walk = Effect.fn("inventory.walk")(function*(
+  dir: string,
+): Effect.Effect<string[], PlatformError, FileSystem.FileSystem | Path.Path> {
+  const fs = yield* FileSystem.FileSystem;
+  const platformPath = yield* Path.Path;
+  const exists = yield* fs.exists(dir);
+  if (!exists) return [];
 
-  const files: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    if (entry === "dist" || entry === "node_modules" || entry === ".turbo") {
-      continue;
-    }
-
-    const path = join(dir, entry);
-    const stat = statSync(path);
-    if (stat.isDirectory()) {
-      files.push(...walk(path));
-    } else if (stat.isFile() && isSourceFile(path)) {
-      files.push(path);
-    }
-  }
-  return files;
-}
+  const entries = yield* fs.readDirectory(dir);
+  const chunks = yield* Effect.all(
+    entries.map((entry) =>
+      Effect.gen(function*() {
+        if (ignoredDirectories.has(entry)) return [];
+        const fullPath = platformPath.join(dir, entry);
+        const stat = yield* fs.stat(fullPath);
+        if (stat.type === "Directory") return yield* walk(fullPath);
+        return stat.type === "File" && isSourceFile(fullPath) ? [fullPath] : [];
+      })
+    ),
+    { concurrency: 16 },
+  );
+  return chunks.flat();
+});
 
 function isProductionPackageSource(path: string): boolean {
-  const rel = relative(root, path).split(sep).join("/");
+  const rel = path;
   return (
     rel.startsWith("packages/") &&
     rel.includes("/src/") &&
@@ -107,8 +115,12 @@ function classify(scope: Scope, extendsText?: string): Pick<ClassFinding, "class
   };
 }
 
-function inspectFile(path: string): ClassFinding[] {
-  const sourceText = readFileSync(path, "utf8");
+const inspectFile = Effect.fn("inventory.inspectFile")(function*(
+  path: string,
+  relativePath: string,
+): Effect.Effect<ClassFinding[], PlatformError, FileSystem.FileSystem> {
+  const fs = yield* FileSystem.FileSystem;
+  const sourceText = yield* fs.readFileString(path);
   const source = ts.createSourceFile(
     path,
     sourceText,
@@ -116,7 +128,7 @@ function inspectFile(path: string): ClassFinding[] {
     true,
     path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   );
-  const scope: Scope = isProductionPackageSource(path) ? "production" : "non-production";
+  const scope: Scope = isProductionPackageSource(relativePath) ? "production" : "non-production";
   const findings: ClassFinding[] = [];
 
   function visit(node: ts.Node): void {
@@ -125,7 +137,7 @@ function inspectFile(path: string): ClassFinding[] {
       const extendsText = getExtendsText(node, source);
       const { classification, reason } = classify(scope, extendsText);
       findings.push({
-        file: relative(root, path).split(sep).join("/"),
+        file: relativePath,
         line: position.line + 1,
         column: position.character + 1,
         name: getClassName(node),
@@ -141,14 +153,7 @@ function inspectFile(path: string): ClassFinding[] {
 
   visit(source);
   return findings;
-}
-
-const files = [...walk(packagesSrc), ...walk(scriptsDir)].sort();
-const findings = files.flatMap(inspectFile);
-const productionFindings = findings.filter((finding) => finding.scope === "production");
-const blocking = productionFindings.filter((finding) => finding.classification === "blocking");
-const candidates = productionFindings.filter((finding) => finding.classification === "candidate-effect-exemption");
-const nonProduction = findings.filter((finding) => finding.scope === "non-production");
+});
 
 function printGroup(title: string, group: ClassFinding[]): void {
   console.log(`${title}: ${group.length}`);
@@ -160,13 +165,37 @@ function printGroup(title: string, group: ClassFinding[]): void {
   }
 }
 
-printGroup("Blocking production native classes", blocking);
-printGroup("Candidate Effect class-shaped exemptions", candidates);
-printGroup("Non-production class declarations", nonProduction);
+const program = Effect.fn("inventory.main")(function*() {
+  const platformPath = yield* Path.Path;
+  const packageFiles = yield* walk(platformPath.join(root, "packages"));
+  const scriptFiles = yield* walk(platformPath.join(root, "scripts"));
+  const files = A.sort([...packageFiles, ...scriptFiles], Order.String);
+  const findings = (yield* Effect.all(
+    files.map((file) =>
+      inspectFile(file, platformPath.relative(root, file).split(platformPath.sep).join("/"))
+    ),
+    { concurrency: 16 },
+  )).flat();
+  const productionFindings = findings.filter((finding) => finding.scope === "production");
+  const blocking = productionFindings.filter((finding) => finding.classification === "blocking");
+  const candidates = productionFindings.filter((finding) => finding.classification === "candidate-effect-exemption");
+  const nonProduction = findings.filter((finding) => finding.scope === "non-production");
 
-if (blocking.length > 0) {
-  console.error(`\nFound ${blocking.length} blocking production native class declarations.`);
-  process.exit(1);
-}
+  printGroup("Blocking production native classes", blocking);
+  printGroup("Candidate Effect class-shaped exemptions", candidates);
+  printGroup("Non-production class declarations", nonProduction);
 
-console.log("\nNo blocking production native class declarations found.");
+  if (blocking.length > 0) {
+    const message = `Found ${blocking.length} blocking production native class declarations.`;
+    console.error(`\n${message}`);
+    return yield* InventoryFailed.make({ message });
+  }
+
+  console.log("\nNo blocking production native class declarations found.");
+});
+
+BunRuntime.runMain(
+  program().pipe(
+    Effect.provide(Layer.merge(BunFileSystem.layer, Path.layer)),
+  ),
+);

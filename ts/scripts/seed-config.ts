@@ -6,25 +6,117 @@
  * Requires: gateway + config service running
  */
 
-const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://localhost:8088";
+import { BunRuntime } from "@effect/platform-bun";
+import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
+import { Config, Effect, Option as O, Schema as S } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 
-async function pushConfig(keys: string[], values: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`${GATEWAY_URL}/api/v1/config`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ operation: "put", keys, values }),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(`Config push failed: ${data.error.message}`);
-  console.log(`  Pushed config [${keys.join("/")}] → version ${data.version}`);
-}
+const DEFAULT_GATEWAY_URL = "http://localhost:8088";
 
-async function main(): Promise<void> {
+class SeedConfigError extends S.TaggedErrorClass<SeedConfigError>()(
+  "SeedConfigError",
+  {
+    operation: S.String,
+    message: S.String,
+  },
+) {}
+
+const GatewayErrorBody = S.Struct({
+  message: S.optionalKey(S.String),
+});
+
+const ConfigPushResponse = S.Struct({
+  version: S.optionalKey(S.Number),
+  error: S.optionalKey(GatewayErrorBody),
+});
+
+const stringifyJson = (operation: string, value: unknown) =>
+  S.encodeUnknownEffect(S.UnknownFromJsonString)(value).pipe(
+    Effect.mapError((cause) =>
+      SeedConfigError.make({
+        operation,
+        message: String(cause),
+      })
+    ),
+  );
+
+const decodeConfigResponse = (operation: string, value: unknown) =>
+  S.decodeUnknownEffect(ConfigPushResponse)(value).pipe(
+    Effect.mapError((cause) =>
+      SeedConfigError.make({
+        operation,
+        message: String(cause),
+      })
+    ),
+  );
+
+const postJson = Effect.fn("seed-config.postJson")(function* (
+  gatewayUrl: string,
+  path: string,
+  body: unknown,
+) {
+  const bodyText = yield* stringifyJson("encode-request", body);
+  const request = HttpClientRequest.post(`${gatewayUrl}${path}`, { acceptJson: true }).pipe(
+    HttpClientRequest.bodyText(bodyText, "application/json"),
+  );
+  const response = yield* HttpClient.execute(request).pipe(
+    Effect.flatMap(HttpClientResponse.filterStatusOk),
+    Effect.mapError((cause) =>
+      SeedConfigError.make({
+        operation: "http-request",
+        message: String(cause),
+      })
+    ),
+  );
+  const responseText = yield* response.text.pipe(
+    Effect.mapError((cause) =>
+      SeedConfigError.make({
+        operation: "read-response",
+        message: String(cause),
+      })
+    ),
+  );
+  return yield* S.decodeUnknownEffect(S.UnknownFromJsonString)(responseText).pipe(
+    Effect.mapError((cause) =>
+      SeedConfigError.make({
+        operation: "decode-response-json",
+        message: String(cause),
+      })
+    ),
+  );
+});
+
+const pushConfig = Effect.fn("seed-config.pushConfig")(function* (
+  gatewayUrl: string,
+  keys: ReadonlyArray<string>,
+  values: Record<string, unknown>,
+) {
+  const data = yield* postJson(gatewayUrl, "/api/v1/config", {
+    operation: "put",
+    keys,
+    values,
+  }).pipe(Effect.flatMap((response) => decodeConfigResponse("decode-config-response", response)));
+
+  if (data.error !== undefined) {
+    return yield* SeedConfigError.make({
+      operation: "config-push",
+      message: data.error.message ?? "unknown gateway error",
+    });
+  }
+
+  console.log(`  Pushed config [${keys.join("/")}] → version ${data.version ?? "unknown"}`);
+});
+
+const main = Effect.fn("seed-config.main")(function* () {
+  const gatewayUrl = yield* Config.string("GATEWAY_URL").pipe(Config.withDefault(DEFAULT_GATEWAY_URL));
+  const braveApiKey = yield* Config.redacted("BRAVE_API_KEY").pipe(Config.option);
+  const hasBraveApiKey = O.isSome(braveApiKey);
+
   console.log("Seeding TrustGraph configuration...\n");
 
   // 1. Prompt templates
   console.log("── Prompt Templates ──");
-  await pushConfig(["prompt"], {
+  yield* pushConfig(gatewayUrl, ["prompt"], {
     "extract-relationships": {
       system: "You are a helpful assistant that extracts structured knowledge from text.",
       prompt: [
@@ -142,7 +234,7 @@ async function main(): Promise<void> {
 
   // 2. Flow definitions (default flow with all topic mappings)
   console.log("\n── Flow Definitions ──");
-  await pushConfig(["flows"], {
+  yield* pushConfig(gatewayUrl, ["flows"], {
     default: {
       topics: {
         // Document processing pipeline
@@ -197,10 +289,9 @@ async function main(): Promise<void> {
 
   // 3. MCP server configuration (external tool providers)
   console.log("\n── MCP Configuration ──");
-  const braveApiKey = process.env.BRAVE_API_KEY;
-  if (braveApiKey) {
-    await pushConfig(["mcp"], {
-      "brave-search": JSON.stringify({
+  if (hasBraveApiKey) {
+    yield* pushConfig(gatewayUrl, ["mcp"], {
+      "brave-search": yield* stringifyJson("encode-brave-search-mcp", {
         url: "http://localhost:8383/mcp",
         "remote-name": "brave_web_search",
       }),
@@ -213,19 +304,19 @@ async function main(): Promise<void> {
   // 4. Agent tool configuration (maps tools to implementations)
   console.log("\n── Tool Configuration ──");
   const toolConfig: Record<string, string> = {
-    "knowledge-query": JSON.stringify({
+    "knowledge-query": yield* stringifyJson("encode-knowledge-query-tool", {
       type: "knowledge-query",
       name: "KnowledgeQuery",
       description: "Query the knowledge graph for information about entities and their relationships.",
       group: ["default"],
     }),
-    "document-query": JSON.stringify({
+    "document-query": yield* stringifyJson("encode-document-query-tool", {
       type: "document-query",
       name: "DocumentQuery",
       description: "Search the document library for relevant information using semantic search.",
       group: ["default"],
     }),
-    "triples-query": JSON.stringify({
+    "triples-query": yield* stringifyJson("encode-triples-query-tool", {
       type: "triples-query",
       name: "TriplesQuery",
       description: "Query for specific triples (subject-predicate-object relationships) in the knowledge graph.",
@@ -234,8 +325,8 @@ async function main(): Promise<void> {
   };
 
   // Add Brave Search tool if API key is available
-  if (braveApiKey) {
-    toolConfig["brave-search"] = JSON.stringify({
+  if (hasBraveApiKey) {
+    toolConfig["brave-search"] = yield* stringifyJson("encode-brave-search-tool", {
       type: "mcp-tool",
       name: "brave-search",
       description: "Search the web using Brave Search. Returns web search results including titles, URLs, and descriptions.",
@@ -248,12 +339,9 @@ async function main(): Promise<void> {
     console.log("  Brave Search tool added");
   }
 
-  await pushConfig(["tool"], toolConfig);
+  yield* pushConfig(gatewayUrl, ["tool"], toolConfig);
 
   console.log("\nConfiguration seeded successfully.");
-}
-
-main().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
 });
+
+BunRuntime.runMain(main().pipe(Effect.provide(BunHttpClient.layer)));
