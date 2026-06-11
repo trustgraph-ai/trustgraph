@@ -337,16 +337,13 @@ export const makeMcpToolConfigHandlers = (): ReadonlyArray<
 export type McpToolService = FlowProcessorRuntime<McpToolRuntime>;
 
 export function makeMcpToolService(config: ProcessorConfig): McpToolService {
-  const runtime = Effect.runSync(makeMcpToolRuntime);
   const service = makeFlowProcessor(config, {
     specifications: makeMcpToolSpecs(),
-    provide: (effect) => effect.pipe(Effect.provideService(McpToolRuntime, runtime)),
-  });
-  service.registerConfigHandler((pushedConfig, version) =>
-    onMcpConfig(pushedConfig, version).pipe(
-      Effect.provideService(McpToolRuntime, runtime),
+    provide: (effect) => effect.pipe(
+      Effect.provideServiceEffect(McpToolRuntime, makeMcpToolRuntime),
     ),
-  );
+  });
+  service.registerConfigHandler(onMcpConfig);
   return service;
 }
 

@@ -132,7 +132,14 @@ const makeOllamaProviderFromClient = (
 export function makeOllamaProvider(
   config: OllamaProcessorConfig,
 ): LlmProvider<TextCompletionRuntimeError> {
-  return Effect.runSync(makeOllamaProviderEffect(config));
+  const resolved = {
+    defaultModel: config.model ?? "qwen2.5:0.5b",
+    host: config.ollamaUrl ?? "http://localhost:11434",
+  } satisfies ResolvedOllamaConfig;
+  return makeOllamaProviderFromClient(
+    resolved,
+    new Ollama({ host: resolved.host }),
+  );
 }
 
 export const makeOllamaProviderEffect = Effect.fn("makeOllamaProvider")(function*(

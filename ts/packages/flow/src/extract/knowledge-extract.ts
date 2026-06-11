@@ -30,6 +30,7 @@ import type {
   Spec,
 } from "@trustgraph/base";
 import {
+  errorMessage,
   makeFlowProcessor,
   makeConsumerSpec,
   makeProducerSpec,
@@ -179,7 +180,7 @@ const onKnowledgeExtractMessage = Effect.fn("KnowledgeExtractService.onMessage")
   const relationships = yield* extractRelationships(promptClient, llmClient, text).pipe(
     Effect.catch((error: unknown) =>
       Effect.logError("[KnowledgeExtract] Relationship extraction failed", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       }).pipe(Effect.as(null)),
     ),
   );
@@ -233,7 +234,7 @@ const onKnowledgeExtractMessage = Effect.fn("KnowledgeExtractService.onMessage")
   const definitions = yield* extractDefinitions(promptClient, llmClient, text).pipe(
     Effect.catch((error: unknown) =>
       Effect.logError("[KnowledgeExtract] Definition extraction failed", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       }).pipe(Effect.as(null)),
     ),
   );
@@ -294,11 +295,9 @@ export const makeKnowledgeExtractSpecs = (): ReadonlyArray<Spec> => [
 export type KnowledgeExtractService = FlowProcessorRuntime;
 
 export function makeKnowledgeExtractService(config: ProcessorConfig): KnowledgeExtractService {
-  const service = makeFlowProcessor(config, {
+  return makeFlowProcessor(config, {
     specifications: makeKnowledgeExtractSpecs(),
   });
-  Effect.runSync(Effect.log("[KnowledgeExtract] Service initialized"));
-  return service;
 }
 
 export const KnowledgeExtractService = makeKnowledgeExtractService;
@@ -332,9 +331,6 @@ export function parseJsonResponse<T>(raw: string): T | null {
     if (O.isSome(decoded)) return decoded.value as T;
   }
 
-  Effect.runSync(Effect.logWarning("[KnowledgeExtract] Failed to parse JSON from LLM response", {
-    response: raw.slice(0, 300),
-  }));
   return null;
 }
 
@@ -343,9 +339,6 @@ function parseRelationshipsResponse(raw: string): ReadonlyArray<ExtractedRelatio
     const decoded = decodeExtractedRelationships(candidate);
     if (O.isSome(decoded)) return decoded.value;
   }
-  Effect.runSync(Effect.logWarning("[KnowledgeExtract] Failed to parse relationships from LLM response", {
-    response: raw.slice(0, 300),
-  }));
   return null;
 }
 
@@ -354,9 +347,6 @@ function parseDefinitionsResponse(raw: string): ReadonlyArray<ExtractedDefinitio
     const decoded = decodeExtractedDefinitions(candidate);
     if (O.isSome(decoded)) return decoded.value;
   }
-  Effect.runSync(Effect.logWarning("[KnowledgeExtract] Failed to parse definitions from LLM response", {
-    response: raw.slice(0, 300),
-  }));
   return null;
 }
 

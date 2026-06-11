@@ -16,7 +16,7 @@ import {
   makeFlowProcessorProgram,
   makeLlmSpecs,
 } from "@trustgraph/base";
-import { Effect, Layer, Redacted } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import type {
   TextCompletionConfigError,
@@ -69,7 +69,32 @@ const makeClaudeLayer = (apiKey: string) =>
 export function makeClaudeProvider(
   config: ClaudeProcessorConfig,
 ): LlmProvider<TextCompletionRuntimeError> {
-  return Effect.runSync(Effect.scoped(makeClaudeProviderEffect(config)));
+  const resolved = {
+    defaultModel: config.model ?? "claude-sonnet-4-20250514",
+    defaultTemperature: config.temperature ?? 0.0,
+    maxOutput: config.maxOutput ?? 8192,
+    apiKey: config.apiKey ?? "",
+  } satisfies ResolvedClaudeConfig;
+  return makeLanguageModelProvider({
+    provider: "Claude",
+    defaultModel: resolved.defaultModel,
+    defaultTemperature: resolved.defaultTemperature,
+    context: Context.empty(),
+    makeLanguageModel: ({ model, temperature }) =>
+      Effect.scoped(
+        Layer.build(makeClaudeLayer(resolved.apiKey)).pipe(
+          Effect.flatMap((context) =>
+            AnthropicLanguageModel.make({
+              model,
+              config: {
+                max_tokens: resolved.maxOutput,
+                temperature,
+              },
+            }).pipe(Effect.provideContext(context))
+          ),
+        ),
+      ),
+  });
 }
 
 export const makeClaudeProviderEffect = Effect.fn("makeClaudeProvider")(function* (

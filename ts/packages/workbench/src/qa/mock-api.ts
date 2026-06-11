@@ -1,6 +1,6 @@
 import type { BaseApi, DocumentMetadata, ProcessingMetadata, StreamingMetadata, Triple } from "@trustgraph/client";
 import { makeBaseApiWithRpc, } from "@trustgraph/client";
-import { Clock, Effect, Match, Option, Schema as S } from "effect";
+import { Match, Option, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;
 
@@ -324,7 +324,7 @@ function configValues(state: MockState, type: string) {
 
 function addDocument(state: MockState, metadata: DocumentMetadata): DocumentMetadata {
   const id = metadata.id ?? `qa-doc-${state.library.documents.length + 1}`;
-  const currentTimeSeconds = Math.floor(Effect.runSync(Clock.currentTimeMillis) / 1000);
+  const currentTimeSeconds = state.library.documents.length + 1;
   const document = {
     ...metadata,
     id,

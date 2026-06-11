@@ -1269,10 +1269,6 @@ export const loadTrustGraphMcpConfig = Effect.fn("loadTrustGraphMcpConfig")(func
   }
 })
 
-export const resolveTrustGraphMcpConfig = (
-  options: TrustGraphMcpOptions = {},
-): TrustGraphMcpConfigShape => Effect.runSync(loadTrustGraphMcpConfig(options))
-
 export class TrustGraphMcpConfig extends Context.Service<TrustGraphMcpConfig, TrustGraphMcpConfigShape>()(
   "@trustgraph/mcp/server-effect/TrustGraphMcpConfig",
 ) {

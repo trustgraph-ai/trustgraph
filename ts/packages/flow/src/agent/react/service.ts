@@ -507,17 +507,13 @@ export const makeAgentConfigHandlers = (): ReadonlyArray<
 export type AgentService = FlowProcessorRuntime<AgentRuntime>;
 
 export function makeAgentService(config: ProcessorConfig): AgentService {
-  const runtime = Effect.runSync(makeAgentRuntime);
   const service = makeFlowProcessor(config, {
     specifications: makeAgentSpecs(),
-    provide: (effect) => effect.pipe(Effect.provideService(AgentRuntime, runtime)),
-  });
-  service.registerConfigHandler((pushedConfig, version) =>
-    onToolsConfig(pushedConfig, version).pipe(
-      Effect.provideService(AgentRuntime, runtime),
+    provide: (effect) => effect.pipe(
+      Effect.provideServiceEffect(AgentRuntime, makeAgentRuntime),
     ),
-  );
-  Effect.runSync(Effect.log("[AgentService] Service initialized"));
+  });
+  service.registerConfigHandler(onToolsConfig);
   return service;
 }
 

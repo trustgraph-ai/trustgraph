@@ -165,7 +165,17 @@ const makeOpenAICompatibleProviderFromClient = (
 export function makeOpenAICompatibleProvider(
   config: OpenAICompatibleProcessorConfig,
 ): LlmProvider<TextCompletionRuntimeError> {
-  return Effect.runSync(makeOpenAICompatibleProviderEffect(config));
+  const resolved = {
+    defaultModel: config.model ?? "default",
+    defaultTemperature: config.temperature ?? 0.0,
+    maxOutput: config.maxOutput ?? 4096,
+    apiKey: config.apiKey ?? "sk-no-key-required",
+    baseURL: config.baseUrl ?? "http://localhost:1234/v1",
+  } satisfies ResolvedOpenAICompatibleConfig;
+  return makeOpenAICompatibleProviderFromClient(
+    resolved,
+    new OpenAI({ baseURL: resolved.baseURL, apiKey: resolved.apiKey }),
+  );
 }
 
 export const makeOpenAICompatibleProviderEffect = Effect.fn("makeOpenAICompatibleProvider")(function*(

@@ -138,7 +138,11 @@ export const makeOllamaEmbeddingsEffect = Effect.fn("makeOllamaEmbeddingsEffect"
 });
 
 export function makeOllamaEmbeddings(config: OllamaEmbeddingsConfig): EmbeddingsServiceShape {
-  return Effect.runSync(makeOllamaEmbeddingsEffect(config));
+  return makeOllamaEmbeddingsFromConfig({
+    defaultModel: config.model ?? "mxbai-embed-large",
+    ollamaHost: config.ollamaHost ?? "http://localhost:11434",
+    fetchImpl: config.fetch ?? globalThis.fetch,
+  });
 }
 
 export function OllamaEmbeddingsLive(config: OllamaEmbeddingsConfig): Layer.Layer<Embeddings, EmbeddingsError> {

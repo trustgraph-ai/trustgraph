@@ -176,7 +176,22 @@ const makeAzureOpenAIProviderFromClient = (
 export function makeAzureOpenAIProvider(
   config: AzureOpenAIProcessorConfig,
 ): LlmProvider<TextCompletionRuntimeError> {
-  return Effect.runSync(makeAzureOpenAIProviderEffect(config));
+  const resolved = {
+    defaultModel: config.model ?? "gpt-4o",
+    defaultTemperature: config.temperature ?? 0.0,
+    maxOutput: config.maxOutput ?? 4096,
+    apiKey: config.apiKey ?? "",
+    endpoint: config.endpoint ?? "",
+    apiVersion: config.apiVersion ?? "2024-12-01-preview",
+  } satisfies ResolvedAzureOpenAIConfig;
+  return makeAzureOpenAIProviderFromClient(
+    resolved,
+    new AzureOpenAI({
+      apiKey: resolved.apiKey,
+      apiVersion: resolved.apiVersion,
+      endpoint: resolved.endpoint,
+    }),
+  );
 }
 
 export const makeAzureOpenAIProviderEffect = Effect.fn("makeAzureOpenAIProvider")(function*(

@@ -171,7 +171,6 @@ export function makePromptTemplateService(config: PromptTemplateConfig): PromptT
   for (const handler of runtime.configHandlers) {
     service.registerConfigHandler(handler);
   }
-  Effect.runSync(Effect.log("[PromptTemplate] Service initialized"));
   return service;
 }
 

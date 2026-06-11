@@ -237,11 +237,9 @@ export const makePdfDecoderSpecs = (): ReadonlyArray<Spec> => [
 export type PdfDecoderService = FlowProcessorRuntime;
 
 export function makePdfDecoderService(config: ProcessorConfig): PdfDecoderService {
-  const service = makeFlowProcessor(config, {
+  return makeFlowProcessor(config, {
     specifications: makePdfDecoderSpecs(),
   });
-  Effect.runSync(Effect.log("[PdfDecoder] Service initialized"));
-  return service;
 }
 
 export const PdfDecoderService = makePdfDecoderService;

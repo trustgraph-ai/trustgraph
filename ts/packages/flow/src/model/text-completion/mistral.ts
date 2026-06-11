@@ -156,7 +156,16 @@ const makeMistralProviderFromClient = (
 export function makeMistralProvider(
   config: MistralProcessorConfig,
 ): LlmProvider<TextCompletionRuntimeError> {
-  return Effect.runSync(makeMistralProviderEffect(config));
+  const resolved = {
+    defaultModel: config.model ?? "ministral-8b-latest",
+    defaultTemperature: config.temperature ?? 0.0,
+    maxOutput: config.maxOutput ?? 4096,
+    apiKey: config.apiKey ?? "",
+  } satisfies ResolvedMistralConfig;
+  return makeMistralProviderFromClient(
+    resolved,
+    new Mistral({ apiKey: resolved.apiKey }),
+  );
 }
 
 export const makeMistralProviderEffect = Effect.fn("makeMistralProvider")(function*(

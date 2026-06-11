@@ -77,11 +77,6 @@ export interface AsyncProcessorRuntimeOptions<
   ) => Effect.Effect<void, RunError, RunRequirements>;
 }
 
-interface RegisteredSignalHandler {
-  readonly signal: NodeJS.Signals;
-  readonly handler: () => void;
-}
-
 export function makeAsyncProcessor<
   RunError = ProcessorLifecycleError,
   RunRequirements = never,
@@ -94,41 +89,6 @@ export function makeAsyncProcessor<
   const configHandlers: Array<EffectConfigHandler<RunError | ProcessorLifecycleError, RunRequirements>> = [];
   const shutdownCallbacks: Array<() => Effect.Effect<void, Cause.UnknownError>> = [];
   let running = false;
-  let signalHandlers: RegisteredSignalHandler[] = [];
-
-  const registerProcessSignalHandlers = (): void => {
-    if (config.manageProcessSignals === false || signalHandlers.length > 0) {
-      return;
-    }
-
-    const shutdown = () => {
-      Effect.runFork(
-        Effect.log(`[${config.id}] Shutting down...`).pipe(
-          Effect.flatMap(() => processor.stop),
-          Effect.mapError((error) => processorLifecycleError(config.id, "signal-shutdown", error)),
-          Effect.match({
-            onFailure: () => process.exit(1),
-            onSuccess: () => process.exit(0),
-          }),
-        ),
-      );
-    };
-    const handlers: RegisteredSignalHandler[] = [
-      { signal: "SIGINT", handler: shutdown },
-      { signal: "SIGTERM", handler: shutdown },
-    ];
-    for (const { signal, handler } of handlers) {
-      process.once(signal, handler);
-    }
-    signalHandlers = handlers;
-  };
-
-  const unregisterProcessSignalHandlers = (): void => {
-    for (const { signal, handler } of signalHandlers) {
-      process.off(signal, handler);
-    }
-    signalHandlers = [];
-  };
 
   const processor: AsyncProcessorRuntime<RunError, RunRequirements> = {
     config,
@@ -152,7 +112,6 @@ export function makeAsyncProcessor<
       const startProcessor = Effect.fn("trustgraph.processor.start")(function* () {
         yield* Effect.sync(() => {
           running = true;
-          registerProcessSignalHandlers();
         });
 
         yield* processor.runEffect;
@@ -169,7 +128,6 @@ export function makeAsyncProcessor<
       const stopProcessor = Effect.fn("trustgraph.processor.stop")(function* () {
         yield* Effect.sync(() => {
           running = false;
-          unregisterProcessSignalHandlers();
         });
 
         for (const cb of shutdownCallbacks) {

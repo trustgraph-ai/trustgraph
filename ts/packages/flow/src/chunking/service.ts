@@ -96,11 +96,9 @@ export const makeChunkingSpecs = (): ReadonlyArray<
 export type ChunkingService = FlowProcessorRuntime;
 
 export function makeChunkingService(config: ProcessorConfig): ChunkingService {
-  const service = makeFlowProcessor(config, {
+  return makeFlowProcessor(config, {
     specifications: makeChunkingSpecs(),
   });
-  Effect.runSync(Effect.log("[ChunkingService] Service initialized"));
-  return service;
 }
 
 export const ChunkingService = makeChunkingService;

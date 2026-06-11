@@ -26,6 +26,7 @@ import {
   errorMessage,
   makeAsyncProcessor,
   makeProcessorProgram,
+  loadProcessorRuntimeConfig,
   topics,
   DocumentMetadata as DocumentMetadataSchema,
   ProcessingMetadata as ProcessingMetadataSchema,
@@ -88,10 +89,19 @@ const librarianServiceError = (operation: string, cause: unknown): LibrarianServ
   });
 
 function resolveDataDir(config: LibrarianServiceConfig): string {
-  return config.dataDir ?? Effect.runSync(
-    Config.string("LIBRARIAN_DATA_DIR").pipe(Config.withDefault("./data/librarian")),
-  );
+  return config.dataDir ?? "./data/librarian";
 }
+
+const loadLibrarianServiceConfig = Effect.gen(function* () {
+  const config = yield* loadProcessorRuntimeConfig("librarian-svc", {
+    manageProcessSignals: false,
+  });
+  const dataDir = Option.getOrUndefined(yield* Config.string("LIBRARIAN_DATA_DIR").pipe(Config.option));
+  return {
+    ...config,
+    ...(dataDir === undefined ? {} : { dataDir }),
+  } satisfies LibrarianServiceConfig;
+});
 
 const currentEpochSeconds: Effect.Effect<number> = Clock.currentTimeMillis.pipe(
   Effect.map((millis) => Math.floor(millis / 1000)),
@@ -1504,6 +1514,7 @@ export const LibrarianService = makeLibrarianService;
 
 export const program = makeProcessorProgram({
   id: "librarian-svc",
+  loadConfig: loadLibrarianServiceConfig,
   make: (config) => makeLibrarianService(config),
 });
 

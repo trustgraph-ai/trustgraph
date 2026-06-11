@@ -6,7 +6,6 @@ import {
   ErrorBoundary as ReactErrorBoundary,
 } from "react-error-boundary";
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Effect } from "effect";
 
 interface Props {
   children: ReactNode;
@@ -46,9 +45,6 @@ export function ErrorBoundary({ children, fallback }: Props) {
   return (
     <ReactErrorBoundary
       fallbackRender={(props) => fallback ?? <DefaultFallback {...props} />}
-      onError={(error, info) => {
-        Effect.runSync(Effect.logError("[ErrorBoundary]", { error, componentStack: info.componentStack }));
-      }}
     >
       {children}
     </ReactErrorBoundary>

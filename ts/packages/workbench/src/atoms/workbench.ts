@@ -566,13 +566,11 @@ function parseConfigValue(value: unknown): unknown {
   return typeof value === "string" ? parseJsonUnknown(value) ?? value : value;
 }
 
-function parseConfigEntries<T>(raw: unknown, label: string): T[] {
+function parseConfigEntries<T>(raw: unknown): T[] {
   const entries: T[] = [];
   for (const item of mapConfigEntries(raw)) {
     const config = parseJsonUnknown(item.value);
-    if (config === undefined) {
-      Effect.runSync(Effect.logWarning(`[workbench-atoms] Failed to parse ${label}: ${item.key}`));
-    } else {
+    if (config !== undefined) {
       entries.push({ key: item.key, config } as T);
     }
   }
@@ -1751,7 +1749,7 @@ export const mcpServersAtom = queryAtom(
   "mcpServers",
   Effect.fn("trustgraph.workbench.mcpServers")(function*(_get, api) {
     const values = yield* api.config().getValues("mcp");
-    return parseConfigEntries<McpServerEntry>(values, "MCP server config");
+    return parseConfigEntries<McpServerEntry>(values);
   }),
   { reactivityKeys: ["config", "mcp"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
@@ -1760,7 +1758,7 @@ export const mcpToolsAtom = queryAtom(
   "mcpTools",
   Effect.fn("trustgraph.workbench.mcpTools")(function*(_get, api) {
     const values = yield* api.config().getValues("tool");
-    return parseConfigEntries<ToolEntry>(values, "tool config");
+    return parseConfigEntries<ToolEntry>(values);
   }),
   { reactivityKeys: ["config", "tool"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
