@@ -27,14 +27,6 @@
       "name": "@trustgraph/base",
       "version": "0.1.0",
       "dependencies": {
-        "@effect/ai-anthropic": "4.0.0-beta.78",
-        "@effect/ai-openai": "4.0.0-beta.78",
-        "@effect/ai-openrouter": "4.0.0-beta.78",
-        "@effect/atom-react": "4.0.0-beta.78",
-        "@effect/openapi-generator": "4.0.0-beta.78",
-        "@effect/opentelemetry": "4.0.0-beta.78",
-        "@effect/platform-browser": "4.0.0-beta.78",
-        "@effect/platform-bun": "4.0.0-beta.78",
         "effect": "4.0.0-beta.78",
         "nats": "^2.29.0",
       },
@@ -52,16 +44,10 @@
         "tg": "dist/index.js",
       },
       "dependencies": {
-        "@effect/ai-anthropic": "4.0.0-beta.78",
-        "@effect/ai-openai": "4.0.0-beta.78",
-        "@effect/ai-openrouter": "4.0.0-beta.78",
-        "@effect/atom-react": "4.0.0-beta.78",
-        "@effect/openapi-generator": "4.0.0-beta.78",
-        "@effect/opentelemetry": "4.0.0-beta.78",
-        "@effect/platform-browser": "4.0.0-beta.78",
         "@effect/platform-bun": "4.0.0-beta.78",
         "@trustgraph/base": "workspace:*",
         "@trustgraph/client": "workspace:*",
+        "effect": "4.0.0-beta.78",
         "ws": "^8.18.0",
       },
       "devDependencies": {
@@ -97,21 +83,13 @@
       "version": "0.1.0",
       "dependencies": {
         "@effect/ai-anthropic": "4.0.0-beta.78",
-        "@effect/ai-openai": "4.0.0-beta.78",
-        "@effect/ai-openrouter": "4.0.0-beta.78",
-        "@effect/atom-react": "4.0.0-beta.78",
-        "@effect/openapi-generator": "4.0.0-beta.78",
-        "@effect/opentelemetry": "4.0.0-beta.78",
-        "@effect/platform-browser": "4.0.0-beta.78",
         "@effect/platform-bun": "4.0.0-beta.78",
         "@effect/platform-node": "4.0.0-beta.78",
-        "@effect/platform-node-shared": "4.0.0-beta.78",
-        "@effect/tsgo": "0.14.0",
-        "@effect/vitest": "4.0.0-beta.78",
         "@mistralai/mistralai": "^1.0.0",
         "@modelcontextprotocol/sdk": "^1.12.0",
         "@qdrant/js-client-rest": "^1.13.0",
         "@trustgraph/base": "workspace:*",
+        "@trustgraph/client": "workspace:*",
         "effect": "4.0.0-beta.78",
         "falkordb": "^5.0.0",
         "ollama": "^0.6.3",
@@ -129,20 +107,11 @@
       "name": "@trustgraph/mcp",
       "version": "0.1.0",
       "dependencies": {
-        "@effect/ai-anthropic": "4.0.0-beta.78",
-        "@effect/ai-openai": "4.0.0-beta.78",
-        "@effect/ai-openrouter": "4.0.0-beta.78",
-        "@effect/atom-react": "4.0.0-beta.78",
-        "@effect/openapi-generator": "4.0.0-beta.78",
-        "@effect/opentelemetry": "4.0.0-beta.78",
-        "@effect/platform-browser": "4.0.0-beta.78",
         "@effect/platform-bun": "4.0.0-beta.78",
         "@effect/platform-node": "4.0.0-beta.78",
-        "@effect/platform-node-shared": "4.0.0-beta.78",
-        "@effect/tsgo": "0.14.0",
-        "@effect/vitest": "4.0.0-beta.78",
         "@trustgraph/base": "workspace:*",
         "@trustgraph/client": "workspace:*",
+        "effect": "4.0.0-beta.78",
       },
       "devDependencies": {
         "@effect/vitest": "4.0.0-beta.78",
@@ -155,21 +124,11 @@
       "name": "@trustgraph/workbench",
       "version": "0.1.0",
       "dependencies": {
-        "@effect/ai-anthropic": "4.0.0-beta.78",
-        "@effect/ai-openai": "4.0.0-beta.78",
-        "@effect/ai-openrouter": "4.0.0-beta.78",
         "@effect/atom-react": "4.0.0-beta.78",
-        "@effect/openapi-generator": "4.0.0-beta.78",
-        "@effect/opentelemetry": "4.0.0-beta.78",
         "@effect/platform-browser": "4.0.0-beta.78",
-        "@effect/platform-bun": "4.0.0-beta.78",
-        "@effect/platform-node": "4.0.0-beta.78",
-        "@effect/platform-node-shared": "4.0.0-beta.78",
-        "@effect/tsgo": "0.14.0",
-        "@effect/vitest": "4.0.0-beta.78",
-        "@tanstack/react-query": "^5.75.0",
         "@trustgraph/client": "workspace:*",
         "clsx": "^2.1.0",
+        "effect": "4.0.0-beta.78",
         "lucide-react": "^0.513.0",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
@@ -178,7 +137,6 @@
         "react-markdown": "^10.1.0",
         "react-router": "^7.6.0",
         "tailwind-merge": "^3.3.0",
-        "zustand": "^5.0.0",
       },
       "devDependencies": {
         "@effect/vitest": "4.0.0-beta.78",
@@ -234,15 +192,7 @@
 
     "@effect/ai-anthropic": ["@effect/ai-anthropic@4.0.0-beta.78", "", { "peerDependencies": { "effect": "^4.0.0-beta.78" } }, "sha512-FZzwvKx2k+UIDJyv+FWMtC2CKRxJMWTII+z8EmMcT6tw1uzkkn+ouIyJ32AU+lfveKScNV1SXL4ml3VdcYGy/g=="],
 
-    "@effect/ai-openai": ["@effect/ai-openai@4.0.0-beta.78", "", { "peerDependencies": { "effect": "^4.0.0-beta.78" } }, "sha512-tx953rRkLqW2BeEkWK12/nRBPO0b1eS6pI+2YyWI0nQvX2JTTijrGlBv/qDVa5kxDkLm63+tA04xnxgZMlA8NA=="],
-
-    "@effect/ai-openrouter": ["@effect/ai-openrouter@4.0.0-beta.78", "", { "peerDependencies": { "effect": "^4.0.0-beta.78" } }, "sha512-9GIRU9stAnDU5EJ5ZghUWrQXaE+rECCWI/eKVfYeC7UqjZmmmJmTcEbid3tvz2NMsnvIn0ymeKsJAohWCys39w=="],
-
     "@effect/atom-react": ["@effect/atom-react@4.0.0-beta.78", "", { "peerDependencies": { "effect": "^4.0.0-beta.78", "react": "^19.2.4", "scheduler": "*" } }, "sha512-cgxDXJaD0wlbQXbp6tiEmmY+yajwurB0ynkFG20RVucvH4LsQMB3ogiHe0mt42wGggfbVYMEDxgBpQdqDRY8yA=="],
-
-    "@effect/openapi-generator": ["@effect/openapi-generator@4.0.0-beta.78", "", { "peerDependencies": { "@effect/platform-node": "^4.0.0-beta.78", "effect": "^4.0.0-beta.78" }, "bin": { "openapigen": "dist/bin.js" } }, "sha512-qhKRcZCNQ5b0Klrct+AC/tPQgIDBxVsD0MkQLIzqvLU3qRHaNd5yHo7kxFf/DuhCyyL++xZfbHsPdq3VdLIByg=="],
-
-    "@effect/opentelemetry": ["@effect/opentelemetry@4.0.0-beta.78", "", { "peerDependencies": { "@opentelemetry/api": "^1.9", "@opentelemetry/api-logs": ">=0.203.0 <0.300.0", "@opentelemetry/resources": "^2.0.0", "@opentelemetry/sdk-logs": ">=0.203.0 <0.300.0", "@opentelemetry/sdk-metrics": "^2.0.0", "@opentelemetry/sdk-trace-base": "^2.0.0", "@opentelemetry/sdk-trace-node": "^2.0.0", "@opentelemetry/sdk-trace-web": "^2.0.0", "@opentelemetry/semantic-conventions": "^1.33.0", "effect": "^4.0.0-beta.78" }, "optionalPeers": ["@opentelemetry/api", "@opentelemetry/api-logs", "@opentelemetry/resources", "@opentelemetry/sdk-logs", "@opentelemetry/sdk-metrics", "@opentelemetry/sdk-trace-base", "@opentelemetry/sdk-trace-node", "@opentelemetry/sdk-trace-web"] }, "sha512-OJGnlNkxfhUmZ/8aLIfQly8ic2tntcnwidAP0BdrTUKa1/sbZjq5xTrhVUjvmehFra2Thsef0k4UPTgsOrBG1A=="],
 
     "@effect/platform-browser": ["@effect/platform-browser@4.0.0-beta.78", "", { "dependencies": { "multipasta": "^0.2.7" }, "peerDependencies": { "effect": "^4.0.0-beta.78" } }, "sha512-8r9MVuZ8xJRyVyi+C8SKSYLbMsHr7qOiUgLV6lKMECuAWyMhlbK/7Ka9SQGr0ZPqOe5ShLEvV7DevnGkG+owAQ=="],
 
@@ -382,8 +332,6 @@
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 
-    "@opentelemetry/semantic-conventions": ["@opentelemetry/semantic-conventions@1.41.1", "", {}, "sha512-/UhIkaZgPutTFmQ7RnIJGgDXZmtEJ7Dvi86xNTFWcnRxVRNk/aotsqDJYeEvDP+FSMB2SdW+pQzNMcWP0rwuNA=="],
-
     "@pdf-lib/standard-fonts": ["@pdf-lib/standard-fonts@1.0.0", "", { "dependencies": { "pako": "^1.0.6" } }, "sha512-hU30BK9IUN/su0Mn9VdlVKsWBS6GyhVfqjwl1FjZN4TxP6cCw0jP2w7V3Hf5uX7M0AZJ16vey9yE0ny7Sa59ZA=="],
 
     "@pdf-lib/upng": ["@pdf-lib/upng@1.0.1", "", { "dependencies": { "pako": "^1.0.10" } }, "sha512-dQK2FUMQtowVP00mtIksrlZhdFXQZPC+taih1q4CvPZ5vqdxR/LKBaFg0oAfzd1GlHZXXSPdQfzQnt+ViGvEIQ=="],
@@ -477,10 +425,6 @@
     "@tailwindcss/oxide-win32-x64-msvc": ["@tailwindcss/oxide-win32-x64-msvc@4.2.2", "", { "os": "win32", "cpu": "x64" }, "sha512-1T/37VvI7WyH66b+vqHj/cLwnCxt7Qt3WFu5Q8hk65aOvlwAhs7rAp1VkulBJw/N4tMirXjVnylTR72uI0HGcA=="],
 
     "@tailwindcss/vite": ["@tailwindcss/vite@4.2.2", "", { "dependencies": { "@tailwindcss/node": "4.2.2", "@tailwindcss/oxide": "4.2.2", "tailwindcss": "4.2.2" }, "peerDependencies": { "vite": "6.4.1" } }, "sha512-mEiF5HO1QqCLXoNEfXVA1Tzo+cYsrqV7w9Juj2wdUFyW07JRenqMG225MvPwr3ZD9N1bFQj46X7r33iHxLUW0w=="],
-
-    "@tanstack/query-core": ["@tanstack/query-core@5.96.2", "", {}, "sha512-hzI6cTVh4KNRk8UtoIBS7Lv9g6BnJPXvBKsvYH1aGWvv0347jT3BnSvztOE+kD76XGvZnRC/t6qdW1CaIfwCeA=="],
-
-    "@tanstack/react-query": ["@tanstack/react-query@5.96.2", "", { "dependencies": { "@tanstack/query-core": "5.96.2" }, "peerDependencies": { "react": "19.2.4" } }, "sha512-sYyzzJT4G0g02azzJ8o55VFFV31XvFpdUpG+unxS0vSaYsJnSPKGoI6WdPwUucJL1wpgGfwfmntNX/Ub1uOViA=="],
 
     "@trustgraph/base": ["@trustgraph/base@workspace:packages/base"],
 
@@ -1241,8 +1185,6 @@
     "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "zod-to-json-schema": ["zod-to-json-schema@3.25.2", "", { "peerDependencies": { "zod": "3.25.76" } }, "sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA=="],
-
-    "zustand": ["zustand@5.0.12", "", { "optionalDependencies": { "@types/react": "19.2.14", "react": "19.2.4" } }, "sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g=="],
 
     "zwitch": ["zwitch@2.0.4", "", {}, "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="],
 

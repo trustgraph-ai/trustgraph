@@ -7,37 +7,77 @@
 import { Effect } from "effect";
 import * as Argument from "effect/unstable/cli/Argument";
 import * as Command from "effect/unstable/cli/Command";
-import { cliCommandError, withSocket } from "./util.js";
+import { cliCommandError, withGatewayClient, type CliCommandError } from "./util.js";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function stringProperty(source: unknown, key: string): string | undefined {
+  const value = asRecord(source)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function booleanProperty(source: unknown, key: string): boolean | undefined {
+  const value = asRecord(source)[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function responseErrorMessage(source: unknown): string | undefined {
+  const error = asRecord(source).error;
+  if (typeof error === "string") return error;
+  return stringProperty(error, "message");
+}
 
 export const agentCommand = Command.make("agent", {
   question: Argument.string("question").pipe(Argument.withDescription("Question to ask")),
 }, ({ question }) =>
-  withSocket((socket, opts) =>
+  withGatewayClient((client, opts) =>
     Effect.gen(function* () {
-        const flow = socket.flow(opts.flow);
+      let streamError: CliCommandError | undefined;
 
-      yield* Effect.callback<void, ReturnType<typeof cliCommandError>>((resume) => {
-          flow.agent(
+      yield* client.runDispatchStream(
+        {
+          scope: "flow",
+          flow: opts.flow,
+          service: "agent",
+          request: {
             question,
-            (chunk) => {
-              // think — show thought process
-              if (chunk.length > 0) process.stderr.write(chunk);
-            },
-            (chunk) => {
-              // observe — show observations
-              if (chunk.length > 0) process.stderr.write(chunk);
-            },
-            (chunk, complete) => {
-              // answer — print to stdout
-              if (chunk.length > 0) process.stdout.write(chunk);
-              if (complete) {
-                process.stdout.write("\n");
-                  resume(Effect.void);
-              }
-            },
-              (err) => resume(Effect.fail(cliCommandError("agent", err))),
-          );
-        });
+            user: opts.user,
+            collection: "default",
+            streaming: true,
+          },
+        },
+        (chunk) => {
+          const resp = asRecord(chunk.response);
+          const chunkType = stringProperty(resp, "chunk_type");
+          const error = chunkType === "error" ? responseErrorMessage(resp) ?? "Unknown agent error" : responseErrorMessage(resp);
+          if (error !== undefined) {
+            streamError = cliCommandError("agent", error);
+            return true;
+          }
+
+          const content = stringProperty(resp, "content") ?? "";
+          const messageComplete = booleanProperty(resp, "end_of_message") === true;
+          const dialogComplete = chunk.complete === true || booleanProperty(resp, "end_of_dialog") === true;
+
+          if (chunkType === "thought" || chunkType === "observation") {
+            if (content.length > 0) process.stderr.write(content);
+          } else if (chunkType === "answer" || chunkType === "final-answer") {
+            if (content.length > 0) process.stdout.write(content);
+            if (messageComplete || dialogComplete) process.stdout.write("\n");
+          }
+
+          return dialogComplete;
+        },
+        { timeoutMs: 120_000, retries: 2 },
+      );
+
+      if (streamError !== undefined) {
+        return yield* streamError;
+      }
     }),
   ),
 ).pipe(Command.withDescription("Ask the TrustGraph agent a question"));

@@ -5,6 +5,16 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./rpc/contract": {
+      "types": "./dist/rpc/contract.d.ts",
+      "import": "./dist/rpc/contract.js"
+    }
+  },
   "scripts": {
     "build": "bunx --bun tsc",
     "dev": "tsc --watch",

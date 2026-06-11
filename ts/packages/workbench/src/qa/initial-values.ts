@@ -8,6 +8,7 @@ import {
   type Settings,
   type WorkbenchApiFactory,
 } from "@/atoms/workbench";
+import type { BaseApi } from "@trustgraph/client";
 import { makeMockBaseApi, qaSettingsFromFixture, type MockWorkbenchFixture } from "@/qa/mock-api";
 
 export interface WorkbenchQaWindowConfig {
@@ -19,6 +20,7 @@ export interface WorkbenchQaWindowConfig {
 declare global {
   interface Window {
     __TRUSTGRAPH_WORKBENCH_QA__?: WorkbenchQaWindowConfig;
+    __TRUSTGRAPH_WORKBENCH_QA_API__?: BaseApi;
   }
 }
 
@@ -43,6 +45,7 @@ export function getWorkbenchQaInitialValues(): Iterable<readonly [Atom.Atom<unkn
   const apiFactory: WorkbenchApiFactory = {
     create: () => api,
   };
+  window.__TRUSTGRAPH_WORKBENCH_QA_API__ = api;
   return [
     [apiFactoryAtom as Atom.Atom<unknown>, apiFactory],
     [settingsAtom as Atom.Atom<unknown>, qaSettings(fixture)],

@@ -12,6 +12,7 @@ import { Clock, Effect, Exit, HashMap, HashSet, Option, Random, Scope, Synchroni
 import {
   loadMessagingRuntimeConfig,
   makeNatsBackend,
+  makeNatsBackendScoped,
   makePubSubService,
   makeRequestResponseFactoryService,
   messagingDeliveryError,
@@ -401,3 +402,17 @@ export function makeDispatcherManager(config: GatewayConfig): DispatcherManager 
     publishToTopic,
   };
 }
+
+export const makeDispatcherManagerScoped = Effect.fn("makeDispatcherManagerScoped")(function* (
+  config: GatewayConfig,
+) {
+  if (config.pubsub !== undefined) {
+    return makeDispatcherManager(config);
+  }
+
+  const pubsub = yield* makeNatsBackendScoped(config.natsUrl ?? "nats://localhost:4222");
+  return makeDispatcherManager({
+    ...config,
+    pubsub,
+  });
+});

@@ -13,7 +13,7 @@ describe("FlowsApi", () => {
       makeRequest: vi.fn(),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    flowsApi = new FlowsApi(mockApi as any);
+    flowsApi = FlowsApi(mockApi as any);
   });
 
   describe("startFlow", () => {

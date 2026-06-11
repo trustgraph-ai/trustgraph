@@ -25,19 +25,21 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  server: {
-    proxy: {
-      "/api/v1/rpc": {
-        target: "ws://localhost:8088/",
-        ws: true,
+  server: isWorkbenchQa
+    ? {}
+    : {
+        proxy: {
+          "/api/v1/rpc": {
+            target: "ws://localhost:8088/",
+            ws: true,
+          },
+          "/api/v1": {
+            target: "http://localhost:8088/",
+          },
+          "/otel": {
+            target: "http://localhost:4328/",
+            rewrite: (p) => p.replace(/^\/otel/, ""),
+          },
+        },
       },
-      "/api/v1": {
-        target: "http://localhost:8088/",
-      },
-      "/otel": {
-        target: "http://localhost:4328/",
-        rewrite: (p) => p.replace(/^\/otel/, ""),
-      },
-    },
-  },
 });

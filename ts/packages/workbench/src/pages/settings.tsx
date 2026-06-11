@@ -266,8 +266,10 @@ export default function SettingsPage() {
             </button>
             <button
               onClick={() => {
-                if (collectionForm.id.trim().length === 0) return;
+                const collectionId = collectionForm.id.trim();
+                if (collectionId.length === 0) return;
                 createCollection(collectionForm);
+                setField({ key: "collection", value: collectionId });
                 setCollectionForm({ id: "", name: "", description: "", tags: "", submitting: false });
                 setCreateOpen(false);
               }}

@@ -23,7 +23,7 @@ describe("workbench API contracts", () => {
         values: [{ type: "prompt", key: "welcome", value: "hello" }],
       });
 
-      const result = await new ConfigApi(base).getValues("prompt");
+      const result = await ConfigApi(base).getValues("prompt");
 
       expect(makeRequest).toHaveBeenCalledWith(
         "config",
@@ -45,7 +45,7 @@ describe("workbench API contracts", () => {
         ],
       });
 
-      const result = await new ConfigApi(base).getTokenCosts();
+      const result = await ConfigApi(base).getTokenCosts();
 
       expect(result).toEqual([
         { model: "gpt-test", input_price: 0.1, output_price: 0.2 },
@@ -55,7 +55,7 @@ describe("workbench API contracts", () => {
     it("writes and deletes config using Python-style key/value arrays", async () => {
       const { base, makeRequest } = makeApi();
       makeRequest.mockResolvedValue({});
-      const config = new ConfigApi(base);
+      const config = ConfigApi(base);
 
       await config.putConfig([{ type: "tool", key: "search", value: "{}" }]);
       await config.deleteConfig({ type: "tool", key: "search" });
@@ -86,7 +86,7 @@ describe("workbench API contracts", () => {
       const { base, makeRequest } = makeApi();
       const document = { id: "doc-1", title: "Document" };
       const processing = { id: "proc-1", "document-id": "doc-1" };
-      const librarian = new LibrarianApi(base);
+      const librarian = LibrarianApi(base);
 
       makeRequest
         .mockResolvedValueOnce({ "document-metadatas": [document] })
@@ -101,7 +101,7 @@ describe("workbench API contracts", () => {
       const document = { id: "doc-1", title: "Document" };
       makeRequest.mockResolvedValue({ "document-metadata": document });
 
-      const result = await new LibrarianApi(base).getDocumentMetadata("doc-1");
+      const result = await LibrarianApi(base).getDocumentMetadata("doc-1");
 
       expect(makeRequest).toHaveBeenCalledWith(
         "librarian",
@@ -120,7 +120,7 @@ describe("workbench API contracts", () => {
       const { base, makeRequest } = makeApi();
       makeRequest.mockResolvedValue({});
 
-      await new LibrarianApi(base).loadDocument(
+      await LibrarianApi(base).loadDocument(
         "SGVsbG8=",
         "text/plain",
         "Hello",
@@ -145,7 +145,7 @@ describe("workbench API contracts", () => {
   describe("KnowledgeApi", () => {
     it("lists and loads document embedding cores", async () => {
       const { base, makeRequest } = makeApi();
-      const knowledge = new KnowledgeApi(base);
+      const knowledge = KnowledgeApi(base);
 
       makeRequest
         .mockResolvedValueOnce({ ids: ["de-core"] })
@@ -178,7 +178,7 @@ describe("workbench API contracts", () => {
       const { base, makeRequest } = makeApi();
       makeRequest.mockResolvedValue({});
 
-      await new KnowledgeApi(base).unloadKgCore("kg-core", "default");
+      await KnowledgeApi(base).unloadKgCore("kg-core", "default");
 
       expect(makeRequest).toHaveBeenCalledWith(
         "knowledge",

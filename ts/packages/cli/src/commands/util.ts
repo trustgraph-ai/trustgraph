@@ -2,7 +2,12 @@
  * Shared CLI utilities.
  */
 
-import { createTrustGraphSocket, type BaseApi } from "@trustgraph/client";
+import {
+  createTrustGraphSocket,
+  makeTrustGraphGatewayClientScoped,
+  type BaseApi,
+  type TrustGraphGatewayClient,
+} from "@trustgraph/client";
 import { Duration, Effect } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
@@ -108,6 +113,23 @@ export function createSocketEffect(opts: CliOpts): Effect.Effect<BaseApi, CliCom
     Effect.as(socket),
   );
 }
+
+function gatewayUrlWithToken(opts: CliOpts): string {
+  if (opts.token === undefined || opts.token.length === 0) return opts.gateway;
+  const separator = opts.gateway.includes("?") ? "&" : "?";
+  return `${opts.gateway}${separator}token=${encodeURIComponent(opts.token)}`;
+}
+
+export const withGatewayClient = Effect.fn("withGatewayClient")(function* <A, E, R>(
+  use: (client: TrustGraphGatewayClient, opts: CliOpts) => Effect.Effect<A, E, R>,
+) {
+  const opts = yield* getOpts;
+  return yield* Effect.scoped(
+    makeTrustGraphGatewayClientScoped({ url: gatewayUrlWithToken(opts) }).pipe(
+      Effect.flatMap((client) => use(client, opts)),
+    ),
+  );
+});
 
 export const withSocket = Effect.fn("withSocket")(function* <A, E, R>(
   use: (socket: BaseApi, opts: CliOpts) => Effect.Effect<A, E, R>,

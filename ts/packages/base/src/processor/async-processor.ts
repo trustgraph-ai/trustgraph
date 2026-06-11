@@ -7,7 +7,7 @@
  */
 
 import type { PubSubBackend } from "../backend/types.js";
-import { makeNatsBackend } from "../backend/nats.js";
+import { makeNatsBackend, makeNatsBackendScoped } from "../backend/nats.js";
 import { Cause, Config as EffectConfig, Context, Effect } from "effect";
 import { processorLifecycleError, type ProcessorLifecycleError } from "../errors.js";
 import { loadProcessorRuntimeConfig } from "../runtime/config.js";
@@ -197,6 +197,27 @@ export function makeAsyncProcessor<
 
   return processor;
 }
+
+export const makeAsyncProcessorScoped = Effect.fn("makeAsyncProcessorScoped")(function* <
+  RunError = ProcessorLifecycleError,
+  RunRequirements = never,
+>(
+  config: ProcessorConfig,
+  options: AsyncProcessorRuntimeOptions<RunError, RunRequirements> = {},
+) {
+  if (config.pubsub !== undefined) {
+    return makeAsyncProcessor(config, options);
+  }
+
+  const pubsub = yield* makeNatsBackendScoped(config.pubsubUrl ?? "nats://localhost:4222");
+  return makeAsyncProcessor(
+    {
+      ...config,
+      pubsub,
+    },
+    options,
+  );
+});
 
 export type AsyncProcessor<
   RunError = ProcessorLifecycleError,

@@ -28,6 +28,8 @@ const effectClassPatterns = [
   /\bContext\.Service\b/,
   /\bRpc\.make\b/,
   /\bHttpApi\.make\b/,
+  /\bAtomHttpApi\.Service\b/,
+  /\bAtomRpc\.Service\b/,
   /\bEffect\.Service\b/,
 ];
 

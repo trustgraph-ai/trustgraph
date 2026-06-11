@@ -1,6 +1,7 @@
 export {
   AsyncProcessor,
   makeAsyncProcessor,
+  makeAsyncProcessorScoped,
   type ConfigHandler,
   type EffectConfigHandler,
   type AsyncProcessorRuntime,

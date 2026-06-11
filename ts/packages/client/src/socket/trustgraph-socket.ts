@@ -1,7 +1,7 @@
 // Import core types and classes for the TrustGraph API
 import type { Term, Triple } from "../models/Triple.js";
 import {
-  EffectRpcClient,
+  type EffectRpcClient,
   type DispatchInput,
   type DispatchOptions,
   type RpcConnectionState,
@@ -445,21 +445,6 @@ function makeid(length: number) {
   );
 }
 
-type NewableFactory<Args extends readonly unknown[], A extends object> = {
-  new (...args: Args): A;
-  (...args: Args): A;
-  readonly prototype: A;
-};
-
-function newableFactory<Args extends readonly unknown[], A extends object>(
-  factory: (...args: Args) => A,
-): NewableFactory<Args, A> {
-  function Constructor(...args: Args): A {
-    return factory(...args);
-  }
-  return Constructor as unknown as NewableFactory<Args, A>;
-}
-
 /**
  * BaseApi - Core WebSocket client for TrustGraph API
  * Manages connection lifecycle, message routing, and provides base request
@@ -622,27 +607,27 @@ export function makeBaseApi(
 
     // Factory methods for creating specialized API instances
     librarian() {
-      return new LibrarianApi(api);
+      return makeLibrarianApi(api);
     },
 
     flows() {
-      return new FlowsApi(api);
+      return makeFlowsApi(api);
     },
 
     flow(id: string) {
-      return new FlowApi(api, id);
+      return makeFlowApi(api, id);
     },
 
     knowledge() {
-      return new KnowledgeApi(api);
+      return makeKnowledgeApi(api);
     },
 
     config() {
-      return new ConfigApi(api);
+      return makeConfigApi(api);
     },
 
     collectionManagement() {
-      return new CollectionManagementApi(api);
+      return makeCollectionManagementApi(api);
     },
   };
 
@@ -739,7 +724,7 @@ export function makeBaseApi(
 }
 
 export type BaseApi = ReturnType<typeof makeBaseApi>;
-export const BaseApi = newableFactory(makeBaseApi);
+export const BaseApi = makeBaseApi;
 
 export function makeBaseApiWithRpc(
   user: string,
@@ -1153,7 +1138,7 @@ export function makeLibrarianApi(api: BaseApi) {
 }
 
 export type LibrarianApi = ReturnType<typeof makeLibrarianApi>;
-export const LibrarianApi = newableFactory(makeLibrarianApi);
+export const LibrarianApi = makeLibrarianApi;
 
 /**
  * FlowsApi - Manages processing flows and configuration
@@ -1418,7 +1403,7 @@ export function makeFlowsApi(api: BaseApi) {
 }
 
 export type FlowsApi = ReturnType<typeof makeFlowsApi>;
-export const FlowsApi = newableFactory(makeFlowsApi);
+export const FlowsApi = makeFlowsApi;
 
 /**
  * FlowApi - Interface for interacting with a specific flow instance
@@ -2205,7 +2190,7 @@ export function makeFlowApi(api: BaseApi, flowId: string) {
 }
 
 export type FlowApi = ReturnType<typeof makeFlowApi>;
-export const FlowApi = newableFactory(makeFlowApi);
+export const FlowApi = makeFlowApi;
 
 /**
  * ConfigApi - Dedicated configuration management interface
@@ -2401,7 +2386,7 @@ export function makeConfigApi(api: BaseApi) {
 }
 
 export type ConfigApi = ReturnType<typeof makeConfigApi>;
-export const ConfigApi = newableFactory(makeConfigApi);
+export const ConfigApi = makeConfigApi;
 
 /**
  * KnowledgeApi - Manages knowledge graph cores and data
@@ -2568,7 +2553,7 @@ export function makeKnowledgeApi(api: BaseApi) {
 }
 
 export type KnowledgeApi = ReturnType<typeof makeKnowledgeApi>;
-export const KnowledgeApi = newableFactory(makeKnowledgeApi);
+export const KnowledgeApi = makeKnowledgeApi;
 
 /**
  * CollectionManagementApi - Manages collections for organizing documents
@@ -2677,7 +2662,7 @@ export function makeCollectionManagementApi(api: BaseApi) {
 }
 
 export type CollectionManagementApi = ReturnType<typeof makeCollectionManagementApi>;
-export const CollectionManagementApi = newableFactory(makeCollectionManagementApi);
+export const CollectionManagementApi = makeCollectionManagementApi;
 
 /**
  * Factory function to create a new TrustGraph WebSocket connection
@@ -2690,4 +2675,4 @@ export const createTrustGraphSocket = (
   user: string,
   token?: string,
   socketUrl?: string,
-): BaseApi => new BaseApi(user, token, socketUrl);
+): BaseApi => makeBaseApi(user, token, socketUrl);

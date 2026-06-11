@@ -1,6 +1,12 @@
 import {BunHttpServer, BunRuntime} from "@effect/platform-bun";
 import {NodeRuntime, NodeStdio} from "@effect/platform-node";
-import {createTrustGraphSocket, type BaseApi, type Term as ClientTerm} from "@trustgraph/client";
+import {
+  createTrustGraphSocket,
+  makeTrustGraphGatewayClientScoped,
+  type BaseApi,
+  type Term as ClientTerm,
+  type TrustGraphGatewayClient,
+} from "@trustgraph/client";
 import {Config, Context, Effect, Layer} from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
@@ -1223,6 +1229,12 @@ export interface TrustGraphMcpConfigShape {
 const readNonEmpty = (value: string | undefined): string | undefined =>
   value !== undefined && value.length > 0 ? value : undefined
 
+const gatewayUrlWithToken = (config: TrustGraphMcpConfigShape): string => {
+  if (config.token === undefined || config.token.length === 0) return config.gatewayUrl
+  const separator = config.gatewayUrl.includes("?") ? "&" : "?"
+  return `${config.gatewayUrl}${separator}token=${encodeURIComponent(config.token)}`
+}
+
 const parsePort = (raw: string | undefined): number => {
   if (raw === undefined) {
     return 3000
@@ -1283,6 +1295,19 @@ export class TrustGraphSocket extends Context.Service<TrustGraphSocket, BaseApi>
   )
 }
 
+export class TrustGraphGateway extends Context.Service<TrustGraphGateway, TrustGraphGatewayClient>()(
+  "@trustgraph/mcp/server-effect/TrustGraphGateway",
+) {
+  static readonly layer = Layer.effect(
+    TrustGraphGateway,
+    Effect.gen(function*() {
+      const config = yield* TrustGraphMcpConfig
+      const client = yield* makeTrustGraphGatewayClientScoped({url: gatewayUrlWithToken(config)})
+      return TrustGraphGateway.of(client)
+    }),
+  )
+}
+
 const toErrorMessage = (cause: unknown): string => {
   if (Predicate.isError(cause) && cause.message.length > 0) {
     return cause.message
@@ -1294,6 +1319,25 @@ const toErrorMessage = (cause: unknown): string => {
     return cause.message
   }
   return "TrustGraph MCP tool failed"
+}
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  Predicate.isObject(value) && !Array.isArray(value) ? value as Record<string, unknown> : {}
+
+const stringProperty = (source: unknown, key: string): string | undefined => {
+  const value = asRecord(source)[key]
+  return Predicate.isString(value) ? value : undefined
+}
+
+const booleanProperty = (source: unknown, key: string): boolean | undefined => {
+  const value = asRecord(source)[key]
+  return typeof value === "boolean" ? value : undefined
+}
+
+const responseErrorMessage = (source: unknown): string | undefined => {
+  const error = asRecord(source).error
+  if (Predicate.isString(error)) return error
+  return stringProperty(error, "message")
 }
 
 const decodeJson = S.decodeUnknownEffect(S.Json)
@@ -1316,10 +1360,59 @@ const decodeJsonArrayOrFail = <E>(
 const asIriTerm = (value: string | undefined): ClientTerm | undefined =>
   value !== undefined && value.length > 0 ? {t: "i", i: value} : undefined
 
+const runAgentTool = Effect.fn("TrustGraphMcpToolkit.agent")(function*(
+  gateway: TrustGraphGatewayClient,
+  config: TrustGraphMcpConfigShape,
+  question: string,
+) {
+  let fullAnswer = ""
+  let streamError: AgentError | undefined
+
+  yield* gateway.runDispatchStream(
+    {
+      scope: "flow",
+      flow: config.flowId,
+      service: "agent",
+      request: {
+        question,
+        user: config.user,
+        collection: "default",
+        streaming: true,
+      },
+    },
+    (chunk) => {
+      const resp = asRecord(chunk.response)
+      const chunkType = stringProperty(resp, "chunk_type")
+      const error = chunkType === "error"
+        ? responseErrorMessage(resp) ?? "Unknown agent error"
+        : responseErrorMessage(resp)
+      if (error !== undefined) {
+        streamError = AgentError.make({message: error})
+        return true
+      }
+
+      if (chunkType === "answer" || chunkType === "final-answer") {
+        fullAnswer += stringProperty(resp, "content") ?? ""
+      }
+
+      return chunk.complete === true || booleanProperty(resp, "end_of_dialog") === true
+    },
+    {timeoutMs: 120_000, retries: 2},
+  ).pipe(
+    Effect.mapError((cause) => AgentError.make({message: toErrorMessage(cause)})),
+  )
+
+  if (streamError !== undefined) {
+    return yield* streamError
+  }
+  return AgentSuccess.make({text: fullAnswer})
+})
+
 export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
   Effect.gen(function*() {
     const config = yield* TrustGraphMcpConfig
     const socket = yield* TrustGraphSocket
+    const gateway = yield* TrustGraphGateway
 
     return TrustGraphMcpToolkit.of({
       text_completion: ({system, prompt}) =>
@@ -1354,22 +1447,7 @@ export const TrustGraphMcpToolkitLive = TrustGraphMcpToolkit.toLayer(
           Effect.map((text) => DocumentRagSuccess.make({text})),
         ),
 
-      agent: ({question}) =>
-        Effect.callback<AgentSuccess, AgentError>((resume) => {
-          let fullAnswer = ""
-          socket.flow(config.flowId).agent(
-            question,
-            () => {},
-            () => {},
-            (chunk, complete) => {
-              fullAnswer += chunk
-              if (complete) {
-                resume(Effect.succeed(AgentSuccess.make({text: fullAnswer})))
-              }
-            },
-            (cause) => resume(Effect.fail(AgentError.make({message: toErrorMessage(cause)}))),
-          )
-        }),
+      agent: ({question}) => runAgentTool(gateway, config, question),
 
       embeddings: ({text}) =>
         Effect.tryPromise({
@@ -1694,6 +1772,7 @@ const makeTrustGraphMcpHttpLayerFromConfig = (
       version: config.version,
       path: config.mcpPath,
     })),
+    Layer.provide(TrustGraphGateway.layer),
     Layer.provide(TrustGraphSocket.layer),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
   )
@@ -1713,6 +1792,7 @@ const makeTrustGraphMcpStdioLayerFromConfig = (
       version: config.version,
     })),
     Layer.provide(NodeStdio.layer),
+    Layer.provide(TrustGraphGateway.layer),
     Layer.provide(TrustGraphSocket.layer),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, TrustGraphMcpConfig.of(config))),
   )

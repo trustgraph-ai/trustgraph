@@ -1,14 +1,38 @@
 import { Clipboard as BrowserClipboard } from "@effect/platform-browser";
 import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore";
-import { BaseApi, type ConnectionState, type DocumentMetadata, type ExplainEvent, type StreamingMetadata, type Term, type Triple } from "@trustgraph/client";
-import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S } from "effect";
+import {
+  DispatchPayload,
+  GatewayWorkbenchHttpApi,
+  type GraphRagOptions,
+  makeBaseApi,
+  TrustGraphRpcs,
+  type BaseApi,
+  type BeginUploadResponse,
+  type ChunkedUploadDocumentMetadata,
+  type CompleteUploadResponse,
+  type ConnectionState,
+  type DocumentMetadata,
+  type ExplainEvent,
+  type StreamingMetadata,
+  type Term,
+  type Triple,
+  type UploadChunkResponse,
+} from "@trustgraph/client";
+import { Cause, Clock, Context, Effect, Layer, Match, Metric, Option, Random, Schema as S, Scope, Stream } from "effect";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as Predicate from "effect/Predicate";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import * as Otlp from "effect/unstable/observability/Otlp";
+import * as RpcClient from "effect/unstable/rpc/RpcClient";
+import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
+import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
+import * as AtomHttpApi from "effect/unstable/reactivity/AtomHttpApi";
+import * as AtomRpc from "effect/unstable/reactivity/AtomRpc";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
+import * as Socket from "effect/unstable/socket/Socket";
 
 // ---------------------------------------------------------------------------
 // Browser runtime, telemetry, and generic workbench HTTP API marker
@@ -103,12 +127,9 @@ export const workbenchRuntimeFactory = Atom.context({
   memoMap: Layer.makeMemoMapUnsafe(),
 });
 
-export const workbenchRuntime = workbenchRuntimeFactory(
-  Layer.mergeAll(
-    Reactivity.layer,
-    workbenchBaseLayer,
-  ),
-);
+workbenchRuntimeFactory.addGlobalLayer(workbenchBaseLayer);
+
+export const workbenchRuntime = workbenchRuntimeFactory(workbenchBaseLayer);
 
 const queryCounter = Metric.counter("trustgraph_workbench_query_total", {
   description: "Workbench atom-backed query attempts",
@@ -523,6 +544,27 @@ function mapConfigEntries(raw: unknown): Array<{ key: string; value: string }> {
     : [];
 }
 
+function configValuesFromResponse(raw: unknown): Array<{ key: string; value: unknown; type?: string; workspace?: string }> {
+  const values = jsonRecordProperty(raw, "values");
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((value) => {
+    if (!Predicate.isObject(value) || !Predicate.hasProperty(value, "key") || typeof value.key !== "string") {
+      return [];
+    }
+    const entry: { key: string; value: unknown; type?: string; workspace?: string } = {
+      key: value.key,
+      value: Predicate.hasProperty(value, "value") ? value.value : undefined,
+    };
+    if (Predicate.hasProperty(value, "type") && typeof value.type === "string") entry.type = value.type;
+    if (Predicate.hasProperty(value, "workspace") && typeof value.workspace === "string") entry.workspace = value.workspace;
+    return [entry];
+  });
+}
+
+function parseConfigValue(value: unknown): unknown {
+  return typeof value === "string" ? parseJsonUnknown(value) ?? value : value;
+}
+
 function parseConfigEntries<T>(raw: unknown, label: string): T[] {
   const entries: T[] = [];
   for (const item of mapConfigEntries(raw)) {
@@ -542,6 +584,152 @@ function withDefaultCollection(collection: string): string {
 
 type WorkbenchReactivityKeys = ReadonlyArray<unknown> | Record<string, ReadonlyArray<unknown>>;
 type WorkbenchRuntimeRequirements = BrowserClipboard.Clipboard | WorkbenchFiles | Reactivity.Reactivity;
+type WorkbenchHttpAtomRequirements =
+  | AtomRegistry.AtomRegistry
+  | Reactivity.Reactivity
+  | Scope.Scope
+  | WorkbenchGatewayHttp;
+type WorkbenchGatewayAtomRequirements =
+  | AtomRegistry.AtomRegistry
+  | Reactivity.Reactivity
+  | Scope.Scope
+  | WorkbenchGatewayHttp
+  | WorkbenchGatewayRpc;
+type WorkbenchDispatchInput = DispatchPayload;
+type JsonRecord = Record<string, unknown>;
+
+const StreamingEnvelopeSchema = S.Struct({
+  response: S.optionalKey(S.Unknown),
+  complete: S.optionalKey(S.Boolean),
+  error: S.optionalKey(S.String),
+});
+type StreamingEnvelope = typeof StreamingEnvelopeSchema.Type;
+
+const ClientTripleSchema: S.Codec<Triple, Triple> = S.suspend(() =>
+  S.Struct({
+    s: ClientTermSchema,
+    p: ClientTermSchema,
+    o: ClientTermSchema,
+    g: S.optionalKey(S.String),
+  })
+);
+
+const ClientTermSchema: S.Codec<Term, Term> = S.suspend(() =>
+  S.Union([
+    S.Struct({
+      t: S.Literal("i"),
+      i: S.String,
+    }),
+    S.Struct({
+      t: S.Literal("b"),
+      d: S.String,
+    }),
+    S.Struct({
+      t: S.Literal("l"),
+      v: S.String,
+      dt: S.optionalKey(S.String),
+      ln: S.optionalKey(S.String),
+    }),
+    S.Struct({
+      t: S.Literal("t"),
+      tr: S.optionalKey(ClientTripleSchema),
+    }),
+  ])
+);
+
+const decodeStreamingEnvelope = S.decodeUnknownOption(StreamingEnvelopeSchema);
+const decodeClientTriples = S.decodeUnknownOption(S.Array(ClientTripleSchema).pipe(S.mutable));
+
+function gatewayHttpBaseUrl(settings: Settings): string {
+  const raw = settings.gatewayUrl.trim();
+  if (raw.length === 0 || raw === "/api/v1/rpc") return "";
+  if (raw.startsWith("/")) {
+    return raw.replace(/\/api\/v1\/rpc$/, "").replace(/\/api\/v1$/, "");
+  }
+  const normalized = raw.startsWith("ws://")
+    ? `http://${raw.slice("ws://".length)}`
+    : raw.startsWith("wss://")
+    ? `https://${raw.slice("wss://".length)}`
+    : raw;
+  const parsed = new URL(normalized);
+  return parsed.origin;
+}
+
+function gatewayRpcUrl(settings: Settings): string {
+  const raw = settings.gatewayUrl.trim().length > 0 ? settings.gatewayUrl.trim() : "/api/v1/rpc";
+  const normalized = raw.startsWith("http://")
+    ? `ws://${raw.slice("http://".length)}`
+    : raw.startsWith("https://")
+    ? `wss://${raw.slice("https://".length)}`
+    : raw;
+  if (settings.apiKey.length === 0) return normalized;
+  const separator = normalized.includes("?") ? "&" : "?";
+  return `${normalized}${separator}token=${encodeURIComponent(settings.apiKey)}`;
+}
+
+const gatewayHttpClientLayer = (get: Atom.AtomContext) => {
+  const settings = get(settingsAtom);
+  const baseUrl = gatewayHttpBaseUrl(settings);
+  const token = settings.apiKey.length > 0 ? settings.apiKey : undefined;
+
+  return Layer.effect(
+    HttpClient.HttpClient,
+    HttpClient.HttpClient.pipe(
+      Effect.map((client) =>
+        HttpClient.mapRequest(client, (request) => {
+          const withBaseUrl = baseUrl.length > 0
+            ? HttpClientRequest.prependUrl(request, baseUrl)
+            : request;
+          return token === undefined
+            ? withBaseUrl
+            : HttpClientRequest.bearerToken(withBaseUrl, token);
+        })
+      ),
+    ),
+  ).pipe(Layer.provide(BrowserHttpClient.layerFetch));
+};
+
+const gatewayRpcProtocolLayer = (get: Atom.AtomContext) => {
+  const socketLayer = Layer.effect(
+    Socket.Socket,
+    Socket.makeWebSocket(gatewayRpcUrl(get(settingsAtom)), {
+      closeCodeIsError: (code) => code !== 1000,
+      openTimeout: "10 seconds",
+    }),
+  ).pipe(Layer.provide(Socket.layerWebSocketConstructorGlobal));
+
+  return RpcClient.layerProtocolSocket({
+    retryTransientErrors: true,
+  }).pipe(
+    Layer.provide(socketLayer),
+    Layer.provide(RpcSerialization.layerNdjson),
+  );
+};
+
+export class WorkbenchGatewayHttp extends AtomHttpApi.Service<WorkbenchGatewayHttp>()(
+  "@trustgraph/workbench/atoms/workbench/WorkbenchGatewayHttp",
+  {
+    api: GatewayWorkbenchHttpApi,
+    httpClient: gatewayHttpClientLayer,
+    runtime: workbenchRuntimeFactory,
+  },
+) {}
+
+export class WorkbenchGatewayRpc extends AtomRpc.Service<WorkbenchGatewayRpc>()(
+  "@trustgraph/workbench/atoms/workbench/WorkbenchGatewayRpc",
+  {
+    group: TrustGraphRpcs,
+    protocol: gatewayRpcProtocolLayer,
+    runtime: workbenchRuntimeFactory,
+  },
+) {}
+
+const workbenchGatewayRuntime = workbenchRuntimeFactory((get) =>
+  Layer.merge(
+    get(WorkbenchGatewayHttp.runtime.layer),
+    get(WorkbenchGatewayRpc.runtime.layer),
+  )
+);
 
 interface CommandOptions<A> {
   readonly initialValue?: A;
@@ -549,22 +737,668 @@ interface CommandOptions<A> {
   readonly concurrent?: boolean;
 }
 
+function asJsonRecord(value: unknown): JsonRecord {
+  return Predicate.isObject(value) && !Array.isArray(value) ? value as JsonRecord : {};
+}
+
+function jsonRecordProperty(value: unknown, key: string): unknown | undefined {
+  return Predicate.isObject(value) && Predicate.hasProperty(value, key) ? value[key] : undefined;
+}
+
+function streamingEnvelopeFrom(message: unknown): StreamingEnvelope {
+  return Option.getOrElse(decodeStreamingEnvelope(message), () => ({
+    complete: true,
+    error: "Streaming message could not be decoded",
+  }));
+}
+
+function propertyValue(source: unknown, key: string): unknown | undefined {
+  return Predicate.hasProperty(source, key) ? source[key] : undefined;
+}
+
+function stringProperty(source: unknown, key: string): string | undefined {
+  const value = propertyValue(source, key);
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberProperty(source: unknown, key: string): number | undefined {
+  const value = propertyValue(source, key);
+  return typeof value === "number" ? value : undefined;
+}
+
+function booleanProperty(source: unknown, key: string): boolean | undefined {
+  const value = propertyValue(source, key);
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function gatewayResponseErrorMessage(value: unknown): string | undefined {
+  const error = jsonRecordProperty(value, "error");
+  if (typeof error === "string") return error;
+  const message = jsonRecordProperty(error, "message");
+  return typeof message === "string" && message.length > 0 ? message : undefined;
+}
+
+function responseErrorMessage(source: unknown): string | undefined {
+  const error = propertyValue(source, "error");
+  if (typeof error === "string") return error;
+  return stringProperty(error, "message");
+}
+
+function streamComplete(
+  envelope: StreamingEnvelope,
+  response: unknown,
+  responseMarkers: ReadonlyArray<string> = [],
+): boolean {
+  return envelope.complete === true || responseMarkers.some((key) => booleanProperty(response, key) === true);
+}
+
+function explainTriplesFrom(source: unknown): Triple[] | undefined {
+  return Option.getOrUndefined(decodeClientTriples(propertyValue(source, "explain_triples")));
+}
+
+function streamingMetadataFrom(source: unknown): StreamingMetadata | undefined {
+  const metadata: StreamingMetadata = {};
+  let hasMetadata = false;
+
+  const inToken = numberProperty(source, "in_token");
+  if (inToken !== undefined) {
+    metadata.in_token = inToken;
+    hasMetadata = true;
+  }
+  const outToken = numberProperty(source, "out_token");
+  if (outToken !== undefined) {
+    metadata.out_token = outToken;
+    hasMetadata = true;
+  }
+  const model = stringProperty(source, "model");
+  if (model !== undefined) {
+    metadata.model = model;
+    hasMetadata = true;
+  }
+
+  return hasMetadata ? metadata : undefined;
+}
+
+function failWorkbenchRemote(operation: string, cause: unknown): WorkbenchPromiseError {
+  return WorkbenchPromiseError.make({ cause, message: `${operation}: ${errorMessage(cause)}` });
+}
+
+function decodeResponseJsonEffect(value: unknown, operation: string): Effect.Effect<unknown, WorkbenchPromiseError> {
+  const parsed = typeof value === "string" ? parseJsonUnknown(value) : value;
+  return parsed === undefined
+    ? Effect.fail(WorkbenchPromiseError.make({ cause: value, message: `${operation}: response JSON could not be decoded` }))
+    : Effect.succeed(parsed);
+}
+
+function ensureNoGatewayResponseError<A>(operation: string, value: A): Effect.Effect<A, WorkbenchPromiseError> {
+  const message = gatewayResponseErrorMessage(value);
+  return message === undefined
+    ? Effect.succeed(value)
+    : Effect.fail(WorkbenchPromiseError.make({ cause: value, message: `${operation}: ${message}` }));
+}
+
+function qaBaseApi(): BaseApi | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as Window & { __TRUSTGRAPH_WORKBENCH_QA_API__?: BaseApi }).__TRUSTGRAPH_WORKBENCH_QA_API__;
+}
+
+function makeWorkbenchGatewayApi(settings: Settings) {
+  const user = settings.user;
+  const dispatch = (
+    service: string,
+    request: JsonRecord,
+    flow?: string,
+  ): Effect.Effect<JsonRecord, WorkbenchPromiseError, WorkbenchGatewayHttp> =>
+    Effect.gen(function* () {
+      const qaApi = qaBaseApi();
+      if (qaApi !== undefined) {
+        const response = yield* promiseBoundary(() =>
+          qaApi.makeRequest(service, request, undefined, undefined, flow)
+        );
+        return asJsonRecord(response);
+      }
+
+      const client = yield* WorkbenchGatewayHttp;
+      const scope = flow === undefined ? "global" as const : "flow" as const;
+      const input: WorkbenchDispatchInput = flow === undefined
+        ? { scope, service, request }
+        : { scope, service, flow, request };
+      const response = yield* client.dispatch({ payload: DispatchPayload.make(input) });
+      return asJsonRecord(response);
+    }).pipe(
+      Effect.mapError((cause) => failWorkbenchRemote(`dispatch ${service}`, cause)),
+    );
+
+  const flowDispatch = (flow: string, service: string, request: JsonRecord) =>
+    dispatch(service, request, flow);
+
+  const dispatchStream = (
+    service: string,
+    request: JsonRecord,
+    flow: string,
+    receive: (message: StreamingEnvelope) => boolean,
+    label: string,
+    onError: (message: string) => void,
+  ): Effect.Effect<void, never, WorkbenchGatewayRpc> =>
+    Effect.gen(function* () {
+      const qaApi = qaBaseApi();
+      if (qaApi !== undefined) {
+        return yield* promiseBoundary(() =>
+          qaApi.makeRequestMulti(
+            service,
+            request,
+            (message) => receive(streamingEnvelopeFrom(message)),
+            undefined,
+            undefined,
+            flow,
+          )
+        ).pipe(
+          Effect.catch((cause) =>
+            Effect.sync(() => {
+              onError(`${label} request failed: ${errorMessage(cause)}`);
+            })
+          ),
+          Effect.asVoid,
+        );
+      }
+
+      const client = yield* WorkbenchGatewayRpc;
+      const payload = DispatchPayload.make({
+        scope: "flow",
+        service,
+        flow,
+        request,
+      });
+
+      yield* client("DispatchStream", payload).pipe(
+        Stream.runForEachWhile((chunk) =>
+          Effect.sync(() => !receive({ response: chunk.response, complete: chunk.complete }))
+        ),
+      );
+    }).pipe(
+      Effect.catch((cause) =>
+        Effect.sync(() => {
+          onError(`${label} request failed: ${errorMessage(cause)}`);
+        })
+      ),
+    );
+
+  const configAll = () => dispatch("config", { operation: "config" }, undefined);
+
+  const configApi = {
+    getConfigAll: configAll,
+    getPrompts: () =>
+      configAll().pipe(
+        Effect.map((response) => {
+          const config = asJsonRecord(response.config);
+          const promptNs = asJsonRecord(config.prompt);
+          return Object.keys(promptNs)
+            .filter((key) => key !== "system")
+            .sort()
+            .map((id) => ({ id, name: id }));
+        }),
+      ),
+    getSystemPrompt: () =>
+      configAll().pipe(
+        Effect.map((response) => {
+          const config = asJsonRecord(response.config);
+          const prompt = asJsonRecord(config.prompt);
+          const raw = prompt.system;
+          return raw == null ? "" : raw;
+        }),
+      ),
+    getPrompt: (id: string) =>
+      configAll().pipe(
+        Effect.map((response) => {
+          const config = asJsonRecord(response.config);
+          return asJsonRecord(config.prompt)[id] ?? null;
+        }),
+      ),
+    getValues: (type: string) =>
+      dispatch("config", { operation: "getvalues", type }, undefined).pipe(
+        Effect.map((response) => configValuesFromResponse(response)),
+      ),
+    getTokenCosts: () =>
+      dispatch("config", { operation: "getvalues", type: "token-cost" }, undefined).pipe(
+        Effect.map((response) =>
+          configValuesFromResponse(response).map((item) => {
+            const value = parseConfigValue(item.value) as Record<string, number>;
+            return {
+              model: item.key,
+              input_price: value.input_price,
+              output_price: value.output_price,
+            };
+          })
+        ),
+      ),
+    putConfig: (items: { type: string; key: string; value: string }[]) =>
+      dispatch("config", { operation: "put", values: items }, undefined),
+    deleteConfig: (target: { type: string; key: string }) =>
+      dispatch("config", { operation: "delete", keys: [target] }, undefined),
+  };
+
+  return {
+    user,
+    flows: () => ({
+      getFlows: () =>
+        dispatch("flow", { operation: "list-flows" }, undefined).pipe(
+          Effect.map((response) => Array.isArray(response["flow-ids"]) ? response["flow-ids"] as string[] : []),
+        ),
+      getFlow: (id: string) =>
+        dispatch("flow", { operation: "get-flow", "flow-id": id }, undefined).pipe(
+          Effect.flatMap((response) => decodeResponseJsonEffect(response.flow, "get-flow")),
+        ),
+      getFlowBlueprints: () =>
+        dispatch("flow", { operation: "list-blueprints" }, undefined).pipe(
+          Effect.map((response) => Array.isArray(response["blueprint-names"]) ? response["blueprint-names"] as string[] : []),
+        ),
+      getFlowBlueprint: (name: string) =>
+        dispatch("flow", { operation: "get-blueprint", "blueprint-name": name }, undefined).pipe(
+          Effect.flatMap((response) => decodeResponseJsonEffect(response["blueprint-definition"], "get-blueprint")),
+        ),
+      startFlow: (id: string, blueprint: string, description: string, parameters?: Record<string, unknown>) => {
+        const request: JsonRecord = {
+          operation: "start-flow",
+          "flow-id": id,
+          "blueprint-name": blueprint,
+          description,
+        };
+        if (parameters !== undefined && Object.keys(parameters).length > 0) request.parameters = parameters;
+        return dispatch("flow", request, undefined).pipe(
+          Effect.flatMap((response) => ensureNoGatewayResponseError("start-flow", response)),
+        );
+      },
+      stopFlow: (id: string) =>
+        dispatch("flow", { operation: "stop-flow", "flow-id": id }, undefined),
+    }),
+    config: () => configApi,
+    librarian: () => ({
+      getDocuments: () =>
+        dispatch("librarian", { operation: "list-documents", user }, undefined).pipe(
+          Effect.map((response) => (response["document-metadatas"] ?? response.documents ?? []) as DocumentMetadata[]),
+        ),
+      getProcessing: () =>
+        dispatch("librarian", { operation: "list-processing", user }, undefined).pipe(
+          Effect.map((response) => (response["processing-metadatas"] ?? response.processing ?? response["processing-metadata"] ?? []) as ProcessingMetadata[]),
+        ),
+      getDocumentMetadata: (documentId: string) =>
+        dispatch("librarian", {
+          operation: "get-document-metadata",
+          "document-id": documentId,
+          documentId,
+          user,
+        }, undefined).pipe(
+          Effect.map((response) => (response["document-metadata"] ?? response.documentMetadata ?? null) as DocumentMetadata | null),
+        ),
+      loadDocument: Effect.fn("trustgraph.workbench.gateway.librarian.loadDocument")(function*(
+        document: string,
+        mimeType: string,
+        title: string,
+        comments: string,
+        tags: string[],
+        id?: string,
+        metadata?: Triple[],
+      ) {
+          const timestamp = yield* Clock.currentTimeMillis;
+          const documentMetadata: DocumentMetadata = {
+            time: Math.floor(timestamp / 1000),
+            kind: mimeType,
+            title,
+            comments,
+            user,
+            tags,
+            "document-type": "source",
+            documentType: "source",
+          };
+          if (id !== undefined) documentMetadata.id = id;
+          if (metadata !== undefined) documentMetadata.metadata = metadata;
+          return yield* dispatch("librarian", {
+            operation: "add-document",
+            "document-metadata": documentMetadata,
+            documentMetadata,
+            content: document,
+          }, undefined);
+      }),
+      removeDocument: (id: string, collection?: string) =>
+        dispatch("librarian", {
+          operation: "remove-document",
+          "document-id": id,
+          documentId: id,
+          user,
+          collection: withDefaultCollection(collection ?? "default"),
+        }, undefined),
+      beginUpload: (
+        metadata: ChunkedUploadDocumentMetadata,
+        totalSize: number,
+        chunkSize?: number,
+      ): Effect.Effect<BeginUploadResponse, WorkbenchPromiseError, WorkbenchGatewayHttp> => {
+        const request: JsonRecord = {
+          operation: "begin-upload",
+          "document-metadata": metadata,
+          documentMetadata: metadata,
+          "total-size": totalSize,
+        };
+        if (chunkSize !== undefined) request["chunk-size"] = chunkSize;
+        return dispatch("librarian", request, undefined).pipe(
+          Effect.flatMap((response) => ensureNoGatewayResponseError("begin-upload", response)),
+          Effect.map((response) => response as unknown as BeginUploadResponse),
+        );
+      },
+      uploadChunk: (
+        uploadId: string,
+        chunkIndex: number,
+        content: string,
+      ): Effect.Effect<UploadChunkResponse, WorkbenchPromiseError, WorkbenchGatewayHttp> =>
+        dispatch("librarian", {
+          operation: "upload-chunk",
+          "upload-id": uploadId,
+          "chunk-index": chunkIndex,
+          content,
+          user,
+        }, undefined).pipe(
+          Effect.flatMap((response) => ensureNoGatewayResponseError("upload-chunk", response)),
+          Effect.map((response) => response as unknown as UploadChunkResponse),
+        ),
+      completeUpload: (uploadId: string): Effect.Effect<CompleteUploadResponse, WorkbenchPromiseError, WorkbenchGatewayHttp> =>
+        dispatch("librarian", {
+          operation: "complete-upload",
+          "upload-id": uploadId,
+          user,
+        }, undefined).pipe(
+          Effect.flatMap((response) => ensureNoGatewayResponseError("complete-upload", response)),
+          Effect.map((response) => response as unknown as CompleteUploadResponse),
+        ),
+    }),
+    knowledge: () => ({
+      getKnowledgeCores: () =>
+        dispatch("knowledge", { operation: "list-kg-cores", user }, undefined).pipe(
+          Effect.map((response) => Array.isArray(response.ids) ? response.ids as string[] : []),
+        ),
+      getDocumentEmbeddingCores: () =>
+        dispatch("knowledge", { operation: "list-de-cores", user }, undefined).pipe(
+          Effect.map((response) => Array.isArray(response.ids) ? response.ids as string[] : []),
+        ),
+      loadKgCore: (id: string, flow: string, collection?: string) =>
+        dispatch("knowledge", {
+          operation: "load-kg-core",
+          id,
+          flow,
+          user,
+          collection: withDefaultCollection(collection ?? "default"),
+        }, undefined),
+      deleteKgCore: (id: string, collection?: string) =>
+        dispatch("knowledge", {
+          operation: "delete-kg-core",
+          id,
+          user,
+          collection: withDefaultCollection(collection ?? "default"),
+        }, undefined),
+    }),
+    collectionManagement: () => ({
+      listCollections: (tagFilter?: string[]) => {
+        const request: JsonRecord = { operation: "list-collections", user };
+        if (tagFilter !== undefined && tagFilter.length > 0) request.tag_filter = tagFilter;
+        return dispatch("collection-management", request, undefined).pipe(
+          Effect.map((response) => (response.collections ?? []) as CollectionSummary[]),
+        );
+      },
+      updateCollection: (collection: string, name?: string, description?: string, tags?: string[]) => {
+        const request: JsonRecord = { operation: "update-collection", user, collection };
+        if (name !== undefined) request.name = name;
+        if (description !== undefined) request.description = description;
+        if (tags !== undefined) request.tags = tags;
+        return dispatch("collection-management", request, undefined).pipe(
+          Effect.flatMap((response) => {
+            const collections = response.collections;
+            return Array.isArray(collections) && collections.length > 0
+              ? Effect.succeed(collections[0])
+              : Effect.fail(WorkbenchPromiseError.make({ cause: response, message: "update-collection: failed to update collection" }));
+          }),
+        );
+      },
+      deleteCollection: (collection: string) =>
+        dispatch("collection-management", {
+          operation: "delete-collection",
+          user,
+          collection,
+        }, undefined),
+    }),
+    flow: (flowId: string) => ({
+      triplesQuery: Effect.fn("trustgraph.workbench.gateway.flow.triplesQuery")(function*(
+        s?: Term,
+        p?: Term,
+        o?: Term,
+        limit?: number,
+        collection?: string,
+        graph?: string,
+      ) {
+        const request: JsonRecord = {
+          limit: limit ?? 20,
+          user,
+          collection: withDefaultCollection(collection ?? "default"),
+        };
+        if (s !== undefined) request.s = s;
+        if (p !== undefined) request.p = p;
+        if (o !== undefined) request.o = o;
+        if (graph !== undefined) request.g = graph;
+        return yield* flowDispatch(flowId, "triples", request).pipe(
+          Effect.map((response) => (response.triples ?? response.response ?? []) as Triple[]),
+        );
+      }),
+      graphRagStreaming: Effect.fn("trustgraph.workbench.gateway.flow.graphRagStreaming")(function*(
+        text: string,
+        receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+        onError: (error: string) => void,
+        options?: GraphRagOptions,
+        collection?: string,
+        onExplain?: (event: ExplainEvent) => void,
+      ) {
+        const recv = (message: unknown): boolean => {
+          const msg = streamingEnvelopeFrom(message);
+          if (msg.error !== undefined) {
+            onError(msg.error);
+            return true;
+          }
+
+          const resp = msg.response ?? {};
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
+            return true;
+          }
+
+          const messageType = stringProperty(resp, "message_type");
+          const explainId = stringProperty(resp, "explain_id");
+          const explainTriples = explainTriplesFrom(resp);
+          if (
+            messageType === "explain" &&
+            (explainId !== undefined || explainTriples !== undefined)
+          ) {
+            const event: ExplainEvent = {
+              explainId: explainId ?? "",
+              explainGraph: stringProperty(resp, "explain_graph") ?? "",
+            };
+            if (explainTriples !== undefined) {
+              event.explainTriples = explainTriples;
+            }
+            onExplain?.(event);
+            if (
+              stringProperty(resp, "response") === undefined &&
+              booleanProperty(resp, "endOfStream") !== true &&
+              booleanProperty(resp, "end_of_session") !== true
+            ) {
+              return false;
+            }
+          }
+
+          const chunk = stringProperty(resp, "response") ?? stringProperty(resp, "chunk") ?? "";
+          const complete = streamComplete(msg, resp, ["end_of_session", "endOfStream"]);
+          const metadata = complete ? streamingMetadataFrom(resp) : undefined;
+          receiver(chunk, complete, metadata);
+          return complete;
+        };
+
+        const request: JsonRecord = {
+          query: text,
+          user,
+          collection: withDefaultCollection(collection ?? "default"),
+          streaming: true,
+        };
+        if (options?.entityLimit !== undefined) request["entity-limit"] = options.entityLimit;
+        if (options?.tripleLimit !== undefined) request["triple-limit"] = options.tripleLimit;
+        if (options?.maxSubgraphSize !== undefined) request["max-subgraph-size"] = options.maxSubgraphSize;
+        if (options?.pathLength !== undefined) request["max-path-length"] = options.pathLength;
+
+        return yield* dispatchStream("graph-rag", request, flowId, recv, "Graph RAG", onError);
+      }),
+      documentRagStreaming: Effect.fn("trustgraph.workbench.gateway.flow.documentRagStreaming")(function*(
+        text: string,
+        receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+        onError: (error: string) => void,
+        docLimit?: number,
+        collection?: string,
+        onExplain?: (event: ExplainEvent) => void,
+      ) {
+        const recv = (message: unknown): boolean => {
+          const msg = streamingEnvelopeFrom(message);
+          if (msg.error !== undefined) {
+            onError(msg.error);
+            return true;
+          }
+
+          const resp = msg.response ?? {};
+          const responseError = responseErrorMessage(resp);
+          if (responseError !== undefined) {
+            onError(responseError);
+            return true;
+          }
+
+          const explainId = stringProperty(resp, "explain_id");
+          const explainGraph = stringProperty(resp, "explain_graph");
+          if (
+            stringProperty(resp, "message_type") === "explain" &&
+            explainId !== undefined &&
+            explainGraph !== undefined
+          ) {
+            onExplain?.({
+              explainId,
+              explainGraph,
+            });
+            return false;
+          }
+
+          const chunk = stringProperty(resp, "response") ?? stringProperty(resp, "chunk") ?? "";
+          const complete = streamComplete(msg, resp, ["end_of_session", "endOfStream"]);
+          const metadata = complete ? streamingMetadataFrom(resp) : undefined;
+          receiver(chunk, complete, metadata);
+          return complete;
+        };
+
+        const request: JsonRecord = {
+          query: text,
+          user,
+          collection: withDefaultCollection(collection ?? "default"),
+          streaming: true,
+        };
+        if (docLimit !== undefined) request["doc-limit"] = docLimit;
+
+        return yield* dispatchStream("document-rag", request, flowId, recv, "Document RAG", onError);
+      }),
+      agent: Effect.fn("trustgraph.workbench.gateway.flow.agent")(function*(
+        question: string,
+        think: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+        observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+        answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+        error: (e: string) => void,
+        onExplain?: (event: ExplainEvent) => void,
+        collection?: string,
+      ) {
+        const recv = (message: unknown): boolean => {
+          const msg = streamingEnvelopeFrom(message);
+          if (msg.error !== undefined) {
+            error(msg.error);
+            return true;
+          }
+
+          const resp = msg.response ?? {};
+          const responseError = responseErrorMessage(resp);
+          if (stringProperty(resp, "chunk_type") === "error" || responseError !== undefined) {
+            error(responseError ?? "Unknown agent error");
+            return true;
+          }
+
+          const chunkType = stringProperty(resp, "chunk_type");
+          const messageType = stringProperty(resp, "message_type");
+          const explainId = stringProperty(resp, "explain_id");
+          const explainTriples = explainTriplesFrom(resp);
+          if (
+            (chunkType === "explain" || messageType === "explain") &&
+            (explainId !== undefined || explainTriples !== undefined)
+          ) {
+            const event: ExplainEvent = {
+              explainId: explainId ?? "",
+              explainGraph: stringProperty(resp, "explain_graph") ?? "",
+            };
+            if (explainTriples !== undefined) {
+              event.explainTriples = explainTriples;
+            }
+            onExplain?.(event);
+            return false;
+          }
+
+          const content = stringProperty(resp, "content") ?? "";
+          const messageComplete = booleanProperty(resp, "end_of_message") === true;
+          const dialogComplete = streamComplete(msg, resp, ["end_of_dialog"]);
+          const metadata = dialogComplete ? streamingMetadataFrom(resp) : undefined;
+
+          Match.value(chunkType).pipe(
+            Match.when("thought", () => think(content, messageComplete, metadata)),
+            Match.when("observation", () => observe(content, messageComplete, metadata)),
+            Match.when("answer", () => answer(content, messageComplete, metadata)),
+            Match.when("final-answer", () => answer(content, messageComplete, metadata)),
+            Match.when("action", () => undefined),
+            Match.orElse(() => undefined),
+          );
+
+          return dialogComplete;
+        };
+
+        return yield* dispatchStream(
+          "agent",
+          {
+            question,
+            user,
+            collection: withDefaultCollection(collection ?? "default"),
+            streaming: true,
+          },
+          flowId,
+          recv,
+          "Agent",
+          error,
+        );
+      }),
+    }),
+  };
+}
+
+type WorkbenchGatewayApi = ReturnType<typeof makeWorkbenchGatewayApi>;
+
 function queryAtom<A>(
   name: string,
-  fetcher: (get: Atom.AtomContext, api: BaseApi) => Effect.Effect<A, WorkbenchError>,
+  fetcher: (get: Atom.AtomContext, api: WorkbenchGatewayApi) => Effect.Effect<A, WorkbenchError, WorkbenchGatewayHttp>,
   options?: {
     readonly reactivityKeys?: WorkbenchReactivityKeys;
   },
 ) {
   const readQuery = Effect.fn(`trustgraph.workbench.query.${name}`)(function*(get: Atom.AtomContext) {
-    const api = get(apiAtom);
+    const api = makeWorkbenchGatewayApi(get(settingsAtom));
     return yield* fetcher(get, api).pipe(
       Effect.tap(() => Metric.update(queryCounter, 1)),
       Effect.tapError((error) => Effect.logError(`[workbench:${name}] query failed`, { error })),
     );
   });
 
-  const atom = workbenchRuntime.atom((get) => readQuery(get));
+  const atom = WorkbenchGatewayHttp.runtime.atom((get) => readQuery(get));
   const reactiveAtom = options?.reactivityKeys === undefined
     ? atom
     : workbenchRuntime.factory.withReactivity(options.reactivityKeys)(atom);
@@ -591,18 +1425,49 @@ function localCommandAtom<Arg, A, R extends WorkbenchRuntimeRequirements = never
 
 function commandAtom<Arg, A, R extends WorkbenchRuntimeRequirements = never>(
   name: string,
-  run: (arg: Arg, get: Atom.FnContext, api: BaseApi) => Effect.Effect<A, WorkbenchError, R>,
+  run: (arg: Arg, get: Atom.FnContext, api: WorkbenchGatewayApi) => Effect.Effect<A, WorkbenchError, R | WorkbenchGatewayHttp>,
   options?: CommandOptions<A>,
 ) {
   const runCommand = Effect.fn(`trustgraph.workbench.command.${name}`)(function*(arg: Arg, get: Atom.FnContext) {
-    const api = get(apiAtom);
+    const api = makeWorkbenchGatewayApi(get(settingsAtom));
     return yield* run(arg, get, api).pipe(
       Effect.tap(() => Metric.update(mutationCounter, 1)),
       Effect.tapError((error) => Effect.logError(`[workbench:${name}] command failed`, { error })),
     );
   });
 
-  return workbenchRuntime.fn<Arg>()(runCommand, options);
+  // Browser-only services like WorkbenchFiles are installed as global layers on
+  // workbenchRuntimeFactory, but AtomRuntime's type parameter only tracks the
+  // HTTP service layer passed to AtomHttpApi.Service.
+  return WorkbenchGatewayHttp.runtime.fn<Arg>()(
+    runCommand as (
+      arg: Arg,
+      get: Atom.FnContext,
+    ) => Effect.Effect<A, WorkbenchError, WorkbenchHttpAtomRequirements>,
+    options,
+  );
+}
+
+function gatewayCommandAtom<Arg, A, R extends WorkbenchRuntimeRequirements = never>(
+  name: string,
+  run: (arg: Arg, get: Atom.FnContext, api: WorkbenchGatewayApi) => Effect.Effect<A, WorkbenchError, R | WorkbenchGatewayHttp | WorkbenchGatewayRpc>,
+  options?: CommandOptions<A>,
+) {
+  const runCommand = Effect.fn(`trustgraph.workbench.command.${name}`)(function*(arg: Arg, get: Atom.FnContext) {
+    const api = makeWorkbenchGatewayApi(get(settingsAtom));
+    return yield* run(arg, get, api).pipe(
+      Effect.tap(() => Metric.update(mutationCounter, 1)),
+      Effect.tapError((error) => Effect.logError(`[workbench:${name}] command failed`, { error })),
+    );
+  });
+
+  return workbenchGatewayRuntime.fn<Arg>()(
+    runCommand as (
+      arg: Arg,
+      get: Atom.FnContext,
+    ) => Effect.Effect<A, WorkbenchError, WorkbenchGatewayAtomRequirements>,
+    options,
+  );
 }
 
 function setActivity(get: Atom.FnContext, label: string, active: boolean): void {
@@ -790,7 +1655,7 @@ export const toggleThemeAtom = Atom.writable(
 
 const liveApiFactory: WorkbenchApiFactory = {
   create: (settings) =>
-    new BaseApi(
+    makeBaseApi(
       settings.user,
       settings.apiKey.length > 0 ? settings.apiKey : undefined,
       settings.gatewayUrl.length > 0 ? settings.gatewayUrl : undefined,
@@ -825,10 +1690,10 @@ export const connectionStateAtom = Atom.make((get) => {
 export const flowsAtom = queryAtom(
   "flows",
   Effect.fn("trustgraph.workbench.flows")(function*(_get, api) {
-    const ids = yield* promiseBoundary(() => api.flows().getFlows());
+    const ids = yield* api.flows().getFlows();
     return yield* Effect.all(
       ids.map((id) =>
-        promiseBoundary(() => api.flows().getFlow(id)).pipe(
+        api.flows().getFlow(id).pipe(
           Effect.map((definition) => ({
             id,
             ...(typeof definition === "object" && definition !== null ? definition : {}),
@@ -844,7 +1709,7 @@ export const flowsAtom = queryAtom(
 export const flowBlueprintsAtom = queryAtom(
   "flowBlueprints",
   Effect.fn("trustgraph.workbench.flowBlueprints")(function*(_get, api) {
-    const list = yield* promiseBoundary(() => api.flows().getFlowBlueprints());
+    const list = yield* api.flows().getFlowBlueprints();
     return list ?? [];
   }),
   { reactivityKeys: ["flows", "flow-blueprints"] },
@@ -855,7 +1720,7 @@ export const flowBlueprintAtom = Atom.family((name: string) =>
     `flowBlueprint.${name}`,
     Effect.fn("trustgraph.workbench.flowBlueprint")(function*(_get, api) {
       if (name.length === 0) return null;
-      return yield* promiseBoundary(() => api.flows().getFlowBlueprint(name));
+      return yield* api.flows().getFlowBlueprint(name);
     }),
     { reactivityKeys: ["flow-blueprint", name] },
   ).pipe(Atom.setIdleTTL("10 minutes")),
@@ -864,7 +1729,7 @@ export const flowBlueprintAtom = Atom.family((name: string) =>
 export const configAllAtom = queryAtom(
   "configAll",
   Effect.fn("trustgraph.workbench.configAll")(function*(_get, api) {
-    return yield* promiseBoundary(() => api.config().getConfigAll());
+    return yield* api.config().getConfigAll();
   }),
   { reactivityKeys: ["config"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
@@ -872,7 +1737,7 @@ export const configAllAtom = queryAtom(
 export const promptsAtom = queryAtom(
   "prompts",
   Effect.fn("trustgraph.workbench.prompts")(function*(_get, api) {
-    return yield* promiseBoundary(() => api.config().getPrompts());
+    return yield* api.config().getPrompts();
   }),
   { reactivityKeys: ["config", "prompts"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
@@ -880,7 +1745,7 @@ export const promptsAtom = queryAtom(
 export const systemPromptAtom = queryAtom(
   "systemPrompt",
     Effect.fn("trustgraph.workbench.systemPrompt")(function*(_get, api) {
-      const prompt = yield* promiseBoundary(() => api.config().getSystemPrompt());
+      const prompt = yield* api.config().getSystemPrompt();
       return typeof prompt === "string" ? prompt : encodeJsonUnknownString(prompt);
     }),
     { reactivityKeys: ["config", "system-prompt"] },
@@ -891,7 +1756,7 @@ export const promptDetailAtom = Atom.family((id: string) =>
     `prompt.${id}`,
     Effect.fn("trustgraph.workbench.promptDetail")(function*(_get, api) {
       if (id.length === 0) return null;
-      return yield* promiseBoundary(() => api.config().getPrompt(id));
+      return yield* api.config().getPrompt(id);
     }),
     { reactivityKeys: ["config", "prompt", id] },
   ).pipe(Atom.setIdleTTL("2 minutes")),
@@ -900,7 +1765,7 @@ export const promptDetailAtom = Atom.family((id: string) =>
 export const tokenCostsAtom = queryAtom(
   "tokenCosts",
   Effect.fn("trustgraph.workbench.tokenCosts")(function*(_get, api) {
-    const data = yield* promiseBoundary(() => api.config().getTokenCosts());
+    const data = yield* api.config().getTokenCosts();
     return Array.isArray(data)
       ? data.map((item: Record<string, unknown>) => ({
           model: String(item.model ?? ""),
@@ -915,7 +1780,7 @@ export const tokenCostsAtom = queryAtom(
 export const mcpServersAtom = queryAtom(
   "mcpServers",
   Effect.fn("trustgraph.workbench.mcpServers")(function*(_get, api) {
-    const values = yield* promiseBoundary(() => api.config().getValues("mcp"));
+    const values = yield* api.config().getValues("mcp");
     return parseConfigEntries<McpServerEntry>(values, "MCP server config");
   }),
   { reactivityKeys: ["config", "mcp"] },
@@ -924,7 +1789,7 @@ export const mcpServersAtom = queryAtom(
 export const mcpToolsAtom = queryAtom(
   "mcpTools",
   Effect.fn("trustgraph.workbench.mcpTools")(function*(_get, api) {
-    const values = yield* promiseBoundary(() => api.config().getValues("tool"));
+    const values = yield* api.config().getValues("tool");
     return parseConfigEntries<ToolEntry>(values, "tool config");
   }),
   { reactivityKeys: ["config", "tool"] },
@@ -933,7 +1798,7 @@ export const mcpToolsAtom = queryAtom(
 export const libraryDocumentsAtom = queryAtom(
   "libraryDocuments",
   Effect.fn("trustgraph.workbench.libraryDocuments")(function*(_get, api) {
-    return yield* promiseBoundary(() => api.librarian().getDocuments());
+    return yield* api.librarian().getDocuments();
   }),
   { reactivityKeys: ["library", "documents"] },
 ).pipe(Atom.setIdleTTL("1 minute"));
@@ -941,7 +1806,7 @@ export const libraryDocumentsAtom = queryAtom(
 export const libraryProcessingAtom = queryAtom(
   "libraryProcessing",
   Effect.fn("trustgraph.workbench.libraryProcessing")(function*(_get, api) {
-    return (yield* promiseBoundary(() => api.librarian().getProcessing())) as ProcessingMetadata[];
+    return (yield* api.librarian().getProcessing()) as ProcessingMetadata[];
   }),
   { reactivityKeys: ["library", "processing"] },
 ).pipe(Atom.setIdleTTL("30 seconds"));
@@ -951,7 +1816,7 @@ export const documentMetadataAtom = Atom.family((documentId: string) =>
     `documentMetadata.${documentId}`,
     Effect.fn("trustgraph.workbench.documentMetadata")(function*(_get, api) {
       if (documentId.length === 0) return null;
-      return yield* promiseBoundary(() => api.librarian().getDocumentMetadata(documentId));
+      return yield* api.librarian().getDocumentMetadata(documentId);
     }),
     { reactivityKeys: ["library", "document", documentId] },
   ).pipe(Atom.setIdleTTL("5 minutes")),
@@ -960,7 +1825,7 @@ export const documentMetadataAtom = Atom.family((documentId: string) =>
 export const kgCoresAtom = queryAtom(
   "kgCores",
   Effect.fn("trustgraph.workbench.kgCores")(function*(_get, api) {
-    return yield* promiseBoundary(() => api.knowledge().getKnowledgeCores());
+    return yield* api.knowledge().getKnowledgeCores();
   }),
   { reactivityKeys: ["knowledge", "kg-cores"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
@@ -968,7 +1833,7 @@ export const kgCoresAtom = queryAtom(
 export const deCoresAtom = queryAtom(
   "deCores",
   Effect.fn("trustgraph.workbench.deCores")(function*(_get, api) {
-    return yield* promiseBoundary(() => api.knowledge().getDocumentEmbeddingCores());
+    return yield* api.knowledge().getDocumentEmbeddingCores();
   }),
   { reactivityKeys: ["knowledge", "de-cores"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
@@ -976,7 +1841,7 @@ export const deCoresAtom = queryAtom(
 export const collectionsAtom = queryAtom(
   "collections",
   Effect.fn("trustgraph.workbench.collections")(function*(_get, api) {
-    const collections = (yield* promiseBoundary(() => api.collectionManagement().listCollections())) as CollectionSummary[];
+    const collections = (yield* api.collectionManagement().listCollections()) as CollectionSummary[];
     const list = Array.isArray(collections) ? [...collections] : [];
     const hasDefault = list.some((item) => (item.collection ?? item.id ?? item.name) === "default");
     if (!hasDefault) list.unshift({ id: "default", collection: "default", name: "default" });
@@ -1029,7 +1894,7 @@ const graphTriplesAtomByKey = Atom.family((key: string) => {
   return queryAtom(
     `graphTriples.${input.flowId}.${input.collection}.${input.limit}`,
     Effect.fn("trustgraph.workbench.graphTriples")(function*(_get, api) {
-      return yield* promiseBoundary(() =>
+      return yield* (
         api.flow(input.flowId).triplesQuery(undefined, undefined, undefined, input.limit, input.collection)
       );
     }),
@@ -1053,7 +1918,7 @@ const explainTriplesAtomByKey = Atom.family((key: string) =>
       );
       const results = yield* Effect.all(
         graphUris.map((event) =>
-          promiseBoundary(() =>
+          (
             api.flow(input.flowId)
               .triplesQuery(undefined, undefined, undefined, 500, input.collection, event.explainGraph)
           ).pipe(Effect.orElseSucceed((): Array<Triple> => []))
@@ -1200,7 +2065,7 @@ export const startFlowAtom = commandAtom<
   yield* withActivity(
     get,
     `Start flow ${input.id}`,
-    promiseBoundary(() => api.flows().startFlow(input.id, input.blueprint, input.description, input.parameters)).pipe(
+    api.flows().startFlow(input.id, input.blueprint, input.description, input.parameters).pipe(
       Effect.tap(() => Effect.sync(() => {
         get.refresh(flowsAtom);
         get.set(flowIdAtom, input.id);
@@ -1218,7 +2083,7 @@ export const stopFlowAtom = commandAtom<string, void>("stopFlow", Effect.fn("tru
   yield* withActivity(
     get,
     `Stop flow ${id}`,
-    promiseBoundary(() => api.flows().stopFlow(id)).pipe(
+    api.flows().stopFlow(id).pipe(
       Effect.tap(() => Effect.sync(() => {
         get.refresh(flowsAtom);
         get.set(pushNotificationAtom, {
@@ -1234,7 +2099,7 @@ export const stopFlowAtom = commandAtom<string, void>("stopFlow", Effect.fn("tru
 export const saveMcpServerAtom = commandAtom<{ key: string; config: McpServerConfig }, void>(
   "saveMcpServer",
   Effect.fn("trustgraph.workbench.saveMcpServer")(function*({ key, config }, get, api) {
-    yield* promiseBoundary(() => api.config().putConfig([{ type: "mcp", key, value: encodeJsonUnknownString(config) }]));
+    yield* api.config().putConfig([{ type: "mcp", key, value: encodeJsonUnknownString(config) }]);
     get.refresh(mcpServersAtom);
     get.refresh(configAllAtom);
     get.set(pushNotificationAtom, { type: "success", title: "MCP server saved", description: key });
@@ -1243,7 +2108,7 @@ export const saveMcpServerAtom = commandAtom<{ key: string; config: McpServerCon
 );
 
 export const deleteMcpServerAtom = commandAtom<string, void>("deleteMcpServer", Effect.fn("trustgraph.workbench.deleteMcpServer")(function*(key, get, api) {
-  yield* promiseBoundary(() => api.config().deleteConfig({ type: "mcp", key }));
+  yield* api.config().deleteConfig({ type: "mcp", key });
   get.refresh(mcpServersAtom);
   get.refresh(configAllAtom);
   get.set(pushNotificationAtom, { type: "success", title: "MCP server deleted", description: key });
@@ -1252,7 +2117,7 @@ export const deleteMcpServerAtom = commandAtom<string, void>("deleteMcpServer", 
 export const saveMcpToolAtom = commandAtom<{ key: string; config: ToolConfig }, void>(
   "saveMcpTool",
   Effect.fn("trustgraph.workbench.saveMcpTool")(function*({ key, config }, get, api) {
-    yield* promiseBoundary(() => api.config().putConfig([{ type: "tool", key, value: encodeJsonUnknownString(config) }]));
+    yield* api.config().putConfig([{ type: "tool", key, value: encodeJsonUnknownString(config) }]);
     get.refresh(mcpToolsAtom);
     get.refresh(configAllAtom);
     get.set(pushNotificationAtom, { type: "success", title: "Tool saved", description: key });
@@ -1261,7 +2126,7 @@ export const saveMcpToolAtom = commandAtom<{ key: string; config: ToolConfig }, 
 );
 
 export const deleteMcpToolAtom = commandAtom<string, void>("deleteMcpTool", Effect.fn("trustgraph.workbench.deleteMcpTool")(function*(key, get, api) {
-  yield* promiseBoundary(() => api.config().deleteConfig({ type: "tool", key }));
+  yield* api.config().deleteConfig({ type: "tool", key });
   get.refresh(mcpToolsAtom);
   get.refresh(configAllAtom);
   get.set(pushNotificationAtom, { type: "success", title: "Tool deleted", description: key });
@@ -1280,12 +2145,12 @@ export interface UploadDocumentInput {
 const uploadDocumentEffect = Effect.fn("trustgraph.workbench.uploadDocument.effect")(function*(
   input: UploadDocumentInput,
   get: Atom.FnContext,
-  api: BaseApi,
+  api: WorkbenchGatewayApi,
 ) {
   yield* withActivity(
     get,
     "Upload document",
-    promiseBoundary(() => api.librarian().loadDocument(input.base64, input.mimeType, input.title, input.comments, input.tags)).pipe(
+    api.librarian().loadDocument(input.base64, input.mimeType, input.title, input.comments, input.tags).pipe(
       Effect.tap(() => Effect.sync(() => {
         get.refresh(libraryDocumentsAtom);
         get.refresh(libraryProcessingAtom);
@@ -1302,7 +2167,7 @@ const uploadDocumentEffect = Effect.fn("trustgraph.workbench.uploadDocument.effe
 const uploadDocumentChunkedEffect = Effect.fn("trustgraph.workbench.uploadDocumentChunked.effect")(function*(
   input: UploadDocumentInput,
   get: Atom.FnContext,
-  api: BaseApi,
+  api: WorkbenchGatewayApi,
 ) {
   yield* withActivity(get, "Upload document (chunked)", Effect.gen(function*() {
     const totalSize = input.base64.length;
@@ -1316,7 +2181,7 @@ const uploadDocumentChunkedEffect = Effect.fn("trustgraph.workbench.uploadDocume
     const lib = api.librarian();
     const documentId = yield* randomId("upload");
     const timestamp = yield* Clock.currentTimeMillis;
-    const beginResp = yield* promiseBoundary(() => lib.beginUpload({
+    const beginResp = yield* lib.beginUpload({
       id: documentId,
       time: Math.floor(timestamp / 1000),
       kind: input.mimeType,
@@ -1324,7 +2189,7 @@ const uploadDocumentChunkedEffect = Effect.fn("trustgraph.workbench.uploadDocume
       comments: input.comments,
       tags: input.tags,
       user: get(settingsAtom).user,
-    }, totalSize));
+    }, totalSize);
     const uploadId = beginResp["upload-id"];
     const chunkSize = beginResp["chunk-size"];
     const totalChunks = beginResp["total-chunks"];
@@ -1333,7 +2198,7 @@ const uploadDocumentChunkedEffect = Effect.fn("trustgraph.workbench.uploadDocume
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize, totalSize);
       const chunk = input.base64.slice(start, end);
-      yield* promiseBoundary(() => lib.uploadChunk(uploadId, i, chunk));
+      yield* lib.uploadChunk(uploadId, i, chunk);
       bytesUploaded += chunk.length;
       get.set(uploadFormAtom, { ...get(uploadFormAtom), progress: {
         phase: "uploading",
@@ -1350,7 +2215,7 @@ const uploadDocumentChunkedEffect = Effect.fn("trustgraph.workbench.uploadDocume
       bytesTotal: totalSize,
       bytesUploaded: totalSize,
     } });
-    yield* promiseBoundary(() => lib.completeUpload(uploadId));
+    yield* lib.completeUpload(uploadId);
     get.refresh(libraryDocumentsAtom);
     get.refresh(libraryProcessingAtom);
     get.set(pushNotificationAtom, {
@@ -1426,7 +2291,7 @@ export const removeDocumentAtom = commandAtom<string, void>("removeDocument", Ef
   yield* withActivity(
     get,
     "Remove document",
-    promiseBoundary(() => api.librarian().removeDocument(documentId, get(settingsAtom).collection)).pipe(
+    api.librarian().removeDocument(documentId, get(settingsAtom).collection).pipe(
       Effect.tap(() => Effect.sync(() => {
         get.refresh(libraryDocumentsAtom);
         get.refresh(libraryProcessingAtom);
@@ -1438,7 +2303,7 @@ export const removeDocumentAtom = commandAtom<string, void>("removeDocument", Ef
 
 export const loadKgCoreAtom = commandAtom<string, void>("loadKgCore", Effect.fn("trustgraph.workbench.loadKgCore")(function*(id, get, api) {
   get.set(activeActionAtom, id);
-  yield* promiseBoundary(() => api.knowledge().loadKgCore(id, get(flowIdAtom), get(settingsAtom).collection)).pipe(
+  yield* api.knowledge().loadKgCore(id, get(flowIdAtom), get(settingsAtom).collection).pipe(
     Effect.tap(() => Effect.sync(() => {
       get.set(pushNotificationAtom, { type: "success", title: "Core loaded", description: id });
     })),
@@ -1448,7 +2313,7 @@ export const loadKgCoreAtom = commandAtom<string, void>("loadKgCore", Effect.fn(
 
 export const deleteKgCoreAtom = commandAtom<string, void>("deleteKgCore", Effect.fn("trustgraph.workbench.deleteKgCore")(function*(id, get, api) {
   get.set(activeActionAtom, id);
-  yield* promiseBoundary(() => api.knowledge().deleteKgCore(id, get(settingsAtom).collection)).pipe(
+  yield* api.knowledge().deleteKgCore(id, get(settingsAtom).collection).pipe(
     Effect.tap(() => Effect.sync(() => {
       get.refresh(kgCoresAtom);
       get.set(pushNotificationAtom, { type: "success", title: "Core deleted", description: id });
@@ -1460,13 +2325,12 @@ export const deleteKgCoreAtom = commandAtom<string, void>("deleteKgCore", Effect
 export const createCollectionAtom = commandAtom<CollectionForm, void>("createCollection", Effect.fn("trustgraph.workbench.createCollection")(function*(form, get, api) {
   const id = form.id.trim();
   const tags = form.tags.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
-  yield* promiseBoundary(() => api.collectionManagement().updateCollection(
+  yield* api.collectionManagement().updateCollection(
     id,
     form.name.trim().length > 0 ? form.name.trim() : undefined,
     form.description.trim().length > 0 ? form.description.trim() : undefined,
     tags.length > 0 ? tags : undefined,
-  ));
-  get.set(settingsAtom, { ...get(settingsAtom), collection: id });
+  );
   get.refresh(collectionsAtom);
   get.set(pushNotificationAtom, {
     type: "success",
@@ -1476,7 +2340,7 @@ export const createCollectionAtom = commandAtom<CollectionForm, void>("createCol
 }), { reactivityKeys: ["collections"] });
 
 export const deleteCollectionAtom = commandAtom<string, void>("deleteCollection", Effect.fn("trustgraph.workbench.deleteCollection")(function*(id, get, api) {
-  yield* promiseBoundary(() => api.collectionManagement().deleteCollection(id));
+  yield* api.collectionManagement().deleteCollection(id);
   get.refresh(collectionsAtom);
   const current = get(settingsAtom);
   if (current.collection === id) {
@@ -1485,7 +2349,7 @@ export const deleteCollectionAtom = commandAtom<string, void>("deleteCollection"
   get.set(pushNotificationAtom, { type: "success", title: "Collection deleted", description: id });
 }), { reactivityKeys: ["collections"] });
 
-export const submitMessageAtom = commandAtom<{ input: string }, void>(
+export const submitMessageAtom = gatewayCommandAtom<{ input: string }, void>(
   "submitMessage",
   Effect.fn("trustgraph.workbench.submitMessage")(function*({ input }, get, api) {
   const trimmed = input.trim();
@@ -1576,14 +2440,14 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
     explainEvents.push(event);
   };
 
-  Match.value(chatMode).pipe(
-    Match.when("graph-rag", () => {
-      flow.graphRagStreaming(trimmed, onChunk, onError, undefined, collection, onExplain);
-    }),
-    Match.when("document-rag", () => {
-      flow.documentRagStreaming(trimmed, onChunk, onError, undefined, collection, onExplain);
-    }),
-    Match.when("agent", () => {
+  yield* Match.value(chatMode).pipe(
+    Match.when("graph-rag", () =>
+      flow.graphRagStreaming(trimmed, onChunk, onError, undefined, collection, onExplain)
+    ),
+    Match.when("document-rag", () =>
+      flow.documentRagStreaming(trimmed, onChunk, onError, undefined, collection, onExplain)
+    ),
+    Match.when("agent", () =>
       flow.agent(
         trimmed,
         (chunk, complete) => {
@@ -1632,8 +2496,8 @@ export const submitMessageAtom = commandAtom<{ input: string }, void>(
         onError,
         onExplain,
         collection,
-      );
-    }),
+      )
+    ),
     Match.exhaustive,
   );
   }),

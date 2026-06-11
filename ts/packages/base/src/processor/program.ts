@@ -11,7 +11,7 @@ import {
   type ProcessorLifecycleError,
   type PubSubError,
 } from "../errors.js";
-import { makeNatsBackend } from "../backend/nats.js";
+import { makeNatsBackendScoped } from "../backend/nats.js";
 import { makePubSubService, PubSub } from "../backend/pubsub.js";
 import {
   ConsumerFactory,
@@ -119,18 +119,9 @@ export function makeProcessorProgram<
         manageProcessSignals: false,
       } as Config;
 
-      const pubsub = makePubSubService(makeNatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
+      const backend = yield* makeNatsBackendScoped(runtimeConfig.pubsubUrl ?? "nats://localhost:4222");
+      const pubsub = makePubSubService(backend);
       const messagingConfig = yield* loadMessagingRuntimeConfig();
-      yield* Effect.addFinalizer(() =>
-        pubsub.close.pipe(
-          Effect.catch((error) =>
-            Effect.logError("[PubSub] Failed to close processor backend", {
-              error: error.message,
-              operation: error.operation,
-            }),
-          ),
-        ),
-      );
       const processorEffect = runProcessorScoped<Config, RunError, RunRequirements>(
         runtimeConfig,
         options.make,
@@ -202,18 +193,9 @@ export function makeFlowProcessorProgram<
         manageProcessSignals: false,
       } as Config;
 
-      const pubsub = makePubSubService(makeNatsBackend(runtimeConfig.pubsubUrl ?? "nats://localhost:4222"));
+      const backend = yield* makeNatsBackendScoped(runtimeConfig.pubsubUrl ?? "nats://localhost:4222");
+      const pubsub = makePubSubService(backend);
       const messagingConfig = yield* loadMessagingRuntimeConfig();
-      yield* Effect.addFinalizer(() =>
-        pubsub.close.pipe(
-          Effect.catch((error) =>
-            Effect.logError("[PubSub] Failed to close processor backend", {
-              error: error.message,
-              operation: error.operation,
-            }),
-          ),
-        ),
-      );
 
       const configHandlers = options.configHandlers?.(runtimeConfig);
       const processorOptions = {

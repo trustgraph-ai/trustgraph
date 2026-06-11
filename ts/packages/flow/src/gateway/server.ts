@@ -10,6 +10,7 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Clock, Config, Effect, Exit, Layer, Random, Scope } from "effect";
 import * as O from "effect/Option";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
 import {
   formatPrometheusMetrics,
@@ -19,7 +20,8 @@ import {
   toTgError,
   type PubSubBackend,
 } from "@trustgraph/base";
-import { makeDispatcherManager, type DispatcherManager } from "./dispatch/manager.js";
+import { GatewayWorkbenchHttpApi } from "@trustgraph/client/rpc/contract";
+import { makeDispatcherManagerScoped, type DispatcherManager } from "./dispatch/manager.js";
 import { makeGatewayRpcServer, type GatewayRpcServer } from "./rpc-server.js";
 
 export interface GatewayConfig {
@@ -134,6 +136,22 @@ const workbenchDispatch = (
     ),
   );
 
+const gatewayWorkbenchHttpApiRoutes = (
+  config: GatewayConfig,
+  dispatcher: DispatcherManager,
+) => {
+  const handlers = HttpApiBuilder.group(
+    GatewayWorkbenchHttpApi,
+    "workbench",
+    (handlers) =>
+      handlers.handleRaw("dispatch", () => workbenchDispatch(config, dispatcher)),
+  );
+
+  return HttpApiBuilder.layer(GatewayWorkbenchHttpApi).pipe(
+    Layer.provide(handlers),
+  );
+};
+
 const globalDispatch = (
   config: GatewayConfig,
   dispatcher: DispatcherManager,
@@ -240,7 +258,7 @@ export const makeGatewayRoutes = (
   rpcScope: Scope.Scope,
 ) =>
   Layer.mergeAll(
-    HttpRouter.add("POST", "/api/v1/workbench/dispatch", workbenchDispatch(config, dispatcher)),
+    gatewayWorkbenchHttpApiRoutes(config, dispatcher),
     HttpRouter.add("POST", "/api/v1/:kind", globalDispatch(config, dispatcher)),
     HttpRouter.add("POST", "/api/v1/flow/:flow/service/:kind", flowDispatch(config, dispatcher)),
     HttpRouter.add("POST", "/api/v1/flow/:flow/load", flowLoad(config, dispatcher)),
@@ -251,7 +269,7 @@ export const makeGatewayRoutes = (
 export function createGateway(config: GatewayConfig) {
   return Layer.effectDiscard(
     Effect.scoped(Effect.gen(function* () {
-      const dispatcher = makeDispatcherManager(config);
+      const dispatcher = yield* makeDispatcherManagerScoped(config);
       yield* dispatcher.start.pipe(
         Effect.mapError((cause) => messagingLifecycleError("gateway", "dispatcher-start", cause)),
       );

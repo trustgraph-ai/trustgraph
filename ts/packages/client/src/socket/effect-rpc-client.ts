@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Fiber, Layer, ManagedRuntime, Stream, SubscriptionRef } from "effect";
+import { Cause, Context, Effect, Exit, Fiber, Layer, Ref, Scope, Stream, SubscriptionRef } from "effect";
 import type * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import type { RpcClientError } from "effect/unstable/rpc/RpcClientError";
@@ -35,23 +35,43 @@ export interface DispatchOptions {
   readonly retries?: number;
 }
 
+export interface TrustGraphGatewayClient {
+  readonly state: Effect.Effect<RpcConnectionState>;
+  readonly changes: Stream.Stream<RpcConnectionState>;
+  readonly subscribe: (
+    listener: (state: RpcConnectionState) => void,
+  ) => Effect.Effect<Effect.Effect<void>>;
+  readonly dispatch: (
+    input: DispatchInput,
+    options?: DispatchOptions,
+  ) => Effect.Effect<unknown, RpcClientError | DispatchError>;
+  readonly dispatchStream: (
+    input: DispatchInput,
+    options?: DispatchOptions,
+  ) => Stream.Stream<DispatchStreamChunk, RpcClientError | DispatchError>;
+  readonly runDispatchStream: (
+    input: DispatchInput,
+    receiver: (chunk: DispatchStreamChunk) => boolean,
+    options?: DispatchOptions,
+  ) => Effect.Effect<DispatchStreamChunk | undefined, RpcClientError | DispatchError>;
+  readonly close: Effect.Effect<void>;
+}
+
+export class TrustGraphGatewayClientService extends Context.Service<
+  TrustGraphGatewayClientService,
+  TrustGraphGatewayClient
+>()("@trustgraph/client/socket/effect-rpc-client/TrustGraphGatewayClientService") {}
+
+export interface TrustGraphGatewayClientOptions {
+  readonly url: string;
+  readonly onConnect?: () => void;
+  readonly onDisconnect?: () => void;
+  readonly stateRef?: SubscriptionRef.SubscriptionRef<RpcConnectionState>;
+  readonly closedRef?: Ref.Ref<boolean>;
+}
+
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_REQUEST_ATTEMPTS = 3;
-
-type NewableFactory<Args extends readonly unknown[], A extends object> = {
-  new (...args: Args): A;
-  (...args: Args): A;
-  readonly prototype: A;
-};
-
-function newableFactory<Args extends readonly unknown[], A extends object>(
-  factory: (...args: Args) => A,
-): NewableFactory<Args, A> {
-  function Constructor(...args: Args): A {
-    return factory(...args);
-  }
-  return Constructor as unknown as NewableFactory<Args, A>;
-}
 
 export interface EffectRpcClient {
   readonly subscribe: (listener: (state: RpcConnectionState) => void) => () => void;
@@ -67,130 +87,206 @@ export interface EffectRpcClient {
   readonly close: () => Promise<void>;
 }
 
+const makeClientLayer = (
+  options: TrustGraphGatewayClientOptions,
+  stateRef: SubscriptionRef.SubscriptionRef<RpcConnectionState>,
+  closedRef: Ref.Ref<boolean>,
+): Layer.Layer<TrustGraphRpcClientService> => {
+  const setState = (nextState: RpcConnectionState) =>
+    SubscriptionRef.set(stateRef, nextState);
+
+  const socketLayer = Layer.effect(
+    Socket.Socket,
+    Socket.makeWebSocket(options.url, {
+      closeCodeIsError: (code) => code !== 1000,
+      openTimeout: "10 seconds",
+    }),
+  ).pipe(Layer.provide(Socket.layerWebSocketConstructorGlobal));
+
+  const hooksLayer = Layer.succeed(
+    RpcClient.ConnectionHooks,
+    RpcClient.ConnectionHooks.of({
+      onConnect: Effect.gen(function* () {
+        yield* setState({ status: "connected" });
+        options.onConnect?.();
+      }),
+      onDisconnect: Effect.gen(function* () {
+        const closed = yield* Ref.get(closedRef);
+        if (!closed) {
+          yield* setState({
+            status: "connecting",
+            lastError: "Disconnected from gateway",
+          });
+        }
+        options.onDisconnect?.();
+      }),
+    }),
+  );
+
+  const protocolLayer = RpcClient.layerProtocolSocket({
+    retryTransientErrors: true,
+  }).pipe(
+    Layer.provide(socketLayer),
+    Layer.provide(RpcSerialization.layerNdjson),
+    Layer.provide(hooksLayer),
+  );
+
+  return Layer.effect(
+    TrustGraphRpcClientService,
+    RpcClient.make(TrustGraphRpcs),
+  ).pipe(Layer.provide(protocolLayer));
+};
+
+const makeSubscribeEffect = Effect.fn("makeSubscribeEffect")(function* (
+    stateRef: SubscriptionRef.SubscriptionRef<RpcConnectionState>,
+    scope: Scope.Scope,
+    listener: (state: RpcConnectionState) => void,
+  ) {
+    let latest = SubscriptionRef.getUnsafe(stateRef);
+    listener(latest);
+    let replaySeen = false;
+    const fiber = yield* Effect.forkIn(SubscriptionRef.changes(stateRef).pipe(
+      Stream.runForEach((nextState) =>
+        Effect.sync(() => {
+          if (!replaySeen) {
+            replaySeen = true;
+            if (nextState === latest) return;
+          }
+          latest = nextState;
+          listener(nextState);
+        })
+      ),
+    ), scope);
+    return yield* Effect.succeed(Fiber.interrupt(fiber).pipe(Effect.asVoid));
+});
+
+export const makeTrustGraphGatewayClientScoped: (
+  options: TrustGraphGatewayClientOptions,
+) => Effect.Effect<TrustGraphGatewayClient, never, Scope.Scope> = Effect.fn("makeTrustGraphGatewayClientScoped")(function* (
+  options,
+) {
+  const stateRef = options.stateRef ?? (yield* SubscriptionRef.make<RpcConnectionState>({ status: "connecting" }));
+  const closedRef = options.closedRef ?? (yield* Ref.make(false));
+  const scope = yield* Scope.Scope;
+  const context = yield* Layer.buildWithScope(makeClientLayer(options, stateRef, closedRef), scope).pipe(
+    Effect.tapCause((cause) =>
+      SubscriptionRef.set(stateRef, {
+        status: "failed",
+        lastError: Cause.pretty(cause),
+      })
+    ),
+  );
+  const client = Context.get(context, TrustGraphRpcClientService);
+
+  const close = Effect.gen(function* () {
+    const wasClosed = yield* Ref.getAndSet(closedRef, true);
+    if (!wasClosed) {
+      yield* SubscriptionRef.set(stateRef, { status: "closed" });
+    }
+  });
+
+  yield* Effect.addFinalizer(() => close);
+
+  return {
+    state: SubscriptionRef.get(stateRef),
+    changes: SubscriptionRef.changes(stateRef),
+    subscribe: (listener) => makeSubscribeEffect(stateRef, scope, listener),
+    dispatch: (input, options = {}) =>
+      withDispatchRequestPolicy(client.Dispatch(DispatchPayload.make(input)), options),
+    dispatchStream: (input, options = {}) =>
+      Stream.unwrap(
+        withDispatchRequestPolicy(
+          Effect.succeed(client.DispatchStream(DispatchPayload.make(input))),
+          options,
+        ),
+      ),
+    runDispatchStream: (input, receiver, options = {}) => {
+      let last: DispatchStreamChunk | undefined;
+      return withDispatchRequestPolicy(
+        client.DispatchStream(DispatchPayload.make(input)).pipe(
+          Stream.runForEachWhile((chunk) =>
+            Effect.suspend(() => {
+              last = chunk;
+              return Effect.succeed(!receiver(chunk));
+            }),
+          ),
+          Effect.andThen(() => Effect.succeed(last)),
+        ),
+        options,
+      );
+    },
+    close,
+  } satisfies TrustGraphGatewayClient;
+});
+
+export const makeTrustGraphGatewayClientLayer = (
+  options: TrustGraphGatewayClientOptions,
+): Layer.Layer<TrustGraphGatewayClientService> =>
+  Layer.effect(
+    TrustGraphGatewayClientService,
+    makeTrustGraphGatewayClientScoped(options).pipe(
+      Effect.map(TrustGraphGatewayClientService.of),
+    ),
+  );
+
 export function makeEffectRpcClient(
   url: string,
   onConnect?: () => void,
   onDisconnect?: () => void,
 ): EffectRpcClient {
   const stateRef = Effect.runSync(SubscriptionRef.make<RpcConnectionState>({ status: "connecting" }));
-  let closed = false;
-
-  const setState = (nextState: RpcConnectionState) =>
-    SubscriptionRef.set(stateRef, nextState);
-
-  const makeClientLayer = (): Layer.Layer<TrustGraphRpcClientService> => {
-    const socketLayer = Layer.effect(
-      Socket.Socket,
-      Socket.makeWebSocket(url, {
-        closeCodeIsError: (code) => code !== 1000,
-        openTimeout: "10 seconds",
-      }),
-    ).pipe(Layer.provide(Socket.layerWebSocketConstructorGlobal));
-
-    const hooksLayer = Layer.succeed(
-      RpcClient.ConnectionHooks,
-      RpcClient.ConnectionHooks.of({
-        onConnect: Effect.gen(function* () {
-          yield* setState({ status: "connected" });
-          onConnect?.();
-        }),
-        onDisconnect: Effect.gen(function* () {
-          if (!closed) {
-            yield* setState({
-              status: "connecting",
-              lastError: "Disconnected from gateway",
-            });
-          }
-          onDisconnect?.();
-        }),
-      }),
-    );
-
-    const protocolLayer = RpcClient.layerProtocolSocket({
-      retryTransientErrors: true,
-    }).pipe(
-      Layer.provide(socketLayer),
-      Layer.provide(RpcSerialization.layerNdjson),
-      Layer.provide(hooksLayer),
-    );
-
-    const clientLayer = Layer.effect(
-      TrustGraphRpcClientService,
-      RpcClient.make(TrustGraphRpcs),
-    ).pipe(Layer.provide(protocolLayer));
-
-    return clientLayer;
+  const closedRef = Effect.runSync(Ref.make(false));
+  const scope = Effect.runSync(Scope.make());
+  const options: TrustGraphGatewayClientOptions = {
+    url,
+    stateRef,
+    closedRef,
+    ...(onConnect === undefined ? {} : { onConnect }),
+    ...(onDisconnect === undefined ? {} : { onDisconnect }),
   };
-
-  const runtime = ManagedRuntime.make(makeClientLayer());
-  const clientPromise = runtime.runPromise(
-    TrustGraphRpcClientService.pipe(
-      Effect.tapCause((cause) =>
-        setState({
-          status: "failed",
-          lastError: Cause.pretty(cause),
-        })
-      ),
-    ),
+  const clientPromise = Effect.runPromise(
+    makeTrustGraphGatewayClientScoped(options).pipe(Scope.provide(scope)),
   );
 
   return {
     subscribe: (listener) => {
-      let latest = SubscriptionRef.getUnsafe(stateRef);
-      listener(latest);
-      let replaySeen = false;
-      const fiber = Effect.runFork(
-        SubscriptionRef.changes(stateRef).pipe(
-          Stream.runForEach((nextState) =>
-            Effect.sync(() => {
-              if (!replaySeen) {
-                replaySeen = true;
-                if (nextState === latest) return;
-              }
-              latest = nextState;
-              listener(nextState);
-            })
-          ),
-        ),
+      let unsubscribe: Effect.Effect<void> | undefined;
+      let cancelled = false;
+      listener(SubscriptionRef.getUnsafe(stateRef));
+      void clientPromise.then((client) =>
+        Effect.runPromise(client.subscribe(listener)).then((release) => {
+          if (cancelled) {
+            return Effect.runPromise(release);
+          }
+          unsubscribe = release;
+        })
       );
+
       return () => {
-        Effect.runFork(Fiber.interrupt(fiber));
+        cancelled = true;
+        if (unsubscribe !== undefined) {
+          Effect.runFork(unsubscribe);
+        }
       };
     },
     dispatch: (input, options = {}) =>
       clientPromise.then((client) =>
-        runtime.runPromise(
-          withDispatchRequestPolicy(client.Dispatch(DispatchPayload.make(input)), options),
-        )
+        Effect.runPromise(client.dispatch(input, options))
       ),
-    dispatchStream: (input, receiver, options = {}) => {
-      let last: DispatchStreamChunk | undefined;
-      return clientPromise.then((client) =>
-        runtime.runPromise(
-          withDispatchRequestPolicy(
-            client.DispatchStream(DispatchPayload.make(input)).pipe(
-              Stream.runForEachWhile((chunk) =>
-                Effect.suspend(() => {
-                  last = chunk;
-                  return Effect.succeed(!receiver(chunk));
-                }),
-              ),
-            ),
-            options,
+    dispatchStream: (input, receiver, options = {}) =>
+      clientPromise.then((client) =>
+        Effect.runPromise(client.runDispatchStream(input, receiver, options))
+      ),
+    close: () =>
+      clientPromise.then((client) =>
+        Effect.runPromise(
+          client.close.pipe(
+            Effect.andThen(Scope.close(scope, Exit.void)),
           ),
         )
-      ).then(() => last);
-    },
-    close: () => {
-      if (closed) return Promise.resolve();
-      closed = true;
-      Effect.runSync(setState({ status: "closed" }));
-      return runtime.dispose();
-    },
+      ),
   };
 }
-
-export const EffectRpcClient = newableFactory(makeEffectRpcClient);
 
 export function withDispatchRequestPolicy<A, E, R>(
   effect: Effect.Effect<A, E, R>,

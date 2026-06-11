@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { BaseApi } from "@trustgraph/client";
-import { Effect, Layer } from "effect";
+import { DispatchStreamChunk, type BaseApi, type TrustGraphGatewayClient } from "@trustgraph/client";
+import { Effect, Layer, Stream } from "effect";
 import * as S from "effect/Schema";
 import { McpServer } from "effect/unstable/ai";
 import * as McpSchema from "effect/unstable/ai/McpSchema";
@@ -13,6 +13,7 @@ import {
   TrustGraphMcpConfig,
   TrustGraphMcpToolkit,
   TrustGraphMcpToolkitLive,
+  TrustGraphGateway,
   TrustGraphSocket,
 } from "../server-effect.js";
 
@@ -124,6 +125,29 @@ const makeFakeSocket = (
   return { socket, calls };
 };
 
+const makeFakeGateway = (): TrustGraphGatewayClient => ({
+  state: Effect.succeed({ status: "connected" }),
+  changes: Stream.empty,
+  subscribe: () => Effect.succeed(Effect.void),
+  dispatch: () => Effect.succeed({}),
+  dispatchStream: () => Stream.empty,
+  runDispatchStream: (_input, receiver) =>
+    Effect.sync(() => {
+      const chunk = DispatchStreamChunk.make({
+        response: {
+          chunk_type: "answer",
+          content: "agent answer",
+          end_of_message: true,
+          end_of_dialog: true,
+        },
+        complete: true,
+      });
+      receiver(chunk);
+      return chunk;
+    }),
+  close: Effect.void,
+});
+
 const testConfig = TrustGraphMcpConfig.of({
   gatewayUrl: "ws://localhost:8088/api/v1/rpc",
   user: "mcp-test",
@@ -147,8 +171,10 @@ const makeNativeTestClientEffect = Effect.fn("makeNativeTestClient")(function*(
     textCompletion: options.textCompletion,
     graphRag: options.graphRag,
   });
+  const gateway = makeFakeGateway();
   const serverLayer = McpServer.toolkit(TrustGraphMcpToolkit).pipe(
     Layer.provide(TrustGraphMcpToolkitLive),
+    Layer.provide(Layer.succeed(TrustGraphGateway, TrustGraphGateway.of(gateway))),
     Layer.provide(Layer.succeed(TrustGraphSocket, TrustGraphSocket.of(socket))),
     Layer.provide(Layer.succeed(TrustGraphMcpConfig, testConfig)),
     Layer.provide(McpServer.layerHttp({

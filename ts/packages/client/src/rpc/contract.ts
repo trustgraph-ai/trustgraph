@@ -1,4 +1,5 @@
 import { Schema as S } from "effect";
+import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi";
 import * as Rpc from "effect/unstable/rpc/Rpc";
 import * as RpcGroup from "effect/unstable/rpc/RpcGroup";
 
@@ -32,3 +33,14 @@ export class DispatchStream extends Rpc.make("DispatchStream", {
 }) {}
 
 export const TrustGraphRpcs = RpcGroup.make(Dispatch, DispatchStream);
+
+export class GatewayWorkbenchHttpApi extends HttpApi.make("trustgraph-gateway-workbench")
+  .add(
+    HttpApiGroup.make("workbench", { topLevel: true }).add(
+      HttpApiEndpoint.post("dispatch", "/api/v1/workbench/dispatch", {
+        payload: DispatchPayload,
+        success: S.Unknown,
+      }),
+    ),
+  )
+{}
