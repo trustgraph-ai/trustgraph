@@ -430,7 +430,7 @@ const onAgentRequest = Effect.fn("AgentService.onRequest")(function* (
             chunk_type: "explain",
             content: "",
             explain_id: explain.explainId,
-            explain_triples: explain.triples,
+            explain_triples: [...explain.triples],
           });
         }
 

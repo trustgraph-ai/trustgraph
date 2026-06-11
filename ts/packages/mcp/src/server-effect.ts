@@ -1217,16 +1217,18 @@ export interface TrustGraphMcpOptions {
   readonly port?: number | undefined
 }
 
-export interface TrustGraphMcpConfigShape {
-  readonly gatewayUrl: string
-  readonly user: string
-  readonly token: string | undefined
-  readonly flowId: string
-  readonly name: string
-  readonly version: string
-  readonly mcpPath: HttpRouter.PathInput
-  readonly port: number
-}
+const McpPathInput = S.Union([S.Literal("*"), S.TemplateLiteral(["/", S.String])])
+
+export class TrustGraphMcpConfigShape extends S.Class<TrustGraphMcpConfigShape>("TrustGraphMcpConfigShape")({
+  gatewayUrl: S.String,
+  user: S.String,
+  token: S.UndefinedOr(S.String),
+  flowId: S.String,
+  name: S.String,
+  version: S.String,
+  mcpPath: McpPathInput,
+  port: S.Finite,
+}, { description: "Resolved TrustGraph MCP server configuration." }) {}
 
 const readNonEmpty = (value: string | undefined): string | undefined =>
   value !== undefined && value.length > 0 ? value : undefined

@@ -22,17 +22,17 @@ export interface QdrantDocEmbeddingsConfig {
   clientFactory?: QdrantClientFactory;
 }
 
-export interface DocEmbeddingChunk {
-  chunkId: string;
-  vector: number[];
-  content?: string;
-}
+export class DocEmbeddingChunk extends S.Class<DocEmbeddingChunk>("DocEmbeddingChunk")({
+  chunkId: S.String,
+  vector: S.Array(S.Finite),
+  content: S.optionalKey(S.String),
+}, { description: "A document chunk paired with its embedding vector." }) {}
 
-export interface DocEmbeddingsMessage {
-  user: string;
-  collection: string;
-  chunks: DocEmbeddingChunk[];
-}
+export class DocEmbeddingsMessage extends S.Class<DocEmbeddingsMessage>("DocEmbeddingsMessage")({
+  user: S.String,
+  collection: S.String,
+  chunks: S.Array(DocEmbeddingChunk),
+}, { description: "Document embeddings store message: chunks to upsert for a user collection." }) {}
 
 export class QdrantDocEmbeddingsStoreError extends S.TaggedErrorClass<QdrantDocEmbeddingsStoreError>()(
   "QdrantDocEmbeddingsStoreError",

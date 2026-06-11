@@ -15,10 +15,8 @@ import type {
   TriplesQueryResponse,
   ToolRequest,
   ToolResponse,
-  Term,
-  Triple,
 } from "@trustgraph/base";
-import {Term as TermSchema} from "@trustgraph/base";
+import { Term, Triple } from "@trustgraph/base";
 import { Effect, Match } from "effect";
 import * as O from "effect/Option";
 import * as Predicate from "effect/Predicate";
@@ -27,7 +25,7 @@ import type { AgentTool, ToolArg } from "./types.js";
 import { agentToolError, } from "./types.js";
 
 const decodeJsonUnknown = S.decodeUnknownOption(S.UnknownFromJsonString);
-const decodeTerm = S.decodeUnknownOption(TermSchema);
+const decodeTerm = S.decodeUnknownOption(Term);
 
 /**
  * Format a Term to a human-readable string.
@@ -64,10 +62,10 @@ function parseQuestion(input: string): string {
 /**
  * Explain data extracted from a graph-rag response.
  */
-export interface ExplainData {
-  explainId: string;
-  triples: Triple[];
-}
+export class ExplainData extends S.Class<ExplainData>("ExplainData")({
+  explainId: S.String,
+  triples: S.Array(Triple),
+}, { description: "Explain payload extracted from a graph-rag response: id plus supporting triples." }) {}
 
 /**
  * Query the knowledge graph for information about entities and their relationships.

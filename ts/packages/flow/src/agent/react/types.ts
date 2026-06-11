@@ -20,11 +20,11 @@ export const agentToolError = (operation: string, cause: unknown): AgentToolErro
     message: errorMessage(cause),
   });
 
-export interface ToolArg {
-  name: string;
-  type: string;
-  description: string;
-}
+export class ToolArg extends S.Class<ToolArg>("ToolArg")({
+  name: S.String,
+  type: S.String,
+  description: S.String,
+}, { description: "A named, typed argument accepted by an agent tool." }) {}
 
 export interface AgentTool {
   name: string;
@@ -43,10 +43,10 @@ export type ReActState =
   | "final_answer"
   | "complete";
 
-export interface ParsedEvent {
-  type: "thought" | "action" | "action_input" | "final_answer";
-  content: string;
-}
+export class ParsedEvent extends S.Class<ParsedEvent>("ParsedEvent")({
+  type: S.Literals(["thought", "action", "action_input", "final_answer"]),
+  content: S.String,
+}, { description: "A parsed ReAct stream event with its section content." }) {}
 
 export type OnThought = (text: string, isFinal: boolean) => Effect.Effect<void, AgentToolError>;
 export type OnObservation = (text: string, isFinal: boolean) => Effect.Effect<void, AgentToolError>;

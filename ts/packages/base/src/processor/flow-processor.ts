@@ -18,7 +18,7 @@ import {
 } from "./async-processor.js";
 import type { Spec } from "../spec/types.js";
 import type { BackendConsumer, PubSubBackend } from "../backend/types.js";
-import type { FlowDefinition } from "./flow.js";
+import { FlowDefinition } from "./flow.js";
 import { Flow, } from "./flow.js";
 import { topics } from "../schema/topics.js";
 import type {
@@ -128,14 +128,9 @@ const ConfigPushSchema = S.Struct({
   config: S.Record(S.String, S.Unknown),
 });
 
-const FlowDefinitionSchema = S.Struct({
-  topics: S.optionalKey(S.Record(S.String, S.String)),
-  parameters: S.optionalKey(S.Record(S.String, S.Unknown)),
-});
+const FlowDefinitions = S.Record(S.String, FlowDefinition);
 
-const FlowDefinitionsSchema = S.Record(S.String, FlowDefinitionSchema);
-
-const decodeFlowDefinitions = S.decodeUnknownOption(FlowDefinitionsSchema);
+const decodeFlowDefinitions = S.decodeUnknownOption(FlowDefinitions);
 
 export function runFlowProcessorDefinitionScoped<
   FlowRequirements = never,

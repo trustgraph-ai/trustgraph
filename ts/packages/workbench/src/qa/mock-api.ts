@@ -4,42 +4,97 @@ import { Clock, Effect, Match, Option, Schema as S } from "effect";
 
 type ConfigValues = Record<string, Record<string, unknown>>;
 
-export interface MockWorkbenchFixture {
-  readonly settings?: {
-    readonly user?: string;
-    readonly apiKey?: string;
-    readonly gatewayUrl?: string;
-    readonly collection?: string;
-    readonly featureSwitches?: Record<string, boolean>;
-  };
-  readonly flows?: {
-    readonly activeIds?: string[];
-    readonly definitions?: Record<string, Record<string, unknown>>;
-    readonly blueprints?: Record<string, Record<string, unknown>>;
-  };
-  readonly config?: {
-    readonly prompt?: Record<string, unknown>;
-    readonly valuesByType?: ConfigValues;
-  };
-  readonly library?: {
-    readonly documents?: DocumentMetadata[];
-    readonly processing?: ProcessingMetadata[];
-    readonly metadataById?: Record<string, DocumentMetadata>;
-  };
-  readonly knowledge?: {
-    readonly kgCores?: string[];
-    readonly deCores?: string[];
-    readonly loadedKgCores?: string[];
-  };
-  readonly collections?: Array<Record<string, unknown>>;
-  readonly graph?: {
-    readonly triplesByFlowCollection?: Record<string, Triple[]>;
-    readonly explainTriplesByGraph?: Record<string, Triple[]>;
-  };
-  readonly chat?: {
-    readonly delayFrames?: number;
-  };
-}
+const UnknownRecord = S.Record(S.String, S.Unknown);
+const ConfigValuesRecord = S.Record(S.String, UnknownRecord);
+
+const ClientTerm: S.Codec<Triple["s"], Triple["s"]> = S.suspend(() =>
+  S.Union([
+    S.Struct({ t: S.Literal("i"), i: S.String }),
+    S.Struct({ t: S.Literal("b"), d: S.String }),
+    S.Struct({
+      t: S.Literal("l"),
+      v: S.String,
+      dt: S.optionalKey(S.String),
+      ln: S.optionalKey(S.String),
+    }),
+    S.Struct({
+      t: S.Literal("t"),
+      tr: S.optionalKey(ClientTriple),
+    }),
+  ])
+);
+
+const ClientTriple: S.Codec<Triple, Triple> = S.suspend(() =>
+  S.Struct({
+    s: ClientTerm,
+    p: ClientTerm,
+    o: ClientTerm,
+    g: S.optionalKey(S.String),
+  })
+);
+
+const DocumentMetadataValue: S.Codec<DocumentMetadata, DocumentMetadata> = S.Struct({
+  id: S.optionalKey(S.String),
+  time: S.optionalKey(S.Finite),
+  kind: S.optionalKey(S.String),
+  title: S.optionalKey(S.String),
+  comments: S.optionalKey(S.String),
+  metadata: S.optionalKey(S.Array(ClientTriple).pipe(S.mutable)),
+  user: S.optionalKey(S.String),
+  tags: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+  parentId: S.optionalKey(S.String),
+  documentType: S.optionalKey(S.String),
+  "parent-id": S.optionalKey(S.String),
+  "document-type": S.optionalKey(S.String),
+});
+
+const ProcessingMetadataValue: S.Codec<ProcessingMetadata, ProcessingMetadata> = S.Struct({
+  id: S.optionalKey(S.String),
+  "document-id": S.optionalKey(S.String),
+  documentId: S.optionalKey(S.String),
+  time: S.optionalKey(S.Finite),
+  flow: S.optionalKey(S.String),
+  user: S.optionalKey(S.String),
+  collection: S.optionalKey(S.String),
+  tags: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+});
+
+export class MockWorkbenchFixture extends S.Class<MockWorkbenchFixture>("MockWorkbenchFixture")({
+  settings: S.optionalKey(S.Struct({
+    user: S.optionalKey(S.String),
+    apiKey: S.optionalKey(S.String),
+    gatewayUrl: S.optionalKey(S.String),
+    collection: S.optionalKey(S.String),
+    featureSwitches: S.optionalKey(S.Record(S.String, S.Boolean)),
+  })),
+  flows: S.optionalKey(S.Struct({
+    activeIds: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+    definitions: S.optionalKey(S.Record(S.String, UnknownRecord)),
+    blueprints: S.optionalKey(S.Record(S.String, UnknownRecord)),
+  })),
+  config: S.optionalKey(S.Struct({
+    prompt: S.optionalKey(UnknownRecord),
+    valuesByType: S.optionalKey(ConfigValuesRecord),
+  })),
+  library: S.optionalKey(S.Struct({
+    documents: S.optionalKey(S.Array(DocumentMetadataValue).pipe(S.mutable)),
+    processing: S.optionalKey(S.Array(ProcessingMetadataValue).pipe(S.mutable)),
+    metadataById: S.optionalKey(S.Record(S.String, DocumentMetadataValue)),
+  })),
+  knowledge: S.optionalKey(S.Struct({
+    kgCores: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+    deCores: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+    loadedKgCores: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+  })),
+  collections: S.optionalKey(S.Array(UnknownRecord).pipe(S.mutable)),
+  graph: S.optionalKey(S.Struct({
+    triplesByFlowCollection: S.optionalKey(S.Record(S.String, S.Array(ClientTriple).pipe(S.mutable))),
+    explainTriplesByGraph: S.optionalKey(S.Record(S.String, S.Array(ClientTriple).pipe(S.mutable))),
+  })),
+  chat: S.optionalKey(S.Struct({
+    delayFrames: S.optionalKey(S.Finite),
+  })),
+}, { description: "Seed fixture for deterministic workbench QA runs." }) {}
 
 interface UploadSession {
   readonly metadata: DocumentMetadata;

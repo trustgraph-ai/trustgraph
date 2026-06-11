@@ -11,14 +11,14 @@ import {
   settingsAtom,
 } from "@/atoms/workbench";
 import type { BaseApi } from "@trustgraph/client";
-import type { MockWorkbenchFixture } from "@/qa/mock-api";
-import { makeMockBaseApi, qaSettingsFromFixture, } from "@/qa/mock-api";
+import { MockWorkbenchFixture, makeMockBaseApi, qaSettingsFromFixture, } from "@/qa/mock-api";
+import { Schema as S } from "effect";
 
-export interface WorkbenchQaWindowConfig {
-  readonly enabled?: boolean;
-  readonly fixture?: MockWorkbenchFixture;
-  readonly flowId?: string;
-}
+export class WorkbenchQaWindowConfig extends S.Class<WorkbenchQaWindowConfig>("WorkbenchQaWindowConfig")({
+  enabled: S.optionalKey(S.Boolean),
+  fixture: S.optionalKey(MockWorkbenchFixture),
+  flowId: S.optionalKey(S.String),
+}, { description: "Browser-provided workbench QA boot configuration." }) {}
 
 declare global {
   interface Window {

@@ -47,10 +47,10 @@ import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
-export interface PromptTemplate {
-  system: string;
-  prompt: string;
-}
+export class PromptTemplate extends S.Class<PromptTemplate>("PromptTemplate")({
+  system: S.String,
+  prompt: S.String,
+}, { description: "A prompt template: system preamble plus prompt body." }) {}
 
 export interface PromptTemplateConfig extends ProcessorConfig {
   configKey?: string;

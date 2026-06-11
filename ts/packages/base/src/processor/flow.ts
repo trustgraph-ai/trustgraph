@@ -43,12 +43,14 @@ import type { ProducerSpec } from "../spec/producer-spec.js";
 import type { RequestResponseSpec } from "../spec/request-response-spec.js";
 import type { Spec, SpecRuntimeRequirements } from "../spec/types.js";
 
-export interface FlowDefinition {
+export class FlowDefinition extends S.Class<FlowDefinition>("FlowDefinition")({
   /** Topic overrides keyed by spec name */
-  topics?: Record<string, string>;
+  topics: S.optionalKey(S.Record(S.String, S.String)),
   /** Parameter values keyed by spec name */
-  parameters?: Record<string, unknown>;
-}
+  parameters: S.optionalKey(S.Record(S.String, S.Unknown)),
+}, {
+  description: "Per-flow configuration: topic overrides and parameter values keyed by spec name.",
+}) {}
 
 export interface FlowProducer<T> {
   readonly send: (id: string, message: T) => Effect.Effect<void, MessagingDeliveryError>;

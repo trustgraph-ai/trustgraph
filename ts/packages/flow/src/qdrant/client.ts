@@ -4,22 +4,22 @@ import { errorMessage } from "@trustgraph/base";
 import { Effect } from "effect";
 import * as S from "effect/Schema";
 
-export interface QdrantCollectionStatus {
-  readonly exists: boolean;
-}
+export class QdrantCollectionStatus extends S.Class<QdrantCollectionStatus>("QdrantCollectionStatus")({
+  exists: S.Boolean,
+}, { description: "Qdrant collection existence probe result." }) {}
 
-export interface QdrantCollectionDescription {
-  readonly name: string;
-}
+export class QdrantCollectionDescription extends S.Class<QdrantCollectionDescription>("QdrantCollectionDescription")({
+  name: S.String,
+}, { description: "A named Qdrant collection." }) {}
 
-export interface QdrantCollections {
-  readonly collections: ReadonlyArray<QdrantCollectionDescription>;
-}
+export class QdrantCollections extends S.Class<QdrantCollections>("QdrantCollections")({
+  collections: S.Array(QdrantCollectionDescription),
+}, { description: "Qdrant collection listing." }) {}
 
-export interface QdrantScoredPoint {
-  readonly score: number;
-  readonly payload?: unknown;
-}
+export class QdrantScoredPoint extends S.Class<QdrantScoredPoint>("QdrantScoredPoint")({
+  score: S.Finite,
+  payload: S.optionalKey(S.Unknown),
+}, { description: "A scored Qdrant search hit with optional payload." }) {}
 
 export class QdrantClientError extends S.TaggedErrorClass<QdrantClientError>()("QdrantClientError", {
   message: S.String,

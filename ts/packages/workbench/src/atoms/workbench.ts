@@ -71,6 +71,44 @@ type WorkbenchError = WorkbenchPromiseError;
 
 const isWorkbenchPromiseError = S.is(WorkbenchPromiseError);
 
+const ClientTriple: S.Codec<Triple, Triple> = S.suspend(() =>
+  S.Struct({
+    s: ClientTerm,
+    p: ClientTerm,
+    o: ClientTerm,
+    g: S.optionalKey(S.String),
+  })
+);
+
+const ClientTerm: S.Codec<Term, Term> = S.suspend(() =>
+  S.Union([
+    S.Struct({
+      t: S.Literal("i"),
+      i: S.String,
+    }),
+    S.Struct({
+      t: S.Literal("b"),
+      d: S.String,
+    }),
+    S.Struct({
+      t: S.Literal("l"),
+      v: S.String,
+      dt: S.optionalKey(S.String),
+      ln: S.optionalKey(S.String),
+    }),
+    S.Struct({
+      t: S.Literal("t"),
+      tr: S.optionalKey(ClientTriple),
+    }),
+  ])
+);
+
+const ClientExplainEvent: S.Codec<ExplainEvent, ExplainEvent> = S.Struct({
+  explainId: S.String,
+  explainGraph: S.String,
+  explainTriples: S.optionalKey(S.Array(ClientTriple).pipe(S.mutable)),
+});
+
 function errorMessage(error: unknown): string {
   if (isWorkbenchPromiseError(error)) return error.message;
   if (Predicate.isObject(error) && Predicate.hasProperty(error, "message")) {
@@ -146,25 +184,25 @@ const mutationCounter = Metric.counter("trustgraph_workbench_mutation_total", {
 // Shared types
 // ---------------------------------------------------------------------------
 
-export interface FeatureSwitches {
-  flowClasses: boolean;
-  submissions: boolean;
-  tokenCost: boolean;
-  schemas: boolean;
-  structuredQuery: boolean;
-  ontologyEditor: boolean;
-  agentTools: boolean;
-  mcpTools: boolean;
-  llmModels: boolean;
-}
+export class FeatureSwitches extends S.Class<FeatureSwitches>("FeatureSwitches")({
+  flowClasses: S.Boolean,
+  submissions: S.Boolean,
+  tokenCost: S.Boolean,
+  schemas: S.Boolean,
+  structuredQuery: S.Boolean,
+  ontologyEditor: S.Boolean,
+  agentTools: S.Boolean,
+  mcpTools: S.Boolean,
+  llmModels: S.Boolean,
+}, { description: "Workbench feature visibility switches." }) {}
 
-export interface Settings {
-  user: string;
-  apiKey: string;
-  collection: string;
-  gatewayUrl: string;
-  featureSwitches: FeatureSwitches;
-}
+export class Settings extends S.Class<Settings>("Settings")({
+  user: S.String,
+  apiKey: S.String,
+  collection: S.String,
+  gatewayUrl: S.String,
+  featureSwitches: FeatureSwitches,
+}, { description: "Persisted workbench connection and display settings." }) {}
 
 export interface WorkbenchApiFactory {
   readonly create: (settings: Settings) => BaseApi;
@@ -176,31 +214,31 @@ export type ChatMode = "graph-rag" | "document-rag" | "agent";
 export type MessageRole = "user" | "assistant" | "system";
 export type AgentPhase = "think" | "observe" | "answer";
 
-export interface ChatMessage {
-  id: string;
-  role: MessageRole;
-  content: string;
-  timestamp: number;
-  isStreaming?: boolean;
-  metadata?: {
-    model?: string;
-    inTokens?: number;
-    outTokens?: number;
-  };
-  agentPhases?: {
-    think: string;
-    observe: string;
-    answer: string;
-  };
-  activePhase?: AgentPhase;
-  explainEvents?: ExplainEvent[];
-}
+export class ChatMessage extends S.Class<ChatMessage>("ChatMessage")({
+  id: S.String,
+  role: S.Literals(["user", "assistant", "system"]),
+  content: S.String,
+  timestamp: S.Finite,
+  isStreaming: S.optionalKey(S.Boolean),
+  metadata: S.optionalKey(S.Struct({
+    model: S.optionalKey(S.String),
+    inTokens: S.optionalKey(S.Finite),
+    outTokens: S.optionalKey(S.Finite),
+  })),
+  agentPhases: S.optionalKey(S.Struct({
+    think: S.String,
+    observe: S.String,
+    answer: S.String,
+  })),
+  activePhase: S.optionalKey(S.Literals(["think", "observe", "answer"])),
+  explainEvents: S.optionalKey(S.Array(ClientExplainEvent).pipe(S.mutable)),
+}, { description: "A rendered chat transcript message." }) {}
 
-export interface ConversationState {
-  messages: ChatMessage[];
-  input: string;
-  chatMode: ChatMode;
-}
+export class ConversationState extends S.Class<ConversationState>("ConversationState")({
+  messages: S.Array(ChatMessage).pipe(S.mutable),
+  input: S.String,
+  chatMode: S.Literals(["graph-rag", "document-rag", "agent"]),
+}, { description: "Persisted workbench chat state." }) {}
 
 export interface FlowSummary {
   id: string;
@@ -216,60 +254,60 @@ export interface ProcessingMetadata {
   [key: string]: unknown;
 }
 
-export interface UploadProgress {
-  phase: "preparing" | "uploading" | "finalizing";
-  chunksTotal: number;
-  chunksUploaded: number;
-  bytesTotal: number;
-  bytesUploaded: number;
-}
+export class UploadProgress extends S.Class<UploadProgress>("UploadProgress")({
+  phase: S.Literals(["preparing", "uploading", "finalizing"]),
+  chunksTotal: S.Finite,
+  chunksUploaded: S.Finite,
+  bytesTotal: S.Finite,
+  bytesUploaded: S.Finite,
+}, { description: "Current chunked document upload progress." }) {}
 
-export interface UploadForm {
-  file: File | null;
-  title: string;
-  tags: string;
-  comments: string;
-  uploading: boolean;
-  dragOver: boolean;
-  progress: UploadProgress | null;
-}
+export class UploadForm extends S.Class<UploadForm>("UploadForm")({
+  file: S.NullOr(S.File),
+  title: S.String,
+  tags: S.String,
+  comments: S.String,
+  uploading: S.Boolean,
+  dragOver: S.Boolean,
+  progress: S.NullOr(UploadProgress),
+}, { description: "Workbench document upload form state." }) {}
 
-export interface McpServerConfig {
-  url: string;
-  "remote-name"?: string;
-  "auth-token"?: string;
-}
+export class McpServerConfig extends S.Class<McpServerConfig>("McpServerConfig")({
+  url: S.String,
+  "remote-name": S.optionalKey(S.String),
+  "auth-token": S.optionalKey(S.String),
+}, { description: "Workbench MCP server config entry payload." }) {}
 
-export interface McpServerEntry {
-  key: string;
-  config: McpServerConfig;
-}
+export class McpServerEntry extends S.Class<McpServerEntry>("McpServerEntry")({
+  key: S.String,
+  config: McpServerConfig,
+}, { description: "Workbench MCP server config entry." }) {}
 
-export interface ToolArgument {
-  name: string;
-  type: string;
-  description: string;
-}
+export class ToolArgument extends S.Class<ToolArgument>("ToolArgument")({
+  name: S.String,
+  type: S.String,
+  description: S.String,
+}, { description: "Workbench MCP tool argument descriptor." }) {}
 
-export interface ToolConfig {
-  type: string;
-  name: string;
-  description: string;
-  "mcp-tool"?: string;
-  group?: string[];
-  arguments?: ToolArgument[];
-}
+export class ToolConfig extends S.Class<ToolConfig>("ToolConfig")({
+  type: S.String,
+  name: S.String,
+  description: S.String,
+  "mcp-tool": S.optionalKey(S.String),
+  group: S.optionalKey(S.Array(S.String).pipe(S.mutable)),
+  arguments: S.optionalKey(S.Array(ToolArgument).pipe(S.mutable)),
+}, { description: "Workbench tool config entry payload." }) {}
 
-export interface ToolEntry {
-  key: string;
-  config: ToolConfig;
-}
+export class ToolEntry extends S.Class<ToolEntry>("ToolEntry")({
+  key: S.String,
+  config: ToolConfig,
+}, { description: "Workbench tool config entry." }) {}
 
-export interface TokenCost {
-  model: string;
-  input_price: number;
-  output_price: number;
-}
+export class TokenCost extends S.Class<TokenCost>("TokenCost")({
+  model: S.String,
+  input_price: S.Finite,
+  output_price: S.Finite,
+}, { description: "Model token pricing row." }) {}
 
 export interface CollectionSummary {
   id?: string;
@@ -280,61 +318,61 @@ export interface CollectionSummary {
   [key: string]: unknown;
 }
 
-export interface Notification {
-  id: string;
-  type: "success" | "error" | "warning" | "info";
-  title: string;
-  description?: string;
-}
+export class Notification extends S.Class<Notification>("Notification")({
+  id: S.String,
+  type: S.Literals(["success", "error", "warning", "info"]),
+  title: S.String,
+  description: S.optionalKey(S.String),
+}, { description: "Transient workbench notification toast." }) {}
 
-export interface McpServerForm {
-  key: string;
-  url: string;
-  remoteName: string;
-  authToken: string;
-  showToken: boolean;
-  saving: boolean;
-  keyError: string;
-}
+export class McpServerForm extends S.Class<McpServerForm>("McpServerForm")({
+  key: S.String,
+  url: S.String,
+  remoteName: S.String,
+  authToken: S.String,
+  showToken: S.Boolean,
+  saving: S.Boolean,
+  keyError: S.String,
+}, { description: "Editable MCP server dialog state." }) {}
 
-export interface McpToolForm {
-  key: string;
-  name: string;
-  description: string;
-  mcpTool: string;
-  group: string;
-  args: ToolArgument[];
-  saving: boolean;
-  keyError: string;
-}
+export class McpToolForm extends S.Class<McpToolForm>("McpToolForm")({
+  key: S.String,
+  name: S.String,
+  description: S.String,
+  mcpTool: S.String,
+  group: S.String,
+  args: S.Array(ToolArgument).pipe(S.mutable),
+  saving: S.Boolean,
+  keyError: S.String,
+}, { description: "Editable MCP tool dialog state." }) {}
 
-export interface StartFlowForm {
-  id: string;
-  blueprint: string;
-  description: string;
-  paramsJson: string;
-  submitting: boolean;
-  paramsError: string | null;
-  submitted: boolean;
-  definitionExpanded: boolean;
-}
+export class StartFlowForm extends S.Class<StartFlowForm>("StartFlowForm")({
+  id: S.String,
+  blueprint: S.String,
+  description: S.String,
+  paramsJson: S.String,
+  submitting: S.Boolean,
+  paramsError: S.NullOr(S.String),
+  submitted: S.Boolean,
+  definitionExpanded: S.Boolean,
+}, { description: "Start-flow dialog form state." }) {}
 
-export interface CollectionForm {
-  id: string;
-  name: string;
-  description: string;
-  tags: string;
-  submitting: boolean;
-}
+export class CollectionForm extends S.Class<CollectionForm>("CollectionForm")({
+  id: S.String,
+  name: S.String,
+  description: S.String,
+  tags: S.String,
+  submitting: S.Boolean,
+}, { description: "Collection creation form state." }) {}
 
-export interface GraphViewState {
-  searchTerm: string;
-  selectedNodeId: string | null;
-  selectedNodeLabel: string | null;
-  showLabels: boolean;
-  showTypes: boolean;
-  nodeLimit: number;
-}
+export class GraphViewState extends S.Class<GraphViewState>("GraphViewState")({
+  searchTerm: S.String,
+  selectedNodeId: S.NullOr(S.String),
+  selectedNodeLabel: S.NullOr(S.String),
+  showLabels: S.Boolean,
+  showTypes: S.Boolean,
+  nodeLimit: S.Finite,
+}, { description: "Workbench graph display controls." }) {}
 
 const DEFAULT_FEATURE_SWITCHES: FeatureSwitches = {
   flowClasses: false,
@@ -355,50 +393,6 @@ export const DEFAULT_SETTINGS: Settings = {
   gatewayUrl: "",
   featureSwitches: DEFAULT_FEATURE_SWITCHES,
 };
-
-const SettingsSchema = S.Struct({
-  user: S.String,
-  apiKey: S.String,
-  collection: S.String,
-  gatewayUrl: S.String,
-  featureSwitches: S.Struct({
-    flowClasses: S.Boolean,
-    submissions: S.Boolean,
-    tokenCost: S.Boolean,
-    schemas: S.Boolean,
-    structuredQuery: S.Boolean,
-    ontologyEditor: S.Boolean,
-    agentTools: S.Boolean,
-    mcpTools: S.Boolean,
-    llmModels: S.Boolean,
-  }),
-});
-
-const ChatMessageSchema = S.Struct({
-  id: S.String,
-  role: S.Union([S.Literal("user"), S.Literal("assistant"), S.Literal("system")]),
-  content: S.String,
-  timestamp: S.Finite,
-  isStreaming: S.optionalKey(S.Boolean),
-  metadata: S.optionalKey(S.Struct({
-    model: S.optionalKey(S.String),
-    inTokens: S.optionalKey(S.Finite),
-    outTokens: S.optionalKey(S.Finite),
-  })),
-  agentPhases: S.optionalKey(S.Struct({
-    think: S.String,
-    observe: S.String,
-    answer: S.String,
-  })),
-  activePhase: S.optionalKey(S.Union([S.Literal("think"), S.Literal("observe"), S.Literal("answer")])),
-  explainEvents: S.optionalKey(S.Array(S.Unknown)),
-});
-
-const ConversationSchema = S.Struct({
-  messages: S.Array(ChatMessageSchema),
-  input: S.String,
-  chatMode: S.Union([S.Literal("graph-rag"), S.Literal("document-rag"), S.Literal("agent")]),
-});
 
 const ThemeSchema = S.Union([S.Literal("dark"), S.Literal("light")]);
 const FlowIdSchema = S.String;
@@ -523,11 +517,14 @@ const randomId = Effect.fn("trustgraph.workbench.randomId")(function*(prefix: st
 
 function metadataFrom(metadata: StreamingMetadata | undefined): ChatMessage["metadata"] | undefined {
   if (metadata === undefined) return undefined;
-  const result: NonNullable<ChatMessage["metadata"]> = {};
-  if (metadata.model !== undefined) result.model = metadata.model;
-  if (metadata.in_token !== undefined) result.inTokens = metadata.in_token;
-  if (metadata.out_token !== undefined) result.outTokens = metadata.out_token;
-  return Object.keys(result).length > 0 ? result : undefined;
+  if (metadata.model === undefined && metadata.in_token === undefined && metadata.out_token === undefined) {
+    return undefined;
+  }
+  return {
+    ...(metadata.model !== undefined ? { model: metadata.model } : {}),
+    ...(metadata.in_token !== undefined ? { inTokens: metadata.in_token } : {}),
+    ...(metadata.out_token !== undefined ? { outTokens: metadata.out_token } : {}),
+  };
 }
 
 function withoutActivePhase(message: ChatMessage): ChatMessage {
@@ -609,40 +606,8 @@ const StreamingEnvelopeSchema = S.Struct({
 });
 type StreamingEnvelope = typeof StreamingEnvelopeSchema.Type;
 
-const ClientTripleSchema: S.Codec<Triple, Triple> = S.suspend(() =>
-  S.Struct({
-    s: ClientTermSchema,
-    p: ClientTermSchema,
-    o: ClientTermSchema,
-    g: S.optionalKey(S.String),
-  })
-);
-
-const ClientTermSchema: S.Codec<Term, Term> = S.suspend(() =>
-  S.Union([
-    S.Struct({
-      t: S.Literal("i"),
-      i: S.String,
-    }),
-    S.Struct({
-      t: S.Literal("b"),
-      d: S.String,
-    }),
-    S.Struct({
-      t: S.Literal("l"),
-      v: S.String,
-      dt: S.optionalKey(S.String),
-      ln: S.optionalKey(S.String),
-    }),
-    S.Struct({
-      t: S.Literal("t"),
-      tr: S.optionalKey(ClientTripleSchema),
-    }),
-  ])
-);
-
 const decodeStreamingEnvelope = S.decodeUnknownOption(StreamingEnvelopeSchema);
-const decodeClientTriples = S.decodeUnknownOption(S.Array(ClientTripleSchema).pipe(S.mutable));
+const decodeClientTriples = S.decodeUnknownOption(S.Array(ClientTriple).pipe(S.mutable));
 
 function gatewayHttpBaseUrl(settings: Settings): string {
   const raw = settings.gatewayUrl.trim();
@@ -1532,7 +1497,7 @@ function withActivity<A, R>(
 export const settingsAtom = Atom.kvs({
   runtime: workbenchRuntime,
   key: "trustgraph-workbench-settings-v1",
-  schema: S.toCodecJson(SettingsSchema),
+  schema: S.toCodecJson(Settings),
   defaultValue: legacySettings,
 }).pipe(Atom.keepAlive) as Atom.Writable<Settings, Settings>;
 
@@ -1553,7 +1518,7 @@ export const flowIdAtom = Atom.kvs({
 export const conversationAtom = Atom.kvs({
   runtime: workbenchRuntime,
   key: "trustgraph-workbench-conversation-v1",
-  schema: S.toCodecJson(ConversationSchema),
+  schema: S.toCodecJson(ConversationState),
   defaultValue: legacyConversation,
 }).pipe(Atom.keepAlive) as unknown as Atom.Writable<ConversationState, ConversationState>;
 
@@ -1855,17 +1820,17 @@ export const collectionsAtom = queryAtom(
   { reactivityKeys: ["collections"] },
 ).pipe(Atom.setIdleTTL("2 minutes"));
 
-export interface GraphTriplesInput {
-  readonly flowId: string;
-  readonly collection: string;
-  readonly limit: number;
-}
+export class GraphTriplesInput extends S.Class<GraphTriplesInput>("GraphTriplesInput")({
+  flowId: S.String,
+  collection: S.String,
+  limit: S.Finite,
+}, { description: "Workbench graph triples query atom input." }) {}
 
-export interface ExplainTriplesInput {
-  readonly events: ExplainEvent[];
-  readonly flowId: string;
-  readonly collection: string;
-}
+export class ExplainTriplesInput extends S.Class<ExplainTriplesInput>("ExplainTriplesInput")({
+  events: S.Array(ClientExplainEvent).pipe(S.mutable),
+  flowId: S.String,
+  collection: S.String,
+}, { description: "Workbench explain triples query atom input." }) {}
 
 const atomFamilyKeySeparator = "\u001f";
 const explainGraphSeparator = "\u001e";
@@ -2139,13 +2104,13 @@ export const deleteMcpToolAtom = commandAtom<string, void>("deleteMcpTool", Effe
 
 const chunkedUploadThreshold = 1_000_000;
 
-export interface UploadDocumentInput {
-  readonly base64: string;
-  readonly mimeType: string;
-  readonly title: string;
-  readonly comments: string;
-  readonly tags: string[];
-}
+export class UploadDocumentInput extends S.Class<UploadDocumentInput>("UploadDocumentInput")({
+  base64: S.String,
+  mimeType: S.String,
+  title: S.String,
+  comments: S.String,
+  tags: S.Array(S.String).pipe(S.mutable),
+}, { description: "Workbench document upload command payload." }) {}
 
 const uploadDocumentEffect = Effect.fn("trustgraph.workbench.uploadDocument.effect")(function*(
   input: UploadDocumentInput,

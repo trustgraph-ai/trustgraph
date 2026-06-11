@@ -10,8 +10,7 @@
  * Python reference: trustgraph-flow/trustgraph/query/graph_embeddings/qdrant/service.py
  */
 
-import type { Term } from "@trustgraph/base";
-import { errorMessage, } from "@trustgraph/base";
+import { Term, errorMessage } from "@trustgraph/base";
 import { Config, Context, Effect, Layer } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
@@ -24,17 +23,17 @@ export interface QdrantGraphQueryConfig {
   clientFactory?: QdrantClientFactory;
 }
 
-export interface EntityMatch {
-  entity: Term;
-  score: number;
-}
+export class EntityMatch extends S.Class<EntityMatch>("EntityMatch")({
+  entity: Term,
+  score: S.Finite,
+}, { description: "A scored graph-entity match from embeddings query." }) {}
 
-export interface GraphEmbeddingsQueryRequest {
-  vector: number[];
-  user: string;
-  collection: string;
-  limit: number;
-}
+export class GraphEmbeddingsQueryRequest extends S.Class<GraphEmbeddingsQueryRequest>("GraphEmbeddingsQueryRequest")({
+  vector: S.Array(S.Finite),
+  user: S.String,
+  collection: S.String,
+  limit: S.Finite,
+}, { description: "Graph embeddings similarity query request." }) {}
 
 export class QdrantGraphEmbeddingsQueryError extends S.TaggedErrorClass<QdrantGraphEmbeddingsQueryError>()(
   "QdrantGraphEmbeddingsQueryError",

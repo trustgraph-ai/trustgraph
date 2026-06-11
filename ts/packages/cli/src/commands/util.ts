@@ -16,12 +16,12 @@ import * as S from "effect/Schema";
 import * as Command from "effect/unstable/cli/Command";
 import * as Flag from "effect/unstable/cli/Flag";
 
-export interface CliOpts {
-  gateway: string;
-  user: string;
-  token?: string;
-  flow: string;
-}
+export class CliOpts extends S.Class<CliOpts>("CliOpts")({
+  gateway: S.String,
+  user: S.String,
+  token: S.optionalKey(S.String),
+  flow: S.String,
+}, { description: "Resolved TrustGraph CLI connection options." }) {}
 
 export const rootCommand = Command.make("tg").pipe(
   Command.withDescription("TrustGraph CLI - interact with TrustGraph services"),

@@ -8,14 +8,15 @@
 
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as O from "effect/Option";
+import * as S from "effect/Schema";
 
-export interface CollectionEntry {
-  user: string;
-  collection: string;
-  name: string;
-  description: string;
-  tags: string[];
-}
+export class CollectionEntry extends S.Class<CollectionEntry>("CollectionEntry")({
+  user: S.String,
+  collection: S.String,
+  name: S.String,
+  description: S.String,
+  tags: S.Array(S.String),
+}, { description: "A librarian collection registration with its metadata tags." }) {}
 
 export interface CollectionManager {
   readonly listCollections: (user: string) => CollectionEntry[];

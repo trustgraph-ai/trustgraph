@@ -1,5 +1,6 @@
 import type { Triple, Term } from "@trustgraph/client";
 import { Match } from "effect";
+import * as S from "effect/Schema";
 import type { ForceGraphProps, NodeObject, LinkObject } from "react-force-graph-2d";
 
 // ---------------------------------------------------------------------------
@@ -27,10 +28,23 @@ export interface GraphLink extends LinkObject {
   label: string;
 }
 
-export interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-}
+const GraphNodeValue: S.Codec<GraphNode, GraphNode> = S.Struct({
+  id: S.String,
+  label: S.String,
+  color: S.optionalKey(S.String),
+  degree: S.Finite,
+});
+
+const GraphLinkValue: S.Codec<GraphLink, GraphLink> = S.Struct({
+  source: S.String,
+  target: S.String,
+  label: S.String,
+});
+
+export class GraphData extends S.Class<GraphData>("GraphData")({
+  nodes: S.Array(GraphNodeValue).pipe(S.mutable),
+  links: S.Array(GraphLinkValue).pipe(S.mutable),
+}, { description: "Renderable graph nodes and links derived from triples." }) {}
 
 export const DEFAULT_GRAPH_NODE_COLOR = "#82b582";
 

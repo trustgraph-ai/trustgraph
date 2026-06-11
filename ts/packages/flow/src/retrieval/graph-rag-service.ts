@@ -138,7 +138,7 @@ const onGraphRagRequest = Effect.fn("GraphRagService.onRequest")(function* (
         endOfStream: true,
         message_type: "explain",
         explain_id: `explain-${requestId}`,
-        explain_triples: result.subgraph,
+        explain_triples: [...result.subgraph],
       };
 
   yield* producer.send(requestId, response);

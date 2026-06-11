@@ -20,18 +20,18 @@ export interface QdrantDocQueryConfig {
   clientFactory?: QdrantClientFactory;
 }
 
-export interface ChunkMatch {
-  chunkId: string;
-  score: number;
-  content?: string;
-}
+export class ChunkMatch extends S.Class<ChunkMatch>("ChunkMatch")({
+  chunkId: S.String,
+  score: S.Finite,
+  content: S.optionalKey(S.String),
+}, { description: "A scored document-chunk match from embeddings query." }) {}
 
-export interface DocEmbeddingsQueryRequest {
-  vector: number[];
-  user: string;
-  collection: string;
-  limit: number;
-}
+export class DocEmbeddingsQueryRequest extends S.Class<DocEmbeddingsQueryRequest>("DocEmbeddingsQueryRequest")({
+  vector: S.Array(S.Finite),
+  user: S.String,
+  collection: S.String,
+  limit: S.Finite,
+}, { description: "Document embeddings similarity query request." }) {}
 
 export class QdrantDocEmbeddingsQueryError extends S.TaggedErrorClass<QdrantDocEmbeddingsQueryError>()(
   "QdrantDocEmbeddingsQueryError",

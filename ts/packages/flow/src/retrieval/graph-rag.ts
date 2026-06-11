@@ -16,23 +16,22 @@ import type {
   Term,
   TextCompletionRequest,
   TextCompletionResponse,
-  Triple,
   TriplesQueryRequest,
   TriplesQueryResponse,
 } from "@trustgraph/base";
-import { errorMessage } from "@trustgraph/base";
+import { Triple, errorMessage } from "@trustgraph/base";
 import { Context, Effect, Layer, Match } from "effect";
 import * as O from "effect/Option";
 import * as S from "effect/Schema";
 
-export interface GraphRagConfig {
-  entityLimit?: number;
-  tripleLimit?: number;
-  maxSubgraphSize?: number;
-  maxPathLength?: number;
-  edgeScoreLimit?: number;
-  edgeLimit?: number;
-}
+export class GraphRagConfig extends S.Class<GraphRagConfig>("GraphRagConfig")({
+  entityLimit: S.optionalKey(S.Finite),
+  tripleLimit: S.optionalKey(S.Finite),
+  maxSubgraphSize: S.optionalKey(S.Finite),
+  maxPathLength: S.optionalKey(S.Finite),
+  edgeScoreLimit: S.optionalKey(S.Finite),
+  edgeLimit: S.optionalKey(S.Finite),
+}, { description: "Graph RAG retrieval tuning limits." }) {}
 
 export interface GraphRagClients {
   llm: EffectRequestResponse<TextCompletionRequest, TextCompletionResponse>;
@@ -53,10 +52,10 @@ export interface GraphRagQueryOptions {
   readonly chunkCallback?: ChunkCallback;
 }
 
-export interface GraphRagResult {
-  answer: string;
-  subgraph: Triple[];
-}
+export class GraphRagResult extends S.Class<GraphRagResult>("GraphRagResult")({
+  answer: S.String,
+  subgraph: S.Array(Triple),
+}, { description: "Graph RAG answer with the supporting subgraph." }) {}
 
 interface NormalizedGraphRagConfig {
   entityLimit: number;

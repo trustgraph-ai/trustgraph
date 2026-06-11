@@ -8,8 +8,7 @@
  * Python reference: trustgraph-flow/trustgraph/storage/graph_embeddings/qdrant/write.py
  */
 
-import type { Term } from "@trustgraph/base";
-import { errorMessage, } from "@trustgraph/base";
+import { Term, errorMessage } from "@trustgraph/base";
 import { Config, Context, Effect, Layer, Match, Random } from "effect";
 import * as MutableHashSet from "effect/MutableHashSet";
 import * as O from "effect/Option";
@@ -23,17 +22,17 @@ export interface QdrantGraphEmbeddingsConfig {
   clientFactory?: QdrantClientFactory;
 }
 
-export interface GraphEmbeddingEntity {
-  entity: Term;
-  vector: number[];
-  chunkId?: string;
-}
+export class GraphEmbeddingEntity extends S.Class<GraphEmbeddingEntity>("GraphEmbeddingEntity")({
+  entity: Term,
+  vector: S.Array(S.Finite),
+  chunkId: S.optionalKey(S.String),
+}, { description: "A graph entity paired with its embedding vector." }) {}
 
-export interface GraphEmbeddingsMessage {
-  user: string;
-  collection: string;
-  entities: GraphEmbeddingEntity[];
-}
+export class GraphEmbeddingsMessage extends S.Class<GraphEmbeddingsMessage>("GraphEmbeddingsMessage")({
+  user: S.String,
+  collection: S.String,
+  entities: S.Array(GraphEmbeddingEntity),
+}, { description: "Graph embeddings store message: entities to upsert for a user collection." }) {}
 
 export class QdrantGraphEmbeddingsStoreError extends S.TaggedErrorClass<QdrantGraphEmbeddingsStoreError>()(
   "QdrantGraphEmbeddingsStoreError",

@@ -3,22 +3,25 @@
  */
 
 import { Config, Duration, Effect } from "effect";
+import * as S from "effect/Schema";
 
-export interface MessagingRuntimeConfig {
-  readonly consumerReceiveTimeout: Duration.Duration;
-  readonly consumerErrorBackoff: Duration.Duration;
-  readonly rateLimitRetry: Duration.Duration;
-  readonly rateLimitTimeout: Duration.Duration;
-  readonly requestTimeout: Duration.Duration;
-}
+export class MessagingRuntimeConfig extends S.Class<MessagingRuntimeConfig>("MessagingRuntimeConfig")({
+  consumerReceiveTimeout: S.Duration,
+  consumerErrorBackoff: S.Duration,
+  rateLimitRetry: S.Duration,
+  rateLimitTimeout: S.Duration,
+  requestTimeout: S.Duration,
+}, {
+  description: "Messaging runtime timing windows for consumer receive, backoff, rate-limit retry, and request timeout.",
+}) {}
 
-export const defaultMessagingRuntimeConfig: MessagingRuntimeConfig = {
+export const defaultMessagingRuntimeConfig: MessagingRuntimeConfig = MessagingRuntimeConfig.make({
   consumerReceiveTimeout: Duration.millis(2_000),
   consumerErrorBackoff: Duration.millis(1_000),
   rateLimitRetry: Duration.millis(10_000),
   rateLimitTimeout: Duration.millis(7_200_000),
   requestTimeout: Duration.millis(300_000),
-};
+});
 
 const durationConfig = (name: string, defaultValue: Duration.Duration) =>
   Config.duration(name).pipe(
@@ -48,11 +51,11 @@ export const loadMessagingRuntimeConfig = Effect.fn("loadMessagingRuntimeConfig"
     defaultMessagingRuntimeConfig.requestTimeout,
   );
 
-  return {
+  return MessagingRuntimeConfig.make({
     consumerReceiveTimeout,
     consumerErrorBackoff,
     rateLimitRetry,
     rateLimitTimeout,
     requestTimeout,
-  } satisfies MessagingRuntimeConfig;
+  });
 });

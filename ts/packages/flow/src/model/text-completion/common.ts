@@ -39,10 +39,10 @@ export type TextCompletionRuntimeError =
   | TextCompletionProviderError
   | TooManyRequestsError;
 
-export interface LanguageModelProviderRequest {
-  readonly model: string;
-  readonly temperature: number;
-}
+export class LanguageModelProviderRequest extends S.Class<LanguageModelProviderRequest>("LanguageModelProviderRequest")({
+  model: S.String,
+  temperature: S.Finite,
+}, { description: "Resolved model id and temperature for a language-model call." }) {}
 
 export interface LanguageModelProviderOptions<Requirements> {
   readonly provider: string;
