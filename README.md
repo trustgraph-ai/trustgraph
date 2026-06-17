@@ -23,7 +23,7 @@ Stop rebuilding context from scratch. TrustGraph treats context as a holon: modu
 
 </div>
 
-The philosopher Arthur Koestler coined the word holon to describe something that is simultaneously a whole in itself and a part of something larger. A fact is whole. It is also part of a domain. A domain is whole. It is also part of an organization's knowledge. An organization's knowledge is whole. It is also part of every decision an agent makes.
+The philosopher Arthur Koestler coined the word [holon](https://en.wikipedia.org/wiki/Holon_(philosophy)) to describe something that is simultaneously a whole in itself and a part of something larger. A fact is whole. It is also part of a domain. A domain is whole. It is also part of an organization's knowledge. An organization's knowledge is whole. It is also part of every decision an agent makes.
 
 AI agents break down because this structure is never built. Context gets shoved into flat text windows, scattered across vector stores, or hardwired into one-off prompts. Facts lose their relationships. Agents lose their grounding. Answers become hallucinated guesses.
 
