@@ -15,7 +15,7 @@
 
 </div>
 
-Stop rebuilding context from scratch. TrustGraph treats context as a holon: modular, independent Context Cores that power multi-tenant agent workflows, while naturally snapping together to form a unified, domain-wide intelligence layer. Version your context, share it across teams, and scale with full provenance aligned to semantic web standards like RDF, OWL, SKOS, and SHACL.
+Stop rebuilding context from scratch. TrustGraph treats context as a holon: modular, independent Context Cores that power multi-tenant agent workflows, while naturally snapping together to form a unified, domain-wide intelligence layer that dramatically reduces your token consumption. Version your context, share it across teams, and scale with full provenance aligned to semantic web standards like RDF, OWL, SKOS, and SHACL.
 
 <div align="center">
 
