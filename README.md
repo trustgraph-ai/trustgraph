@@ -66,11 +66,11 @@ Context Cores decouple what agents know from how agents are deployed. Build once
 
 TrustGraph has a [three-level system](https://docs.trustgraph.ai/overview/workspaces) for organizing and isolating knowledge. 
 
-A **Workspace** is the outermost boundary — a fully isolated tenancy scope where all data, users, configuration, and pipelines live independently from every other workspace. Isolation is structural: enforced at the pub/sub queue, storage, and API gateway layers, not by trusting a field in a message body.
+A `Workspace` is the outermost boundary — a fully isolated tenancy scope where all data, users, configuration, and pipelines live independently from every other workspace. Isolation is structural: enforced at the pub/sub queue, storage, and API gateway layers, not by trusting a field in a message body.
 
-Within a workspace, a **Collection** groups related holons, graph structures, embeddings, and documents together — think of it as a dedicated shelf in a library, scoped to a specific domain, project, or customer.
+Within a workspace, a `Collection` groups related holons, graph structures, embeddings, and documents together — think of it as a dedicated shelf in a library, scoped to a specific domain, project, or customer.
 
-A **Flow** is a running data processing pipeline that defines how raw data moves through ingestion, extraction, structuring, and storage — the assembly line that turns documents into queryable knowledge. Together, the three layers let you run multiple isolated tenants on a single deployment, separate knowledge by domain within each tenant, and process that knowledge through fully configurable pipelines — all without restarting the system or rebuilding your infrastructure.
+A `Flow` is a running data processing pipeline that defines how raw data moves through ingestion, extraction, structuring, and storage — the assembly line that turns documents into queryable knowledge. Together, the three layers let you run multiple isolated tenants on a single deployment, separate knowledge by domain within each tenant, and process that knowledge through fully configurable pipelines — all without restarting the system or rebuilding your infrastructure.
 
 ## The Full Stack
 TrustGraph is not a wrapper around a graph database. It is the complete backend for production agentic systems.
@@ -86,6 +86,8 @@ TrustGraph is not a wrapper around a graph database. It is the complete backend 
 All major LLMs — Anthropic, Cohere, Gemini, Mistral, OpenAI, and more via API.
 
 vLLM, Ollama, TGI, LM Studio, and Llamafiles for fully local inferencing.
+
+Verified cloud deployments for Alibaba Cloud, AWS, Azure, GCP, OVHcloud, and Scaleway.
      
 ## No API Keys Required
 
@@ -147,8 +149,6 @@ The UI provides tools for all major features of TrustGraph. The UI deploys on po
 - **Document Ingestion** — A complete upload and submission workflow with page and chunk inspection and document structure browsing
 - **Ontology Workbench** — A full ontology editor with class and property trees, OWL/XML and Turtle import/export with round-trip fidelity, circular dependency detection, and safe-delete confirmation dialogs
 - **Schema Workbench** — Interactive schema management with list, create, edit, and delete operations including field and index management
-- **Flow Management** — Flow creation and detail views with configurable parameters, temperature controls, and grouped storage layout
-- **Workspace UX** — Workspace selection and management surfaced directly in the interface
 - **Prompt Editor** — A dedicated prompt editing workflow
 
 ## TypeScript Library for UIs
