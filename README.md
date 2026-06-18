@@ -117,7 +117,7 @@ The config process will generate an app config that can be run locally with Dock
 - Deployment instructions as `INSTALLATION.md`
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
+  <video src="https://github.com/user-attachments/assets/33434c3c-f586-4610-8bb2-d7b7b586a672"
 width="80%" controls></video>
 </p>
 
