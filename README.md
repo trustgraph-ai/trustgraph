@@ -21,7 +21,7 @@ Stop rebuilding context from scratch. TrustGraph treats context as a holon — a
 
 TrustGraph is a complete holonic context harness for all LLMs. It provides the full infrastructure layer underneath your agents: knowledge ingestion, structured storage, graph-grounded retrieval, agent orchestration, and a full LLM inferencing stack.
 
-TrustGraph relies on absolutely no 3rd party services aside from optional API integrations to cloud-hosted LLMs. Whether you are routing prompts to Anthropic and OpenAI, or self-hosting Qwen3.7 via vLLM, TrustGraph enriches your models with a sovereign, private holonic system that grounds your agents in reality.
+TrustGraph relies on absolutely no 3rd party services aside from optional API integrations to cloud-hosted LLMs. Whether you are using Anthropic's or OpenAI's API, or self-hosting Qwen3.7 via vLLM, TrustGraph handles it all with pre-built API connectors and a full LLM inferencing stack to enrich the models with a sovereign, private holonic system that grounds your agents in reality.
 
 ## The Problem: Why Agents Break
 
