@@ -15,19 +15,15 @@
 
 </div>
 
-Stop rebuilding context from scratch. TrustGraph treats context as a holon: modular, independent Context Cores that power multi-tenant agent workflows, while naturally snapping together to form a unified, domain-wide intelligence layer that dramatically reduces your token consumption. Version your context, share it across teams, and scale with full provenance aligned to semantic web standards like RDF, OWL, SKOS, and SHACL.
+Stop rebuilding context from scratch. TrustGraph treats context as a holon — a modular, independent whole that naturally snaps into a larger domain-wide intelligence layer. By deploying context as holonic context graphs, TrustGraph powers multi-tenant agent workflows, dramatically reduces token consumption, and aligns with semantic web standards (RDF, OWL, SKOS, SHACL). Version your context, share it across teams, and scale with full provenance.
 
-<div align="center">
+## What TrustGraph Does
 
-## Context is a holon.
+TrustGraph is a complete holonic context harness for all LLMs. It provides the full infrastructure layer underneath your agents: knowledge ingestion, structured storage, graph-grounded retrieval, agent orchestration, and a full LLM inferencing stack.
 
-</div>
+TrustGraph relies on absolutely no 3rd party services aside from optional API integrations to cloud-hosted LLMs. Whether you are routing prompts to Anthropic and OpenAI, or self-hosting Qwen3.7 via vLLM, TrustGraph enriches your models with a sovereign, private holonic system that grounds your agents in reality.
 
-The philosopher Arthur Koestler coined the word [holon](https://en.wikipedia.org/wiki/Holon_(philosophy)) to describe something that is simultaneously a whole in itself and a part of something larger. A fact is whole. It is also part of a domain. A domain is whole. It is also part of an organization's knowledge. An organization's knowledge is whole. It is also part of every decision an agent makes.
-
-AI agents break down because this structure is never built. Context gets shoved into flat text windows, scattered across vector stores, or hardwired into one-off prompts. Facts lose their relationships. Agents lose their grounding. Answers become hallucinated guesses.
-
-## The Problem
+## The Problem: Why Agents Break
 
 When you build an AI agent today, you spend most of your time fighting context:
 
@@ -41,26 +37,36 @@ When you build an AI agent today, you spend most of your time fighting context:
 
 These aren't retrieval problems. They are structural problems. Context needs to be organized, versioned, and composable — exactly the way software infrastructure is.
 
-## What TrustGraph Does
+## The Solution: A Holonic Context System
+The philosopher Arthur Koestler coined the word [holon](https://en.wikipedia.org/wiki/Holon_(philosophy)) to describe something that is simultaneously a whole in itself and a part of something larger. A fact is whole. It is also part of a domain. A domain is whole. It is also part of an organization's knowledge.
 
-TrustGraph provides the full infrastructure layer underneath your agents: knowledge ingestion, structured storage, graph-grounded retrieval, agent orchestration, and inference — all in a single private, sovereign deployment.
+AI agents break down because this holonic structure is never built. Context gets shoved into flat text windows, scattered across vector stores, or hardwired into one-off prompts. Facts lose their relationships.
 
-At the core is a holonic system: a structured representation of your domain where entities, relationships, and evidence are first-class objects. Every agent query is grounded against these holons that marry symbolic graph structures and vector embeddings. Every answer carries provenance. Every fact is traceable.
+TrustGraph solves this by organizing your domain into holonic context graphs. Entities, relationships, and evidence are treated as first-class objects. Every agent query is grounded against these holons—marrying symbolic graph structures with vector embeddings. Every answer carries provenance. Every fact is traceable.
 
-On top of that sits Context Cores — portable, versioned bundles of domain knowledge you can build once and ship anywhere. Treat knowledge the way you treat code: build it, test it, version it, promote it to production, and roll it back when something breaks.
-
-## Context Cores: Knowledge as a First-Class Artifact
+## Context Cores: Knowledge as a First-Class Citizen
 
 A Context Core is the deployable unit of knowledge in TrustGraph. It packages everything an agent needs to reason reliably over a domain into a single, portable artifact.
 
-What's inside a Context Core
-- Ontology — your domain schema and entity mappings
-- Holon — entities, relationships, and supporting evidence
-- Embeddings — vector indexes for fast semantic entry-point lookup
-- Provenance — where every fact came from, when, and how it was derived
-- Retrieval policies — traversal rules, freshness controls, authority ranking
+### What's inside a Context Core
+- **Ontology** — your domain schema and entity mappings
+- **Holon** — entities, relationships, and supporting evidence
+- **Embeddings** — vector indexes for fast semantic entry-point lookup
+- **Provenance** — where every fact came from, when, and how it was derived
+- **Retrieval policies** — traversal rules, freshness controls, authority ranking
 
 Context Cores decouple what agents know from how agents are deployed. Build once. Run in Docker locally, Kubernetes in production, or on any cloud. Pin a version. Roll back. Promote across environments. This is context engineering — and it works because knowledge is finally treated like the infrastructure it is.
+
+## Explainability: Trust Your Agents in Production
+LLMs are black boxes, and traditional RAG makes it worse. When an agent pulls flat text chunks from a vector store, you have no idea how it connected those fragments to form an answer. You cannot ship agents to production if you can't explain why they said what they said.
+
+### How TrustGraph makes agents explainable:
+
+- **Traceable Reasoning Paths**: Instead of guessing at connections between text chunks, TrustGraph traverses explicit relationship paths in the holonic context graph. You can inspect exactly which entities, relationships, and sub-graphs were pulled into the LLM's context window to generate a given response.
+- **Fact-Level Provenance**: Every node and edge in the graph carries strict provenance. When an agent makes a claim, you can trace it back to the exact source document, the time it was ingested, and the extraction method used to derive it.
+- **No Black-Box Guesses**: By grounding the LLM in a structured, symbolic graph, you eliminate the hallucinations that occur when models are forced to infer relationships from unstructured text. If a fact isn't in the graph, the agent doesn't use it.
+
+TrustGraph doesn't just give you answers - it gives you the receipt. Every fact is traceable, every connection is visible, and every output is verifiable.
 
 ## Workspaces, Collections, and Flows
 
@@ -75,7 +81,7 @@ A `Flow` is a running data processing pipeline that defines how raw data moves t
 ## The Full Stack
 TrustGraph is not a wrapper around a graph database. It is the complete backend for production agentic systems.
 
-- **Holonic engine**: automated entity and relationship extraction, ontology-driven graph construction, graph-grounded retrieval for explainable outputs
+- **Holonic context graph engine**: automated entity and relationship extraction, ontology-driven graph construction, graph-grounded retrieval for explainable outputs
 - **Multi-model database**: tabular/relational, key-value, document, graph, vectors, images, video, and audio — all managed in Cassandra and S3-compatible Garage
 - **Out-of-the-box RAG pipelines**: DocumentRAG, GraphRAG, and OntologyRAG ready to deploy
 - **Fully agentic orchestration**: single or multi-agent, ReAct, Plan-then-Execute, Supervisor patterns, and MCP integration
