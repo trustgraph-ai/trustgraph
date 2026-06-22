@@ -3,7 +3,7 @@
 
 <img src="TG-fullname-logo.svg" width=100% />
 
-[![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![License](https://img.shields.io/github/license/trustgraph-ai/trustgraph?color=blue)](LICENSE) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
+[![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
 [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/trustgraph-ai/trustgraph)
 
@@ -11,44 +11,89 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The semantic deployment platform
+# Write context once. Run agents anywhere.
 
 </div>
 
-TrustGraph is a comprehensive semantic infrastructure for agents built around context graphs — structured, queryable representations of your domain knowledge that ground every agent query in verified, explainable facts in private deployments with sovereign control. The platform is the full stack for agentic systems: context graphs, memory, retrieval, orchestration, and inference for deterministic agent workloads.
+Stop rebuilding context from scratch. TrustGraph treats context as a holon — a modular, independent whole that naturally snaps into a larger domain-wide intelligence layer. By deploying context as holonic context graphs, TrustGraph powers multi-tenant agent workflows, dramatically reduces token consumption, and aligns with semantic web standards (RDF, OWL, SKOS, SHACL). Version your context, share it across teams, and scale with full provenance.
 
-The platform:
-- [x] Multi-model and multimodal database system
-  - [x] Tabular/relational, key-value
-  - [x] Document, graph, and vectors
-  - [x] Images, video, and audio
-- [x] Context Graph engine
-  - [x] Automated entity and relationship extraction
-  - [x] Ontology-driven graph construction
-  - [x] Graph-grounded retrieval for explainable outputs
-- [x] Automated data ingest and loading
-  - [x] Quick ingest with semantic similarity retrieval
-  - [x] Ontology structuring for precision retrieval
-- [x] Out-of-the-box RAG pipelines
-  - [x] DocumentRAG
-  - [x] GraphRAG
-  - [x] OntologyRAG     
-- [x] 3D GraphViz for exploring context
-- [x] Fully Agentic System
-  - [x] Single or Multi Agent
-  - [x] ReAct, Plan-then-Execute, and Supervisor patterns
-  - [x] MCP integration 
-- [x] Run anywhere
-  - [x] Deploy locally with Docker
-  - [x] Deploy in cloud with Kubernetes
-- [x] Support for all major LLMs
-  - [x] API support for Anthropic, Cohere, Gemini, Mistral, OpenAI, and others
-  - [x] Model inferencing with vLLM, Ollama, TGI, LM Studio, and Llamafiles
-- [x] Developer friendly
-  - [x] REST API [Docs](https://docs.trustgraph.ai/reference/apis/rest.html)
-  - [x] Websocket API [Docs](https://docs.trustgraph.ai/reference/apis/websocket.html)
-  - [x] Python API [Docs](https://docs.trustgraph.ai/reference/apis/python)
-  - [x] CLI [Docs](https://docs.trustgraph.ai/reference/cli/)
+## What TrustGraph Does
+
+TrustGraph is a complete holonic context harness for all LLMs. It provides the full infrastructure layer underneath your agents: knowledge ingestion, structured storage, graph-grounded retrieval, agent orchestration, and a full LLM inferencing stack.
+
+TrustGraph relies on absolutely no 3rd party services aside from optional API integrations to cloud-hosted LLMs. Whether you are using Anthropic's or OpenAI's API, or self-hosting Qwen3.7 via vLLM, TrustGraph handles it all with pre-built API connectors and a full LLM inferencing stack to enrich the models with a sovereign, private holonic system that grounds your agents in reality.
+
+## The Problem: Why Agents Break
+
+When you build an AI agent today, you spend most of your time fighting context:
+
+- **RAG retrieves fragments, not meaning**. Chunks of text have no structure. Relationships between facts are invisible. Your agent guesses at the connections.
+
+- **Context is disposable**. What the agent learned in one session is gone in the next. There is no persistent, structured knowledge layer underneath.
+
+- **Answers aren't traceable**. You can't explain why the agent said what it said, which means you can't trust it in production.
+
+- **Knowledge can't be reused**. You rebuild the same context pipelines for every new project, every new agent, every new environment.
+
+These aren't retrieval problems. They are structural problems. Context needs to be organized, versioned, and composable — exactly the way software infrastructure is.
+
+## The Solution: A Holonic Context System
+The philosopher Arthur Koestler coined the word [holon](https://en.wikipedia.org/wiki/Holon_(philosophy)) to describe something that is simultaneously a whole in itself and a part of something larger. A fact is whole. It is also part of a domain. A domain is whole. It is also part of an organization's knowledge.
+
+AI agents break down because this holonic structure is never built. Context gets shoved into flat text windows, scattered across vector stores, or hardwired into one-off prompts. Facts lose their relationships.
+
+TrustGraph solves this by organizing your domain into holonic context graphs. Entities, relationships, and evidence are treated as first-class objects. Every agent query is grounded against these holons—marrying symbolic graph structures with vector embeddings. Every answer carries provenance. Every fact is traceable.
+
+## Context Cores: Knowledge as a First-Class Citizen
+
+A Context Core is the deployable unit of knowledge in TrustGraph. It packages everything an agent needs to reason reliably over a domain into a single, portable artifact.
+
+### What's inside a Context Core
+- **Ontology** — your domain schema and entity mappings
+- **Holon** — entities, relationships, and supporting evidence
+- **Embeddings** — vector indexes for fast semantic entry-point lookup
+- **Provenance** — where every fact came from, when, and how it was derived
+- **Retrieval policies** — traversal rules, freshness controls, authority ranking
+
+Context Cores decouple what agents know from how agents are deployed. Build once. Run in Docker locally, Kubernetes in production, or on any cloud. Pin a version. Roll back. Promote across environments. This is context engineering — and it works because knowledge is finally treated like the infrastructure it is.
+
+## Explainability: Trust Your Agents in Production
+LLMs are black boxes, and traditional RAG makes it worse. When an agent pulls flat text chunks from a vector store, you have no idea how it connected those fragments to form an answer. You cannot ship agents to production if you can't explain why they said what they said.
+
+### How TrustGraph makes agents explainable:
+
+- **Traceable Reasoning Paths**: Instead of guessing at connections between text chunks, TrustGraph traverses explicit relationship paths in the holonic context graph. You can inspect exactly which entities, relationships, and sub-graphs were pulled into the LLM's context window to generate a given response.
+- **Fact-Level Provenance**: Every node and edge in the graph carries strict provenance. When an agent makes a claim, you can trace it back to the exact source document, the time it was ingested, and the extraction method used to derive it.
+- **No Black-Box Guesses**: By grounding the LLM in a structured, symbolic graph, you eliminate the hallucinations that occur when models are forced to infer relationships from unstructured text. If a fact isn't in the graph, the agent doesn't use it.
+
+TrustGraph doesn't just give you answers - it gives you the receipt. Every fact is traceable, every connection is visible, and every output is verifiable.
+
+## Workspaces, Collections, and Flows
+
+TrustGraph has a [three-level system](https://docs.trustgraph.ai/overview/workspaces) for organizing and isolating knowledge. 
+
+A `Workspace` is the outermost boundary — a fully isolated tenancy scope where all data, users, configuration, and pipelines live independently from every other workspace. Isolation is structural: enforced at the pub/sub queue, storage, and API gateway layers, not by trusting a field in a message body.
+
+Within a workspace, a `Collection` groups related holons, graph structures, embeddings, and documents together — think of it as a dedicated shelf in a library, scoped to a specific domain, project, or customer.
+
+A `Flow` is a running data processing pipeline that defines how raw data moves through ingestion, extraction, structuring, and storage — the assembly line that turns documents into queryable knowledge. Together, the three layers let you run multiple isolated tenants on a single deployment, separate knowledge by domain within each tenant, and process that knowledge through fully configurable pipelines — all without restarting the system or rebuilding your infrastructure.
+
+## The Full Stack
+TrustGraph is not a wrapper around a graph database. It is the complete backend for production agentic systems.
+
+- **Holonic context graph engine**: automated entity and relationship extraction, ontology-driven graph construction, graph-grounded retrieval for explainable outputs
+- **Multi-model database**: tabular/relational, key-value, document, graph, vectors, images, video, and audio — all managed in Cassandra and S3-compatible Garage
+- **Out-of-the-box RAG pipelines**: DocumentRAG, GraphRAG, and OntologyRAG ready to deploy
+- **Fully agentic orchestration**: single or multi-agent, ReAct, Plan-then-Execute, Supervisor patterns, and MCP integration
+- **3D Knowledge Explorer**: interactive graph visualization with BFS neighborhood extraction and edge pulse animation
+- **Automated data ingest**: quick ingest with semantic similarity or ontology-structured precision retrieval
+- **Run anywhere**: Docker/Podman locally, Kubernetes in the cloud
+
+All major LLMs — Anthropic, Cohere, Gemini, Mistral, OpenAI, and more via API.
+
+vLLM, Ollama, TGI, LM Studio, and Llamafiles for fully local inferencing.
+
+Verified cloud deployments for Alibaba Cloud, AWS, Azure, GCP, OVHcloud, and Scaleway.
      
 ## No API Keys Required
 
@@ -62,12 +107,12 @@ Everything else is included.
 - [x] Managed Multi-model storage in [Cassandra](https://cassandra.apache.org/_/index.html)
 - [x] Managed Vector embedding storage in [Qdrant](https://github.com/qdrant/qdrant)
 - [x] Managed File and Object storage in [Garage](https://github.com/deuxfleurs-org/garage) (S3 compatible)
-- [x] Managed High-speed Pub/Sub messaging fabric with [Pulsar](https://github.com/apache/pulsar)
+- [x] Managed High-speed Pub/Sub messaging fabric with [Pulsar](https://github.com/apache/pulsar) or [RabbitMQ](https://www.rabbitmq.com/)
 - [x] Complete LLM inferencing stack for open LLMs with [vLLM](https://github.com/vllm-project/vllm), [TGI](https://github.com/huggingface/text-generation-inference), [Ollama](https://github.com/ollama/ollama), [LM Studio](https://github.com/lmstudio-ai), and [Llamafiles](https://github.com/mozilla-ai/llamafile) 
 
 ## Quickstart
 
-There's no need to clone this repo, unless you want to build from source. TrustGraph is a fully containerized app that deploys as a set of Docker containers. To configure TrustGraph on the command line:
+No need to clone the repo unless you are building from source. TrustGraph deploys as a set of Docker containers. Configure it on the command line in one step:
 
 ```
 npx @trustgraph/config
@@ -78,28 +123,27 @@ The config process will generate an app config that can be run locally with Dock
 - Deployment instructions as `INSTALLATION.md`
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
+  <video src="https://github.com/user-attachments/assets/33434c3c-f586-4610-8bb2-d7b7b586a672"
 width="80%" controls></video>
 </p>
 
 For a browser based configuration, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
 
-## Watch What is a Context Graph?
+## Watch What is a Holonic Context Graph?
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
-## Watch Context Graphs in Action
+## Watch Holonic Context Graphs in Action
 
 [![Context Graphs in Action with TrustGraph](https://img.youtube.com/vi/sWc7mkhITIo/maxresdefault.jpg)](https://www.youtube.com/watch?v=sWc7mkhITIo)
 
 ## Getting Started with TrustGraph
 
 - [**Getting Started Guides**](https://docs.trustgraph.ai/getting-started)
-- [**Using the Workbench**](#workbench)
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
 - [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
 
-## Context Graph UI
+## TrustGraph UI
 
 <img width="1389" height="961" alt="Image" src="https://github.com/user-attachments/assets/35c9250d-0f01-40cb-9294-1ee8fd9a1b56" />
 
@@ -111,8 +155,6 @@ The UI provides tools for all major features of TrustGraph. The UI deploys on po
 - **Document Ingestion** — A complete upload and submission workflow with page and chunk inspection and document structure browsing
 - **Ontology Workbench** — A full ontology editor with class and property trees, OWL/XML and Turtle import/export with round-trip fidelity, circular dependency detection, and safe-delete confirmation dialogs
 - **Schema Workbench** — Interactive schema management with list, create, edit, and delete operations including field and index management
-- **Flow Management** — Flow creation and detail views with configurable parameters, temperature controls, and grouped storage layout
-- **Workspace UX** — Workspace selection and management surfaced directly in the interface
 - **Prompt Editor** — A dedicated prompt editing workflow
 
 ## TypeScript Library for UIs
@@ -123,134 +165,6 @@ There are 3 libraries for quick UI integration of TrustGraph services.
 - [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
 - [@trustgraph/react-provider](https://www.npmjs.com/package/@trustgraph/react-provider)
 
-## Context Cores
-
-Context Cores are how TrustGraph treats context like code. A Context Core is a **portable, versioned bundle of context** that you can ship between projects and environments, pin in production, and reuse across agents. It packages the “stuff agents need to know” (structured knowledge + embeddings + evidence + policies) into a single artifact, so you can treat context like code: build it, test it, version it, promote it, and roll it back. TrustGraph is built to support this kind of end-to-end context engineering and orchestration workflow.
-
-### What’s inside a Context Core
-A Context Core typically includes:
-- Ontology (your domain schema) and mappings
-- Context Graph (entities, relationships, supporting evidence)
-- Embeddings / vector indexes for fast semantic entry-point lookup
-- Source manifests + provenance (where facts came from, when, and how they were derived)
-- Retrieval policies (traversal rules, freshness, authority ranking)
-
-## Tech Stack
-TrustGraph provides component flexibility to optimize agent workflows.
-
-<details>
-<summary>LLM APIs</summary>
-<br>
-
-- Anthropic<br>
-- AWS Bedrock<br>
-- AzureAI<br>
-- AzureOpenAI<br>
-- Cohere<br>
-- Google AI Studio<br>
-- Google VertexAI<br>
-- Mistral<br>
-- OpenAI<br>
-
-</details>
-<details>
-<summary>LLM Orchestration</summary>
-<br>
-
-- LM Studio<br>
-- Llamafiles<br>
-- Ollama<br>
-- TGI<br>
-- vLLM<br>
-
-</details>
-<details>
-<summary>Multi-model storage</summary>
-<br>
-
-- Apache Cassandra<br>
-
-</details>
-<details>
-<summary>VectorDB</summary>
-<br>
-
-- Qdrant<br>
-
-</details>
-<details>
-<summary>File and Object Storage</summary>
-<br>
-
-- Garage<br>
-
-</details>
-<details>
-<summary>Observability</summary>
-<br>  
-
-- Prometheus<br>
-- Grafana<br>
-- Loki<br>
-
-</details>
-<details>
-<summary>Data Streaming</summary>
-<br>
-
-- Apache Pulsar<br>
-- RabbitMQ<br>
-- Apache Kafka<br>
-
-</details>
-<details>
-<summary>Clouds</summary>
-<br>
-
-- AWS<br>
-- Azure<br>
-- Google Cloud<br>
-- OVHcloud<br>
-- Scaleway<br>
-
-</details>
-
-## Observability & Telemetry
-
-Once the platform is running, access the Grafana dashboard at:
-
-```
-http://localhost:3000
-```
-
-Default credentials are:
-
-```
-user: admin
-password: admin
-```
-
-The default Grafana dashboard tracks the following:
-
-<details>
-<summary>Telemetry</summary>
-<br>
-
-- LLM Latency<br>
-- Error Rate<br>
-- Service Request Rates<br>
-- Queue Backlogs<br>
-- Chunking Histogram<br>
-- Error Source by Service<br>
-- Rate Limit Events<br>
-- CPU usage by Service<br>
-- Memory usage by Service<br>
-- Models Deployed<br>
-- Token Throughput (Tokens/second)<br>
-- Cost Throughput (Cost/second)<br>
-   
-</details>
-
 ## Contributing
 
 [Developer's Guide](https://docs.trustgraph.ai/guides/building/introduction.html)
@@ -259,7 +173,7 @@ The default Grafana dashboard tracks the following:
 
 **TrustGraph** is licensed under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-   Copyright 2024-2025 TrustGraph
+   Copyright 2024-2026 TrustGraph
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
