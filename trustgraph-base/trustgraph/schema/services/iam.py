@@ -74,6 +74,21 @@ class ApiKeyRecord:
     last_used: str = ""
 
 
+# ---- Enterprise IAM types (additive) ----
+
+@dataclass
+class GroupInput:
+    name: str = ""
+    description: str = ""
+    enabled: bool = True
+
+
+@dataclass
+class GrantInput:
+    capability: str = ""
+    workspace: str = ""
+
+
 @dataclass
 class IamRequest:
     operation: str = ""
@@ -98,6 +113,13 @@ class IamRequest:
     user: UserInput | None = None
     workspace_record: WorkspaceInput | None = None
     key: ApiKeyInput | None = None
+
+    # ---- Enterprise IAM inputs (additive) ----
+    group_id: str = ""
+    member_type: str = ""
+    member_id: str = ""
+    group: GroupInput | None = None
+    grant: GrantInput | None = None
 
     # ---- authorise / authorise-many inputs ----
     # Capability string from the vocabulary in capabilities.md.
@@ -163,6 +185,14 @@ class IamResponse:
     # "ttl": int} in the same order as the request's
     # authorise_checks.
     decisions_json: str = ""
+
+    # ---- Enterprise IAM outputs (additive) ----
+    # JSON-serialised payloads for enterprise group/grant operations.
+    group_json: str = ""
+    groups_json: str = ""
+    members_json: str = ""
+    grants_json: str = ""
+    effective_permissions_json: str = ""
 
     error: Error | None = None
 
