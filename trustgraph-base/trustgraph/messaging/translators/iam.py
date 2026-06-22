@@ -5,6 +5,7 @@ from ...schema import (
     UserInput, UserRecord,
     WorkspaceInput, WorkspaceRecord,
     ApiKeyInput, ApiKeyRecord,
+    GroupInput, GrantInput,
 )
 from .base import MessageTranslator
 
@@ -40,6 +41,25 @@ def _api_key_input_from_dict(d):
         user_id=d.get("user_id", ""),
         name=d.get("name", ""),
         expires=d.get("expires", ""),
+    )
+
+
+def _group_input_from_dict(d):
+    if d is None:
+        return None
+    return GroupInput(
+        name=d.get("name", ""),
+        description=d.get("description", ""),
+        enabled=d.get("enabled", True),
+    )
+
+
+def _grant_input_from_dict(d):
+    if d is None:
+        return None
+    return GrantInput(
+        capability=d.get("capability", ""),
+        workspace=d.get("workspace", ""),
     )
 
 
@@ -102,6 +122,15 @@ class IamRequestTranslator(MessageTranslator):
                 data.get("workspace_record")
             ),
             key=_api_key_input_from_dict(data.get("key")),
+            group_id=data.get("group_id", ""),
+            member_type=data.get("member_type", ""),
+            member_id=data.get("member_id", ""),
+            group=_group_input_from_dict(data.get("group")),
+            grant=_grant_input_from_dict(data.get("grant")),
+            capability=data.get("capability", ""),
+            resource_json=data.get("resource_json", ""),
+            parameters_json=data.get("parameters_json", ""),
+            authorise_checks=data.get("authorise_checks", ""),
         )
 
     def encode(self, obj: IamRequest) -> Dict[str, Any]:
@@ -109,6 +138,9 @@ class IamRequestTranslator(MessageTranslator):
         for fname in (
                 "workspace", "actor", "user_id", "username", "key_id",
                 "api_key", "password", "new_password",
+                "group_id", "member_type", "member_id",
+                "capability", "resource_json", "parameters_json",
+                "authorise_checks",
         ):
             v = getattr(obj, fname, "")
             if v:
@@ -134,6 +166,17 @@ class IamRequestTranslator(MessageTranslator):
                 "user_id": obj.key.user_id,
                 "name": obj.key.name,
                 "expires": obj.key.expires,
+            }
+        if obj.group is not None:
+            result["group"] = {
+                "name": obj.group.name,
+                "description": obj.group.description,
+                "enabled": obj.group.enabled,
+            }
+        if obj.grant is not None:
+            result["grant"] = {
+                "capability": obj.grant.capability,
+                "workspace": obj.grant.workspace,
             }
         return result
 
@@ -189,6 +232,23 @@ class IamResponseTranslator(MessageTranslator):
         # meaningful for UIs deciding whether to render first-run
         # setup, so it can't be dropped by a truthy-only filter.
         result["bootstrap_available"] = bool(obj.bootstrap_available)
+
+        # authorise / authorise-many outputs.
+        if obj.decision_allow:
+            result["decision_allow"] = obj.decision_allow
+        if obj.decision_ttl_seconds:
+            result["decision_ttl_seconds"] = obj.decision_ttl_seconds
+        if obj.decisions_json:
+            result["decisions_json"] = obj.decisions_json
+
+        # Enterprise IAM outputs.
+        for fname in (
+                "group_json", "groups_json", "members_json",
+                "grants_json", "effective_permissions_json",
+        ):
+            v = getattr(obj, fname, "")
+            if v:
+                result[fname] = v
 
         return result
 

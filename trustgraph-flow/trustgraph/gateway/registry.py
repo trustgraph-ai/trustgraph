@@ -506,18 +506,18 @@ _FLOW_SERVICES = {
     "text-completion": "llm",
     "prompt": "llm",
     "mcp-tool": "mcp",
-    "graph-rag": "graph:read",
-    "document-rag": "documents:read",
+    "graph-rag": "graph-rag:read",
+    "document-rag": "document-rag:read",
     "embeddings": "embeddings",
-    "graph-embeddings": "graph:read",
-    "document-embeddings": "documents:read",
-    "triples": "graph:read",
+    "graph-embeddings": "graph-embeddings:read",
+    "document-embeddings": "document-embeddings:read",
+    "triples": "triples:read",
     "rows": "rows:read",
-    "nlp-query": "rows:read",
-    "structured-query": "rows:read",
-    "structured-diag": "rows:read",
-    "row-embeddings": "rows:read",
-    "sparql": "graph:read",
+    "nlp-query": "nlp-query:read",
+    "structured-query": "structured-query:read",
+    "structured-diag": "structured-query:read",
+    "row-embeddings": "row-embeddings:read",
+    "sparql": "sparql:read",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap)
@@ -525,10 +525,10 @@ for _kind, _cap in _FLOW_SERVICES.items():
 
 # Streaming import socket endpoints.
 _FLOW_IMPORTS = {
-    "triples": "graph:write",
-    "graph-embeddings": "graph:write",
-    "document-embeddings": "documents:write",
-    "entity-contexts": "documents:write",
+    "triples": "triples:write",
+    "graph-embeddings": "graph-embeddings:write",
+    "document-embeddings": "document-embeddings:write",
+    "entity-contexts": "entity-contexts:write",
     "rows": "rows:write",
 }
 for _kind, _cap in _FLOW_IMPORTS.items():
@@ -537,10 +537,35 @@ for _kind, _cap in _FLOW_IMPORTS.items():
 
 # Streaming export socket endpoints.
 _FLOW_EXPORTS = {
-    "triples": "graph:read",
-    "graph-embeddings": "graph:read",
-    "document-embeddings": "documents:read",
-    "entity-contexts": "documents:read",
+    "triples": "triples:read",
+    "graph-embeddings": "graph-embeddings:read",
+    "document-embeddings": "document-embeddings:read",
+    "entity-contexts": "entity-contexts:read",
 }
 for _kind, _cap in _FLOW_EXPORTS.items():
     _register_flow_kind("flow-export", _kind, _cap)
+
+
+# ---------------------------------------------------------------------------
+# Enterprise IAM operations.
+#
+# These are additive — they register alongside the OSS IAM operations.
+# When the OSS regime receives an unknown operation it returns an error;
+# when the enterprise regime is running, it handles them.
+# ---------------------------------------------------------------------------
+
+for _op in (
+    "create-group", "get-group", "list-groups",
+    "update-group", "delete-group",
+    "add-group-member", "remove-group-member", "list-group-members",
+    "add-group-grant", "remove-group-grant", "list-group-grants",
+    "add-user-grant", "remove-user-grant", "list-user-grants",
+    "resolve-effective-permissions",
+):
+    register(Operation(
+        name=_op,
+        capability="iam:admin",
+        resource_level=ResourceLevel.SYSTEM,
+        extract_resource=_empty_resource,
+        extract_parameters=_no_parameters,
+    ))
