@@ -24,6 +24,12 @@ Usage examples:
   python scripts/dockerhub-cleanup.py \
     --repo-pattern 'trustgraph/trustgraph-flow' \
     --min-version 0.0.0 --max-version 1.4.21
+
+  # Also include tags matching a glob pattern
+  python scripts/dockerhub-cleanup.py \
+    --repo-pattern 'trustgraph/trustgraph-*' \
+    --min-version 0.0.0 --max-version 1.4.21 \
+    --include-pattern '*-rc*'
 """
 
 import argparse
@@ -145,6 +151,13 @@ def main():
         help="Docker Hub password (alternative to PAT)",
     )
     parser.add_argument(
+        "--include-pattern",
+        action="append",
+        default=[],
+        help="Additional tag glob patterns to include (e.g. '*-rc*'). "
+             "Can be specified multiple times.",
+    )
+    parser.add_argument(
         "--delay",
         type=float,
         default=0.5,
@@ -212,40 +225,38 @@ def main():
 
         for tag_info in tags:
             tag = tag_info["name"]
+
+            # Check semver range match
             ver = parse_semver(tag)
-            if ver is None:
-                skipped.append(tag)
+            if ver is not None and min_ver <= ver <= max_ver:
+                to_delete.append(tag)
                 continue
-            if min_ver <= ver <= max_ver:
-                to_delete.append((tag, ver))
-            else:
-                skipped.append(tag)
+
+            # Check optional include patterns
+            if any(fnmatch.fnmatch(tag, p) for p in args.include_pattern):
+                to_delete.append(tag)
+                continue
+
+            skipped.append(tag)
 
         if not to_delete:
             continue
 
-        to_delete.sort(key=lambda x: x[1])
+        to_delete.sort()
 
         print(f"  {namespace}/{repo_name}:")
-        print(f"    Delete ({len(to_delete)}): ", end="")
-        # Show first few and last few to keep output manageable
-        if len(to_delete) <= 8:
-            print(", ".join(t[0] for t in to_delete))
-        else:
-            first = ", ".join(t[0] for t in to_delete[:3])
-            last = ", ".join(t[0] for t in to_delete[-3:])
-            print(f"{first}, ... ({len(to_delete) - 6} more) ..., {last}")
-
-        non_semver = [t for t in skipped if parse_semver(t) is None]
-        if non_semver:
-            print(f"    Skipping non-semver: {', '.join(sorted(non_semver))}")
+        print(f"    Delete ({len(to_delete)}):")
+        for tag in to_delete:
+            print(f"      {tag}")
+        if skipped:
+            print(f"    Skipping ({len(skipped)}): {', '.join(sorted(skipped))}")
         print()
 
         total_delete += len(to_delete)
         total_skip += len(skipped)
 
         if args.delete:
-            for tag, ver in to_delete:
+            for tag in to_delete:
                 try:
                     delete_tag(namespace, repo_name, tag, auth_token)
                     print(f"    Deleted {tag}")
