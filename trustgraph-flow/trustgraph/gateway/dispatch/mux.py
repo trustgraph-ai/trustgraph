@@ -5,6 +5,7 @@ import uuid
 import logging
 
 from ..capabilities import PUBLIC, AUTHENTICATED
+from ..registry import ResourceLevel
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -159,12 +160,14 @@ class Mux:
                 return
 
             # Resolve workspace (default-fill from the caller's
-            # bound workspace).  Workspace resolution applies to all
-            # operations regardless of capability level.
+            # bound workspace).  The envelope workspace is the
+            # single canonical workspace for routing AND
+            # authorisation.  The inner request body's workspace
+            # field is not consulted — workspace-scoped services
+            # receive workspace from the queue identity, not the
+            # message body.
             try:
                 await enforce_workspace(data, self.identity, self.auth)
-                if isinstance(inner, dict):
-                    await enforce_workspace(inner, self.identity, self.auth)
 
                 # Authorisation: capability sentinels short-circuit
                 # the regime call; capability strings go through
@@ -176,11 +179,18 @@ class Mux:
                             "flow": data.get("flow", ""),
                         }
                         parameters = {}
+                    elif op.resource_level == ResourceLevel.WORKSPACE:
+                        # Workspace-scoped services (config, flow,
+                        # librarian, etc.) — workspace comes from the
+                        # envelope, same as flow-level services.
+                        resource = {
+                            "workspace": data.get("workspace", ""),
+                        }
+                        parameters = {}
                     else:
-                        # Build a minimal RequestContext so the matched
-                        # operation's own extractors decide resource
-                        # and parameters — same path the HTTP
-                        # endpoints take.
+                        # System-level services (IAM) — resource is
+                        # {} and parameters come from the inner body
+                        # (e.g. user.workspace, workspace_record.id).
                         from ..registry import RequestContext
                         ctx = RequestContext(
                             body=inner if isinstance(inner, dict) else {},
