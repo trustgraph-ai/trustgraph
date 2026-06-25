@@ -68,7 +68,7 @@ def do_update_user(args):
     print(f"username  : {rec.get('username', '')}")
     print(f"name      : {rec.get('name', '')}")
     print(f"email     : {rec.get('email', '')}")
-    print(f"workspace : {rec.get('workspace', '')}")
+    print(f"default_ws: {rec.get('default_workspace', '')}")
     print(f"roles     : {', '.join(rec.get('roles', []))}")
     print(f"enabled   : {'yes' if rec.get('enabled') else 'no'}")
     print(
@@ -114,7 +114,7 @@ def main():
         "-w", "--workspace", default=None,
         help=(
             "Optional workspace integrity check — when supplied, "
-            "iam-svc verifies the target user's home workspace "
+            "iam-svc verifies the target user's default workspace "
             "matches"
         ),
     )

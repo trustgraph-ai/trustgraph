@@ -68,7 +68,7 @@ def _user_record_to_dict(r):
         return None
     return {
         "id": r.id,
-        "workspace": r.workspace,
+        "default_workspace": r.default_workspace,
         "username": r.username,
         "name": r.name,
         "email": r.email,
@@ -218,8 +218,8 @@ class IamResponseTranslator(MessageTranslator):
             result["signing_key_public"] = obj.signing_key_public
         if obj.resolved_user_id:
             result["resolved_user_id"] = obj.resolved_user_id
-        if obj.resolved_workspace:
-            result["resolved_workspace"] = obj.resolved_workspace
+        if obj.resolved_default_workspace:
+            result["resolved_default_workspace"] = obj.resolved_default_workspace
         if obj.resolved_roles:
             result["resolved_roles"] = list(obj.resolved_roles)
         if obj.temporary_password:

@@ -65,31 +65,25 @@ class IamClient(RequestResponse):
     async def authenticate_anonymous(self, timeout=IAM_TIMEOUT):
         """Request anonymous access from the IAM regime.
 
-        Returns ``(user_id, workspace, roles)`` if the regime permits
-        anonymous access, or raises ``RuntimeError`` with error type
-        ``auth-failed`` if it does not."""
+        Returns ``(user_id, default_workspace, roles)`` if the regime
+        permits anonymous access, or raises ``RuntimeError`` with
+        error type ``auth-failed`` if it does not."""
         resp = await self._request(
             operation="authenticate-anonymous",
             timeout=timeout,
         )
         return (
             resp.resolved_user_id,
-            resp.resolved_workspace,
+            resp.resolved_default_workspace,
             list(resp.resolved_roles),
         )
 
     async def resolve_api_key(self, api_key, timeout=IAM_TIMEOUT):
         """Resolve a plaintext API key to its identity triple.
 
-        Returns ``(user_id, workspace, roles)`` or raises
+        Returns ``(user_id, default_workspace, roles)`` or raises
         ``RuntimeError`` with error type ``auth-failed`` if the key is
-        unknown / expired / revoked.
-
-        Note: the ``roles`` value is a regime-internal hint and is
-        not used by the gateway directly under the IAM contract;
-        all authorisation decisions go through ``authorise()``.
-        Returned here only for backward compatibility with callers
-        that haven't migrated."""
+        unknown / expired / revoked."""
         resp = await self._request(
             operation="resolve-api-key",
             api_key=api_key,
@@ -97,7 +91,7 @@ class IamClient(RequestResponse):
         )
         return (
             resp.resolved_user_id,
-            resp.resolved_workspace,
+            resp.resolved_default_workspace,
             list(resp.resolved_roles),
         )
 

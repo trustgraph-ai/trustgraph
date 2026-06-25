@@ -383,7 +383,7 @@ class IamService:
         ) = row
         return UserRecord(
             id=id or "",
-            workspace=workspace or "",
+            default_workspace=workspace or "",
             username=username or "",
             name=name or "",
             email=email or "",
@@ -596,14 +596,8 @@ class IamService:
         if not v.password:
             return _err("auth-failed", "password required")
 
-        # Login accepts an optional workspace parameter.  If omitted
-        # we use the default workspace (OSS single-workspace
-        # assumption).  Multi-workspace enterprise editions swap in a
-        # resolver that looks across the caller's permitted set.
-        workspace = v.workspace or DEFAULT_WORKSPACE
-
         user_id = await self.table_store.get_user_id_by_username(
-            workspace, v.username,
+            v.username,
         )
         if not user_id:
             return _err("auth-failed", "no such user")
@@ -624,7 +618,10 @@ class IamService:
         ):
             return _err("auth-failed", "bad credentials")
 
-        ws_row = await self.table_store.get_workspace(ws)
+        # JWT workspace: login request override, or the user's default.
+        jwt_workspace = v.workspace or ws
+
+        ws_row = await self.table_store.get_workspace(jwt_workspace)
         if ws_row is None or not ws_row[2]:
             return _err("auth-failed", "workspace disabled")
 
@@ -632,14 +629,10 @@ class IamService:
 
         now_ts = int(_now_dt().timestamp())
         exp_ts = now_ts + JWT_TTL_SECONDS
-        # Per the IAM contract the gateway never reads policy state
-        # from the credential — roles stay server-side, reachable
-        # only via authorise().  JWT carries identity + workspace
-        # binding only.
         claims = {
             "iss": JWT_ISSUER,
             "sub": id,
-            "workspace": ws,
+            "default_workspace": jwt_workspace,
             "iat": now_ts,
             "exp": exp_ts,
         }
@@ -878,20 +871,15 @@ class IamService:
 
         # user_row indices match get_user columns.  Username is [2].
         username = user_row[2]
-        record_workspace = user_row[1]
 
         # Revoke all API keys.
         key_rows = await self.table_store.list_api_keys_by_user(v.user_id)
         for kr in key_rows:
             await self.table_store.delete_api_key(kr[0])
 
-        # Remove username lookup — keyed on (workspace, username),
-        # so use the resolved workspace from the user record rather
-        # than relying on the caller-supplied filter.
+        # Remove global username lookup.
         if username:
-            await self.table_store.delete_username_lookup(
-                record_workspace, username,
-            )
+            await self.table_store.delete_username_lookup(username)
 
         # Remove user record.
         await self.table_store.delete_user(v.user_id)
@@ -1110,13 +1098,15 @@ class IamService:
             return _err("auth-failed", "owning user disabled")
 
         # Workspace-disabled check.
-        ws_row = await self.table_store.get_workspace(user.workspace)
+        ws_row = await self.table_store.get_workspace(
+            user.default_workspace,
+        )
         if ws_row is None or not ws_row[2]:
             return _err("auth-failed", "owning workspace disabled")
 
         return IamResponse(
             resolved_user_id=user.id,
-            resolved_workspace=user.workspace,
+            resolved_default_workspace=user.default_workspace,
             resolved_roles=list(user.roles),
         )
 
@@ -1143,9 +1133,9 @@ class IamService:
         if ws is None or not ws[2]:
             return _err("not-found", "workspace not found or disabled")
 
-        # Uniqueness on username within workspace.
+        # Global username uniqueness.
         existing = await self.table_store.get_user_id_by_username(
-            v.workspace, v.user.username,
+            v.user.username,
         )
         if existing:
             return _err("duplicate", "username already exists")
@@ -1317,8 +1307,9 @@ class IamService:
             return False, AUTHZ_CACHE_TTL_SECONDS
 
         # user_row layout:
-        # 0:id 1:workspace 2:username 3:name 4:email 5:password_hash
-        # 6:roles 7:enabled 8:must_change_password 9:created
+        # 0:id 1:default_workspace 2:username 3:name 4:email
+        # 5:password_hash 6:roles 7:enabled 8:must_change_password
+        # 9:created
         if not user_row[7]:  # disabled
             return False, AUTHZ_CACHE_TTL_SECONDS
 

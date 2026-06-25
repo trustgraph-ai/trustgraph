@@ -94,10 +94,8 @@ class IamTableStore:
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS iam_users_by_username (
-                workspace text,
-                username text,
-                user_id text,
-                PRIMARY KEY ((workspace), username)
+                username text PRIMARY KEY,
+                user_id text
             );
         """)
 
@@ -175,16 +173,16 @@ class IamTableStore:
         """)
 
         self.put_username_lookup_stmt = c.prepare("""
-            INSERT INTO iam_users_by_username (workspace, username, user_id)
-            VALUES (?, ?, ?)
+            INSERT INTO iam_users_by_username (username, user_id)
+            VALUES (?, ?)
         """)
         self.get_user_id_by_username_stmt = c.prepare("""
             SELECT user_id FROM iam_users_by_username
-            WHERE workspace = ? AND username = ?
+            WHERE username = ?
         """)
         self.delete_username_lookup_stmt = c.prepare("""
             DELETE FROM iam_users_by_username
-            WHERE workspace = ? AND username = ?
+            WHERE username = ?
         """)
         self.delete_user_stmt = c.prepare("""
             DELETE FROM iam_users WHERE id = ?
@@ -289,7 +287,7 @@ class IamTableStore:
         )
         await async_execute(
             self.cassandra, self.put_username_lookup_stmt,
-            (workspace, username, id),
+            (username, id),
         )
 
     async def get_user(self, id):
@@ -298,10 +296,10 @@ class IamTableStore:
         )
         return rows[0] if rows else None
 
-    async def get_user_id_by_username(self, workspace, username):
+    async def get_user_id_by_username(self, username):
         rows = await async_execute(
             self.cassandra, self.get_user_id_by_username_stmt,
-            (workspace, username),
+            (username,),
         )
         return rows[0][0] if rows else None
 
@@ -324,10 +322,10 @@ class IamTableStore:
             self.cassandra, self.delete_user_stmt, (id,),
         )
 
-    async def delete_username_lookup(self, workspace, username):
+    async def delete_username_lookup(self, username):
         await async_execute(
             self.cassandra, self.delete_username_lookup_stmt,
-            (workspace, username),
+            (username,),
         )
 
     # ------------------------------------------------------------------

@@ -86,19 +86,19 @@ class TestVerifyJwtEddsa:
     def test_valid_jwt_passes(self):
         priv, pub = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default",
+            "sub": "user-1", "default_workspace": "default",
             "iat": int(time.time()),
             "exp": int(time.time()) + 60,
         }
         token = sign_jwt(priv, claims)
         got = _verify_jwt_eddsa(token, pub)
         assert got["sub"] == "user-1"
-        assert got["workspace"] == "default"
+        assert got["default_workspace"] == "default"
 
     def test_expired_jwt_rejected(self):
         priv, pub = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default",
+            "sub": "user-1", "default_workspace": "default",
             "iat": int(time.time()) - 3600,
             "exp": int(time.time()) - 1,
         }
@@ -110,7 +110,7 @@ class TestVerifyJwtEddsa:
         priv_a, _ = make_keypair()
         _, pub_b = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default",
+            "sub": "user-1", "default_workspace": "default",
             "iat": int(time.time()),
             "exp": int(time.time()) + 60,
         }
@@ -130,7 +130,7 @@ class TestVerifyJwtEddsa:
         # since we expect it to bail before verifying.
         header = {"alg": "HS256", "typ": "JWT", "kid": "x"}
         payload = {
-            "sub": "user-1", "workspace": "default",
+            "sub": "user-1", "default_workspace": "default",
             "iat": int(time.time()), "exp": int(time.time()) + 60,
         }
         h = _b64url(json.dumps(header, separators=(",", ":")).encode())
@@ -148,11 +148,11 @@ class TestIdentity:
 
     def test_fields(self):
         i = Identity(
-            handle="u", workspace="w",
+            handle="u", default_workspace="w",
             principal_id="u", source="api-key",
         )
         assert i.handle == "u"
-        assert i.workspace == "w"
+        assert i.default_workspace == "w"
         assert i.principal_id == "u"
         assert i.source == "api-key"
 
@@ -208,7 +208,7 @@ class TestIamAuthDispatch:
     async def test_valid_jwt_resolves_to_identity(self):
         priv, pub = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default",
+            "sub": "user-1", "default_workspace": "default",
             "iat": int(time.time()),
             "exp": int(time.time()) + 60,
         }
@@ -221,7 +221,7 @@ class TestIamAuthDispatch:
             make_request(f"Bearer {token}")
         )
         assert ident.handle == "user-1"
-        assert ident.workspace == "default"
+        assert ident.default_workspace == "default"
         assert ident.principal_id == "user-1"
         assert ident.source == "jwt"
 
@@ -231,7 +231,7 @@ class TestIamAuthDispatch:
         # must not validate — even ones that would otherwise pass.
         priv, _ = make_keypair()
         claims = {
-            "sub": "user-1", "workspace": "default",
+            "sub": "user-1", "default_workspace": "default",
             "iat": int(time.time()), "exp": int(time.time()) + 60,
         }
         token = sign_jwt(priv, claims)
@@ -259,7 +259,7 @@ class TestIamAuthDispatch:
                 make_request("Bearer tg_testkey")
             )
         assert ident.handle == "user-xyz"
-        assert ident.workspace == "default"
+        assert ident.default_workspace == "default"
         assert ident.principal_id == "user-xyz"
         assert ident.source == "api-key"
 
@@ -338,9 +338,9 @@ class TestAuthorise:
     decision for the regime's TTL (clamped above), and raises 403
     on deny / 401 on regime error (fail closed)."""
 
-    def _make_identity(self, handle="u-1", workspace="default"):
+    def _make_identity(self, handle="u-1", default_workspace="default"):
         return Identity(
-            handle=handle, workspace=workspace,
+            handle=handle, default_workspace=default_workspace,
             principal_id=handle, source="api-key",
         )
 

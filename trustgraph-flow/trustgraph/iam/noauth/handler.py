@@ -28,14 +28,14 @@ class NoAuthHandler:
     def _default_identity_response(self):
         return IamResponse(
             resolved_user_id=self.default_user_id,
-            resolved_workspace=self.default_workspace,
+            resolved_default_workspace=self.default_workspace,
             resolved_roles=["admin"],
         )
 
     def _default_user_record(self):
         return UserRecord(
             id=self.default_user_id,
-            workspace=self.default_workspace,
+            default_workspace=self.default_workspace,
             username=self.default_user_id,
             name="Anonymous User",
             roles=["admin"],

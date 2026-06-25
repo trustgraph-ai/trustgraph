@@ -51,8 +51,8 @@ def main():
     parser.add_argument(
         "-w", "--workspace", default=None,
         help=(
-            "Optional workspace to log in against.  Defaults to "
-            "the user's assigned workspace."
+            "Override the default workspace for this session's JWT. "
+            "If omitted, uses the user's stored default workspace."
         ),
     )
     run_main(do_login, parser)

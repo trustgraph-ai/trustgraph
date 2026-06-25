@@ -57,16 +57,17 @@ class Identity:
     # the OSS regime this is the user record's id; the gateway
     # treats it as a string with no semantic content.
     handle: str
-    # The workspace this credential authenticates to.  Used by the
-    # gateway as the default-fill-in for operations that omit a
-    # workspace.  Never used as policy input.
-    workspace: str
+    # The user's default workspace.  Used by the gateway as the
+    # default-fill-in for operations that omit a workspace.  Not a
+    # permission boundary — workspace access is controlled by the
+    # IAM regime's authorise() decision, not by this field.
+    default_workspace: str
     # Stable identifier for audit logs.  In OSS this is the same
     # value as ``handle``; not assumed equal in the contract.
     principal_id: str
     # How the credential was presented.  Non-policy; useful for
     # logs / metrics only.
-    source: str   # "api-key" | "jwt"
+    source: str   # "api-key" | "jwt" | "anonymous"
 
 
 def _auth_failure():
@@ -256,21 +257,22 @@ class IamAuth:
             raise _auth_failure()
 
         sub = claims.get("sub", "")
-        ws = claims.get("workspace", "")
+        ws = claims.get("default_workspace", "")
         if not sub or not ws:
             raise _auth_failure()
 
-        # JWT carries no policy state under the IAM contract;
-        # any roles / claims field is ignored here.
         return Identity(
-            handle=sub, workspace=ws, principal_id=sub, source="jwt",
+            handle=sub, default_workspace=ws,
+            principal_id=sub, source="jwt",
         )
 
     async def _authenticate_anonymous(self):
         try:
             async def _call(client):
                 return await client.authenticate_anonymous()
-            user_id, workspace, _roles = await self._with_client(_call)
+            user_id, default_workspace, _roles = await self._with_client(
+                _call,
+            )
         except Exception as e:
             logger.debug(
                 f"Anonymous authentication rejected: "
@@ -278,11 +280,11 @@ class IamAuth:
             )
             raise _auth_failure()
 
-        if not user_id or not workspace:
+        if not user_id or not default_workspace:
             raise _auth_failure()
 
         return Identity(
-            handle=user_id, workspace=workspace,
+            handle=user_id, default_workspace=default_workspace,
             principal_id=user_id, source="anonymous",
         )
 
@@ -305,7 +307,9 @@ class IamAuth:
                 # ``roles`` is returned by the OSS regime as a hint
                 # but is not consulted by the gateway; all policy
                 # decisions go through ``authorise``.
-                user_id, workspace, _roles = await self._with_client(_call)
+                user_id, default_workspace, _roles = await self._with_client(
+                    _call,
+                )
             except Exception as e:
                 logger.debug(
                     f"API key resolution failed: "
@@ -313,11 +317,11 @@ class IamAuth:
                 )
                 raise _auth_failure()
 
-            if not user_id or not workspace:
+            if not user_id or not default_workspace:
                 raise _auth_failure()
 
             identity = Identity(
-                handle=user_id, workspace=workspace,
+                handle=user_id, default_workspace=default_workspace,
                 principal_id=user_id, source="api-key",
             )
             self._key_cache[h] = (identity, now + API_KEY_CACHE_TTL)
