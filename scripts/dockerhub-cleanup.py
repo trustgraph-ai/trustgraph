@@ -87,6 +87,8 @@ def get_repos(namespace, token):
     url = f"{HUB_API}/repositories/{namespace}/?page_size=100"
     while url:
         resp = requests.get(url, headers={"Authorization": f"JWT {token}"})
+        if resp.status_code == 404:
+            break
         resp.raise_for_status()
         data = resp.json()
         repos.extend(data["results"])
@@ -100,6 +102,8 @@ def get_tags(namespace, repo, token):
     url = f"{HUB_API}/repositories/{namespace}/{repo}/tags/?page_size=100"
     while url:
         resp = requests.get(url, headers={"Authorization": f"JWT {token}"})
+        if resp.status_code == 404:
+            break
         resp.raise_for_status()
         data = resp.json()
         tags.extend(data["results"])
@@ -140,11 +144,12 @@ def main():
     )
     parser.add_argument(
         "--token",
-        help="Docker Hub PAT (or set DOCKER_HUB_TOKEN env var)",
+        help="Docker Hub PAT (or set DOCKER_HUB_TOKEN env var). "
+             "Requires --username to exchange for a JWT.",
     )
     parser.add_argument(
         "--username",
-        help="Docker Hub username (alternative to PAT)",
+        help="Docker Hub username (required with --token, or with --password)",
     )
     parser.add_argument(
         "--password",
@@ -171,7 +176,13 @@ def main():
 
     token = args.token or os.environ.get("DOCKER_HUB_TOKEN")
     if token:
-        auth_token = token
+        if not args.username:
+            print(
+                "Error: --username is required when using --token / DOCKER_HUB_TOKEN",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        auth_token = authenticate(args.username, token)
     elif args.username and args.password:
         auth_token = authenticate(args.username, args.password)
     else:
