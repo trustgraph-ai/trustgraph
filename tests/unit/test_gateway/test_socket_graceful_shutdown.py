@@ -28,7 +28,7 @@ TEST_CAP = "graph:write"
 def _valid_identity():
     return Identity(
         handle="test-user",
-        workspace="default",
+        default_workspace="default",
         principal_id="test-user",
         source="api-key",
     )

@@ -53,7 +53,7 @@ def main():
         help="Auth token (default: $TRUSTGRAPH_TOKEN)",
     )
     parser.add_argument(
-        "--username", required=True, help="Username (unique in workspace)",
+        "--username", required=True, help="Username (globally unique)",
     )
     parser.add_argument(
         "--password", default=None,
@@ -75,10 +75,7 @@ def main():
     )
     parser.add_argument(
         "-w", "--workspace", default=None,
-        help=(
-            "Target workspace (admin only; defaults to caller's "
-            "assigned workspace)"
-        ),
+        help="Default workspace for the new user",
     )
     run_main(do_create_user, parser)
 

@@ -92,7 +92,7 @@ class Operation:
     # Returns a dict with the appropriate components for the
     # resource level: {} for SYSTEM, {workspace} for WORKSPACE,
     # {workspace, flow} for FLOW.  Default-fill-in of workspace
-    # from identity.workspace happens here when applicable.
+    # from identity.default_workspace happens here when applicable.
     extract_resource: Callable[[RequestContext], dict]
 
     # Build the parameters dict — decision-relevant fields the
@@ -141,7 +141,7 @@ def _workspace_from_body(ctx: RequestContext) -> dict:
     workspace field, defaulting to the caller's bound workspace."""
     ws = (ctx.body.get("workspace") if isinstance(ctx.body, dict) else "")
     if not ws and ctx.identity is not None:
-        ws = ctx.identity.workspace
+        ws = ctx.identity.default_workspace
     return {"workspace": ws}
 
 
@@ -188,7 +188,7 @@ def _workspace_param_only(ctx: RequestContext) -> dict:
         or body.get("workspace")
     )
     if not ws and ctx.identity is not None:
-        ws = ctx.identity.workspace
+        ws = ctx.identity.default_workspace
     return {"workspace": ws or ""}
 
 

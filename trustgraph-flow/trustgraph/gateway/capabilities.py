@@ -99,7 +99,7 @@ async def enforce_workspace(data, identity, auth, capability=None):
         return data
 
     requested = data.get("workspace", "")
-    target = requested or identity.workspace
+    target = requested or identity.default_workspace
     data["workspace"] = target
 
     if target not in auth.known_workspaces:

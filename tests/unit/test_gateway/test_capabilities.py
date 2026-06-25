@@ -25,11 +25,11 @@ from trustgraph.gateway.capabilities import (
 
 class _Identity:
     """Stand-in for auth.Identity — under the IAM contract it has
-    just ``handle``, ``workspace``, ``principal_id``, ``source``."""
+    just ``handle``, ``default_workspace``, ``principal_id``, ``source``."""
 
-    def __init__(self, handle="user-1", workspace="default"):
+    def __init__(self, handle="user-1", default_workspace="default"):
         self.handle = handle
-        self.workspace = workspace
+        self.default_workspace = default_workspace
         self.principal_id = handle
         self.source = "api-key"
 
@@ -105,14 +105,14 @@ class TestEnforceWorkspace:
     async def test_default_fills_from_identity(self):
         data = {"operation": "x"}
         auth = _allow_auth()
-        await enforce_workspace(data, _Identity(workspace="default"), auth)
+        await enforce_workspace(data, _Identity(default_workspace="default"), auth)
         assert data["workspace"] == "default"
 
     @pytest.mark.asyncio
     async def test_caller_supplied_workspace_kept(self):
         data = {"workspace": "acme", "operation": "x"}
         auth = _allow_auth()
-        await enforce_workspace(data, _Identity(workspace="default"), auth)
+        await enforce_workspace(data, _Identity(default_workspace="default"), auth)
         assert data["workspace"] == "acme"
 
     @pytest.mark.asyncio

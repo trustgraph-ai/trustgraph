@@ -29,7 +29,7 @@ class UserInput:
 @dataclass
 class UserRecord:
     id: str = ""
-    workspace: str = ""
+    default_workspace: str = ""
     username: str = ""
     name: str = ""
     email: str = ""
@@ -160,7 +160,7 @@ class IamResponse:
 
     # resolve-api-key
     resolved_user_id: str = ""
-    resolved_workspace: str = ""
+    resolved_default_workspace: str = ""
     resolved_roles: list[str] = field(default_factory=list)
 
     # reset-password

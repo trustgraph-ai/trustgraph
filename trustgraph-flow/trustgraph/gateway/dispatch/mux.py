@@ -80,7 +80,7 @@ class Mux:
         self.identity = identity
         await self.ws.send_json({
             "type": "auth-ok",
-            "workspace": identity.workspace,
+            "default_workspace": identity.default_workspace,
         })
 
     async def receive(self, msg):

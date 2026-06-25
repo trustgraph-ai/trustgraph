@@ -32,7 +32,7 @@ class TestAuthenticateAnonymous:
         )
         assert resp.error is None
         assert resp.resolved_user_id == "anon"
-        assert resp.resolved_workspace == "ws"
+        assert resp.resolved_default_workspace == "ws"
         assert "admin" in list(resp.resolved_roles)
 
     @pytest.mark.asyncio
@@ -44,7 +44,7 @@ class TestAuthenticateAnonymous:
             _make_request(operation="authenticate-anonymous")
         )
         assert resp.resolved_user_id == "dev-user"
-        assert resp.resolved_workspace == "dev-ws"
+        assert resp.resolved_default_workspace == "dev-ws"
 
 
 class TestResolveApiKey:
@@ -57,7 +57,7 @@ class TestResolveApiKey:
         )
         assert resp.error is None
         assert resp.resolved_user_id == "anonymous"
-        assert resp.resolved_workspace == "default"
+        assert resp.resolved_default_workspace == "default"
 
 
 class TestAuthorise:
