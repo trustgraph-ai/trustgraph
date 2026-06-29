@@ -78,7 +78,6 @@ _READER_CAPS = {
     "collections:read",
     "knowledge:read",
     "keys:self",
-    "workspaces:list-own",
 }
 
 _WRITER_CAPS = _READER_CAPS | {

@@ -311,7 +311,7 @@ register(Operation(
 ))
 register(Operation(
     name="list-my-workspaces",
-    capability="workspaces:list-own",
+    capability=AUTHENTICATED,
     resource_level=ResourceLevel.SYSTEM,
     extract_resource=_empty_resource,
     extract_parameters=_no_parameters,

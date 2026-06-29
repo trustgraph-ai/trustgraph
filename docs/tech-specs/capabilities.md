@@ -100,7 +100,6 @@ multi-word subsystems.
 | `users:admin` | Assign / remove roles on users within the workspace |
 | `keys:self` | Create / revoke / list **own** API keys |
 | `keys:admin` | Create / revoke / list **any user's** API keys within the workspace |
-| `workspaces:list-own` | List workspaces the caller has access to |
 | `workspaces:admin` | Create / delete / disable workspaces (system-level) |
 | `iam:admin` | JWT signing-key rotation, IAM-level operations |
 | `metrics:read` | Prometheus metrics proxy |
@@ -111,7 +110,7 @@ The open-source edition ships three roles:
 
 | Role | Capabilities |
 |---|---|
-| `reader` | `agent`, `graph:read`, `documents:read`, `rows:read`, `llm`, `embeddings`, `mcp`, `collections:read`, `knowledge:read`, `flows:read`, `config:read`, `keys:self`, `workspaces:list-own` |
+| `reader` | `agent`, `graph:read`, `documents:read`, `rows:read`, `llm`, `embeddings`, `mcp`, `collections:read`, `knowledge:read`, `flows:read`, `config:read`, `keys:self` |
 | `writer` | everything in `reader` **+** `graph:write`, `documents:write`, `rows:write`, `collections:write`, `knowledge:write` |
 | `admin` | everything in `writer` **+** `config:write`, `flows:write`, `users:read`, `users:write`, `users:admin`, `keys:admin`, `workspaces:admin`, `iam:admin`, `metrics:read` |
 
