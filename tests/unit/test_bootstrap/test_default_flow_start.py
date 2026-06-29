@@ -7,6 +7,8 @@ configured values actually reach the flow-client request calls.
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from trustgraph.bootstrap.initialisers.default_flow_start import (
     DefaultFlowStart,
 )
@@ -24,6 +26,7 @@ def test_timeout_overrides_are_stored():
     assert init.start_timeout == 99
 
 
+@pytest.mark.asyncio
 async def test_run_forwards_configured_timeouts():
     init = DefaultFlowStart(blueprint="bp", list_timeout=5, start_timeout=99)
 
