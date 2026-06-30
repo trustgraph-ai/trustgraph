@@ -72,6 +72,7 @@ _READER_CAPS = {
     "row-embeddings:read",
     "llm",
     "embeddings",
+    "reranker",
     "mcp",
     "config:read",
     "flows:read",

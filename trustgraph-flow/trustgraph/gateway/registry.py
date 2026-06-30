@@ -518,6 +518,7 @@ _FLOW_SERVICES = {
     "structured-diag": "structured-query:read",
     "row-embeddings": "row-embeddings:read",
     "sparql": "sparql:read",
+    "reranker": "reranker",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap)

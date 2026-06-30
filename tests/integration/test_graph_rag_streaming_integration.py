@@ -63,11 +63,6 @@ class TestGraphRagStreaming:
         async def prompt_side_effect(prompt_id, variables, streaming=False, chunk_callback=None, **kwargs):
             if prompt_id == "extract-concepts":
                 return PromptResult(response_type="text", text="")
-            elif prompt_id == "kg-edge-scoring":
-                # Edge scoring returns JSONL with IDs and scores
-                return PromptResult(response_type="text", text='{"id": "abc12345", "score": 0.9}\n')
-            elif prompt_id == "kg-edge-reasoning":
-                return PromptResult(response_type="text", text='{"id": "abc12345", "reasoning": "Relevant to query"}\n')
             elif prompt_id == "kg-synthesis":
                 if streaming and chunk_callback:
                     # Simulate streaming chunks with end_of_stream flags
@@ -89,13 +84,22 @@ class TestGraphRagStreaming:
         return client
 
     @pytest.fixture
+    def mock_reranker_client(self):
+        """Mock reranker client for cross-encoder edge filtering"""
+        client = AsyncMock()
+        client.rerank.return_value = []
+        return client
+
+    @pytest.fixture
     def graph_rag_streaming(self, mock_embeddings_client, mock_graph_embeddings_client,
-                            mock_triples_client, mock_streaming_prompt_client):
+                            mock_triples_client, mock_reranker_client,
+                            mock_streaming_prompt_client):
         """Create GraphRag instance with streaming support"""
         return GraphRag(
             embeddings_client=mock_embeddings_client,
             graph_embeddings_client=mock_graph_embeddings_client,
             triples_client=mock_triples_client,
+            reranker_client=mock_reranker_client,
             prompt_client=mock_streaming_prompt_client,
             verbose=True
         )

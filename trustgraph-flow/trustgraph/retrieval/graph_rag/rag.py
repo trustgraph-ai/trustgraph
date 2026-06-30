@@ -13,6 +13,7 @@ from . graph_rag import GraphRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import GraphEmbeddingsClientSpec, TriplesClientSpec
+from ... base import RerankerClientSpec
 from ... base import LibrarianSpec
 
 # Module logger
@@ -32,7 +33,6 @@ class Processor(FlowProcessor):
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 150)
         max_path_length = params.get("max_path_length", 2)
-        edge_score_limit = params.get("edge_score_limit", 30)
         edge_limit = params.get("edge_limit", 25)
 
         super(Processor, self).__init__(
@@ -43,7 +43,6 @@ class Processor(FlowProcessor):
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
                 "max_path_length": max_path_length,
-                "edge_score_limit": edge_score_limit,
                 "edge_limit": edge_limit,
             }
         )
@@ -52,7 +51,6 @@ class Processor(FlowProcessor):
         self.default_triple_limit = triple_limit
         self.default_max_subgraph_size = max_subgraph_size
         self.default_max_path_length = max_path_length
-        self.default_edge_score_limit = edge_score_limit
         self.default_edge_limit = edge_limit
 
         # Workspace isolation is enforced by the flow layer (flow.workspace).
@@ -93,6 +91,13 @@ class Processor(FlowProcessor):
             PromptClientSpec(
                 request_name = "prompt-request",
                 response_name = "prompt-response",
+            )
+        )
+
+        self.register_specification(
+            RerankerClientSpec(
+                request_name = "reranker-request",
+                response_name = "reranker-response",
             )
         )
 
@@ -163,6 +168,7 @@ class Processor(FlowProcessor):
                 graph_embeddings_client=flow("graph-embeddings-request"),
                 triples_client=flow("triples-request"),
                 prompt_client=flow("prompt-request"),
+                reranker_client=flow("reranker-request"),
                 verbose=True,
             )
 
@@ -185,11 +191,6 @@ class Processor(FlowProcessor):
                 max_path_length = v.max_path_length
             else:
                 max_path_length = self.default_max_path_length
-
-            if v.edge_score_limit:
-                edge_score_limit = v.edge_score_limit
-            else:
-                edge_score_limit = self.default_edge_score_limit
 
             if v.edge_limit:
                 edge_limit = v.edge_limit
@@ -225,7 +226,7 @@ class Processor(FlowProcessor):
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
-                    edge_score_limit = edge_score_limit,
+
                     edge_limit = edge_limit,
                     streaming = True,
                     chunk_callback = send_chunk,
@@ -241,7 +242,7 @@ class Processor(FlowProcessor):
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
-                    edge_score_limit = edge_score_limit,
+
                     edge_limit = edge_limit,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
@@ -339,17 +340,10 @@ class Processor(FlowProcessor):
         )
 
         parser.add_argument(
-            '--edge-score-limit',
-            type=int,
-            default=30,
-            help=f'Semantic pre-filter limit before LLM scoring (default: 30)'
-        )
-
-        parser.add_argument(
             '--edge-limit',
             type=int,
             default=25,
-            help=f'Max edges after LLM scoring (default: 25)'
+            help=f'Max edges selected per hop by cross-encoder (default: 25)'
         )
 
         # Note: Explainability triples are now stored in the request's collection

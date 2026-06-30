@@ -24,8 +24,10 @@ from . namespaces import (
     TG_ELEMENT_TYPES, TG_TABLE_COUNT, TG_IMAGE_COUNT,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_CONCEPT, TG_ENTITY,
-    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
+    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING, TG_SCORE,
     TG_DOCUMENT,
+    # Edge selection entity type
+    TG_EDGE_SELECTION,
     # Query-time provenance predicates (DocumentRAG)
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
     # Explainability entity types
@@ -536,10 +538,9 @@ def focus_triples(
         _triple(focus_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
     ]
 
-    # Add each selected edge with its reasoning via intermediate entity
+    # Add each selected edge with metadata via intermediate entity
     for idx, edge_info in enumerate(selected_edges_with_reasoning):
         edge = edge_info.get("edge")
-        reasoning = edge_info.get("reasoning", "")
 
         if edge:
             s, p, o = edge
@@ -552,13 +553,32 @@ def focus_triples(
                 _triple(focus_uri, TG_SELECTED_EDGE, _iri(edge_sel_uri))
             )
 
+            # Type the edge selection entity
+            triples.append(
+                _triple(edge_sel_uri, RDF_TYPE, _iri(TG_EDGE_SELECTION))
+            )
+
             # Attach quoted triple to edge selection entity
             quoted = _quoted_triple(s, p, o)
             triples.append(
                 Triple(s=_iri(edge_sel_uri), p=_iri(TG_EDGE), o=quoted)
             )
 
-            # Attach reasoning to edge selection entity
+            # Structured cross-encoder metadata
+            concept = edge_info.get("concept")
+            if concept:
+                triples.append(
+                    _triple(edge_sel_uri, TG_CONCEPT, _literal(concept))
+                )
+
+            score = edge_info.get("score")
+            if score is not None:
+                triples.append(
+                    _triple(edge_sel_uri, TG_SCORE, _literal(str(score)))
+                )
+
+            # Legacy reasoning text (for non-cross-encoder callers)
+            reasoning = edge_info.get("reasoning", "")
             if reasoning:
                 triples.append(
                     _triple(edge_sel_uri, TG_REASONING, _literal(reasoning))

@@ -203,9 +203,9 @@ def print_graphrag_text(trace, explain_client, flow, collection, api=None, show_
                 )
                 print(f"  {i}. ({s_label}, {p_label}, {o_label})")
 
-            if edge_sel.reasoning:
-                r_short = edge_sel.reasoning[:100] + "..." if len(edge_sel.reasoning) > 100 else edge_sel.reasoning
-                print(f"     Reasoning: {r_short}")
+            if edge_sel.concept or edge_sel.score is not None:
+                score_str = f"{edge_sel.score:.4f}" if edge_sel.score is not None else "?"
+                print(f"     Concept: {edge_sel.concept}  Score: {score_str}")
 
             if show_provenance and edge_sel.edge:
                 provenance = trace_edge_provenance(
@@ -519,7 +519,8 @@ def trace_to_dict(trace, trace_type):
                 "selected_edges": [
                     {
                         "edge": edge_sel.edge,
-                        "reasoning": edge_sel.reasoning,
+                        "concept": edge_sel.concept,
+                        "score": edge_sel.score,
                     }
                     for edge_sel in focus.edge_selections
                 ],

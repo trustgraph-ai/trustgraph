@@ -646,6 +646,16 @@ class AsyncFlowInstance:
 
         return await self.request("embeddings", request_data)
 
+    async def rerank(self, queries: list, documents: list, limit: int = 10, **kwargs: Any):
+        request_data = {
+            "queries": queries,
+            "documents": documents,
+            "limit": limit,
+        }
+        request_data.update(kwargs)
+
+        return await self.request("reranker", request_data)
+
     async def triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs: Any):
         """
         Query RDF triples using pattern matching.

@@ -157,21 +157,6 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
-    async def kg_prompt(self, query, kg, timeout=600, streaming=False, chunk_callback=None):
-        return await self.prompt(
-            id = "kg-prompt",
-            variables = {
-                "query": query,
-                "knowledge": [
-                    { "s": v[0], "p": v[1], "o": v[2] }
-                    for v in kg
-                ]
-            },
-            timeout = timeout,
-            streaming = streaming,
-            chunk_callback = chunk_callback,
-        )
-
     async def document_prompt(self, query, documents, timeout=600, streaming=False, chunk_callback=None):
         return await self.prompt(
             id = "document-prompt",
