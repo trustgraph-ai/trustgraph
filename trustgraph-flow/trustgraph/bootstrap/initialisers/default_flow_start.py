@@ -18,6 +18,10 @@ description : str (default "Default")
     Human-readable description passed to flow-svc.
 parameters : dict (optional)
     Optional parameter overrides passed to start-flow.
+list_timeout : int (default 10)
+    Timeout in seconds for the list-flows request.
+start_timeout : int (default 30)
+    Timeout in seconds for the start-flow request.
 """
 
 from trustgraph.schema import FlowRequest
@@ -34,6 +38,8 @@ class DefaultFlowStart(Initialiser):
             blueprint=None,
             description="Default",
             parameters=None,
+            list_timeout=10,
+            start_timeout=30,
             **kwargs,
     ):
         super().__init__(**kwargs)
@@ -46,6 +52,8 @@ class DefaultFlowStart(Initialiser):
         self.blueprint = blueprint
         self.description = description
         self.parameters = dict(parameters) if parameters else {}
+        self.list_timeout = list_timeout
+        self.start_timeout = start_timeout
 
     async def run(self, ctx, old_flag, new_flag):
 
@@ -70,7 +78,7 @@ class DefaultFlowStart(Initialiser):
                 FlowRequest(
                     operation="list-flows",
                 ),
-                timeout=10,
+                timeout=self.list_timeout,
             )
             if list_resp.error:
                 raise RuntimeError(
@@ -99,7 +107,7 @@ class DefaultFlowStart(Initialiser):
                     description=self.description,
                     parameters=self.parameters,
                 ),
-                timeout=30,
+                timeout=self.start_timeout,
             )
             if resp.error:
                 raise RuntimeError(

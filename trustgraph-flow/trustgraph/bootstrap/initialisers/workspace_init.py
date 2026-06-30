@@ -14,7 +14,9 @@ seed_file : str (required when source=="seed-file")
     Path to a JSON seed file with the same shape TemplateSeed consumes.
 overwrite : bool (default False)
     On re-run (flag change), if True overwrite all keys; if False,
-    upsert-missing-only (preserves in-workspace customisations).
+    upsert-missing-only (preserves in-workspace customisations)
+iam_timeout : int (default 10)
+    Timeout in seconds for the IAM create-workspace request.
 
 Raises (in ``run``)
 -------------------
@@ -41,7 +43,9 @@ class WorkspaceInit(Initialiser):
             source="template",
             seed_file=None,
             overwrite=False,
+            iam_timeout=10,
             **kwargs,
+            
     ):
         super().__init__(**kwargs)
 
@@ -59,6 +63,7 @@ class WorkspaceInit(Initialiser):
         self.source = source
         self.seed_file = seed_file
         self.overwrite = overwrite
+        self.iam_timeout = iam_timeout
 
     async def run(self, ctx, old_flag, new_flag):
         await self._create_workspace(ctx)
@@ -120,10 +125,10 @@ class WorkspaceInit(Initialiser):
                     workspace_record=WorkspaceInput(
                         id=self.workspace,
                         name=self.workspace.title(),
-                        enabled=True,
+                        enabled=True,  
                     ),
                 ),
-                timeout=10,
+                timeout=self.iam_timeout,
             )
             if resp.error:
                 if resp.error.type == "duplicate":
