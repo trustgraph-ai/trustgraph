@@ -27,6 +27,7 @@ from .translators.rows_query import RowsQueryRequestTranslator, RowsQueryRespons
 from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, QuestionToStructuredQueryResponseTranslator
 from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
 from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
+from .translators.reranker import RerankerRequestTranslator, RerankerResponseTranslator
 from .translators.collection import CollectionManagementRequestTranslator, CollectionManagementResponseTranslator
 from .translators.sparql_query import SparqlQueryRequestTranslator, SparqlQueryResponseTranslator
 
@@ -161,6 +162,12 @@ TranslatorRegistry.register_service(
     "sparql-query",
     SparqlQueryRequestTranslator(),
     SparqlQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "reranker",
+    RerankerRequestTranslator(),
+    RerankerResponseTranslator()
 )
 
 # Register single-direction translators for document loading

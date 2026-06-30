@@ -89,7 +89,9 @@ from . namespaces import (
     TG_IMAGE_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_CONCEPT, TG_ENTITY,
-    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING,
+    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_SCORE,
+    # Edge selection entity type
+    TG_EDGE_SELECTION,
     # Query-time provenance predicates (DocumentRAG)
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
     # Explainability entity types
@@ -212,7 +214,9 @@ __all__ = [
     "TG_CHUNK_TYPE", "TG_IMAGE_TYPE", "TG_SUBGRAPH_TYPE",
     # Query-time provenance predicates (GraphRAG)
     "TG_QUERY", "TG_CONCEPT", "TG_ENTITY",
-    "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING",
+    "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_SCORE",
+    # Edge selection entity type
+    "TG_EDGE_SELECTION",
     # Query-time provenance predicates (DocumentRAG)
     "TG_CHUNK_COUNT", "TG_SELECTED_CHUNK",
     # Explainability entity types

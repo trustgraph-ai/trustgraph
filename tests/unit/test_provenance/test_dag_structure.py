@@ -107,6 +107,7 @@ class TestGraphRagDagStructure:
         embeddings_client = AsyncMock()
         graph_embeddings_client = AsyncMock()
         triples_client = AsyncMock()
+        reranker_client = AsyncMock()
 
         embeddings_client.embed.return_value = [[0.1, 0.2]]
         graph_embeddings_client.query.return_value = [
@@ -121,27 +122,22 @@ class TestGraphRagDagStructure:
         ]
         triples_client.query.return_value = []
 
+        result = MagicMock()
+        result.document_id = "0"
+        result.query_id = "0"
+        result.score = 0.95
+        reranker_client.rerank.return_value = [result]
+
         async def mock_prompt(template_id, variables=None, **kwargs):
             if template_id == "extract-concepts":
                 return PromptResult(response_type="text", text="concept")
-            elif template_id == "kg-edge-scoring":
-                edges = variables.get("knowledge", [])
-                return PromptResult(
-                    response_type="jsonl",
-                    objects=[{"id": e["id"], "score": 10} for e in edges],
-                )
-            elif template_id == "kg-edge-reasoning":
-                edges = variables.get("knowledge", [])
-                return PromptResult(
-                    response_type="jsonl",
-                    objects=[{"id": e["id"], "reasoning": "relevant"} for e in edges],
-                )
             elif template_id == "kg-synthesis":
                 return PromptResult(response_type="text", text="Answer.")
             return PromptResult(response_type="text", text="")
 
         prompt_client.prompt.side_effect = mock_prompt
-        return prompt_client, embeddings_client, graph_embeddings_client, triples_client
+        return (prompt_client, embeddings_client, graph_embeddings_client,
+                triples_client, reranker_client)
 
     @pytest.mark.asyncio
     async def test_dag_chain(self, mock_clients):
@@ -152,7 +148,7 @@ class TestGraphRagDagStructure:
             events.append({"explain_id": explain_id, "triples": triples})
 
         await rag.query(
-            query="test", explain_callback=explain_cb, edge_score_limit=0,
+            query="test", explain_callback=explain_cb,
         )
 
         dag = _collect_events(events)

@@ -491,6 +491,19 @@ class FlowInstance:
             input
         )["vectors"]
 
+    def rerank(self, queries, documents, limit=10):
+
+        input = {
+            "queries": queries,
+            "documents": documents,
+            "limit": limit,
+        }
+
+        return self.request(
+            "service/reranker",
+            input
+        )
+
     def graph_embeddings_query(self, text, collection, limit=10):
         """
         Query knowledge graph entities using semantic similarity.

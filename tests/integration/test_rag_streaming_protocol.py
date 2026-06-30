@@ -46,7 +46,7 @@ class TestGraphRagStreamingProtocol:
         client = AsyncMock()
 
         async def prompt_side_effect(prompt_name, variables=None, streaming=False, chunk_callback=None):
-            if prompt_name == "kg-edge-selection":
+            if prompt_name == "extract-concepts":
                 return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-synthesis":
                 if streaming and chunk_callback:
@@ -64,13 +64,22 @@ class TestGraphRagStreamingProtocol:
         return client
 
     @pytest.fixture
+    def mock_reranker_client(self):
+        """Mock reranker client for cross-encoder edge filtering"""
+        client = AsyncMock()
+        client.rerank.return_value = []
+        return client
+
+    @pytest.fixture
     def graph_rag(self, mock_embeddings_client, mock_graph_embeddings_client,
-                  mock_triples_client, mock_streaming_prompt_client):
+                  mock_triples_client, mock_reranker_client,
+                  mock_streaming_prompt_client):
         """Create GraphRag instance with mocked dependencies"""
         return GraphRag(
             embeddings_client=mock_embeddings_client,
             graph_embeddings_client=mock_graph_embeddings_client,
             triples_client=mock_triples_client,
+            reranker_client=mock_reranker_client,
             prompt_client=mock_streaming_prompt_client,
             verbose=False
         )
@@ -327,7 +336,7 @@ class TestStreamingProtocolEdgeCases:
         client = AsyncMock()
 
         async def prompt_with_empties(prompt_name, variables=None, streaming=False, chunk_callback=None):
-            if prompt_name == "kg-edge-selection":
+            if prompt_name == "extract-concepts":
                 return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-synthesis":
                 if streaming and chunk_callback:
@@ -342,10 +351,14 @@ class TestStreamingProtocolEdgeCases:
 
         client.prompt.side_effect = prompt_with_empties
 
+        mock_reranker = AsyncMock()
+        mock_reranker.rerank.return_value = []
+
         rag = GraphRag(
             embeddings_client=AsyncMock(embed=AsyncMock(return_value=[[[0.1]]])),
             graph_embeddings_client=AsyncMock(query=AsyncMock(return_value=[])),
             triples_client=AsyncMock(query=AsyncMock(return_value=[])),
+            reranker_client=mock_reranker,
             prompt_client=client,
             verbose=False
         )

@@ -443,6 +443,19 @@ class AsyncSocketFlowInstance:
 
         return await self.client._send_request("embeddings", self.flow_id, request)
 
+    async def rerank(self, queries: list, documents: list, limit: int = 10,
+                     **kwargs):
+        request = {
+            "queries": queries,
+            "documents": documents,
+            "limit": limit,
+        }
+        request.update(kwargs)
+
+        return await self.client._send_request(
+            "reranker", self.flow_id, request,
+        )
+
     async def triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs):
         """Triple pattern query"""
         request = {"limit": limit}

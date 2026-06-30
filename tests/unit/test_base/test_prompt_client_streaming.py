@@ -196,38 +196,6 @@ class TestPromptClientStreamingCallback:
         assert callback.call_args_list[1] == call("", True)
 
     @pytest.mark.asyncio
-    async def test_kg_prompt_passes_parameters_to_callback(self, prompt_client):
-        """Test that kg_prompt correctly passes streaming parameters"""
-        # Arrange
-        async def mock_request(request, recipient=None, timeout=600):
-            if recipient:
-                responses = [
-                    PromptResponse(text="Answer", object=None, error=None, end_of_stream=False),
-                    PromptResponse(text="", object=None, error=None, end_of_stream=True),
-                ]
-                for resp in responses:
-                    should_stop = await recipient(resp)
-                    if should_stop:
-                        break
-
-        prompt_client.request = mock_request
-
-        callback = AsyncMock()
-
-        # Act
-        await prompt_client.kg_prompt(
-            query="What is machine learning?",
-            kg=[("subject", "predicate", "object")],
-            streaming=True,
-            chunk_callback=callback
-        )
-
-        # Assert
-        assert callback.call_count == 2
-        assert callback.call_args_list[0] == call("Answer", False)
-        assert callback.call_args_list[1] == call("", True)
-
-    @pytest.mark.asyncio
     async def test_document_prompt_passes_parameters_to_callback(self, prompt_client):
         """Test that document_prompt correctly passes streaming parameters"""
         # Arrange

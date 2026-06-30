@@ -42,6 +42,8 @@ from . dynamic_tool_service import DynamicToolService
 from . tool_service_client import ToolServiceClientSpec
 from . agent_client import AgentClientSpec
 from . structured_query_client import StructuredQueryClientSpec
+from . reranker_client import RerankerClientSpec
+from . reranker_service import RerankerService
 from . row_embeddings_query_client import RowEmbeddingsQueryClientSpec
 from . collection_config_handler import CollectionConfigHandler
 

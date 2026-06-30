@@ -885,6 +885,19 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("embeddings", self.flow_id, request, False)
 
+    def rerank(self, queries: list, documents: list, limit: int = 10,
+               **kwargs: Any) -> Dict[str, Any]:
+        request = {
+            "queries": queries,
+            "documents": documents,
+            "limit": limit,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync(
+            "reranker", self.flow_id, request, False,
+        )
+
     def triples_query(
         self,
         s: Optional[Union[str, Dict[str, Any]]] = None,

@@ -20,3 +20,4 @@ from .embeddings_query import (
 )
 from .rows_query import RowsQueryRequestTranslator, RowsQueryResponseTranslator
 from .diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
+from .reranker import RerankerRequestTranslator, RerankerResponseTranslator
