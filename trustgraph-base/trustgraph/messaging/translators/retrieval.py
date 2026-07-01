@@ -12,6 +12,7 @@ class DocumentRagRequestTranslator(MessageTranslator):
             query=data["query"],
             collection=data.get("collection", "default"),
             doc_limit=int(data.get("doc-limit", 20)),
+            fetch_limit=int(data.get("fetch-limit", 0)),
             streaming=data.get("streaming", False)
         )
 
@@ -20,6 +21,7 @@ class DocumentRagRequestTranslator(MessageTranslator):
             "query": obj.query,
             "collection": obj.collection,
             "doc-limit": obj.doc_limit,
+            "fetch-limit": obj.fetch_limit,
             "streaming": getattr(obj, "streaming", False)
         }
 

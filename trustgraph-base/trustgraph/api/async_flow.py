@@ -527,7 +527,8 @@ class AsyncFlowInstance:
         return result.get("response", "")
 
     async def document_rag(self, query: str, collection: str,
-                           doc_limit: int = 10, **kwargs: Any) -> str:
+                           doc_limit: int = 10, fetch_limit: int = 0,
+                           **kwargs: Any) -> str:
         """
         Execute document-based RAG query (non-streaming).
 
@@ -541,7 +542,9 @@ class AsyncFlowInstance:
         Args:
             query: User query text
             collection: Collection identifier containing documents
-            doc_limit: Maximum number of document chunks to retrieve (default: 10)
+            doc_limit: Document chunks selected into the prompt (default: 10)
+            fetch_limit: Candidate chunks fetched from the vector store before
+                reranking (default: 0 = derive from doc_limit)
             **kwargs: Additional service-specific parameters
 
         Returns:
@@ -564,6 +567,7 @@ class AsyncFlowInstance:
             "query": query,
             "collection": collection,
             "doc-limit": doc_limit,
+            "fetch-limit": fetch_limit,
             "streaming": False
         }
         request_data.update(kwargs)

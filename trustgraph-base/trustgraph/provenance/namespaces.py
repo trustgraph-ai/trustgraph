@@ -76,6 +76,9 @@ TG_EDGE_SELECTION = TG + "EdgeSelection"
 TG_CHUNK_COUNT = TG + "chunkCount"
 TG_SELECTED_CHUNK = TG + "selectedChunk"
 
+# Chunk selection entity type (cross-encoder reranked chunk in Focus)
+TG_CHUNK_SELECTION = TG + "ChunkSelection"
+
 # Extraction provenance entity types
 TG_DOCUMENT_TYPE = TG + "Document"
 TG_PAGE_TYPE = TG + "Page"

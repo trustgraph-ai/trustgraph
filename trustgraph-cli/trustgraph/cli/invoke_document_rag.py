@@ -21,10 +21,12 @@ default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_collection = 'default'
 default_doc_limit = 10
+default_fetch_limit = 0
 
 
 def question_explainable(
-    url, flow_id, question_text, collection, doc_limit, token=None, debug=False,
+    url, flow_id, question_text, collection, doc_limit, fetch_limit=0,
+    token=None, debug=False,
     workspace="default",
 ):
     """Execute document RAG with explainability - shows provenance events inline."""
@@ -39,6 +41,7 @@ def question_explainable(
             query=question_text,
                         collection=collection,
             doc_limit=doc_limit,
+            fetch_limit=fetch_limit,
         ):
             if isinstance(item, RAGChunk):
                 # Print response content
@@ -97,7 +100,7 @@ def question_explainable(
 
 
 def question(
-    url, flow_id, question_text, collection, doc_limit,
+    url, flow_id, question_text, collection, doc_limit, fetch_limit=0,
     streaming=True, token=None, explainable=False, debug=False,
     show_usage=False, workspace="default",
 ):
@@ -109,6 +112,7 @@ def question(
             question_text=question_text,
                         collection=collection,
             doc_limit=doc_limit,
+            fetch_limit=fetch_limit,
             token=token,
             debug=debug,
             workspace=workspace,
@@ -128,6 +132,7 @@ def question(
                 query=question_text,
                                 collection=collection,
                 doc_limit=doc_limit,
+                fetch_limit=fetch_limit,
                 streaming=True
             )
 
@@ -155,6 +160,7 @@ def question(
             query=question_text,
                         collection=collection,
             doc_limit=doc_limit,
+            fetch_limit=fetch_limit,
         )
         print(result.text)
 
@@ -214,7 +220,15 @@ def main():
         '-d', '--doc-limit',
         type=int,
         default=default_doc_limit,
-        help=f'Document limit (default: {default_doc_limit})'
+        help=f'Documents selected into the prompt (default: {default_doc_limit})'
+    )
+
+    parser.add_argument(
+        '--fetch-limit',
+        type=int,
+        default=default_fetch_limit,
+        help='Candidate documents fetched from the vector store before '
+             'reranking (default: derive from doc-limit)'
     )
 
     parser.add_argument(
@@ -251,6 +265,7 @@ def main():
             question_text=args.question,
             collection=args.collection,
             doc_limit=args.doc_limit,
+            fetch_limit=args.fetch_limit,
             streaming=not args.no_streaming,
             token=args.token,
             explainable=args.explainable,

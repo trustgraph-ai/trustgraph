@@ -30,6 +30,8 @@ from . namespaces import (
     TG_EDGE_SELECTION,
     # Query-time provenance predicates (DocumentRAG)
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
+    # Chunk selection entity type
+    TG_CHUNK_SELECTION,
     # Explainability entity types
     TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     # Unifying types
@@ -40,7 +42,10 @@ from . namespaces import (
     TG_IN_TOKEN, TG_OUT_TOKEN,
 )
 
-from . uris import activity_uri, agent_uri, subgraph_uri, edge_selection_uri
+from . uris import (
+    activity_uri, agent_uri, subgraph_uri, edge_selection_uri,
+    chunk_selection_uri,
+)
 
 
 def set_graph(triples: List[Triple], graph: str) -> List[Triple]:
@@ -714,6 +719,75 @@ def docrag_exploration_triples(
     if chunk_ids:
         for chunk_id in chunk_ids:
             triples.append(_triple(exploration_uri, TG_SELECTED_CHUNK, _iri(chunk_id)))
+
+    return triples
+
+
+def docrag_chunk_selection_triples(
+    focus_uri: str,
+    exploration_uri: str,
+    selected_chunks_with_scores: List[dict],
+    session_id: str,
+) -> List[Triple]:
+    """
+    Build triples for a document RAG focus entity (chunks selected by the
+    cross-encoder reranker).
+
+    Mirrors GraphRAG's focus_triples / tg:EdgeSelection pattern: a Focus entity
+    derived from exploration, with one ChunkSelection sub-entity per surviving
+    chunk carrying the chunk reference and the reranker score.
+
+    Structure:
+        <focus> a tg:Focus ; prov:wasDerivedFrom <exploration> .
+        <focus> tg:selectedChunk <chunk_sel_0> .
+        <chunk_sel_0> a tg:ChunkSelection .
+        <chunk_sel_0> tg:document <chunk_id> .
+        <chunk_sel_0> tg:score "0.97" .
+
+    Args:
+        focus_uri: URI of the focus entity (from docrag_focus_uri)
+        exploration_uri: URI of the parent exploration entity
+        selected_chunks_with_scores: List of dicts with 'chunk_id' and 'score'
+        session_id: Session UUID for generating chunk selection URIs
+
+    Returns:
+        List of Triple objects
+    """
+    triples = [
+        _triple(focus_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(focus_uri, RDF_TYPE, _iri(TG_FOCUS)),
+        _triple(focus_uri, RDFS_LABEL, _literal("Chunk Selection")),
+        _triple(focus_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
+    ]
+
+    for idx, chunk_info in enumerate(selected_chunks_with_scores):
+        chunk_id = chunk_info.get("chunk_id")
+        if not chunk_id:
+            continue
+
+        chunk_sel_uri = chunk_selection_uri(session_id, idx)
+
+        # Link focus to chunk selection entity
+        triples.append(
+            _triple(focus_uri, TG_SELECTED_CHUNK, _iri(chunk_sel_uri))
+        )
+
+        # Type the chunk selection entity
+        triples.append(
+            _triple(chunk_sel_uri, RDF_TYPE, _iri(TG_CHUNK_SELECTION))
+        )
+
+        # Reference the actual chunk (in librarian)
+        triples.append(
+            _triple(chunk_sel_uri, TG_DOCUMENT, _iri(chunk_id))
+        )
+
+        # Cross-encoder score
+        score = chunk_info.get("score")
+        if score is not None:
+            triples.append(
+                _triple(chunk_sel_uri, TG_SCORE, _literal(str(score)))
+            )
 
     return triples
 
