@@ -11,11 +11,20 @@ from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion_chunk import Choice as StreamChoice, ChoiceDelta
 
 from trustgraph.model.text_completion.openai.llm import Processor
+from trustgraph.model.text_completion.openai.variants import get_variant
 from trustgraph.base import LlmChunk
 from tests.utils.streaming_assertions import (
     assert_streaming_chunks_valid,
     assert_callback_invoked,
 )
+
+
+def _wire_variant(processor):
+    """Attach variant methods to a MagicMock processor."""
+    processor.variant = get_variant("openai")
+    processor.thinking = "off"
+    processor._build_kwargs = Processor._build_kwargs.__get__(processor, Processor)
+    processor._extract_content = Processor._extract_content.__get__(processor, Processor)
 
 
 @pytest.mark.integration
@@ -69,6 +78,7 @@ class TestTextCompletionStreaming:
         processor.generate_content_stream = Processor.generate_content_stream.__get__(
             processor, Processor
         )
+        _wire_variant(processor)
 
         return processor
 
@@ -190,6 +200,7 @@ class TestTextCompletionStreaming:
         processor.generate_content_stream = Processor.generate_content_stream.__get__(
             processor, Processor
         )
+        _wire_variant(processor)
 
         # Act
         chunks = []
@@ -223,6 +234,7 @@ class TestTextCompletionStreaming:
             processor.generate_content_stream = Processor.generate_content_stream.__get__(
                 processor, Processor
             )
+            _wire_variant(processor)
 
             # Act
             chunks = []

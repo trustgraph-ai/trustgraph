@@ -15,9 +15,18 @@ from openai.types.chat.chat_completion import Choice
 from openai.types.completion_usage import CompletionUsage
 
 from trustgraph.model.text_completion.openai.llm import Processor
+from trustgraph.model.text_completion.openai.variants import get_variant
 from trustgraph.exceptions import TooManyRequests
 from trustgraph.base import LlmResult
 from trustgraph.schema import TextCompletionRequest, TextCompletionResponse, Error
+
+
+def _wire_variant(processor):
+    """Attach variant methods to a MagicMock processor."""
+    processor.variant = get_variant("openai")
+    processor.thinking = "off"
+    processor._build_kwargs = Processor._build_kwargs.__get__(processor, Processor)
+    processor._extract_content = Processor._extract_content.__get__(processor, Processor)
 
 
 @pytest.mark.integration
@@ -66,6 +75,7 @@ class TestTextCompletionIntegration:
 
         # Add the actual generate_content method from Processor class
         processor.generate_content = Processor.generate_content.__get__(processor, Processor)
+        _wire_variant(processor)
 
         return processor
 
@@ -119,6 +129,7 @@ class TestTextCompletionIntegration:
 
             # Add the actual generate_content method
             processor.generate_content = Processor.generate_content.__get__(processor, Processor)
+            _wire_variant(processor)
 
             # Act
             result = await processor.generate_content("System prompt", "User prompt")
@@ -129,7 +140,7 @@ class TestTextCompletionIntegration:
             assert result.in_token == 50
             assert result.out_token == 100
             # Note: result.model comes from mock response, not processor config
-            
+
             # Verify configuration was applied
             call_args = mock_openai_client.chat.completions.create.call_args
             assert call_args.kwargs['model'] == config['model']
@@ -247,6 +258,7 @@ class TestTextCompletionIntegration:
             processor.max_output = processor_config["max_output"]
             processor.openai = mock_openai_client
             processor.generate_content = Processor.generate_content.__get__(processor, Processor)
+            _wire_variant(processor)
             processors.append(processor)
 
         # Simulate multiple concurrent requests
@@ -354,6 +366,7 @@ class TestTextCompletionIntegration:
         processor.max_output = 2048
         processor.openai = mock_openai_client
         processor.generate_content = Processor.generate_content.__get__(processor, Processor)
+        _wire_variant(processor)
 
         # Act
         await processor.generate_content("System prompt", "User prompt")
