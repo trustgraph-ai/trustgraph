@@ -118,6 +118,26 @@ class QwenVariant(Variant):
         return {}
 
 
+class DashScopeVariant(Variant):
+    """Alibaba Cloud DashScope API (Qwen models via DashScope)."""
+
+    name = "dashscope"
+    token_param = "max_completion_tokens"
+    temperature_with_thinking = True
+
+    def completion_kwargs(self, max_output, temperature, thinking):
+        enabled = thinking != "off"
+        kwargs = {
+            self.token_param: max_output,
+            "temperature": temperature,
+            "enable_thinking": enabled,
+        }
+        return kwargs
+
+    def thinking_kwargs(self, effort):
+        return {}
+
+
 class MistralVariant(Variant):
     """Mistral API (Mistral Large, etc.)."""
 
@@ -181,6 +201,7 @@ VARIANTS = {
     "deepseek": DeepSeekVariant,
     "qwen": QwenVariant,
     "mistral": MistralVariant,
+    "dashscope": DashScopeVariant,
     "glm": GlmVariant,
     "llama": LlamaVariant,
 }
