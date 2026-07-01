@@ -129,6 +129,28 @@ class MistralVariant(Variant):
         return {"reasoning_effort": effort}
 
 
+class GlmVariant(Variant):
+    """GLM / Zhipu AI API (GLM-4, GLM-4.7, etc.)."""
+
+    name = "glm"
+    token_param = "max_tokens"
+    temperature_with_thinking = True
+
+    def completion_kwargs(self, max_output, temperature, thinking):
+        enabled = "enabled" if thinking != "off" else "disabled"
+        kwargs = {
+            self.token_param: max_output,
+            "temperature": temperature,
+            "extra_body": {
+                "thinking": {"type": enabled},
+            },
+        }
+        return kwargs
+
+    def thinking_kwargs(self, effort):
+        return {}
+
+
 class LlamaVariant(Variant):
     """Llama models via OpenAI-compatible servers (vLLM, Ollama, etc.).
 
@@ -159,6 +181,7 @@ VARIANTS = {
     "deepseek": DeepSeekVariant,
     "qwen": QwenVariant,
     "mistral": MistralVariant,
+    "glm": GlmVariant,
     "llama": LlamaVariant,
 }
 
