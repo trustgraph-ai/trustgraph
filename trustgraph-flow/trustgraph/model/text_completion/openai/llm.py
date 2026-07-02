@@ -96,20 +96,20 @@ class Processor(LlmService):
 
             api_kwargs = self._build_kwargs(model_name, effective_temperature)
 
-            resp = self.openai.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ],
-                **api_kwargs,
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
+                }
+            ]
+
+            resp = self.variant.create_completion(
+                self.openai, model_name, messages, **api_kwargs,
             )
 
             inputtokens = resp.usage.prompt_tokens
@@ -176,28 +176,24 @@ class Processor(LlmService):
         try:
             api_kwargs = self._build_kwargs(model_name, effective_temperature)
 
-            response = self.openai.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ],
-                stream=True,
-                stream_options={"include_usage": True},
-                **api_kwargs,
-            )
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
+                }
+            ]
 
             total_input_tokens = 0
             total_output_tokens = 0
 
-            for chunk in response:
+            async for chunk in self.variant.create_completion_stream(
+                self.openai, model_name, messages, **api_kwargs,
+            ):
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield LlmChunk(
                         text=chunk.choices[0].delta.content,
