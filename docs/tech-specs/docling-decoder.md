@@ -191,7 +191,7 @@ calls `converter.convert()`.  No temp files.
 |---|---|---|
 | `--chunking-mode` | `page` | `page` or `hybrid` |
 | `--languages` | `eng` | OCR language codes (comma-separated) |
-| `--chunk-max-tokens` | `512` | Max tokens per chunk (hybrid mode) |
+| `--chunk-max-tokens` | `512` | Max tokens per chunk, hybrid mode only. Controls chunk sizing internally via tokenizer — output is still plain text |
 
 ## Open Questions
 
