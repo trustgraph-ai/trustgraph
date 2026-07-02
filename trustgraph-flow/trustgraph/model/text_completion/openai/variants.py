@@ -62,6 +62,20 @@ class Variant:
         """Extract thinking content from a streaming delta."""
         return getattr(delta, "reasoning_content", None)
 
+    def create_completion(self, client, model, messages, **kwargs):
+        """Call the completions API. Override for non-standard SDKs."""
+        return client.chat.completions.create(
+            model=model, messages=messages, **kwargs,
+        )
+
+    async def create_completion_stream(self, client, model, messages, **kwargs):
+        """Call the streaming completions API. Override for non-standard SDKs."""
+        for chunk in client.chat.completions.create(
+            model=model, messages=messages, stream=True,
+            stream_options={"include_usage": True}, **kwargs,
+        ):
+            yield chunk
+
 
 class OpenAIVariant(Variant):
     """Standard OpenAI API (GPT-4o, o1, o3, etc.)."""
@@ -96,30 +110,8 @@ class DeepSeekVariant(Variant):
         return {}
 
 
-class QwenVariant(Variant):
-    """Qwen / Alibaba Cloud API."""
-
-    name = "qwen"
-    token_param = "max_completion_tokens"
-    temperature_with_thinking = True
-
-    def completion_kwargs(self, max_output, temperature, thinking):
-        enabled = thinking != "off"
-        kwargs = {
-            self.token_param: max_output,
-            "temperature": temperature,
-            "extra_body": {
-                "enable_thinking": enabled,
-            },
-        }
-        return kwargs
-
-    def thinking_kwargs(self, effort):
-        return {}
-
-
 class DashScopeVariant(Variant):
-    """Alibaba Cloud DashScope API (Qwen models via DashScope)."""
+    """Alibaba Cloud DashScope API (Qwen models)."""
 
     name = "dashscope"
     token_param = "max_completion_tokens"
@@ -127,15 +119,22 @@ class DashScopeVariant(Variant):
 
     def completion_kwargs(self, max_output, temperature, thinking):
         enabled = thinking != "off"
-        kwargs = {
+        return {
             self.token_param: max_output,
             "temperature": temperature,
-            "enable_thinking": enabled,
+            "extra_body": {
+                "enable_thinking": enabled,
+            },
         }
-        return kwargs
 
     def thinking_kwargs(self, effort):
         return {}
+
+
+class QwenVariant(DashScopeVariant):
+    """Qwen — alias for DashScope."""
+
+    name = "qwen"
 
 
 class MistralVariant(Variant):
