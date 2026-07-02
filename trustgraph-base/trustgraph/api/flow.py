@@ -415,7 +415,7 @@ class FlowInstance:
 
     def document_rag(
             self, query,collection="default",
-            doc_limit=10,
+            doc_limit=10, fetch_limit=0,
     ):
         """
         Execute document-based Retrieval-Augmented Generation (RAG) query.
@@ -426,7 +426,9 @@ class FlowInstance:
         Args:
             query: Natural language query
             collection: Collection identifier (default: "default")
-            doc_limit: Maximum document chunks to retrieve (default: 10)
+            doc_limit: Document chunks selected into the prompt (default: 10)
+            fetch_limit: Candidate chunks fetched from the vector store before
+                reranking (default: 0 = derive from doc_limit)
 
         Returns:
             str: Generated response incorporating document context
@@ -447,6 +449,7 @@ class FlowInstance:
             "query": query,
             "collection": collection,
             "doc-limit": doc_limit,
+            "fetch-limit": fetch_limit,
         }
 
         result = self.request(
@@ -490,6 +493,19 @@ class FlowInstance:
             "service/embeddings",
             input
         )["vectors"]
+
+    def rerank(self, queries, documents, limit=10):
+
+        input = {
+            "queries": queries,
+            "documents": documents,
+            "limit": limit,
+        }
+
+        return self.request(
+            "service/reranker",
+            input
+        )
 
     def graph_embeddings_query(self, text, collection, limit=10):
         """

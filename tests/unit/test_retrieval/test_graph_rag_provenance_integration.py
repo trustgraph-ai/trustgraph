@@ -20,7 +20,7 @@ from trustgraph.provenance.namespaces import (
     TG_GRAPH_RAG_QUESTION, TG_GROUNDING, TG_EXPLORATION,
     TG_FOCUS, TG_SYNTHESIS, TG_ANSWER_TYPE,
     TG_QUERY, TG_CONCEPT, TG_ENTITY, TG_EDGE_COUNT,
-    TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
+    TG_SELECTED_EDGE, TG_EDGE, TG_SCORE, TG_EDGE_SELECTION,
 )
 
 
@@ -91,17 +91,17 @@ def build_mock_clients():
       1. prompt_client.prompt("extract-concepts", ...) -> concepts
       2. embeddings_client.embed(concepts) -> vectors
       3. graph_embeddings_client.query(vector, ...) -> entity matches
-      4. triples_client.query_stream(s/p/o, ...) -> edges (follow_edges_batch)
+      4. triples_client.query_stream(s/p/o, ...) -> edges (hop_and_filter)
       5. triples_client.query(s, LABEL, ...) -> labels (maybe_label)
-      6. prompt_client.prompt("kg-edge-scoring", ...) -> scored edges
-      7. prompt_client.prompt("kg-edge-reasoning", ...) -> reasoning
-      8. triples_client.query(s, TG_CONTAINS, ...) -> doc tracing (returns [])
-      9. prompt_client.prompt("kg-synthesis", ...) -> final answer
+      6. reranker_client.rerank(queries, documents, limit) -> scored edges
+      7. triples_client.query(s, TG_CONTAINS, ...) -> doc tracing (returns [])
+      8. prompt_client.prompt("kg-synthesis", ...) -> final answer
     """
     prompt_client = AsyncMock()
     embeddings_client = AsyncMock()
     graph_embeddings_client = AsyncMock()
     triples_client = AsyncMock()
+    reranker_client = AsyncMock()
 
     # 1. Concept extraction
     prompt_responses = {}
@@ -116,7 +116,7 @@ def build_mock_clients():
         EmbeddingMatch(entity=Term(type=IRI, iri=ENTITY_B)),
     ]
 
-    # 4. Triple queries (follow_edges_batch) - return our edges
+    # 4. Triple queries (hop_and_filter) - return our edges
     kg_triples = [
         make_schema_triple(*EDGE_1),
         make_schema_triple(*EDGE_2),
@@ -130,9 +130,18 @@ def build_mock_clients():
         return []  # No labels found, will fall back to URI
     triples_client.query.side_effect = mock_label_query
 
-    # 6+7. Edge scoring and reasoning: dynamically score/reason about
-    # whatever edges the query method sends us, since edge IDs are computed
-    # from str(Term) representations which include the full dataclass repr.
+    # 6. Reranker: select all documents with high scores
+    async def mock_rerank(queries, documents, limit):
+        results = []
+        for i, doc in enumerate(documents):
+            result = MagicMock()
+            result.document_id = doc["id"]
+            result.query_id = queries[0]["id"] if queries else "0"
+            result.score = 0.9 - (i * 0.1)
+            results.append(result)
+        return results[:limit]
+    reranker_client.rerank.side_effect = mock_rerank
+
     synthesis_answer = "Quantum computing applies physics principles to computation."
 
     async def mock_prompt(template_id, variables=None, **kwargs):
@@ -140,26 +149,6 @@ def build_mock_clients():
             return PromptResult(
                 response_type="text",
                 text=prompt_responses["extract-concepts"],
-            )
-        elif template_id == "kg-edge-scoring":
-            # Score all edges highly, using the IDs that GraphRag computed
-            edges = variables.get("knowledge", [])
-            return PromptResult(
-                response_type="jsonl",
-                objects=[
-                    {"id": e["id"], "score": 10 - i}
-                    for i, e in enumerate(edges)
-                ],
-            )
-        elif template_id == "kg-edge-reasoning":
-            # Provide reasoning for each edge
-            edges = variables.get("knowledge", [])
-            return PromptResult(
-                response_type="jsonl",
-                objects=[
-                    {"id": e["id"], "reasoning": f"Relevant edge {i}"}
-                    for i, e in enumerate(edges)
-                ],
             )
         elif template_id == "kg-synthesis":
             return PromptResult(
@@ -170,7 +159,8 @@ def build_mock_clients():
 
     prompt_client.prompt.side_effect = mock_prompt
 
-    return prompt_client, embeddings_client, graph_embeddings_client, triples_client
+    return (prompt_client, embeddings_client, graph_embeddings_client,
+            triples_client, reranker_client)
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +187,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,  # skip semantic pre-filter for simplicity
+
         )
 
         assert len(events) == 5, (
@@ -222,7 +212,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         expected_types = [
@@ -260,7 +250,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         uris = [e["explain_id"] for e in events]
@@ -297,7 +287,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         q_uri = events[0]["explain_id"]
@@ -320,7 +310,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         gnd_uri = events[1]["explain_id"]
@@ -344,7 +334,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         exp_uri = events[2]["explain_id"]
@@ -355,10 +345,10 @@ class TestGraphRagQueryProvenance:
         assert int(t.o.value) > 0
 
     @pytest.mark.asyncio
-    async def test_focus_has_selected_edges_with_reasoning(self):
+    async def test_focus_has_selected_edges_with_concept_and_score(self):
         """
         The focus event should carry selected edges as quoted triples
-        with reasoning text.
+        with cross-encoder concept and score metadata.
         """
         clients = build_mock_clients()
         rag = GraphRag(*clients)
@@ -371,7 +361,6 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
         )
 
         foc_uri = events[3]["explain_id"]
@@ -387,11 +376,19 @@ class TestGraphRagQueryProvenance:
         for t in edge_t:
             assert t.o.triple is not None, "tg:edge object must be a quoted triple"
 
-        # Should have reasoning
-        reasoning = find_triples(foc_triples, TG_REASONING)
-        assert len(reasoning) > 0, "Focus should have reasoning for selected edges"
-        reasoning_texts = {t.o.value for t in reasoning}
-        assert any(r for r in reasoning_texts), "Reasoning should not be empty"
+        # Edge selections should be typed as EdgeSelection
+        edge_sel_uris = [t.o.iri for t in selected]
+        for uri in edge_sel_uris:
+            assert has_type(foc_triples, uri, TG_EDGE_SELECTION)
+
+        # Should have concept and score
+        concepts = find_triples(foc_triples, TG_CONCEPT)
+        assert len(concepts) > 0, "Focus should have tg:concept for selected edges"
+
+        scores = find_triples(foc_triples, TG_SCORE)
+        assert len(scores) > 0, "Focus should have tg:score for selected edges"
+        for t in scores:
+            float(t.o.value)  # Should be parseable as float
 
     @pytest.mark.asyncio
     async def test_synthesis_is_answer_type(self):
@@ -407,7 +404,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         syn_uri = events[4]["explain_id"]
@@ -429,7 +426,7 @@ class TestGraphRagQueryProvenance:
         result_text, usage = await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         assert result_text == "Quantum computing applies physics principles to computation."
@@ -449,7 +446,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
             parent_uri=parent,
         )
 
@@ -465,7 +462,7 @@ class TestGraphRagQueryProvenance:
 
         result_text, usage = await rag.query(
             query="What is quantum computing?",
-            edge_score_limit=0,
+
         )
 
         assert result_text == "Quantum computing applies physics principles to computation."
@@ -484,7 +481,7 @@ class TestGraphRagQueryProvenance:
         await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
-            edge_score_limit=0,
+
         )
 
         for event in events:

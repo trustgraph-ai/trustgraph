@@ -40,7 +40,10 @@ class GraphRagResponse:
 class DocumentRagQuery:
     query: str = ""
     collection: str = ""
-    doc_limit: int = 0
+    doc_limit: int = 0        # docs selected into the synthesis prompt
+    fetch_limit: int = 0      # candidate pool fetched from the vector store
+                              # before reranking (0 = derive from doc_limit;
+                              # values below doc_limit are raised to it)
     streaming: bool = False
 
 @dataclass

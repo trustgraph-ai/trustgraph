@@ -140,20 +140,6 @@ class PromptClient(BaseClient):
             timeout=timeout
         )
 
-    def request_kg_prompt(self, query, kg, timeout=300):
-
-        return self.request(
-            id="kg-prompt",
-            variables={
-                "query": query,
-                "knowledge": [
-                    { "s": v[0], "p": v[1], "o": v[2] }
-                    for v in kg
-                ]
-            },
-            timeout=timeout
-        )
-
     def request_document_prompt(self, query, documents, timeout=300):
 
         return self.request(

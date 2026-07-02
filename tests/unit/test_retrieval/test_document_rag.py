@@ -101,27 +101,27 @@ class TestQuery:
         assert query.rag == mock_rag
         assert query.collection == "test_collection"
         assert query.verbose is False
-        assert query.doc_limit == 20  # Default value
+        assert query.fetch_limit == 20  # Default value
 
-    def test_query_initialization_with_custom_doc_limit(self):
-        """Test Query initialization with custom doc_limit"""
+    def test_query_initialization_with_custom_fetch_limit(self):
+        """Test Query initialization with custom fetch_limit"""
         # Create mock DocumentRag
         mock_rag = MagicMock()
 
-        # Initialize Query with custom doc_limit
+        # Initialize Query with custom fetch_limit
         query = Query(
             rag=mock_rag,
             workspace="test_workspace",
             collection="custom_collection",
             verbose=True,
-            doc_limit=50
+            fetch_limit=50
         )
 
         # Verify initialization
         assert query.rag == mock_rag
         assert query.collection == "custom_collection"
         assert query.verbose is True
-        assert query.doc_limit == 50
+        assert query.fetch_limit == 50
 
     @pytest.mark.asyncio
     async def test_extract_concepts(self):
@@ -224,7 +224,7 @@ class TestQuery:
             workspace="test_workspace",
             collection="test_collection",
             verbose=False,
-            doc_limit=15
+            fetch_limit=15
         )
 
         # Call get_docs with concepts list
@@ -377,7 +377,7 @@ class TestQuery:
             workspace="test_workspace",
             collection="test_collection",
             verbose=True,
-            doc_limit=5
+            fetch_limit=5
         )
 
         # Call get_docs with concepts
@@ -615,7 +615,7 @@ class TestQuery:
             workspace="test_workspace",
             collection="test_collection",
             verbose=False,
-            doc_limit=10
+            fetch_limit=10
         )
 
         docs, chunk_ids = await query.get_docs(["concept A", "concept B"])

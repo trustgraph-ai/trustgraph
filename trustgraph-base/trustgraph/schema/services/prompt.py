@@ -6,17 +6,6 @@ from ..core.primitives import Error
 
 # Prompt services, abstract the prompt generation
 
-# extract-definitions:
-#   chunk -> definitions
-# extract-relationships:
-#   chunk -> relationships
-# kg-prompt:
-#   query, triples -> answer
-# document-prompt:
-#   query, documents -> answer
-# extract-rows
-#   schema, chunk -> rows
-
 @dataclass
 class PromptRequest:
     id: str = ""

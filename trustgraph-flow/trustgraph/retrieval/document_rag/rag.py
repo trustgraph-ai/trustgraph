@@ -13,6 +13,7 @@ from . document_rag import DocumentRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import DocumentEmbeddingsClientSpec
+from ... base import RerankerClientSpec
 from ... base import LibrarianSpec
 
 # Module logger
@@ -28,14 +29,21 @@ class Processor(FlowProcessor):
 
         doc_limit = params.get("doc_limit", 5)
 
+        # Instance-default candidate-pool size fetched before cross-encoder
+        # reranking; the rerank step narrows it back down to doc_limit for the
+        # LLM. 0 means the core derives it (OVERFETCH_FACTOR x doc_limit).
+        fetch_limit = params.get("fetch_limit", 0)
+
         super(Processor, self).__init__(
             **params | {
                 "id": id,
                 "doc_limit": doc_limit,
+                "fetch_limit": fetch_limit,
             }
         )
 
         self.doc_limit = doc_limit
+        self.fetch_limit = fetch_limit
 
         self.register_specification(
             ConsumerSpec(
@@ -63,6 +71,13 @@ class Processor(FlowProcessor):
             PromptClientSpec(
                 request_name = "prompt-request",
                 response_name = "prompt-response",
+            )
+        )
+
+        self.register_specification(
+            RerankerClientSpec(
+                request_name = "reranker-request",
+                response_name = "reranker-response",
             )
         )
 
@@ -105,6 +120,7 @@ class Processor(FlowProcessor):
                 doc_embeddings_client = flow("document-embeddings-request"),
                 prompt_client = flow("prompt-request"),
                 fetch_chunk = fetch_chunk,
+                reranker_client = flow("reranker-request"),
                 verbose=True,
             )
 
@@ -112,6 +128,13 @@ class Processor(FlowProcessor):
                 doc_limit = v.doc_limit
             else:
                 doc_limit = self.doc_limit
+
+            # Candidate-pool size: per-request override, else the instance
+            # default; 0 lets the core derive it from doc_limit.
+            if v.fetch_limit:
+                fetch_limit = v.fetch_limit
+            else:
+                fetch_limit = self.fetch_limit
 
             async def send_explainability(triples, explain_id):
                 await flow("explainability").send(Triples(
@@ -163,6 +186,7 @@ class Processor(FlowProcessor):
                     workspace=flow.workspace,
                     collection=v.collection,
                     doc_limit=doc_limit,
+                    fetch_limit=fetch_limit,
                     streaming=True,
                     chunk_callback=send_chunk,
                     explain_callback=send_explainability,
@@ -188,6 +212,7 @@ class Processor(FlowProcessor):
                     workspace=flow.workspace,
                     collection=v.collection,
                     doc_limit=doc_limit,
+                    fetch_limit=fetch_limit,
                     explain_callback=send_explainability,
                     save_answer_callback=save_answer,
                 )
@@ -241,6 +266,15 @@ class Processor(FlowProcessor):
             type=int,
             default=20,
             help=f'Default document fetch limit (default: 10)'
+        )
+
+        parser.add_argument(
+            '--fetch-limit',
+            type=int,
+            default=0,
+            help='Candidate chunks to fetch from the vector store and rerank '
+                 'before keeping the top doc-limit for the LLM '
+                 '(default: derive from doc-limit)'
         )
 
 def run():

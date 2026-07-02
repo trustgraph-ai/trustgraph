@@ -112,14 +112,13 @@ def _question_explainable_api(
                     if focus_full and focus_full.edge_selections:
                         for edge_sel in focus_full.edge_selections:
                             if edge_sel.edge:
-                                # Resolve labels for edge components
                                 s_label, p_label, o_label = explain_client.resolve_edge_labels(
                                     edge_sel.edge, collection
                                 )
                                 print(f"      Edge: ({s_label}, {p_label}, {o_label})", file=sys.stderr)
-                            if edge_sel.reasoning:
-                                r_short = edge_sel.reasoning[:100] + "..." if len(edge_sel.reasoning) > 100 else edge_sel.reasoning
-                                print(f"        Reason: {r_short}", file=sys.stderr)
+                            if edge_sel.concept or edge_sel.score is not None:
+                                score_str = f"{edge_sel.score:.4f}" if edge_sel.score is not None else "?"
+                                print(f"        Concept: {edge_sel.concept}  Score: {score_str}", file=sys.stderr)
 
                 elif isinstance(entity, Synthesis):
                     print(f"\n  [synthesis] {prov_id}", file=sys.stderr)

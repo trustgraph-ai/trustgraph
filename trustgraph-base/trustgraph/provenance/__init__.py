@@ -64,6 +64,8 @@ from . uris import (
     docrag_question_uri,
     docrag_grounding_uri,
     docrag_exploration_uri,
+    docrag_focus_uri,
+    chunk_selection_uri,
     docrag_synthesis_uri,
 )
 
@@ -89,9 +91,13 @@ from . namespaces import (
     TG_IMAGE_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_CONCEPT, TG_ENTITY,
-    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING,
+    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_SCORE,
+    # Edge selection entity type
+    TG_EDGE_SELECTION,
     # Query-time provenance predicates (DocumentRAG)
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
+    # Chunk selection entity type
+    TG_CHUNK_SELECTION,
     # Explainability entity types
     TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
@@ -130,6 +136,7 @@ from . triples import (
     # Query-time provenance triple builders (DocumentRAG)
     docrag_question_triples,
     docrag_exploration_triples,
+    docrag_chunk_selection_triples,
     docrag_synthesis_triples,
     # Utility
     set_graph,
@@ -194,6 +201,8 @@ __all__ = [
     "docrag_question_uri",
     "docrag_grounding_uri",
     "docrag_exploration_uri",
+    "docrag_focus_uri",
+    "chunk_selection_uri",
     "docrag_synthesis_uri",
     # Namespaces
     "PROV", "PROV_ENTITY", "PROV_ACTIVITY", "PROV_AGENT",
@@ -212,9 +221,13 @@ __all__ = [
     "TG_CHUNK_TYPE", "TG_IMAGE_TYPE", "TG_SUBGRAPH_TYPE",
     # Query-time provenance predicates (GraphRAG)
     "TG_QUERY", "TG_CONCEPT", "TG_ENTITY",
-    "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING",
+    "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_SCORE",
+    # Edge selection entity type
+    "TG_EDGE_SELECTION",
     # Query-time provenance predicates (DocumentRAG)
     "TG_CHUNK_COUNT", "TG_SELECTED_CHUNK",
+    # Chunk selection entity type
+    "TG_CHUNK_SELECTION",
     # Explainability entity types
     "TG_QUESTION", "TG_GROUNDING", "TG_EXPLORATION", "TG_FOCUS", "TG_SYNTHESIS",
     "TG_ANALYSIS", "TG_CONCLUSION",
@@ -250,6 +263,7 @@ __all__ = [
     # Query-time provenance triple builders (DocumentRAG)
     "docrag_question_triples",
     "docrag_exploration_triples",
+    "docrag_chunk_selection_triples",
     "docrag_synthesis_triples",
     # Agent provenance triple builders
     "agent_session_triples",

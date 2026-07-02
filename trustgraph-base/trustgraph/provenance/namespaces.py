@@ -66,11 +66,18 @@ TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
 TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
+TG_SCORE = TG + "score"
 TG_DOCUMENT = TG + "document"  # Reference to document in librarian
+
+# Edge selection entity type (cross-encoder scored edge in Focus)
+TG_EDGE_SELECTION = TG + "EdgeSelection"
 
 # Query-time provenance predicates (DocumentRAG)
 TG_CHUNK_COUNT = TG + "chunkCount"
 TG_SELECTED_CHUNK = TG + "selectedChunk"
+
+# Chunk selection entity type (cross-encoder reranked chunk in Focus)
+TG_CHUNK_SELECTION = TG + "ChunkSelection"
 
 # Extraction provenance entity types
 TG_DOCUMENT_TYPE = TG + "Document"

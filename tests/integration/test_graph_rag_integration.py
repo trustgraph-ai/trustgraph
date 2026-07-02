@@ -95,10 +95,6 @@ class TestGraphRagIntegration:
         async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
             if prompt_name == "extract-concepts":
                 return PromptResult(response_type="text", text="")
-            elif prompt_name == "kg-edge-scoring":
-                return PromptResult(response_type="text", text="")
-            elif prompt_name == "kg-edge-reasoning":
-                return PromptResult(response_type="text", text="")
             elif prompt_name == "kg-synthesis":
                 return PromptResult(
                     response_type="text",
@@ -114,13 +110,21 @@ class TestGraphRagIntegration:
         return client
 
     @pytest.fixture
+    def mock_reranker_client(self):
+        """Mock reranker client for cross-encoder edge filtering"""
+        client = AsyncMock()
+        client.rerank.return_value = []
+        return client
+
+    @pytest.fixture
     def graph_rag(self, mock_embeddings_client, mock_graph_embeddings_client,
-                  mock_triples_client, mock_prompt_client):
+                  mock_triples_client, mock_reranker_client, mock_prompt_client):
         """Create GraphRag instance with mocked dependencies"""
         return GraphRag(
             embeddings_client=mock_embeddings_client,
             graph_embeddings_client=mock_graph_embeddings_client,
             triples_client=mock_triples_client,
+            reranker_client=mock_reranker_client,
             prompt_client=mock_prompt_client,
             verbose=True
         )
@@ -167,8 +171,8 @@ class TestGraphRagIntegration:
         # 3. Should query triples to build knowledge subgraph
         assert mock_triples_client.query_stream.call_count > 0
 
-        # 4. Should call prompt four times (extract-concepts + edge-scoring + edge-reasoning + synthesis)
-        assert mock_prompt_client.prompt.call_count == 4
+        # 4. Should call prompt twice (extract-concepts + synthesis)
+        assert mock_prompt_client.prompt.call_count == 2
 
         # Verify final response
         response, usage = response

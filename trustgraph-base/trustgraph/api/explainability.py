@@ -18,6 +18,7 @@ TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
 TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
+TG_SCORE = TG + "score"
 TG_DOCUMENT = TG + "document"
 TG_CONCEPT = TG + "concept"
 TG_ENTITY = TG + "entity"
@@ -66,10 +67,12 @@ RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
 
 @dataclass
 class EdgeSelection:
-    """A selected edge with reasoning from GraphRAG Focus step."""
+    """A selected edge with cross-encoder metadata from GraphRAG Focus step."""
     uri: str
     edge: Optional[Dict[str, str]] = None  # {"s": ..., "p": ..., "o": ...}
     reasoning: str = ""
+    concept: str = ""
+    score: Optional[float] = None
 
 
 @dataclass
@@ -209,7 +212,7 @@ class Exploration(ExplainEntity):
 
 @dataclass
 class Focus(ExplainEntity):
-    """Focus entity - selected edges with LLM reasoning (GraphRAG only)."""
+    """Focus entity - selected edges with cross-encoder scoring (GraphRAG only)."""
     selected_edge_uris: List[str] = field(default_factory=list)
     edge_selections: List[EdgeSelection] = field(default_factory=list)
 
@@ -418,14 +421,26 @@ def parse_edge_selection_triples(triples: List[Tuple[str, str, Any]]) -> EdgeSel
     uri = triples[0][0] if triples else ""
     edge = None
     reasoning = ""
+    concept = ""
+    score = None
 
     for s, p, o in triples:
         if p == TG_EDGE and isinstance(o, dict):
             edge = o
         elif p == TG_REASONING:
             reasoning = o
+        elif p == TG_CONCEPT:
+            concept = o
+        elif p == TG_SCORE:
+            try:
+                score = float(o)
+            except (ValueError, TypeError):
+                score = None
 
-    return EdgeSelection(uri=uri, edge=edge, reasoning=reasoning)
+    return EdgeSelection(
+        uri=uri, edge=edge, reasoning=reasoning,
+        concept=concept, score=score,
+    )
 
 
 def extract_term_value(term: Dict[str, Any]) -> Any:

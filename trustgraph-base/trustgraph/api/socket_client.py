@@ -752,6 +752,7 @@ class SocketFlowInstance:
         query: str,
         collection: str,
         doc_limit: int = 10,
+        fetch_limit: int = 0,
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
@@ -764,6 +765,7 @@ class SocketFlowInstance:
             "query": query,
             "collection": collection,
             "doc-limit": doc_limit,
+            "fetch-limit": fetch_limit,
             "streaming": streaming
         }
         request.update(kwargs)
@@ -785,6 +787,7 @@ class SocketFlowInstance:
         query: str,
         collection: str,
         doc_limit: int = 10,
+        fetch_limit: int = 0,
         **kwargs: Any
     ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
         """Execute document-based RAG query with explainability support."""
@@ -792,6 +795,7 @@ class SocketFlowInstance:
             "query": query,
             "collection": collection,
             "doc-limit": doc_limit,
+            "fetch-limit": fetch_limit,
             "streaming": True,
             "explainable": True,
         }
@@ -884,6 +888,19 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         return self.client._send_request_sync("embeddings", self.flow_id, request, False)
+
+    def rerank(self, queries: list, documents: list, limit: int = 10,
+               **kwargs: Any) -> Dict[str, Any]:
+        request = {
+            "queries": queries,
+            "documents": documents,
+            "limit": limit,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync(
+            "reranker", self.flow_id, request, False,
+        )
 
     def triples_query(
         self,
