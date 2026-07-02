@@ -270,6 +270,7 @@ class TestTextCompletionStreaming:
         processor.generate_content_stream = Processor.generate_content_stream.__get__(
             processor, Processor
         )
+        _wire_variant(processor)
 
         # Act & Assert
         with pytest.raises(Exception) as exc_info:
@@ -307,6 +308,7 @@ class TestTextCompletionStreaming:
         processor.generate_content_stream = Processor.generate_content_stream.__get__(
             processor, Processor
         )
+        _wire_variant(processor)
 
         # Act
         chunks = []
@@ -330,6 +332,7 @@ class TestTextCompletionStreaming:
         processor.generate_content_stream = Processor.generate_content_stream.__get__(
             processor, Processor
         )
+        _wire_variant(processor)
 
         system_prompt = "You are an expert."
         user_prompt = "Explain quantum physics."
