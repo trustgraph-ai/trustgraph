@@ -133,16 +133,12 @@ class Processor(FlowProcessor):
         Uses DocumentStream for in-memory processing — no temp files.
         """
         suffix = MIME_EXTENSIONS.get(mime_type, ".bin")
-        filename = f"{name_hint}{suffix}"
+        filename = f"source_file{suffix}"
 
         buf = io.BytesIO(blob)
         stream = DocumentStream(name=filename, stream=buf)
 
-        input_format = MIME_TO_FORMAT.get(mime_type) if mime_type else None
-        if input_format:
-            result = self.converter.convert(stream, format=input_format)
-        else:
-            result = self.converter.convert(stream)
+        result = self.converter.convert(stream)
 
         logger.info("Docling conversion complete")
 
