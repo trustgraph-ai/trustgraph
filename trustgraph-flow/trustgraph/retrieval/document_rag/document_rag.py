@@ -18,6 +18,8 @@ from trustgraph.provenance import (
     GRAPH_RETRIEVAL,
 )
 
+from .rerank import RerankCandidate, mmr_rerank
+
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,9 @@ class Query:
     def __init__(
             self, rag, workspace, collection, verbose,
             doc_limit=20, track_usage=None,
+            rerank_mode="none",
+            rerank_candidate_limit=None,
+            rerank_mmr_lambda=0.7,
     ):
         self.rag = rag
         self.workspace = workspace
@@ -35,6 +40,9 @@ class Query:
         self.verbose = verbose
         self.doc_limit = doc_limit
         self.track_usage = track_usage
+        self.rerank_mode = rerank_mode
+        self.rerank_candidate_limit = rerank_candidate_limit
+        self.rerank_mmr_lambda = rerank_mmr_lambda
 
     async def extract_concepts(self, query):
         """Extract key concepts from query for independent embedding."""
@@ -75,7 +83,7 @@ class Query:
 
         return qembeds
 
-    async def get_docs(self, concepts):
+    async def get_docs(self, query, concepts):
         """
         Get documents (chunks) matching the extracted concepts.
 
@@ -89,9 +97,14 @@ class Query:
         if self.verbose:
             logger.debug("Getting chunks from embeddings store...")
 
-        # Query chunk matches for each concept concurrently
+        # Query candidate chunk matches for each concept concurrently.
+        # When reranking is enabled, retrieve a wider candidate pool first,
+        # then reduce it back to doc_limit before synthesis.
+        candidate_limit = self.rerank_candidate_limit or self.doc_limit
+        candidate_limit = max(candidate_limit, self.doc_limit)
+
         per_concept_limit = max(
-            1, self.doc_limit // len(vectors)
+            1, candidate_limit // len(vectors)
         )
 
         async def query_concept(vec):
@@ -116,17 +129,41 @@ class Query:
         if self.verbose:
             logger.debug(f"Got {len(chunk_matches)} chunks, fetching content from Garage...")
 
-        # Fetch chunk content from Garage
-        docs = []
-        chunk_ids = []
-        for match in chunk_matches:
+        # Fetch candidate chunk content from Garage
+        candidates = []
+        for rank, match in enumerate(chunk_matches):
             if match.chunk_id:
                 try:
                     content = await self.rag.fetch_chunk(match.chunk_id)
-                    docs.append(content)
-                    chunk_ids.append(match.chunk_id)
+                    candidates.append(
+                        RerankCandidate(
+                            chunk_id=match.chunk_id,
+                            text=content,
+                            rank=rank,
+                            score=getattr(match, "score", None),
+                        )
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to fetch chunk {match.chunk_id}: {e}")
+
+        if self.rerank_mode == "mmr":
+            if self.verbose:
+                logger.debug(
+                    f"Applying MMR rerank to {len(candidates)} candidate chunks "
+                    f"with doc_limit={self.doc_limit}"
+                )
+
+            candidates = mmr_rerank(
+                query=query,
+                candidates=candidates,
+                limit=self.doc_limit,
+                lambda_mult=self.rerank_mmr_lambda,
+            )
+        else:
+            candidates = candidates[:self.doc_limit]
+
+        docs = [candidate.text for candidate in candidates]
+        chunk_ids = [candidate.chunk_id for candidate in candidates]
 
         if self.verbose:
             logger.debug("Documents fetched:")
@@ -141,6 +178,9 @@ class DocumentRag:
             self, prompt_client, embeddings_client, doc_embeddings_client,
             fetch_chunk,
             verbose=False,
+            rerank_mode="none",
+            rerank_candidate_limit=None,
+            rerank_mmr_lambda=0.7,
     ):
 
         self.verbose = verbose
@@ -149,6 +189,9 @@ class DocumentRag:
         self.embeddings_client = embeddings_client
         self.doc_embeddings_client = doc_embeddings_client
         self.fetch_chunk = fetch_chunk
+        self.rerank_mode = rerank_mode
+        self.rerank_candidate_limit = rerank_candidate_limit
+        self.rerank_mmr_lambda = rerank_mmr_lambda
 
         if self.verbose:
             logger.debug("DocumentRag initialized")
@@ -213,6 +256,9 @@ class DocumentRag:
             rag=self, workspace=workspace, collection=collection,
             verbose=self.verbose,
             doc_limit=doc_limit, track_usage=track_usage,
+            rerank_mode=self.rerank_mode,
+            rerank_candidate_limit=self.rerank_candidate_limit,
+            rerank_mmr_lambda=self.rerank_mmr_lambda,
         )
 
         # Extract concepts from query (grounding step)
@@ -232,7 +278,7 @@ class DocumentRag:
             )
             await explain_callback(gnd_triples, gnd_uri)
 
-        docs, chunk_ids = await q.get_docs(concepts)
+        docs, chunk_ids = await q.get_docs(query, concepts)
 
         # Emit exploration explainability after chunks retrieved
         if explain_callback:
