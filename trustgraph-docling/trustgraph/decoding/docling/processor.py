@@ -138,7 +138,11 @@ class Processor(FlowProcessor):
         buf = io.BytesIO(blob)
         stream = DocumentStream(name=filename, stream=buf)
 
-        result = self.converter.convert(stream)
+        input_format = MIME_TO_FORMAT.get(mime_type) if mime_type else None
+        if input_format:
+            result = self.converter.convert(stream, format=input_format)
+        else:
+            result = self.converter.convert(stream)
 
         logger.info("Docling conversion complete")
 
@@ -149,36 +153,32 @@ class Processor(FlowProcessor):
         Extract text grouped by page from a DoclingDocument.
 
         Returns list of (page_number, text, table_count, image_count).
+        An item that spans multiple pages is included in each page.
         """
-        md = doc.export_to_markdown(image_placeholder="")
-
-        pages = []
         page_map = {}
 
         for item, _level in doc.iterate_items():
             prov = getattr(item, 'prov', None)
-            if not prov:
-                continue
 
-            for p in prov:
-                page_no = getattr(p, 'page_no', None)
-                if page_no is not None and page_no not in page_map:
+            page_nos = set()
+            if prov:
+                for p in prov:
+                    pg = getattr(p, 'page_no', None)
+                    if pg is not None:
+                        page_nos.add(pg)
+
+            if not page_nos:
+                page_nos.add(1)
+
+            item_type = type(item).__name__
+
+            for page_no in page_nos:
+                if page_no not in page_map:
                     page_map[page_no] = {
                         "texts": [],
                         "table_count": 0,
                         "image_count": 0,
                     }
-
-                if page_no is None:
-                    page_no = 1
-                    if page_no not in page_map:
-                        page_map[page_no] = {
-                            "texts": [],
-                            "table_count": 0,
-                            "image_count": 0,
-                        }
-
-                item_type = type(item).__name__
 
                 if item_type == "PictureItem":
                     page_map[page_no]["image_count"] += 1
@@ -186,7 +186,7 @@ class Processor(FlowProcessor):
 
                 if item_type == "TableItem":
                     page_map[page_no]["table_count"] += 1
-                    html = item.export_to_html()
+                    html = item.export_to_html(doc=doc)
                     if html:
                         page_map[page_no]["texts"].append(html)
                     continue
@@ -195,6 +195,7 @@ class Processor(FlowProcessor):
                 if text and text.strip():
                     page_map[page_no]["texts"].append(text)
 
+        pages = []
         for page_no in sorted(page_map.keys()):
             info = page_map[page_no]
             text = "\n\n".join(info["texts"])
@@ -203,9 +204,6 @@ class Processor(FlowProcessor):
                     page_no, text,
                     info["table_count"], info["image_count"],
                 ))
-
-        if not pages and md.strip():
-            pages.append((1, md, 0, 0))
 
         return pages
 
@@ -228,7 +226,7 @@ class Processor(FlowProcessor):
 
             if item_type == "TableItem":
                 table_count += 1
-                html = item.export_to_html()
+                html = item.export_to_html(doc=doc)
                 if html:
                     parts.append(html)
                 continue
