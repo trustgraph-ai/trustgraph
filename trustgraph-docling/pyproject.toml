@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-docling"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "TrustGraph document decoder powered by Docling — lightweight alternative to the unstructured-based decoder."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "trustgraph-base>=2.6,<2.7",
+    "pulsar-client",
+    "prometheus-client",
+    "docling",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+docling-decoder = "trustgraph.decoding.docling:run"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.docling_version.__version__"}
