@@ -30,6 +30,7 @@ from . namespaces import (
     TG_DECOMPOSITION, TG_FINDING, TG_PLAN_TYPE, TG_STEP_RESULT,
     TG_SUBAGENT_GOAL, TG_PLAN_STEP,
     TG_EDGE_SELECTION, TG_SCORE,
+    TG_CHUNK_SELECTION,
 )
 
 
@@ -95,6 +96,7 @@ TG_CLASS_LABELS = [
     _label_triple(TG_PLAN_TYPE, "Plan"),
     _label_triple(TG_STEP_RESULT, "Step Result"),
     _label_triple(TG_EDGE_SELECTION, "Edge Selection"),
+    _label_triple(TG_CHUNK_SELECTION, "Chunk Selection"),
 ]
 
 # TrustGraph predicate labels

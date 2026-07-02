@@ -66,6 +66,7 @@ class TestDocumentRagService:
             workspace=ANY,            # Workspace comes from flow.workspace (mock)
             collection="test_coll_1", # Must be from message, not hardcoded default
             doc_limit=5,
+            fetch_limit=0,            # Unset -> core derives the candidate pool
             explain_callback=ANY,     # Explainability callback is always passed
             save_answer_callback=ANY, # Librarian save callback is always passed
         )

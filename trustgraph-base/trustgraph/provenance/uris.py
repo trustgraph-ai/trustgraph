@@ -309,6 +309,35 @@ def docrag_exploration_uri(session_id: str) -> str:
     return f"urn:trustgraph:docrag:{session_id}/exploration"
 
 
+def docrag_focus_uri(session_id: str) -> str:
+    """
+    Generate URI for a document RAG focus entity (chunks selected by the
+    cross-encoder reranker).
+
+    Args:
+        session_id: The session UUID.
+
+    Returns:
+        URN in format: urn:trustgraph:docrag:{uuid}/focus
+    """
+    return f"urn:trustgraph:docrag:{session_id}/focus"
+
+
+def chunk_selection_uri(session_id: str, chunk_index: int) -> str:
+    """
+    Generate URI for a chunk selection item (links a reranked chunk to its
+    score). Mirrors edge_selection_uri for GraphRAG.
+
+    Args:
+        session_id: The session UUID.
+        chunk_index: Index of this chunk in the selection (0-based).
+
+    Returns:
+        URN in format: urn:trustgraph:prov:chunk:{uuid}:{index}
+    """
+    return f"urn:trustgraph:prov:chunk:{session_id}:{chunk_index}"
+
+
 def docrag_synthesis_uri(session_id: str) -> str:
     """
     Generate URI for a document RAG synthesis entity (final answer).
