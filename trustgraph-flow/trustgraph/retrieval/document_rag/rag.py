@@ -27,6 +27,9 @@ class Processor(FlowProcessor):
         id = params.get("id", default_ident)
 
         doc_limit = params.get("doc_limit", 5)
+        rerank_mode = params.get("rerank_mode", "none")
+        rerank_candidate_limit = params.get("rerank_candidate_limit", None)
+        rerank_mmr_lambda = params.get("rerank_mmr_lambda", 0.7)
 
         super(Processor, self).__init__(
             **params | {
@@ -36,6 +39,9 @@ class Processor(FlowProcessor):
         )
 
         self.doc_limit = doc_limit
+        self.rerank_mode = rerank_mode
+        self.rerank_candidate_limit = rerank_candidate_limit
+        self.rerank_mmr_lambda = rerank_mmr_lambda
 
         self.register_specification(
             ConsumerSpec(
@@ -106,6 +112,9 @@ class Processor(FlowProcessor):
                 prompt_client = flow("prompt-request"),
                 fetch_chunk = fetch_chunk,
                 verbose=True,
+                rerank_mode=self.rerank_mode,
+                rerank_candidate_limit=self.rerank_candidate_limit,
+                rerank_mmr_lambda=self.rerank_mmr_lambda,
             )
 
             if v.doc_limit:
@@ -241,6 +250,27 @@ class Processor(FlowProcessor):
             type=int,
             default=20,
             help=f'Default document fetch limit (default: 10)'
+        )
+
+        parser.add_argument(
+            '--rerank-mode',
+            choices=['none', 'mmr'],
+            default='none',
+            help='Optional Document-RAG reranking mode (default: none)'
+        )
+
+        parser.add_argument(
+            '--rerank-candidate-limit',
+            type=int,
+            default=None,
+            help='Number of candidate chunks to retrieve before reranking'
+        )
+
+        parser.add_argument(
+            '--rerank-mmr-lambda',
+            type=float,
+            default=0.7,
+            help='MMR relevance/diversity tradeoff, higher values prefer relevance'
         )
 
 def run():
