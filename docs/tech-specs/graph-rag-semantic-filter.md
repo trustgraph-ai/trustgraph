@@ -224,12 +224,27 @@ The current embedding pre-filter represents each edge as
 - **Drop commas.**  Commas add tokenisation noise without semantic
   value.
 
-- **Drop the subject.**  The subject identifies which entity the
-  edge belongs to, but it does not contribute to whether the
-  edge's content is relevant to the query.  The predicate and
-  object carry the semantic meaning — what relationship exists
-  and what it connects to.  Representing edges as `"{p} {o}"`
-  produces cleaner cross-encoder matches.
+- **Direction-aware text.**  The reranker text should highlight
+  the *new* information relative to the traversal direction.
+  The frontier entity is already known context — repeating it
+  adds noise and, when traversing from an object node, causes
+  many edges to produce identical reranker text (e.g. 18
+  products sharing the same `hasSubcategory Processors` triple
+  all collapse to the same string when the subject is dropped).
+
+  The text is constructed based on which position the frontier
+  entity occupied in the triple:
+
+  - **From subject** (s=entity): `"{predicate} {object}"` —
+    the subject is known, predicate and object are new.
+  - **From object** (o=entity): `"{subject} {predicate}"` —
+    the object is known, subject and predicate are new.
+  - **From predicate** (p=entity): `"{subject} {object}"` —
+    the predicate is known, subject and object are new.
+
+  This eliminates the duplicate-text problem that arises when
+  traversing inward from a shared object node, and gives the
+  cross-encoder a more informative signal at every hop.
 
 #### Remove the embedding pre-filter (step 3)
 
@@ -389,7 +404,10 @@ no LLM call.  These fields are dropped from the Focus entity.
 
    a. Retrieve all edges one hop from the current frontier nodes.
 
-   b. Represent each edge as `"{predicate} {object}"`.
+   b. Represent each edge using direction-aware text: from a
+      subject node use `"{predicate} {object}"`, from an object
+      node use `"{subject} {predicate}"`, from a predicate node
+      use `"{subject} {object}"`.
 
    c. Score edges against the extracted concepts using the
       cross-encoder service.
