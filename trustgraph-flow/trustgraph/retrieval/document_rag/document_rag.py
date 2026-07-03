@@ -20,6 +20,8 @@ from trustgraph.provenance import (
     GRAPH_RETRIEVAL,
 )
 
+from .rerank import RerankCandidate, mmr_select
+
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -150,6 +152,8 @@ class DocumentRag:
             fetch_chunk,
             reranker_client=None,
             verbose=False,
+            rerank_diversity_mode="none",
+            rerank_diversity_lambda=0.7,
     ):
 
         self.verbose = verbose
@@ -162,6 +166,8 @@ class DocumentRag:
         # Optional cross-encoder reranker. When None, the retrieval path is
         # byte-identical to the pre-reranker behaviour.
         self.reranker_client = reranker_client
+        self.rerank_diversity_mode = rerank_diversity_mode
+        self.rerank_diversity_lambda = rerank_diversity_lambda
 
         if self.verbose:
             logger.debug("DocumentRag initialized")
@@ -277,30 +283,74 @@ class DocumentRag:
         # skipped entirely and behaviour is byte-identical to before.
         reranked = False
         if self.reranker_client is not None and docs:
+            use_diversity = self.rerank_diversity_mode == "mmr"
+
+            # Without diversity selection, preserve the existing #1011
+            # behavior: ask the reranker for exactly doc_limit results.
+            #
+            # With diversity selection enabled, ask the reranker to score the
+            # full fetched candidate pool first, then let MMR choose the final
+            # doc_limit context set.
+            rerank_limit = len(docs) if use_diversity else doc_limit
+
             results = await self.reranker_client.rerank(
                 queries=[{"id": "0", "text": query}],
                 documents=[
                     {"id": str(i), "text": d} for i, d in enumerate(docs)
                 ],
-                # Narrow the over-fetched candidate pool down to the final
-                # doc_limit requested for synthesis.
-                limit=doc_limit,
+                limit=rerank_limit,
             )
 
-            # results are sorted desc by score and truncated to limit by the
-            # reranker service, so order gives the surviving top-N directly.
-            order = [int(r.document_id) for r in results]
-            docs = [docs[i] for i in order]
-            chunk_ids = [chunk_ids[i] for i in order]
+            source_docs = docs
+            source_chunk_ids = chunk_ids
+
+            if use_diversity:
+                candidates = [
+                    RerankCandidate(
+                        index=int(r.document_id),
+                        chunk_id=source_chunk_ids[int(r.document_id)],
+                        text=source_docs[int(r.document_id)],
+                        reranker_score=r.score,
+                    )
+                    for r in results
+                ]
+
+                selected_candidates = mmr_select(
+                    candidates,
+                    limit=doc_limit,
+                    lambda_mult=self.rerank_diversity_lambda,
+                )
+
+                docs = [candidate.text for candidate in selected_candidates]
+                chunk_ids = [
+                    candidate.chunk_id for candidate in selected_candidates
+                ]
+
+                selected_chunks_with_scores = [
+                    {
+                        "chunk_id": candidate.chunk_id,
+                        "score": candidate.reranker_score,
+                    }
+                    for candidate in selected_candidates
+                ]
+
+            else:
+                # results are sorted desc by score and truncated to limit by the
+                # reranker service, so order gives the surviving top-N directly.
+                order = [int(r.document_id) for r in results]
+                docs = [source_docs[i] for i in order]
+                chunk_ids = [source_chunk_ids[i] for i in order]
+
+                selected_chunks_with_scores = [
+                    {"chunk_id": chunk_ids[i], "score": r.score}
+                    for i, r in enumerate(results)
+                ]
+
             reranked = True
 
             # Emit chunk-selection (focus) explainability: surviving chunks
             # with their cross-encoder scores, derived from exploration.
             if explain_callback:
-                selected_chunks_with_scores = [
-                    {"chunk_id": chunk_ids[i], "score": r.score}
-                    for i, r in enumerate(results)
-                ]
                 foc_triples = set_graph(
                     docrag_chunk_selection_triples(
                         foc_uri, exp_uri,
