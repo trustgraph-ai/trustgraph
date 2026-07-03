@@ -482,7 +482,7 @@ class TestRerankActive:
 # ---------------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_diversity_mode_scores_full_candidate_pool_before_selecting():
+    async def test_diversity_mode_scores_full_candidate_pool_before_selecting(self):
         """
         With diversity selection enabled, the cross-encoder should score the full
         fetched candidate pool before MMR narrows it down to doc_limit.
@@ -509,7 +509,7 @@ class TestRerankActive:
 
 
     @pytest.mark.asyncio
-    async def test_diversity_mode_selects_less_redundant_context_set():
+    async def test_diversity_mode_selects_less_redundant_context_set(self):
         """
         MMR should use cross-encoder scores as relevance while penalizing redundant
         chunks, so a slightly lower-scored but less redundant chunk can be selected.
