@@ -11,20 +11,9 @@ import rdflib
 
 from trustgraph.cli.nquads import serialize_nquads, triple_to_nquad
 
+from tests.unit.test_cli.conftest import iri, lit
+
 GRAPH = "urn:trustgraph:collection:default"
-
-
-def iri(v):
-    return {"t": "i", "i": v}
-
-
-def lit(v, d=None, lang=None):
-    t = {"t": "l", "v": v}
-    if d:
-        t["d"] = d
-    if lang:
-        t["l"] = lang
-    return t
 
 
 def roundtrip(batches):
@@ -99,7 +88,6 @@ class TestNquadsRoundTrip:
         assert len(list(ds.quads((None, None, None, None)))) == 1
 
     def test_streaming_shape_one_line_per_triple(self):
-        # Two batches -> lines usable incrementally (no whole-graph buffering).
         line = triple_to_nquad(
             {"s": iri("http://example.com/s"), "p": iri("http://example.com/p"),
              "o": lit("v")},

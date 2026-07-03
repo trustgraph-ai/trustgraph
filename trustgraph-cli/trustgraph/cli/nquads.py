@@ -1,14 +1,22 @@
 """
-Streaming N-Quads serialization of wire-format triples (the dict shape
-yielded by triples_query_stream), one line per triple, so a knowledge
-export never has to hold a whole graph in memory. Term encoding is
-hand-rolled to the N-Triples grammar: rdflib's term.n3() emits
-Turtle-style forms (numeric shorthand, unescaped newlines) that are not
-valid in line-oriented N-Quads.
+N-Quads serialization and parsing for workspace knowledge bundles: the
+wire-format triples yielded by triples_query_stream go out one line per
+triple (so an export never holds a whole graph in memory), and bundle
+members come back as api Triple values. Term encoding is hand-rolled to
+the N-Triples grammar: rdflib's term.n3() emits Turtle-style forms
+(numeric shorthand, unescaped newlines) that are not valid in
+line-oriented N-Quads.
 """
 
-# RDF-star quoted triples ("r" terms) have no standard N-Quads encoding;
-# they are skipped with a count so callers can surface the omission.
+import re
+
+import rdflib
+
+from trustgraph.schema import IRI, LITERAL
+from trustgraph.api.types import Triple
+
+# RDF-star quoted triples have no standard N-Quads encoding; they are
+# skipped with a count so callers can surface the omission.
 
 # N-Triples string-literal escapes (ECHAR): backslash first, then the rest.
 _ESCAPES = [
@@ -19,6 +27,11 @@ _ESCAPES = [
     ("\t", "\\t"),
 ]
 
+# Characters the IRIREF production cannot carry: controls/space plus the
+# explicitly forbidden set. One compiled scan keeps this off the profile
+# for large exports (it runs per term).
+_BAD_IRI = re.compile(r'[\x00-\x20<>"{}|^\x60]')
+
 
 def _escape_literal(value):
     for raw, esc in _ESCAPES:
@@ -28,16 +41,17 @@ def _escape_literal(value):
 
 def _encode_iri(iri):
     """<iri>, or None for values the grammar cannot carry."""
-    if not iri or any(c in iri for c in ' <>"{}|^`') or any(ord(c) <= 0x20 for c in iri):
+    if not iri or _BAD_IRI.search(iri):
         return None
     return f"<{iri}>"
 
 
-def encode_term(term, position):
+def encode_term(term, is_object=False):
     """Encode one wire-format term dict for an N-Quads line.
 
-    :param position: "s" | "p" | "o" — subjects and predicates must be IRIs
-        (bnodes never appear on the wire); literals are object-only.
+    :param is_object: literals are only valid in object position;
+        subjects and predicates must be IRIs (bnodes never appear on
+        the wire).
     :returns: encoded string, or None when the term can't be represented.
     """
     if term is None:
@@ -45,10 +59,10 @@ def encode_term(term, position):
 
     t = term.get("t", "")
 
-    if t == "i":
+    if t == IRI:
         return _encode_iri(term.get("i", ""))
 
-    if t == "l" and position == "o":
+    if t == LITERAL and is_object:
         value = _escape_literal(term.get("v", ""))
         language = term.get("l")
         datatype = term.get("d")
@@ -61,7 +75,7 @@ def encode_term(term, position):
             return f'"{value}"^^{dt}'
         return f'"{value}"'
 
-    # literals outside object position, RDF-star ("r"), unknown types
+    # literals outside object position, RDF-star, unknown types
     return None
 
 
@@ -71,9 +85,9 @@ def triple_to_nquad(triple, graph_encoded):
     :param triple: {"s": term, "p": term, "o": term} wire dict
     :param graph_encoded: pre-encoded <graph-iri> string
     """
-    s = encode_term(triple.get("s"), "s")
-    p = encode_term(triple.get("p"), "p")
-    o = encode_term(triple.get("o"), "o")
+    s = encode_term(triple.get("s"))
+    p = encode_term(triple.get("p"))
+    o = encode_term(triple.get("o"), is_object=True)
     if s is None or p is None or o is None:
         return None
     return f"{s} {p} {o} {graph_encoded} .\n"
@@ -102,3 +116,22 @@ def serialize_nquads(batches, graph_iri, out):
                 out.write(line)
                 written += 1
     return written, skipped
+
+
+def parse_nquads(data):
+    """Parse N-Quads bytes back into api Triple values.
+
+    Terms are stringified with str(), the same convention tg-load-knowledge
+    uses, so values survive the store round trip unchanged. The whole
+    member is materialized in memory (bundles are bounded by
+    --triples-limit at export); line-streaming is a possible follow-up.
+
+    :param data: N-Quads bytes (one bundle member)
+    :returns: list of Triple
+    """
+    ds = rdflib.Dataset()
+    ds.parse(data=data.decode("utf-8"), format="nquads")
+    return [
+        Triple(s=str(s), p=str(p), o=str(o))
+        for s, p, o, _g in ds.quads((None, None, None, None))
+    ]
