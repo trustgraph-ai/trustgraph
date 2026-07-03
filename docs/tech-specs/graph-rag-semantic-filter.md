@@ -404,10 +404,33 @@ no LLM call.  These fields are dropped from the Focus entity.
 
    a. Retrieve all edges one hop from the current frontier nodes.
 
-   b. Represent each edge using direction-aware text: from a
-      subject node use `"{predicate} {object}"`, from an object
-      node use `"{subject} {predicate}"`, from a predicate node
-      use `"{subject} {object}"`.
+   b. Filter and represent edges for scoring:
+
+      - **Schema predicate filter.**  Edges with RDF/RDFS/OWL
+        schema predicates (`rdfs:domain`, `owl:inverseOf`, etc.)
+        are removed.  `rdf:type` is kept as it carries useful
+        data signal.
+
+      - **IRI filter.**  Edges where the reranker-visible text
+        components (after label resolution) are still raw IRIs
+        are removed — the cross-encoder cannot meaningfully score
+        unresolved URIs.  Only the components that would appear
+        in the reranker text are checked, based on traversal
+        direction.
+
+      - **Direction-aware text.**  Each surviving edge is
+        represented using direction-aware text: from a subject
+        node use `"{predicate} {object}"`, from an object node
+        use `"{subject} {predicate}"`, from a predicate node
+        use `"{subject} {object}"`.
+
+      - **Reranker input cap.**  The candidate set is truncated
+        to `max_reranker_input` (default 350) edges.  This is a
+        safety measure, not an accuracy optimisation — there is
+        no point in producing a perfectly ranked edge set if the
+        reranker crashes or times out because it was handed
+        thousands of candidates.  The cap is applied after
+        filtering so that the most useful edges fill the budget.
 
    c. Score edges against the extracted concepts using the
       cross-encoder service.

@@ -27,11 +27,13 @@ default_max_subgraph_size = 150
 default_max_path_length = 2
 default_edge_score_limit = 30
 default_edge_limit = 25
+default_max_reranker_input = 350
 
 def _question_explainable_api(
         url, flow_id, question_text, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, edge_score_limit=30,
-        edge_limit=25, token=None, debug=False, workspace="default",
+        edge_limit=25, max_reranker_input=350, token=None, debug=False,
+        workspace="default",
 ):
     """Execute graph RAG with explainability using the new API classes."""
     api = Api(url=url, token=token, workspace=workspace)
@@ -50,6 +52,7 @@ def _question_explainable_api(
             max_path_length=max_path_length,
             edge_score_limit=edge_score_limit,
             edge_limit=edge_limit,
+            max_reranker_input=max_reranker_input,
         ):
             if isinstance(item, RAGChunk):
                 # Print response content
@@ -138,7 +141,7 @@ def _question_explainable_api(
 def question(
         url, flow_id, question, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, edge_score_limit=50,
-        edge_limit=25, streaming=True, token=None,
+        edge_limit=25, max_reranker_input=350, streaming=True, token=None,
         explainable=False, debug=False, show_usage=False,
         workspace="default",
 ):
@@ -156,6 +159,7 @@ def question(
             max_path_length=max_path_length,
             edge_score_limit=edge_score_limit,
             edge_limit=edge_limit,
+            max_reranker_input=max_reranker_input,
             token=token,
             debug=debug,
             workspace=workspace,
@@ -180,6 +184,7 @@ def question(
                 max_path_length=max_path_length,
                 edge_score_limit=edge_score_limit,
                 edge_limit=edge_limit,
+                max_reranker_input=max_reranker_input,
                 streaming=True
             )
 
@@ -212,6 +217,7 @@ def question(
             max_path_length=max_path_length,
             edge_score_limit=edge_score_limit,
             edge_limit=edge_limit,
+            max_reranker_input=max_reranker_input,
         )
         print(result.text)
 
@@ -309,6 +315,13 @@ def main():
     )
 
     parser.add_argument(
+        '--max-reranker-input',
+        type=int,
+        default=default_max_reranker_input,
+        help=f'Max candidate edges sent to reranker per hop (default: {default_max_reranker_input})'
+    )
+
+    parser.add_argument(
         '--no-streaming',
         action='store_true',
         help='Disable streaming (use non-streaming mode)'
@@ -347,6 +360,7 @@ def main():
             max_path_length=args.max_path_length,
             edge_score_limit=args.edge_score_limit,
             edge_limit=args.edge_limit,
+            max_reranker_input=args.max_reranker_input,
             streaming=not args.no_streaming,
             token=args.token,
             explainable=args.explainable,
