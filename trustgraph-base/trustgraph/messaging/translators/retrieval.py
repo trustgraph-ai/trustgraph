@@ -103,6 +103,7 @@ class GraphRagRequestTranslator(MessageTranslator):
             max_path_length=int(data.get("max-path-length", 2)),
             edge_score_limit=int(data.get("edge-score-limit", 30)),
             edge_limit=int(data.get("edge-limit", 25)),
+            max_reranker_input=int(data.get("max-reranker-input", 350)),
             streaming=data.get("streaming", False)
         )
 
@@ -116,6 +117,7 @@ class GraphRagRequestTranslator(MessageTranslator):
             "max-path-length": obj.max_path_length,
             "edge-score-limit": obj.edge_score_limit,
             "edge-limit": obj.edge_limit,
+            "max-reranker-input": obj.max_reranker_input,
             "streaming": getattr(obj, "streaming", False)
         }
 

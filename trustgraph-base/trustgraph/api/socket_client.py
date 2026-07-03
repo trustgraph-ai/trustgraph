@@ -682,6 +682,7 @@ class SocketFlowInstance:
         max_path_length: int = 2,
         edge_score_limit: int = 30,
         edge_limit: int = 25,
+        max_reranker_input: int = 350,
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
@@ -699,6 +700,7 @@ class SocketFlowInstance:
             "max-path-length": max_path_length,
             "edge-score-limit": edge_score_limit,
             "edge-limit": edge_limit,
+            "max-reranker-input": max_reranker_input,
             "streaming": streaming
         }
         request.update(kwargs)
@@ -725,6 +727,7 @@ class SocketFlowInstance:
         max_path_length: int = 2,
         edge_score_limit: int = 30,
         edge_limit: int = 25,
+        max_reranker_input: int = 350,
         **kwargs: Any
     ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
         """Execute graph-based RAG query with explainability support."""
@@ -737,6 +740,7 @@ class SocketFlowInstance:
             "max-path-length": max_path_length,
             "edge-score-limit": edge_score_limit,
             "edge-limit": edge_limit,
+            "max-reranker-input": max_reranker_input,
             "streaming": True,
             "explainable": True,
         }
