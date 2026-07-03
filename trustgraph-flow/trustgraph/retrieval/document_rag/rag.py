@@ -33,17 +33,23 @@ class Processor(FlowProcessor):
         # reranking; the rerank step narrows it back down to doc_limit for the
         # LLM. 0 means the core derives it (OVERFETCH_FACTOR x doc_limit).
         fetch_limit = params.get("fetch_limit", 0)
+        rerank_diversity_mode = params.get("rerank_diversity_mode", "none")
+        rerank_diversity_lambda = params.get("rerank_diversity_lambda", 0.7)
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
                 "doc_limit": doc_limit,
                 "fetch_limit": fetch_limit,
+                "rerank_diversity_mode": rerank_diversity_mode,
+                "rerank_diversity_lambda": rerank_diversity_lambda,
             }
         )
 
         self.doc_limit = doc_limit
         self.fetch_limit = fetch_limit
+        self.rerank_diversity_mode = rerank_diversity_mode
+        self.rerank_diversity_lambda = rerank_diversity_lambda
 
         self.register_specification(
             ConsumerSpec(
@@ -122,6 +128,8 @@ class Processor(FlowProcessor):
                 fetch_chunk = fetch_chunk,
                 reranker_client = flow("reranker-request"),
                 verbose=True,
+                rerank_diversity_mode=self.rerank_diversity_mode,
+                rerank_diversity_lambda=self.rerank_diversity_lambda,
             )
 
             if v.doc_limit:
@@ -275,6 +283,20 @@ class Processor(FlowProcessor):
             help='Candidate chunks to fetch from the vector store and rerank '
                  'before keeping the top doc-limit for the LLM '
                  '(default: derive from doc-limit)'
+        )
+
+        parser.add_argument(
+            '--rerank-diversity-mode',
+            choices=['none', 'mmr'],
+            default='none',
+            help='Optional diversity-aware selection after reranking (default: none)'
+        )
+
+        parser.add_argument(
+            '--rerank-diversity-lambda',
+            type=float,
+            default=0.7,
+            help='MMR relevance/diversity tradeoff, higher values prefer relevance'
         )
 
 def run():

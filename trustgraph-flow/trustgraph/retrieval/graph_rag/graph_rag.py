@@ -241,38 +241,56 @@ class Query:
         self.rag.label_cache.put(cache_key, label)
         return label
 
+    FROM_S = "from_s"
+    FROM_P = "from_p"
+    FROM_O = "from_o"
+
     async def execute_batch_triple_queries(self, entities, limit_per_entity):
-        """Execute triple queries for multiple entities concurrently."""
+        """Execute triple queries for multiple entities concurrently.
+
+        Returns a list of (triple, direction) tuples where direction
+        indicates which position the frontier entity occupied.
+        """
         tasks = []
+        directions = []
 
         for entity in entities:
-            tasks.extend([
+            tasks.append(
                 self.rag.triples_client.query_stream(
                     s=entity, p=None, o=None,
                     limit=limit_per_entity,
                     collection=self.collection,
                     batch_size=20, g="",
                 ),
+            )
+            directions.append(self.FROM_S)
+
+            tasks.append(
                 self.rag.triples_client.query_stream(
                     s=None, p=entity, o=None,
                     limit=limit_per_entity,
                     collection=self.collection,
                     batch_size=20, g="",
                 ),
+            )
+            directions.append(self.FROM_P)
+
+            tasks.append(
                 self.rag.triples_client.query_stream(
                     s=None, p=None, o=entity,
                     limit=limit_per_entity,
                     collection=self.collection,
                     batch_size=20, g="",
-                )
-            ])
+                ),
+            )
+            directions.append(self.FROM_O)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_triples = []
-        for result in results:
+        for direction, result in zip(directions, results):
             if not isinstance(result, Exception) and result is not None:
-                all_triples.extend(result)
+                all_triples.extend((triple, direction) for triple in result)
 
         return all_triples
 
@@ -325,7 +343,8 @@ class Query:
             # Deduplicate and filter already-seen edges
             hop_triples = []
             hop_term_map = {}
-            for triple in triples:
+            hop_directions = {}
+            for triple, direction in triples:
                 triple_tuple = (str(triple.s), str(triple.p), str(triple.o))
                 if triple_tuple[1] == LABEL:
                     continue
@@ -336,6 +355,7 @@ class Query:
                 hop_term_map[triple_tuple] = (
                     to_term(triple.s), to_term(triple.p), to_term(triple.o),
                 )
+                hop_directions[triple_tuple] = direction
 
             if not hop_triples:
                 visited_entities.update(frontier)
@@ -361,7 +381,10 @@ class Query:
                 else:
                     label_map[entity] = entity
 
-            # Build labeled edges and documents for cross-encoder
+            # Build labeled edges and documents for cross-encoder.
+            # The reranker text highlights the NEW information relative
+            # to the traversal direction: arriving from S means p,o are
+            # new; from O means s,p are new; from P means s,o are new.
             labeled_hop = []
             for s, p, o in hop_triples:
                 ls = label_map.get(s, s)
@@ -369,10 +392,18 @@ class Query:
                 lo = label_map.get(o, o)
                 labeled_hop.append((ls, lp, lo))
 
-            documents = [
-                {"id": str(i), "text": f"{lp} {lo}"}
-                for i, (ls, lp, lo) in enumerate(labeled_hop)
-            ]
+            documents = []
+            for i, (triple_tuple, (ls, lp, lo)) in enumerate(
+                zip(hop_triples, labeled_hop)
+            ):
+                direction = hop_directions[triple_tuple]
+                if direction == self.FROM_S:
+                    text = f"{lp} {lo}"
+                elif direction == self.FROM_O:
+                    text = f"{ls} {lp}"
+                else:
+                    text = f"{ls} {lo}"
+                documents.append({"id": str(i), "text": text})
 
             queries = [
                 {"id": str(i), "text": c}
