@@ -140,9 +140,9 @@ For a browser based configuration, try the [Configuration Terminal](https://conf
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
-## Watch Holonic Context Graphs in Action
+## Watch Building Real Agents from a Context Graph
 
-[![Context Graphs in Action with TrustGraph](https://img.youtube.com/vi/sWc7mkhITIo/maxresdefault.jpg)](https://www.youtube.com/watch?v=sWc7mkhITIo)
+[![Real Agents from context graphs with TrustGraph](https://img.youtube.com/vi/lmhmrJ7zRE0/maxresdefault.jpg)](https://www.youtube.com/watch?v=lmhmrJ7zRE0)
 
 ## Getting Started with TrustGraph
 
