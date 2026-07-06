@@ -46,3 +46,17 @@ def sample_metadata():
         "user": "test-user",
         "collection": "test-collection"
     }
+
+def iri(v):
+    """Wire-format IRI term dict, as triples_query_stream yields them."""
+    return {"t": "i", "i": v}
+
+
+def lit(v, d=None, lang=None):
+    """Wire-format literal term dict (optional datatype / language)."""
+    t = {"t": "l", "v": v}
+    if d:
+        t["d"] = d
+    if lang:
+        t["l"] = lang
+    return t

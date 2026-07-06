@@ -363,7 +363,7 @@ class Library:
             return [
                 DocumentMetadata(
                     id = v["id"],
-                    time = datetime.datetime.fromtimestamp(v["time"]),
+                    time = datetime.datetime.fromtimestamp(v["time"]) if "time" in v else None,
                     kind = v["kind"],
                     title = v.get("title", ""),
                     comments = v.get("comments", ""),
@@ -678,7 +678,7 @@ class Library:
                 ProcessingMetadata(
                     id = v["id"],
                     document_id = v["document-id"],
-                    time = datetime.datetime.fromtimestamp(v["time"]),
+                    time = datetime.datetime.fromtimestamp(v["time"]) if "time" in v else None,
                     flow = v["flow"],
                     collection = v["collection"],
                     tags = v["tags"],
@@ -983,7 +983,7 @@ class Library:
             return [
                 DocumentMetadata(
                     id=v["id"],
-                    time=datetime.datetime.fromtimestamp(v["time"]),
+                    time=datetime.datetime.fromtimestamp(v["time"]) if "time" in v else None,
                     kind=v["kind"],
                     title=v["title"],
                     comments=v.get("comments", ""),

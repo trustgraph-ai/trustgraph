@@ -42,6 +42,13 @@ properties:
     minimum: 1
     maximum: 5
     example: 3
+  max-reranker-input:
+    type: integer
+    description: Maximum candidate edges sent to the reranker per hop
+    default: 350
+    minimum: 1
+    maximum: 1000
+    example: 350
   streaming:
     type: boolean
     description: Enable streaming response delivery

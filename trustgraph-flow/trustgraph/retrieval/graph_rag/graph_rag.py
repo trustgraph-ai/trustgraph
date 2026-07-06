@@ -34,6 +34,22 @@ logger = logging.getLogger(__name__)
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 
+RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#"
+OWL_NS = "http://www.w3.org/2002/07/owl#"
+RDF_TYPE = RDF_NS + "type"
+SCHEMA_NAMESPACES = (RDF_NS, RDFS_NS, OWL_NS)
+
+
+def is_schema_predicate(predicate):
+    """Return True if the predicate is an RDF/RDFS/OWL schema predicate.
+
+    rdf:type is excluded from filtering as it carries useful data signal.
+    """
+    if predicate == RDF_TYPE:
+        return False
+    return predicate.startswith(SCHEMA_NAMESPACES)
+
 
 def term_to_string(term):
     """Extract string value from a Term object."""
@@ -120,7 +136,8 @@ class Query:
     def __init__(
             self, rag, collection, verbose,
             entity_limit=50, triple_limit=30, max_subgraph_size=1000,
-            max_path_length=2, edge_limit=25, track_usage=None,
+            max_path_length=2, edge_limit=25, max_reranker_input=350,
+            track_usage=None,
     ):
         self.rag = rag
         self.collection = collection
@@ -130,6 +147,7 @@ class Query:
         self.max_subgraph_size = max_subgraph_size
         self.max_path_length = max_path_length
         self.edge_limit = edge_limit
+        self.max_reranker_input = max_reranker_input
         self.track_usage = track_usage
 
     async def extract_concepts(self, query):
@@ -346,7 +364,7 @@ class Query:
             hop_directions = {}
             for triple, direction in triples:
                 triple_tuple = (str(triple.s), str(triple.p), str(triple.o))
-                if triple_tuple[1] == LABEL:
+                if is_schema_predicate(triple_tuple[1]):
                     continue
                 if triple_tuple in seen_edges:
                     continue
@@ -385,25 +403,50 @@ class Query:
             # The reranker text highlights the NEW information relative
             # to the traversal direction: arriving from S means p,o are
             # new; from O means s,p are new; from P means s,o are new.
+            # Edges where the reranker-visible components are unlabeled
+            # IRIs are skipped — the cross-encoder can't score them.
+            def is_iri(val):
+                return val.startswith(("http://", "https://", "urn:"))
+
+            filtered_triples = []
             labeled_hop = []
+            documents = []
             for s, p, o in hop_triples:
                 ls = label_map.get(s, s)
                 lp = label_map.get(p, p)
                 lo = label_map.get(o, o)
-                labeled_hop.append((ls, lp, lo))
 
-            documents = []
-            for i, (triple_tuple, (ls, lp, lo)) in enumerate(
-                zip(hop_triples, labeled_hop)
-            ):
-                direction = hop_directions[triple_tuple]
+                direction = hop_directions[(s, p, o)]
                 if direction == self.FROM_S:
+                    if is_iri(lp) or is_iri(lo):
+                        continue
                     text = f"{lp} {lo}"
                 elif direction == self.FROM_O:
+                    if is_iri(ls) or is_iri(lp):
+                        continue
                     text = f"{ls} {lp}"
                 else:
+                    if is_iri(ls) or is_iri(lo):
+                        continue
                     text = f"{ls} {lo}"
-                documents.append({"id": str(i), "text": text})
+
+                idx = len(filtered_triples)
+                filtered_triples.append((s, p, o))
+                labeled_hop.append((ls, lp, lo))
+                documents.append({"id": str(idx), "text": text})
+
+            hop_triples = filtered_triples
+
+            # Cap the number of candidates sent to the reranker
+            if len(hop_triples) > self.max_reranker_input:
+                if self.verbose:
+                    logger.debug(
+                        f"Hop {hop + 1}: truncating {len(hop_triples)} "
+                        f"candidates to {self.max_reranker_input}"
+                    )
+                hop_triples = hop_triples[:self.max_reranker_input]
+                labeled_hop = labeled_hop[:self.max_reranker_input]
+                documents = documents[:self.max_reranker_input]
 
             queries = [
                 {"id": str(i), "text": c}
@@ -588,7 +631,7 @@ class GraphRag:
     async def query(
             self, query, collection = "default",
             entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
-            max_path_length = 2, edge_limit = 25,
+            max_path_length = 2, edge_limit = 25, max_reranker_input = 350,
             streaming = False,
             chunk_callback = None,
             explain_callback = None, save_answer_callback = None,
@@ -642,6 +685,7 @@ class GraphRag:
             max_subgraph_size = max_subgraph_size,
             max_path_length = max_path_length,
             edge_limit = edge_limit,
+            max_reranker_input = max_reranker_input,
             track_usage = track_usage,
         )
 
