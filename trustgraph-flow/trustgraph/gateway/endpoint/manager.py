@@ -75,9 +75,14 @@ class _RoutedVariableEndpoint:
             parameters = op.extract_parameters(ctx)
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
+                request_id=request.get('audit_request_id', ''),
+                client_ip=self.auth._extract_client_ip(request),
             )
+            request['audit_capability'] = op.capability
 
             ws = resource.get("workspace", "")
+            if ws:
+                request['audit_workspace'] = ws
             if ws and ws not in self.auth.known_workspaces:
                 raise workspace_not_found()
 
@@ -143,9 +148,14 @@ class _RoutedSocketEndpoint:
             parameters = op.extract_parameters(ctx)
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
+                request_id=request.get('audit_request_id', ''),
+                client_ip=self.auth._extract_client_ip(request),
             )
+            request['audit_capability'] = op.capability
 
             ws = resource.get("workspace", "")
+            if ws:
+                request['audit_workspace'] = ws
             if ws and ws not in self.auth.known_workspaces:
                 raise workspace_not_found()
 

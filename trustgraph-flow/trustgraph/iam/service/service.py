@@ -16,6 +16,7 @@ from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigValue
 from trustgraph.schema import config_request_queue, config_response_queue
 
 from trustgraph.base import AsyncProcessor, Consumer, Producer
+from trustgraph.base import AuditPublisher
 from trustgraph.base import ConsumerMetrics, ProducerMetrics
 from trustgraph.base.metrics import SubscriberMetrics
 from trustgraph.base.request_response_spec import RequestResponse
@@ -145,6 +146,12 @@ class Processor(AsyncProcessor):
             metrics=iam_response_metrics,
         )
 
+        self.audit = AuditPublisher(
+            backend=self.pubsub,
+            component_name="iam-service",
+            processor_id=self.id,
+        )
+
         self.iam = IamService(
             host=self.cassandra_host,
             username=self.cassandra_username,
@@ -243,6 +250,19 @@ class Processor(AsyncProcessor):
                 f"{workspace_id}: {e}", exc_info=True,
             )
 
+    AUTHENTICATE_OPS = frozenset({
+        "resolve-api-key", "login", "authenticate-anonymous",
+    })
+    AUTHORISE_OPS = frozenset({
+        "authorise", "authorise-many",
+    })
+    MANAGEMENT_OPS = frozenset({
+        "create-user", "update-user", "disable-user", "enable-user",
+        "delete-user", "create-api-key", "revoke-api-key",
+        "create-workspace", "update-workspace", "disable-workspace",
+        "reset-password", "rotate-signing-key", "bootstrap",
+    })
+
     async def on_iam_request(self, msg, consumer, flow):
 
         id = None
@@ -256,6 +276,7 @@ class Processor(AsyncProcessor):
             await self.iam_response_producer.send(
                 resp, properties={"id": id},
             )
+            await self._emit_audit(v, resp)
         except Exception as e:
             logger.error(
                 f"IAM request failed: {type(e).__name__}: {e}",
@@ -268,6 +289,76 @@ class Processor(AsyncProcessor):
                 await self.iam_response_producer.send(
                     resp, properties={"id": id},
                 )
+
+    async def _emit_audit(self, v, resp):
+        try:
+            op = v.operation
+            if op in self.AUTHENTICATE_OPS:
+                await self._emit_authenticate(v, resp)
+            elif op in self.AUTHORISE_OPS:
+                await self._emit_authorise(v, resp)
+            elif op in self.MANAGEMENT_OPS:
+                await self._emit_management(v, resp)
+        except Exception:
+            logger.debug("Failed to emit IAM audit event", exc_info=True)
+
+    async def _emit_authenticate(self, v, resp):
+        has_error = resp.error is not None
+        payload = {
+            "request_id": v.request_id,
+            "credential_type": self._credential_type(v.operation),
+            "identity": resp.resolved_user_id if not has_error else "unknown",
+            "outcome": "failure" if has_error else "success",
+            "client_ip": v.client_ip,
+        }
+        if has_error:
+            payload["failure_reason"] = resp.error.type
+        if v.key_id:
+            payload["key_id"] = v.key_id
+        await self.audit.emit("iam.authenticate", payload)
+
+    async def _emit_authorise(self, v, resp):
+        import json as _json
+        workspace = v.workspace
+        if not workspace:
+            try:
+                resource = _json.loads(v.resource_json or "{}")
+                workspace = resource.get("workspace", "")
+            except Exception:
+                pass
+        payload = {
+            "request_id": v.request_id,
+            "identity": v.user_id,
+            "capability": v.capability,
+            "outcome": "allow" if resp.decision_allow else "deny",
+        }
+        if workspace:
+            payload["workspace"] = workspace
+        if not resp.decision_allow:
+            payload["denial_reason"] = "capability-not-in-role"
+        await self.audit.emit("iam.authorise", payload)
+
+    async def _emit_management(self, v, resp):
+        has_error = resp.error is not None
+        payload = {
+            "request_id": v.request_id,
+            "actor": v.actor,
+            "operation": v.operation,
+            "outcome": "error" if has_error else "success",
+        }
+        if v.user_id:
+            payload["target_identity"] = v.user_id
+        if v.workspace:
+            payload["target_workspace"] = v.workspace
+        await self.audit.emit("iam.management", payload)
+
+    @staticmethod
+    def _credential_type(operation):
+        if operation == "resolve-api-key":
+            return "api-key"
+        if operation == "login":
+            return "login-password"
+        return "anonymous"
 
     @staticmethod
     def add_args(parser):

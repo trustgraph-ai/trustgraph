@@ -232,20 +232,54 @@ class IamAuth:
         cannot distinguish missing / malformed / invalid / expired /
         revoked credentials."""
 
+        request_id = request.get('audit_request_id', '') if hasattr(request, 'get') else ''
+        client_ip = self._extract_client_ip(request)
+
         header = request.headers.get("Authorization", "")
         if not header.startswith("Bearer "):
-            return await self._authenticate_anonymous()
+            identity = await self._authenticate_anonymous(
+                request_id=request_id, client_ip=client_ip,
+            )
+            self._annotate_request(request, identity)
+            return identity
         token = header[len("Bearer "):].strip()
         if not token:
-            return await self._authenticate_anonymous()
+            identity = await self._authenticate_anonymous(
+                request_id=request_id, client_ip=client_ip,
+            )
+            self._annotate_request(request, identity)
+            return identity
 
         # API keys always start with "tg_".  JWTs have two dots and
         # no "tg_" prefix.  Discriminate cheaply.
         if token.startswith("tg_"):
-            return await self._resolve_api_key(token)
+            identity = await self._resolve_api_key(
+                token, request_id=request_id, client_ip=client_ip,
+            )
+            self._annotate_request(request, identity)
+            return identity
         if token.count(".") == 2:
-            return self._verify_jwt(token)
+            identity = self._verify_jwt(token)
+            self._annotate_request(request, identity)
+            return identity
         raise _auth_failure()
+
+    @staticmethod
+    def _extract_client_ip(request):
+        try:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
+            return request.remote or ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _annotate_request(request, identity):
+        try:
+            request['audit_identity'] = identity.principal_id
+        except Exception:
+            pass
 
     def _verify_jwt(self, token):
         if not self._signing_public_pem:
@@ -266,10 +300,12 @@ class IamAuth:
             principal_id=sub, source="jwt",
         )
 
-    async def _authenticate_anonymous(self):
+    async def _authenticate_anonymous(self, request_id="", client_ip=""):
         try:
             async def _call(client):
-                return await client.authenticate_anonymous()
+                return await client.authenticate_anonymous(
+                    request_id=request_id, client_ip=client_ip,
+                )
             user_id, default_workspace, _roles = await self._with_client(
                 _call,
             )
@@ -288,7 +324,7 @@ class IamAuth:
             principal_id=user_id, source="anonymous",
         )
 
-    async def _resolve_api_key(self, plaintext):
+    async def _resolve_api_key(self, plaintext, request_id="", client_ip=""):
         h = hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
 
         cached = self._key_cache.get(h)
@@ -303,7 +339,10 @@ class IamAuth:
 
             try:
                 async def _call(client):
-                    return await client.resolve_api_key(plaintext)
+                    return await client.resolve_api_key(
+                        plaintext, request_id=request_id,
+                        client_ip=client_ip,
+                    )
                 # ``roles`` is returned by the OSS regime as a hint
                 # but is not consulted by the gateway; all policy
                 # decisions go through ``authorise``.
@@ -345,7 +384,8 @@ class IamAuth:
         )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    async def authorise(self, identity, capability, resource, parameters):
+    async def authorise(self, identity, capability, resource, parameters,
+                        request_id="", client_ip=""):
         """Ask the IAM regime whether ``identity`` may perform
         ``capability`` on ``resource`` given ``parameters``.
 
@@ -383,6 +423,7 @@ class IamAuth:
                     return await client.authorise(
                         identity.handle, capability,
                         resource or {}, parameters or {},
+                        request_id=request_id, client_ip=client_ip,
                     )
                 allow, ttl = await self._with_client(_call)
             except Exception as e:
