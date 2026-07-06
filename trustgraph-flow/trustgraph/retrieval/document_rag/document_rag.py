@@ -31,7 +31,32 @@ logger = logging.getLogger(__name__)
 # This is only the fallback default: an explicit fetch_limit overrides it.
 OVERFETCH_FACTOR = 3
 
+# Reciprocal Rank Fusion constant. The standard value from Cormack et al.
+# (SIGIR 2009); higher values flatten the contribution of top ranks.
+RRF_K = 60
+
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
+
+def rrf_fuse(ranked_lists, weights, limit):
+    """Fuse ranked ChunkMatch lists by weighted Reciprocal Rank Fusion.
+
+    score(chunk) = sum over lists of weight / (RRF_K + rank), so fusion
+    needs only each list's ordering, never its native score scale — BM25
+    and cosine scores are incomparable. Returns the surviving matches
+    (first-seen object per chunk_id) in fused order, truncated to limit.
+    """
+    scores = {}
+    first_seen = {}
+    for matches, weight in zip(ranked_lists, weights):
+        for rank, match in enumerate(matches, start=1):
+            if not match.chunk_id:
+                continue
+            scores[match.chunk_id] = (
+                scores.get(match.chunk_id, 0.0) + weight / (RRF_K + rank)
+            )
+            first_seen.setdefault(match.chunk_id, match)
+    ordered = sorted(scores, key=lambda cid: -scores[cid])
+    return [first_seen[cid] for cid in ordered[:limit]]
 
 class Query:
 
@@ -85,15 +110,8 @@ class Query:
 
         return qembeds
 
-    async def get_docs(self, concepts):
-        """
-        Get documents (chunks) matching the extracted concepts.
-
-        Returns:
-            tuple: (docs, chunk_ids) where:
-                - docs: list of document content strings
-                - chunk_ids: list of chunk IDs that were successfully fetched
-        """
+    async def get_vector_matches(self, concepts):
+        """Dense path: embed concepts, query the vector store, dedupe."""
         vectors = await self.get_vectors(concepts)
 
         if self.verbose:
@@ -122,6 +140,56 @@ class Query:
                 if match.chunk_id and match.chunk_id not in seen:
                     seen.add(match.chunk_id)
                     chunk_matches.append(match)
+
+        return chunk_matches
+
+    async def get_keyword_matches(self, query):
+        """Sparse path: BM25 search on the raw query text."""
+        if self.verbose:
+            logger.debug("Getting chunks from keyword index...")
+
+        return await self.rag.kw_index_client.query(
+            query=query, limit=self.fetch_limit,
+            collection=self.collection,
+        )
+
+    async def get_docs(self, concepts, query=""):
+        """
+        Get documents (chunks) matching the query, via the retrieval mode's
+        paths: dense (concept embeddings), sparse (BM25 over the raw query
+        text), or both fused by RRF. `query` is only consulted by the sparse
+        path; existing vector-mode callers may omit it.
+
+        Returns:
+            tuple: (docs, chunk_ids) where:
+                - docs: list of document content strings
+                - chunk_ids: list of chunk IDs that were successfully fetched
+        """
+        mode = self.rag.retrieval_mode
+
+        if mode == "keyword":
+            chunk_matches = await self.get_keyword_matches(query)
+        elif mode == "hybrid":
+            # The paths are independent; a keyword-index failure degrades
+            # to vector-only rather than failing the whole query.
+            async def keyword_or_empty():
+                try:
+                    return await self.get_keyword_matches(query)
+                except Exception as e:
+                    logger.warning(f"Keyword path failed, using vector only: {e}")
+                    return []
+
+            vector_matches, keyword_matches = await asyncio.gather(
+                self.get_vector_matches(concepts),
+                keyword_or_empty(),
+            )
+            chunk_matches = rrf_fuse(
+                [vector_matches, keyword_matches],
+                [self.rag.vector_weight, self.rag.keyword_weight],
+                self.fetch_limit,
+            )
+        else:
+            chunk_matches = await self.get_vector_matches(concepts)
 
         if self.verbose:
             logger.debug(f"Got {len(chunk_matches)} chunks, fetching content from Garage...")
@@ -154,6 +222,10 @@ class DocumentRag:
             verbose=False,
             rerank_diversity_mode="none",
             rerank_diversity_lambda=0.7,
+            kw_index_client=None,
+            retrieval_mode="vector",
+            vector_weight=1.0,
+            keyword_weight=1.0,
     ):
 
         self.verbose = verbose
@@ -168,6 +240,19 @@ class DocumentRag:
         self.reranker_client = reranker_client
         self.rerank_diversity_mode = rerank_diversity_mode
         self.rerank_diversity_lambda = rerank_diversity_lambda
+
+        # Optional sparse (BM25) retrieval path. "vector" keeps the current
+        # dense-only behaviour; "keyword"/"hybrid" need a keyword index
+        # client wired.
+        if retrieval_mode != "vector" and kw_index_client is None:
+            raise ValueError(
+                f"retrieval_mode={retrieval_mode!r} requires a keyword "
+                f"index client"
+            )
+        self.kw_index_client = kw_index_client
+        self.retrieval_mode = retrieval_mode
+        self.vector_weight = vector_weight
+        self.keyword_weight = keyword_weight
 
         if self.verbose:
             logger.debug("DocumentRag initialized")
@@ -249,8 +334,13 @@ class DocumentRag:
             fetch_limit=fetch_count, track_usage=track_usage,
         )
 
-        # Extract concepts from query (grounding step)
-        concepts = await q.extract_concepts(query)
+        # Extract concepts from query (grounding step). Concepts only feed
+        # the dense path's embeddings; in keyword-only mode the LLM call
+        # would be paid and discarded, so ground on the raw query instead.
+        if self.retrieval_mode == "keyword":
+            concepts = [query]
+        else:
+            concepts = await q.extract_concepts(query)
 
         # Emit grounding explainability after concept extraction
         if explain_callback:
@@ -266,7 +356,7 @@ class DocumentRag:
             )
             await explain_callback(gnd_triples, gnd_uri)
 
-        docs, chunk_ids = await q.get_docs(concepts)
+        docs, chunk_ids = await q.get_docs(concepts, query)
 
         # Emit exploration explainability after chunks retrieved
         # (full candidate set, before any reranking)
