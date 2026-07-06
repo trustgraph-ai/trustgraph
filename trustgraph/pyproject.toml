@@ -10,13 +10,13 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=2.6,<2.7",
-    "trustgraph-bedrock>=2.6,<2.7",
-    "trustgraph-cli>=2.6,<2.7",
-    "trustgraph-embeddings-hf>=2.6,<2.7",
-    "trustgraph-flow>=2.6,<2.7",
-    "trustgraph-unstructured>=2.6,<2.7",
-    "trustgraph-vertexai>=2.6,<2.7",
+    "trustgraph-base>=2.7,<2.8",
+    "trustgraph-bedrock>=2.7,<2.8",
+    "trustgraph-cli>=2.7,<2.8",
+    "trustgraph-embeddings-hf>=2.7,<2.8",
+    "trustgraph-flow>=2.7,<2.8",
+    "trustgraph-unstructured>=2.7,<2.8",
+    "trustgraph-vertexai>=2.7,<2.8",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
