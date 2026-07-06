@@ -62,7 +62,8 @@ class IamClient(RequestResponse):
         )
         return resp.user
 
-    async def authenticate_anonymous(self, timeout=IAM_TIMEOUT):
+    async def authenticate_anonymous(self, timeout=IAM_TIMEOUT,
+                                     request_id="", client_ip=""):
         """Request anonymous access from the IAM regime.
 
         Returns ``(user_id, default_workspace, roles)`` if the regime
@@ -70,6 +71,8 @@ class IamClient(RequestResponse):
         error type ``auth-failed`` if it does not."""
         resp = await self._request(
             operation="authenticate-anonymous",
+            request_id=request_id,
+            client_ip=client_ip,
             timeout=timeout,
         )
         return (
@@ -78,7 +81,8 @@ class IamClient(RequestResponse):
             list(resp.resolved_roles),
         )
 
-    async def resolve_api_key(self, api_key, timeout=IAM_TIMEOUT):
+    async def resolve_api_key(self, api_key, timeout=IAM_TIMEOUT,
+                              request_id="", client_ip=""):
         """Resolve a plaintext API key to its identity triple.
 
         Returns ``(user_id, default_workspace, roles)`` or raises
@@ -87,6 +91,8 @@ class IamClient(RequestResponse):
         resp = await self._request(
             operation="resolve-api-key",
             api_key=api_key,
+            request_id=request_id,
+            client_ip=client_ip,
             timeout=timeout,
         )
         return (
@@ -96,7 +102,8 @@ class IamClient(RequestResponse):
         )
 
     async def authorise(self, identity_handle, capability,
-                        resource, parameters, timeout=IAM_TIMEOUT):
+                        resource, parameters, timeout=IAM_TIMEOUT,
+                        request_id="", client_ip=""):
         """Ask the IAM regime whether ``identity_handle`` may perform
         ``capability`` on ``resource`` given ``parameters``.
 
@@ -111,6 +118,8 @@ class IamClient(RequestResponse):
             capability=capability,
             resource_json=json.dumps(resource or {}, sort_keys=True),
             parameters_json=json.dumps(parameters or {}, sort_keys=True),
+            request_id=request_id,
+            client_ip=client_ip,
             timeout=timeout,
         )
         return resp.decision_allow, resp.decision_ttl_seconds
@@ -186,7 +195,7 @@ class IamClient(RequestResponse):
         )
 
     async def login(self, username, password, workspace="",
-                    timeout=IAM_TIMEOUT):
+                    timeout=IAM_TIMEOUT, request_id="", client_ip=""):
         """Validate credentials and return ``(jwt, expires_iso)``.
         ``workspace`` is optional; defaults at the server to the
         OSS default workspace."""
@@ -195,6 +204,8 @@ class IamClient(RequestResponse):
             workspace=workspace,
             username=username,
             password=password,
+            request_id=request_id,
+            client_ip=client_ip,
             timeout=timeout,
         )
         return resp.jwt, resp.jwt_expires

@@ -24,6 +24,8 @@ from trustgraph.schema import (
     EntityContext,
     EntityEmbeddings,
     ChunkEmbeddings,
+    AuditEvent,
+    IamRequest,
 )
 
 
@@ -72,3 +74,21 @@ class TestSchemaFieldContracts:
             "context",
             "chunk_id",
         }
+
+    def test_audit_event_fields(self):
+        assert _field_names(AuditEvent) == {
+            "schema_version",
+            "event_id",
+            "event_type",
+            "timestamp",
+            "producer",
+            "payload_json",
+        }
+
+    def test_iam_request_has_audit_fields(self):
+        """IamRequest must carry request_id and client_ip for audit
+        correlation.  Removing these breaks the gateway→IAM audit
+        chain."""
+        names = _field_names(IamRequest)
+        assert "request_id" in names
+        assert "client_ip" in names

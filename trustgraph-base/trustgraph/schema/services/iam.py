@@ -121,6 +121,10 @@ class IamRequest:
     group: GroupInput | None = None
     grant: GrantInput | None = None
 
+    # ---- Audit context (informational, echoed into audit events) ----
+    request_id: str = ""
+    client_ip: str = ""
+
     # ---- authorise / authorise-many inputs ----
     # Capability string from the vocabulary in capabilities.md.
     capability: str = ""

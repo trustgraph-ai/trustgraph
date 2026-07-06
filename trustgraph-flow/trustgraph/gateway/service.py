@@ -11,8 +11,10 @@ import os
 
 from trustgraph.base.logging import setup_logging, add_logging_args
 from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
+from trustgraph.base import AuditPublisher
 
 from . auth import IamAuth
+from . audit import make_audit_middleware
 from . config.receiver import ConfigReceiver
 from . dispatch.manager import DispatcherManager
 
@@ -122,12 +124,18 @@ class Api:
             timeout = self.timeout,
         )
 
+        self.audit_publisher = AuditPublisher(
+            backend=self.pubsub_backend,
+            component_name="api-gateway",
+            processor_id=config.get("id", "api-gateway"),
+        )
+
         self.endpoint_manager = EndpointManager(
             dispatcher_manager = self.dispatcher_manager,
             auth = self.auth,
             prometheus_url = self.prometheus_url,
             timeout = self.timeout,
-            
+
         )
 
         self.endpoints = [
@@ -136,7 +144,7 @@ class Api:
     async def app_factory(self):
 
         self.app = web.Application(
-            middlewares=[],
+            middlewares=[make_audit_middleware(self.audit_publisher)],
             client_max_size=256 * 1024 * 1024
         )
 

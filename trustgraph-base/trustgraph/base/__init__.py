@@ -46,4 +46,5 @@ from . reranker_client import RerankerClientSpec
 from . reranker_service import RerankerService
 from . row_embeddings_query_client import RowEmbeddingsQueryClientSpec
 from . collection_config_handler import CollectionConfigHandler
+from . audit_publisher import AuditPublisher
 

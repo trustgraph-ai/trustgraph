@@ -244,7 +244,7 @@ class TestIamAuthDispatch:
     async def test_api_key_path(self):
         auth = IamAuth(backend=Mock())
 
-        async def fake_resolve(api_key):
+        async def fake_resolve(api_key, **kwargs):
             assert api_key == "tg_testkey"
             # Roles are returned by the regime as a hint but the
             # gateway ignores them — kept here so the resolve
@@ -309,7 +309,7 @@ class TestApiKeyCache:
         seen = []
 
         async def fake_with_client(op):
-            async def resolve(plaintext):
+            async def resolve(plaintext, **kwargs):
                 seen.append(plaintext)
                 return ("u-" + plaintext, "default", ["reader"])
             return await op(Mock(resolve_api_key=resolve))
