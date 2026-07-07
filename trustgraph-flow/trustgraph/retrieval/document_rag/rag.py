@@ -35,6 +35,7 @@ class Processor(FlowProcessor):
         fetch_limit = params.get("fetch_limit", 0)
         rerank_diversity_mode = params.get("rerank_diversity_mode", "none")
         rerank_diversity_lambda = params.get("rerank_diversity_lambda", 0.7)
+        fetch_chunk_timeout = params.get("fetch_chunk_timeout", 120)
 
         super(Processor, self).__init__(
             **params | {
@@ -43,6 +44,7 @@ class Processor(FlowProcessor):
                 "fetch_limit": fetch_limit,
                 "rerank_diversity_mode": rerank_diversity_mode,
                 "rerank_diversity_lambda": rerank_diversity_lambda,
+                "fetch_chunk_timeout": fetch_chunk_timeout,
             }
         )
 
@@ -50,6 +52,7 @@ class Processor(FlowProcessor):
         self.fetch_limit = fetch_limit
         self.rerank_diversity_mode = rerank_diversity_mode
         self.rerank_diversity_lambda = rerank_diversity_lambda
+        self.fetch_chunk_timeout = fetch_chunk_timeout
 
         self.register_specification(
             ConsumerSpec(
@@ -116,7 +119,7 @@ class Processor(FlowProcessor):
 
             logger.info(f"Handling input {id}...")
 
-            async def fetch_chunk(chunk_id, timeout=120):
+            async def fetch_chunk(chunk_id, timeout=self.fetch_chunk_timeout):
                 return await flow.librarian.fetch_document_text(
                     document_id=chunk_id, timeout=timeout,
                 )
@@ -297,6 +300,14 @@ class Processor(FlowProcessor):
             type=float,
             default=0.7,
             help='MMR relevance/diversity tradeoff, higher values prefer relevance'
+        )
+
+        parser.add_argument(
+            '--fetch-chunk-timeout',
+            type=int,
+            default=120,
+            help='Timeout in seconds for fetching a document chunk from the '
+                 'librarian (default: 120)'
         )
 
 def run():
