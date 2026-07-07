@@ -71,6 +71,27 @@ document_embeddings_response_queue = queue('document-embeddings', cls='response'
 
 ############################################################################
 
+# Keyword index query - lexical (BM25) search over chunk text, the sparse
+# counterpart to the doc embeddings query above. Matches share the ChunkMatch
+# shape so both retrieval paths key on chunk_id; score is "higher is better"
+# in both (BM25 rank scores are negated by the service to match).
+
+@dataclass
+class KeywordIndexRequest:
+    query: str = ""
+    limit: int = 0
+    collection: str = ""
+
+@dataclass
+class KeywordIndexResponse:
+    error: Error | None = None
+    chunks: list[ChunkMatch] = field(default_factory=list)
+
+keyword_index_request_queue = queue('keyword-index', cls='request')
+keyword_index_response_queue = queue('keyword-index', cls='response')
+
+############################################################################
+
 # Row embeddings query - for semantic/fuzzy matching on row index values
 
 @dataclass

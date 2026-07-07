@@ -109,15 +109,27 @@ class RequestResponse(Subscriber):
 class RequestResponseSpec(Spec):
     def __init__(
             self, request_name, request_schema, response_name,
-            response_schema, impl=RequestResponse
+            response_schema, impl=RequestResponse, optional=False
     ):
         self.request_name = request_name
         self.request_schema = request_schema
         self.response_name = response_name
         self.response_schema = response_schema
         self.impl = impl
+        self.optional = optional
 
     def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
+
+        # An optional client binds only when the flow definition declares
+        # its topics. Older definitions predating the topics would otherwise
+        # KeyError here during Flow construction, which wedges the whole
+        # processor in a start-flow retry loop; skipping instead leaves
+        # flow(name) returning None for the caller to handle per-request.
+        topics = definition.get("topics", {})
+        if self.optional and (
+                self.request_name not in topics
+                or self.response_name not in topics):
+            return
 
         request_metrics = ProducerMetrics(
             processor = flow.id, flow = flow.name, name = self.request_name

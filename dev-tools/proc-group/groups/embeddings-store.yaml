@@ -32,6 +32,14 @@ processors:
       id: graph-embeddings-write
       store_uri: http://localhost:6333
 
+  # Keyword (BM25) index: ingest-write and query in one processor, since
+  # the FTS5 index is a single local file.
+  - class: trustgraph.storage.kw_index.fts5.Processor
+    params:
+      <<: *defaults
+      id: kw-index
+      index_path: /tmp/tg-kw-index.db
+
   - class: trustgraph.query.row_embeddings.qdrant.Processor
     params:
       <<: *defaults

@@ -14,6 +14,7 @@ from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import DocumentEmbeddingsClientSpec
 from ... base import RerankerClientSpec
+from ... base import KeywordIndexClientSpec
 from ... base import LibrarianSpec
 
 # Module logger
@@ -35,6 +36,9 @@ class Processor(FlowProcessor):
         fetch_limit = params.get("fetch_limit", 0)
         rerank_diversity_mode = params.get("rerank_diversity_mode", "none")
         rerank_diversity_lambda = params.get("rerank_diversity_lambda", 0.7)
+        retrieval_mode = params.get("retrieval_mode", "vector")
+        vector_weight = params.get("vector_weight", 1.0)
+        keyword_weight = params.get("keyword_weight", 1.0)
 
         super(Processor, self).__init__(
             **params | {
@@ -43,6 +47,9 @@ class Processor(FlowProcessor):
                 "fetch_limit": fetch_limit,
                 "rerank_diversity_mode": rerank_diversity_mode,
                 "rerank_diversity_lambda": rerank_diversity_lambda,
+                "retrieval_mode": retrieval_mode,
+                "vector_weight": vector_weight,
+                "keyword_weight": keyword_weight,
             }
         )
 
@@ -50,6 +57,9 @@ class Processor(FlowProcessor):
         self.fetch_limit = fetch_limit
         self.rerank_diversity_mode = rerank_diversity_mode
         self.rerank_diversity_lambda = rerank_diversity_lambda
+        self.retrieval_mode = retrieval_mode
+        self.vector_weight = vector_weight
+        self.keyword_weight = keyword_weight
 
         self.register_specification(
             ConsumerSpec(
@@ -86,6 +96,19 @@ class Processor(FlowProcessor):
                 response_name = "reranker-response",
             )
         )
+
+        # Only registered when the sparse path is enabled: the spec binds
+        # keyword-index topics from the flow definition, so registering it
+        # unconditionally would break flow classes that don't declare them.
+        # With the default retrieval_mode=vector, existing deployments are
+        # untouched.
+        if retrieval_mode != "vector":
+            self.register_specification(
+                KeywordIndexClientSpec(
+                    request_name = "keyword-index-request",
+                    response_name = "keyword-index-response",
+                )
+            )
 
         self.register_specification(
             ProducerSpec(
@@ -130,6 +153,13 @@ class Processor(FlowProcessor):
                 verbose=True,
                 rerank_diversity_mode=self.rerank_diversity_mode,
                 rerank_diversity_lambda=self.rerank_diversity_lambda,
+                # None when the spec wasn't registered (vector mode) or its
+                # topics were absent from this flow's definition (optional
+                # spec skipped) — DocumentRag validates per-request.
+                kw_index_client = flow("keyword-index-request"),
+                retrieval_mode=self.retrieval_mode,
+                vector_weight=self.vector_weight,
+                keyword_weight=self.keyword_weight,
             )
 
             if v.doc_limit:
@@ -297,6 +327,30 @@ class Processor(FlowProcessor):
             type=float,
             default=0.7,
             help='MMR relevance/diversity tradeoff, higher values prefer relevance'
+        )
+
+        parser.add_argument(
+            '--retrieval-mode',
+            choices=['vector', 'keyword', 'hybrid'],
+            default='vector',
+            help='Chunk retrieval strategy: dense vector search (default), '
+                 'BM25 keyword search, or both fused by reciprocal rank '
+                 'fusion. keyword/hybrid need keyword-index queues in the '
+                 'flow definition'
+        )
+
+        parser.add_argument(
+            '--vector-weight',
+            type=float,
+            default=1.0,
+            help='Vector path weight in hybrid rank fusion (default: 1.0)'
+        )
+
+        parser.add_argument(
+            '--keyword-weight',
+            type=float,
+            default=1.0,
+            help='Keyword path weight in hybrid rank fusion (default: 1.0)'
         )
 
 def run():
