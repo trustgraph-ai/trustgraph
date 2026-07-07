@@ -189,36 +189,44 @@ class IamAuth:
     # Lifecycle
     # ------------------------------------------------------------------
 
+    async def _fetch_signing_key(self):
+        """Single attempt to fetch the IAM signing public key.
+        Returns True on success."""
+        try:
+            async def _fetch(client):
+                return await client.get_signing_key_public()
+
+            pem = await self._with_client(_fetch)
+            if pem:
+                self._signing_public_pem = pem
+                logger.info(
+                    "IamAuth: fetched IAM signing public key "
+                    f"({len(pem)} bytes)"
+                )
+                return True
+        except Exception as e:
+            logger.debug(
+                f"IamAuth: signing key fetch failed: "
+                f"{type(e).__name__}: {e}"
+            )
+        return False
+
     async def start(self, max_retries=30, retry_delay=2.0):
         """Fetch the signing public key from IAM.  Retries on
         failure — the gateway may be starting before IAM is ready."""
 
-        async def _fetch(client):
-            return await client.get_signing_key_public()
-
         for attempt in range(max_retries):
-            try:
-                pem = await self._with_client(_fetch)
-                if pem:
-                    self._signing_public_pem = pem
-                    logger.info(
-                        "IamAuth: fetched IAM signing public key "
-                        f"({len(pem)} bytes)"
-                    )
-                    return
-            except Exception as e:
-                logger.info(
-                    f"IamAuth: waiting for IAM signing key "
-                    f"({type(e).__name__}: {e}); "
-                    f"retry {attempt + 1}/{max_retries}"
-                )
+            if await self._fetch_signing_key():
+                return
+            logger.info(
+                f"IamAuth: waiting for IAM signing key; "
+                f"retry {attempt + 1}/{max_retries}"
+            )
             await asyncio.sleep(retry_delay)
 
-        # Don't prevent startup forever.  A later authenticate() call
-        # will try again via the JWT path.
         logger.warning(
             "IamAuth: could not fetch IAM signing key at startup; "
-            "JWT validation will fail until it's available"
+            "JWT validation will retry on first request"
         )
 
     # ------------------------------------------------------------------
@@ -244,10 +252,12 @@ class IamAuth:
         if token.startswith("tg_"):
             return await self._resolve_api_key(token)
         if token.count(".") == 2:
-            return self._verify_jwt(token)
+            return await self._verify_jwt(token)
         raise _auth_failure()
 
-    def _verify_jwt(self, token):
+    async def _verify_jwt(self, token):
+        if not self._signing_public_pem:
+            await self._fetch_signing_key()
         if not self._signing_public_pem:
             raise _auth_failure()
         try:
