@@ -451,6 +451,7 @@ class SocketClient:
                 in_token=resp.get("in_token"),
                 out_token=resp.get("out_token"),
                 model=resp.get("model"),
+                sources=resp.get("sources", []),
             )
 
     def _build_provenance_event(self, resp: Dict[str, Any]) -> ProvenanceEvent:
@@ -715,6 +716,7 @@ class SocketFlowInstance:
                 in_token=result.get("in_token"),
                 out_token=result.get("out_token"),
                 model=result.get("model"),
+                sources=result.get("sources", []),
             )
 
     def graph_rag_explain(

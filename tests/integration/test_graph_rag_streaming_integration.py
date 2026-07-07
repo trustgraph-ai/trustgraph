@@ -127,7 +127,7 @@ class TestGraphRagStreaming:
         )
 
         # Assert
-        response, usage = response
+        response, usage, sources = response
         assert_streaming_chunks_valid(collector.chunks, min_chunks=1)
         assert_callback_invoked(AsyncMock(call_count=len(collector.chunks)), min_calls=1)
 
@@ -175,8 +175,8 @@ class TestGraphRagStreaming:
         )
 
         # Assert - Results should be equivalent
-        non_streaming_text, _ = non_streaming_response
-        streaming_text, _ = streaming_response
+        non_streaming_text, _, _ = non_streaming_response
+        streaming_text, _, _ = streaming_response
         assert streaming_text == non_streaming_text
         assert len(streaming_chunks) > 0
         assert "".join(streaming_chunks) == streaming_text
@@ -216,7 +216,7 @@ class TestGraphRagStreaming:
 
         # Assert - Should complete without error
         assert response is not None
-        response_text, usage = response
+        response_text, usage, sources = response
         assert isinstance(response_text, str)
 
     @pytest.mark.asyncio

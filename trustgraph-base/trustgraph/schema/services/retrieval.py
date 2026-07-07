@@ -20,6 +20,11 @@ class GraphRagQuery:
     parent_uri: str = ""
 
 @dataclass
+class Source:
+    uri: str = ""     # Source document URI
+    title: str = ""   # Document title (empty when the document has none)
+
+@dataclass
 class GraphRagResponse:
     error: Error | None = None
     response: str = ""
@@ -32,6 +37,7 @@ class GraphRagResponse:
     in_token: int | None = None
     out_token: int | None = None
     model: str | None = None
+    sources: list[Source] = field(default_factory=list)  # Source documents, on the final message
 
 ############################################################################
 

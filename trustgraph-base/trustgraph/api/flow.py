@@ -414,6 +414,7 @@ class FlowInstance:
             in_token=result.get("in_token"),
             out_token=result.get("out_token"),
             model=result.get("model"),
+            sources=result.get("sources", []),
         )
 
     def document_rag(

@@ -160,6 +160,13 @@ class GraphRagResponseTranslator(MessageTranslator):
                 self.triple_translator.encode(t) for t in explain_triples
             ]
 
+        # Include source document references (final message only)
+        sources = getattr(obj, "sources", [])
+        if sources:
+            result["sources"] = [
+                {"uri": s.uri, "title": s.title} for s in sources
+            ]
+
         # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 

@@ -175,7 +175,7 @@ class TestGraphRagIntegration:
         assert mock_prompt_client.prompt.call_count == 2
 
         # Verify final response
-        response, usage = response
+        response, usage, sources = response
         assert response is not None
         assert isinstance(response, str)
         assert "machine learning" in response.lower()

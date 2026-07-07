@@ -205,6 +205,8 @@ class RAGChunk(StreamingChunk):
         in_token: Input token count (populated on the final chunk, 0 otherwise)
         out_token: Output token count (populated on the final chunk, 0 otherwise)
         model: Model identifier (populated on the final chunk, empty otherwise)
+        sources: Source document references as uri/title dicts (populated
+            on the final chunk, empty otherwise)
         message_type: Always "rag"
     """
     message_type: str = "rag"
@@ -213,6 +215,7 @@ class RAGChunk(StreamingChunk):
     in_token: Optional[int] = None
     out_token: Optional[int] = None
     model: Optional[str] = None
+    sources: List[Dict[str, str]] = dataclasses.field(default_factory=list)
 
 @dataclasses.dataclass
 class TextCompletionResult:
@@ -228,11 +231,14 @@ class TextCompletionResult:
         in_token: Input token count (None if not available)
         out_token: Output token count (None if not available)
         model: Model identifier (None if not available)
+        sources: Source document references as uri/title dicts (graph RAG
+            only, empty otherwise)
     """
     text: Optional[str]
     in_token: Optional[int] = None
     out_token: Optional[int] = None
     model: Optional[str] = None
+    sources: List[Dict[str, str]] = dataclasses.field(default_factory=list)
 
 @dataclasses.dataclass
 class ProvenanceEvent:

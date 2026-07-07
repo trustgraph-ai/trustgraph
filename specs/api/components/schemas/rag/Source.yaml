@@ -1,0 +1,15 @@
+type: object
+description: |
+  Source document reference. Produced by tracing the graph edges used for
+  retrieval back to the documents they were extracted from.
+properties:
+  uri:
+    type: string
+    description: Source document URI
+    example: urn:document:5a90a175-9906-4dcb-b482-a8c1b6cbf9e0
+  title:
+    type: string
+    description: Document title (empty when the document has none)
+    example: Quantum Mechanics Primer
+required:
+  - uri

@@ -27,6 +27,7 @@ from trustgraph.provenance import (
     set_graph,
     GRAPH_RETRIEVAL, GRAPH_SOURCE,
     TG_CONTAINS, PROV_WAS_DERIVED_FROM,
+    DC_TITLE, RDFS_LABEL,
 )
 
 # Module logger
@@ -500,7 +501,9 @@ class Query:
             edge_uris: List of (s, p, o) URI string tuples
 
         Returns:
-            List of unique document titles
+            (doc_edges, sources): document metadata edges as (s, p, o)
+            string tuples, and per-document source references as
+            {"uri", "title"} dicts sorted by uri
         """
         # Step 1: Find subgraphs containing these edges via tg:contains
         subgraph_tasks = []
@@ -535,7 +538,7 @@ class Query:
                 subgraph_uris.add(str(triple.s))
 
         if not subgraph_uris:
-            return []
+            return [], []
 
         # Step 2: Walk prov:wasDerivedFrom chain to find documents
         current_uris = subgraph_uris
@@ -569,7 +572,7 @@ class Query:
             current_uris = next_uris - doc_uris
 
         if not doc_uris:
-            return []
+            return [], []
 
         # Step 3: Get all document metadata properties
         SKIP_PREDICATES = {
@@ -577,12 +580,14 @@ class Query:
             "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
         }
 
+        sorted_doc_uris = sorted(doc_uris)
+
         metadata_tasks = [
             self.rag.triples_client.query(
                 s=uri, p=None, o=None, limit=50,
                 collection=self.collection,
             )
-            for uri in doc_uris
+            for uri in sorted_doc_uris
         ]
 
         metadata_results = await asyncio.gather(
@@ -590,18 +595,22 @@ class Query:
         )
 
         doc_edges = []
-        for result in metadata_results:
-            if isinstance(result, Exception) or not result:
-                continue
-            for triple in result:
-                p = str(triple.p)
-                if p in SKIP_PREDICATES:
-                    continue
-                doc_edges.append((
-                    str(triple.s), p, str(triple.o)
-                ))
+        sources = []
+        for uri, result in zip(sorted_doc_uris, metadata_results):
+            title = ""
+            if not isinstance(result, Exception) and result:
+                for triple in result:
+                    p = str(triple.p)
+                    if p in SKIP_PREDICATES:
+                        continue
+                    doc_edges.append((
+                        str(triple.s), p, str(triple.o)
+                    ))
+                    if p == DC_TITLE or (p == RDFS_LABEL and not title):
+                        title = str(triple.o)
+            sources.append({"uri": uri, "title": title})
 
-        return doc_edges
+        return doc_edges, sources
 
 class GraphRag:
     """
@@ -740,15 +749,13 @@ class GraphRag:
             if edge_id(s, p, o) in uri_map
         ]
 
-        source_documents = await q.trace_source_documents(
-            selected_edge_uris,
-        )
-
-        if isinstance(source_documents, Exception):
-            logger.warning(
-                f"Document tracing failed: {source_documents}"
+        try:
+            source_documents, sources = await q.trace_source_documents(
+                selected_edge_uris,
             )
-            source_documents = []
+        except Exception as e:
+            logger.warning(f"Document tracing failed: {e}")
+            source_documents, sources = [], []
 
         # Build focus explainability data with cross-encoder metadata
         selected_edges_with_reasoning = []
@@ -866,4 +873,4 @@ class GraphRag:
             "model": last_model,
         }
 
-        return resp, usage
+        return resp, usage, sources

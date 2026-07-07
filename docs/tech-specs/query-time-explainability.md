@@ -168,6 +168,11 @@ Values are absent (not zero) when token counts are unavailable.
 
 ```python
 @dataclass
+class Source:
+    uri: str = ""     # Source document URI
+    title: str = ""   # Document title (empty when the document has none)
+
+@dataclass
 class GraphRagResponse:
     error: Error | None = None
     response: str = ""
@@ -177,6 +182,10 @@ class GraphRagResponse:
     explain_triples: list[Triple] = field(default_factory=list)
     message_type: str = ""  # "chunk" or "explain"
     end_of_session: bool = False
+    in_token: int | None = None
+    out_token: int | None = None
+    model: str | None = None
+    sources: list[Source] = field(default_factory=list)
 ```
 
 ### Message Types
@@ -226,6 +235,15 @@ Selected edges can be traced back to source documents:
 1. Query for containing subgraph: `?subgraph tg:contains <<s p o>>`
 2. Follow `prov:wasDerivedFrom` chain to root document
 3. Each step in chain: chunk → page → document
+
+### Source References in the Response
+
+GraphRAG performs this walk on every query to enrich the synthesis
+prompt with document metadata. The same walk also produces structured
+`sources` entries (`uri` plus `title` from `dc:title`/`rdfs:label`),
+deduplicated and sorted by URI, attached to the final response message
+(`end_of_session=True`) at no additional query cost. Clients can display
+citations without re-running the traversal against the knowledge graph.
 
 ### Cassandra Quoted Triple Support
 

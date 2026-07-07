@@ -267,6 +267,7 @@ class AsyncSocketClient:
                 in_token=resp.get("in_token"),
                 out_token=resp.get("out_token"),
                 model=resp.get("model"),
+                sources=resp.get("sources", []),
             )
 
     async def aclose(self):
