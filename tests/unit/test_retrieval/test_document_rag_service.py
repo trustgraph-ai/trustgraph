@@ -131,3 +131,72 @@ class TestDocumentRagService:
         assert sent_response.end_of_stream is True, "Non-streaming response must have end_of_stream=True"
         assert sent_response.end_of_session is True
         assert sent_response.error is None
+
+    def test_fetch_chunk_timeout_defaults_to_120(self):
+        """Processor without fetch_chunk_timeout override uses default of 120."""
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+            doc_limit=10
+        )
+        assert processor.fetch_chunk_timeout == 120
+
+    def test_fetch_chunk_timeout_uses_overridden_value(self):
+        """Processor with fetch_chunk_timeout override stores that value."""
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+            doc_limit=10,
+            fetch_chunk_timeout=45
+        )
+        assert processor.fetch_chunk_timeout == 45
+
+    @patch('trustgraph.retrieval.document_rag.rag.DocumentRag')
+    @pytest.mark.asyncio
+    async def test_fetch_chunk_uses_configured_timeout(self, mock_document_rag_class):
+        """
+        Test that the fetch_chunk closure built in on_request calls
+        flow.librarian.fetch_document_text with the configured
+        fetch_chunk_timeout, not the old hardcoded 120.
+        """
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+            doc_limit=10,
+            fetch_chunk_timeout=45
+        )
+
+        mock_rag_instance = AsyncMock()
+        mock_document_rag_class.return_value = mock_rag_instance
+        mock_rag_instance.query.return_value = (
+            "test response", {"in_token": None, "out_token": None, "model": None})
+
+        msg = MagicMock()
+        msg.value.return_value = DocumentRagQuery(
+            query="test query",
+            collection="default",
+            doc_limit=5
+        )
+        msg.properties.return_value = {"id": "test-id"}
+
+        consumer = MagicMock()
+        flow = MagicMock()
+        flow.librarian.fetch_document_text = AsyncMock(return_value="chunk text")
+
+        mock_producer = AsyncMock()
+
+        def flow_router(service_name):
+            if service_name == "response":
+                return mock_producer
+            return AsyncMock()
+        flow.side_effect = flow_router
+
+        await processor.on_request(msg, consumer, flow)
+
+        # Retrieve the fetch_chunk callable that on_request built and passed into DocumentRag(...)
+        fetch_chunk = mock_document_rag_class.call_args.kwargs["fetch_chunk"]
+        await fetch_chunk("some-chunk-id")
+
+        flow.librarian.fetch_document_text.assert_called_once_with(
+            document_id="some-chunk-id", timeout=45,
+        )
