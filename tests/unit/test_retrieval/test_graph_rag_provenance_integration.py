@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag, edge_id
 from trustgraph.schema import Triple as SchemaTriple, Term, IRI, LITERAL
 from trustgraph.base import PromptResult
+from trustgraph.base.triples_client import Triple as ClientTriple
+from trustgraph.knowledge import Uri, Literal
 
 from trustgraph.provenance.namespaces import (
     RDF_TYPE, PROV_ENTITY, PROV_WAS_DERIVED_FROM,
@@ -21,6 +23,7 @@ from trustgraph.provenance.namespaces import (
     TG_FOCUS, TG_SYNTHESIS, TG_ANSWER_TYPE,
     TG_QUERY, TG_CONCEPT, TG_ENTITY, TG_EDGE_COUNT,
     TG_SELECTED_EDGE, TG_EDGE, TG_SCORE, TG_EDGE_SELECTION,
+    TG_CONTAINS, DC_TITLE, RDFS_LABEL,
 )
 
 
@@ -423,7 +426,7 @@ class TestGraphRagQueryProvenance:
         async def explain_callback(triples, explain_id):
             events.append({"triples": triples, "explain_id": explain_id})
 
-        result_text, usage = await rag.query(
+        result_text, usage, sources = await rag.query(
             query="What is quantum computing?",
             explain_callback=explain_callback,
 
@@ -460,7 +463,7 @@ class TestGraphRagQueryProvenance:
         clients = build_mock_clients()
         rag = GraphRag(*clients)
 
-        result_text, usage = await rag.query(
+        result_text, usage, sources = await rag.query(
             query="What is quantum computing?",
 
         )
@@ -490,3 +493,165 @@ class TestGraphRagQueryProvenance:
                     f"Triple {t.s.iri} {t.p.iri} should be in "
                     f"urn:graph:retrieval, got {t.g}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Source document tracing
+# ---------------------------------------------------------------------------
+
+# Provenance chains served by the mock triples client:
+#   EDGE_1, EDGE_2 -> SUBGRAPH_A -> chunk/a -> page/a -> DOC_ALPHA
+#   EDGE_3         -> SUBGRAPH_B -> chunk/b -> page/b -> DOC_BETA + DOC_GAMMA
+SUBGRAPH_A = "http://trustgraph.ai/sg/aaa"
+SUBGRAPH_B = "http://trustgraph.ai/sg/bbb"
+DOC_ALPHA = "urn:document:alpha"
+DOC_BETA = "urn:document:beta"
+DOC_GAMMA = "urn:document:gamma"
+TG_MIME_TYPE = "http://trustgraph.ai/ns/provenance/mimeType"
+
+DERIVATIONS = {
+    SUBGRAPH_A: ["http://trustgraph.ai/chunk/a"],
+    "http://trustgraph.ai/chunk/a": ["http://trustgraph.ai/page/a"],
+    "http://trustgraph.ai/page/a": [DOC_ALPHA],
+    SUBGRAPH_B: ["http://trustgraph.ai/chunk/b"],
+    "http://trustgraph.ai/chunk/b": ["http://trustgraph.ai/page/b"],
+    "http://trustgraph.ai/page/b": [DOC_BETA, DOC_GAMMA],
+}
+
+# alpha has both dc:title and rdfs:label (dc:title preferred), beta has
+# only rdfs:label (fallback), gamma has no title at all (empty string)
+DOC_METADATA = {
+    DOC_ALPHA: [
+        ClientTriple(Uri(DOC_ALPHA), Uri(RDFS_LABEL),
+                     Literal("alpha label")),
+        ClientTriple(Uri(DOC_ALPHA), Uri(DC_TITLE),
+                     Literal("Quantum Mechanics Primer")),
+        ClientTriple(Uri(DOC_ALPHA), Uri(TG_MIME_TYPE),
+                     Literal("application/pdf")),
+    ],
+    DOC_BETA: [
+        ClientTriple(Uri(DOC_BETA), Uri(RDFS_LABEL),
+                     Literal("Physics Notes")),
+    ],
+    DOC_GAMMA: [
+        ClientTriple(Uri(DOC_GAMMA), Uri(TG_MIME_TYPE),
+                     Literal("text/plain")),
+    ],
+}
+
+EXPECTED_SOURCES = [
+    {"uri": DOC_ALPHA, "title": "Quantum Mechanics Primer"},
+    {"uri": DOC_BETA, "title": "Physics Notes"},
+    {"uri": DOC_GAMMA, "title": ""},
+]
+
+# Total triples_client.query calls query() makes against the graph above:
+# 6 label lookups + 3 tg:contains + 9 wasDerivedFrom + 3 doc metadata.
+# Sources are built from the same fetches, so this total must not grow.
+EXPECTED_TRIPLES_QUERY_CALLS = 21
+
+
+def build_source_tracing_clients(fail_tracing=False):
+    """Like build_mock_clients, but the triples client also serves the
+    tg:contains + prov:wasDerivedFrom chains and document metadata."""
+    (prompt_client, embeddings_client, graph_embeddings_client,
+     triples_client, reranker_client) = build_mock_clients()
+
+    def subgraph_for(quoted):
+        t = quoted.triple
+        if t.p.iri == "http://schema.org/relatedTo":
+            return SUBGRAPH_A
+        return SUBGRAPH_A if t.s.iri == ENTITY_A else SUBGRAPH_B
+
+    async def mock_query(s=None, p=None, o=None, limit=1,
+                         user=None, collection=None, g=None):
+        if p == TG_CONTAINS and o is not None:
+            if fail_tracing:
+                raise RuntimeError("triple store unavailable")
+            sg = subgraph_for(o)
+            return [ClientTriple(Uri(sg), Uri(TG_CONTAINS), o)]
+        if p == PROV_WAS_DERIVED_FROM:
+            return [
+                ClientTriple(Uri(str(s)), Uri(PROV_WAS_DERIVED_FROM),
+                             Uri(target))
+                for target in DERIVATIONS.get(str(s), [])
+            ]
+        if p is None and str(s) in DOC_METADATA:
+            return DOC_METADATA[str(s)]
+        return []  # Label lookups: fall back to URI
+
+    triples_client.query.side_effect = mock_query
+
+    return (prompt_client, embeddings_client, graph_embeddings_client,
+            triples_client, reranker_client)
+
+
+class TestGraphRagSourceTracing:
+    """query() should return structured source references built from the
+    provenance walk it already performs."""
+
+    @pytest.mark.asyncio
+    async def test_query_returns_sources(self):
+        """Sources are deduplicated, uri-sorted, titled where possible."""
+        clients = build_source_tracing_clients()
+        rag = GraphRag(*clients)
+
+        resp, usage, sources = await rag.query(
+            query="What is quantum computing?",
+        )
+
+        assert resp == (
+            "Quantum computing applies physics principles to computation."
+        )
+        assert sources == EXPECTED_SOURCES
+
+    @pytest.mark.asyncio
+    async def test_sources_add_zero_triple_queries(self):
+        """Building sources must not add any triple-store queries."""
+        clients = build_source_tracing_clients()
+        triples_client = clients[3]
+        rag = GraphRag(*clients)
+
+        resp, usage, sources = await rag.query(
+            query="What is quantum computing?",
+        )
+
+        assert sources == EXPECTED_SOURCES
+        assert triples_client.query.call_count == (
+            EXPECTED_TRIPLES_QUERY_CALLS
+        )
+
+    @pytest.mark.asyncio
+    async def test_doc_metadata_still_reaches_synthesis_prompt(self):
+        """The kg-synthesis prompt context keeps the document edges."""
+        clients = build_source_tracing_clients()
+        prompt_client = clients[0]
+        rag = GraphRag(*clients)
+
+        await rag.query(query="What is quantum computing?")
+
+        synthesis_calls = [
+            c for c in prompt_client.prompt.call_args_list
+            if c.args[0] == "kg-synthesis"
+        ]
+        assert len(synthesis_calls) == 1
+        knowledge = synthesis_calls[0].kwargs["variables"]["knowledge"]
+        assert {
+            "s": DOC_ALPHA, "p": DC_TITLE,
+            "o": "Quantum Mechanics Primer",
+        } in knowledge
+
+    @pytest.mark.asyncio
+    async def test_tracing_failure_degrades_to_empty_sources(self):
+        """A failing walk yields empty sources, answer unaffected."""
+        clients = build_source_tracing_clients(fail_tracing=True)
+        rag = GraphRag(*clients)
+
+        resp, usage, sources = await rag.query(
+            query="What is quantum computing?",
+        )
+
+        assert resp == (
+            "Quantum computing applies physics principles to computation."
+        )
+        assert sources == []

@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from trustgraph.retrieval.graph_rag.rag import Processor
-from trustgraph.schema import GraphRagQuery, GraphRagResponse
+from trustgraph.schema import GraphRagQuery, GraphRagResponse, Source
 
 
 class TestGraphRagService:
@@ -44,7 +44,7 @@ class TestGraphRagService:
                 await explain_callback([], "urn:trustgraph:prov:retrieval:test")
                 await explain_callback([], "urn:trustgraph:prov:selection:test")
                 await explain_callback([], "urn:trustgraph:prov:answer:test")
-            return "A small domesticated mammal.", {"in_token": None, "out_token": None, "model": None}
+            return "A small domesticated mammal.", {"in_token": None, "out_token": None, "model": None}, []
 
         mock_rag_instance.query.side_effect = mock_query
 
@@ -93,6 +93,7 @@ class TestGraphRagService:
         assert chunk_msg.response == "A small domesticated mammal."
         assert chunk_msg.end_of_stream is True
         assert chunk_msg.end_of_session is True
+        assert chunk_msg.sources == []
 
         # Verify provenance triples were sent to provenance queue
         assert mock_provenance_producer.send.call_count == 4
@@ -180,7 +181,7 @@ class TestGraphRagService:
 
         async def mock_query(**kwargs):
             # Don't call explain_callback
-            return "Response text", {"in_token": None, "out_token": None, "model": None}
+            return "Response text", {"in_token": None, "out_token": None, "model": None}, []
 
         mock_rag_instance.query.side_effect = mock_query
 
@@ -219,3 +220,112 @@ class TestGraphRagService:
         assert chunk_msg.response == "Response text"
         assert chunk_msg.end_of_stream is True
         assert chunk_msg.end_of_session is True
+
+    @patch('trustgraph.retrieval.graph_rag.rag.GraphRag')
+    @pytest.mark.asyncio
+    async def test_non_streaming_final_message_carries_sources(
+            self, mock_graph_rag_class):
+        """
+        Test that the non-streaming response carries the source references
+        returned by the query.
+        """
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+        )
+
+        mock_rag_instance = AsyncMock()
+        mock_graph_rag_class.return_value = mock_rag_instance
+
+        async def mock_query(**kwargs):
+            return "Answer.", \
+                {"in_token": None, "out_token": None, "model": None}, \
+                [
+                    {"uri": "urn:document:alpha",
+                     "title": "Quantum Mechanics Primer"},
+                    {"uri": "urn:document:beta", "title": ""},
+                ]
+
+        mock_rag_instance.query.side_effect = mock_query
+
+        msg = MagicMock()
+        msg.value.return_value = GraphRagQuery(
+            query="Test query",
+            collection="default",
+            streaming=False
+        )
+        msg.properties.return_value = {"id": "test-id"}
+
+        consumer = MagicMock()
+        flow = MagicMock()
+
+        mock_response_producer = AsyncMock()
+        flow.side_effect = lambda service_name: mock_response_producer
+
+        # Execute
+        await processor.on_request(msg, consumer, flow)
+
+        # Final (only) message carries the sources
+        chunk_msg = mock_response_producer.send.call_args_list[0][0][0]
+        assert chunk_msg.end_of_session is True
+        assert chunk_msg.sources == [
+            Source(uri="urn:document:alpha",
+                   title="Quantum Mechanics Primer"),
+            Source(uri="urn:document:beta", title=""),
+        ]
+
+    @patch('trustgraph.retrieval.graph_rag.rag.GraphRag')
+    @pytest.mark.asyncio
+    async def test_streaming_final_message_carries_sources(
+            self, mock_graph_rag_class):
+        """
+        Test that in streaming mode only the final end_of_session message
+        carries the source references.
+        """
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+        )
+
+        mock_rag_instance = AsyncMock()
+        mock_graph_rag_class.return_value = mock_rag_instance
+
+        async def mock_query(**kwargs):
+            chunk_callback = kwargs.get('chunk_callback')
+            await chunk_callback("Streamed answer.", True)
+            return "Streamed answer.", \
+                {"in_token": None, "out_token": None, "model": None}, \
+                [{"uri": "urn:document:alpha", "title": "Primer"}]
+
+        mock_rag_instance.query.side_effect = mock_query
+
+        msg = MagicMock()
+        msg.value.return_value = GraphRagQuery(
+            query="Test query",
+            collection="default",
+            streaming=True
+        )
+        msg.properties.return_value = {"id": "test-id"}
+
+        consumer = MagicMock()
+        flow = MagicMock()
+
+        mock_response_producer = AsyncMock()
+        flow.side_effect = lambda service_name: mock_response_producer
+
+        # Execute
+        await processor.on_request(msg, consumer, flow)
+
+        # 2 messages: streamed chunk, then end_of_session close
+        assert mock_response_producer.send.call_count == 2
+
+        chunk_msg = mock_response_producer.send.call_args_list[0][0][0]
+        assert chunk_msg.end_of_session is False
+        assert chunk_msg.sources == []
+
+        final_msg = mock_response_producer.send.call_args_list[1][0][0]
+        assert final_msg.end_of_session is True
+        assert final_msg.sources == [
+            Source(uri="urn:document:alpha", title="Primer"),
+        ]
+

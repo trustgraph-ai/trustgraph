@@ -555,7 +555,7 @@ class TestQuery:
                 explain_callback=collect_provenance,
             )
 
-            response_text, usage = response
+            response_text, usage, sources = response
             assert response_text == expected_response
 
             # 5 events: question, grounding, exploration, focus, synthesis

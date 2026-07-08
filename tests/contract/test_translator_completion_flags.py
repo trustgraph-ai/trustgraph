@@ -8,7 +8,7 @@ based on message fields like end_of_stream and end_of_dialog.
 import pytest
 
 from trustgraph.schema import (
-    GraphRagResponse, DocumentRagResponse, AgentResponse, Error
+    GraphRagResponse, DocumentRagResponse, AgentResponse, Error, Source
 )
 from trustgraph.messaging import TranslatorRegistry
 
@@ -109,6 +109,57 @@ class TestRAGTranslatorCompletionFlags:
         assert is_final is False, "end_of_stream=True should NOT make is_final=True"
         assert response_dict["end_of_stream"] is True
         assert response_dict["end_of_session"] is False
+
+    def test_graph_rag_translator_encodes_sources_on_final_message(self):
+        """
+        Test that GraphRagResponseTranslator encodes source references
+        as uri/title dicts on the final message.
+        """
+        # Arrange
+        translator = TranslatorRegistry.get_response_translator("graph-rag")
+        response = GraphRagResponse(
+            response="A small domesticated mammal.",
+            message_type="chunk",
+            end_of_stream=True,
+            end_of_session=True,
+            error=None,
+            sources=[
+                Source(uri="urn:document:alpha",
+                       title="Quantum Mechanics Primer"),
+                Source(uri="urn:document:beta", title=""),
+            ]
+        )
+
+        # Act
+        response_dict, is_final = translator.encode_with_completion(response)
+
+        # Assert
+        assert is_final is True
+        assert response_dict["sources"] == [
+            {"uri": "urn:document:alpha",
+             "title": "Quantum Mechanics Primer"},
+            {"uri": "urn:document:beta", "title": ""},
+        ]
+
+    def test_graph_rag_translator_omits_empty_sources(self):
+        """
+        Test that the sources key is omitted when there are no sources.
+        """
+        # Arrange
+        translator = TranslatorRegistry.get_response_translator("graph-rag")
+        response = GraphRagResponse(
+            response="Chunk 1",
+            message_type="chunk",
+            end_of_stream=False,
+            end_of_session=False,
+            error=None
+        )
+
+        # Act
+        response_dict, is_final = translator.encode_with_completion(response)
+
+        # Assert
+        assert "sources" not in response_dict
 
     def test_document_rag_translator_is_final_with_end_of_session_true(self):
         """

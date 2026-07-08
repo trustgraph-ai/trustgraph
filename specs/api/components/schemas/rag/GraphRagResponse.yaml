@@ -23,6 +23,13 @@ properties:
     description: Provenance triples for this explain event (inline, no follow-up query needed)
     items:
       $ref: '../common/Triple.yaml'
+  sources:
+    type: array
+    description: |
+      Source documents the answer was derived from, deduplicated and sorted
+      by URI. Present on the final message (end_of_session true).
+    items:
+      $ref: './Source.yaml'
   end_of_stream:
     type: boolean
     description: Indicates LLM response stream is complete

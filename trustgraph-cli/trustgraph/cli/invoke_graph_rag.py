@@ -29,6 +29,20 @@ default_edge_score_limit = 30
 default_edge_limit = 25
 default_max_reranker_input = 350
 
+def _print_sources(sources):
+    """Print the source document references from the final message."""
+    if not sources:
+        return
+    print("Sources:", file=sys.stderr)
+    for src in sources:
+        uri = src.get("uri", "")
+        title = src.get("title", "")
+        if title:
+            print(f"  - {title} ({uri})", file=sys.stderr)
+        else:
+            print(f"  - {uri}", file=sys.stderr)
+
+
 def _question_explainable_api(
         url, flow_id, question_text, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, edge_score_limit=30,
@@ -42,6 +56,8 @@ def _question_explainable_api(
     explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
 
     try:
+        final_sources = []
+
         # Stream GraphRAG with explainability - process events as they arrive
         for item in flow.graph_rag_explain(
             query=question_text,
@@ -57,6 +73,8 @@ def _question_explainable_api(
             if isinstance(item, RAGChunk):
                 # Print response content
                 print(item.content, end="", flush=True)
+                if item.sources:
+                    final_sources = item.sources
 
             elif isinstance(item, ProvenanceEvent):
                 # Use inline entity if available, otherwise fetch from graph
@@ -134,6 +152,8 @@ def _question_explainable_api(
 
         print()  # Final newline
 
+        _print_sources(final_sources)
+
     finally:
         socket.close()
 
@@ -195,6 +215,9 @@ def question(
                 last_chunk = chunk
             print()  # Final newline
 
+            if last_chunk:
+                _print_sources(last_chunk.sources)
+
             if show_usage and last_chunk:
                 print(
                     f"Input tokens: {last_chunk.in_token}  "
@@ -220,6 +243,8 @@ def question(
             max_reranker_input=max_reranker_input,
         )
         print(result.text)
+
+        _print_sources(result.sources)
 
         if show_usage:
             print(

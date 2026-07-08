@@ -6,7 +6,7 @@ Input is query, output is response.
 
 import logging
 
-from ... schema import GraphRagQuery, GraphRagResponse, Error
+from ... schema import GraphRagQuery, GraphRagResponse, Error, Source
 from ... schema import Triples, Metadata
 from ... provenance import GRAPH_RETRIEVAL
 from . graph_rag import GraphRag
@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 default_ident = "graph-rag"
 default_concurrency = 1
+
+def source_refs(sources):
+    return [Source(uri=s["uri"], title=s["title"]) for s in sources]
 
 class Processor(FlowProcessor):
 
@@ -229,7 +232,7 @@ class Processor(FlowProcessor):
                     )
 
                 # Query with streaming and real-time explain
-                response, usage = await rag.query(
+                response, usage, sources = await rag.query(
                     query = v.query, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
@@ -245,7 +248,7 @@ class Processor(FlowProcessor):
 
             else:
                 # Non-streaming path with real-time explain
-                response, usage = await rag.query(
+                response, usage, sources = await rag.query(
                     query = v.query, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
@@ -267,6 +270,7 @@ class Processor(FlowProcessor):
                         in_token=usage.get("in_token"),
                         out_token=usage.get("out_token"),
                         model=usage.get("model"),
+                        sources=source_refs(sources),
                     ),
                     properties={"id": id}
                 )
@@ -281,6 +285,7 @@ class Processor(FlowProcessor):
                     in_token=usage.get("in_token"),
                     out_token=usage.get("out_token"),
                     model=usage.get("model"),
+                    sources=source_refs(sources),
                 ),
                 properties={"id": id}
             )

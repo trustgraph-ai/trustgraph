@@ -118,6 +118,9 @@ post:
                   - Quantum information theory
                   - Computational complexity theory
                 end-of-stream: false
+                sources:
+                  - uri: urn:document:5a90a175-9906-4dcb-b482-a8c1b6cbf9e0
+                    title: Quantum Mechanics Primer
             streamingChunk:
               summary: Streaming response chunk
               value:
