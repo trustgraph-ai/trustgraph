@@ -23,8 +23,11 @@ def normalize_entity_name(entity_name: str) -> str:
     # Replace spaces and underscores with hyphens
     normalized = re.sub(r'[\s_]+', '-', normalized)
 
-    # Remove any characters that aren't alphanumeric, hyphens, or periods
-    normalized = re.sub(r'[^a-z0-9\-.]', '', normalized)
+    # Remove any characters that aren't word characters (incl. non-ASCII
+    # letters such as CJK), hyphens, or periods. \w is Unicode-aware for
+    # str patterns in Python 3, so non-ASCII entity names are preserved
+    # rather than stripped (which would collapse them onto a single URI).
+    normalized = re.sub(r'[^\w\-.]', '', normalized)
 
     # Remove leading/trailing hyphens
     normalized = normalized.strip('-')
@@ -52,8 +55,10 @@ def normalize_type_identifier(type_id: str) -> str:
     # Replace slashes, colons, and spaces with hyphens
     normalized = re.sub(r'[/:.\s_]+', '-', normalized)
 
-    # Remove any remaining non-alphanumeric characters except hyphens
-    normalized = re.sub(r'[^a-z0-9\-]', '', normalized)
+    # Remove any remaining characters that aren't word characters (incl.
+    # non-ASCII letters such as CJK) or hyphens. \w is Unicode-aware for
+    # str patterns in Python 3, preserving non-ASCII type identifiers.
+    normalized = re.sub(r'[^\w\-]', '', normalized)
 
     # Remove leading/trailing hyphens
     normalized = normalized.strip('-')
