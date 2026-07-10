@@ -247,7 +247,10 @@ class Processor(LlmService):
 
         return self.model_variants[cache_key]
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -311,7 +314,10 @@ class Processor(LlmService):
         """Bedrock supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from Bedrock"""
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature

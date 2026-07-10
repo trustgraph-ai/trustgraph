@@ -50,7 +50,10 @@ class Processor(LlmService):
 
         logger.info("LMStudio LLM service initialized")
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -66,6 +69,18 @@ class Processor(LlmService):
 
             logger.debug(f"Prompt: {prompt}")
 
+            if response_format == "json" and schema is not None:
+                fmt = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "response",
+                        "schema": schema,
+                    },
+                }
+                logger.debug("Structured output enabled")
+            else:
+                fmt = {"type": "text"}
+
             resp = self.openai.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -76,9 +91,7 @@ class Processor(LlmService):
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0,
-                response_format={
-                    "type": "text"
-                }
+                response_format=fmt,
             )
 
             logger.debug(f"Full response: {resp}")
@@ -110,7 +123,10 @@ class Processor(LlmService):
         """LM Studio supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from LM Studio"""
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature
@@ -121,6 +137,18 @@ class Processor(LlmService):
         prompt = system + "\n\n" + prompt
 
         try:
+            if response_format == "json" and schema is not None:
+                fmt = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "response",
+                        "schema": schema,
+                    },
+                }
+                logger.debug("Structured output enabled (streaming)")
+            else:
+                fmt = {"type": "text"}
+
             response = self.openai.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}],
@@ -129,7 +157,7 @@ class Processor(LlmService):
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0,
-                response_format={"type": "text"},
+                response_format=fmt,
                 stream=True,
                 stream_options={"include_usage": True}
             )

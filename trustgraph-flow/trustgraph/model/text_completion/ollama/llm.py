@@ -62,7 +62,10 @@ class Processor(LlmService):
             else:
                 logger.warning(f"Failed to check Ollama model '{model_name}': {e}")
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -79,7 +82,12 @@ class Processor(LlmService):
 
         try:
 
-            response = await self.llm.generate(model_name, prompt, options={'temperature': effective_temperature})
+            kwargs = {}
+            if response_format == "json" and schema is not None:
+                kwargs["format"] = schema
+                logger.debug("Structured output enabled")
+
+            response = await self.llm.generate(model_name, prompt, options={'temperature': effective_temperature}, **kwargs)
 
             response_text = response['response']
             logger.debug("Sending response...")
@@ -108,7 +116,10 @@ class Processor(LlmService):
         """Ollama supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from Ollama"""
         model_name = model or self.default_model
 
@@ -123,11 +134,17 @@ class Processor(LlmService):
         prompt = system + "\n\n" + prompt
 
         try:
+            kwargs = {}
+            if response_format == "json" and schema is not None:
+                kwargs["format"] = schema
+                logger.debug("Structured output enabled (streaming)")
+
             stream = await self.llm.generate(
                 model_name,
                 prompt,
                 options={'temperature': effective_temperature},
-                stream=True
+                stream=True,
+                **kwargs,
             )
 
             total_input_tokens = 0

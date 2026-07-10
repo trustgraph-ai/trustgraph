@@ -48,7 +48,10 @@ class Processor(LlmService):
 
         logger.info("Claude LLM service initialized")
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -60,11 +63,27 @@ class Processor(LlmService):
 
         try:
 
+            kwargs = {}
+            use_tool_extract = False
+
+            if response_format == "json" and schema is not None:
+                kwargs["tools"] = [{
+                    "name": "structured_response",
+                    "description": "Return the structured response",
+                    "input_schema": schema,
+                }]
+                kwargs["tool_choice"] = {
+                    "type": "tool",
+                    "name": "structured_response",
+                }
+                use_tool_extract = True
+                logger.debug("Structured output enabled (tool-use)")
+
             response = message = self.claude.messages.create(
                 model=model_name,
                 max_tokens=self.max_output,
                 temperature=effective_temperature,
-                system = system,
+                system=system,
                 messages=[
                     {
                         "role": "user",
@@ -75,10 +94,22 @@ class Processor(LlmService):
                             }
                         ]
                     }
-                ]
+                ],
+                **kwargs,
             )
 
-            resp = response.content[0].text
+            if use_tool_extract:
+                import json
+                tool_block = next(
+                    (b for b in response.content if b.type == "tool_use"),
+                    None,
+                )
+                if tool_block:
+                    resp = json.dumps(tool_block.input)
+                else:
+                    resp = response.content[0].text
+            else:
+                resp = response.content[0].text
             inputtokens = response.usage.input_tokens
             outputtokens = response.usage.output_tokens
             logger.debug(f"LLM response: {resp}")
@@ -110,7 +141,10 @@ class Processor(LlmService):
         """Claude/Anthropic supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from Claude"""
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature

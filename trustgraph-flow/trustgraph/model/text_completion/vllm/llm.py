@@ -52,7 +52,10 @@ class Processor(LlmService):
         logger.info(f"Using vLLM service at {base_url}")
         logger.info("vLLM LLM service initialized")
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -71,7 +74,17 @@ class Processor(LlmService):
             "prompt": system + "\n\n" + prompt,
             "max_tokens": self.max_output,
             "temperature": effective_temperature,
-        }            
+        }
+
+        if response_format == "json" and schema is not None:
+            request["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "schema": schema,
+                },
+            }
+            logger.debug("Structured output enabled")
 
         try:
 
@@ -127,7 +140,10 @@ class Processor(LlmService):
         """vLLM supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from vLLM"""
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature
@@ -147,6 +163,16 @@ class Processor(LlmService):
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+
+        if response_format == "json" and schema is not None:
+            request["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "schema": schema,
+                },
+            }
+            logger.debug("Structured output enabled (streaming)")
 
         try:
             url = f"{self.base_url.rstrip('/')}/completions"

@@ -49,4 +49,5 @@ from . keyword_index_client import KeywordIndexClientSpec, KeywordIndexClient
 from . row_embeddings_query_client import RowEmbeddingsQueryClientSpec
 from . collection_config_handler import CollectionConfigHandler
 from . audit_publisher import AuditPublisher
+from . schema_compatibility import is_strict_mode_compatible
 

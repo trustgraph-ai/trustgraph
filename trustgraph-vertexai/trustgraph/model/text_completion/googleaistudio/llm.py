@@ -109,7 +109,10 @@ class Processor(LlmService):
 
         return self.generation_configs[cache_key]
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -122,6 +125,14 @@ class Processor(LlmService):
         generation_config = self._get_or_create_config(model_name, effective_temperature)
         # Set system instruction per request (can't be cached)
         generation_config.system_instruction = system
+
+        if response_format == "json" and schema is not None:
+            generation_config.response_mime_type = "application/json"
+            generation_config.response_schema = schema
+            logger.debug("Structured output enabled (Gemini)")
+        else:
+            generation_config.response_mime_type = "text/plain"
+            generation_config.response_schema = None
 
         try:
 
@@ -174,7 +185,10 @@ class Processor(LlmService):
         """Google AI Studio supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from Google AI Studio"""
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature
