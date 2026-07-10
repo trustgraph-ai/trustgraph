@@ -13,6 +13,7 @@ from pulsar.schema import Record
 
 from trustgraph.schema import (
     TextCompletionRequest, TextCompletionResponse,
+    ImageToTextRequest, ImageToTextResponse,
     DocumentRagQuery, DocumentRagResponse,
     AgentRequest, AgentResponse, AgentStep,
     Chunk, Triple, Triples, Term, Error,
@@ -115,6 +116,111 @@ class TestTextCompletionMessageContracts:
         assert error_response.error is not None
         assert error_response.error.type == "rate-limit"
         assert error_response.response is None
+
+
+@pytest.mark.contract
+class TestImageToTextMessageContracts:
+    """Contract tests for Image to Text message schemas"""
+
+    def test_image_to_text_request_schema_contract(self, sample_message_data):
+        """Test ImageToTextRequest schema contract"""
+        # Arrange
+        request_data = sample_message_data["ImageToTextRequest"]
+
+        # Act & Assert
+        assert validate_schema_contract(ImageToTextRequest, request_data)
+
+        # Test required fields
+        request = ImageToTextRequest(**request_data)
+        assert hasattr(request, 'image')
+        assert hasattr(request, 'mime_type')
+        assert hasattr(request, 'prompt')
+        assert hasattr(request, 'system')
+        # The image field carries base64 ASCII text end-to-end
+        assert isinstance(request.image, str)
+        assert isinstance(request.mime_type, str)
+
+    def test_image_to_text_response_schema_contract(self, sample_message_data):
+        """Test ImageToTextResponse schema contract"""
+        # Arrange
+        response_data = sample_message_data["ImageToTextResponse"]
+
+        # Act & Assert
+        assert validate_schema_contract(ImageToTextResponse, response_data)
+
+        # Test required fields
+        response = ImageToTextResponse(**response_data)
+        assert hasattr(response, 'error')
+        assert hasattr(response, 'description')
+        assert hasattr(response, 'in_token')
+        assert hasattr(response, 'out_token')
+        assert hasattr(response, 'model')
+
+    def test_image_to_text_request_serialization_contract(self, sample_message_data):
+        """Test ImageToTextRequest serialization/deserialization contract"""
+        # Arrange
+        request_data = sample_message_data["ImageToTextRequest"]
+
+        # Act & Assert
+        assert serialize_deserialize_test(ImageToTextRequest, request_data)
+
+    def test_image_to_text_response_serialization_contract(self, sample_message_data):
+        """Test ImageToTextResponse serialization/deserialization contract"""
+        # Arrange
+        response_data = sample_message_data["ImageToTextResponse"]
+
+        # Act & Assert
+        assert serialize_deserialize_test(ImageToTextResponse, response_data)
+
+    def test_image_to_text_request_field_constraints(self):
+        """Test ImageToTextRequest field type constraints"""
+        # Test valid data
+        valid_request = ImageToTextRequest(
+            image="aW1hZ2UtYnl0ZXM=",
+            mime_type="image/jpeg",
+            prompt="What is in this picture?",
+            system="You are helpful."
+        )
+        assert valid_request.image == "aW1hZ2UtYnl0ZXM="
+        assert valid_request.mime_type == "image/jpeg"
+        assert valid_request.prompt == "What is in this picture?"
+        assert valid_request.system == "You are helpful."
+
+        # Prompt and system are optional
+        minimal_request = ImageToTextRequest(
+            image="aW1hZ2UtYnl0ZXM=",
+            mime_type="image/png"
+        )
+        assert minimal_request.prompt == ""
+        assert minimal_request.system == ""
+
+    def test_image_to_text_response_field_constraints(self):
+        """Test ImageToTextResponse field type constraints"""
+        # Test valid response with no error
+        valid_response = ImageToTextResponse(
+            error=None,
+            description="A red square.",
+            in_token=245,
+            out_token=32,
+            model="gpt-5-mini"
+        )
+        assert valid_response.error is None
+        assert valid_response.description == "A red square."
+        assert valid_response.in_token == 245
+        assert valid_response.out_token == 32
+        assert valid_response.model == "gpt-5-mini"
+
+        # Test response with error
+        error_response = ImageToTextResponse(
+            error=Error(type="image-to-text-error", message="Vision backend failed"),
+            description=None,
+            in_token=None,
+            out_token=None,
+            model=None
+        )
+        assert error_response.error is not None
+        assert error_response.error.type == "image-to-text-error"
+        assert error_response.description is None
 
 
 @pytest.mark.contract

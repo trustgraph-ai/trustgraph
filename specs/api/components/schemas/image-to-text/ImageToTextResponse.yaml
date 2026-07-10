@@ -1,0 +1,21 @@
+type: object
+description: Image-to-text response
+required:
+  - description
+properties:
+  description:
+    type: string
+    description: Generated description of the image
+    example: A red square on a white background.
+  in_token:
+    type: integer
+    description: Number of input tokens consumed
+    example: 245
+  out_token:
+    type: integer
+    description: Number of output tokens generated
+    example: 32
+  model:
+    type: string
+    description: Model used to describe the image
+    example: gpt-5-mini

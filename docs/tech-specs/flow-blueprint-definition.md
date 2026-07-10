@@ -79,13 +79,17 @@ Interfaces can take two forms:
   "embeddings": {
     "request": "non-persistent://tg/request/{workspace}:embeddings:{class}",
     "response": "non-persistent://tg/response/{workspace}:embeddings:{class}"
+  },
+  "image-to-text": {
+    "request": "non-persistent://tg/request/{workspace}:image-to-text:{class}",
+    "response": "non-persistent://tg/response/{workspace}:image-to-text:{class}"
   }
 }
 ```
 
 **Types of Interfaces:**
 - **Entry Points**: Where external systems inject data (`document-load`, `agent`)
-- **Service Interfaces**: Request/response patterns for services (`embeddings`, `text-completion`)
+- **Service Interfaces**: Request/response patterns for services (`embeddings`, `text-completion`, `image-to-text`)
 - **Data Interfaces**: Fire-and-forget data flow connection points (`triples-store`, `entity-contexts-load`)
 
 ### 4. Parameters Section

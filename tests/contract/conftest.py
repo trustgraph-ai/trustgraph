@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 
 from trustgraph.schema import (
     TextCompletionRequest, TextCompletionResponse,
+    ImageToTextRequest, ImageToTextResponse,
     DocumentRagQuery, DocumentRagResponse,
     AgentRequest, AgentResponse, AgentStep,
     Chunk, Triple, Triples, Term, Error,
@@ -29,7 +30,11 @@ def schema_registry():
         # Text Completion
         "TextCompletionRequest": TextCompletionRequest,
         "TextCompletionResponse": TextCompletionResponse,
-        
+
+        # Image to Text
+        "ImageToTextRequest": ImageToTextRequest,
+        "ImageToTextResponse": ImageToTextResponse,
+
         # Document RAG
         "DocumentRagQuery": DocumentRagQuery,
         "DocumentRagResponse": DocumentRagResponse,
@@ -69,6 +74,20 @@ def sample_message_data():
             "in_token": 50,
             "out_token": 100,
             "model": "gpt-3.5-turbo"
+        },
+        "ImageToTextRequest": {
+            # The image field carries base64 ASCII text end-to-end
+            "image": "aW1hZ2UtYnl0ZXM=",
+            "mime_type": "image/png",
+            "prompt": "Describe this image",
+            "system": "You are a helpful assistant."
+        },
+        "ImageToTextResponse": {
+            "error": None,
+            "description": "A single blue pixel on a white background.",
+            "in_token": 245,
+            "out_token": 32,
+            "model": "gpt-5-mini"
         },
         "DocumentRagQuery": {
             "query": "What is artificial intelligence?",

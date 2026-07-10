@@ -1,11 +1,12 @@
 
 import json
+import base64
 import asyncio
 import websockets
 from typing import Optional, Dict, Any, AsyncIterator, Union
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, TextCompletionResult
-from . exceptions import ProtocolException, ApplicationException
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, TextCompletionResult, ImageToTextResult
+from . exceptions import ProtocolException, ApplicationException, raise_from_error_dict
 
 
 class AsyncSocketClient:
@@ -352,6 +353,38 @@ class AsyncSocketFlowInstance:
         async for chunk in self.client._send_request_streaming("text-completion", self.flow_id, request):
             if isinstance(chunk, RAGChunk):
                 yield chunk
+
+    async def image_to_text(self, image: bytes, mime_type: str,
+                            prompt: Optional[str] = None,
+                            system: Optional[str] = None,
+                            **kwargs) -> ImageToTextResult:
+        """Describe an image using the image-to-text service (non-streaming).
+
+        Returns an ImageToTextResult with the description text and token counts.
+        """
+        # The image rides the JSON wire format as base64 text
+        request = {
+            "image": base64.b64encode(image).decode("utf-8"),
+            "mime_type": mime_type,
+        }
+        if prompt is not None:
+            request["prompt"] = prompt
+        if system is not None:
+            request["system"] = system
+        request.update(kwargs)
+
+        result = await self.client._send_request("image-to-text", self.flow_id, request)
+
+        # Service errors arrive inside the response body
+        if isinstance(result, dict) and result.get("error"):
+            raise_from_error_dict(result["error"])
+
+        return ImageToTextResult(
+            text=result.get("description", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
 
     async def graph_rag(self, query: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,

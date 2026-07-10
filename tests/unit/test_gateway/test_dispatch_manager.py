@@ -588,6 +588,13 @@ class TestDispatcherManager:
         with pytest.raises(RuntimeError, match="This kind not supported by flow"):
             await manager.invoke_flow_service("data", "responder", "default", "test_flow", "agent")
 
+    def test_request_response_dispatchers_include_image_to_text(self):
+        """image-to-text must be registered as a request/response service"""
+        from trustgraph.gateway.dispatch.manager import request_response_dispatchers
+        from trustgraph.gateway.dispatch.image_to_text import ImageToTextRequestor
+
+        assert request_response_dispatchers["image-to-text"] is ImageToTextRequestor
+
     @pytest.mark.asyncio
     async def test_invoke_flow_service_invalid_kind(self):
         """Test invoke_flow_service with invalid kind"""

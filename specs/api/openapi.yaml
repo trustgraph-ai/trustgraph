@@ -52,7 +52,7 @@ info:
     Workspace context comes from the authenticated token.
 
     Accessed via `/api/v1/flow/{flow}/service/{kind}`:
-    - AI services: agent, text-completion, prompt, RAG (document/graph)
+    - AI services: agent, text-completion, image-to-text, prompt, RAG (document/graph)
     - Embeddings: embeddings, graph-embeddings, document-embeddings
     - Query: triples, rows, nlp-query, structured-query, sparql-query, row-embeddings
     - Data loading: text-load, document-load
@@ -136,6 +136,8 @@ paths:
     $ref: './paths/flow/graph-rag.yaml'
   /api/v1/flow/{flow}/service/text-completion:
     $ref: './paths/flow/text-completion.yaml'
+  /api/v1/flow/{flow}/service/image-to-text:
+    $ref: './paths/flow/image-to-text.yaml'
   /api/v1/flow/{flow}/service/prompt:
     $ref: './paths/flow/prompt.yaml'
   /api/v1/flow/{flow}/service/embeddings:

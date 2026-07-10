@@ -12,9 +12,10 @@ AsyncSocketClient instead.
 
 import aiohttp
 import json
+import base64
 from typing import Optional, Dict, Any, List
 
-from . types import TextCompletionResult
+from . types import TextCompletionResult, ImageToTextResult
 
 from . exceptions import ProtocolException, ApplicationException
 
@@ -471,6 +472,56 @@ class AsyncFlowInstance:
         result = await self.request("text-completion", request_data)
         return TextCompletionResult(
             text=result.get("response", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
+
+    async def image_to_text(self, image: bytes, mime_type: str,
+                            prompt: Optional[str] = None,
+                            system: Optional[str] = None,
+                            **kwargs: Any) -> ImageToTextResult:
+        """
+        Describe an image using the image-to-text service (non-streaming).
+
+        Args:
+            image: Image content as bytes
+            mime_type: Image MIME type (e.g. "image/jpeg")
+            prompt: Optional user prompt (backend default used if None)
+            system: Optional system prompt
+            **kwargs: Additional service-specific parameters
+
+        Returns:
+            ImageToTextResult: Result with text, in_token, out_token, model
+
+        Example:
+            ```python
+            async_flow = await api.async_flow()
+            flow = async_flow.id("default")
+
+            with open("photo.jpg", "rb") as f:
+                result = await flow.image_to_text(
+                    image=f.read(),
+                    mime_type="image/jpeg",
+                )
+            print(result.text)
+            print(f"Tokens: {result.in_token} in, {result.out_token} out")
+            ```
+        """
+        # The image rides the JSON wire format as base64 text
+        request_data = {
+            "image": base64.b64encode(image).decode("utf-8"),
+            "mime_type": mime_type,
+        }
+        if prompt is not None:
+            request_data["prompt"] = prompt
+        if system is not None:
+            request_data["system"] = system
+        request_data.update(kwargs)
+
+        result = await self.request("image-to-text", request_data)
+        return ImageToTextResult(
+            text=result.get("description", ""),
             in_token=result.get("in_token"),
             out_token=result.get("out_token"),
             model=result.get("model"),

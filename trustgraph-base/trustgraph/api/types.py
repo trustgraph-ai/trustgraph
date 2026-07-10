@@ -241,6 +241,24 @@ class TextCompletionResult:
     sources: List[Dict[str, str]] = dataclasses.field(default_factory=list)
 
 @dataclasses.dataclass
+class ImageToTextResult:
+    """
+    Result from an image-to-text request.
+
+    Returned by image_to_text(). Non-streaming only.
+
+    Attributes:
+        text: Text description of the image
+        in_token: Input token count (None if not available)
+        out_token: Output token count (None if not available)
+        model: Model identifier (None if not available)
+    """
+    text: Optional[str]
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
+
+@dataclasses.dataclass
 class ProvenanceEvent:
     """
     Provenance event for explainability.

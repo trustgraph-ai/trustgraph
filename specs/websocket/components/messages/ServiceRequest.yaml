@@ -24,6 +24,7 @@ payload:
     - $ref: './requests/DocumentRagRequest.yaml'
     - $ref: './requests/GraphRagRequest.yaml'
     - $ref: './requests/TextCompletionRequest.yaml'
+    - $ref: './requests/ImageToTextRequest.yaml'
     - $ref: './requests/PromptRequest.yaml'
     - $ref: './requests/EmbeddingsRequest.yaml'
     - $ref: './requests/McpToolRequest.yaml'

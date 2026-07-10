@@ -85,6 +85,7 @@ graph-embeddings-write-pinecone = "trustgraph.storage.graph_embeddings.pinecone:
 graph-embeddings-write-qdrant = "trustgraph.storage.graph_embeddings.qdrant:run"
 graph-embeddings = "trustgraph.embeddings.graph_embeddings:run"
 graph-rag = "trustgraph.retrieval.graph_rag:run"
+image-to-text-openai = "trustgraph.model.image_to_text.openai:run"
 reranker-flashrank = "trustgraph.reranker.flashrank:run"
 kg-extract-agent = "trustgraph.extract.kg.agent:run"
 kg-extract-definitions = "trustgraph.extract.kg.definitions:run"

@@ -519,6 +519,7 @@ _FLOW_SERVICES = {
     "row-embeddings": "row-embeddings:read",
     "sparql": "sparql:read",
     "reranker": "reranker",
+    "image-to-text": "image-to-text",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap)

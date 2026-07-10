@@ -5,6 +5,7 @@ from .translators import *
 from .translators.agent import AgentRequestTranslator, AgentResponseTranslator
 from .translators.embeddings import EmbeddingsRequestTranslator, EmbeddingsResponseTranslator
 from .translators.text_completion import TextCompletionRequestTranslator, TextCompletionResponseTranslator
+from .translators.image_to_text import ImageToTextRequestTranslator, ImageToTextResponseTranslator
 from .translators.retrieval import (
     DocumentRagRequestTranslator, DocumentRagResponseTranslator,
     GraphRagRequestTranslator, GraphRagResponseTranslator
@@ -48,6 +49,12 @@ TranslatorRegistry.register_service(
     "text-completion", 
     TextCompletionRequestTranslator(), 
     TextCompletionResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "image-to-text",
+    ImageToTextRequestTranslator(),
+    ImageToTextResponseTranslator()
 )
 
 TranslatorRegistry.register_service(

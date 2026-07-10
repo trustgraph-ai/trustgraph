@@ -73,6 +73,7 @@ _READER_CAPS = {
     "llm",
     "embeddings",
     "reranker",
+    "image-to-text",
     "mcp",
     "config:read",
     "flows:read",
