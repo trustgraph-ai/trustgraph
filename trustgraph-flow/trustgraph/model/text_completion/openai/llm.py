@@ -82,7 +82,10 @@ class Processor(LlmService):
             return self.variant.extract_content(message)
         return message.content
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature
@@ -95,6 +98,25 @@ class Processor(LlmService):
         try:
 
             api_kwargs = self._build_kwargs(model_name, effective_temperature)
+
+            if response_format == "json" and schema is not None:
+                is_top_level_array = schema.get("type") == "array"
+                if is_top_level_array and not self.variant.supports_top_level_array():
+                    logger.debug(
+                        "Variant %s does not support top-level array "
+                        "schemas, falling back to free-text",
+                        self.variant.name,
+                    )
+                else:
+                    api_kwargs["response_format"] = {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "response",
+                            "schema": schema,
+                            "strict": True,
+                        },
+                    }
+                    logger.debug("Structured output enabled")
 
             messages = [
                 {
@@ -160,7 +182,10 @@ class Processor(LlmService):
         """OpenAI supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """
         Stream content generation from OpenAI.
         Yields LlmChunk objects with is_final=True on the last chunk.
@@ -175,6 +200,25 @@ class Processor(LlmService):
 
         try:
             api_kwargs = self._build_kwargs(model_name, effective_temperature)
+
+            if response_format == "json" and schema is not None:
+                is_top_level_array = schema.get("type") == "array"
+                if is_top_level_array and not self.variant.supports_top_level_array():
+                    logger.debug(
+                        "Variant %s does not support top-level array "
+                        "schemas, falling back to free-text (streaming)",
+                        self.variant.name,
+                    )
+                else:
+                    api_kwargs["response_format"] = {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "response",
+                            "schema": schema,
+                            "strict": True,
+                        },
+                    }
+                    logger.debug("Structured output enabled (streaming)")
 
             messages = [
                 {

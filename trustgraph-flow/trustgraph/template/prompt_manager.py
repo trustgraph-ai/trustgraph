@@ -5,6 +5,8 @@ from jsonschema import validate
 import re
 import logging
 
+from trustgraph.base import is_strict_mode_compatible
+
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -145,11 +147,23 @@ class PromptManager:
         terms = self.terms | self.prompts[id].terms | input
 
         resp_type = self.prompts[id].response_type
+        schema = self.prompts[id].schema
 
         prompt = {
             "system": self.system_template.render(terms),
-            "prompt": self.render(id, input)
+            "prompt": self.render(id, input),
         }
+
+        use_structured = (
+            resp_type == "json"
+            and schema is not None
+            and is_strict_mode_compatible(schema)
+        )
+
+        if use_structured:
+            logger.debug("Using structured output for prompt '%s'", id)
+            prompt["response_format"] = "json"
+            prompt["schema"] = schema
 
         resp = await llm(**prompt)
 

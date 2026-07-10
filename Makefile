@@ -57,7 +57,8 @@ container-bedrock container-vertexai \
 container-hf container-ocr \
 container-unstructured container-mcp
 
-some-containers: container-base container-flow container-unstructured
+some-containers: container-base container-flow
+# container-unstructured
 
 push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}

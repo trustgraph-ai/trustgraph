@@ -55,7 +55,10 @@ class Processor(LlmService):
         self.max_output = max_output
         self.default_model = model
 
-    def build_prompt(self, system, content, temperature=None, stream=False, model=None):
+    def build_prompt(
+        self, system, content, temperature=None, stream=False,
+        model=None, response_format=None, schema=None,
+    ):
         # Use provided temperature or fall back to default
         effective_temperature = temperature if temperature is not None else self.temperature
         model_name = model or self.default_model
@@ -78,6 +81,17 @@ class Processor(LlmService):
         if stream:
             data["stream"] = True
             data["stream_options"] = {"include_usage": True}
+
+        if response_format == "json" and schema is not None:
+            data["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "schema": schema,
+                    "strict": True,
+                },
+            }
+            logger.debug("Structured output enabled")
 
         body = json.dumps(data)
 
@@ -109,7 +123,10 @@ class Processor(LlmService):
 
         return result
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -125,7 +142,9 @@ class Processor(LlmService):
                 system,
                 prompt,
                 effective_temperature,
-                model=model_name
+                model=model_name,
+                response_format=response_format,
+                schema=schema,
             )
 
             response = self.call_llm(prompt)
@@ -169,7 +188,10 @@ class Processor(LlmService):
         """Azure serverless endpoints support streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """Stream content generation from Azure serverless endpoint"""
         model_name = model or self.default_model
         effective_temperature = temperature if temperature is not None else self.temperature
@@ -178,7 +200,11 @@ class Processor(LlmService):
         logger.debug(f"Using temperature: {effective_temperature}")
 
         try:
-            body = self.build_prompt(system, prompt, effective_temperature, stream=True, model=model_name)
+            body = self.build_prompt(
+                system, prompt, effective_temperature, stream=True,
+                model=model_name, response_format=response_format,
+                schema=schema,
+            )
 
             url = self.endpoint
             api_key = self.token

@@ -155,7 +155,10 @@ class Processor(FlowProcessor):
                 # For streaming, we need to intercept LLM responses
                 # and forward them as they arrive
 
-                async def llm_streaming(system, prompt):
+                async def llm_streaming(
+                    system, prompt,
+                    response_format=None, schema=None,
+                ):
                     logger.debug(f"System prompt: {system}")
                     logger.debug(f"User prompt: {prompt}")
 
@@ -179,6 +182,8 @@ class Processor(FlowProcessor):
                         system=system, prompt=prompt,
                         handler=forward_chunks,
                         timeout=600,
+                        response_format=response_format,
+                        schema=schema,
                     )
 
                     # Return empty string since we already sent all chunks
@@ -195,14 +200,19 @@ class Processor(FlowProcessor):
             # Non-streaming path (original behavior)
             usage = {}
 
-            async def llm(system, prompt):
+            async def llm(
+                system, prompt,
+                response_format=None, schema=None,
+            ):
 
                 logger.debug(f"System prompt: {system}")
                 logger.debug(f"User prompt: {prompt}")
 
                 try:
                     result = await flow("text-completion-request").text_completion(
-                        system = system, prompt = prompt,
+                        system=system, prompt=prompt,
+                        response_format=response_format,
+                        schema=schema,
                     )
                     usage["in_token"] = result.in_token
                     usage["out_token"] = result.out_token

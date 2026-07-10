@@ -62,6 +62,10 @@ class Variant:
         """Extract thinking content from a streaming delta."""
         return getattr(delta, "reasoning_content", None)
 
+    def supports_top_level_array(self):
+        """Whether this provider accepts a top-level array JSON schema."""
+        return True
+
     def create_completion(self, client, model, messages, **kwargs):
         """Call the completions API. Override for non-standard SDKs."""
         return client.chat.completions.create(
@@ -83,6 +87,9 @@ class OpenAIVariant(Variant):
     name = "openai"
     token_param = "max_completion_tokens"
     temperature_with_thinking = False
+
+    def supports_top_level_array(self):
+        return False
 
     def thinking_kwargs(self, effort):
         return {"reasoning_effort": effort}
@@ -195,6 +202,12 @@ class LlamaVariant(Variant):
         return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
 
+class VllmVariant(LlamaVariant):
+    """vLLM via OpenAI-compatible API. Supports full structured output."""
+
+    name = "vllm"
+
+
 VARIANTS = {
     "openai": OpenAIVariant,
     "deepseek": DeepSeekVariant,
@@ -203,6 +216,7 @@ VARIANTS = {
     "dashscope": DashScopeVariant,
     "glm": GlmVariant,
     "llama": LlamaVariant,
+    "vllm": VllmVariant,
 }
 
 DEFAULT_VARIANT = "openai"

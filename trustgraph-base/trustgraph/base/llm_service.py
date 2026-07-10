@@ -126,6 +126,8 @@ class LlmService(FlowProcessor):
 
             # Check if streaming is requested and supported
             streaming = getattr(request, 'streaming', False)
+            response_format = getattr(request, 'response_format', None)
+            schema = getattr(request, 'schema', None)
 
             if streaming and self.supports_streaming():
 
@@ -136,7 +138,8 @@ class LlmService(FlowProcessor):
                 ).time():
 
                     async for chunk in self.generate_content_stream(
-                        request.system, request.prompt, model, temperature
+                        request.system, request.prompt, model, temperature,
+                        response_format=response_format, schema=schema,
                     ):
                         await flow("response").send(
                             TextCompletionResponse(
@@ -159,7 +162,8 @@ class LlmService(FlowProcessor):
                 ).time():
 
                     response = await self.generate_content(
-                        request.system, request.prompt, model, temperature
+                        request.system, request.prompt, model, temperature,
+                        response_format=response_format, schema=schema,
                     )
 
                 await flow("response").send(
@@ -215,7 +219,10 @@ class LlmService(FlowProcessor):
         """
         return False
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """
         Override in subclass to implement streaming.
         Should yield LlmChunk objects.

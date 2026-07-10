@@ -34,7 +34,7 @@ class TestPromptStreaming:
             " of", " artificial", " intelligence", "."
         ]
 
-        async def streaming_text_completion_stream(system, prompt, handler, timeout=600):
+        async def streaming_text_completion_stream(system, prompt, handler, timeout=600, response_format=None, schema=None):
             """Simulate streaming text completion via text_completion_stream"""
             for i, chunk_text in enumerate(chunks):
                 response = TextCompletionResponse(
@@ -58,7 +58,7 @@ class TestPromptStreaming:
                 model="test-model",
             )
 
-        async def non_streaming_text_completion(system, prompt, timeout=600):
+        async def non_streaming_text_completion(system, prompt, timeout=600, response_format=None, schema=None):
             """Simulate non-streaming text completion"""
             full_text = "Machine learning is a field of artificial intelligence."
             return TextCompletionResult(
@@ -230,7 +230,7 @@ class TestPromptStreaming:
         # Mock text completion client that raises an error
         text_completion_client = AsyncMock()
 
-        async def failing_stream(system, prompt, handler, timeout=600):
+        async def failing_stream(system, prompt, handler, timeout=600, response_format=None, schema=None):
             raise RuntimeError("Text completion error")
 
         text_completion_client.text_completion_stream = AsyncMock(
@@ -316,7 +316,7 @@ class TestPromptStreaming:
         # Mock text completion that sends empty chunks
         text_completion_client = AsyncMock()
 
-        async def empty_streaming(system, prompt, handler, timeout=600):
+        async def empty_streaming(system, prompt, handler, timeout=600, response_format=None, schema=None):
             # Send empty chunk followed by final marker
             await handler(TextCompletionResponse(
                 response="",

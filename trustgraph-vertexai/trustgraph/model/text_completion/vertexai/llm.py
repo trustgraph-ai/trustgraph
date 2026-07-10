@@ -166,7 +166,10 @@ class Processor(LlmService):
 
         return self.generation_configs[cache_key]
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -182,6 +185,22 @@ class Processor(LlmService):
                 logger.debug(f"Sending request to Anthropic model '{model_name}'...")
                 client = self._get_anthropic_client()
 
+                kwargs = {}
+                use_tool_extract = False
+
+                if response_format == "json" and schema is not None:
+                    kwargs["tools"] = [{
+                        "name": "structured_response",
+                        "description": "Return the structured response",
+                        "input_schema": schema,
+                    }]
+                    kwargs["tool_choice"] = {
+                        "type": "tool",
+                        "name": "structured_response",
+                    }
+                    use_tool_extract = True
+                    logger.debug("Structured output enabled (tool-use)")
+
                 response = client.messages.create(
                     model=model_name,
                     system=system,
@@ -190,10 +209,21 @@ class Processor(LlmService):
                     temperature=effective_temperature,
                     top_p=self.api_params['top_p'],
                     top_k=self.api_params['top_k'],
+                    **kwargs,
                 )
 
+                if use_tool_extract:
+                    import json
+                    tool_block = next(
+                        (b for b in response.content if b.type == "tool_use"),
+                        None,
+                    )
+                    text = json.dumps(tool_block.input) if tool_block else response.content[0].text
+                else:
+                    text = response.content[0].text
+
                 resp = LlmResult(
-                    text=response.content[0].text,
+                    text=text,
                     in_token=response.usage.input_tokens,
                     out_token=response.usage.output_tokens,
                     model=model_name
@@ -205,6 +235,14 @@ class Processor(LlmService):
                 generation_config = self._get_or_create_config(model_name, effective_temperature)
                 # Set system instruction per request (can't be cached)
                 generation_config.system_instruction = system
+
+                if response_format == "json" and schema is not None:
+                    generation_config.response_mime_type = "application/json"
+                    generation_config.response_schema = schema
+                    logger.debug("Structured output enabled (Gemini)")
+                else:
+                    generation_config.response_mime_type = "text/plain"
+                    generation_config.response_schema = None
 
                 response = self.client.models.generate_content(
                     model=model_name,
@@ -248,7 +286,10 @@ class Processor(LlmService):
         """VertexAI supports streaming for both Gemini and Claude models"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """
         Stream content generation from VertexAI (Gemini or Claude).
         Yields LlmChunk objects with is_final=True on the last chunk.

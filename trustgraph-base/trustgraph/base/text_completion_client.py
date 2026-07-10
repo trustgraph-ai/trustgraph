@@ -14,11 +14,15 @@ class TextCompletionResult:
 
 class TextCompletionClient(RequestResponse):
 
-    async def text_completion(self, system, prompt, timeout=600):
+    async def text_completion(
+        self, system, prompt, timeout=600,
+        response_format=None, schema=None,
+    ):
 
         resp = await self.request(
             TextCompletionRequest(
-                system = system, prompt = prompt, streaming = False
+                system=system, prompt=prompt, streaming=False,
+                response_format=response_format, schema=schema,
             ),
             timeout=timeout
         )
@@ -35,6 +39,7 @@ class TextCompletionClient(RequestResponse):
 
     async def text_completion_stream(
             self, system, prompt, handler, timeout=600,
+            response_format=None, schema=None,
     ):
         """
         Streaming text completion. `handler` is an async callable invoked
@@ -54,7 +59,8 @@ class TextCompletionClient(RequestResponse):
 
         final = await self.request(
             TextCompletionRequest(
-                system = system, prompt = prompt, streaming = True
+                system=system, prompt=prompt, streaming=True,
+                response_format=response_format, schema=schema,
             ),
             recipient=on_chunk,
             timeout=timeout,

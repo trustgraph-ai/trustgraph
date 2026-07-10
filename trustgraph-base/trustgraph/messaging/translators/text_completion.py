@@ -10,14 +10,21 @@ class TextCompletionRequestTranslator(MessageTranslator):
         return TextCompletionRequest(
             system=data["system"],
             prompt=data["prompt"],
-            streaming=data.get("streaming", False)
+            streaming=data.get("streaming", False),
+            response_format=data.get("response_format"),
+            schema=data.get("schema"),
         )
-    
+
     def encode(self, obj: TextCompletionRequest) -> Dict[str, Any]:
-        return {
+        result = {
             "system": obj.system,
-            "prompt": obj.prompt
+            "prompt": obj.prompt,
         }
+        if obj.response_format is not None:
+            result["response_format"] = obj.response_format
+        if obj.schema is not None:
+            result["schema"] = obj.schema
+        return result
 
 
 class TextCompletionResponseTranslator(MessageTranslator):

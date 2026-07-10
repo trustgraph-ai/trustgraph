@@ -11,7 +11,9 @@ from ..core.primitives import Error
 class TextCompletionRequest:
     system: str = ""
     prompt: str = ""
-    streaming: bool = False  # Default false for backward compatibility
+    streaming: bool = False
+    response_format: str | None = None
+    schema: dict | None = None
 
 @dataclass
 class TextCompletionResponse:

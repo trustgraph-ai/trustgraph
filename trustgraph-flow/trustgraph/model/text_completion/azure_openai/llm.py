@@ -62,7 +62,10 @@ class Processor(LlmService):
             azure_endpoint = endpoint,
         )
 
-    async def generate_content(self, system, prompt, model=None, temperature=None):
+    async def generate_content(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
@@ -75,6 +78,18 @@ class Processor(LlmService):
         prompt = system + "\n\n" + prompt
 
         try:
+
+            kwargs = {}
+            if response_format == "json" and schema is not None:
+                kwargs["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "response",
+                        "schema": schema,
+                        "strict": True,
+                    },
+                }
+                logger.debug("Structured output enabled")
 
             resp = self.openai.chat.completions.create(
                 model=model_name,
@@ -92,6 +107,7 @@ class Processor(LlmService):
                 temperature=effective_temperature,
                 max_completion_tokens=self.max_output,
                 top_p=1,
+                **kwargs,
             )
 
             inputtokens = resp.usage.prompt_tokens
@@ -129,7 +145,10 @@ class Processor(LlmService):
         """Azure OpenAI supports streaming"""
         return True
 
-    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+    async def generate_content_stream(
+        self, system, prompt, model=None, temperature=None,
+        response_format=None, schema=None,
+    ):
         """
         Stream content generation from Azure OpenAI.
         Yields LlmChunk objects with is_final=True on the last chunk.
