@@ -1,0 +1,87 @@
+post:
+  tags:
+    - Flow Services
+  summary: Image to text - describe images with a vision model
+  description: |
+    Describe an image using a vision-capable LLM.
+
+    This is a **flow-scoped** service. It requires a flow instance
+    and operates within the workspace associated with the
+    authenticated bearer token.
+
+    ## Image-to-Text Overview
+
+    Converts image content into a text description:
+    - General image description ("what is in this picture?")
+    - Targeted extraction via a custom prompt (objects, text, layout)
+    - Behavior shaping via an optional system prompt
+
+    ## Request Fields
+
+    - **image**: Base64-encoded image payload (raw binary is not accepted)
+    - **mime_type**: Image MIME type, e.g. `image/png`, `image/jpeg`
+    - **prompt**: Optional instruction; defaults to "Describe this image"
+    - **system**: Optional system prompt for behavior and constraints
+
+    ## Token Counting
+
+    Response includes token usage:
+    - `in_token`: Input tokens (prompt + image)
+    - `out_token`: Generated tokens
+    - Useful for cost tracking and optimization
+
+    ## Availability
+
+    Image-to-text is an optional service: it is only available in flows
+    whose blueprint defines the `image-to-text` interface. Invoking it
+    on a flow without the interface returns an error.
+
+  operationId: imageToTextService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/image-to-text/ImageToTextRequest.yaml'
+        examples:
+          basicDescription:
+            summary: Basic image description with default prompt
+            value:
+              image: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+              mime_type: image/png
+          targetedExtraction:
+            summary: Targeted extraction with custom prompts
+            value:
+              image: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+              mime_type: image/png
+              prompt: List all text visible in this image.
+              system: You are an OCR assistant. Reply with the extracted text only.
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/image-to-text/ImageToTextResponse.yaml'
+          examples:
+            imageDescription:
+              summary: Image description with token usage
+              value:
+                description: A single blue pixel on a transparent background.
+                in_token: 245
+                out_token: 32
+                model: gpt-5-mini
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

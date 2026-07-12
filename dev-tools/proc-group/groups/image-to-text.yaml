@@ -1,0 +1,16 @@
+# Image-to-text.  Outbound vision-model calls.  Isolated for the same
+# reason as the LLM group: the upstream API is the most likely thing to
+# need restart (provider changes, model changes, API flakiness).
+
+_defaults: &defaults
+  pubsub_backend: rabbitmq
+  rabbitmq_host: localhost
+  log_level: INFO
+
+processors:
+
+  - class: trustgraph.model.image_to_text.openai.Processor
+    params:
+      <<: *defaults
+      id: image-to-text
+      max_output: 4096

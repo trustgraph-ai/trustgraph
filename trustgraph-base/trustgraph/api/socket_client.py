@@ -9,13 +9,14 @@ multiplexes requests by ID.
 """
 
 import json
+import base64
 import asyncio
 import websockets
 from websockets.exceptions import ConnectionClosed
 from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk, ProvenanceEvent, TextCompletionResult
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk, ProvenanceEvent, TextCompletionResult, ImageToTextResult
 from . exceptions import ProtocolException, raise_from_error_dict
 
 
@@ -672,6 +673,38 @@ class SocketFlowInstance:
         for chunk in result:
             if isinstance(chunk, RAGChunk):
                 yield chunk
+
+    def image_to_text(self, image: bytes, mime_type: str,
+                      prompt: Optional[str] = None,
+                      system: Optional[str] = None,
+                      **kwargs: Any) -> ImageToTextResult:
+        """Describe an image using the image-to-text service (non-streaming).
+
+        Returns an ImageToTextResult with the description text and token counts.
+        """
+        # The image rides the JSON wire format as base64 text
+        request = {
+            "image": base64.b64encode(image).decode("utf-8"),
+            "mime_type": mime_type,
+        }
+        if prompt is not None:
+            request["prompt"] = prompt
+        if system is not None:
+            request["system"] = system
+        request.update(kwargs)
+
+        result = self.client._send_request_sync("image-to-text", self.flow_id, request, False)
+
+        # Service errors arrive inside the response body
+        if isinstance(result, dict) and result.get("error"):
+            raise_from_error_dict(result["error"])
+
+        return ImageToTextResult(
+            text=result.get("description", ""),
+            in_token=result.get("in_token"),
+            out_token=result.get("out_token"),
+            model=result.get("model"),
+        )
 
     def graph_rag(
         self,

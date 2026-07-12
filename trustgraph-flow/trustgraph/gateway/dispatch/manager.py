@@ -23,6 +23,7 @@ from . collection_management import CollectionManagementRequestor
 from . embeddings import EmbeddingsRequestor
 from . agent import AgentRequestor
 from . text_completion import TextCompletionRequestor
+from . image_to_text import ImageToTextRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
 from . document_rag import DocumentRagRequestor
@@ -76,6 +77,7 @@ request_response_dispatchers = {
     "row-embeddings": RowEmbeddingsQueryRequestor,
     "sparql": SparqlQueryRequestor,
     "reranker": RerankerRequestor,
+    "image-to-text": ImageToTextRequestor,
 }
 
 system_dispatchers = {

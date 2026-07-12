@@ -44,6 +44,7 @@ from . agent_client import AgentClientSpec
 from . structured_query_client import StructuredQueryClientSpec
 from . reranker_client import RerankerClientSpec
 from . reranker_service import RerankerService
+from . image_to_text_service import ImageToTextService, ImageDescriptionResult
 from . keyword_index_service import KeywordIndexService
 from . keyword_index_client import KeywordIndexClientSpec, KeywordIndexClient
 from . row_embeddings_query_client import RowEmbeddingsQueryClientSpec

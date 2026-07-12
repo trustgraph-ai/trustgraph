@@ -1,0 +1,28 @@
+type: object
+description: WebSocket request for image-to-text service (flow-scoped service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: image-to-text
+    description: Service identifier for image-to-text service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/image-to-text/ImageToTextRequest.yaml'
+examples:
+  - id: req-1
+    service: image-to-text
+    flow: my-flow
+    request:
+      image: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+      mime_type: image/png
+      prompt: Describe this image

@@ -107,6 +107,7 @@ from .types import (
     AgentAnswer,
     RAGChunk,
     TextCompletionResult,
+    ImageToTextResult,
     ProvenanceEvent,
 )
 
@@ -186,6 +187,7 @@ __all__ = [
     "AgentAnswer",
     "RAGChunk",
     "TextCompletionResult",
+    "ImageToTextResult",
     "ProvenanceEvent",
 
     # Exceptions

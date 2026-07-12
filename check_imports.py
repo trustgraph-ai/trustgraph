@@ -29,11 +29,14 @@ def main():
         ("trustgraph", "Base trustgraph package"),
         ("trustgraph.base", "Base classes"),
         ("trustgraph.base.llm_service", "LLM service base class"),
+        ("trustgraph.base.image_to_text_service", "Image-to-text service base class"),
         ("trustgraph.schema", "Schema definitions"),
         ("trustgraph.exceptions", "Exception classes"),
         ("trustgraph.model", "Model package"),
         ("trustgraph.model.text_completion", "Text completion package"),
         ("trustgraph.model.text_completion.vertexai", "VertexAI package"),
+        ("trustgraph.model.image_to_text", "Image-to-text package"),
+        ("trustgraph.model.image_to_text.openai", "Image-to-text OpenAI package"),
     ]
     
     success_count = 0

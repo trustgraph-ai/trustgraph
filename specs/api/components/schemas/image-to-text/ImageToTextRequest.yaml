@@ -1,0 +1,27 @@
+type: object
+description: |
+  Image-to-text request - describe an image using a vision model.
+
+  The image payload is base64-encoded; raw binary is not accepted.
+required:
+  - image
+  - mime_type
+properties:
+  image:
+    type: string
+    description: Base64-encoded image payload
+    example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+  mime_type:
+    type: string
+    description: MIME type of the image
+    example: image/png
+  prompt:
+    type: string
+    description: |
+      Instruction for the vision model. Optional; the service applies a
+      default prompt ("Describe this image") when omitted or empty.
+    example: List the objects visible in this image.
+  system:
+    type: string
+    description: Optional system prompt that sets behavior and context for the vision model
+    example: You are an expert at describing photographs for visually impaired users.
