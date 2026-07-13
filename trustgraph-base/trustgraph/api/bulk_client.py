@@ -201,7 +201,7 @@ class BulkClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _export_triples_async(self, flow: str) -> Iterator[Triple]:
@@ -299,7 +299,7 @@ class BulkClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _export_graph_embeddings_async(self, flow: str) -> Iterator[Dict[str, Any]]:
@@ -393,7 +393,7 @@ class BulkClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _export_document_embeddings_async(self, flow: str) -> Iterator[Dict[str, Any]]:
@@ -517,7 +517,7 @@ class BulkClient:
         finally:
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _export_entity_contexts_async(self, flow: str) -> Iterator[Dict[str, Any]]:

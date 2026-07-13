@@ -141,7 +141,7 @@ class AsyncSocketClient:
             for queue in self._pending.values():
                 try:
                     await queue.put({"error": str(e)})
-                except:
+                except asyncio.CancelledError :
                     pass
         finally:
             self._connected = False
