@@ -254,7 +254,7 @@ class Config:
                 )
                 for v in object["values"]
             ]
-        except:
+        except (KeyError, TypeError):
             raise ProtocolException(f"Response not formatted correctly")
 
     def get_values_all_workspaces(self, type):
@@ -330,6 +330,6 @@ class Config:
 
         try:
             return object["config"], object["version"]
-        except:
+        except KeyError:
             raise ProtocolException(f"Response not formatted correctly")
 

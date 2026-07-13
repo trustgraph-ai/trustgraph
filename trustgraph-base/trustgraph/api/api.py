@@ -25,7 +25,7 @@ def check_error(response):
         try:
             msg = response["error"]["message"]
             tp = response["error"]["type"]
-        except:
+        except KeyError:
             raise ApplicationException(response["error"])
 
         raise ApplicationException(f"{tp}: {msg}")
@@ -208,7 +208,7 @@ class Api:
         try:
             # Parse the response as JSON
             object = resp.json()
-        except:
+        except ValueError:
             raise ProtocolException(f"Expected JSON response")
 
         check_error(object)
