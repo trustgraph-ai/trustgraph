@@ -93,8 +93,8 @@ class TestWriteAmplification:
         assert 'O' in roles
         assert 'G' in roles
 
-    def test_literal_object_produces_3_entity_rows(self, entity_kg):
-        """Literal object → S + P entity rows (no O row) + collection row."""
+    def test_literal_object_produces_4_rows(self, entity_kg):
+        """Literal object → S + P + O entity rows + collection row."""
         kg, ctx = entity_kg
         ctx["batches"].clear()
 
@@ -109,13 +109,13 @@ class TestWriteAmplification:
 
         batch = ctx["batches"][0]
 
-        # S + P entity rows + 1 collection = 3 (no O row for literal, no G for default)
-        assert len(batch._adds) == 3
+        # S + P + O entity rows + 1 collection = 4 (no G for default)
+        assert len(batch._adds) == 4
 
         roles = [params[2] for _, params in batch._adds if len(params) == 10]
         assert 'S' in roles
         assert 'P' in roles
-        assert 'O' not in roles
+        assert 'O' in roles
         assert 'G' not in roles
 
     def test_triple_otype_gets_object_entity_row(self, entity_kg):
@@ -206,6 +206,129 @@ class TestWriteAmplification:
                 # Entity row: (collection, entity, role, p, otype, s, o, d, dtype, lang)
                 assert params[8] == 'xsd:string'
                 assert params[9] == 'en'
+
+
+# ---------------------------------------------------------------------------
+# Literal object queryability: insert must index literals as entities
+# ---------------------------------------------------------------------------
+
+class TestLiteralObjectQueryability:
+
+    def test_literal_object_gets_entity_row_for_query(self, entity_kg):
+        """Literal objects must get an O entity row so get_o() can find them.
+
+        Regression: inserting (s, rdfs:label, "MIL-HDBK-516D") then calling
+        get_o("MIL-HDBK-516D") returned nothing because no role='O' row was
+        written for literals.
+        """
+        kg, ctx = entity_kg
+        ctx["batches"].clear()
+
+        kg.insert(
+            collection='col',
+            s='http://trustgraph.ai/e/mil-hdbk-516d',
+            p='http://www.w3.org/2000/01/rdf-schema#label',
+            o='MIL-HDBK-516D',
+            g=None,
+            otype='l',
+        )
+
+        batch = ctx["batches"][0]
+        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+
+        assert 'O' in roles, "Literal objects must have role='O' entity row for get_o() queries"
+
+        o_rows = [
+            params for _, params in batch._adds
+            if len(params) == 10 and params[2] == 'O'
+        ]
+        assert len(o_rows) == 1
+        assert o_rows[0][1] == 'MIL-HDBK-516D'  # entity = object value
+        assert o_rows[0][4] == 'l'               # otype preserved
+
+    def test_literal_object_with_dtype_and_lang_gets_entity_row(self, entity_kg):
+        """Literal with datatype and language tag must also be indexed."""
+        kg, ctx = entity_kg
+        ctx["batches"].clear()
+
+        kg.insert(
+            collection='col',
+            s='http://ex.org/Alice',
+            p='http://www.w3.org/2000/01/rdf-schema#label',
+            o='Alice Smith',
+            g=None,
+            otype='l',
+            dtype='xsd:string',
+            lang='en',
+        )
+
+        batch = ctx["batches"][0]
+        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+
+        assert 'O' in roles
+
+        o_rows = [
+            params for _, params in batch._adds
+            if len(params) == 10 and params[2] == 'O'
+        ]
+        assert o_rows[0][8] == 'xsd:string'  # dtype
+        assert o_rows[0][9] == 'en'           # lang
+
+    def test_literal_object_default_graph_produces_4_rows(self, entity_kg):
+        """Literal + default graph → S + P + O entity rows + 1 collection = 4."""
+        kg, ctx = entity_kg
+        ctx["batches"].clear()
+
+        kg.insert(
+            collection='col',
+            s='http://ex.org/s',
+            p='http://ex.org/label',
+            o='some label',
+            g=None,
+            otype='l',
+        )
+
+        batch = ctx["batches"][0]
+        assert len(batch._adds) == 4  # S + P + O + collection
+
+    def test_literal_object_non_default_graph_produces_5_rows(self, entity_kg):
+        """Literal + named graph → S + P + O + G entity rows + collection = 5."""
+        kg, ctx = entity_kg
+        ctx["batches"].clear()
+
+        kg.insert(
+            collection='col',
+            s='http://ex.org/s',
+            p='http://ex.org/label',
+            o='some label',
+            g='http://ex.org/g1',
+            otype='l',
+        )
+
+        batch = ctx["batches"][0]
+        assert len(batch._adds) == 5  # S + P + O + G + collection
+
+    def test_delete_collection_includes_literal_object_entities(self, entity_kg):
+        """Literal objects must be included in entity partition deletes."""
+        kg, ctx = entity_kg
+
+        mock_rows = [
+            MagicMock(d='', s='http://ex.org/A', p='http://ex.org/name',
+                      o='Alice', otype='l', dtype='', lang=''),
+        ]
+        ctx["session"].execute.return_value = mock_rows
+        ctx["batches"].clear()
+
+        kg.delete_collection('col')
+
+        entity_deletes = []
+        for batch in ctx["batches"]:
+            for _, params in batch._adds:
+                if len(params) == 2:
+                    entity_deletes.append(params[1])
+
+        assert 'Alice' in entity_deletes, \
+            "Literal object entities must be deleted when collection is deleted"
 
 
 # ---------------------------------------------------------------------------
@@ -323,8 +446,8 @@ class TestDeleteCollectionBatching:
         # Just verify the function completes and calls execute
         assert ctx["session"].execute.called
 
-    def test_literal_objects_not_treated_as_entities(self, entity_kg):
-        """Literal objects (otype='l') should not get entity partition deletes."""
+    def test_literal_objects_treated_as_entities(self, entity_kg):
+        """Literal objects (otype='l') should get entity partition deletes."""
         kg, ctx = entity_kg
 
         mock_rows = [
@@ -336,16 +459,15 @@ class TestDeleteCollectionBatching:
 
         kg.delete_collection('col')
 
-        # Entity partition deletes should only include A and name, not Alice
         entity_deletes = []
         for batch in ctx["batches"]:
             for _, params in batch._adds:
-                if len(params) == 2:  # delete_entity_partition takes (collection, entity)
+                if len(params) == 2:
                     entity_deletes.append(params[1])
 
         assert 'http://ex.org/A' in entity_deletes
         assert 'http://ex.org/name' in entity_deletes
-        assert 'Alice' not in entity_deletes
+        assert 'Alice' in entity_deletes
 
     def test_non_default_graph_treated_as_entity(self, entity_kg):
         """Non-default graphs should get entity partition deletes."""
