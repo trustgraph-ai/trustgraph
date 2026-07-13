@@ -776,11 +776,10 @@ class EntityCentricKnowledgeGraph:
             collection, p, 'P', p, otype, s, o, g, dtype, lang
         ))
 
-        # Write row for object entity (role='O') - only for URIs, not literals
-        if otype == 'u' or otype == 't':
-            batch.add(self.insert_entity_stmt, (
-                collection, o, 'O', p, otype, s, o, g, dtype, lang
-            ))
+        # Write row for object entity (role='O')
+        batch.add(self.insert_entity_stmt, (
+            collection, o, 'O', p, otype, s, o, g, dtype, lang
+        ))
 
         # Write row for graph entity (role='G') - only for non-default graphs
         if g != DEFAULT_GRAPH:
@@ -997,15 +996,10 @@ class EntityCentricKnowledgeGraph:
             lang = row.lang if hasattr(row, 'lang') else ''
             quads.append((d, s, p, o, otype, dtype, lang))
 
-            # Subject and predicate are always entities
             entities.add(s)
             entities.add(p)
+            entities.add(o)
 
-            # Object is an entity only for URIs
-            if otype == 'u' or otype == 't':
-                entities.add(o)
-
-            # Graph is an entity for non-default graphs
             if d != DEFAULT_GRAPH:
                 entities.add(d)
 
@@ -1067,8 +1061,7 @@ class EntityCentricKnowledgeGraph:
         batch = BatchStatement()
         batch.add(self.insert_entity_stmt, (collection, s, 'S', p, otype, s, o, g, dtype, lang))
         batch.add(self.insert_entity_stmt, (collection, p, 'P', p, otype, s, o, g, dtype, lang))
-        if otype == 'u' or otype == 't':
-            batch.add(self.insert_entity_stmt, (collection, o, 'O', p, otype, s, o, g, dtype, lang))
+        batch.add(self.insert_entity_stmt, (collection, o, 'O', p, otype, s, o, g, dtype, lang))
         if g != DEFAULT_GRAPH:
             batch.add(self.insert_entity_stmt, (collection, g, 'G', p, otype, s, o, g, dtype, lang))
         batch.add(self.insert_collection_stmt, (collection, g, s, p, o, otype, dtype, lang))
@@ -1233,8 +1226,7 @@ class EntityCentricKnowledgeGraph:
             quads.append((d, s, p, o, otype, dtype, lang))
             entities.add(s)
             entities.add(p)
-            if otype == 'u' or otype == 't':
-                entities.add(o)
+            entities.add(o)
             if d != DEFAULT_GRAPH:
                 entities.add(d)
 
