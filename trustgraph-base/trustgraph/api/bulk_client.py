@@ -15,13 +15,19 @@ from . types import Triple
 from . exceptions import ProtocolException
 
 
-def _string_to_term(value: str) -> Dict[str, Any]:
+def _string_to_term(
+    value: str, datatype: str = "", language: str = ""
+) -> Dict[str, Any]:
     """Convert a string value to Term format for the gateway."""
-    # Treat URIs as IRI type, otherwise as literal
     if value.startswith("http://") or value.startswith("https://") or "://" in value:
         return {"t": "i", "i": value}
     else:
-        return {"t": "l", "v": value}
+        result: Dict[str, Any] = {"t": "l", "v": value}
+        if datatype:
+            result["dt"] = datatype
+        if language:
+            result["ln"] = language
+        return result
 
 
 class BulkClient:
@@ -141,7 +147,11 @@ class BulkClient:
                 batch.append({
                     "s": _string_to_term(triple.s),
                     "p": _string_to_term(triple.p),
-                    "o": _string_to_term(triple.o)
+                    "o": _string_to_term(
+                        triple.o,
+                        datatype=triple.o_datatype,
+                        language=triple.o_language,
+                    ),
                 })
                 if len(batch) >= batch_size:
                     message = {
