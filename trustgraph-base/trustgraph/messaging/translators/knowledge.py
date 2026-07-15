@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, Tuple, Optional
 from ...schema import (
     KnowledgeRequest, KnowledgeResponse, Triples, GraphEmbeddings,
@@ -7,6 +8,8 @@ from ...schema import (
 )
 from .base import MessageTranslator
 from .primitives import ValueTranslator, SubgraphTranslator
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeRequestTranslator(MessageTranslator):
@@ -264,6 +267,15 @@ class KnowledgeResponseTranslator(MessageTranslator):
                 }
             }
 
+        # Error response
+        if obj.error:
+            return {
+                "error": {
+                    "type": obj.error.type,
+                    "message": obj.error.message,
+                }
+            }
+
         # End of stream marker
         if obj.eos is True:
             return {"eos": True}
@@ -274,14 +286,13 @@ class KnowledgeResponseTranslator(MessageTranslator):
     def encode_with_completion(self, obj: KnowledgeResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
         response = self.encode(obj)
-        
-        # Check if this is a final response
+
         is_final = (
-            obj.ids is not None or  # List response
-            obj.eos is True or      # End of stream
-            (not obj.triples and not obj.graph_embeddings
+            obj.ids is not None or
+            obj.eos is True or
+            (not obj.error and not obj.triples and not obj.graph_embeddings
              and not obj.document_embeddings
-             and not obj.library_metadata and not obj.library_blob)  # Empty response
+             and not obj.library_metadata and not obj.library_blob)
         )
-        
+
         return response, is_final

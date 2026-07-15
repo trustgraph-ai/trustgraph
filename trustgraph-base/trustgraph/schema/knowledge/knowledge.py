@@ -66,7 +66,7 @@ class KnowledgeRequest:
 @dataclass
 class KnowledgeResponse:
     error: Error | None = None
-    ids: list[str] = field(default_factory=list)
+    ids: list[str] | None = None
     eos: bool = False     # Indicates end of knowledge core stream
     triples: Triples | None = None
     graph_embeddings: GraphEmbeddings | None = None

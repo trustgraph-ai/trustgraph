@@ -16,6 +16,7 @@ from .. base import LibrarianClient
 
 from .. schema import KnowledgeRequest, KnowledgeResponse, Error
 from .. schema import knowledge_request_queue, knowledge_response_queue
+from .. schema import librarian_request_queue, librarian_response_queue
 
 from .. schema import Document, Metadata
 from .. schema import TextDocument, Metadata
@@ -79,9 +80,7 @@ class Processor(WorkspaceProcessor):
             }
         )
 
-        self.librarian_client = LibrarianClient(
-            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
-        )
+        self.librarian_clients = {}
 
         self.knowledge = KnowledgeManager(
             cassandra_host = self.cassandra_host,
@@ -89,7 +88,7 @@ class Processor(WorkspaceProcessor):
             cassandra_password = self.cassandra_password,
             keyspace = keyspace,
             flow_config = self,
-            librarian = self.librarian_client,
+            librarian_clients = self.librarian_clients,
             replication_factor = replication_factor,
         )
 
@@ -142,17 +141,38 @@ class Processor(WorkspaceProcessor):
             ),
         )
 
+        librarian_client = LibrarianClient(
+            id=self.id,
+            backend=self.pubsub,
+            taskgroup=self.taskgroup,
+            librarian_request_queue=workspace_queue(
+                librarian_request_queue, workspace,
+            ),
+            librarian_response_queue=workspace_queue(
+                librarian_response_queue, workspace,
+            ),
+            librarian_subscriber=(
+                f"{self.id}--{workspace}--librarian"
+            ),
+        )
+
         await response_producer.start()
         await consumer.start()
+        await librarian_client.start()
+
+        self.librarian_clients[workspace] = librarian_client
 
         self.workspace_consumers[workspace] = {
             "consumer": consumer,
             "response": response_producer,
+            "librarian": librarian_client,
         }
 
         logger.info(f"Subscribed to workspace queue: {workspace}")
 
     async def on_workspace_deleted(self, workspace):
+
+        self.librarian_clients.pop(workspace, None)
 
         clients = self.workspace_consumers.pop(workspace, None)
         if clients:
@@ -163,7 +183,6 @@ class Processor(WorkspaceProcessor):
     async def start(self):
 
         await super(Processor, self).start()
-        await self.librarian_client.start()
 
     async def on_knowledge_config(self, workspace, config, version):
 
