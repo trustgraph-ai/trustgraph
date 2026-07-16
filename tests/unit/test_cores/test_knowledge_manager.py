@@ -401,9 +401,10 @@ class TestKnowledgeManagerLibraryDownload:
                 cassandra_password="test_pass",
                 keyspace="test_keyspace",
                 flow_config=mock_flow_config,
-                librarian=mock_librarian,
+                librarian_clients={"test-user": mock_librarian},
             )
             manager.table_store = AsyncMock()
+            manager._mock_librarian = mock_librarian
             return manager
 
     @pytest.mark.asyncio
@@ -411,6 +412,7 @@ class TestKnowledgeManagerLibraryDownload:
         mock_request = Mock()
         mock_request.id = "root-doc"
         mock_respond = AsyncMock()
+        librarian = manager_with_librarian._mock_librarian
 
         manager_with_librarian.table_store.get_triples = AsyncMock()
         manager_with_librarian.table_store.get_graph_embeddings = AsyncMock()
@@ -424,11 +426,12 @@ class TestKnowledgeManagerLibraryDownload:
             parent_id="root-doc", document_type="chunk",
         )
 
-        manager_with_librarian.librarian.fetch_document_metadata.return_value = root_meta
-        manager_with_librarian.librarian.request.return_value = LibrarianResponse(
-            document_metadatas=[child_meta],
-        )
-        manager_with_librarian.librarian.fetch_document_content.side_effect = [
+        librarian.fetch_document_metadata.return_value = root_meta
+        librarian.request.side_effect = [
+            LibrarianResponse(document_metadatas=[child_meta]),
+            LibrarianResponse(document_metadatas=[]),
+        ]
+        librarian.fetch_document_content.side_effect = [
             b"cm9vdCBjb250ZW50",
             b"Y2h1bmsgY29udGVudA==",
         ]
@@ -488,7 +491,7 @@ class TestKnowledgeManagerLibraryDownload:
 
         manager_with_librarian.table_store.get_triples = AsyncMock()
         manager_with_librarian.table_store.get_graph_embeddings = AsyncMock()
-        manager_with_librarian.librarian.fetch_document_metadata.side_effect = (
+        manager_with_librarian._mock_librarian.fetch_document_metadata.side_effect = (
             RuntimeError("not found")
         )
 
@@ -512,9 +515,10 @@ class TestKnowledgeManagerLibraryUpload:
                 cassandra_host=["localhost"],
                 cassandra_username="u", cassandra_password="p",
                 keyspace="ks", flow_config=mock_flow_config,
-                librarian=mock_librarian,
+                librarian_clients={"ws": mock_librarian},
             )
             manager.table_store = AsyncMock()
+            manager._mock_librarian = mock_librarian
             return manager
 
     @pytest.mark.asyncio
@@ -522,7 +526,8 @@ class TestKnowledgeManagerLibraryUpload:
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
-        manager_with_librarian.librarian.request.return_value = LibrarianResponse()
+        librarian = manager_with_librarian._mock_librarian
+        librarian.request.return_value = LibrarianResponse()
 
         # First call: metadata
         req_meta = Mock()
@@ -536,7 +541,7 @@ class TestKnowledgeManagerLibraryUpload:
         await manager_with_librarian.put_kg_core(req_meta, mock_respond, "ws")
 
         # Metadata is buffered, librarian not called yet
-        manager_with_librarian.librarian.request.assert_not_called()
+        librarian.request.assert_not_called()
 
         # Second call: blob
         req_blob = Mock()
@@ -549,8 +554,8 @@ class TestKnowledgeManagerLibraryUpload:
         await manager_with_librarian.put_kg_core(req_blob, mock_respond, "ws")
 
         # Now librarian should have been called with add-document
-        manager_with_librarian.librarian.request.assert_called_once()
-        call_args = manager_with_librarian.librarian.request.call_args[0][0]
+        librarian.request.assert_called_once()
+        call_args = librarian.request.call_args[0][0]
         assert call_args.operation == "add-document"
         assert call_args.document_metadata.id == "doc-1"
         assert call_args.document_metadata.kind == "application/pdf"
@@ -561,7 +566,8 @@ class TestKnowledgeManagerLibraryUpload:
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
-        manager_with_librarian.librarian.request.return_value = LibrarianResponse()
+        librarian = manager_with_librarian._mock_librarian
+        librarian.request.return_value = LibrarianResponse()
 
         req_meta = Mock()
         req_meta.triples = None
@@ -580,7 +586,7 @@ class TestKnowledgeManagerLibraryUpload:
         req_blob.library_blob = LibraryBlob(id="chunk-1", data=b"Y2h1bms=")
         await manager_with_librarian.put_kg_core(req_blob, mock_respond, "ws")
 
-        call_args = manager_with_librarian.librarian.request.call_args[0][0]
+        call_args = librarian.request.call_args[0][0]
         assert call_args.operation == "add-child-document"
         assert call_args.document_metadata.parent_id == "doc-1"
 
@@ -589,6 +595,7 @@ class TestKnowledgeManagerLibraryUpload:
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
+        librarian = manager_with_librarian._mock_librarian
 
         req_blob = Mock()
         req_blob.triples = None
@@ -598,14 +605,15 @@ class TestKnowledgeManagerLibraryUpload:
         await manager_with_librarian.put_kg_core(req_blob, mock_respond, "ws")
 
         # Librarian should not be called for orphan blob
-        manager_with_librarian.librarian.request.assert_not_called()
+        librarian.request.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_put_existing_document_is_graceful(
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
-        manager_with_librarian.librarian.request.side_effect = RuntimeError(
+        librarian = manager_with_librarian._mock_librarian
+        librarian.request.side_effect = RuntimeError(
             "Document already exists"
         )
 
