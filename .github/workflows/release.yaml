@@ -58,6 +58,7 @@ jobs:
           - hf
           - ocr
           - unstructured
+          - docling
           - mcp
         platform:
           - amd64
@@ -118,6 +119,7 @@ jobs:
           - hf
           - ocr
           - unstructured
+          - docling
           - mcp
 
     steps:
