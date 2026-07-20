@@ -2,7 +2,7 @@
 import datetime
 import os
 import logging
-
+import re
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement, SimpleStatement
@@ -548,7 +548,7 @@ class EntityCentricKnowledgeGraph:
         if hosts is None:
             hosts = ["localhost"]
 
-        self.keyspace = keyspace
+        self.keyspace = self.sanitize_name(keyspace)
         self.replication_factor = replication_factor
         self.username = username
 
@@ -572,6 +572,13 @@ class EntityCentricKnowledgeGraph:
 
         self.init()
         self.prepare_statements()
+        
+    def sanitize_name(self, name: str) -> str:
+        """Sanitize names for Cassandra compatibility"""
+        safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+        if safe_name and not safe_name[0].isalpha():
+            safe_name = 'r_' + safe_name
+        return safe_name.lower()
 
     def clear(self):
         self.session.execute(f"""
