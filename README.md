@@ -20,7 +20,7 @@
 
 ---
 
-Write context once. Run agents anywhere. Own your data and the models.
+Build deterministic agents with open source AI.
 
 Stop rebuilding context from scratch. TrustGraph treats context as a holon — a modular, independent whole that naturally snaps into a larger domain-wide intelligence layer. By deploying context as holonic context graphs, TrustGraph powers multi-tenant agent workflows, dramatically reduces token consumption, and aligns with semantic web standards (RDF, OWL, SKOS, SHACL). Version your context, share it across teams, and scale with full provenance.
 
