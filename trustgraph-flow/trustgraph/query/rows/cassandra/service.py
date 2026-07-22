@@ -190,11 +190,17 @@ class Processor(FlowProcessor):
                     fields=fields
                 )
 
+                query_indexes = set(schema_def.get("query-indexes", []))
+                for field in fields:
+                    if field.name in query_indexes:
+                        field.indexed = True
+
                 ws_schemas[schema_name] = row_schema
                 builder.add_schema(schema_name, row_schema)
                 logger.info(
                     f"Loaded schema: {schema_name} with "
-                    f"{len(fields)} fields for {workspace}"
+                    f"{len(fields)} fields, {len(query_indexes)} query-indexed "
+                    f"for {workspace}"
                 )
 
             except Exception as e:

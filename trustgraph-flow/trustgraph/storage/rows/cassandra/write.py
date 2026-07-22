@@ -7,10 +7,13 @@ Uses a single 'rows' table with the schema:
     - schema_name: text
     - index_name: text
     - index_value: frozen<list<text>>
+    - row_id: text
     - data: map<text, text>
     - source: text
 
-Each row is written multiple times - once per indexed field defined in the schema.
+Each row is written multiple times - once per query-indexed field defined
+in the schema. The row_id (primary key value) is included as a clustering
+column to allow multiple rows with the same index value.
 """
 
 import asyncio
@@ -183,10 +186,16 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     fields=fields
                 )
 
+                query_indexes = set(schema_def.get("query-indexes", []))
+                for field in fields:
+                    if field.name in query_indexes:
+                        field.indexed = True
+
                 ws_schemas[schema_name] = row_schema
                 logger.info(
                     f"Loaded schema: {schema_name} with "
-                    f"{len(fields)} fields for {workspace}"
+                    f"{len(fields)} fields, {len(query_indexes)} query-indexed "
+                    f"for {workspace}"
                 )
 
             except Exception as e:
@@ -263,9 +272,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             schema_name text,
             index_name text,
             index_value frozen<list<text>>,
+            row_id text,
             data map<text, text>,
             source text,
-            PRIMARY KEY ((collection, schema_name, index_name), index_value)
+            PRIMARY KEY ((collection, schema_name, index_name), index_value, row_id)
         )
         """
 
@@ -351,6 +361,14 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         self.registered_partitions.add(cache_key)
         logger.info(f"Registered partitions for {collection}/{schema_name}: {index_names}")
 
+    def get_row_id(self, schema: RowSchema, value_map: Dict[str, str]) -> str:
+        """Get the primary key value for a row."""
+        for field in schema.fields:
+            if field.primary:
+                value = value_map.get(field.name)
+                return str(value) if value is not None else ""
+        return ""
+
     def build_index_value(self, value_map: Dict[str, str], index_name: str) -> List[str]:
         """
         Build the index_value list for a given index.
@@ -420,8 +438,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         # Prepare insert statement
         insert_cql = f"""
         INSERT INTO {safe_keyspace}.rows
-            (collection, schema_name, index_name, index_value, data, source)
-        VALUES (%s, %s, %s, %s, %s, %s)
+            (collection, schema_name, index_name, index_value, row_id, data, source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
 
         # Process each row in the batch
@@ -433,6 +451,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                 raw_value = value_map.get(field.name)
                 if raw_value is not None:
                     data_map[field.name] = str(raw_value)
+
+            row_id = self.get_row_id(schema, value_map)
 
             # Write one copy per index
             for index_name in index_names:
@@ -450,7 +470,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     await async_execute(
                         self.session,
                         insert_cql,
-                        (collection, schema_name, index_name, index_value, data_map, source),
+                        (collection, schema_name, index_name, index_value, row_id, data_map, source),
                     )
                     rows_written += 1
                 except Exception as e:
