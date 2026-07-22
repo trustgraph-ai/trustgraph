@@ -286,9 +286,6 @@ class Processor(FlowProcessor):
             """
             params = [collection, schema_name, index_name, index_value]
 
-            if limit:
-                query += f" LIMIT {limit}"
-
             try:
                 pages = await async_execute_paged(
                     self.session, query, params
@@ -296,7 +293,12 @@ class Processor(FlowProcessor):
                 for page in pages:
                     for row in page:
                         row_dict = dict(row.data) if row.data else {}
-                        results.append(row_dict)
+                        if self._matches_filters(row_dict, filters, row_schema):
+                            results.append(row_dict)
+                            if limit and len(results) >= limit:
+                                break
+                    if limit and len(results) >= limit:
+                        break
             except Exception as e:
                 logger.error(f"Failed to query rows: {e}", exc_info=True)
                 raise
