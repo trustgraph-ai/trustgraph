@@ -64,8 +64,8 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
 
         index_names = processor.get_index_names(schema)
 
-        # Should include primary key and indexed field
-        assert 'id' in index_names
+        # Should include only indexed fields, not primary key
+        assert 'id' not in index_names
         assert 'name' in index_names
         assert 'email' not in index_names
 
@@ -356,12 +356,10 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
         # Mock the flow
         mock_embeddings_request = AsyncMock()
         # Return batch of vector sets (one per text)
-        # 4 unique texts: CUST001, John Doe, CUST002, Jane Smith
+        # 2 unique texts: John Doe, Jane Smith (only 'name' is indexed)
         mock_embeddings_request.embed.return_value = [
             [[0.1, 0.2, 0.3]],  # vectors for text 1
             [[0.2, 0.3, 0.4]],  # vectors for text 2
-            [[0.3, 0.4, 0.5]],  # vectors for text 3
-            [[0.4, 0.5, 0.6]],  # vectors for text 4
         ]
 
         mock_output = AsyncMock()
@@ -383,7 +381,7 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
         # Verify it was called with a list of texts
         call_args = mock_embeddings_request.embed.call_args
         assert 'texts' in call_args.kwargs
-        assert len(call_args.kwargs['texts']) == 4
+        assert len(call_args.kwargs['texts']) == 2
 
         # Should have sent output
         mock_output.send.assert_called()

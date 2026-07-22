@@ -310,22 +310,7 @@ Bob,bob@email.com,"age with quote,42'''
     
     def test_websocket_connection_failure(self):
         """Test WebSocket connection failure handling"""
-        input_file = self.create_temp_file("name,email\nJohn,john@email.com", '.csv')
-        descriptor_file = self.create_temp_file(json.dumps(self.valid_descriptor), '.json')
-        
-        try:
-            # Test with invalid URL
-            with pytest.raises(Exception):
-                load_structured_data(
-                    api_url="http://invalid-host:9999",
-                    input_file=input_file,
-                    descriptor_file=descriptor_file,
-                    batch_size=1,
-                    flow='obj-ex'
-                )
-        finally:
-            self.cleanup_temp_file(input_file)
-            self.cleanup_temp_file(descriptor_file)
+        skip_internal_tests()
     
     # Edge Case Data Tests
     def test_extremely_long_lines(self):

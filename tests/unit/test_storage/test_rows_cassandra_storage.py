@@ -195,6 +195,7 @@ class TestRowsCassandraStorageLogic:
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
+        processor.get_row_id = Processor.get_row_id.__get__(processor, Processor)
         processor.build_index_value = Processor.build_index_value.__get__(processor, Processor)
         processor.ensure_tables = MagicMock()
         processor.register_partitions = MagicMock()
@@ -231,13 +232,14 @@ class TestRowsCassandraStorageLogic:
         # Verify using unified rows table
         assert "INSERT INTO default.rows" in insert_cql
 
-        # Values should be: (collection, schema_name, index_name, index_value, data, source)
+        # Values should be: (collection, schema_name, index_name, index_value, row_id, data, source)
         assert values[0] == "test_collection"  # collection
         assert values[1] == "test_schema"      # schema_name
         assert values[2] == "id"               # index_name (primary key field)
         assert values[3] == ["123"]            # index_value as list
-        assert values[4] == {"id": "123", "value": "test_data"}  # data map
-        assert values[5] == ""                 # source
+        assert values[4] == "123"              # row_id (primary key value)
+        assert values[5] == {"id": "123", "value": "test_data"}  # data map
+        assert values[6] == ""                 # source
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.rows.cassandra.write.async_execute', new_callable=AsyncMock)
@@ -261,6 +263,7 @@ class TestRowsCassandraStorageLogic:
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
+        processor.get_row_id = Processor.get_row_id.__get__(processor, Processor)
         processor.build_index_value = Processor.build_index_value.__get__(processor, Processor)
         processor.ensure_tables = MagicMock()
         processor.register_partitions = MagicMock()
@@ -321,6 +324,7 @@ class TestRowsCassandraStorageBatchLogic:
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
+        processor.get_row_id = Processor.get_row_id.__get__(processor, Processor)
         processor.build_index_value = Processor.build_index_value.__get__(processor, Processor)
         processor.ensure_tables = MagicMock()
         processor.register_partitions = MagicMock()
@@ -378,6 +382,7 @@ class TestRowsCassandraStorageBatchLogic:
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
+        processor.get_row_id = Processor.get_row_id.__get__(processor, Processor)
         processor.build_index_value = Processor.build_index_value.__get__(processor, Processor)
         processor.ensure_tables = MagicMock()
         processor.register_partitions = MagicMock()
@@ -432,7 +437,7 @@ class TestUnifiedTableStructure:
         assert "index_value frozen<list<text>>" in rows_cql
         assert "data map<text, text>" in rows_cql
         assert "source text" in rows_cql
-        assert "PRIMARY KEY ((collection, schema_name, index_name), index_value)" in rows_cql
+        assert "PRIMARY KEY ((collection, schema_name, index_name), index_value, row_id)" in rows_cql
 
         # Check row_partitions table creation
         partitions_cql = processor.session.execute.call_args_list[1][0][0]
