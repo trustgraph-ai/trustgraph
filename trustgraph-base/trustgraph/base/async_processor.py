@@ -139,7 +139,7 @@ class AsyncProcessor:
                 workspace=workspace,
                 type=config_type,
             ),
-            timeout=10,
+            timeout=60,
         )
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
@@ -156,7 +156,7 @@ class AsyncProcessor:
                 operation="getkeys-all-ws",
                 type=config_type,
             ),
-            timeout=10,
+            timeout=60,
         )
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
@@ -168,10 +168,21 @@ class AsyncProcessor:
         for v in resp.values:
             workspaces.add(v.workspace)
 
-        # Step 2: fetch values per workspace
-        grouped = {}
-        for ws in workspaces:
+        # Step 2: fetch values per workspace in parallel
+        async def fetch_one(ws):
             kv = await self._fetch_type_workspace(client, ws, config_type)
+            return ws, kv
+
+        results = await asyncio.gather(
+            *(fetch_one(ws) for ws in workspaces),
+            return_exceptions=True,
+        )
+
+        grouped = {}
+        for result in results:
+            if isinstance(result, Exception):
+                raise result
+            ws, kv = result
             if kv:
                 grouped[ws] = kv
 
@@ -194,7 +205,14 @@ class AsyncProcessor:
         """Startup: for each registered handler, fetch config for all its
         types across all workspaces and invoke the handler once per
         workspace. Retries until successful — config service may not be
-        ready yet."""
+        ready yet.
+
+        Tracks which workspaces have already been applied so that
+        retries resume from where they left off rather than re-applying
+        all workspaces from scratch.
+        """
+
+        applied_ws = set()
 
         while self.running:
 
@@ -225,11 +243,15 @@ class AsyncProcessor:
                             for ws, kv in type_data.items():
                                 per_ws.setdefault(ws, {})[t] = kv
 
-                        # Call the handler once per workspace
+                        # Call the handler once per workspace, skipping
+                        # workspaces already applied in a previous attempt
                         for ws, config in per_ws.items():
                             if ws.startswith("_"):
                                 continue
+                            if ws in applied_ws:
+                                continue
                             await entry["handler"](ws, config, version)
+                            applied_ws.add(ws)
 
                     logger.info(
                         f"Applied startup config version {version}"
