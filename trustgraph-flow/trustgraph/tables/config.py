@@ -166,6 +166,12 @@ class ConfigTableStore:
             ALLOW FILTERING;
         """)
 
+        self.get_keys_all_ws_stmt = self.cassandra.prepare("""
+            SELECT workspace, key FROM config
+            WHERE class = ?
+            ALLOW FILTERING;
+        """)
+
     async def put_config(self, workspace, cls, key, value):
         try:
             await async_execute(
@@ -219,6 +225,21 @@ class ConfigTableStore:
             raise
 
         return [(row[0], row[1], row[2]) for row in rows]
+
+    async def get_keys_all_ws(self, cls):
+        """Return (workspace, key) tuples for all workspaces
+        with entries of the given class."""
+        try:
+            rows = await async_execute(
+                self.cassandra,
+                self.get_keys_all_ws_stmt,
+                (cls,),
+            )
+        except Exception:
+            logger.error("Exception occurred", exc_info=True)
+            raise
+
+        return [(row[0], row[1]) for row in rows]
 
     async def get_all(self):
         try:

@@ -11,6 +11,7 @@ from ..core.primitives import Error
 #   list(workspace, type) -> (version, directory)
 #   getvalues(workspace, type) -> (version, values)
 #   getvalues-all-ws(type) -> (version, values with workspace field)
+#   getkeys-all-ws(type) -> (version, values with workspace+key, no value)
 #   put(workspace, values) -> ()
 #   delete(workspace, keys) -> ()
 #   config(workspace) -> (version, config)
@@ -36,8 +37,8 @@ class ConfigValue:
 
 @dataclass
 class ConfigRequest:
-    # Operations: get, list, getvalues, getvalues-all-ws, delete, put,
-    # config
+    # Operations: get, list, getvalues, getvalues-all-ws,
+    # getkeys-all-ws, delete, put, config
     operation: str = ""
 
     # Workspace scope — required on all operations except

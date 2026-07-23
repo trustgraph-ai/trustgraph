@@ -96,6 +96,27 @@ class Configuration:
             values = values,
         )
 
+    async def handle_getkeys_all_ws(self, v):
+        """Fetch all workspace/key pairs of a given type across all
+        workspaces. Returns keys without values so the response stays
+        small regardless of value size."""
+
+        keys = await self.table_store.get_keys_all_ws(v.type)
+
+        values = [
+            ConfigValue(
+                workspace = row[0],
+                type = v.type,
+                key = row[1],
+            )
+            for row in keys
+        ]
+
+        return ConfigResponse(
+            version = await self.get_version(),
+            values = values,
+        )
+
     async def handle_delete(self, v, workspace):
 
         types = list(set(k.type for k in v.keys))
@@ -243,6 +264,9 @@ class Configuration:
 
         if msg.operation == "getvalues-all-ws":
             resp = await self.handle_getvalues_all_ws(msg)
+
+        elif msg.operation == "getkeys-all-ws":
+            resp = await self.handle_getkeys_all_ws(msg)
 
         elif msg.operation in ("get", "list", "getvalues", "delete",
                                "put", "config"):

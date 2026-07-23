@@ -147,10 +147,13 @@ class AsyncProcessor:
 
     async def _fetch_type_all_workspaces(self, client, config_type):
         """Fetch config values of a single type across all workspaces.
-        Returns dict of {workspace: {key: value}}."""
+        Uses getkeys-all-ws to discover workspaces, then fetches values
+        per-workspace to avoid oversized responses."""
+
+        # Step 1: get workspace/key pairs (small response)
         resp = await client.request(
             ConfigRequest(
-                operation="getvalues-all-ws",
+                operation="getkeys-all-ws",
                 type=config_type,
             ),
             timeout=10,
@@ -158,11 +161,21 @@ class AsyncProcessor:
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
 
-        grouped = {}
+        version = resp.version
+
+        # Group keys by workspace
+        workspaces = set()
         for v in resp.values:
-            ws = grouped.setdefault(v.workspace, {})
-            ws[v.key] = v.value
-        return grouped, resp.version
+            workspaces.add(v.workspace)
+
+        # Step 2: fetch values per workspace
+        grouped = {}
+        for ws in workspaces:
+            kv = await self._fetch_type_workspace(client, ws, config_type)
+            if kv:
+                grouped[ws] = kv
+
+        return grouped, version
 
     # This is called to start dynamic behaviour.
     # Implements the subscribe-then-fetch pattern to avoid race conditions.
