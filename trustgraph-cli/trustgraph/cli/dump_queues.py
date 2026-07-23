@@ -331,7 +331,8 @@ IMPORTANT:
         help='Append to output file instead of overwriting'
     )
 
-    add_pubsub_args(parser, standalone=True)
+    add_pubsub_args(parser)
+    parser.set_defaults(pulsar_listener='external')
 
     parser.add_argument(
         '--subscriber',
