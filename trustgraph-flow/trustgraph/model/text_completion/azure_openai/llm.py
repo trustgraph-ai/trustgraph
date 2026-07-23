@@ -5,7 +5,6 @@ OpenAI endpoit service.  Input is prompt, output is response.
 """
 
 import json
-from prometheus_client import Histogram
 from openai import AzureOpenAI, RateLimitError
 import os
 import logging

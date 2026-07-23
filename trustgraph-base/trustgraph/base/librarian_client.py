@@ -43,10 +43,12 @@ class LibrarianClient:
             "librarian_subscriber", f"{id}-librarian",
         )
 
+        workspace = params.get("workspace")
         flow_name = params.get("flow_name")
 
         librarian_request_metrics = ProducerMetrics(
-            processor=id, flow=flow_name, name="librarian-request",
+            processor=id, producer="librarian-request",
+            workspace=workspace, flow=flow_name,
         )
 
         self._producer = Producer(
@@ -57,7 +59,8 @@ class LibrarianClient:
         )
 
         librarian_response_metrics = ConsumerMetrics(
-            processor=id, flow=flow_name, name="librarian-response",
+            processor=id, consumer="librarian-response",
+            workspace=workspace, flow=flow_name,
         )
 
         self._consumer = Consumer(

@@ -94,7 +94,7 @@ class LlmService(FlowProcessor):
             __class__.text_completion_metric = Histogram(
                 'text_completion_duration',
                 'Text completion duration (seconds)',
-                ["id", "flow"],
+                ["processor"],
                 buckets=[
                     0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
                     8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
@@ -108,7 +108,7 @@ class LlmService(FlowProcessor):
             __class__.text_completion_model_metric = Info(
                 'text_completion_model',
                 'Text completion model',
-                ["processor", "flow"]
+                ["processor"]
             )
 
     async def on_request(self, msg, consumer, flow):
@@ -133,8 +133,7 @@ class LlmService(FlowProcessor):
 
                 # Streaming mode
                 with __class__.text_completion_metric.labels(
-                        id=self.id,
-                        flow=f"{flow.name}-{consumer.name}",
+                        processor=self.id,
                 ).time():
 
                     async for chunk in self.generate_content_stream(
@@ -157,8 +156,7 @@ class LlmService(FlowProcessor):
 
                 # Non-streaming mode (original behavior)
                 with __class__.text_completion_metric.labels(
-                        id=self.id,
-                        flow=f"{flow.name}-{consumer.name}",
+                        processor=self.id,
                 ).time():
 
                     response = await self.generate_content(
@@ -179,8 +177,7 @@ class LlmService(FlowProcessor):
                 )
 
             __class__.text_completion_model_metric.labels(
-                processor = self.id,
-                flow = flow.name
+                processor=self.id,
             ).info({
                 "model": str(model) if model is not None else "",
                 "temperature": str(temperature) if temperature is not None else "",

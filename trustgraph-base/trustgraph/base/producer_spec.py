@@ -14,7 +14,8 @@ class ProducerSpec(Spec):
     def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
 
         producer_metrics = ProducerMetrics(
-            processor = flow.id, flow = flow.name, name = self.name
+            processor=flow.id, producer=self.name,
+            workspace=flow.workspace, flow=flow.name,
         )
 
         producer = Producer(

@@ -6,7 +6,6 @@ serverless endpoint service.  Input is prompt, output is response.
 
 import requests
 import json
-from prometheus_client import Histogram
 import os
 import logging
 

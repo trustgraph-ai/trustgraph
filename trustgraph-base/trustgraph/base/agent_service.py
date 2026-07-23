@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 
 import time
 import logging
-from prometheus_client import Histogram
 
 from .. schema import AgentRequest, AgentResponse, Error
 from .. exceptions import TooManyRequests
