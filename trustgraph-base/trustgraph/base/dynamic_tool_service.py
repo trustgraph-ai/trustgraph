@@ -63,7 +63,7 @@ class DynamicToolService(AsyncProcessor):
 
         # Create consumer for requests
         consumer_metrics = ConsumerMetrics(
-            processor=self.id, flow=None, name="request"
+            processor=self.id, consumer="request",
         )
 
         self.consumer = Consumer(
@@ -79,7 +79,7 @@ class DynamicToolService(AsyncProcessor):
 
         # Create producer for responses
         producer_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="response"
+            processor=self.id, producer="response",
         )
 
         self.producer = Producer(
@@ -93,7 +93,7 @@ class DynamicToolService(AsyncProcessor):
             __class__.tool_service_metric = Counter(
                 'dynamic_tool_service_invocation_count',
                 'Dynamic tool service invocation count',
-                ["id"],
+                ["processor"],
             )
 
     async def start(self):
@@ -133,7 +133,7 @@ class DynamicToolService(AsyncProcessor):
             )
 
             __class__.tool_service_metric.labels(
-                id=self.id,
+                processor=self.id,
             ).inc()
 
         except TooManyRequests as e:

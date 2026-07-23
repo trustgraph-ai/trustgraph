@@ -106,13 +106,13 @@ class Processor(AsyncProcessor):
         )
 
         config_request_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "config-request"
+            processor=self.id, consumer="config-request",
         )
         config_response_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "config-response"
+            processor=self.id, producer="config-response",
         )
         config_push_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "config-push"
+            processor=self.id, producer="config-push",
         )
 
         self.config_request_queue_base = config_request_queue
@@ -225,8 +225,8 @@ class Processor(AsyncProcessor):
             topic=resp_queue,
             schema=ConfigResponse,
             metrics=ProducerMetrics(
-                processor=self.id, flow=None,
-                name=f"config-response-{workspace_id}",
+                processor=self.id, producer="config-response",
+                workspace=workspace_id,
             ),
         )
 
@@ -242,8 +242,8 @@ class Processor(AsyncProcessor):
                 workspace=workspace_id,
             ),
             metrics=ConsumerMetrics(
-                processor=self.id, flow=None,
-                name=f"config-request-{workspace_id}",
+                processor=self.id, consumer="config-request",
+                workspace=workspace_id,
             ),
         )
 

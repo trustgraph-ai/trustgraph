@@ -96,12 +96,10 @@ class ConfigReceiver:
         id = str(uuid.uuid4())
 
         config_req_metrics = ProducerMetrics(
-            processor="api-gateway", flow=None,
-            name="config-request",
+            processor="api-gateway", producer="config-request",
         )
         config_resp_metrics = SubscriberMetrics(
-            processor="api-gateway", flow=None,
-            name="config-response",
+            processor="api-gateway", subscriber="config-response",
         )
 
         return RequestResponse(

@@ -132,11 +132,13 @@ class RequestResponseSpec(Spec):
             return
 
         request_metrics = ProducerMetrics(
-            processor = flow.id, flow = flow.name, name = self.request_name
+            processor=flow.id, producer=self.request_name,
+            workspace=flow.workspace, flow=flow.name,
         )
 
         response_metrics = SubscriberMetrics(
-            processor = flow.id, flow = flow.name, name = self.request_name
+            processor=flow.id, subscriber=self.response_name,
+            workspace=flow.workspace, flow=flow.name,
         )
 
         rr = self.impl(

@@ -171,7 +171,7 @@ class Processor(WorkspaceProcessor):
 
         # Config service client for collection management
         config_request_metrics = ProducerMetrics(
-            processor = id, flow = None, name = "config-request"
+            processor=id, producer="config-request",
         )
 
         self.config_request_producer = Producer(
@@ -182,7 +182,7 @@ class Processor(WorkspaceProcessor):
         )
 
         config_response_metrics = ConsumerMetrics(
-            processor = id, flow = None, name = "config-response"
+            processor=id, consumer="config-response",
         )
 
         self.config_response_consumer = Consumer(
@@ -258,8 +258,8 @@ class Processor(WorkspaceProcessor):
             topic=lib_resp_queue,
             schema=LibrarianResponse,
             metrics=ProducerMetrics(
-                processor=self.id, flow=None,
-                name=f"librarian-response-{workspace}",
+                processor=self.id, producer="librarian-response",
+                workspace=workspace,
             ),
         )
 
@@ -268,8 +268,8 @@ class Processor(WorkspaceProcessor):
             topic=col_resp_queue,
             schema=CollectionManagementResponse,
             metrics=ProducerMetrics(
-                processor=self.id, flow=None,
-                name=f"collection-response-{workspace}",
+                processor=self.id, producer="collection-response",
+                workspace=workspace,
             ),
         )
 
@@ -284,8 +284,8 @@ class Processor(WorkspaceProcessor):
                 self.on_librarian_request, workspace=workspace,
             ),
             metrics=ConsumerMetrics(
-                processor=self.id, flow=None,
-                name=f"librarian-request-{workspace}",
+                processor=self.id, consumer="librarian-request",
+                workspace=workspace,
             ),
         )
 
@@ -300,8 +300,8 @@ class Processor(WorkspaceProcessor):
                 self.on_collection_request, workspace=workspace,
             ),
             metrics=ConsumerMetrics(
-                processor=self.id, flow=None,
-                name=f"collection-request-{workspace}",
+                processor=self.id, consumer="collection-request",
+                workspace=workspace,
             ),
         )
 

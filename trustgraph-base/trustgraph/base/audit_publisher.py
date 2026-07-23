@@ -21,8 +21,7 @@ class AuditPublisher:
             schema=AuditEvent,
             metrics=ProducerMetrics(
                 processor=processor_id or component_name,
-                flow=None,
-                name="audit-events",
+                producer="audit-events",
             ),
         )
 

@@ -25,6 +25,7 @@ class LibrarianSpec(Spec):
                 processor.id + "--" + flow.workspace + "--" +
                 flow.name + "--librarian--" + str(uuid.uuid4())
             ),
+            workspace=flow.workspace,
             flow_name=flow.name,
         )
 

@@ -84,7 +84,7 @@ class AsyncProcessor:
         config_subscriber_id = str(uuid.uuid4())
 
         config_consumer_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "config",
+            processor=self.id, consumer="config",
         )
 
         # Subscribe to config notify queue
@@ -112,10 +112,10 @@ class AsyncProcessor:
         config_rr_id = str(uuid.uuid4())
 
         config_req_metrics = ProducerMetrics(
-            processor = self.id, flow = None, name = "config-request",
+            processor=self.id, producer="config-request",
         )
         config_resp_metrics = SubscriberMetrics(
-            processor = self.id, flow = None, name = "config-response",
+            processor=self.id, subscriber="config-response",
         )
 
         return RequestResponse(

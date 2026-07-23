@@ -120,10 +120,10 @@ class Processor(AsyncProcessor):
         )
 
         iam_request_metrics = ConsumerMetrics(
-            processor=self.id, flow=None, name="iam-request",
+            processor=self.id, consumer="iam-request",
         )
         iam_response_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="iam-response",
+            processor=self.id, producer="iam-response",
         )
 
         self.iam_request_topic = iam_req_q
@@ -179,10 +179,10 @@ class Processor(AsyncProcessor):
         import uuid
         config_rr_id = str(uuid.uuid4())
         config_req_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="config-request",
+            processor=self.id, producer="config-request",
         )
         config_resp_metrics = SubscriberMetrics(
-            processor=self.id, flow=None, name="config-response",
+            processor=self.id, subscriber="config-response",
         )
         return RequestResponse(
             backend=self.pubsub,

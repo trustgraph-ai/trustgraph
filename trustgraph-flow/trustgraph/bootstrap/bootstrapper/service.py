@@ -173,12 +173,12 @@ class Processor(AsyncProcessor):
             request_topic=config_request_queue,
             request_schema=ConfigRequest,
             request_metrics=ProducerMetrics(
-                processor=self.id, flow=None, name="config-request",
+                processor=self.id, producer="config-request",
             ),
             response_topic=config_response_queue,
             response_schema=ConfigResponse,
             response_metrics=SubscriberMetrics(
-                processor=self.id, flow=None, name="config-response",
+                processor=self.id, subscriber="config-response",
             ),
         )
 
@@ -191,12 +191,12 @@ class Processor(AsyncProcessor):
             request_topic=f"{flow_request_queue}:{workspace}",
             request_schema=FlowRequest,
             request_metrics=ProducerMetrics(
-                processor=self.id, flow=None, name="flow-request",
+                processor=self.id, producer="flow-request",
             ),
             response_topic=f"{flow_response_queue}:{workspace}",
             response_schema=FlowResponse,
             response_metrics=SubscriberMetrics(
-                processor=self.id, flow=None, name="flow-response",
+                processor=self.id, subscriber="flow-response",
             ),
         )
 
@@ -209,12 +209,12 @@ class Processor(AsyncProcessor):
             request_topic=iam_request_queue,
             request_schema=IamRequest,
             request_metrics=ProducerMetrics(
-                processor=self.id, flow=None, name="iam-request",
+                processor=self.id, producer="iam-request",
             ),
             response_topic=iam_response_queue,
             response_schema=IamResponse,
             response_metrics=SubscriberMetrics(
-                processor=self.id, flow=None, name="iam-response",
+                processor=self.id, subscriber="iam-response",
             ),
         )
 

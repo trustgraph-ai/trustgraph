@@ -120,8 +120,8 @@ class Processor(WorkspaceProcessor):
             topic=resp_queue,
             schema=KnowledgeResponse,
             metrics=ProducerMetrics(
-                processor=self.id, flow=None,
-                name=f"knowledge-response-{workspace}",
+                processor=self.id, producer="knowledge-response",
+                workspace=workspace,
             ),
         )
 
@@ -136,8 +136,8 @@ class Processor(WorkspaceProcessor):
                 self.on_knowledge_request, workspace=workspace,
             ),
             metrics=ConsumerMetrics(
-                processor=self.id, flow=None,
-                name=f"knowledge-request-{workspace}",
+                processor=self.id, consumer="knowledge-request",
+                workspace=workspace,
             ),
         )
 

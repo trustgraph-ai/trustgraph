@@ -15,7 +15,8 @@ class SubscriberSpec(Spec):
     def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
 
         subscriber_metrics = SubscriberMetrics(
-            processor = flow.id, flow = flow.name, name = self.name
+            processor=flow.id, subscriber=self.name,
+            workspace=flow.workspace, flow=flow.name,
         )
 
         subscriber = Subscriber(

@@ -16,7 +16,8 @@ class ConsumerSpec(Spec):
     def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
 
         consumer_metrics = ConsumerMetrics(
-            processor = flow.id, flow = flow.name, name = self.name,
+            processor=flow.id, consumer=self.name,
+            workspace=flow.workspace, flow=flow.name,
         )
 
         consumer = Consumer(

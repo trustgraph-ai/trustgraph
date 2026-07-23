@@ -164,12 +164,12 @@ class IamAuth:
             request_topic=iam_request_queue,
             request_schema=IamRequest,
             request_metrics=ProducerMetrics(
-                processor=self.id, flow=None, name="iam-request",
+                processor=self.id, producer="iam-request",
             ),
             response_topic=iam_response_queue,
             response_schema=IamResponse,
             response_metrics=SubscriberMetrics(
-                processor=self.id, flow=None, name="iam-response",
+                processor=self.id, subscriber="iam-response",
             ),
         )
 

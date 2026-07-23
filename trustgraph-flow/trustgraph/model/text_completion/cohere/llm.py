@@ -6,7 +6,6 @@ Input is prompt, output is response.
 
 import cohere
 from cohere.errors import TooManyRequestsError, ServiceUnavailableError
-from prometheus_client import Histogram
 import os
 import logging
 

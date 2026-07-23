@@ -55,10 +55,10 @@ class Processor(WorkspaceProcessor):
         )
 
         config_req_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="config-request",
+            processor=self.id, producer="config-request",
         )
         config_resp_metrics = SubscriberMetrics(
-            processor=self.id, flow=None, name="config-response",
+            processor=self.id, subscriber="config-response",
         )
 
         config_rr_id = str(uuid.uuid4())
@@ -100,8 +100,8 @@ class Processor(WorkspaceProcessor):
             topic=resp_queue,
             schema=FlowResponse,
             metrics=ProducerMetrics(
-                processor=self.id, flow=None,
-                name=f"flow-response-{workspace}",
+                processor=self.id, producer="flow-response",
+                workspace=workspace,
             ),
         )
 
@@ -116,8 +116,8 @@ class Processor(WorkspaceProcessor):
                 self.on_flow_request, workspace=workspace,
             ),
             metrics=ConsumerMetrics(
-                processor=self.id, flow=None,
-                name=f"flow-request-{workspace}",
+                processor=self.id, consumer="flow-request",
+                workspace=workspace,
             ),
         )
 
