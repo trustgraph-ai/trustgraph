@@ -42,23 +42,24 @@ class Producer:
 
         if not self.running: return
 
-        while self.running and self.producer is None:
+        while self.running:
 
-            try:
-                logger.info(f"Connecting publisher to {self.topic}...")
-                self.producer = self.backend.create_producer(
-                    topic = self.topic,
-                    schema = self.schema,
-                    chunking_enabled = self.chunking_enabled,
-                )
-                logger.info(f"Connected publisher to {self.topic}")
-            except Exception as e:
-                logger.error(f"Exception connecting publisher: {e}", exc_info=True)
-                await asyncio.sleep(2)
+            # Reconnect if needed
+            while self.running and self.producer is None:
+
+                try:
+                    logger.info(f"Connecting publisher to {self.topic}...")
+                    self.producer = self.backend.create_producer(
+                        topic = self.topic,
+                        schema = self.schema,
+                        chunking_enabled = self.chunking_enabled,
+                    )
+                    logger.info(f"Connected publisher to {self.topic}")
+                except Exception as e:
+                    logger.error(f"Exception connecting publisher: {e}", exc_info=True)
+                    await asyncio.sleep(2)
 
             if not self.running: break
-
-        while self.running:
 
             try:
 
@@ -75,6 +76,7 @@ class Producer:
 
             except Exception as e:
                 logger.error(f"Exception sending message: {e}", exc_info=True)
-                self.producer.close()
+                if self.producer:
+                    self.producer.close()
                 self.producer = None
 
