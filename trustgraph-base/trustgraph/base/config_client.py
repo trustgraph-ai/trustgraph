@@ -7,7 +7,10 @@ CONFIG_TIMEOUT = 10
 
 class ConfigClient(RequestResponse):
 
-    async def _request(self, timeout=CONFIG_TIMEOUT, **kwargs):
+    def __init__(self, timeout=CONFIG_TIMEOUT, **kwargs):
+        super(ConfigClient, self).__init__(default_timeout=timeout, **kwargs)
+
+    async def _request(self, timeout=None, **kwargs):
         resp = await self.request(
             ConfigRequest(**kwargs),
             timeout=timeout,
@@ -18,7 +21,7 @@ class ConfigClient(RequestResponse):
             )
         return resp
 
-    async def get(self, workspace, type, key, timeout=CONFIG_TIMEOUT):
+    async def get(self, workspace, type, key, timeout=None):
         """Get a single config value. Returns the value string or None."""
         resp = await self._request(
             operation="get",
@@ -30,7 +33,7 @@ class ConfigClient(RequestResponse):
             return resp.values[0].value
         return None
 
-    async def put(self, workspace, type, key, value, timeout=CONFIG_TIMEOUT):
+    async def put(self, workspace, type, key, value, timeout=None):
         """Put a single config value."""
         await self._request(
             operation="put",
@@ -39,7 +42,7 @@ class ConfigClient(RequestResponse):
             timeout=timeout,
         )
 
-    async def put_many(self, workspace, values, timeout=CONFIG_TIMEOUT):
+    async def put_many(self, workspace, values, timeout=None):
         """Put multiple config values in a single request within a
         single workspace. values is a list of (type, key, value) tuples."""
         await self._request(
@@ -52,7 +55,7 @@ class ConfigClient(RequestResponse):
             timeout=timeout,
         )
 
-    async def delete(self, workspace, type, key, timeout=CONFIG_TIMEOUT):
+    async def delete(self, workspace, type, key, timeout=None):
         """Delete a single config key."""
         await self._request(
             operation="delete",
@@ -61,7 +64,7 @@ class ConfigClient(RequestResponse):
             timeout=timeout,
         )
 
-    async def delete_many(self, workspace, keys, timeout=CONFIG_TIMEOUT):
+    async def delete_many(self, workspace, keys, timeout=None):
         """Delete multiple config keys in a single request within a
         single workspace. keys is a list of (type, key) tuples."""
         await self._request(
@@ -74,7 +77,7 @@ class ConfigClient(RequestResponse):
             timeout=timeout,
         )
 
-    async def keys(self, workspace, type, timeout=CONFIG_TIMEOUT):
+    async def keys(self, workspace, type, timeout=None):
         """List all keys for a config type within a workspace."""
         resp = await self._request(
             operation="list",
@@ -84,7 +87,7 @@ class ConfigClient(RequestResponse):
         )
         return resp.directory
 
-    async def get_all(self, workspace, timeout=CONFIG_TIMEOUT):
+    async def get_all(self, workspace, timeout=None):
         """Return every config entry in ``workspace`` as a nested dict
         ``{type: {key: value}}``.  Values are returned as the raw
         strings stored by config-svc (typically JSON); callers parse
@@ -96,7 +99,7 @@ class ConfigClient(RequestResponse):
         )
         return resp.config
 
-    async def workspaces_for_type(self, type, timeout=CONFIG_TIMEOUT):
+    async def workspaces_for_type(self, type, timeout=None):
         """Return the set of distinct workspaces with any config of
         the given type."""
         resp = await self._request(
