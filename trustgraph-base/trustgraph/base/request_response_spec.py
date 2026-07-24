@@ -162,3 +162,24 @@ class RequestResponseSpec(Spec):
 
         flow.consumer[self.request_name] = rr
 
+    async def register(self, flow: Any, processor: Any, definition: dict[str, Any]) -> Any:
+
+        from .request_response_client import RequestResponseClient
+
+        topics = definition.get("topics", {})
+        if self.optional and (
+                self.request_name not in topics
+                or self.response_name not in topics):
+            return None
+
+        client = await RequestResponseClient.create(
+            backend=processor.async_backend,
+            request_topic=topics[self.request_name],
+            response_topic=topics[self.response_name],
+            request_schema=self.request_schema,
+            response_schema=self.response_schema,
+        )
+
+        flow.consumer[self.request_name] = client
+        return client
+

@@ -43,3 +43,26 @@ class ConsumerSpec(Spec):
 
         flow.consumer[self.name] = consumer
 
+    async def register(self, flow: Any, processor: Any, definition: dict[str, Any]) -> Any:
+
+        topic = definition["topics"][self.name]
+        subscription = (
+            processor.id + "--" + flow.workspace + "--" +
+            flow.name + "--" + self.name
+        )
+
+        handler = self.handler
+
+        async def pool_handler(message):
+            await handler(message, None, flow)
+
+        reg = await processor.receiver_pool.add_consumer(
+            topic=topic,
+            subscription=subscription,
+            schema=self.schema,
+            handler=pool_handler,
+        )
+
+        flow.consumer[self.name] = reg
+        return reg
+

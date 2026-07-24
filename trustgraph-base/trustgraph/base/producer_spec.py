@@ -26,3 +26,15 @@ class ProducerSpec(Spec):
         )
 
         flow.producer[self.name] = producer
+
+    async def register(self, flow: Any, processor: Any, definition: dict[str, Any]) -> Any:
+
+        topic = definition["topics"][self.name]
+
+        handle = await processor.sender_pool.add_producer(
+            topic=topic,
+            schema=self.schema,
+        )
+
+        flow.producer[self.name] = handle
+        return handle
