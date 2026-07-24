@@ -12,14 +12,10 @@ import os
 from trustgraph.schema import Error
 from trustgraph.schema import IamRequest, IamResponse
 from trustgraph.schema import iam_request_queue, iam_response_queue
-from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigValue
-from trustgraph.schema import config_request_queue, config_response_queue
+from trustgraph.schema import ConfigRequest, ConfigValue
 
-from trustgraph.base import AsyncProcessor, Consumer, Producer
+from trustgraph.base import AsyncProcessor
 from trustgraph.base import AuditPublisher
-from trustgraph.base import ConsumerMetrics, ProducerMetrics
-from trustgraph.base.metrics import SubscriberMetrics
-from trustgraph.base.request_response_spec import RequestResponse
 from trustgraph.base.cassandra_config import (
     add_cassandra_args, resolve_cassandra_config,
 )
@@ -119,35 +115,10 @@ class Processor(AsyncProcessor):
             }
         )
 
-        iam_request_metrics = ConsumerMetrics(
-            processor=self.id, consumer="iam-request",
-        )
-        iam_response_metrics = ProducerMetrics(
-            processor=self.id, producer="iam-response",
-        )
-
         self.iam_request_topic = iam_req_q
-
-        self.iam_request_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
-            topic=iam_req_q,
-            subscriber=self.id,
-            schema=IamRequest,
-            handler=self.on_iam_request,
-            metrics=iam_request_metrics,
-        )
-
-        self.iam_response_producer = Producer(
-            backend=self.pubsub,
-            topic=iam_resp_q,
-            schema=IamResponse,
-            metrics=iam_response_metrics,
-        )
+        self.iam_response_topic = iam_resp_q
 
         self.audit = AuditPublisher(
-            backend=self.pubsub,
             component_name="iam-service",
             processor_id=self.id,
         )
@@ -169,37 +140,36 @@ class Processor(AsyncProcessor):
         )
 
     async def start(self):
-        await self.pubsub.ensure_topic(self.iam_request_topic)
+        await super().start()
+
+        await self.async_backend.ensure_topic(self.iam_request_topic)
+
+        async def wrapper(message):
+            await self.on_iam_request(message, None, None)
+
+        self.iam_request_consumer = \
+            await self.receiver_pool.add_consumer(
+                topic=self.iam_request_topic,
+                subscription=self.id,
+                schema=IamRequest,
+                handler=wrapper,
+            )
+
+        self.iam_response_producer = \
+            await self.sender_pool.add_producer(
+                topic=self.iam_response_topic,
+                schema=IamResponse,
+            )
+
+        await self.audit.start(self.sender_pool)
+
         # Token-mode auto-bootstrap runs before we accept requests so
         # the first inbound call always sees a populated table.
         await self.iam.auto_bootstrap_if_token_mode()
-        await self.iam_request_consumer.start()
-
-    def _create_config_client(self):
-        import uuid
-        config_rr_id = str(uuid.uuid4())
-        config_req_metrics = ProducerMetrics(
-            processor=self.id, producer="config-request",
-        )
-        config_resp_metrics = SubscriberMetrics(
-            processor=self.id, subscriber="config-response",
-        )
-        return RequestResponse(
-            backend=self.pubsub,
-            subscription=f"{self.id}--config--{config_rr_id}",
-            consumer_name=self.id,
-            request_topic=config_request_queue,
-            request_schema=ConfigRequest,
-            request_metrics=config_req_metrics,
-            response_topic=config_response_queue,
-            response_schema=ConfigResponse,
-            response_metrics=config_resp_metrics,
-        )
 
     async def _config_put(self, workspace, type, key, value):
-        client = self._create_config_client()
+        client = await self._create_config_client()
         try:
-            await client.start()
             await client.request(
                 ConfigRequest(
                     operation="put",
@@ -209,13 +179,12 @@ class Processor(AsyncProcessor):
                 timeout=10,
             )
         finally:
-            await client.stop()
+            await client.close()
 
     async def _config_delete(self, workspace, type, key):
         from trustgraph.schema import ConfigKey
-        client = self._create_config_client()
+        client = await self._create_config_client()
         try:
-            await client.start()
             await client.request(
                 ConfigRequest(
                     operation="delete",
@@ -225,7 +194,7 @@ class Processor(AsyncProcessor):
                 timeout=10,
             )
         finally:
-            await client.stop()
+            await client.close()
 
     async def _ensure_workspace_registered(self, workspace_id):
         await self._config_put(

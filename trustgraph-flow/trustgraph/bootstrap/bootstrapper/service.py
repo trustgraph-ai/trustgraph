@@ -17,9 +17,8 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 
 from trustgraph.base import AsyncProcessor
-from trustgraph.base import ProducerMetrics, SubscriberMetrics
-from trustgraph.base.config_client import ConfigClient
-from trustgraph.base.request_response_spec import RequestResponse
+from trustgraph.base.async_config_client import AsyncConfigClient
+from trustgraph.base.async_rr_wrapper import AsyncRequestResponseWrapper
 from trustgraph.schema import (
     ConfigRequest, ConfigResponse,
     config_request_queue, config_response_queue,
@@ -164,68 +163,40 @@ class Processor(AsyncProcessor):
     # Client construction (short-lived per wake cycle).
     # ------------------------------------------------------------------
 
-    def _make_config_client(self):
-        rr_id = str(uuid.uuid4())
-        return ConfigClient(
-            backend=self.pubsub_backend,
-            subscription=f"{self.id}--config--{rr_id}",
-            consumer_name=self.id,
+    async def _make_config_client(self):
+        return await AsyncConfigClient.create(
+            backend=self.async_backend,
             request_topic=config_request_queue,
-            request_schema=ConfigRequest,
-            request_metrics=ProducerMetrics(
-                processor=self.id, producer="config-request",
-            ),
             response_topic=config_response_queue,
-            response_schema=ConfigResponse,
-            response_metrics=SubscriberMetrics(
-                processor=self.id, subscriber="config-response",
-            ),
+            subscription=f"{self.id}--config--{uuid.uuid4()}",
         )
 
     def _make_flow_client(self, workspace):
-        rr_id = str(uuid.uuid4())
-        return RequestResponse(
-            backend=self.pubsub_backend,
-            subscription=f"{self.id}--flow--{rr_id}",
-            consumer_name=self.id,
+        return AsyncRequestResponseWrapper(
+            backend=self.async_backend,
             request_topic=f"{flow_request_queue}:{workspace}",
-            request_schema=FlowRequest,
-            request_metrics=ProducerMetrics(
-                processor=self.id, producer="flow-request",
-            ),
             response_topic=f"{flow_response_queue}:{workspace}",
+            request_schema=FlowRequest,
             response_schema=FlowResponse,
-            response_metrics=SubscriberMetrics(
-                processor=self.id, subscriber="flow-response",
-            ),
+            subscription=f"{self.id}--flow--{uuid.uuid4()}",
         )
 
     def _make_iam_client(self):
-        rr_id = str(uuid.uuid4())
-        return RequestResponse(
-            backend=self.pubsub_backend,
-            subscription=f"{self.id}--iam--{rr_id}",
-            consumer_name=self.id,
+        return AsyncRequestResponseWrapper(
+            backend=self.async_backend,
             request_topic=iam_request_queue,
-            request_schema=IamRequest,
-            request_metrics=ProducerMetrics(
-                processor=self.id, producer="iam-request",
-            ),
             response_topic=iam_response_queue,
+            request_schema=IamRequest,
             response_schema=IamResponse,
-            response_metrics=SubscriberMetrics(
-                processor=self.id, subscriber="iam-response",
-            ),
+            subscription=f"{self.id}--iam--{uuid.uuid4()}",
         )
 
     async def _open_clients(self):
-        config = self._make_config_client()
-        await config.start()
-        return config
+        return await self._make_config_client()
 
     async def _safe_stop(self, client):
         try:
-            await client.stop()
+            await client.close()
         except Exception:
             pass
 

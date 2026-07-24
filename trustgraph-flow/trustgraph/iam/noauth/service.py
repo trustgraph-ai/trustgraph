@@ -4,18 +4,13 @@ all access unconditionally.  No database, no bootstrap, no signing keys.
 """
 
 import logging
-import uuid
 
 from trustgraph.schema import Error
 from trustgraph.schema import IamRequest, IamResponse
 from trustgraph.schema import iam_request_queue, iam_response_queue
-from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigValue
-from trustgraph.schema import config_request_queue, config_response_queue
+from trustgraph.schema import ConfigRequest, ConfigValue
 
-from trustgraph.base import AsyncProcessor, Consumer, Producer
-from trustgraph.base import ConsumerMetrics, ProducerMetrics
-from trustgraph.base.metrics import SubscriberMetrics
-from trustgraph.base.request_response_spec import RequestResponse
+from trustgraph.base import AsyncProcessor
 
 from . handler import NoAuthHandler
 
@@ -31,10 +26,10 @@ class Processor(AsyncProcessor):
 
     def __init__(self, **params):
 
-        iam_req_q = params.get(
+        self.iam_request_topic = params.get(
             "iam_request_queue", default_iam_request_queue,
         )
-        iam_resp_q = params.get(
+        self.iam_response_topic = params.get(
             "iam_response_queue", default_iam_response_queue,
         )
 
@@ -42,33 +37,6 @@ class Processor(AsyncProcessor):
         default_workspace = params.get("default_workspace", "default")
 
         super().__init__(**params)
-
-        iam_request_metrics = ConsumerMetrics(
-            processor=self.id, consumer="iam-request",
-        )
-        iam_response_metrics = ProducerMetrics(
-            processor=self.id, producer="iam-response",
-        )
-
-        self.iam_request_topic = iam_req_q
-
-        self.iam_request_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
-            topic=iam_req_q,
-            subscriber=self.id,
-            schema=IamRequest,
-            handler=self.on_iam_request,
-            metrics=iam_request_metrics,
-        )
-
-        self.iam_response_producer = Producer(
-            backend=self.pubsub,
-            topic=iam_resp_q,
-            schema=IamResponse,
-            metrics=iam_response_metrics,
-        )
 
         self.handler = NoAuthHandler(
             default_user_id=default_user_id,
@@ -82,33 +50,30 @@ class Processor(AsyncProcessor):
         )
 
     async def start(self):
-        await self.pubsub.ensure_topic(self.iam_request_topic)
-        await self.iam_request_consumer.start()
+        await super().start()
 
-    def _create_config_client(self):
-        config_rr_id = str(uuid.uuid4())
-        config_req_metrics = ProducerMetrics(
-            processor=self.id, producer="config-request",
-        )
-        config_resp_metrics = SubscriberMetrics(
-            processor=self.id, subscriber="config-response",
-        )
-        return RequestResponse(
-            backend=self.pubsub,
-            subscription=f"{self.id}--config--{config_rr_id}",
-            consumer_name=self.id,
-            request_topic=config_request_queue,
-            request_schema=ConfigRequest,
-            request_metrics=config_req_metrics,
-            response_topic=config_response_queue,
-            response_schema=ConfigResponse,
-            response_metrics=config_resp_metrics,
-        )
+        await self.async_backend.ensure_topic(self.iam_request_topic)
+
+        async def wrapper(message):
+            await self.on_iam_request(message, None, None)
+
+        self.iam_request_consumer = \
+            await self.receiver_pool.add_consumer(
+                topic=self.iam_request_topic,
+                subscription=self.id,
+                schema=IamRequest,
+                handler=wrapper,
+            )
+
+        self.iam_response_producer = \
+            await self.sender_pool.add_producer(
+                topic=self.iam_response_topic,
+                schema=IamResponse,
+            )
 
     async def _ensure_workspace_registered(self, workspace_id):
-        client = self._create_config_client()
+        client = await self._create_config_client()
         try:
-            await client.start()
             await client.request(
                 ConfigRequest(
                     operation="put",
@@ -121,7 +86,7 @@ class Processor(AsyncProcessor):
                 timeout=10,
             )
         finally:
-            await client.stop()
+            await client.close()
         logger.info(
             f"Registered workspace in config: {workspace_id}"
         )
