@@ -23,9 +23,8 @@ class WorkspaceProcessor(AsyncProcessor):
         self.register_workspace_handler(self._handle_workspace_changes)
 
     async def _discover_workspaces(self):
-        client = self._create_config_client()
+        client = await self._create_config_client()
         try:
-            await client.start()
             type_data, version = await self._fetch_type_all_workspaces(
                 client, WORKSPACE_TYPE,
             )
@@ -36,7 +35,7 @@ class WorkspaceProcessor(AsyncProcessor):
                             self.active_workspaces.add(workspace_id)
                             await self.on_workspace_created(workspace_id)
         finally:
-            await client.stop()
+            await client.close()
 
     async def _handle_workspace_changes(self, workspace_changes):
         for workspace_id in workspace_changes.created:

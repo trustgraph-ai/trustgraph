@@ -3,12 +3,6 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from typing import Any, Callable
 
-# Base class for processors.  Implements:
-# - Pub/sub client, subscribe and consume basic
-# - the async startup logic
-# - Config notify handling with subscribe-then-fetch pattern
-# - Initialising metrics
-
 import asyncio
 import argparse
 import time
@@ -21,118 +15,77 @@ from .. schema import ConfigPush, ConfigRequest, ConfigResponse
 from .. schema import config_push_queue, config_request_queue
 from .. schema import config_response_queue
 from .. log_level import LogLevel
-from . pubsub import get_pubsub, add_pubsub_args
-from . producer import Producer
-from . consumer import Consumer
-from . subscriber import Subscriber
-from . request_response_spec import RequestResponse
-from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
-from . metrics import SubscriberMetrics
+from . pubsub import get_async_pubsub, add_pubsub_args
+from . receiver_pool import ReceiverPool
+from . sender_pool import SenderPool
+from . request_response_client import RequestResponseClient
 from . logging import add_logging_args, setup_logging
 
 default_config_queue = config_push_queue
 
-# Module logger
 logger = logging.getLogger(__name__)
 
-# Async processor
+
 class AsyncProcessor:
 
     def __init__(self, **params):
 
-        # Store the identity
         self.id = params.get("id")
 
-        # Create pub/sub backend via factory
-        self.pubsub_backend = get_pubsub(**params)
+        self.async_backend = get_async_pubsub(**params)
 
-        # Store pulsar_host for backward compatibility
         self._pulsar_host = params.get("pulsar_host", "pulsar://pulsar:6650")
 
-        # Initialise metrics, records the parameters
+        from . metrics import ProcessorMetrics
         ProcessorMetrics(processor = self.id).info({
             k: str(params[k])
             for k in params
             if k != "id"
         })
 
-        # The processor runs all activity in a taskgroup, it's mandatory
-        # that this is provded
         self.taskgroup = params.get("taskgroup")
-        if self.taskgroup is None:
-            raise RuntimeError("Essential taskgroup missing")
 
-        # Get the configuration topic
+        self.concurrency = params.get("concurrency", 1)
+
+        self.receiver_pool = ReceiverPool(
+            backend=self.async_backend,
+            concurrency=self.concurrency,
+        )
+
+        self.sender_pool = SenderPool(
+            backend=self.async_backend,
+        )
+
         self.config_push_queue = params.get(
             "config_push_queue", default_config_queue
         )
 
-        # This records registered configuration handlers, each entry is:
-        # { "handler": async_fn, "types": set_or_none }
         self.config_handlers = []
-
-        # Workspace lifecycle handlers, called when workspaces are
-        # created or deleted.  Each entry is an async callable:
-        # async def handler(workspace_changes: WorkspaceChanges)
         self.workspace_handlers = []
-
-        # Track the current config version for dedup
         self.config_version = 0
 
-        # Create a random ID for this subscription to the configuration
-        # service
-        config_subscriber_id = str(uuid.uuid4())
-
-        config_consumer_metrics = ConsumerMetrics(
-            processor=self.id, consumer="config",
-        )
-
-        # Subscribe to config notify queue
-        self.config_sub_task = Consumer(
-
-            taskgroup = self.taskgroup,
-            backend = self.pubsub_backend,
-            subscriber = config_subscriber_id,
-            flow = None,
-
-            topic = self.config_push_queue,
-            schema = ConfigPush,
-
-            handler = self.on_config_notify,
-
-            metrics = config_consumer_metrics,
-
-            start_of_messages = False,
-        )
+        self._config_consumer_reg = None
 
         self.running = True
 
-    def _create_config_client(self):
-        """Create a short-lived config request/response client."""
-        config_rr_id = str(uuid.uuid4())
+    @property
+    def pubsub(self) -> Any:
+        return self.async_backend
 
-        config_req_metrics = ProducerMetrics(
-            processor=self.id, producer="config-request",
-        )
-        config_resp_metrics = SubscriberMetrics(
-            processor=self.id, subscriber="config-response",
-        )
+    @property
+    def pulsar_host(self) -> str:
+        return self._pulsar_host
 
-        return RequestResponse(
-            backend = self.pubsub_backend,
-            subscription = f"{self.id}--config--{config_rr_id}",
-            consumer_name = self.id,
-            request_topic = config_request_queue,
-            request_schema = ConfigRequest,
-            request_metrics = config_req_metrics,
-            response_topic = config_response_queue,
-            response_schema = ConfigResponse,
-            response_metrics = config_resp_metrics,
+    async def _create_config_client(self):
+        return await RequestResponseClient.create(
+            backend=self.async_backend,
+            request_topic=config_request_queue,
+            response_topic=config_response_queue,
+            request_schema=ConfigRequest,
+            response_schema=ConfigResponse,
         )
 
     async def _fetch_type_workspace(self, client, workspace, config_type):
-        """Fetch config values of a single type within one workspace.
-        Returns dict of {key: value}."""
         resp = await client.request(
             ConfigRequest(
                 operation="getvalues",
@@ -146,11 +99,6 @@ class AsyncProcessor:
         return {v.key: v.value for v in resp.values}
 
     async def _fetch_type_all_workspaces(self, client, config_type):
-        """Fetch config values of a single type across all workspaces.
-        Uses getkeys-all-ws to discover workspaces, then fetches values
-        per-workspace to avoid oversized responses."""
-
-        # Step 1: get workspace/key pairs (small response)
         resp = await client.request(
             ConfigRequest(
                 operation="getkeys-all-ws",
@@ -163,12 +111,10 @@ class AsyncProcessor:
 
         version = resp.version
 
-        # Group keys by workspace
         workspaces = set()
         for v in resp.values:
             workspaces.add(v.workspace)
 
-        # Step 2: fetch values per workspace in parallel
         async def fetch_one(ws):
             kv = await self._fetch_type_workspace(client, ws, config_type)
             return ws, kv
@@ -188,51 +134,45 @@ class AsyncProcessor:
 
         return grouped, version
 
-    # This is called to start dynamic behaviour.
-    # Implements the subscribe-then-fetch pattern to avoid race conditions.
     async def start(self):
 
-        # 1. Start the notify consumer (begins buffering incoming notifys)
-        await self.config_sub_task.start()
+        await self.receiver_pool.start()
+        await self.sender_pool.start()
 
-        # 2. Fetch current config via request/response
+        config_subscriber_id = str(uuid.uuid4())
+
+        async def config_notify_handler(message):
+            await self.on_config_notify(message, None, None)
+
+        self._config_consumer_reg = \
+            await self.receiver_pool.add_consumer(
+                topic=self.config_push_queue,
+                subscription=config_subscriber_id,
+                schema=ConfigPush,
+                handler=config_notify_handler,
+                initial_position='latest',
+            )
+
         await self.fetch_and_apply_config()
 
-        # 3. Any buffered notifys with version > fetched version will be
-        #    processed by on_config_notify, which does the version check
-
     async def fetch_and_apply_config(self):
-        """Startup: for each registered handler, fetch config for all its
-        types across all workspaces and invoke the handler once per
-        workspace. Retries until successful — config service may not be
-        ready yet.
-
-        Tracks which workspaces have already been applied so that
-        retries resume from where they left off rather than re-applying
-        all workspaces from scratch.
-        """
 
         applied_ws = set()
 
         while self.running:
 
             try:
-                client = self._create_config_client()
+                client = await self._create_config_client()
                 try:
-                    await client.start()
 
                     version = 0
 
                     for entry in self.config_handlers:
                         handler_types = entry["types"]
 
-                        # Handlers registered without types get nothing
-                        # at startup (there is no "all types" fetch).
                         if not handler_types:
                             continue
 
-                        # Group all registered types by workspace:
-                        # {workspace: {type: {key: value}}}
                         per_ws = {}
                         for t in handler_types:
                             type_data, v = \
@@ -243,8 +183,6 @@ class AsyncProcessor:
                             for ws, kv in type_data.items():
                                 per_ws.setdefault(ws, {})[t] = kv
 
-                        # Call the handler once per workspace, skipping
-                        # workspaces already applied in a previous attempt
                         for ws, config in per_ws.items():
                             if ws.startswith("_"):
                                 continue
@@ -259,7 +197,7 @@ class AsyncProcessor:
                     self.config_version = version
 
                 finally:
-                    await client.stop()
+                    await client.close()
 
                 return
 
@@ -270,39 +208,36 @@ class AsyncProcessor:
                 )
                 await asyncio.sleep(2)
 
-    # This is called to stop all threads.  An over-ride point for extra
-    # functionality
-    def stop(self) -> None:
-        self.pubsub_backend.close()
+    async def stop(self):
         self.running = False
 
-    # Returns the pub/sub backend (new interface)
-    @property
-    def pubsub(self) -> Any: return self.pubsub_backend
+        if self._config_consumer_reg:
+            await self._config_consumer_reg.unregister()
 
-    # Returns the pulsar host (backward compatibility)
-    @property
-    def pulsar_host(self) -> str: return self._pulsar_host
+        await self.receiver_pool.stop()
+        await self.sender_pool.stop()
+        await self.async_backend.close()
 
-    # Register a new event handler for configuration change
-    def register_config_handler(self, handler: Callable[..., Any], types: list[type] | None = None) -> None:
+    def register_config_handler(
+        self, handler: Callable[..., Any],
+        types: list[type] | None = None,
+    ) -> None:
         self.config_handlers.append({
             "handler": handler,
             "types": set(types) if types else None,
         })
 
-    # Register a handler for workspace lifecycle events
-    def register_workspace_handler(self, handler: Callable[..., Any]) -> None:
+    def register_workspace_handler(
+        self, handler: Callable[..., Any],
+    ) -> None:
         self.workspace_handlers.append(handler)
 
-    # Called when a config notify message arrives
     async def on_config_notify(self, message, consumer, flow):
 
         v = message.value()
         notify_version = v.version
-        changes = v.changes  # dict of type -> [workspaces]
+        changes = v.changes
 
-        # Skip if we already have this version or newer
         if notify_version <= self.config_version:
             logger.debug(
                 f"Ignoring config notify v{notify_version}, "
@@ -310,7 +245,6 @@ class AsyncProcessor:
             )
             return
 
-        # Dispatch workspace lifecycle events before config handlers
         if v.workspace_changes and self.workspace_handlers:
             for handler in self.workspace_handlers:
                 try:
@@ -322,9 +256,6 @@ class AsyncProcessor:
 
         notify_types = set(changes.keys())
 
-        # Filter out handlers that don't care about any of the changed
-        # types. A handler registered without types never fires on
-        # notifications (nothing to scope to).
         interested = []
         for entry in self.config_handlers:
             handler_types = entry["types"]
@@ -345,16 +276,12 @@ class AsyncProcessor:
         )
 
         try:
-            client = self._create_config_client()
+            client = await self._create_config_client()
             try:
-                await client.start()
 
                 for entry in interested:
                     handler_types = entry["types"]
 
-                    # Build {workspace: {type: {key: value}}} for types
-                    # this handler cares about, where the workspace was
-                    # affected for that type.
                     per_ws = {}
                     for t in handler_types:
                         if t not in changes:
@@ -373,7 +300,7 @@ class AsyncProcessor:
                         )
 
             finally:
-                await client.stop()
+                await client.close()
 
             self.config_version = notify_version
 
@@ -382,58 +309,51 @@ class AsyncProcessor:
                 f"Failed to fetch config on notify: {e}", exc_info=True
             )
 
-    # This is the 'main' body of the handler.  It is a point to override
-    # if needed.  By default does nothing.  Processors are implemented
-    # by adding consumer/producer functionality so maybe nothing is needed
-    # in the run() body
     async def run(self):
         while self.running:
             await asyncio.sleep(2)
 
-    # Startup fabric.  This runs in 'async' mode, creates a taskgroup and
-    # runs the producer.
     @classmethod
     async def launch_async(cls, args):
 
+        p = None
+
         try:
 
-            # Create a taskgroup.  This seems complicated, when an exception
-            # occurs, unhandled it looks like it cancels all threads in the
-            # taskgroup.  Needs the exception to be caught in the right
-            # place.
             async with asyncio.TaskGroup() as tg:
 
+                p = cls(**args | {"taskgroup": tg})
 
-                    # Create a processor instance, and include the taskgroup
-                    # as a paramter.  A processor identity ident is used as
-                    # - subscriber name
-                    # - an identifier for flow configuration
-                    p = cls(**args | { "taskgroup": tg })
+                await p.start()
 
-                    # Start the processor
-                    await p.start()
+                task = tg.create_task(p.run())
 
-                    # Run the processor
-                    task = tg.create_task(p.run())
+        except ExceptionGroup as e:
 
-                    # The taskgroup causes everything to wait until
-                    # all threads have stopped
+            logger.error("Exception group:")
 
-        # This is here to output a debug message, shouldn't be needed.
+            for se in e.exceptions:
+                logger.error(f"  Type: {type(se)}")
+                logger.error(f"  Exception: {se}", exc_info=se)
+
         except Exception as e:
-            logger.error("Exception, closing taskgroup", exc_info=True)
+            logger.error("Exception in processor", exc_info=True)
             raise e
+
+        finally:
+            if p:
+                try:
+                    await p.stop()
+                except Exception:
+                    pass
 
     @classmethod
     def setup_logging(cls, args: dict[str, Any]) -> None:
-        """Configure logging for the entire application"""
         setup_logging(args)
 
-    # Startup fabric.  launch calls launch_async in async mode.
     @classmethod
     def launch(cls, ident: str, doc: str) -> None:
 
-        # Start assembling CLI arguments
         parser = argparse.ArgumentParser(
             prog=ident,
             description=doc
@@ -445,32 +365,24 @@ class AsyncProcessor:
             help=f'Configuration identity (default: {ident})',
         )
 
-        # Invoke the class-specific add_args, which manages adding all the
-        # command-line arguments
         cls.add_args(parser)
 
-        # Parse arguments
         args = parser.parse_args()
         args = vars(args)
 
-        # Setup logging before anything else
         cls.setup_logging(args)
 
-        # Debug
         logger.debug(f"Arguments: {args}")
 
-        # Start the Prometheus metrics service if needed
         if args["metrics"]:
             start_http_server(args["metrics_port"])
 
-        # Loop forever, exception handler
         while True:
 
             logger.info("Starting...")
 
             try:
 
-                # Launch the processor in an asyncio handler
                 asyncio.run(cls.launch_async(
                     args
                 ))
@@ -479,30 +391,14 @@ class AsyncProcessor:
                 logger.info("Keyboard interrupt.")
                 return
 
-            except KeyboardInterrupt:
-                logger.info("Interrupted.")
-                return
-
-            # Exceptions from a taskgroup come in as an exception group
-            except ExceptionGroup as e:
-
-                logger.error("Exception group:")
-
-                for se in e.exceptions:
-                    logger.error(f"  Type: {type(se)}")
-                    logger.error(f"  Exception: {se}", exc_info=se)
-
             except Exception as e:
                 logger.error(f"Type: {type(e)}")
                 logger.error(f"Exception: {e}", exc_info=True)
 
-            # Retry occurs here
             logger.warning("Will retry...")
             time.sleep(4)
             logger.info("Retrying...")
 
-    # The command-line arguments are built using a stack of add_args
-    # invocations
     @staticmethod
     def add_args(parser: ArgumentParser) -> None:
 
@@ -516,6 +412,13 @@ class AsyncProcessor:
         )
 
         parser.add_argument(
+            '--concurrency',
+            type=int,
+            default=1,
+            help='Number of concurrent workers (default: 1)',
+        )
+
+        parser.add_argument(
             '--metrics',
             action=argparse.BooleanOptionalAction,
             default=True,
@@ -526,5 +429,5 @@ class AsyncProcessor:
             '-P', '--metrics-port',
             type=int,
             default=8000,
-            help=f'Pulsar host (default: 8000)',
+            help=f'Metrics port (default: 8000)',
         )

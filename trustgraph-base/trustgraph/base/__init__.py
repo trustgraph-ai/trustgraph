@@ -1,5 +1,5 @@
 
-from . pubsub import get_pubsub, add_pubsub_args
+from . pubsub import get_pubsub, get_async_pubsub, add_pubsub_args
 from . async_processor import AsyncProcessor
 from . consumer import Consumer
 from . producer import Producer
@@ -57,4 +57,5 @@ from . async_backend import (
 from . receiver_pool import ReceiverPool, ConsumerRegistration
 from . sender_pool import SenderPool, ProducerHandle
 from . request_response_client import RequestResponseClient
+from . async_librarian_client import AsyncLibrarianClient
 
