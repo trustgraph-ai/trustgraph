@@ -134,7 +134,7 @@ class RequestResponseClient:
             self.receiver_task.cancel()
             try:
                 await self.receiver_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, Exception):
                 pass
 
         for future in self.pending.values():

@@ -91,7 +91,7 @@ class ReceiverPool:
         for reg in list(self.registrations):
             try:
                 await reg.receiver_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, Exception):
                 pass
         self.registrations.clear()
 
@@ -162,7 +162,7 @@ class ReceiverPool:
         reg.receiver_task.cancel()
         try:
             await reg.receiver_task
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, Exception):
             pass
 
         if reg in self.registrations:

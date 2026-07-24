@@ -158,8 +158,6 @@ class Processor(WorkspaceProcessor):
 
     async def start(self):
 
-        await super(Processor, self).start()
-
         rr_client = await RequestResponseClient.create(
             backend=self.async_backend,
             request_topic=config_request_queue,
@@ -174,6 +172,8 @@ class Processor(WorkspaceProcessor):
 
         workspaces = await self.config_client.workspaces_for_type("flow")
         await self.flow.ensure_existing_flow_topics(workspaces)
+
+        await super(Processor, self).start()
 
     async def stop(self):
 
