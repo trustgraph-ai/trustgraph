@@ -114,7 +114,7 @@ class RequestResponseClient:
 
         except asyncio.CancelledError:
             raise
-        except Exception as e:
+        except BaseException as e:
             if not self.running:
                 return
             logger.error(
@@ -134,7 +134,7 @@ class RequestResponseClient:
             self.receiver_task.cancel()
             try:
                 await self.receiver_task
-            except (asyncio.CancelledError, Exception):
+            except BaseException:
                 pass
 
         for future in self.pending.values():

@@ -83,7 +83,7 @@ class ReceiverPool:
         for reg in list(self.registrations):
             try:
                 await reg.backend_consumer.close()
-            except Exception as e:
+            except BaseException as e:
                 logger.warning(f"Error closing consumer: {e}")
 
         for reg in list(self.registrations):
@@ -91,7 +91,7 @@ class ReceiverPool:
         for reg in list(self.registrations):
             try:
                 await reg.receiver_task
-            except (asyncio.CancelledError, Exception):
+            except BaseException:
                 pass
         self.registrations.clear()
 
@@ -156,7 +156,7 @@ class ReceiverPool:
     async def remove_consumer(self, reg: ConsumerRegistration):
         try:
             await reg.backend_consumer.close()
-        except Exception as e:
+        except BaseException as e:
             logger.warning(f"Error closing consumer for {reg.topic}: {e}")
 
         reg.receiver_task.cancel()
@@ -222,7 +222,7 @@ class ReceiverPool:
             for task in pending_acks:
                 task.cancel()
             raise
-        except Exception as e:
+        except BaseException as e:
             if not self.running:
                 return
             logger.error(
