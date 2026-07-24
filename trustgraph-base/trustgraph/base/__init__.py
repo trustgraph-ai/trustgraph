@@ -51,4 +51,10 @@ from . row_embeddings_query_client import RowEmbeddingsQueryClientSpec
 from . collection_config_handler import CollectionConfigHandler
 from . audit_publisher import AuditPublisher
 from . schema_compatibility import is_strict_mode_compatible
+from . async_backend import (
+    AsyncPubSubBackend, AsyncBackendConsumer, AsyncBackendProducer, Message,
+)
+from . receiver_pool import ReceiverPool, ConsumerRegistration
+from . sender_pool import SenderPool, ProducerHandle
+from . request_response_client import RequestResponseClient
 
