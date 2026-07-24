@@ -167,6 +167,7 @@ class Processor(AsyncProcessor):
     def _make_config_client(self):
         rr_id = str(uuid.uuid4())
         return ConfigClient(
+            timeout=self.config_timeout,
             backend=self.pubsub_backend,
             subscription=f"{self.id}--config--{rr_id}",
             consumer_name=self.id,

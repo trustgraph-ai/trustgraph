@@ -31,6 +31,7 @@ from . metrics import SubscriberMetrics
 from . logging import add_logging_args, setup_logging
 
 default_config_queue = config_push_queue
+default_config_timeout = 60
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -66,6 +67,11 @@ class AsyncProcessor:
         self.config_push_queue = params.get(
             "config_push_queue", default_config_queue
         )
+
+        # Timeout for config service requests
+        self.config_timeout = int(params.get(
+            "config_timeout", default_config_timeout
+        ))
 
         # This records registered configuration handlers, each entry is:
         # { "handler": async_fn, "types": set_or_none }
@@ -121,6 +127,7 @@ class AsyncProcessor:
         return RequestResponse(
             backend = self.pubsub_backend,
             subscription = f"{self.id}--config--{config_rr_id}",
+            default_timeout = self.config_timeout,
             consumer_name = self.id,
             request_topic = config_request_queue,
             request_schema = ConfigRequest,
@@ -139,7 +146,6 @@ class AsyncProcessor:
                 workspace=workspace,
                 type=config_type,
             ),
-            timeout=60,
         )
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
@@ -156,7 +162,6 @@ class AsyncProcessor:
                 operation="getkeys-all-ws",
                 type=config_type,
             ),
-            timeout=60,
         )
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
@@ -513,6 +518,14 @@ class AsyncProcessor:
             '--config-push-queue',
             default=default_config_queue,
             help=f'Config push queue (default: {default_config_queue})',
+        )
+
+        parser.add_argument(
+            '--config-timeout',
+            type=int,
+            default=default_config_timeout,
+            help=f'Config request timeout in seconds '
+                 f'(default: {default_config_timeout})',
         )
 
         parser.add_argument(
