@@ -12,12 +12,11 @@ from trustgraph.schema import Error
 
 from trustgraph.schema import FlowRequest, FlowResponse
 from trustgraph.schema import flow_request_queue, flow_response_queue
-from trustgraph.schema import ConfigRequest, ConfigResponse
+from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 from trustgraph.schema import config_request_queue, config_response_queue
 
-from trustgraph.base import WorkspaceProcessor, Consumer, Producer
-from trustgraph.base import ConsumerMetrics, ProducerMetrics, SubscriberMetrics
-from trustgraph.base import ConfigClient
+from trustgraph.base import WorkspaceProcessor
+from trustgraph.base import RequestResponseClient
 
 from . flow import FlowConfig
 
@@ -29,9 +28,107 @@ default_ident = "flow-svc"
 default_flow_request_queue = flow_request_queue
 default_flow_response_queue = flow_response_queue
 
+CONFIG_TIMEOUT = 10
+
 
 def workspace_queue(base_queue, workspace):
     return f"{base_queue}:{workspace}"
+
+
+class AsyncConfigClient:
+    """Wraps a RequestResponseClient to provide the same convenience
+    methods as the old ConfigClient (get, put, delete, keys, etc.)."""
+
+    def __init__(self, rr_client):
+        self._rr = rr_client
+
+    async def _request(self, timeout=CONFIG_TIMEOUT, **kwargs):
+        resp = await self._rr.request(
+            ConfigRequest(**kwargs),
+            timeout=timeout,
+        )
+        if resp.error:
+            raise RuntimeError(
+                f"{resp.error.type}: {resp.error.message}"
+            )
+        return resp
+
+    async def get(self, workspace, type, key, timeout=CONFIG_TIMEOUT):
+        resp = await self._request(
+            operation="get",
+            workspace=workspace,
+            keys=[ConfigKey(type=type, key=key)],
+            timeout=timeout,
+        )
+        if resp.values and len(resp.values) > 0:
+            return resp.values[0].value
+        return None
+
+    async def put(self, workspace, type, key, value, timeout=CONFIG_TIMEOUT):
+        await self._request(
+            operation="put",
+            workspace=workspace,
+            values=[ConfigValue(type=type, key=key, value=value)],
+            timeout=timeout,
+        )
+
+    async def put_many(self, workspace, values, timeout=CONFIG_TIMEOUT):
+        await self._request(
+            operation="put",
+            workspace=workspace,
+            values=[
+                ConfigValue(type=t, key=k, value=v)
+                for t, k, v in values
+            ],
+            timeout=timeout,
+        )
+
+    async def delete(self, workspace, type, key, timeout=CONFIG_TIMEOUT):
+        await self._request(
+            operation="delete",
+            workspace=workspace,
+            keys=[ConfigKey(type=type, key=key)],
+            timeout=timeout,
+        )
+
+    async def delete_many(self, workspace, keys, timeout=CONFIG_TIMEOUT):
+        await self._request(
+            operation="delete",
+            workspace=workspace,
+            keys=[
+                ConfigKey(type=t, key=k)
+                for t, k in keys
+            ],
+            timeout=timeout,
+        )
+
+    async def keys(self, workspace, type, timeout=CONFIG_TIMEOUT):
+        resp = await self._request(
+            operation="list",
+            workspace=workspace,
+            type=type,
+            timeout=timeout,
+        )
+        return resp.directory
+
+    async def get_all(self, workspace, timeout=CONFIG_TIMEOUT):
+        resp = await self._request(
+            operation="config",
+            workspace=workspace,
+            timeout=timeout,
+        )
+        return resp.config
+
+    async def workspaces_for_type(self, type, timeout=CONFIG_TIMEOUT):
+        resp = await self._request(
+            operation="getvalues-all-ws",
+            type=type,
+            timeout=timeout,
+        )
+        return {v.workspace for v in resp.values if v.workspace}
+
+    async def close(self):
+        await self._rr.close()
 
 
 class Processor(WorkspaceProcessor):
@@ -45,8 +142,6 @@ class Processor(WorkspaceProcessor):
             "flow_response_queue", default_flow_response_queue
         )
 
-        id = params.get("id")
-
         super(Processor, self).__init__(
             **params | {
                 "flow_request_schema": FlowRequest.__name__,
@@ -54,31 +149,38 @@ class Processor(WorkspaceProcessor):
             }
         )
 
-        config_req_metrics = ProducerMetrics(
-            processor=self.id, producer="config-request",
-        )
-        config_resp_metrics = SubscriberMetrics(
-            processor=self.id, subscriber="config-response",
-        )
-
-        config_rr_id = str(uuid.uuid4())
-        self.config_client = ConfigClient(
-            backend=self.pubsub,
-            subscription=f"{self.id}--config--{config_rr_id}",
-            consumer_name=self.id,
-            request_topic=config_request_queue,
-            request_schema=ConfigRequest,
-            request_metrics=config_req_metrics,
-            response_topic=config_response_queue,
-            response_schema=ConfigResponse,
-            response_metrics=config_resp_metrics,
-        )
-
-        self.flow = FlowConfig(self.config_client, self.pubsub)
+        self.config_client = None
+        self.flow = None
 
         self.workspace_consumers = {}
 
         logger.info("Flow service initialized")
+
+    async def start(self):
+
+        await super(Processor, self).start()
+
+        rr_client = await RequestResponseClient.create(
+            backend=self.async_backend,
+            request_topic=config_request_queue,
+            response_topic=config_response_queue,
+            request_schema=ConfigRequest,
+            response_schema=ConfigResponse,
+        )
+
+        self.config_client = AsyncConfigClient(rr_client)
+
+        self.flow = FlowConfig(self.config_client, self.async_backend)
+
+        workspaces = await self.config_client.workspaces_for_type("flow")
+        await self.flow.ensure_existing_flow_topics(workspaces)
+
+    async def stop(self):
+
+        if self.config_client:
+            await self.config_client.close()
+
+        await super(Processor, self).stop()
 
     async def on_workspace_created(self, workspace):
 
@@ -92,41 +194,27 @@ class Processor(WorkspaceProcessor):
             self.flow_response_queue_base, workspace,
         )
 
-        await self.pubsub.ensure_topic(req_queue)
-        await self.pubsub.ensure_topic(resp_queue)
+        await self.async_backend.ensure_topic(req_queue)
+        await self.async_backend.ensure_topic(resp_queue)
 
-        response_producer = Producer(
-            backend=self.pubsub,
+        response_handle = await self.sender_pool.add_producer(
             topic=resp_queue,
             schema=FlowResponse,
-            metrics=ProducerMetrics(
-                processor=self.id, producer="flow-response",
-                workspace=workspace,
-            ),
         )
 
-        consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
+        async def handler_wrapper(message):
+            await self.on_flow_request(message, None, None, workspace=workspace)
+
+        consumer_reg = await self.receiver_pool.add_consumer(
             topic=req_queue,
-            subscriber=self.id,
+            subscription=self.id,
             schema=FlowRequest,
-            handler=partial(
-                self.on_flow_request, workspace=workspace,
-            ),
-            metrics=ConsumerMetrics(
-                processor=self.id, consumer="flow-request",
-                workspace=workspace,
-            ),
+            handler=handler_wrapper,
         )
-
-        await response_producer.start()
-        await consumer.start()
 
         self.workspace_consumers[workspace] = {
-            "consumer": consumer,
-            "response": response_producer,
+            "consumer": consumer_reg,
+            "response": response_handle,
         }
 
         logger.info(f"Subscribed to workspace queue: {workspace}")
@@ -135,17 +223,9 @@ class Processor(WorkspaceProcessor):
 
         clients = self.workspace_consumers.pop(workspace, None)
         if clients:
-            for client in clients.values():
-                await client.stop()
+            await clients["consumer"].unregister()
+            await clients["response"].unregister()
             logger.info(f"Unsubscribed from workspace queue: {workspace}")
-
-    async def start(self):
-
-        await super(Processor, self).start()
-        await self.config_client.start()
-
-        workspaces = await self.config_client.workspaces_for_type("flow")
-        await self.flow.ensure_existing_flow_topics(workspaces)
 
     async def on_flow_request(self, msg, consumer, flow, *, workspace):
 

@@ -73,6 +73,8 @@ async def _supervise(entry):
 
     while True:
 
+        p = None
+
         try:
 
             async with asyncio.TaskGroup() as inner_tg:
@@ -110,6 +112,13 @@ async def _supervise(entry):
                 f"Processor {pid} failure: {type(e).__name__}: {e}",
                 exc_info=True,
             )
+
+        finally:
+            if p:
+                try:
+                    await p.stop()
+                except Exception:
+                    pass
 
         logger.info(
             f"Restarting {pid} in {RESTART_DELAY_SECONDS}s..."

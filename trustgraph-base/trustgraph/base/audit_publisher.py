@@ -13,17 +13,33 @@ logger = logging.getLogger(__name__)
 
 class AuditPublisher:
 
-    def __init__(self, backend, component_name, processor_id=None):
+    def __init__(self, component_name, processor_id=None, backend=None):
         self.component_name = component_name
-        self.producer = Producer(
-            backend=backend,
-            topic=audit_events_queue,
-            schema=AuditEvent,
-            metrics=ProducerMetrics(
-                processor=processor_id or component_name,
-                producer="audit-events",
-            ),
-        )
+        self._handle = None
+
+        if backend is not None:
+            self._legacy_producer = Producer(
+                backend=backend,
+                topic=audit_events_queue,
+                schema=AuditEvent,
+                metrics=ProducerMetrics(
+                    processor=processor_id or component_name,
+                    producer="audit-events",
+                ),
+            )
+        else:
+            self._legacy_producer = None
+
+    async def start(self, sender_pool=None):
+        if sender_pool is not None:
+            self._handle = await sender_pool.add_producer(
+                topic=audit_events_queue,
+                schema=AuditEvent,
+            )
+
+    async def stop(self):
+        if self._handle:
+            await self._handle.unregister()
 
     async def emit(self, event_type, payload):
         event = AuditEvent(
@@ -36,6 +52,9 @@ class AuditPublisher:
         )
 
         try:
-            await self.producer.send(event)
+            if self._handle:
+                await self._handle.send(event)
+            elif self._legacy_producer:
+                await self._legacy_producer.send(event)
         except Exception as e:
             logger.warning(f"Failed to emit audit event: {e}")
