@@ -1,13 +1,12 @@
 """
 Async Pulsar backend implementation.
 
-Uses receive_async() for zero-thread message receiving. The only
-operations that use threads are the initial client.subscribe() and
-client.create_producer() calls, which are wrapped in
-asyncio.to_thread and release the thread immediately after.
+Uses pulsar.asyncio.Client for fully async message receiving,
+producing, and consumer/producer lifecycle. Zero OS threads.
 """
 
 import pulsar
+import pulsar.asyncio
 import _pulsar
 import asyncio
 import json
@@ -44,7 +43,7 @@ class PulsarMessage:
 
 
 class AsyncPulsarProducer:
-    """Async Pulsar producer. send() uses asyncio.to_thread."""
+    """Async Pulsar producer using pulsar.asyncio.Client."""
 
     def __init__(self, pulsar_producer, schema_cls):
         self._producer = pulsar_producer
@@ -53,51 +52,48 @@ class AsyncPulsarProducer:
     async def send(self, message: Any, properties: dict = {}) -> None:
         data_dict = dataclass_to_dict(message)
         json_data = json.dumps(data_dict)
-        await asyncio.to_thread(
-            self._producer.send,
+        await self._producer.send(
             json_data.encode('utf-8'),
-            properties,
+            properties=properties,
         )
 
     async def close(self) -> None:
-        await asyncio.to_thread(self._producer.flush)
-        self._producer.close()
+        await self._producer.flush()
+        await self._producer.close()
 
 
 class AsyncPulsarConsumer:
-    """Async Pulsar consumer. Uses receive_async() for zero-thread
-    message receiving."""
+    """Async Pulsar consumer using pulsar.asyncio.Client."""
 
     def __init__(self, pulsar_consumer, schema_cls):
         self._consumer = pulsar_consumer
         self._schema_cls = schema_cls
 
     async def receive(self) -> Message:
-        pulsar_msg = await self._consumer.receive_async()
+        pulsar_msg = await self._consumer.receive()
         return PulsarMessage(pulsar_msg, self._schema_cls)
 
     async def acknowledge(self, message: Message) -> None:
         if isinstance(message, PulsarMessage):
-            self._consumer.acknowledge(message._msg)
+            await self._consumer.acknowledge(message._msg)
 
     async def negative_acknowledge(self, message: Message) -> None:
         if isinstance(message, PulsarMessage):
-            self._consumer.negative_acknowledge(message._msg)
+            await self._consumer.negative_acknowledge(message._msg)
 
     async def close(self) -> None:
         try:
-            self._consumer.unsubscribe()
+            await self._consumer.unsubscribe()
         except Exception:
             pass
-        self._consumer.close()
+        await self._consumer.close()
 
 
 class AsyncPulsarBackend:
-    """Async Pulsar pub/sub backend.
+    """Async Pulsar pub/sub backend using pulsar.asyncio.Client.
 
-    Zero OS threads for receiving. client.subscribe() and
-    client.create_producer() are wrapped in asyncio.to_thread for
-    the initial setup call.
+    Fully async — zero OS threads for receiving, sending, and
+    consumer/producer lifecycle.
     """
 
     def __init__(
@@ -121,7 +117,7 @@ class AsyncPulsarBackend:
             _pulsar.LoggerLevel.Error
         )
 
-        self.client = pulsar.Client(**client_args)
+        self.client = pulsar.asyncio.Client(**client_args)
         logger.info(f"Async Pulsar client connected to {host}")
 
     def _map_topic(self, queue_id: str) -> str:
@@ -176,9 +172,7 @@ class AsyncPulsarBackend:
             'consumer_type': ctype,
         }
 
-        pulsar_consumer = await asyncio.to_thread(
-            self.client.subscribe, **consumer_args,
-        )
+        pulsar_consumer = await self.client.subscribe(**consumer_args)
         logger.debug(
             f"Created async consumer: {pulsar_topic}, "
             f"subscription: {subscription}"
@@ -199,9 +193,7 @@ class AsyncPulsarBackend:
         if 'chunking_enabled' in options:
             producer_args['chunking_enabled'] = options['chunking_enabled']
 
-        pulsar_producer = await asyncio.to_thread(
-            self.client.create_producer, **producer_args,
-        )
+        pulsar_producer = await self.client.create_producer(**producer_args)
         logger.debug(f"Created async producer: {pulsar_topic}")
 
         return AsyncPulsarProducer(pulsar_producer, schema)
@@ -288,5 +280,5 @@ class AsyncPulsarBackend:
         pass
 
     async def close(self) -> None:
-        self.client.close()
+        await self.client.close()
         logger.info("Async Pulsar client closed")

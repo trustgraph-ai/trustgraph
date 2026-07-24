@@ -15,7 +15,7 @@ from .. schema import ConfigPush, ConfigRequest, ConfigResponse
 from .. schema import config_push_queue, config_request_queue
 from .. schema import config_response_queue
 from .. log_level import LogLevel
-from . pubsub import get_async_pubsub, add_pubsub_args
+from . pubsub import get_async_pubsub, get_pubsub, add_pubsub_args
 from . receiver_pool import ReceiverPool
 from . sender_pool import SenderPool
 from . request_response_client import RequestResponseClient

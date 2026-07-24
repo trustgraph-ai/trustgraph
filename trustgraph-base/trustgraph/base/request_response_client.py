@@ -115,12 +115,20 @@ class RequestResponseClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
+            if not self.running:
+                return
             logger.error(
                 f"Response loop error: {e}", exc_info=True,
             )
 
     async def close(self):
         self.running = False
+
+        if self.consumer:
+            try:
+                await self.consumer.close()
+            except Exception as e:
+                logger.warning(f"Error closing consumer: {e}")
 
         if self.receiver_task:
             self.receiver_task.cancel()
@@ -139,11 +147,5 @@ class RequestResponseClient:
                 await self.producer.close()
             except Exception as e:
                 logger.warning(f"Error closing producer: {e}")
-
-        if self.consumer:
-            try:
-                await self.consumer.close()
-            except Exception as e:
-                logger.warning(f"Error closing consumer: {e}")
 
         logger.info("RequestResponseClient closed")

@@ -81,12 +81,19 @@ class ReceiverPool:
         self.running = False
 
         for reg in list(self.registrations):
+            try:
+                await reg.backend_consumer.close()
+            except Exception as e:
+                logger.warning(f"Error closing consumer: {e}")
+
+        for reg in list(self.registrations):
             reg.receiver_task.cancel()
         for reg in list(self.registrations):
             try:
                 await reg.receiver_task
             except asyncio.CancelledError:
                 pass
+        self.registrations.clear()
 
         if not self.work_queue.empty():
             logger.info(
@@ -110,13 +117,6 @@ class ReceiverPool:
             except asyncio.CancelledError:
                 pass
         self.worker_tasks.clear()
-
-        for reg in list(self.registrations):
-            try:
-                await reg.backend_consumer.close()
-            except Exception as e:
-                logger.warning(f"Error closing consumer: {e}")
-        self.registrations.clear()
 
         logger.info("ReceiverPool stopped")
 
@@ -154,16 +154,16 @@ class ReceiverPool:
         return reg
 
     async def remove_consumer(self, reg: ConsumerRegistration):
+        try:
+            await reg.backend_consumer.close()
+        except Exception as e:
+            logger.warning(f"Error closing consumer for {reg.topic}: {e}")
+
         reg.receiver_task.cancel()
         try:
             await reg.receiver_task
         except asyncio.CancelledError:
             pass
-
-        try:
-            await reg.backend_consumer.close()
-        except Exception as e:
-            logger.warning(f"Error closing consumer for {reg.topic}: {e}")
 
         if reg in self.registrations:
             self.registrations.remove(reg)
@@ -223,6 +223,8 @@ class ReceiverPool:
                 task.cancel()
             raise
         except Exception as e:
+            if not self.running:
+                return
             logger.error(
                 f"Receiver loop error: {e}", exc_info=True,
             )
