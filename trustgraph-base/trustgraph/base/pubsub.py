@@ -25,6 +25,30 @@ DEFAULT_KAFKA_SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
 DEFAULT_KAFKA_SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
 
 
+def get_async_pubsub(**config: Any) -> Any:
+    """
+    Factory function to create an async pub/sub backend.
+
+    Currently only Pulsar is supported. RabbitMQ and Kafka async
+    backends are not yet implemented.
+    """
+    backend_type = config.get('pubsub_backend', 'pulsar')
+
+    if backend_type == 'pulsar':
+        from .async_pulsar_backend import AsyncPulsarBackend
+        return AsyncPulsarBackend(
+            host=config.get('pulsar_host', DEFAULT_PULSAR_HOST),
+            api_key=config.get('pulsar_api_key', DEFAULT_PULSAR_API_KEY),
+            listener=config.get('pulsar_listener'),
+            admin_url=config.get('pulsar_admin_url', DEFAULT_PULSAR_ADMIN_URL),
+        )
+    else:
+        raise ValueError(
+            f"Async backend not yet supported for: {backend_type}. "
+            f"Only 'pulsar' is currently supported."
+        )
+
+
 def get_pubsub(**config: Any) -> Any:
     """
     Factory function to create a pub/sub backend based on configuration.

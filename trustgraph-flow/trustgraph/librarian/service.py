@@ -11,7 +11,7 @@ import logging
 import os
 from datetime import datetime
 
-from .. base import WorkspaceProcessor, Consumer, Producer, Publisher, Subscriber
+from .. base import WorkspaceProcessor, RequestResponseClient
 from .. base import ConsumerMetrics, ProducerMetrics
 from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -92,11 +92,11 @@ class Processor(WorkspaceProcessor):
             "collection_response_queue", default_collection_response_queue
         )
 
-        config_request_queue = params.get(
+        self.config_request_topic = params.get(
             "config_request_queue", default_config_request_queue
         )
 
-        config_response_queue = params.get(
+        self.config_response_topic = params.get(
             "config_response_queue", default_config_response_queue
         )
 
@@ -169,33 +169,6 @@ class Processor(WorkspaceProcessor):
             }
         )
 
-        # Config service client for collection management
-        config_request_metrics = ProducerMetrics(
-            processor=id, producer="config-request",
-        )
-
-        self.config_request_producer = Producer(
-            backend = self.pubsub,
-            topic = config_request_queue,
-            schema = ConfigRequest,
-            metrics = config_request_metrics,
-        )
-
-        config_response_metrics = ConsumerMetrics(
-            processor=id, consumer="config-response",
-        )
-
-        self.config_response_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = config_response_queue,
-            subscriber = f"{id}-config",
-            schema = ConfigResponse,
-            handler = self.on_config_response,
-            metrics = config_response_metrics,
-        )
-
         self.librarian = Librarian(
             cassandra_host = self.cassandra_host,
             cassandra_username = self.cassandra_username,
@@ -212,11 +185,9 @@ class Processor(WorkspaceProcessor):
             min_chunk_size = min_chunk_size,
         )
 
-        self.collection_manager = CollectionManager(
-            config_request_producer = self.config_request_producer,
-            config_response_consumer = self.config_response_consumer,
-            taskgroup = self.taskgroup,
-        )
+        # CollectionManager and config client are created in start()
+        self.collection_manager = None
+        self.config_client = None
 
         self.register_config_handler(
             self.on_librarian_config,
@@ -248,73 +219,50 @@ class Processor(WorkspaceProcessor):
             self.collection_response_queue_base, workspace,
         )
 
-        await self.pubsub.ensure_topic(lib_req_queue)
-        await self.pubsub.ensure_topic(lib_resp_queue)
-        await self.pubsub.ensure_topic(col_req_queue)
-        await self.pubsub.ensure_topic(col_resp_queue)
+        await self.async_backend.ensure_topic(lib_req_queue)
+        await self.async_backend.ensure_topic(lib_resp_queue)
+        await self.async_backend.ensure_topic(col_req_queue)
+        await self.async_backend.ensure_topic(col_resp_queue)
 
-        lib_response_producer = Producer(
-            backend=self.pubsub,
+        lib_response_handle = await self.sender_pool.add_producer(
             topic=lib_resp_queue,
             schema=LibrarianResponse,
-            metrics=ProducerMetrics(
-                processor=self.id, producer="librarian-response",
-                workspace=workspace,
-            ),
         )
 
-        col_response_producer = Producer(
-            backend=self.pubsub,
+        col_response_handle = await self.sender_pool.add_producer(
             topic=col_resp_queue,
             schema=CollectionManagementResponse,
-            metrics=ProducerMetrics(
-                processor=self.id, producer="collection-response",
-                workspace=workspace,
-            ),
         )
 
-        lib_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
+        async def lib_handler(message):
+            await self.on_librarian_request(
+                message, None, None, workspace=workspace,
+            )
+
+        lib_consumer_reg = await self.receiver_pool.add_consumer(
             topic=lib_req_queue,
-            subscriber=self.id,
+            subscription=self.id,
             schema=LibrarianRequest,
-            handler=partial(
-                self.on_librarian_request, workspace=workspace,
-            ),
-            metrics=ConsumerMetrics(
-                processor=self.id, consumer="librarian-request",
-                workspace=workspace,
-            ),
+            handler=lib_handler,
         )
 
-        col_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
+        async def col_handler(message):
+            await self.on_collection_request(
+                message, None, None, workspace=workspace,
+            )
+
+        col_consumer_reg = await self.receiver_pool.add_consumer(
             topic=col_req_queue,
-            subscriber=self.id,
+            subscription=self.id,
             schema=CollectionManagementRequest,
-            handler=partial(
-                self.on_collection_request, workspace=workspace,
-            ),
-            metrics=ConsumerMetrics(
-                processor=self.id, consumer="collection-request",
-                workspace=workspace,
-            ),
+            handler=col_handler,
         )
-
-        await lib_response_producer.start()
-        await col_response_producer.start()
-        await lib_consumer.start()
-        await col_consumer.start()
 
         self.workspace_consumers[workspace] = {
-            "librarian": lib_consumer,
-            "librarian-response": lib_response_producer,
-            "collection": col_consumer,
-            "collection-response": col_response_producer,
+            "librarian": lib_consumer_reg,
+            "librarian-response": lib_response_handle,
+            "collection": col_consumer_reg,
+            "collection-response": col_response_handle,
         }
 
         logger.info(f"Subscribed to workspace queues: {workspace}")
@@ -323,19 +271,36 @@ class Processor(WorkspaceProcessor):
 
         clients = self.workspace_consumers.pop(workspace, None)
         if clients:
-            for client in clients.values():
-                await client.stop()
+            await clients["librarian"].unregister()
+            await clients["collection"].unregister()
+            await clients["librarian-response"].unregister()
+            await clients["collection-response"].unregister()
             logger.info(f"Unsubscribed from workspace queues: {workspace}")
 
     async def start(self):
 
         await super(Processor, self).start()
-        await self.config_request_producer.start()
-        await self.config_response_consumer.start()
 
-    async def on_config_response(self, message, consumer, flow):
-        """Forward config responses to collection manager"""
-        await self.collection_manager.on_config_response(message, consumer, flow)
+        # Create config client for collection management
+        self.config_client = await RequestResponseClient.create(
+            backend=self.async_backend,
+            request_topic=self.config_request_topic,
+            response_topic=self.config_response_topic,
+            request_schema=ConfigRequest,
+            response_schema=ConfigResponse,
+            subscription=f"{self.id}-config",
+        )
+
+        self.collection_manager = CollectionManager(
+            config_client=self.config_client,
+        )
+
+    async def stop(self):
+
+        if self.config_client:
+            await self.config_client.close()
+
+        await super(Processor, self).stop()
 
     async def on_librarian_config(self, workspace, config, version):
 
@@ -397,14 +362,12 @@ class Processor(WorkspaceProcessor):
         # Combine all triples
         all_triples = vocab_triples + prov_triples
 
-        # Create publisher and emit
-        triples_pub = Publisher(
-            self.pubsub, triples_queue, schema=Triples
+        # Create producer handle and emit
+        triples_handle = await self.sender_pool.add_producer(
+            topic=triples_queue, schema=Triples,
         )
 
         try:
-            await triples_pub.start()
-
             triples_msg = Triples(
                 metadata=Metadata(
                     id=doc_uri,
@@ -414,11 +377,11 @@ class Processor(WorkspaceProcessor):
                 triples=all_triples,
             )
 
-            await triples_pub.send(None, triples_msg)
+            await triples_handle.send(triples_msg)
             logger.debug(f"Emitted {len(all_triples)} provenance triples for {document.id}")
 
         finally:
-            await triples_pub.stop()
+            await triples_handle.unregister()
 
     async def load_document(self, document, processing, content, workspace):
 
@@ -473,15 +436,14 @@ class Processor(WorkspaceProcessor):
 
         logger.debug(f"Submitting to queue {q}...")
 
-        pub = Publisher(
-            self.pubsub, q, schema=schema
+        handle = await self.sender_pool.add_producer(
+            topic=q, schema=schema,
         )
 
         try:
-            await pub.start()
-            await pub.send(None, doc)
+            await handle.send(doc)
         finally:
-            await pub.stop()
+            await handle.unregister()
 
         logger.debug("Document submitted")
 
@@ -717,4 +679,3 @@ class Processor(WorkspaceProcessor):
 def run():
 
     Processor.launch(default_ident, __doc__)
-

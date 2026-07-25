@@ -73,6 +73,8 @@ async def _supervise(entry):
 
     while True:
 
+        p = None
+
         try:
 
             async with asyncio.TaskGroup() as inner_tg:
@@ -105,11 +107,18 @@ async def _supervise(entry):
                     exc_info=e,
                 )
 
-        except Exception as e:
+        except BaseException as e:
             logger.error(
                 f"Processor {pid} failure: {type(e).__name__}: {e}",
                 exc_info=True,
             )
+
+        finally:
+            if p:
+                try:
+                    await p.stop()
+                except BaseException:
+                    pass
 
         logger.info(
             f"Restarting {pid} in {RESTART_DELAY_SECONDS}s..."
@@ -189,13 +198,13 @@ def run():
             logger.info("Keyboard interrupt.")
             return
 
-        except ExceptionGroup as e:
+        except BaseExceptionGroup as e:
             logger.error("Exception group:")
             for se in e.exceptions:
                 logger.error(f"  Type: {type(se)}")
                 logger.error(f"  Exception: {se}", exc_info=se)
 
-        except Exception as e:
+        except BaseException as e:
             logger.error(f"Type: {type(e)}")
             logger.error(f"Exception: {e}", exc_info=True)
 

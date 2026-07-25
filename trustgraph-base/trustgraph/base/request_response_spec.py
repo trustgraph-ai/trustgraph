@@ -162,3 +162,54 @@ class RequestResponseSpec(Spec):
 
         flow.consumer[self.request_name] = rr
 
+    async def register(self, flow: Any, processor: Any, definition: dict[str, Any]) -> Any:
+
+        from .request_response_client import RequestResponseClient
+
+        topics = definition.get("topics", {})
+        if self.optional and (
+                self.request_name not in topics
+                or self.response_name not in topics):
+            return None
+
+        rr_client = await RequestResponseClient.create(
+            backend=processor.async_backend,
+            request_topic=topics[self.request_name],
+            response_topic=topics[self.response_name],
+            request_schema=self.request_schema,
+            response_schema=self.response_schema,
+        )
+
+        wrapper = _make_impl_wrapper(rr_client, self.impl)
+        flow.consumer[self.request_name] = wrapper
+        return wrapper
+
+
+def _make_impl_wrapper(rr_client, impl_cls):
+    """Create a domain-specific wrapper that delegates request() to the
+    RequestResponseClient while inheriting business methods from impl_cls."""
+
+    class Wrapper(impl_cls):
+        def __init__(self):
+            self._rr_client = rr_client
+
+        async def request(self, req, timeout=300, recipient=None):
+            if recipient is None:
+                return await self._rr_client.request(req, timeout=timeout)
+
+            async for resp in self._rr_client.request_stream(req, timeout=timeout):
+                fin = await recipient(resp)
+                if fin:
+                    return resp
+
+        async def start(self):
+            pass
+
+        async def stop(self):
+            await self._rr_client.close()
+
+        async def close(self):
+            await self._rr_client.close()
+
+    return Wrapper()
+

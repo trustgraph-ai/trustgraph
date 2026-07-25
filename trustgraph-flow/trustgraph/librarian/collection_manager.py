@@ -32,24 +32,15 @@ class CollectionManager:
 
     def __init__(
         self,
-        config_request_producer,
-        config_response_consumer,
-        taskgroup
+        config_client,
     ):
         """
         Initialize the CollectionManager
 
         Args:
-            config_request_producer: Producer for config service requests
-            config_response_consumer: Consumer for config service responses
-            taskgroup: Task group for async operations
+            config_client: RequestResponseClient for config service
         """
-        self.config_request_producer = config_request_producer
-        self.config_response_consumer = config_response_consumer
-        self.taskgroup = taskgroup
-
-        # Track pending config requests
-        self.pending_config_requests = {}
+        self.config_client = config_client
 
         logger.info("Collection manager initialized with config service backend")
 
@@ -58,39 +49,12 @@ class CollectionManager:
         Send config request and wait for response
 
         Args:
-            request: Config service request (without id field)
+            request: Config service request
 
         Returns:
             ConfigResponse from config service
         """
-        # Generate request ID - passed via message properties, not in schema
-        request_id = str(uuid.uuid4())
-
-        event = asyncio.Event()
-        self.pending_config_requests[request_id] = event
-
-        # Send request with ID in message properties
-        await self.config_request_producer.send(request, properties={"id": request_id})
-        await event.wait()
-
-        response = self.pending_config_requests.pop(request_id + "_response")
-        return response
-
-    async def on_config_response(self, message, consumer, flow):
-        """
-        Handle config response
-
-        Args:
-            message: Pulsar message
-            consumer: Consumer instance
-            flow: Flow context
-        """
-        # Get ID from message properties
-        response_id = message.properties().get("id")
-        if response_id and response_id in self.pending_config_requests:
-            response = message.value()
-            self.pending_config_requests[response_id + "_response"] = response
-            self.pending_config_requests[response_id].set()
+        return await self.config_client.request(request, timeout=60)
 
     async def ensure_collection_exists(self, workspace: str, collection: str):
         """

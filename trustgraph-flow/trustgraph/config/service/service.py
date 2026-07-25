@@ -21,13 +21,12 @@ from trustgraph.schema import WorkspaceChanges
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 
-from trustgraph.base import AsyncProcessor, Consumer, Producer
+from trustgraph.base import AsyncProcessor
 from trustgraph.base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 from . config import Configuration, WORKSPACES_NAMESPACE, WORKSPACE_TYPE
 
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
-from ... base import Consumer, Producer
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -70,7 +69,7 @@ class Processor(AsyncProcessor):
         self.config_response_queue_base = params.get(
             "config_response_queue", default_config_response_queue
         )
-        config_push_queue = params.get(
+        self.config_push_queue_name = params.get(
             "config_push_queue", default_config_push_queue
         )
 
@@ -105,43 +104,9 @@ class Processor(AsyncProcessor):
             }
         )
 
-        config_request_metrics = ConsumerMetrics(
-            processor=self.id, consumer="config-request",
-        )
-        config_response_metrics = ProducerMetrics(
-            processor=self.id, producer="config-response",
-        )
-        config_push_metrics = ProducerMetrics(
-            processor=self.id, producer="config-push",
-        )
-
+        # Store queue names and schemas for pool registration in start()
         self.config_request_queue_base = config_request_queue
         self.config_request_subscriber = id
-
-        self.system_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = config_request_queue,
-            subscriber = id,
-            schema = ConfigRequest,
-            handler = self.on_system_config_request,
-            metrics = config_request_metrics,
-        )
-
-        self.config_response_producer = Producer(
-            backend = self.pubsub,
-            topic = self.config_response_queue_base,
-            schema = ConfigResponse,
-            metrics = config_response_metrics,
-        )
-
-        self.config_push_producer = Producer(
-            backend = self.pubsub,
-            topic = config_push_queue,
-            schema = ConfigPush,
-            metrics = config_push_metrics,
-        )
 
         self.config = Configuration(
             host = self.cassandra_host,
@@ -217,42 +182,32 @@ class Processor(AsyncProcessor):
             self.config_response_queue_base, workspace_id,
         )
 
-        await self.pubsub.ensure_topic(req_queue)
-        await self.pubsub.ensure_topic(resp_queue)
+        await self.async_backend.ensure_topic(req_queue)
+        await self.async_backend.ensure_topic(resp_queue)
 
-        response_producer = Producer(
-            backend=self.pubsub,
+        response_handle = await self.sender_pool.add_producer(
             topic=resp_queue,
             schema=ConfigResponse,
-            metrics=ProducerMetrics(
-                processor=self.id, producer="config-response",
-                workspace=workspace_id,
-            ),
         )
 
-        consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
+        handler = partial(
+            self.on_workspace_config_request,
+            workspace=workspace_id,
+        )
+
+        async def wrapper(message):
+            await handler(message, None, None)
+
+        consumer_reg = await self.receiver_pool.add_consumer(
             topic=req_queue,
-            subscriber=self.id,
+            subscription=self.id,
             schema=ConfigRequest,
-            handler=partial(
-                self.on_workspace_config_request,
-                workspace=workspace_id,
-            ),
-            metrics=ConsumerMetrics(
-                processor=self.id, consumer="config-request",
-                workspace=workspace_id,
-            ),
+            handler=wrapper,
         )
-
-        await response_producer.start()
-        await consumer.start()
 
         self.workspace_consumers[workspace_id] = {
-            "consumer": consumer,
-            "response": response_producer,
+            "consumer": consumer_reg,
+            "response": response_handle,
         }
 
         logger.info(
@@ -262,22 +217,55 @@ class Processor(AsyncProcessor):
     async def _remove_workspace_consumer(self, workspace_id):
         clients = self.workspace_consumers.pop(workspace_id, None)
         if clients:
-            for client in clients.values():
-                await client.stop()
+            await clients["consumer"].unregister()
+            await clients["response"].unregister()
             logger.info(
                 f"Unsubscribed from workspace config queue: {workspace_id}"
             )
 
     async def start(self):
 
-        await self.pubsub.ensure_topic(self.config_request_queue_base)
-        await self.config_response_producer.start()
+        # Start the pools since we don't call super().start()
+        await self.receiver_pool.start()
+        await self.sender_pool.start()
+
+        await self.async_backend.ensure_topic(self.config_request_queue_base)
+
+        # Create system-level producers via sender_pool
+        self.config_response_handle = await self.sender_pool.add_producer(
+            topic=self.config_response_queue_base,
+            schema=ConfigResponse,
+        )
+
+        self.config_push_handle = await self.sender_pool.add_producer(
+            topic=self.config_push_queue_name,
+            schema=ConfigPush,
+        )
+
         await self.push()  # Startup poke: empty types = everything
-        await self.system_consumer.start()
+
+        # Create system consumer via receiver_pool
+        async def system_handler_wrapper(message):
+            await self.on_system_config_request(message, None, None)
+
+        self._system_consumer_reg = await self.receiver_pool.add_consumer(
+            topic=self.config_request_queue_base,
+            subscription=self.id,
+            schema=ConfigRequest,
+            handler=system_handler_wrapper,
+        )
 
         # Start the config push subscriber so we receive our own
         # workspace change notifications.
-        await self.config_sub_task.start()
+        async def config_notify_wrapper(message):
+            await self.on_config_notify(message, None, None)
+
+        self._config_sub_reg = await self.receiver_pool.add_consumer(
+            topic=self.config_push_queue,
+            subscription=self.id,
+            schema=ConfigPush,
+            handler=config_notify_wrapper,
+        )
 
         await self._discover_workspaces()
 
@@ -306,7 +294,7 @@ class Processor(AsyncProcessor):
             workspace_changes = workspace_changes,
         )
 
-        await self.config_push_producer.send(resp)
+        await self.config_push_handle.send(resp)
 
         logger.info(
             f"Pushed config poke version {version}, "
@@ -330,11 +318,11 @@ class Processor(AsyncProcessor):
                 f"workspace={workspace}..."
             )
 
-            producer = self.workspace_consumers[workspace]["response"]
+            handle = self.workspace_consumers[workspace]["response"]
 
             resp = await self.config.handle_workspace(v, workspace)
 
-            await producer.send(
+            await handle.send(
                 resp, properties={"id": id}
             )
 
@@ -347,7 +335,7 @@ class Processor(AsyncProcessor):
                 ),
             )
 
-            await producer.send(
+            await handle.send(
                 resp, properties={"id": id}
             )
 
@@ -364,7 +352,7 @@ class Processor(AsyncProcessor):
 
             resp = await self.config.handle_system(v)
 
-            await self.config_response_producer.send(
+            await self.config_response_handle.send(
                 resp, properties={"id": id}
             )
 
@@ -377,7 +365,7 @@ class Processor(AsyncProcessor):
                 ),
             )
 
-            await self.config_response_producer.send(
+            await self.config_response_handle.send(
                 resp, properties={"id": id}
             )
 
