@@ -42,10 +42,19 @@ def get_async_pubsub(**config: Any) -> Any:
             listener=config.get('pulsar_listener'),
             admin_url=config.get('pulsar_admin_url', DEFAULT_PULSAR_ADMIN_URL),
         )
+    elif backend_type == 'rabbitmq':
+        from .async_rabbitmq_backend import AsyncRabbitMQBackend
+        return AsyncRabbitMQBackend(
+            host=config.get('rabbitmq_host', DEFAULT_RABBITMQ_HOST),
+            port=config.get('rabbitmq_port', DEFAULT_RABBITMQ_PORT),
+            username=config.get('rabbitmq_username', DEFAULT_RABBITMQ_USERNAME),
+            password=config.get('rabbitmq_password', DEFAULT_RABBITMQ_PASSWORD),
+            vhost=config.get('rabbitmq_vhost', DEFAULT_RABBITMQ_VHOST),
+        )
     else:
         raise ValueError(
             f"Async backend not yet supported for: {backend_type}. "
-            f"Only 'pulsar' is currently supported."
+            f"Supported: 'pulsar', 'rabbitmq'."
         )
 
 
