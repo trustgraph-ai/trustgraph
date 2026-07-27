@@ -10,7 +10,7 @@ import logging
 import os
 
 from trustgraph.base.logging import setup_logging, add_logging_args
-from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
+from trustgraph.base.pubsub import get_async_pubsub, add_pubsub_args
 from trustgraph.base import AuditPublisher
 
 from . auth import IamAuth
@@ -51,8 +51,8 @@ class Api:
 
         self.pulsar_listener = config.get("pulsar_listener", None)
 
-        # Create backend using factory
-        self.pubsub_backend = get_pubsub(**config)
+        # Create async backend using factory
+        self.pubsub_backend = get_async_pubsub(**config)
 
         self.prometheus_url = config.get(
             "prometheus_url", default_prometheus_url,
@@ -125,7 +125,7 @@ class Api:
         )
 
         self.audit_publisher = AuditPublisher(
-            backend=self.pubsub_backend,
+            async_backend=self.pubsub_backend,
             component_name="api-gateway",
             processor_id=config.get("id", "api-gateway"),
         )
@@ -152,6 +152,8 @@ class Api:
         # Blocks for a bounded retry window; the gateway starts even
         # if IAM is still unreachable (JWT validation will 401 until
         # the key is available).
+        await self.audit_publisher.start()
+
         await self.auth.start()
 
         await self.config_receiver.start()

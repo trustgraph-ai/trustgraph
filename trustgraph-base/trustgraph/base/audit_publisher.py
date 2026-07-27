@@ -13,9 +13,12 @@ logger = logging.getLogger(__name__)
 
 class AuditPublisher:
 
-    def __init__(self, component_name, processor_id=None, backend=None):
+    def __init__(self, component_name, processor_id=None, backend=None,
+                 async_backend=None):
         self.component_name = component_name
         self._handle = None
+        self._async_producer = None
+        self._async_backend = async_backend
 
         if backend is not None:
             self._legacy_producer = Producer(
@@ -36,8 +39,19 @@ class AuditPublisher:
                 topic=audit_events_queue,
                 schema=AuditEvent,
             )
+        elif self._async_backend is not None:
+            self._async_producer = await self._async_backend.create_producer(
+                topic=audit_events_queue,
+                schema=AuditEvent,
+            )
 
     async def stop(self):
+        if self._async_producer:
+            try:
+                await self._async_producer.close()
+            except BaseException:
+                pass
+            self._async_producer = None
         if self._handle:
             await self._handle.unregister()
 
@@ -54,6 +68,8 @@ class AuditPublisher:
         try:
             if self._handle:
                 await self._handle.send(event)
+            elif self._async_producer:
+                await self._async_producer.send(event)
             elif self._legacy_producer:
                 await self._legacy_producer.send(event)
         except Exception as e:
