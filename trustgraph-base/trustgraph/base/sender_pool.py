@@ -31,11 +31,13 @@ class ProducerHandle:
     def __init__(
         self, topic: str, backend_producer: AsyncBackendProducer,
         send_queue: asyncio.Queue, pool: 'SenderPool',
+        metrics=None,
     ):
         self.topic = topic
         self.backend_producer = backend_producer
         self.send_queue = send_queue
         self.pool = pool
+        self.metrics = metrics
 
     async def send(
         self, message: Any, properties: dict = {}, wait: bool = False,
@@ -48,6 +50,9 @@ class ProducerHandle:
         await self.send_queue.put(
             SendItem(message=message, properties=properties, future=future)
         )
+
+        if self.metrics:
+            self.metrics.inc()
 
         if future is not None:
             await future
@@ -75,9 +80,11 @@ class SenderPool:
 
     def __init__(
         self, backend: AsyncPubSubBackend, send_queue_size: int = 64,
+        processor_id: str | None = None,
     ):
         self.backend = backend
         self.send_queue_size = send_queue_size
+        self.processor_id = processor_id
         self.handles: list[ProducerHandle] = []
         self.sender_task: asyncio.Task | None = None
         self.running = False
@@ -130,11 +137,19 @@ class SenderPool:
 
         send_queue = asyncio.Queue(maxsize=self.send_queue_size)
 
+        metrics = None
+        if self.processor_id:
+            from .metrics import ProducerMetrics
+            metrics = ProducerMetrics(
+                processor=self.processor_id, producer=topic,
+            )
+
         handle = ProducerHandle(
             topic=topic,
             backend_producer=backend_producer,
             send_queue=send_queue,
             pool=self,
+            metrics=metrics,
         )
         self.handles.append(handle)
 

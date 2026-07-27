@@ -13,13 +13,11 @@ class ConsumerMetrics:
 
         self.processor = processor
         self.consumer = consumer
-        self.workspace = workspace
-        self.flow = flow
 
         if not hasattr(__class__, "state_metric"):
             __class__.state_metric = Enum(
                 'consumer_state', 'Consumer state',
-                ["processor", "workspace", "flow", "consumer"],
+                ["processor", "consumer"],
                 states=['stopped', 'running']
             )
 
@@ -32,31 +30,46 @@ class ConsumerMetrics:
         if not hasattr(__class__, "processing_metric"):
             __class__.processing_metric = Counter(
                 'processing_count', 'Processing count',
-                ["processor", "workspace", "flow", "consumer", "status"],
+                ["processor", "consumer", "status"],
             )
 
         if not hasattr(__class__, "rate_limit_metric"):
             __class__.rate_limit_metric = Counter(
                 'rate_limit_count', 'Rate limit event count',
-                ["processor", "workspace", "flow", "consumer"],
+                ["processor", "consumer"],
             )
+
+        __class__.request_metric.labels(
+            processor=self.processor, consumer=self.consumer,
+        )
+        __class__.processing_metric.labels(
+            processor=self.processor, consumer=self.consumer,
+            status="ok",
+        )
+        __class__.processing_metric.labels(
+            processor=self.processor, consumer=self.consumer,
+            status="error",
+        )
+        __class__.rate_limit_metric.labels(
+            processor=self.processor, consumer=self.consumer,
+        )
 
     def process(self, status: str) -> None:
         __class__.processing_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, consumer=self.consumer, status=status,
+            processor=self.processor,
+            consumer=self.consumer, status=status,
         ).inc()
 
     def rate_limit(self) -> None:
         __class__.rate_limit_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, consumer=self.consumer,
+            processor=self.processor,
+            consumer=self.consumer,
         ).inc()
 
     def state(self, state: str) -> None:
         __class__.state_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, consumer=self.consumer,
+            processor=self.processor,
+            consumer=self.consumer,
         ).state(state)
 
     def record_time(self) -> Any:
@@ -72,19 +85,21 @@ class ProducerMetrics:
 
         self.processor = processor
         self.producer = producer
-        self.workspace = workspace
-        self.flow = flow
 
         if not hasattr(__class__, "producer_metric"):
             __class__.producer_metric = Counter(
                 'producer_count', 'Output items produced',
-                ["processor", "workspace", "flow", "producer"],
+                ["processor", "producer"],
             )
+
+        __class__.producer_metric.labels(
+            processor=self.processor, producer=self.producer,
+        )
 
     def inc(self) -> None:
         __class__.producer_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, producer=self.producer,
+            processor=self.processor,
+            producer=self.producer,
         ).inc()
 
 class ProcessorMetrics:
@@ -111,42 +126,40 @@ class SubscriberMetrics:
 
         self.processor = processor
         self.subscriber = subscriber
-        self.workspace = workspace
-        self.flow = flow
 
         if not hasattr(__class__, "state_metric"):
             __class__.state_metric = Enum(
                 'subscriber_state', 'Subscriber state',
-                ["processor", "workspace", "flow", "subscriber"],
+                ["processor", "subscriber"],
                 states=['stopped', 'running']
             )
 
         if not hasattr(__class__, "received_metric"):
             __class__.received_metric = Counter(
                 'received_count', 'Received count',
-                ["processor", "workspace", "flow", "subscriber"],
+                ["processor", "subscriber"],
             )
 
         if not hasattr(__class__, "dropped_metric"):
             __class__.dropped_metric = Counter(
                 'dropped_count', 'Dropped messages count',
-                ["processor", "workspace", "flow", "subscriber"],
+                ["processor", "subscriber"],
             )
 
     def received(self) -> None:
         __class__.received_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, subscriber=self.subscriber,
+            processor=self.processor,
+            subscriber=self.subscriber,
         ).inc()
 
     def state(self, state: str) -> None:
         __class__.state_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, subscriber=self.subscriber,
+            processor=self.processor,
+            subscriber=self.subscriber,
         ).state(state)
 
     def dropped(self, state: str) -> None:
         __class__.dropped_metric.labels(
-            processor=self.processor, workspace=self.workspace,
-            flow=self.flow, subscriber=self.subscriber,
+            processor=self.processor,
+            subscriber=self.subscriber,
         ).inc()

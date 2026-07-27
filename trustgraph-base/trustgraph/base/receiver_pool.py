@@ -26,6 +26,7 @@ class ConsumerRegistration:
     backend_consumer: AsyncBackendConsumer
     receiver_task: asyncio.Task
     pool: 'ReceiverPool'
+    metrics: Any = None
 
     async def unregister(self):
         await self.pool.remove_consumer(self)
@@ -58,9 +59,13 @@ class ReceiverPool:
         await pool.stop()
     """
 
-    def __init__(self, backend: AsyncPubSubBackend, concurrency: int = 1):
+    def __init__(
+        self, backend: AsyncPubSubBackend, concurrency: int = 1,
+        processor_id: str | None = None,
+    ):
         self.backend = backend
         self.concurrency = concurrency
+        self.processor_id = processor_id
         self.work_queue = asyncio.Queue(maxsize=concurrency)
         self.registrations: list[ConsumerRegistration] = []
         self.worker_tasks: list[asyncio.Task] = []
@@ -93,6 +98,11 @@ class ReceiverPool:
                 await reg.receiver_task
             except BaseException:
                 pass
+
+        for reg in self.registrations:
+            if reg.metrics:
+                reg.metrics.state("stopped")
+
         self.registrations.clear()
 
         if not self.work_queue.empty():
@@ -136,8 +146,18 @@ class ReceiverPool:
             initial_position=initial_position,
         )
 
+        metrics = None
+        if self.processor_id:
+            from .metrics import ConsumerMetrics
+            metrics = ConsumerMetrics(
+                processor=self.processor_id, consumer=topic,
+            )
+            metrics.state("running")
+
+        instrumented = self._instrumented_handler(handler, metrics)
+
         receiver_task = asyncio.create_task(
-            self._receiver_loop(backend_consumer, handler),
+            self._receiver_loop(backend_consumer, instrumented),
             name=f"receiver-{topic}",
         )
 
@@ -147,11 +167,31 @@ class ReceiverPool:
             backend_consumer=backend_consumer,
             receiver_task=receiver_task,
             pool=self,
+            metrics=metrics,
         )
         self.registrations.append(reg)
 
         logger.info(f"Added consumer: {topic}")
         return reg
+
+    def _instrumented_handler(
+        self,
+        handler: Callable[..., Awaitable[None]],
+        metrics,
+    ) -> Callable[..., Awaitable[None]]:
+        if metrics is None:
+            return handler
+
+        async def wrapper(message):
+            with metrics.record_time():
+                try:
+                    await handler(message)
+                    metrics.process("ok")
+                except Exception:
+                    metrics.process("error")
+                    raise
+
+        return wrapper
 
     async def remove_consumer(self, reg: ConsumerRegistration):
         try:
@@ -167,6 +207,9 @@ class ReceiverPool:
 
         if reg in self.registrations:
             self.registrations.remove(reg)
+
+        if reg.metrics:
+            reg.metrics.state("stopped")
 
         logger.info(f"Removed consumer: {reg.topic}")
 
