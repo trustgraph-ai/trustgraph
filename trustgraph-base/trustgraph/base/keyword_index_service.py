@@ -123,10 +123,3 @@ class KeywordIndexService(FlowProcessor):
     def add_args(parser: ArgumentParser) -> None:
 
         FlowProcessor.add_args(parser)
-
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Number of concurrent requests (default: {default_concurrency})'
-        )
