@@ -35,10 +35,8 @@ def test_parameter_start_and_stop_are_awaitable():
     assert asyncio.run(parameter.stop()) is None
 
 
-def test_flow_initialization_calls_registered_specs():
-    spec_one = MagicMock()
-    spec_two = MagicMock()
-    processor = MagicMock(specifications=[spec_one, spec_two])
+def test_flow_initialization_sets_attributes():
+    processor = MagicMock(specifications=[])
 
     flow = Flow("processor-1", "flow-a", "default", processor, {"answer": 42})
 
@@ -48,23 +46,32 @@ def test_flow_initialization_calls_registered_specs():
     assert flow.producer == {}
     assert flow.consumer == {}
     assert flow.parameter == {}
-    spec_one.add.assert_called_once_with(flow, processor, {"answer": 42})
-    spec_two.add.assert_called_once_with(flow, processor, {"answer": 42})
 
 
-def test_flow_start_and_stop_visit_all_consumers():
-    consumer_one = AsyncMock()
-    consumer_two = AsyncMock()
-    flow = Flow("processor-1", "flow-a", "default", MagicMock(specifications=[]), {})
-    flow.consumer = {"one": consumer_one, "two": consumer_two}
+def test_flow_start_calls_spec_register():
+    spec = AsyncMock()
+    spec.register = AsyncMock(return_value=None)
+    processor = MagicMock(specifications=[spec])
+
+    flow = Flow("processor-1", "flow-a", "default", processor, {"answer": 42})
 
     asyncio.run(flow.start())
+
+    spec.register.assert_called_once_with(flow, processor, {"answer": 42})
+
+
+def test_flow_stop_unregisters_registrations():
+    reg = AsyncMock()
+    reg.unregister = AsyncMock()
+
+    processor = MagicMock(specifications=[])
+    flow = Flow("processor-1", "flow-a", "default", processor, {})
+    flow._registrations = [reg]
+
     asyncio.run(flow.stop())
 
-    consumer_one.start.assert_called_once_with()
-    consumer_two.start.assert_called_once_with()
-    consumer_one.stop.assert_called_once_with()
-    consumer_two.stop.assert_called_once_with()
+    reg.unregister.assert_called_once()
+    assert flow._registrations == []
 
 
 def test_flow_call_returns_values_in_priority_order():

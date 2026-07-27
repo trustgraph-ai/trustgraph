@@ -566,12 +566,6 @@ class Processor(FlowProcessor):
             help='Configuration type prefix for schemas (default: schema)'
         )
 
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Number of concurrent requests (default: {default_concurrency})'
-        )
 
 
 def run():
