@@ -19,7 +19,7 @@ import argparse
 from datetime import datetime
 from collections import OrderedDict
 
-from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
+from trustgraph.base.pubsub import get_async_pubsub, add_pubsub_args
 
 
 default_flow = "default"
@@ -49,7 +49,6 @@ def truncate_text(text, max_lines, max_width):
 
 def summarise_value(value, max_width):
     """Summarise a term value — show type and size for large values."""
-    # Try to parse JSON
     try:
         parsed = json.loads(value)
     except (json.JSONDecodeError, TypeError):
@@ -107,6 +106,18 @@ def parse_raw_message(msg):
     return corr_id, body
 
 
+async def poll_consumer(consumer, handler, shutdown_event):
+    while not shutdown_event.is_set():
+        try:
+            msg = await asyncio.wait_for(
+                consumer.receive(), timeout=0.5,
+            )
+            handler(msg)
+            await consumer.acknowledge(msg)
+        except asyncio.TimeoutError:
+            continue
+
+
 async def monitor(flow, queue_type, max_lines, max_width, **config):
 
     request_queue = f"request:tg:{queue_type}:{flow}"
@@ -117,158 +128,136 @@ async def monitor(flow, queue_type, max_lines, max_width, **config):
     print(f"  Response: {response_queue}")
     print(f"Press Ctrl+C to stop\n")
 
-    backend = get_pubsub(**config)
+    backend = get_async_pubsub(**config)
 
-    req_consumer = backend.create_consumer(
+    req_consumer = await backend.create_consumer(
         topic=request_queue,
         subscription="prompt-monitor-req",
         schema=None,
         initial_position='latest',
     )
 
-    resp_consumer = backend.create_consumer(
+    resp_consumer = await backend.create_consumer(
         topic=response_queue,
         subscription="prompt-monitor-resp",
         schema=None,
         initial_position='latest',
     )
 
-    # Track in-flight requests: corr_id -> (timestamp, template_id)
     in_flight = OrderedDict()
-
-    # Accumulate streaming responses: corr_id -> list of text chunks
     streaming_chunks = {}
+
+    def handle_request(msg):
+        timestamp = datetime.now()
+        corr_id, body = parse_raw_message(msg)
+        time_str = timestamp.strftime("%H:%M:%S.%f")[:-3]
+
+        template_id = body.get("id", "(unknown)")
+        terms = body.get("terms", {})
+        streaming = body.get("streaming", False)
+
+        in_flight[corr_id] = (timestamp, template_id)
+
+        while len(in_flight) > 1000:
+            in_flight.popitem(last=False)
+
+        stream_flag = " [streaming]" if streaming else ""
+        id_display = corr_id[:8] if corr_id else "--------"
+        print(f"[{time_str}] REQ  {id_display}  "
+              f"template={template_id}{stream_flag}")
+
+        if terms:
+            print(format_terms(terms, max_lines, max_width))
+
+    def handle_response(msg):
+        timestamp = datetime.now()
+        corr_id, body = parse_raw_message(msg)
+        time_str = timestamp.strftime("%H:%M:%S.%f")[:-3]
+        id_display = corr_id[:8] if corr_id else "--------"
+
+        error = body.get("error")
+        text = body.get("text", "")
+        obj = body.get("object", "")
+        eos = body.get("end_of_stream", False)
+
+        if error:
+            elapsed_str = ""
+            if corr_id in in_flight:
+                req_timestamp, _ = in_flight.pop(corr_id)
+                elapsed = (timestamp - req_timestamp).total_seconds()
+                elapsed_str = f"  ({elapsed:.3f}s)"
+            streaming_chunks.pop(corr_id, None)
+
+            err_msg = error
+            if isinstance(error, dict):
+                err_msg = error.get("message", str(error))
+            print(f"[{time_str}] ERR  {id_display}  "
+                  f"{err_msg}{elapsed_str}")
+
+        elif eos:
+            elapsed_str = ""
+            if corr_id in in_flight:
+                req_timestamp, _ = in_flight.pop(corr_id)
+                elapsed = (timestamp - req_timestamp).total_seconds()
+                elapsed_str = f"  ({elapsed:.3f}s)"
+
+            accumulated = streaming_chunks.pop(corr_id, [])
+            if text:
+                accumulated.append(text)
+
+            full_text = "".join(accumulated)
+            if full_text:
+                truncated = truncate_text(
+                    full_text, max_lines, max_width
+                )
+                print(f"[{time_str}] RESP {id_display}"
+                      f"{elapsed_str}")
+                print(f"  {truncated}")
+            else:
+                print(f"[{time_str}] RESP {id_display}"
+                      f"{elapsed_str}  (empty)")
+
+        elif text or obj:
+            if corr_id in streaming_chunks or (
+                corr_id in in_flight
+            ):
+                if corr_id not in streaming_chunks:
+                    streaming_chunks[corr_id] = []
+                streaming_chunks[corr_id].append(text or obj)
+            else:
+                elapsed_str = ""
+                if corr_id in in_flight:
+                    req_timestamp, _ = in_flight.pop(corr_id)
+                    elapsed = (
+                        timestamp - req_timestamp
+                    ).total_seconds()
+                    elapsed_str = f"  ({elapsed:.3f}s)"
+
+                content = text or obj
+                label = "" if text else "  (object)"
+                truncated = truncate_text(
+                    content, max_lines, max_width
+                )
+                print(f"[{time_str}] RESP {id_display}"
+                      f"{label}{elapsed_str}")
+                print(f"  {truncated}")
 
     print("Listening...\n")
 
+    shutdown_event = asyncio.Event()
+
     try:
-        while True:
-            got_message = False
-
-            # Poll request queue
-            try:
-                msg = req_consumer.receive(timeout_millis=100)
-                got_message = True
-                timestamp = datetime.now()
-                corr_id, body = parse_raw_message(msg)
-                time_str = timestamp.strftime("%H:%M:%S.%f")[:-3]
-
-                template_id = body.get("id", "(unknown)")
-                terms = body.get("terms", {})
-                streaming = body.get("streaming", False)
-
-                in_flight[corr_id] = (timestamp, template_id)
-
-                # Limit size
-                while len(in_flight) > 1000:
-                    in_flight.popitem(last=False)
-
-                stream_flag = " [streaming]" if streaming else ""
-                id_display = corr_id[:8] if corr_id else "--------"
-                print(f"[{time_str}] REQ  {id_display}  "
-                      f"template={template_id}{stream_flag}")
-
-                if terms:
-                    print(format_terms(terms, max_lines, max_width))
-
-                req_consumer.acknowledge(msg)
-            except TimeoutError:
-                pass
-
-            # Poll response queue
-            try:
-                msg = resp_consumer.receive(timeout_millis=100)
-                got_message = True
-                timestamp = datetime.now()
-                corr_id, body = parse_raw_message(msg)
-                time_str = timestamp.strftime("%H:%M:%S.%f")[:-3]
-                id_display = corr_id[:8] if corr_id else "--------"
-
-                error = body.get("error")
-                text = body.get("text", "")
-                obj = body.get("object", "")
-                eos = body.get("end_of_stream", False)
-
-                if error:
-                    # Error — show immediately
-                    elapsed_str = ""
-                    if corr_id in in_flight:
-                        req_timestamp, _ = in_flight.pop(corr_id)
-                        elapsed = (timestamp - req_timestamp).total_seconds()
-                        elapsed_str = f"  ({elapsed:.3f}s)"
-                    streaming_chunks.pop(corr_id, None)
-
-                    err_msg = error
-                    if isinstance(error, dict):
-                        err_msg = error.get("message", str(error))
-                    print(f"[{time_str}] ERR  {id_display}  "
-                          f"{err_msg}{elapsed_str}")
-
-                elif eos:
-                    # End of stream — show accumulated text + timing
-                    elapsed_str = ""
-                    if corr_id in in_flight:
-                        req_timestamp, _ = in_flight.pop(corr_id)
-                        elapsed = (timestamp - req_timestamp).total_seconds()
-                        elapsed_str = f"  ({elapsed:.3f}s)"
-
-                    accumulated = streaming_chunks.pop(corr_id, [])
-                    if text:
-                        accumulated.append(text)
-
-                    full_text = "".join(accumulated)
-                    if full_text:
-                        truncated = truncate_text(
-                            full_text, max_lines, max_width
-                        )
-                        print(f"[{time_str}] RESP {id_display}"
-                              f"{elapsed_str}")
-                        print(f"  {truncated}")
-                    else:
-                        print(f"[{time_str}] RESP {id_display}"
-                              f"{elapsed_str}  (empty)")
-
-                elif text or obj:
-                    # Streaming chunk or non-streaming response
-                    if corr_id in streaming_chunks or (
-                        corr_id in in_flight
-                    ):
-                        # Accumulate streaming chunk
-                        if corr_id not in streaming_chunks:
-                            streaming_chunks[corr_id] = []
-                        streaming_chunks[corr_id].append(text or obj)
-                    else:
-                        # Non-streaming single response
-                        elapsed_str = ""
-                        if corr_id in in_flight:
-                            req_timestamp, _ = in_flight.pop(corr_id)
-                            elapsed = (
-                                timestamp - req_timestamp
-                            ).total_seconds()
-                            elapsed_str = f"  ({elapsed:.3f}s)"
-
-                        content = text or obj
-                        label = "" if text else "  (object)"
-                        truncated = truncate_text(
-                            content, max_lines, max_width
-                        )
-                        print(f"[{time_str}] RESP {id_display}"
-                              f"{label}{elapsed_str}")
-                        print(f"  {truncated}")
-
-                resp_consumer.acknowledge(msg)
-            except TimeoutError:
-                pass
-
-            if not got_message:
-                await asyncio.sleep(0.05)
-
+        await asyncio.gather(
+            poll_consumer(req_consumer, handle_request, shutdown_event),
+            poll_consumer(resp_consumer, handle_response, shutdown_event),
+        )
     except KeyboardInterrupt:
         print("\nStopping...")
     finally:
-        req_consumer.close()
-        resp_consumer.close()
-        backend.close()
+        shutdown_event.set()
+        await req_consumer.close()
+        await resp_consumer.close()
+        await backend.close()
 
 
 def main():
