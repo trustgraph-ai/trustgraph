@@ -21,7 +21,10 @@ class RequestResponse(Subscriber):
             request_metrics,
             response_topic, response_schema,
             response_metrics,
+            default_timeout=300,
     ):
+
+        self.default_timeout = default_timeout
 
         super(RequestResponse, self).__init__(
             backend = backend,
@@ -47,7 +50,10 @@ class RequestResponse(Subscriber):
         await self.producer.stop()
         await super(RequestResponse, self).stop()
 
-    async def request(self, req, timeout=300, recipient=None):
+    async def request(self, req, timeout=None, recipient=None):
+
+        if timeout is None:
+            timeout = self.default_timeout
 
         id = str(uuid.uuid4())
 

@@ -63,6 +63,7 @@ class Processor(WorkspaceProcessor):
 
         config_rr_id = str(uuid.uuid4())
         self.config_client = ConfigClient(
+            timeout=self.config_timeout,
             backend=self.pubsub,
             subscription=f"{self.id}--config--{config_rr_id}",
             consumer_name=self.id,
