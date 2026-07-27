@@ -29,8 +29,8 @@ def get_async_pubsub(**config: Any) -> Any:
     """
     Factory function to create an async pub/sub backend.
 
-    Currently only Pulsar is supported. RabbitMQ and Kafka async
-    backends are not yet implemented.
+    Creates the appropriate async backend based on the 'pubsub_backend'
+    config key. Supported: pulsar, rabbitmq, kafka.
     """
     backend_type = config.get('pubsub_backend', 'pulsar')
 
@@ -51,10 +51,29 @@ def get_async_pubsub(**config: Any) -> Any:
             password=config.get('rabbitmq_password', DEFAULT_RABBITMQ_PASSWORD),
             vhost=config.get('rabbitmq_vhost', DEFAULT_RABBITMQ_VHOST),
         )
+    elif backend_type == 'kafka':
+        from .async_kafka_backend import AsyncKafkaBackend
+        return AsyncKafkaBackend(
+            bootstrap_servers=config.get(
+                'kafka_bootstrap_servers', DEFAULT_KAFKA_BOOTSTRAP,
+            ),
+            security_protocol=config.get(
+                'kafka_security_protocol', DEFAULT_KAFKA_PROTOCOL,
+            ),
+            sasl_mechanism=config.get(
+                'kafka_sasl_mechanism', DEFAULT_KAFKA_SASL_MECHANISM,
+            ),
+            sasl_username=config.get(
+                'kafka_sasl_username', DEFAULT_KAFKA_SASL_USERNAME,
+            ),
+            sasl_password=config.get(
+                'kafka_sasl_password', DEFAULT_KAFKA_SASL_PASSWORD,
+            ),
+        )
     else:
         raise ValueError(
             f"Async backend not yet supported for: {backend_type}. "
-            f"Supported: 'pulsar', 'rabbitmq'."
+            f"Supported: 'pulsar', 'rabbitmq', 'kafka'."
         )
 
 

@@ -17,6 +17,7 @@ dependencies = [
     "pika",
     "aio-pika",
     "confluent-kafka",
+    "aiokafka",
     "pyyaml",
     "websockets",
 ]
