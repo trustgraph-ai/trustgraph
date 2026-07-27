@@ -50,7 +50,7 @@ class ToolService(FlowProcessor):
         if not hasattr(__class__, "tool_invocation_metric"):
             __class__.tool_invocation_metric = Counter(
                 'tool_invocation_count', 'Tool invocation count',
-                ["processor", "workspace", "flow", "tool"],
+                ["processor", "tool"],
             )
 
     async def on_request(self, msg, consumer, flow):
@@ -89,8 +89,7 @@ class ToolService(FlowProcessor):
                 )
 
             __class__.tool_invocation_metric.labels(
-                processor=self.id, workspace=flow.workspace,
-                flow=flow.name, tool=request.name,
+                processor=self.id, tool=request.name,
             ).inc()
 
         except TooManyRequests as e:

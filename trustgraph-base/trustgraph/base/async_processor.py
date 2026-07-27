@@ -51,10 +51,12 @@ class AsyncProcessor:
         self.receiver_pool = ReceiverPool(
             backend=self.async_backend,
             concurrency=self.concurrency,
+            processor_id=self.id,
         )
 
         self.sender_pool = SenderPool(
             backend=self.async_backend,
+            processor_id=self.id,
         )
 
         self.config_push_queue = params.get(
