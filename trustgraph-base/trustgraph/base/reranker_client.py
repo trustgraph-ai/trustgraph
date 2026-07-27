@@ -1,11 +1,11 @@
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import (
     RerankerRequest, RerankerResponse,
     RerankerQuery, RerankerDocument,
 )
 
-class RerankerClient(RequestResponse):
+class RerankerClient:
     async def rerank(self, queries, documents, limit=10, timeout=300):
 
         resp = await self.request(

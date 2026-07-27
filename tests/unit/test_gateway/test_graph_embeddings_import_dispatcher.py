@@ -2,7 +2,7 @@
 Unit tests for graph embeddings import dispatcher.
 
 Tests the business logic of GraphEmbeddingsImport while mocking the
-Publisher and websocket components.
+async producer and websocket components.
 
 Regression coverage: a previous version of EntityContextsImport
 constructed Metadata(metadata=...) which raised TypeError at runtime as
@@ -20,7 +20,9 @@ from trustgraph.schema import GraphEmbeddings, EntityEmbeddings, Metadata
 
 @pytest.fixture
 def mock_backend():
-    return Mock()
+    backend = Mock()
+    backend.create_producer = AsyncMock()
+    return backend
 
 
 @pytest.fixture
@@ -36,6 +38,12 @@ def mock_websocket():
     ws = Mock()
     ws.close = AsyncMock()
     return ws
+
+
+@pytest.fixture
+def mock_producer():
+    producer = AsyncMock()
+    return producer
 
 
 @pytest.fixture
@@ -74,13 +82,9 @@ def empty_entities_message():
 
 class TestGraphEmbeddingsImportInitialization:
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
-    def test_init_creates_publisher_with_correct_params(
-        self, mock_publisher_class, mock_backend, mock_websocket, mock_running
+    def test_init_stores_references_correctly(
+        self, mock_backend, mock_websocket, mock_running
     ):
-        instance = Mock()
-        mock_publisher_class.return_value = instance
-
         dispatcher = GraphEmbeddingsImport(
             ws=mock_websocket,
             running=mock_running,
@@ -88,103 +92,91 @@ class TestGraphEmbeddingsImportInitialization:
             queue="ge-queue",
         )
 
-        mock_publisher_class.assert_called_once_with(
-            mock_backend,
-            topic="ge-queue",
-            schema=GraphEmbeddings,
-        )
         assert dispatcher.ws is mock_websocket
         assert dispatcher.running is mock_running
-        assert dispatcher.publisher is instance
+        assert dispatcher.backend is mock_backend
+        assert dispatcher.queue == "ge-queue"
+        assert dispatcher.producer is None
 
 
 class TestGraphEmbeddingsImportLifecycle:
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
     @pytest.mark.asyncio
-    async def test_start_calls_publisher_start(
-        self, mock_publisher_class, mock_backend, mock_websocket, mock_running
+    async def test_start_creates_producer(
+        self, mock_backend, mock_websocket, mock_running, mock_producer
     ):
-        instance = Mock()
-        instance.start = AsyncMock()
-        mock_publisher_class.return_value = instance
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
         dispatcher = GraphEmbeddingsImport(
             ws=mock_websocket, running=mock_running,
             backend=mock_backend, queue="q",
         )
         await dispatcher.start()
-        instance.start.assert_called_once()
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
+        mock_backend.create_producer.assert_called_once_with(
+            topic="q", schema=GraphEmbeddings,
+        )
+        assert dispatcher.producer is mock_producer
+
     @pytest.mark.asyncio
     async def test_destroy_stops_and_closes_properly(
-        self, mock_publisher_class, mock_backend, mock_websocket, mock_running
+        self, mock_backend, mock_websocket, mock_running, mock_producer
     ):
-        instance = Mock()
-        instance.stop = AsyncMock()
-        mock_publisher_class.return_value = instance
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
         dispatcher = GraphEmbeddingsImport(
             ws=mock_websocket, running=mock_running,
             backend=mock_backend, queue="q",
         )
+        await dispatcher.start()
         await dispatcher.destroy()
 
         mock_running.stop.assert_called_once()
-        instance.stop.assert_called_once()
+        mock_producer.close.assert_called_once()
         mock_websocket.close.assert_called_once()
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
     @pytest.mark.asyncio
     async def test_destroy_handles_none_websocket(
-        self, mock_publisher_class, mock_backend, mock_running
+        self, mock_backend, mock_running, mock_producer
     ):
-        instance = Mock()
-        instance.stop = AsyncMock()
-        mock_publisher_class.return_value = instance
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
         dispatcher = GraphEmbeddingsImport(
             ws=None, running=mock_running,
             backend=mock_backend, queue="q",
         )
+        await dispatcher.start()
         await dispatcher.destroy()
 
         mock_running.stop.assert_called_once()
-        instance.stop.assert_called_once()
+        mock_producer.close.assert_called_once()
 
 
 class TestGraphEmbeddingsImportMessageProcessing:
     """Regression coverage for receive(): catches Metadata/schema drift."""
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
     @pytest.mark.asyncio
     async def test_receive_constructs_graph_embeddings_correctly(
-        self, mock_publisher_class, mock_backend, mock_websocket,
-        mock_running, sample_message,
+        self, mock_backend, mock_websocket,
+        mock_running, mock_producer, sample_message,
     ):
-        instance = Mock()
-        instance.send = AsyncMock()
-        mock_publisher_class.return_value = instance
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
         dispatcher = GraphEmbeddingsImport(
             ws=mock_websocket, running=mock_running,
             backend=mock_backend, queue="q",
         )
+        await dispatcher.start()
 
         mock_msg = Mock()
         mock_msg.json.return_value = sample_message
 
-        # If Metadata, GraphEmbeddings, or EntityEmbeddings gain/lose
-        # kwargs, this raises TypeError — exactly the regression we want
-        # to catch.
         await dispatcher.receive(mock_msg)
 
-        instance.send.assert_called_once()
-        call_args = instance.send.call_args
-        assert call_args[0][0] is None
+        mock_producer.send.assert_called_once()
+        call_args = mock_producer.send.call_args
 
-        sent = call_args[0][1]
+        sent = call_args[0][0]
         assert isinstance(sent, GraphEmbeddings)
         assert isinstance(sent.metadata, Metadata)
         assert sent.metadata.id == "doc-123"
@@ -198,46 +190,46 @@ class TestGraphEmbeddingsImportMessageProcessing:
         assert sent.entities[0].vector == [0.1, 0.2, 0.3]
         assert sent.entities[1].vector == [0.4, 0.5, 0.6]
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
     @pytest.mark.asyncio
     async def test_receive_handles_empty_entities(
-        self, mock_publisher_class, mock_backend, mock_websocket,
-        mock_running, empty_entities_message,
+        self, mock_backend, mock_websocket,
+        mock_running, mock_producer, empty_entities_message,
     ):
-        instance = Mock()
-        instance.send = AsyncMock()
-        mock_publisher_class.return_value = instance
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
         dispatcher = GraphEmbeddingsImport(
             ws=mock_websocket, running=mock_running,
             backend=mock_backend, queue="q",
         )
+        await dispatcher.start()
 
         mock_msg = Mock()
         mock_msg.json.return_value = empty_entities_message
 
         await dispatcher.receive(mock_msg)
 
-        instance.send.assert_called_once()
-        sent = instance.send.call_args[0][1]
+        mock_producer.send.assert_called_once()
+        sent = mock_producer.send.call_args[0][0]
         assert isinstance(sent, GraphEmbeddings)
         assert sent.entities == []
         assert sent.metadata.id == "doc-empty"
 
-    @patch('trustgraph.gateway.dispatch.graph_embeddings_import.Publisher')
     @pytest.mark.asyncio
     async def test_receive_propagates_publisher_errors(
-        self, mock_publisher_class, mock_backend, mock_websocket,
+        self, mock_backend, mock_websocket,
         mock_running, sample_message,
     ):
-        instance = Mock()
-        instance.send = AsyncMock(side_effect=RuntimeError("publish failed"))
-        mock_publisher_class.return_value = instance
+        mock_producer = AsyncMock()
+        mock_producer.send = AsyncMock(
+            side_effect=RuntimeError("publish failed")
+        )
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
         dispatcher = GraphEmbeddingsImport(
             ws=mock_websocket, running=mock_running,
             backend=mock_backend, queue="q",
         )
+        await dispatcher.start()
 
         mock_msg = Mock()
         mock_msg.json.return_value = sample_message

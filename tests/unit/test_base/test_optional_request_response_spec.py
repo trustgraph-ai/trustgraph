@@ -7,13 +7,13 @@ the processor's start-flow retry loop.
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from trustgraph.base.request_response_spec import RequestResponseSpec
 
 
 class StubImpl:
-    """Captures constructor kwargs; stands in for RequestResponse."""
+    """Captures constructor kwargs; stands in for a client mixin."""
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -39,6 +39,13 @@ def make_flow():
     return flow
 
 
+def make_processor():
+    p = MagicMock()
+    p.async_backend = AsyncMock()
+    p.id = "proc1"
+    return p
+
+
 FULL_TOPICS = {
     "topics": {
         "keyword-index-request": "request:tg:keyword-index:ws:f",
@@ -49,33 +56,44 @@ FULL_TOPICS = {
 
 class TestOptionalRequestResponseSpec:
 
-    def test_optional_spec_skips_binding_when_topics_absent(self):
+    @pytest.mark.asyncio
+    async def test_optional_spec_skips_binding_when_topics_absent(self):
         flow = make_flow()
-        make_spec(optional=True).add(flow, MagicMock(), {"topics": {}})
+        result = await make_spec(optional=True).register(
+            flow, make_processor(), {"topics": {}},
+        )
         assert flow.consumer == {}
+        assert result is None
 
-    def test_optional_spec_skips_when_only_one_topic_present(self):
+    @pytest.mark.asyncio
+    async def test_optional_spec_skips_when_only_one_topic_present(self):
         flow = make_flow()
         definition = {
             "topics": {
                 "keyword-index-request": "request:tg:keyword-index:ws:f",
             }
         }
-        make_spec(optional=True).add(flow, MagicMock(), definition)
+        result = await make_spec(optional=True).register(
+            flow, make_processor(), definition,
+        )
         assert flow.consumer == {}
+        assert result is None
 
-    def test_optional_spec_binds_when_topics_present(self):
+    @pytest.mark.asyncio
+    async def test_optional_spec_binds_when_topics_present(self):
         flow = make_flow()
-        make_spec(optional=True).add(flow, MagicMock(), FULL_TOPICS)
-        client = flow.consumer["keyword-index-request"]
-        assert isinstance(client, StubImpl)
-        assert client.kwargs["request_topic"] == \
-            "request:tg:keyword-index:ws:f"
+        with patch(
+            "trustgraph.base.request_response_client.RequestResponseClient"
+        ) as mock_rrc:
+            mock_rrc.create = AsyncMock(return_value=AsyncMock())
+            await make_spec(optional=True).register(
+                flow, make_processor(), FULL_TOPICS,
+            )
+        assert "keyword-index-request" in flow.consumer
 
-    def test_default_spec_still_requires_topics(self):
-        # Non-optional specs keep the existing contract: a missing topic
-        # is a definition error, surfaced immediately.
+    @pytest.mark.asyncio
+    async def test_default_spec_still_requires_topics(self):
         with pytest.raises(KeyError):
-            make_spec(optional=False).add(
-                make_flow(), MagicMock(), {"topics": {}},
+            await make_spec(optional=False).register(
+                make_flow(), make_processor(), {"topics": {}},
             )

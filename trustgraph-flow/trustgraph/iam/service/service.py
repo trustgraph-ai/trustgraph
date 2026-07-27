@@ -120,7 +120,6 @@ class Processor(AsyncProcessor):
 
         self.audit = AuditPublisher(
             component_name="iam-service",
-            processor_id=self.id,
         )
 
         self.iam = IamService(

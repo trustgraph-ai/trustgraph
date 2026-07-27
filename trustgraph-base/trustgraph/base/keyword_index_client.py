@@ -1,13 +1,13 @@
 
 import logging
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import KeywordIndexRequest, KeywordIndexResponse
 
 # Module logger
 logger = logging.getLogger(__name__)
 
-class KeywordIndexClient(RequestResponse):
+class KeywordIndexClient:
     async def query(self, query, limit=20, collection="default", timeout=30):
 
         resp = await self.request(

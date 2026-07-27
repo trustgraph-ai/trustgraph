@@ -12,7 +12,7 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 
 from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
-from .... base import AsyncProcessor, Consumer, Producer
+from .... base import AsyncProcessor
 from .... base import ConsumerMetrics, ProducerMetrics
 from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 from .... schema import IRI, LITERAL

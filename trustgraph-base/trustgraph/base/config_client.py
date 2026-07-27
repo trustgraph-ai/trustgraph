@@ -1,14 +1,11 @@
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 
 CONFIG_TIMEOUT = 10
 
 
-class ConfigClient(RequestResponse):
-
-    def __init__(self, timeout=CONFIG_TIMEOUT, **kwargs):
-        super(ConfigClient, self).__init__(default_timeout=timeout, **kwargs)
+class ConfigClient:
 
     async def _request(self, timeout=None, **kwargs):
         resp = await self.request(

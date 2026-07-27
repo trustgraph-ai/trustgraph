@@ -12,7 +12,7 @@ import os
 import logging
 
 from .... base import DocumentEmbeddingsStoreService, CollectionConfigHandler
-from .... base import AsyncProcessor, Consumer, Producer
+from .... base import AsyncProcessor
 from .... base import ConsumerMetrics, ProducerMetrics
 
 # Module logger

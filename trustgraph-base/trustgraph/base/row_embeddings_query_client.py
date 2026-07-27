@@ -1,7 +1,7 @@
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import RowEmbeddingsRequest, RowEmbeddingsResponse
 
-class RowEmbeddingsQueryClient(RequestResponse):
+class RowEmbeddingsQueryClient:
     async def row_embeddings_query(
             self, vector, schema_name, collection="default",
             index_name=None, limit=10, timeout=600

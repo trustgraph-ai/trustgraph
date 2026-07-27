@@ -5,7 +5,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Optional, Any
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import PromptRequest, PromptResponse
 
 @dataclass
@@ -18,7 +18,7 @@ class PromptResult:
     out_token: Optional[int] = None
     model: Optional[str] = None
 
-class PromptClient(RequestResponse):
+class PromptClient:
 
     async def prompt(self, id, variables, timeout=600, streaming=False, chunk_callback=None):
 

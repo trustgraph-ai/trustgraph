@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import TextCompletionRequest, TextCompletionResponse
 
 @dataclass
@@ -12,7 +12,7 @@ class TextCompletionResult:
     out_token: Optional[int] = None
     model: Optional[str] = None
 
-class TextCompletionClient(RequestResponse):
+class TextCompletionClient:
 
     async def text_completion(
         self, system, prompt, timeout=600,

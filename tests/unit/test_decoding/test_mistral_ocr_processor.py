@@ -25,12 +25,10 @@ class MockAsyncProcessor:
 class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
     """Test Mistral OCR processor functionality"""
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_initialization_with_api_key(
-        self, mock_mistral_class, mock_producer, mock_consumer
+        self, mock_mistral_class
     ):
         """Test Mistral OCR processor initialization with API key"""
         mock_mistral_class.return_value = MagicMock()
@@ -51,11 +49,9 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         assert consumer_specs[0].name == "input"
         assert consumer_specs[0].schema == Document
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_initialization_without_api_key(
-        self, mock_producer, mock_consumer
+        self
     ):
         """Test Mistral OCR processor initialization without API key raises error"""
         config = {
@@ -66,12 +62,10 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError, match="Mistral API key not specified"):
             Processor(**config)
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_ocr_single_chunk(
-        self, mock_mistral_class, mock_producer, mock_consumer
+        self, mock_mistral_class
     ):
         """Test OCR processing with a single chunk (less than 5 pages)"""
         mock_mistral = MagicMock()
@@ -131,12 +125,10 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         )
         mock_mistral.ocr.process.assert_called_once()
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_success(
-        self, mock_mistral_class, mock_producer, mock_consumer
+        self, mock_mistral_class
     ):
         """Test successful message processing"""
         mock_mistral_class.return_value = MagicMock()

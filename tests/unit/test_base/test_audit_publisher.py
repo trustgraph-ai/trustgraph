@@ -31,7 +31,6 @@ class TestAuditPublisherEmit:
     def publisher(self):
         pub = AuditPublisher(
             component_name="test-svc",
-            processor_id="proc-1",
         )
         pub._handle = AsyncMock()
         return pub

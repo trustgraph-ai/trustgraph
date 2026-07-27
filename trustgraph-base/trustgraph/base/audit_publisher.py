@@ -4,8 +4,6 @@ import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from . producer import Producer
-from . metrics import ProducerMetrics
 from trustgraph.schema import AuditEvent, audit_events_queue
 
 logger = logging.getLogger(__name__)
@@ -13,25 +11,11 @@ logger = logging.getLogger(__name__)
 
 class AuditPublisher:
 
-    def __init__(self, component_name, processor_id=None, backend=None,
-                 async_backend=None):
+    def __init__(self, component_name, async_backend=None):
         self.component_name = component_name
         self._handle = None
         self._async_producer = None
         self._async_backend = async_backend
-
-        if backend is not None:
-            self._legacy_producer = Producer(
-                backend=backend,
-                topic=audit_events_queue,
-                schema=AuditEvent,
-                metrics=ProducerMetrics(
-                    processor=processor_id or component_name,
-                    producer="audit-events",
-                ),
-            )
-        else:
-            self._legacy_producer = None
 
     async def start(self, sender_pool=None):
         if sender_pool is not None:
@@ -70,7 +54,5 @@ class AuditPublisher:
                 await self._handle.send(event)
             elif self._async_producer:
                 await self._async_producer.send(event)
-            elif self._legacy_producer:
-                await self._legacy_producer.send(event)
         except Exception as e:
             logger.warning(f"Failed to emit audit event: {e}")
