@@ -10,7 +10,7 @@ from .... direct.cassandra_kg import (
     EntityCentricKnowledgeGraph, DEFAULT_GRAPH
 )
 from .... base import TriplesStoreService, CollectionConfigHandler
-from .... base import AsyncProcessor, Consumer, Producer
+from .... base import AsyncProcessor
 from .... base import ConsumerMetrics, ProducerMetrics
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 from .... schema import IRI, LITERAL, BLANK, TRIPLE

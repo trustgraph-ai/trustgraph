@@ -6,8 +6,8 @@ import pytest
 import argparse
 
 from trustgraph.schema.core.topic import queue
-from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
-from trustgraph.base.pulsar_backend import PulsarBackend
+from trustgraph.base.pubsub import get_async_pubsub, add_pubsub_args
+from trustgraph.base.async_pulsar_backend import AsyncPulsarBackend
 
 
 class TestQueueFunction:
@@ -36,48 +36,48 @@ class TestPulsarMapTopic:
 
     @pytest.fixture
     def backend(self):
-        """Create a PulsarBackend without connecting."""
-        b = object.__new__(PulsarBackend)
+        """Create an AsyncPulsarBackend without connecting."""
+        b = object.__new__(AsyncPulsarBackend)
         return b
 
     def test_flow_maps_to_persistent(self, backend):
-        assert backend.map_topic('flow:tg:text-completion-request') == \
+        assert backend._map_topic('flow:tg:text-completion-request') == \
             'persistent://tg/flow/text-completion-request'
 
     def test_notify_maps_to_non_persistent(self, backend):
-        assert backend.map_topic('notify:tg:config') == \
+        assert backend._map_topic('notify:tg:config') == \
             'non-persistent://tg/notify/config'
 
     def test_request_maps_to_non_persistent(self, backend):
-        assert backend.map_topic('request:tg:config') == \
+        assert backend._map_topic('request:tg:config') == \
             'non-persistent://tg/request/config'
 
     def test_response_maps_to_non_persistent(self, backend):
-        assert backend.map_topic('response:tg:librarian') == \
+        assert backend._map_topic('response:tg:librarian') == \
             'non-persistent://tg/response/librarian'
 
     def test_passthrough_pulsar_uri(self, backend):
         uri = 'persistent://tg/flow/something'
-        assert backend.map_topic(uri) == uri
+        assert backend._map_topic(uri) == uri
 
     def test_invalid_format_raises(self, backend):
         with pytest.raises(ValueError, match="Invalid queue format"):
-            backend.map_topic('bad-format')
+            backend._map_topic('bad-format')
 
     def test_invalid_class_raises(self, backend):
         with pytest.raises(ValueError, match="Invalid queue class"):
-            backend.map_topic('unknown:tg:topic')
+            backend._map_topic('unknown:tg:topic')
 
     def test_custom_topicspace(self, backend):
-        assert backend.map_topic('flow:prod:my-queue') == \
+        assert backend._map_topic('flow:prod:my-queue') == \
             'persistent://prod/flow/my-queue'
 
 
 class TestGetPubsubDispatch:
 
     def test_unknown_backend_raises(self):
-        with pytest.raises(ValueError, match="Unknown pub/sub backend"):
-            get_pubsub(pubsub_backend='redis')
+        with pytest.raises(ValueError, match="Async backend not yet supported"):
+            get_async_pubsub(pubsub_backend='redis')
 
 
 class TestAddPubsubArgs:

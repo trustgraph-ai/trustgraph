@@ -2,7 +2,7 @@
 Unit tests for rows import dispatcher.
 
 Tests the business logic of rows import dispatcher
-while mocking the Publisher and websocket components.
+while mocking the async producer and websocket components.
 """
 
 import pytest
@@ -17,19 +17,17 @@ from trustgraph.schema import Metadata, ExtractedObject
 
 @pytest.fixture
 def mock_backend():
-    """Mock Pulsar client."""
-    client = Mock()
-    return client
+    """Mock backend with async create_producer."""
+    backend = Mock()
+    backend.create_producer = AsyncMock()
+    return backend
 
 
 @pytest.fixture
-def mock_publisher():
-    """Mock Publisher with async methods."""
-    publisher = Mock()
-    publisher.start = AsyncMock()
-    publisher.stop = AsyncMock()
-    publisher.send = AsyncMock()
-    return publisher
+def mock_producer():
+    """Mock producer with async methods."""
+    producer = AsyncMock()
+    return producer
 
 
 @pytest.fixture
@@ -88,202 +86,170 @@ def minimal_objects_message():
 class TestRowsImportInitialization:
     """Test RowsImport initialization."""
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
-    def test_init_creates_publisher_with_correct_params(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
-        """Test that RowsImport creates Publisher with correct parameters."""
-        mock_publisher_instance = Mock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+    def test_init_stores_references_correctly(self, mock_backend, mock_websocket, mock_running):
+        """Test that RowsImport stores all required references."""
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-objects-queue"
         )
-        
-        # Verify Publisher was created with correct parameters
-        mock_publisher_class.assert_called_once_with(
-            mock_backend,
-            topic="test-objects-queue",
-            schema=ExtractedObject
-        )
-        
-        # Verify instance variables are set correctly
-        assert rows_import.ws == mock_websocket
-        assert rows_import.running == mock_running
-        assert rows_import.publisher == mock_publisher_instance
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
-    def test_init_stores_references_correctly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
-        """Test that RowsImport stores all required references."""
-        rows_import = RowsImport(
-            ws=mock_websocket,
-            running=mock_running,
-            backend=mock_backend,
-            queue="objects-queue"
-        )
-        
         assert rows_import.ws is mock_websocket
         assert rows_import.running is mock_running
+        assert rows_import.backend is mock_backend
+        assert rows_import.queue == "test-objects-queue"
+        assert rows_import.producer is None
 
 
 class TestRowsImportLifecycle:
     """Test RowsImport lifecycle methods."""
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_start_calls_publisher_start(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
-        """Test that start() calls publisher.start()."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.start = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
-        rows_import = RowsImport(
-            ws=mock_websocket,
-            running=mock_running,
-            backend=mock_backend,
-            queue="test-queue"
-        )
-        
-        await rows_import.start()
-        
-        mock_publisher_instance.start.assert_called_once()
+    async def test_start_creates_producer(self, mock_backend, mock_websocket, mock_running, mock_producer):
+        """Test that start() creates a producer via backend."""
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
-    @pytest.mark.asyncio
-    async def test_destroy_stops_and_closes_properly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
-        """Test that destroy() properly stops publisher and closes websocket."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.stop = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
+        mock_backend.create_producer.assert_called_once_with(
+            topic="test-queue",
+            schema=ExtractedObject,
+        )
+        assert rows_import.producer is mock_producer
+
+    @pytest.mark.asyncio
+    async def test_destroy_stops_and_closes_properly(self, mock_backend, mock_websocket, mock_running, mock_producer):
+        """Test that destroy() properly closes producer and websocket."""
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
+        rows_import = RowsImport(
+            ws=mock_websocket,
+            running=mock_running,
+            backend=mock_backend,
+            queue="test-queue"
+        )
+
+        await rows_import.start()
         await rows_import.destroy()
-        
+
         # Verify sequence of operations
         mock_running.stop.assert_called_once()
-        mock_publisher_instance.stop.assert_called_once()
+        mock_producer.close.assert_called_once()
         mock_websocket.close.assert_called_once()
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_destroy_handles_none_websocket(self, mock_publisher_class, mock_backend, mock_running):
+    async def test_destroy_handles_none_websocket(self, mock_backend, mock_running, mock_producer):
         """Test that destroy() handles None websocket gracefully."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.stop = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=None,  # None websocket
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         # Should not raise exception
         await rows_import.destroy()
-        
+
         mock_running.stop.assert_called_once()
-        mock_publisher_instance.stop.assert_called_once()
+        mock_producer.close.assert_called_once()
 
 
 class TestRowsImportMessageProcessing:
     """Test RowsImport message processing."""
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_processes_full_message_correctly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, sample_objects_message):
+    async def test_receive_processes_full_message_correctly(self, mock_backend, mock_websocket, mock_running, mock_producer, sample_objects_message):
         """Test that receive() processes complete message correctly."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.send = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         # Create mock message
         mock_msg = Mock()
         mock_msg.json.return_value = sample_objects_message
-        
+
         await rows_import.receive(mock_msg)
-        
-        # Verify publisher.send was called
-        mock_publisher_instance.send.assert_called_once()
-        
-        # Get the call arguments
-        call_args = mock_publisher_instance.send.call_args
-        assert call_args[0][0] is None  # First argument should be None
-        
-        # Check the ExtractedObject that was sent
-        sent_object = call_args[0][1]
+
+        # Verify producer.send was called
+        mock_producer.send.assert_called_once()
+
+        # Check the ExtractedObject that was sent (single arg)
+        sent_object = mock_producer.send.call_args[0][0]
         assert isinstance(sent_object, ExtractedObject)
         assert sent_object.schema_name == "person"
         assert sent_object.values[0]["name"] == "John Doe"
         assert sent_object.values[0]["age"] == "30"
         assert sent_object.confidence == 0.95
         assert sent_object.source_span == "John Doe, age 30, lives in New York"
-        
+
         # Check metadata
         assert sent_object.metadata.id == "obj-123"
         assert sent_object.metadata.collection == "testcollection"
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_handles_minimal_message(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, minimal_objects_message):
+    async def test_receive_handles_minimal_message(self, mock_backend, mock_websocket, mock_running, mock_producer, minimal_objects_message):
         """Test that receive() handles message with minimal required fields."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.send = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         # Create mock message
         mock_msg = Mock()
         mock_msg.json.return_value = minimal_objects_message
-        
+
         await rows_import.receive(mock_msg)
-        
-        # Verify publisher.send was called
-        mock_publisher_instance.send.assert_called_once()
-        
-        # Get the sent object
-        sent_object = mock_publisher_instance.send.call_args[0][1]
+
+        # Verify producer.send was called
+        mock_producer.send.assert_called_once()
+
+        # Get the sent object (single arg)
+        sent_object = mock_producer.send.call_args[0][0]
         assert isinstance(sent_object, ExtractedObject)
         assert sent_object.schema_name == "simple_schema"
         assert sent_object.values[0]["field1"] == "value1"
         assert sent_object.confidence == 1.0  # Default value
         assert sent_object.source_span == ""  # Default value
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_uses_default_values(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
+    async def test_receive_uses_default_values(self, mock_backend, mock_websocket, mock_running, mock_producer):
         """Test that receive() uses appropriate default values for optional fields."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.send = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         # Message without optional fields
         message_data = {
             "metadata": {
@@ -295,14 +261,14 @@ class TestRowsImportMessageProcessing:
             "values": [{"key": "value"}]
             # No confidence or source_span
         }
-        
+
         mock_msg = Mock()
         mock_msg.json.return_value = message_data
-        
+
         await rows_import.receive(mock_msg)
-        
-        # Get the sent object and verify defaults
-        sent_object = mock_publisher_instance.send.call_args[0][1]
+
+        # Get the sent object and verify defaults (single arg)
+        sent_object = mock_producer.send.call_args[0][0]
         assert sent_object.confidence == 1.0
         assert sent_object.source_span == ""
 
@@ -310,56 +276,52 @@ class TestRowsImportMessageProcessing:
 class TestRowsImportRunMethod:
     """Test RowsImport run method."""
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @patch('trustgraph.gateway.dispatch.rows_import.asyncio.sleep')
     @pytest.mark.asyncio
-    async def test_run_loops_while_running(self, mock_sleep, mock_publisher_class, mock_backend, mock_websocket, mock_running):
+    async def test_run_loops_while_running(self, mock_sleep, mock_backend, mock_websocket, mock_running):
         """Test that run() loops while running.get() returns True."""
         mock_sleep.return_value = None
-        mock_publisher_class.return_value = Mock()
-        
+
         # Set up running state to return True twice, then False
         mock_running.get.side_effect = [True, True, False]
-        
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
         await rows_import.run()
-        
+
         # Verify sleep was called twice (for the two True iterations)
         assert mock_sleep.call_count == 2
         mock_sleep.assert_called_with(0.5)
-        
+
         # Verify websocket was closed
         mock_websocket.close.assert_called_once()
-        
+
         # Verify websocket was set to None
         assert rows_import.ws is None
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @patch('trustgraph.gateway.dispatch.rows_import.asyncio.sleep')
     @pytest.mark.asyncio
-    async def test_run_handles_none_websocket_gracefully(self, mock_sleep, mock_publisher_class, mock_backend, mock_running):
+    async def test_run_handles_none_websocket_gracefully(self, mock_sleep, mock_backend, mock_running):
         """Test that run() handles None websocket gracefully."""
         mock_sleep.return_value = None
-        mock_publisher_class.return_value = Mock()
-        
+
         mock_running.get.return_value = False  # Exit immediately
-        
+
         rows_import = RowsImport(
             ws=None,  # None websocket
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
         # Should not raise exception
         await rows_import.run()
-        
+
         # Verify websocket remains None
         assert rows_import.ws is None
 
@@ -405,71 +367,65 @@ class TestRowsImportBatchProcessing:
             "source_span": "Multiple people found in document"
         }
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_processes_batch_message_correctly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, batch_objects_message):
+    async def test_receive_processes_batch_message_correctly(self, mock_backend, mock_websocket, mock_running, mock_producer, batch_objects_message):
         """Test that receive() processes batch message correctly."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.send = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         # Create mock message
         mock_msg = Mock()
         mock_msg.json.return_value = batch_objects_message
-        
+
         await rows_import.receive(mock_msg)
-        
-        # Verify publisher.send was called
-        mock_publisher_instance.send.assert_called_once()
-        
-        # Get the call arguments
-        call_args = mock_publisher_instance.send.call_args
-        assert call_args[0][0] is None  # First argument should be None
-        
-        # Check the ExtractedObject that was sent
-        sent_object = call_args[0][1]
+
+        # Verify producer.send was called
+        mock_producer.send.assert_called_once()
+
+        # Check the ExtractedObject that was sent (single arg)
+        sent_object = mock_producer.send.call_args[0][0]
         assert isinstance(sent_object, ExtractedObject)
         assert sent_object.schema_name == "person"
-        
+
         # Check that all batch values are present
         assert len(sent_object.values) == 3
         assert sent_object.values[0]["name"] == "John Doe"
         assert sent_object.values[0]["age"] == "30"
         assert sent_object.values[0]["city"] == "New York"
-        
+
         assert sent_object.values[1]["name"] == "Jane Smith"
         assert sent_object.values[1]["age"] == "25"
         assert sent_object.values[1]["city"] == "Boston"
-        
+
         assert sent_object.values[2]["name"] == "Bob Johnson"
         assert sent_object.values[2]["age"] == "45"
         assert sent_object.values[2]["city"] == "Chicago"
-        
+
         assert sent_object.confidence == 0.85
         assert sent_object.source_span == "Multiple people found in document"
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_handles_empty_batch(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
+    async def test_receive_handles_empty_batch(self, mock_backend, mock_websocket, mock_running, mock_producer):
         """Test that receive() handles empty batch correctly."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.send = AsyncMock()
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         # Message with empty values array
         empty_batch_message = {
             "metadata": {
@@ -480,57 +436,59 @@ class TestRowsImportBatchProcessing:
             "schema_name": "empty_schema",
             "values": []
         }
-        
+
         mock_msg = Mock()
         mock_msg.json.return_value = empty_batch_message
-        
+
         await rows_import.receive(mock_msg)
-        
+
         # Should still send the message
-        mock_publisher_instance.send.assert_called_once()
-        sent_object = mock_publisher_instance.send.call_args[0][1]
+        mock_producer.send.assert_called_once()
+        sent_object = mock_producer.send.call_args[0][0]
         assert len(sent_object.values) == 0
 
 
 class TestRowsImportErrorHandling:
     """Test error handling in RowsImport."""
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_propagates_publisher_errors(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, sample_objects_message):
-        """Test that receive() propagates publisher send errors."""
-        mock_publisher_instance = Mock()
-        mock_publisher_instance.send = AsyncMock(side_effect=Exception("Publisher error"))
-        mock_publisher_class.return_value = mock_publisher_instance
-        
+    async def test_receive_propagates_publisher_errors(self, mock_backend, mock_websocket, mock_running, sample_objects_message):
+        """Test that receive() propagates producer send errors."""
+        mock_producer = AsyncMock()
+        mock_producer.send = AsyncMock(side_effect=Exception("Publisher error"))
+        mock_backend.create_producer = AsyncMock(return_value=mock_producer)
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         mock_msg = Mock()
         mock_msg.json.return_value = sample_objects_message
-        
+
         with pytest.raises(Exception, match="Publisher error"):
             await rows_import.receive(mock_msg)
 
-    @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_handles_malformed_json(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
+    async def test_receive_handles_malformed_json(self, mock_backend, mock_websocket, mock_running):
         """Test that receive() handles malformed JSON appropriately."""
-        mock_publisher_class.return_value = Mock()
-        
+        mock_backend.create_producer = AsyncMock(return_value=AsyncMock())
+
         rows_import = RowsImport(
             ws=mock_websocket,
             running=mock_running,
             backend=mock_backend,
             queue="test-queue"
         )
-        
+
+        await rows_import.start()
+
         mock_msg = Mock()
         mock_msg.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
-        
+
         with pytest.raises(json.JSONDecodeError):
             await rows_import.receive(mock_msg)

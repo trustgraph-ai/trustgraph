@@ -67,7 +67,7 @@ class TestConfigReceiver:
         config_receiver.fetch_and_apply_workspace = mock_fetch
 
         msg = _notify(2, {"flow": ["ws1", "ws2"]})
-        await config_receiver.on_config_notify(msg, None, None)
+        await config_receiver.on_config_notify(msg)
 
         assert set(fetch_calls) == {"ws1", "ws2"}
         assert config_receiver.config_version == 2
@@ -87,7 +87,7 @@ class TestConfigReceiver:
         config_receiver.fetch_and_apply_workspace = mock_fetch
 
         msg = _notify(3, {"flow": ["ws1"]})
-        await config_receiver.on_config_notify(msg, None, None)
+        await config_receiver.on_config_notify(msg)
 
         assert fetch_calls == []
 
@@ -106,7 +106,7 @@ class TestConfigReceiver:
         config_receiver.fetch_and_apply_workspace = mock_fetch
 
         msg = _notify(2, {"prompt": ["ws1"]})
-        await config_receiver.on_config_notify(msg, None, None)
+        await config_receiver.on_config_notify(msg)
 
         assert fetch_calls == []
         assert config_receiver.config_version == 2
@@ -121,7 +121,7 @@ class TestConfigReceiver:
         mock_msg.value.side_effect = Exception("Test exception")
 
         # Should not raise
-        await config_receiver.on_config_notify(mock_msg, None, None)
+        await config_receiver.on_config_notify(mock_msg)
 
     @pytest.mark.asyncio
     async def test_fetch_and_apply_workspace_starts_new_flows(self):
@@ -141,7 +141,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver._create_config_client = Mock(return_value=mock_client)
+        config_receiver._create_config_client = AsyncMock(return_value=mock_client)
 
         start_flow_calls = []
 
@@ -182,7 +182,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver._create_config_client = Mock(return_value=mock_client)
+        config_receiver._create_config_client = AsyncMock(return_value=mock_client)
 
         stop_flow_calls = []
 
@@ -211,7 +211,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver._create_config_client = Mock(return_value=mock_client)
+        config_receiver._create_config_client = AsyncMock(return_value=mock_client)
 
         await config_receiver.fetch_and_apply_workspace("default")
 
@@ -347,7 +347,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver._create_config_client = Mock(return_value=mock_client)
+        config_receiver._create_config_client = AsyncMock(return_value=mock_client)
 
         start_calls = []
         stop_calls = []

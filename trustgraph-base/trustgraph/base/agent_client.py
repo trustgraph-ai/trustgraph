@@ -1,9 +1,9 @@
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import AgentRequest, AgentResponse
 from .. knowledge import Uri, Literal
 
-class AgentClient(RequestResponse):
+class AgentClient:
     async def invoke(self, question, plan=None, state=None,
                     history=[], think=None, observe=None, answer_callback=None,
                     timeout=300):

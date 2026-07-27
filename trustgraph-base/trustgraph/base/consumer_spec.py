@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from . metrics import ConsumerMetrics
-from . consumer import Consumer
 from . spec import Spec
 
 class ConsumerSpec(Spec):
@@ -12,36 +10,6 @@ class ConsumerSpec(Spec):
         self.schema = schema
         self.handler = handler
         self.concurrency = concurrency
-
-    def add(self, flow: Any, processor: Any, definition: dict[str, Any]) -> None:
-
-        consumer_metrics = ConsumerMetrics(
-            processor=flow.id, consumer=self.name,
-            workspace=flow.workspace, flow=flow.name,
-        )
-
-        consumer = Consumer(
-            taskgroup = processor.taskgroup,
-            flow = flow,
-            backend = processor.pubsub,
-            topic = definition["topics"][self.name],
-            subscriber = (
-                processor.id + "--" + flow.workspace + "--" +
-                flow.name + "--" + self.name
-            ),
-            schema = self.schema,
-            handler = self.handler,
-            metrics = consumer_metrics,
-            concurrency = self.concurrency
-        )
-
-        # Consumer handle gets access to producers and other
-        # metadata
-        consumer.id = flow.id
-        consumer.name = self.name
-        consumer.flow = flow
-
-        flow.consumer[self.name] = consumer
 
     async def register(self, flow: Any, processor: Any, definition: dict[str, Any]) -> Any:
 

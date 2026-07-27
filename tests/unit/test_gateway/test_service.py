@@ -46,7 +46,7 @@ def mock_backend():
 @pytest.fixture
 def api(mock_backend):
     with patch(
-        "trustgraph.gateway.service.get_pubsub",
+        "trustgraph.gateway.service.get_async_pubsub",
         return_value=mock_backend,
     ):
         yield Api()
@@ -85,7 +85,7 @@ class TestApiConstruction:
             "prometheus_url": "http://custom-prometheus:9090",
         }
         with patch(
-            "trustgraph.gateway.service.get_pubsub",
+            "trustgraph.gateway.service.get_async_pubsub",
             return_value=mock_backend,
         ):
             a = Api(**config)
@@ -99,7 +99,7 @@ class TestApiConstruction:
 
     def test_prometheus_url_already_has_trailing_slash(self, mock_backend):
         with patch(
-            "trustgraph.gateway.service.get_pubsub",
+            "trustgraph.gateway.service.get_async_pubsub",
             return_value=mock_backend,
         ):
             a = Api(prometheus_url="http://p:9090/")
@@ -107,7 +107,7 @@ class TestApiConstruction:
 
     def test_queue_overrides_parsed_for_config(self, mock_backend):
         with patch(
-            "trustgraph.gateway.service.get_pubsub",
+            "trustgraph.gateway.service.get_async_pubsub",
             return_value=mock_backend,
         ):
             a = Api(
@@ -128,6 +128,7 @@ class TestAppFactory:
     async def test_creates_aiohttp_app(self, api):
         # Stub out the long-tail dependencies that reach out to IAM /
         # pub/sub so we can exercise the factory in isolation.
+        api.audit_publisher.start = AsyncMock()
         api.auth.start = AsyncMock()
         api.config_receiver = Mock()
         api.config_receiver.start = AsyncMock()
@@ -156,6 +157,7 @@ class TestAppFactory:
         # value becomes the coroutine's return); a plain list.append
         # avoids the "coroutine was never awaited" trap of an async
         # side_effect.
+        api.audit_publisher.start = AsyncMock()
         api.auth.start = AsyncMock(
             side_effect=lambda: order.append("auth"),
         )

@@ -130,10 +130,8 @@ class TestGetPageTexts:
     """Test page text extraction from DoclingDocument."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_single_page_text(self, mock_prod, mock_cons, mock_conv):
+    def test_single_page_text(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -155,10 +153,8 @@ class TestGetPageTexts:
         assert image_count == 0
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_multiple_pages(self, mock_prod, mock_cons, mock_conv):
+    def test_multiple_pages(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -178,11 +174,8 @@ class TestGetPageTexts:
         assert pages[2][0] == 3
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_table_counted_and_html_included(self, mock_prod, mock_cons,
-                                             mock_conv):
+    def test_table_counted_and_html_included(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -204,11 +197,8 @@ class TestGetPageTexts:
         assert image_count == 0
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_picture_counted_not_in_text(self, mock_prod, mock_cons,
-                                        mock_conv):
+    def test_picture_counted_not_in_text(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -228,10 +218,8 @@ class TestGetPageTexts:
         assert table_count == 0
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_no_prov_defaults_to_page_1(self, mock_prod, mock_cons, mock_conv):
+    def test_no_prov_defaults_to_page_1(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -247,10 +235,8 @@ class TestGetPageTexts:
         assert pages[0][0] == 1
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_empty_text_pages_skipped(self, mock_prod, mock_cons, mock_conv):
+    def test_empty_text_pages_skipped(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -268,10 +254,8 @@ class TestGetFullText:
     """Test full document text extraction."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_concatenates_text_items(self, mock_prod, mock_cons, mock_conv):
+    def test_concatenates_text_items(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -291,10 +275,8 @@ class TestGetFullText:
         assert image_count == 0
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_tables_as_html(self, mock_prod, mock_cons, mock_conv):
+    def test_tables_as_html(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -316,11 +298,8 @@ class TestGetFullText:
         assert image_count == 0
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_pictures_counted_not_included(self, mock_prod, mock_cons,
-                                           mock_conv):
+    def test_pictures_counted_not_included(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -343,10 +322,8 @@ class TestEmitSection(IsolatedAsyncioTestCase):
     """Test emit_section output shape and provenance."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_page_section(self, mock_prod, mock_cons, mock_conv):
+    async def test_emit_page_section(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -391,11 +368,8 @@ class TestEmitSection(IsolatedAsyncioTestCase):
         assert text_doc.metadata.id == uri
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_non_page_section(self, mock_prod, mock_cons,
-                                         mock_conv):
+    async def test_emit_non_page_section(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -426,11 +400,8 @@ class TestEmitSection(IsolatedAsyncioTestCase):
         assert save_kwargs[1]["document_type"] == "section"
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_section_skips_blank_text(self, mock_prod, mock_cons,
-                                                 mock_conv):
+    async def test_emit_section_skips_blank_text(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -453,11 +424,8 @@ class TestEmitChunk(IsolatedAsyncioTestCase):
     """Test emit_chunk output shape and multi-page provenance."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_chunk_single_page(self, mock_prod, mock_cons,
-                                          mock_conv):
+    async def test_emit_chunk_single_page(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             chunking_mode='hybrid',
@@ -496,11 +464,8 @@ class TestEmitChunk(IsolatedAsyncioTestCase):
         assert isinstance(triples_msg, Triples)
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_chunk_multi_page_provenance(self, mock_prod, mock_cons,
-                                                    mock_conv):
+    async def test_emit_chunk_multi_page_provenance(self, mock_conv):
         """Chunks spanning multiple pages emit extra TG_PAGE_NUMBER triples."""
         processor = Processor(
             id='test', taskgroup=MagicMock(),
@@ -542,11 +507,8 @@ class TestEmitChunk(IsolatedAsyncioTestCase):
         assert "5" in extra_pages
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_chunk_skips_blank(self, mock_prod, mock_cons,
-                                          mock_conv):
+    async def test_emit_chunk_skips_blank(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             chunking_mode='hybrid',
@@ -571,11 +533,8 @@ class TestProcessPageMode(IsolatedAsyncioTestCase):
     """Test page mode processing."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_page_based_format_emits_per_page(self, mock_prod, mock_cons,
-                                                    mock_conv):
+    async def test_page_based_format_emits_per_page(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -605,11 +564,8 @@ class TestProcessPageMode(IsolatedAsyncioTestCase):
         assert mock_triples_flow.send.call_count == 2
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_non_page_format_emits_single_section(self, mock_prod,
-                                                        mock_cons, mock_conv):
+    async def test_non_page_format_emits_single_section(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -645,10 +601,8 @@ class TestProcessorInitialization(IsolatedAsyncioTestCase):
     """Test processor initialization and configuration."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_default_page_mode(self, mock_prod, mock_cons, mock_conv):
+    async def test_default_page_mode(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -664,11 +618,8 @@ class TestProcessorInitialization(IsolatedAsyncioTestCase):
         assert consumer_specs[0].schema == Document
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_hybrid_mode_registers_chunks_producer(self, mock_prod,
-                                                         mock_cons, mock_conv):
+    async def test_hybrid_mode_registers_chunks_producer(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             chunking_mode='hybrid',
@@ -686,10 +637,8 @@ class TestProcessorInitialization(IsolatedAsyncioTestCase):
         assert "triples" in producer_names
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_custom_languages(self, mock_prod, mock_cons, mock_conv):
+    async def test_custom_languages(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             languages='eng,deu,fra',
@@ -732,11 +681,8 @@ class TestOnMessage(IsolatedAsyncioTestCase):
     """Test the on_message entry point."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_inline_document_page_mode(self, mock_prod, mock_cons,
-                                             mock_conv):
+    async def test_inline_document_page_mode(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -768,11 +714,8 @@ class TestOnMessage(IsolatedAsyncioTestCase):
         assert mock_output_flow.send.call_count == 1
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_librarian_document_fetch(self, mock_prod, mock_cons,
-                                            mock_conv):
+    async def test_librarian_document_fetch(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -822,11 +765,8 @@ class TestOnMessage(IsolatedAsyncioTestCase):
         assert call_args[0][1] == "application/pdf"
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_conversion_failure_logged_not_raised(self, mock_prod,
-                                                       mock_cons, mock_conv):
+    async def test_conversion_failure_logged_not_raised(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )

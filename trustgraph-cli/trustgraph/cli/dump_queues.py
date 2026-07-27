@@ -1,11 +1,11 @@
 """
-Multi-queue Pulsar message dumper for debugging TrustGraph message flows.
+Multi-queue message dumper for debugging TrustGraph message flows.
 
-This utility monitors multiple Pulsar queues simultaneously and logs all messages
+This utility monitors multiple queues simultaneously and logs all messages
 to a file with timestamps and pretty-printed formatting. Useful for debugging
 message flows, diagnosing stuck services, and understanding system behavior.
 
-Uses TrustGraph's Subscriber abstraction for future-proof pub/sub compatibility.
+Uses TrustGraph's async pub/sub backend for future-proof compatibility.
 """
 
 import sys
@@ -14,8 +14,7 @@ import asyncio
 from datetime import datetime
 import argparse
 
-from trustgraph.base.subscriber import Subscriber
-from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
+from trustgraph.base.pubsub import get_async_pubsub, add_pubsub_args
 
 def decode_json_strings(obj):
     """Recursively decode JSON-encoded string values within a dict/list."""
@@ -54,7 +53,7 @@ def to_dict(value):
     if isinstance(value, (list, tuple)):
         return [to_dict(v) for v in value]
 
-    # Pulsar schema objects expose fields via __dict__
+    # Schema objects expose fields via __dict__
     if hasattr(value, '__dict__'):
         return {
             k: to_dict(v) for k, v in value.__dict__.items()
@@ -87,31 +86,27 @@ def format_message(queue_name, msg):
     return header + body + "\n"
 
 
-async def monitor_queue(subscriber, queue_name, central_queue, monitor_id, shutdown_event):
+async def monitor_queue(consumer, queue_name, central_queue, shutdown_event):
     """
-    Monitor a single queue via Subscriber and forward messages to central queue.
+    Monitor a single queue via async consumer and forward messages to central queue.
 
     Args:
-        subscriber: Subscriber instance for this queue
+        consumer: Async consumer instance for this queue
         queue_name: Name of the queue (for logging)
         central_queue: asyncio.Queue to forward messages to
-        monitor_id: Unique ID for this monitor's subscription
         shutdown_event: asyncio.Event to signal shutdown
     """
-    msg_queue = None
     try:
-        # Subscribe to all messages from this Subscriber
-        msg_queue = await subscriber.subscribe_all(monitor_id)
-
         while not shutdown_event.is_set():
             try:
-                # Read from Subscriber's internal queue with timeout
-                msg = await asyncio.wait_for(msg_queue.get(), timeout=0.5)
+                msg = await asyncio.wait_for(consumer.receive(), timeout=0.5)
                 timestamp = datetime.now()
                 formatted = format_message(queue_name, msg)
 
                 # Forward to central queue for writing
                 await central_queue.put((timestamp, queue_name, formatted))
+
+                await consumer.acknowledge(msg)
             except asyncio.TimeoutError:
                 # No message, check shutdown flag again
                 continue
@@ -120,13 +115,6 @@ async def monitor_queue(subscriber, queue_name, central_queue, monitor_id, shutd
         if not shutdown_event.is_set():
             error_msg = f"\n{'='*80}\n[{datetime.now().isoformat()}] ERROR in monitor for {queue_name}\n{'='*80}\n{e}\n"
             await central_queue.put((datetime.now(), queue_name, error_msg))
-    finally:
-        # Clean unsubscribe
-        if msg_queue is not None:
-            try:
-                await subscriber.unsubscribe_all(monitor_id)
-            except Exception:
-                pass
 
 
 async def log_writer(central_queue, file_handle, shutdown_event, console_output=True):
@@ -190,33 +178,31 @@ async def async_main(queues, output_file, subscriber_name, append_mode, **pubsub
 
     # Create backend connection
     try:
-        backend = get_pubsub(**pubsub_config)
+        backend = get_async_pubsub(**pubsub_config)
     except Exception as e:
         print(f"Error connecting to backend: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Create Subscribers and central queue
+    # Create consumers and central queue
     central_queue = asyncio.Queue()
-    subscribers = []
+    consumers = []
 
     for queue_name in queues:
         try:
-            sub = Subscriber(
-                backend=backend,
+            consumer = await backend.create_consumer(
                 topic=queue_name,
                 subscription=subscriber_name,
-                consumer_name=f"{subscriber_name}-{queue_name}",
-                schema=None,  # No schema - accept any message type
+                schema=None,
+                initial_position='latest',
             )
-            await sub.start()
-            subscribers.append((queue_name, sub))
-            print(f"✓ Subscribed to: {queue_name}")
+            consumers.append((queue_name, consumer))
+            print(f"  Subscribed to: {queue_name}")
         except Exception as e:
-            print(f"✗ Error subscribing to {queue_name}: {e}", file=sys.stderr)
+            print(f"  Error subscribing to {queue_name}: {e}", file=sys.stderr)
 
-    if not subscribers:
-        print("\nNo subscribers created. Exiting.", file=sys.stderr)
-        backend.close()
+    if not consumers:
+        print("\nNo consumers created. Exiting.", file=sys.stderr)
+        await backend.close()
         sys.exit(1)
 
     print(f"\nListening for messages...\n")
@@ -237,10 +223,10 @@ async def async_main(queues, output_file, subscriber_name, append_mode, **pubsub
             # Start monitoring tasks
             tasks = []
             try:
-                # Create one monitor task per subscriber
-                for queue_name, sub in subscribers:
+                # Create one monitor task per consumer
+                for queue_name, consumer in consumers:
                     task = asyncio.create_task(
-                        monitor_queue(sub, queue_name, central_queue, "logger", shutdown_event)
+                        monitor_queue(consumer, queue_name, central_queue, shutdown_event)
                     )
                     tasks.append(task)
 
@@ -274,17 +260,20 @@ async def async_main(queues, output_file, subscriber_name, append_mode, **pubsub
         print(f"Error writing to {output_file}: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        # Clean shutdown of Subscribers
-        for _, sub in subscribers:
-            await sub.stop()
-        backend.close()
+        # Clean shutdown of consumers
+        for _, consumer in consumers:
+            try:
+                await consumer.close()
+            except Exception:
+                pass
+        await backend.close()
 
     print(f"\nMessages logged to: {output_file}")
 
 def main():
     parser = argparse.ArgumentParser(
         prog='tg-dump-queues',
-        description='Monitor and dump messages from multiple Pulsar queues',
+        description='Monitor and dump messages from multiple queues',
         epilog="""
 Examples:
   # Monitor agent and prompt flow queues
@@ -308,7 +297,7 @@ IMPORTANT:
   before running this tool. If this tool subscribes first, the real services may
   encounter schema mismatch errors when they try to connect.
 
-  Best practice: Start services → Set up flows → Run tg-dump-queues
+  Best practice: Start services -> Set up flows -> Run tg-dump-queues
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -316,7 +305,7 @@ IMPORTANT:
     parser.add_argument(
         'queues',
         nargs='+',
-        help='Pulsar queue names to monitor'
+        help='Queue names to monitor'
     )
 
     parser.add_argument(

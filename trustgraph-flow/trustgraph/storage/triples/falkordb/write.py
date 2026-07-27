@@ -12,7 +12,7 @@ import logging
 from falkordb import FalkorDB
 
 from .... base import TriplesStoreService, CollectionConfigHandler
-from .... base import AsyncProcessor, Consumer, Producer
+from .... base import AsyncProcessor
 from .... base import ConsumerMetrics, ProducerMetrics
 from .... schema import IRI, LITERAL
 

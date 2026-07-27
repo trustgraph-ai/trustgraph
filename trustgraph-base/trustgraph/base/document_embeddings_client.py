@@ -1,14 +1,14 @@
 
 import logging
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .. knowledge import Uri, Literal
 
 # Module logger
 logger = logging.getLogger(__name__)
 
-class DocumentEmbeddingsClient(RequestResponse):
+class DocumentEmbeddingsClient:
     async def query(self, vector, limit=20, collection="default", timeout=30):
 
         resp = await self.request(

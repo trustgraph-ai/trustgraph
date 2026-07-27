@@ -127,7 +127,6 @@ class Api:
         self.audit_publisher = AuditPublisher(
             async_backend=self.pubsub_backend,
             component_name="api-gateway",
-            processor_id=config.get("id", "api-gateway"),
         )
 
         self.endpoint_manager = EndpointManager(
