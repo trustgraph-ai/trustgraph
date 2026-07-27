@@ -1,11 +1,5 @@
 
-# Like ServiceRequestor, but just fire-and-forget instead of request/response
-
-import asyncio
-import uuid
 import logging
-
-from ... base import Publisher
 
 logger = logging.getLogger("sender")
 logger.setLevel(logging.INFO)
@@ -18,16 +12,21 @@ class ServiceSender:
             queue, schema,
     ):
 
-        self.pub = Publisher(
-            backend, queue,
-            schema=schema,
-        )
+        self.backend = backend
+        self.queue = queue
+        self.schema = schema
+        self.producer = None
 
     async def start(self):
-        await self.pub.start()
+        self.producer = await self.backend.create_producer(
+            topic=self.queue,
+            schema=self.schema,
+        )
 
     async def stop(self):
-        await self.pub.stop()
+        if self.producer:
+            await self.producer.close()
+            self.producer = None
 
     def to_request(self, request):
         raise RuntimeError("Not defined")
@@ -36,7 +35,7 @@ class ServiceSender:
 
         try:
 
-            await self.pub.send(None, self.to_request(request))
+            await self.producer.send(self.to_request(request))
 
             if responder:
                 await responder({}, True)
@@ -53,4 +52,3 @@ class ServiceSender:
                 await responder(err, True)
 
             return err
-

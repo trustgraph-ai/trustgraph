@@ -1,48 +1,37 @@
 
 import asyncio
-import uuid
 import logging
-from aiohttp import WSMsgType
 
 from ... schema import Metadata
 from ... schema import EntityContexts, EntityContext
-from ... base import Publisher
 
 from . serialize import to_value
 
-# Module logger
 logger = logging.getLogger(__name__)
 
 class EntityContextsImport:
 
-    def __init__(
-            self, ws, running, backend, queue
-    ):
-
+    def __init__(self, ws, running, backend, queue):
         self.ws = ws
         self.running = running
-        
-        self.publisher = Publisher(
-            backend, topic = queue, schema = EntityContexts
-        )
+        self.backend = backend
+        self.queue = queue
+        self.producer = None
 
     async def start(self):
-        await self.publisher.start()
+        self.producer = await self.backend.create_producer(
+            topic=self.queue, schema=EntityContexts,
+        )
 
     async def destroy(self):
-        # Step 1: Stop accepting new messages
         self.running.stop()
-
-        # Step 2: Wait for publisher to drain its queue
-        logger.info("Draining publisher queue...")
-        await self.publisher.stop()
-
-        # Step 3: Close websocket only after queue is drained
+        if self.producer:
+            await self.producer.close()
+            self.producer = None
         if self.ws:
             await self.ws.close()
 
     async def receive(self, msg):
-
         data = msg.json()
 
         elt = EntityContexts(
@@ -59,15 +48,12 @@ class EntityContextsImport:
             ]
         )
 
-        await self.publisher.send(None, elt)
+        await self.producer.send(elt)
 
     async def run(self):
-
         while self.running.get():
             await asyncio.sleep(0.5)
 
         if self.ws:
             await self.ws.close()
-
         self.ws = None
-
