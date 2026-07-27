@@ -12,7 +12,7 @@ class AsyncConfigClient:
 
     @classmethod
     async def create(cls, backend, request_topic, response_topic,
-                     subscription=None):
+                     subscription=None, timeout=CONFIG_TIMEOUT):
         client = await RequestResponseClient.create(
             backend=backend,
             request_topic=request_topic,
@@ -20,6 +20,7 @@ class AsyncConfigClient:
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
             subscription=subscription,
+            default_timeout=timeout,
         )
         return cls(client)
 

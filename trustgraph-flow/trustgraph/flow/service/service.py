@@ -164,6 +164,7 @@ class Processor(WorkspaceProcessor):
             response_topic=config_response_queue,
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
+            default_timeout=self.config_timeout,
         )
 
         self.config_client = AsyncConfigClient(rr_client)

@@ -9,19 +9,23 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
 
 
-@pytest.fixture
-def processor():
+def _make_processor(**extra):
     """Create an AsyncProcessor with mocked dependencies."""
     with patch('trustgraph.base.async_processor.get_async_pubsub') as mock_pubsub:
 
         mock_pubsub.return_value = MagicMock()
 
         from trustgraph.base.async_processor import AsyncProcessor
-        p = AsyncProcessor(
+        return AsyncProcessor(
             id="test-processor",
             taskgroup=AsyncMock(),
+            **extra,
         )
-        return p
+
+
+@pytest.fixture
+def processor():
+    return _make_processor()
 
 
 class TestRegisterConfigHandler:
@@ -287,3 +291,39 @@ class TestFetchAndApplyConfig:
 
         assert call_count == 2
         handler.assert_called_once()
+
+
+class TestConfigTimeout:
+    """--config-timeout threads from params into the config client."""
+
+    def test_default(self, processor):
+        assert processor.config_timeout == 60
+
+    def test_param_override(self):
+        p = _make_processor(config_timeout=25)
+        assert p.config_timeout == 25
+
+    @pytest.mark.asyncio
+    async def test_create_config_client_uses_config_timeout(self):
+        p = _make_processor(config_timeout=25)
+
+        with patch(
+            'trustgraph.base.async_processor.RequestResponseClient'
+        ) as mock_rr:
+            mock_rr.create = AsyncMock()
+            await p._create_config_client()
+
+        assert mock_rr.create.call_args.kwargs["default_timeout"] == 25
+
+    def test_add_args(self):
+        import argparse
+        from trustgraph.base.async_processor import AsyncProcessor
+
+        parser = argparse.ArgumentParser()
+        AsyncProcessor.add_args(parser)
+
+        args = parser.parse_args([])
+        assert args.config_timeout == 60
+
+        args = parser.parse_args(["--config-timeout", "120"])
+        assert args.config_timeout == 120

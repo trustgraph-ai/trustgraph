@@ -22,6 +22,7 @@ from . request_response_client import RequestResponseClient
 from . logging import add_logging_args, setup_logging
 
 default_config_queue = config_push_queue
+default_config_timeout = 60
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,10 @@ class AsyncProcessor:
             "config_push_queue", default_config_queue
         )
 
+        self.config_timeout = int(params.get(
+            "config_timeout", default_config_timeout
+        ))
+
         self.config_handlers = []
         self.workspace_handlers = []
         self.config_version = 0
@@ -83,6 +88,7 @@ class AsyncProcessor:
             response_topic=config_response_queue,
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
+            default_timeout=self.config_timeout,
         )
 
     async def _fetch_type_workspace(self, client, workspace, config_type):
@@ -92,7 +98,6 @@ class AsyncProcessor:
                 workspace=workspace,
                 type=config_type,
             ),
-            timeout=60,
         )
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
@@ -104,7 +109,6 @@ class AsyncProcessor:
                 operation="getkeys-all-ws",
                 type=config_type,
             ),
-            timeout=60,
         )
         if resp.error:
             raise RuntimeError(f"Config error: {resp.error.message}")
@@ -431,6 +435,14 @@ class AsyncProcessor:
             type=int,
             default=1,
             help='Number of concurrent workers (default: 1)',
+        )
+
+        parser.add_argument(
+            '--config-timeout',
+            type=int,
+            default=default_config_timeout,
+            help=f'Config request timeout in seconds '
+                 f'(default: {default_config_timeout})',
         )
 
         parser.add_argument(

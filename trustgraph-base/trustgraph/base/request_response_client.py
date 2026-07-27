@@ -33,12 +33,13 @@ class RequestResponseClient:
         await client.close()
     """
 
-    def __init__(self):
+    def __init__(self, default_timeout=60):
         self.producer = None
         self.consumer = None
         self.receiver_task = None
         self.pending: dict[str, asyncio.Future] = {}
         self.running = False
+        self.default_timeout = default_timeout
 
     @classmethod
     async def create(
@@ -49,8 +50,9 @@ class RequestResponseClient:
         request_schema: type,
         response_schema: type,
         subscription: str | None = None,
+        default_timeout: float = 60,
     ) -> 'RequestResponseClient':
-        client = cls()
+        client = cls(default_timeout=default_timeout)
 
         client.producer = await backend.create_producer(
             topic=request_topic,
@@ -80,9 +82,12 @@ class RequestResponseClient:
         return client
 
     async def request(
-        self, message: Any, timeout: float = 60,
+        self, message: Any, timeout: float | None = None,
         properties: dict | None = None,
     ) -> Any:
+        if timeout is None:
+            timeout = self.default_timeout
+
         request_id = str(uuid.uuid4())
         future = asyncio.get_event_loop().create_future()
         self.pending[request_id] = future
@@ -100,9 +105,12 @@ class RequestResponseClient:
             raise
 
     async def request_stream(
-        self, message: Any, timeout: float = 300,
+        self, message: Any, timeout: float | None = None,
         properties: dict | None = None,
     ):
+        if timeout is None:
+            timeout = self.default_timeout
+
         request_id = str(uuid.uuid4())
         queue = asyncio.Queue()
         self.pending[request_id] = queue

@@ -169,6 +169,7 @@ class Processor(AsyncProcessor):
             request_topic=config_request_queue,
             response_topic=config_response_queue,
             subscription=f"{self.id}--config--{uuid.uuid4()}",
+            timeout=self.config_timeout,
         )
 
     def _make_flow_client(self, workspace):
