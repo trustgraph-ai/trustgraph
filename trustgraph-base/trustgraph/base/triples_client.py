@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL, TRIPLE
 from .. knowledge import Uri, Literal
 
@@ -44,7 +44,7 @@ def from_value(x: Any) -> Any:
     else:
         return Term(type=LITERAL, value=str(x))
 
-class TriplesClient(RequestResponse):
+class TriplesClient:
 
     async def query_gen(self, s=None, p=None, o=None, limit=20,
                         collection="default",
@@ -58,7 +58,7 @@ class TriplesClient(RequestResponse):
                 raise RuntimeError(resp.error.message)
 
             batch = [
-                Triple(to_value(v.s), to_value(v.p), to_value(v.o))
+                Triple(v.s, v.p, v.o)
                 for v in resp.triples
             ]
             await queue.put(batch)

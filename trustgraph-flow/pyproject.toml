@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=2.7,<2.8",
+    "trustgraph-base>=2.8,<2.9",
     "aiohttp",
     "anthropic",
     "scylla-driver",
@@ -91,7 +91,6 @@ kg-extract-agent = "trustgraph.extract.kg.agent:run"
 kg-extract-definitions = "trustgraph.extract.kg.definitions:run"
 kg-extract-rows = "trustgraph.extract.kg.rows:run"
 kg-extract-relationships = "trustgraph.extract.kg.relationships:run"
-kg-extract-topics = "trustgraph.extract.kg.topics:run"
 kg-extract-ontology = "trustgraph.extract.kg.ontology:run"
 kg-manager = "trustgraph.cores:run"
 kg-store = "trustgraph.storage.knowledge:run"

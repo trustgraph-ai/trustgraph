@@ -25,30 +25,26 @@ DEFAULT_KAFKA_SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
 DEFAULT_KAFKA_SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
 
 
-def get_pubsub(**config: Any) -> Any:
+def get_async_pubsub(**config: Any) -> Any:
     """
-    Factory function to create a pub/sub backend based on configuration.
+    Factory function to create an async pub/sub backend.
 
-    Args:
-        config: Configuration dictionary from command-line args.
-                Key 'pubsub_backend' selects the backend (default: 'pulsar').
-
-    Returns:
-        Backend instance implementing the PubSubBackend protocol.
+    Creates the appropriate async backend based on the 'pubsub_backend'
+    config key. Supported: pulsar, rabbitmq, kafka.
     """
     backend_type = config.get('pubsub_backend', 'pulsar')
 
     if backend_type == 'pulsar':
-        from .pulsar_backend import PulsarBackend
-        return PulsarBackend(
+        from .async_pulsar_backend import AsyncPulsarBackend
+        return AsyncPulsarBackend(
             host=config.get('pulsar_host', DEFAULT_PULSAR_HOST),
             api_key=config.get('pulsar_api_key', DEFAULT_PULSAR_API_KEY),
             listener=config.get('pulsar_listener'),
             admin_url=config.get('pulsar_admin_url', DEFAULT_PULSAR_ADMIN_URL),
         )
     elif backend_type == 'rabbitmq':
-        from .rabbitmq_backend import RabbitMQBackend
-        return RabbitMQBackend(
+        from .async_rabbitmq_backend import AsyncRabbitMQBackend
+        return AsyncRabbitMQBackend(
             host=config.get('rabbitmq_host', DEFAULT_RABBITMQ_HOST),
             port=config.get('rabbitmq_port', DEFAULT_RABBITMQ_PORT),
             username=config.get('rabbitmq_username', DEFAULT_RABBITMQ_USERNAME),
@@ -56,8 +52,8 @@ def get_pubsub(**config: Any) -> Any:
             vhost=config.get('rabbitmq_vhost', DEFAULT_RABBITMQ_VHOST),
         )
     elif backend_type == 'kafka':
-        from .kafka_backend import KafkaBackend
-        return KafkaBackend(
+        from .async_kafka_backend import AsyncKafkaBackend
+        return AsyncKafkaBackend(
             bootstrap_servers=config.get(
                 'kafka_bootstrap_servers', DEFAULT_KAFKA_BOOTSTRAP,
             ),
@@ -75,7 +71,10 @@ def get_pubsub(**config: Any) -> Any:
             ),
         )
     else:
-        raise ValueError(f"Unknown pub/sub backend: {backend_type}")
+        raise ValueError(
+            f"Async backend not yet supported for: {backend_type}. "
+            f"Supported: 'pulsar', 'rabbitmq', 'kafka'."
+        )
 
 
 STANDALONE_PULSAR_HOST = 'pulsar://localhost:6650'

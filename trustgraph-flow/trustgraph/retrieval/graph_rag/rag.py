@@ -315,13 +315,6 @@ class Processor(FlowProcessor):
     @staticmethod
     def add_args(parser):
 
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Concurrent processing threads (default: {default_concurrency})'
-        )
-
         FlowProcessor.add_args(parser)
 
         parser.add_argument(

@@ -4,8 +4,6 @@ import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from . producer import Producer
-from . metrics import ProducerMetrics
 from trustgraph.schema import AuditEvent, audit_events_queue
 
 logger = logging.getLogger(__name__)
@@ -13,18 +11,33 @@ logger = logging.getLogger(__name__)
 
 class AuditPublisher:
 
-    def __init__(self, backend, component_name, processor_id=None):
+    def __init__(self, component_name, async_backend=None):
         self.component_name = component_name
-        self.producer = Producer(
-            backend=backend,
-            topic=audit_events_queue,
-            schema=AuditEvent,
-            metrics=ProducerMetrics(
-                processor=processor_id or component_name,
-                flow=None,
-                name="audit-events",
-            ),
-        )
+        self._handle = None
+        self._async_producer = None
+        self._async_backend = async_backend
+
+    async def start(self, sender_pool=None):
+        if sender_pool is not None:
+            self._handle = await sender_pool.add_producer(
+                topic=audit_events_queue,
+                schema=AuditEvent,
+            )
+        elif self._async_backend is not None:
+            self._async_producer = await self._async_backend.create_producer(
+                topic=audit_events_queue,
+                schema=AuditEvent,
+            )
+
+    async def stop(self):
+        if self._async_producer:
+            try:
+                await self._async_producer.close()
+            except BaseException:
+                pass
+            self._async_producer = None
+        if self._handle:
+            await self._handle.unregister()
 
     async def emit(self, event_type, payload):
         event = AuditEvent(
@@ -37,6 +50,9 @@ class AuditPublisher:
         )
 
         try:
-            await self.producer.send(event)
+            if self._handle:
+                await self._handle.send(event)
+            elif self._async_producer:
+                await self._async_producer.send(event)
         except Exception as e:
             logger.warning(f"Failed to emit audit event: {e}")

@@ -13,10 +13,7 @@ import json
 from ... schema import ConfigPush, ConfigRequest, ConfigResponse
 from ... schema import config_push_queue, config_request_queue
 from ... schema import config_response_queue
-from ... base import Consumer, Producer
-from ... base.subscriber import Subscriber
-from ... base.request_response_spec import RequestResponse
-from ... base.metrics import ProducerMetrics, SubscriberMetrics
+from ... base.request_response_client import RequestResponseClient
 
 logger = logging.getLogger("config.receiver")
 logger.setLevel(logging.INFO)
@@ -39,7 +36,7 @@ class ConfigReceiver:
     def add_handler(self, h):
         self.flow_handlers.append(h)
 
-    async def on_config_notify(self, msg, proc, flow):
+    async def on_config_notify(self, msg):
 
         try:
 
@@ -47,7 +44,6 @@ class ConfigReceiver:
             notify_version = v.version
             changes = v.changes
 
-            # Skip if we already have this version or newer
             if notify_version <= self.config_version:
                 logger.debug(
                     f"Ignoring config notify v{notify_version}, "
@@ -55,7 +51,6 @@ class ConfigReceiver:
                 )
                 return
 
-            # Track workspace lifecycle
             if v.workspace_changes and self.auth:
                 for ws in (v.workspace_changes.created or []):
                     self.auth.known_workspaces.add(ws)
@@ -64,8 +59,6 @@ class ConfigReceiver:
                     self.auth.known_workspaces.discard(ws)
                     logger.info(f"Workspace deregistered: {ws}")
 
-            # Gateway cares about flow config — check if any flow
-            # types changed in any workspace
             flow_workspaces = changes.get("flow", [])
             if changes and not flow_workspaces:
                 logger.debug(
@@ -80,7 +73,6 @@ class ConfigReceiver:
                 f"types={list(changes.keys())}, fetching config..."
             )
 
-            # Refresh config for each affected workspace
             for workspace in flow_workspaces:
                 await self.fetch_and_apply_workspace(workspace)
 
@@ -91,34 +83,16 @@ class ConfigReceiver:
                 f"Config notify processing exception: {e}", exc_info=True
             )
 
-    def _create_config_client(self):
-        """Create a short-lived config request/response client."""
-        id = str(uuid.uuid4())
-
-        config_req_metrics = ProducerMetrics(
-            processor="api-gateway", flow=None,
-            name="config-request",
-        )
-        config_resp_metrics = SubscriberMetrics(
-            processor="api-gateway", flow=None,
-            name="config-response",
-        )
-
-        return RequestResponse(
+    async def _create_config_client(self):
+        return await RequestResponseClient.create(
             backend=self.backend,
-            subscription=f"api-gateway--config--{id}",
-            consumer_name="api-gateway",
             request_topic=config_request_queue,
-            request_schema=ConfigRequest,
-            request_metrics=config_req_metrics,
             response_topic=config_response_queue,
+            request_schema=ConfigRequest,
             response_schema=ConfigResponse,
-            response_metrics=config_resp_metrics,
         )
 
     async def fetch_and_apply_workspace(self, workspace, retry=False):
-        """Fetch config for a single workspace and apply flow changes.
-        If retry=True, keeps retrying until successful."""
 
         while True:
 
@@ -127,9 +101,8 @@ class ConfigReceiver:
                     f"Fetching config for workspace {workspace}..."
                 )
 
-                client = self._create_config_client()
+                client = await self._create_config_client()
                 try:
-                    await client.start()
                     resp = await client.request(
                         ConfigRequest(
                             operation="config",
@@ -138,7 +111,7 @@ class ConfigReceiver:
                         timeout=10,
                     )
                 finally:
-                    await client.stop()
+                    await client.close()
 
                 logger.info(f"Config response received")
 
@@ -192,20 +165,15 @@ class ConfigReceiver:
                 return
 
     async def fetch_all_workspaces(self, retry=False):
-        """Fetch config for all workspaces at startup.
-        Discovers workspaces via the config service getvalues-all-ws
-        operation on the flow type."""
 
         while True:
 
             try:
                 logger.info("Discovering workspaces with flows...")
 
-                client = self._create_config_client()
+                client = await self._create_config_client()
                 try:
-                    await client.start()
 
-                    # Discover all known workspaces
                     ws_resp = await client.request(
                         ConfigRequest(
                             operation="getvalues",
@@ -232,7 +200,6 @@ class ConfigReceiver:
                         f"Known workspaces: {discovered}"
                     )
 
-                    # Discover workspaces that have any flow config
                     resp = await client.request(
                         ConfigRequest(
                             operation="getvalues-all-ws",
@@ -250,9 +217,6 @@ class ConfigReceiver:
                         v.workspace for v in resp.values if v.workspace
                     }
 
-                    # Always include the default workspace, even if
-                    # empty, so that newly-created flows in it can be
-                    # picked up by subsequent notifications.
                     workspaces.add("default")
 
                     logger.info(
@@ -260,9 +224,8 @@ class ConfigReceiver:
                     )
 
                 finally:
-                    await client.stop()
+                    await client.close()
 
-                # Fetch and apply config for each workspace
                 for workspace in workspaces:
                     await self.fetch_and_apply_workspace(
                         workspace, retry=retry
@@ -312,43 +275,48 @@ class ConfigReceiver:
 
         while True:
 
+            consumer = None
+
             try:
 
-                async with asyncio.TaskGroup() as tg:
+                consumer = await self.backend.create_consumer(
+                    topic=config_push_queue,
+                    subscription=f"gateway-{uuid.uuid4()}",
+                    schema=ConfigPush,
+                    initial_position='latest',
+                )
 
-                    id = str(uuid.uuid4())
+                logger.info("Config notify consumer started")
 
-                    # Subscribe to notify queue
-                    self.config_cons = Consumer(
-                        taskgroup=tg,
-                        flow=None,
-                        backend=self.backend,
-                        subscriber=f"gateway-{id}",
-                        topic=config_push_queue,
-                        schema=ConfigPush,
-                        handler=self.on_config_notify,
-                        start_of_messages=False,
-                    )
+                await self.fetch_all_workspaces(retry=True)
 
-                    logger.info("Starting config notify consumer...")
-                    await self.config_cons.start()
-                    logger.info("Config notify consumer started")
+                logger.info(
+                    "Config loader initialised, waiting for notifys..."
+                )
 
-                    # Fetch current config (subscribe-then-fetch pattern)
-                    # Retry until config service is available
-                    await self.fetch_all_workspaces(retry=True)
-
-                    logger.info(
-                        "Config loader initialised, waiting for notifys..."
-                    )
-
-                logger.warning("Config consumer exited, restarting...")
+                while True:
+                    msg = await consumer.receive()
+                    try:
+                        await self.on_config_notify(msg)
+                        await consumer.acknowledge(msg)
+                    except Exception as e:
+                        logger.error(
+                            f"Config notify error: {e}", exc_info=True
+                        )
+                        await consumer.negative_acknowledge(msg)
 
             except Exception as e:
                 logger.error(
                     f"Config loader exception: {e}, restarting in 4s...",
                     exc_info=True
                 )
+
+            finally:
+                if consumer:
+                    try:
+                        await consumer.close()
+                    except BaseException:
+                        pass
 
             await asyncio.sleep(4)
 

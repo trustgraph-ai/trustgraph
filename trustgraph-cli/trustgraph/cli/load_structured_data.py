@@ -45,6 +45,7 @@ def load_structured_data(
     verbose: bool = False,
     token: str = None,
     workspace: str = "default",
+    batch_size: int = None,
 ):
     """
     Load structured data using a descriptor configuration.
@@ -133,11 +134,11 @@ def load_structured_data(
                 # Use shared pipeline for full processing (no sample limit)
                 output_objects, descriptor = _process_data_pipeline(input_file, temp_descriptor.name, collection)
                 
-                # Get batch size from descriptor
-                batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
+                # CLI batch_size overrides descriptor value
+                effective_batch_size = batch_size if batch_size is not None else descriptor.get('output', {}).get('options', {}).get('batch_size', 40)
 
                 # Send to TrustGraph using shared function
-                imported_count = _send_to_trustgraph(output_objects, api_url, flow, batch_size, token=token, workspace=workspace)
+                imported_count = _send_to_trustgraph(output_objects, api_url, flow, effective_batch_size, token=token, workspace=workspace)
                 
                 # Summary
                 format_info = descriptor.get('format', {})
@@ -288,12 +289,12 @@ def load_structured_data(
         # Use shared pipeline (no sample_size limit for full load)
         output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, collection)
         
-        # Get batch size from descriptor or use default
-        batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
+        # CLI batch_size overrides descriptor value
+        effective_batch_size = batch_size if batch_size is not None else descriptor.get('output', {}).get('options', {}).get('batch_size', 40)
 
         # Send to TrustGraph
         print(f"🚀 Importing {len(output_records)} records to TrustGraph...")
-        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size, token=token, workspace=workspace)
+        imported_count = _send_to_trustgraph(output_records, api_url, flow, effective_batch_size, token=token, workspace=workspace)
         
         # Get summary info from descriptor
         format_info = descriptor.get('format', {})
@@ -572,7 +573,7 @@ def _process_data_pipeline(input_file, descriptor_file, collection, sample_size=
     return output_records, descriptor
 
 
-def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None, workspace="default"):
+def _send_to_trustgraph(rows, api_url, flow, batch_size=40, token=None, workspace="default"):
     """Send ExtractedObject records to TrustGraph using Python API"""
     from trustgraph.api import Api
 
@@ -584,7 +585,7 @@ def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None, worksp
         api = Api(api_url, token=token, workspace=workspace)
         bulk = api.bulk()
 
-        bulk.import_rows(flow=flow, rows=iter(rows))
+        bulk.import_rows(flow=flow, rows=iter(rows), batch_size=batch_size)
 
         logger.info(f"Successfully imported {total_records} records to TrustGraph")
 
@@ -968,8 +969,8 @@ For more information on the descriptor format, see:
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=1000,
-        help='Number of records to process in each batch (default: 1000)'
+        default=None,
+        help='Number of records per import batch (default: 40, or descriptor value)'
     )
     
     parser.add_argument(
@@ -1050,6 +1051,7 @@ For more information on the descriptor format, see:
             verbose=args.verbose,
             token=args.token,
             workspace=args.workspace,
+            batch_size=args.batch_size,
         )
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}", file=sys.stderr)

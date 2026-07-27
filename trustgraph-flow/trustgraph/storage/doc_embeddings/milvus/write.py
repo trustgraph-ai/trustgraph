@@ -7,7 +7,7 @@ import logging
 
 from .... direct.milvus_doc_embeddings import DocVectors
 from .... base import DocumentEmbeddingsStoreService, CollectionConfigHandler
-from .... base import AsyncProcessor, Consumer, Producer
+from .... base import AsyncProcessor
 from .... base import ConsumerMetrics, ProducerMetrics
 
 # Module logger

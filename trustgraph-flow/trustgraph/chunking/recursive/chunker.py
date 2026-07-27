@@ -53,7 +53,7 @@ class Processor(ChunkingService):
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
                 'chunk_size', 'Chunk size',
-                ["id", "flow"],
+                ["processor"],
                 buckets=[100, 160, 250, 400, 650, 1000, 1600,
                          2500, 4000, 6400, 10000, 16000]
             )
@@ -184,7 +184,7 @@ class Processor(ChunkingService):
             )
 
             __class__.chunk_metric.labels(
-                id=consumer.id, flow=consumer.flow
+                processor=self.id,
             ).observe(chunk_length)
 
             await flow("output").send(r)

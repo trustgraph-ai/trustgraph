@@ -190,11 +190,17 @@ class Processor(FlowProcessor):
                     fields=fields
                 )
 
+                query_indexes = set(schema_def.get("query-indexes", []))
+                for field in fields:
+                    if field.name in query_indexes:
+                        field.indexed = True
+
                 ws_schemas[schema_name] = row_schema
                 builder.add_schema(schema_name, row_schema)
                 logger.info(
                     f"Loaded schema: {schema_name} with "
-                    f"{len(fields)} fields for {workspace}"
+                    f"{len(fields)} fields, {len(query_indexes)} query-indexed "
+                    f"for {workspace}"
                 )
 
             except Exception as e:
@@ -280,9 +286,6 @@ class Processor(FlowProcessor):
             """
             params = [collection, schema_name, index_name, index_value]
 
-            if limit:
-                query += f" LIMIT {limit}"
-
             try:
                 pages = await async_execute_paged(
                     self.session, query, params
@@ -290,7 +293,12 @@ class Processor(FlowProcessor):
                 for page in pages:
                     for row in page:
                         row_dict = dict(row.data) if row.data else {}
-                        results.append(row_dict)
+                        if self._matches_filters(row_dict, filters, row_schema):
+                            results.append(row_dict)
+                            if limit and len(results) >= limit:
+                                break
+                    if limit and len(results) >= limit:
+                        break
             except Exception as e:
                 logger.error(f"Failed to query rows: {e}", exc_info=True)
                 raise
@@ -558,12 +566,6 @@ class Processor(FlowProcessor):
             help='Configuration type prefix for schemas (default: schema)'
         )
 
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Number of concurrent requests (default: {default_concurrency})'
-        )
 
 
 def run():

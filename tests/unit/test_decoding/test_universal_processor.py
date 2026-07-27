@@ -142,11 +142,9 @@ class TestPageBasedFormats:
 class TestUniversalProcessor(IsolatedAsyncioTestCase):
     """Test universal decoder processor."""
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_initialization(
-        self, mock_producer, mock_consumer
+        self
     ):
         """Test processor initialization with defaults."""
         config = {
@@ -169,11 +167,9 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert consumer_specs[0].name == "input"
         assert consumer_specs[0].schema == Document
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_custom_strategy(
-        self, mock_producer, mock_consumer
+        self
     ):
         """Test processor initialization with custom section strategy."""
         config = {
@@ -188,10 +184,8 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert processor.partition_strategy == "hi_res"
         assert processor.section_strategy_name == "heading"
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_group_by_page(self, mock_producer, mock_consumer):
+    async def test_group_by_page(self):
         """Test page grouping of elements."""
         config = {
             'id': 'test-universal',
@@ -214,12 +208,10 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert result[1][0] == 2
         assert len(result[1][1]) == 1
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.universal.processor.partition')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_inline_non_page(
-        self, mock_partition, mock_producer, mock_consumer
+        self, mock_partition
     ):
         """Test processing an inline non-page document."""
         config = {
@@ -270,12 +262,10 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         assert call_args.document_id.startswith("urn:section:")
         assert call_args.text == b""
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.universal.processor.partition')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_page_based(
-        self, mock_partition, mock_producer, mock_consumer
+        self, mock_partition
     ):
         """Test processing a page-based document."""
         config = {
@@ -322,12 +312,10 @@ class TestUniversalProcessor(IsolatedAsyncioTestCase):
         call_args = mock_output_flow.send.call_args_list[0][0][0]
         assert call_args.document_id.startswith("urn:page:")
 
-    @patch('trustgraph.base.librarian_client.Consumer')
-    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.universal.processor.partition')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_images_stored_not_emitted(
-        self, mock_partition, mock_producer, mock_consumer
+        self, mock_partition
     ):
         """Test that images are stored but not sent to text pipeline."""
         config = {

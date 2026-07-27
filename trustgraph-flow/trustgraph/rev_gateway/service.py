@@ -17,7 +17,7 @@ from urllib.parse import urlparse, urlunparse
 from .dispatcher import MessageDispatcher
 from ..gateway.auth import IamAuth
 from ..gateway.config.receiver import ConfigReceiver
-from ..base.pubsub import get_pubsub, add_pubsub_args
+from ..base.pubsub import get_async_pubsub, add_pubsub_args
 from ..base.logging import setup_logging, add_logging_args
 
 logger = logging.getLogger("rev_gateway")
@@ -62,7 +62,7 @@ class ReverseGateway:
         self.running = False
         self.reconnect_delay = 3.0
 
-        self.backend = get_pubsub(**config)
+        self.backend = get_async_pubsub(**config)
 
         self.auth = IamAuth(
             backend=self.backend,
@@ -178,7 +178,7 @@ class ReverseGateway:
         await self.disconnect()
 
         if hasattr(self, 'backend'):
-            self.backend.close()
+            await self.backend.close()
 
     def stop(self):
         self.running = False

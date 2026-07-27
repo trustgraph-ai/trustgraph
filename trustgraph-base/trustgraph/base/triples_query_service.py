@@ -119,13 +119,6 @@ class TriplesQueryService(FlowProcessor):
 
         FlowProcessor.add_args(parser)
 
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Number of concurrent requests (default: {default_concurrency})'
-        )
-
 def run() -> None:
 
     Processor.launch(default_ident, __doc__)

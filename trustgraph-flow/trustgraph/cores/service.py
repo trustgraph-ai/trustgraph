@@ -9,13 +9,13 @@ import base64
 import json
 import logging
 
-from .. base import WorkspaceProcessor, Consumer, Producer, Publisher, Subscriber
+from .. base import WorkspaceProcessor, AsyncLibrarianClient
 from .. base import ConsumerMetrics, ProducerMetrics
 from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
-from .. base import LibrarianClient
 
 from .. schema import KnowledgeRequest, KnowledgeResponse, Error
 from .. schema import knowledge_request_queue, knowledge_response_queue
+from .. schema import librarian_request_queue, librarian_response_queue
 
 from .. schema import Document, Metadata
 from .. schema import TextDocument, Metadata
@@ -79,9 +79,7 @@ class Processor(WorkspaceProcessor):
             }
         )
 
-        self.librarian_client = LibrarianClient(
-            id=id, backend=self.pubsub, taskgroup=self.taskgroup,
-        )
+        self.librarian_clients = {}
 
         self.knowledge = KnowledgeManager(
             cassandra_host = self.cassandra_host,
@@ -89,7 +87,7 @@ class Processor(WorkspaceProcessor):
             cassandra_password = self.cassandra_password,
             keyspace = keyspace,
             flow_config = self,
-            librarian = self.librarian_client,
+            librarian_clients = self.librarian_clients,
             replication_factor = replication_factor,
         )
 
@@ -113,57 +111,61 @@ class Processor(WorkspaceProcessor):
             self.knowledge_response_queue_base, workspace,
         )
 
-        await self.pubsub.ensure_topic(req_queue)
-        await self.pubsub.ensure_topic(resp_queue)
+        await self.async_backend.ensure_topic(req_queue)
+        await self.async_backend.ensure_topic(resp_queue)
 
-        response_producer = Producer(
-            backend=self.pubsub,
+        response_handle = await self.sender_pool.add_producer(
             topic=resp_queue,
             schema=KnowledgeResponse,
-            metrics=ProducerMetrics(
-                processor=self.id, flow=None,
-                name=f"knowledge-response-{workspace}",
-            ),
         )
 
-        consumer = Consumer(
-            taskgroup=self.taskgroup,
-            backend=self.pubsub,
-            flow=None,
+        async def handler(message):
+            await self.on_knowledge_request(
+                message, None, None, workspace=workspace,
+            )
+
+        consumer_reg = await self.receiver_pool.add_consumer(
             topic=req_queue,
-            subscriber=self.id,
+            subscription=self.id,
             schema=KnowledgeRequest,
-            handler=partial(
-                self.on_knowledge_request, workspace=workspace,
-            ),
-            metrics=ConsumerMetrics(
-                processor=self.id, flow=None,
-                name=f"knowledge-request-{workspace}",
-            ),
+            handler=handler,
         )
 
-        await response_producer.start()
-        await consumer.start()
+        librarian_client = await AsyncLibrarianClient.create(
+            backend=self.async_backend,
+            request_topic=workspace_queue(
+                librarian_request_queue, workspace,
+            ),
+            response_topic=workspace_queue(
+                librarian_response_queue, workspace,
+            ),
+            subscription=f"{self.id}--{workspace}--librarian",
+        )
+
+        self.librarian_clients[workspace] = librarian_client
 
         self.workspace_consumers[workspace] = {
-            "consumer": consumer,
-            "response": response_producer,
+            "consumer": consumer_reg,
+            "response": response_handle,
+            "librarian": librarian_client,
         }
 
         logger.info(f"Subscribed to workspace queue: {workspace}")
 
     async def on_workspace_deleted(self, workspace):
 
+        self.librarian_clients.pop(workspace, None)
+
         clients = self.workspace_consumers.pop(workspace, None)
         if clients:
-            for client in clients.values():
-                await client.stop()
+            await clients["consumer"].unregister()
+            await clients["response"].unregister()
+            await clients["librarian"].stop()
             logger.info(f"Unsubscribed from workspace queue: {workspace}")
 
     async def start(self):
 
         await super(Processor, self).start()
-        await self.librarian_client.start()
 
     async def on_knowledge_config(self, workspace, config, version):
 
@@ -282,4 +284,3 @@ class Processor(WorkspaceProcessor):
 def run():
 
     Processor.launch(default_ident, __doc__)
-

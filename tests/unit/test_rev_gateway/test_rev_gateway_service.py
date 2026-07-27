@@ -15,7 +15,7 @@ MOCK_PATCHES = [
     'trustgraph.rev_gateway.service.IamAuth',
     'trustgraph.rev_gateway.service.ConfigReceiver',
     'trustgraph.rev_gateway.service.MessageDispatcher',
-    'trustgraph.rev_gateway.service.get_pubsub',
+    'trustgraph.rev_gateway.service.get_async_pubsub',
 ]
 
 
@@ -33,10 +33,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_initialization_defaults(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
 
@@ -55,10 +55,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_initialization_custom_params(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway(
             websocket_uri="wss://example.com:8080/websocket",
@@ -78,10 +78,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_initialization_with_missing_path(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway(websocket_uri="ws://example.com")
 
@@ -93,7 +93,7 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_initialization_invalid_scheme(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
         with pytest.raises(ValueError, match="WebSocket URI must use ws:// or wss:// scheme"):
@@ -104,7 +104,7 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_initialization_missing_hostname(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
         with pytest.raises(ValueError, match="WebSocket URI must include hostname"):
@@ -115,11 +115,11 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_iam_auth_created(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
         mock_backend = MagicMock()
-        mock_get_pubsub.return_value = mock_backend
+        mock_get_async_pubsub.return_value = mock_backend
 
         gateway = make_gateway(id="test-rev-gw")
 
@@ -133,11 +133,11 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_config_receiver_gets_auth(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
         mock_backend = MagicMock()
-        mock_get_pubsub.return_value = mock_backend
+        mock_get_async_pubsub.return_value = mock_backend
         mock_auth_instance = MagicMock()
         mock_iam_auth.return_value = mock_auth_instance
 
@@ -154,10 +154,10 @@ class TestReverseGateway:
     @patch('trustgraph.rev_gateway.service.ClientSession')
     @pytest.mark.asyncio
     async def test_reverse_gateway_connect_success(
-        self, mock_session_class, mock_get_pubsub,
+        self, mock_session_class, mock_get_async_pubsub,
         mock_dispatcher, mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         mock_session = AsyncMock()
         mock_ws = AsyncMock()
@@ -180,10 +180,10 @@ class TestReverseGateway:
     @patch('trustgraph.rev_gateway.service.ClientSession')
     @pytest.mark.asyncio
     async def test_reverse_gateway_connect_failure(
-        self, mock_session_class, mock_get_pubsub,
+        self, mock_session_class, mock_get_async_pubsub,
         mock_dispatcher, mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         mock_session = AsyncMock()
         mock_session.ws_connect.side_effect = Exception("Connection failed")
@@ -201,10 +201,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_disconnect(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
 
@@ -229,10 +229,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_send_message(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
 
@@ -252,10 +252,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_send_message_closed_connection(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
 
@@ -275,10 +275,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_handle_message(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         mock_dispatcher_instance = AsyncMock()
         mock_dispatcher.return_value = mock_dispatcher_instance
@@ -306,10 +306,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_handle_message_invalid_json(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
 
@@ -325,10 +325,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_listen_text_message(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
         gateway.running = True
@@ -355,10 +355,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_listen_binary_message(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
         gateway.running = True
@@ -385,10 +385,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_listen_close_message(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
         gateway.running = True
@@ -414,11 +414,11 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_shutdown(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_backend = MagicMock()
-        mock_get_pubsub.return_value = mock_backend
+        mock_backend = AsyncMock()
+        mock_get_async_pubsub.return_value = mock_backend
 
         mock_dispatcher_instance = AsyncMock()
         mock_dispatcher.return_value = mock_dispatcher_instance
@@ -440,10 +440,10 @@ class TestReverseGateway:
     @patch(*MOCK_PATCHES[2:3])
     @patch(*MOCK_PATCHES[3:4])
     def test_reverse_gateway_stop(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         gateway = make_gateway()
         gateway.running = True
@@ -462,10 +462,10 @@ class TestReverseGatewayRun:
     @patch(*MOCK_PATCHES[3:4])
     @pytest.mark.asyncio
     async def test_reverse_gateway_run_successful_cycle(
-        self, mock_get_pubsub, mock_dispatcher,
+        self, mock_get_async_pubsub, mock_dispatcher,
         mock_config_receiver, mock_iam_auth,
     ):
-        mock_get_pubsub.return_value = MagicMock()
+        mock_get_async_pubsub.return_value = MagicMock()
 
         mock_auth_instance = AsyncMock()
         mock_iam_auth.return_value = mock_auth_instance

@@ -4,7 +4,7 @@ from typing import Any
 
 import logging
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse, IRI, LITERAL
 from .. knowledge import Uri, Literal
 
@@ -21,7 +21,7 @@ def to_value(x: Any) -> Any:
     # Fallback
     return Literal(x.value or x.iri)
 
-class GraphEmbeddingsClient(RequestResponse):
+class GraphEmbeddingsClient:
     async def query(self, vector, limit=20, collection="default", timeout=30):
 
         resp = await self.request(

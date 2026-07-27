@@ -42,7 +42,7 @@ def mock_flow_config():
             }
         }
     }
-    mock_config.pulsar_client = AsyncMock()
+    mock_config.pubsub = AsyncMock()
     return mock_config
 
 
@@ -126,31 +126,30 @@ class TestKnowledgeManagerLoadCore:
             
         knowledge_manager.table_store.get_graph_embeddings = mock_get_graph_embeddings
         
-        # Mock publishers
-        mock_triples_pub = AsyncMock()
-        mock_ge_pub = AsyncMock()
-        
-        with patch('trustgraph.cores.knowledge.Publisher') as mock_publisher_class:
-            mock_publisher_class.side_effect = [mock_triples_pub, mock_ge_pub]
-            
-            # Start the core loader background task
-            knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+        # Mock producers
+        mock_triples_prod = AsyncMock()
+        mock_ge_prod = AsyncMock()
 
-            # Wait for background processing
-            import asyncio
-            await asyncio.sleep(0.1)
+        knowledge_manager.flow_config.pubsub.create_producer = AsyncMock(
+            side_effect=[mock_triples_prod, mock_ge_prod]
+        )
 
-            # Verify publishers were created and started
-            assert mock_publisher_class.call_count == 2
-            mock_triples_pub.start.assert_called_once()
-            mock_ge_pub.start.assert_called_once()
+        # Start the core loader background task
+        knowledge_manager.background_task = None
+        await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
 
-            # Verify triples were sent with correct collection
-            mock_triples_pub.send.assert_called_once()
-            sent_triples = mock_triples_pub.send.call_args[0][1]
-            assert sent_triples.metadata.collection == "test-collection"
-            assert sent_triples.metadata.id == "test-doc-id"
+        # Wait for background processing
+        import asyncio
+        await asyncio.sleep(0.1)
+
+        # Verify producers were created
+        assert knowledge_manager.flow_config.pubsub.create_producer.call_count == 2
+
+        # Verify triples were sent with correct collection
+        mock_triples_prod.send.assert_called_once()
+        sent_triples = mock_triples_prod.send.call_args[0][0]
+        assert sent_triples.metadata.collection == "test-collection"
+        assert sent_triples.metadata.id == "test-doc-id"
 
     @pytest.mark.asyncio
     async def test_load_kg_core_sets_collection_in_graph_embeddings(self, knowledge_manager, mock_request, sample_graph_embeddings):
@@ -169,26 +168,27 @@ class TestKnowledgeManagerLoadCore:
         
         knowledge_manager.table_store.get_graph_embeddings = mock_get_graph_embeddings
         
-        # Mock publishers
-        mock_triples_pub = AsyncMock()
-        mock_ge_pub = AsyncMock()
-        
-        with patch('trustgraph.cores.knowledge.Publisher') as mock_publisher_class:
-            mock_publisher_class.side_effect = [mock_triples_pub, mock_ge_pub]
-            
-            # Start the core loader background task
-            knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+        # Mock producers
+        mock_triples_prod = AsyncMock()
+        mock_ge_prod = AsyncMock()
 
-            # Wait for background processing
-            import asyncio
-            await asyncio.sleep(0.1)
+        knowledge_manager.flow_config.pubsub.create_producer = AsyncMock(
+            side_effect=[mock_triples_prod, mock_ge_prod]
+        )
 
-            # Verify graph embeddings were sent with correct collection
-            mock_ge_pub.send.assert_called_once()
-            sent_ge = mock_ge_pub.send.call_args[0][1] 
-            assert sent_ge.metadata.collection == "test-collection"
-            assert sent_ge.metadata.id == "test-doc-id"
+        # Start the core loader background task
+        knowledge_manager.background_task = None
+        await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
+        # Wait for background processing
+        import asyncio
+        await asyncio.sleep(0.1)
+
+        # Verify graph embeddings were sent with correct collection
+        mock_ge_prod.send.assert_called_once()
+        sent_ge = mock_ge_prod.send.call_args[0][0]
+        assert sent_ge.metadata.collection == "test-collection"
+        assert sent_ge.metadata.id == "test-doc-id"
 
     @pytest.mark.asyncio 
     async def test_load_kg_core_falls_back_to_default_collection(self, knowledge_manager, sample_triples):
@@ -207,25 +207,26 @@ class TestKnowledgeManagerLoadCore:
         knowledge_manager.table_store.get_triples = mock_get_triples
         knowledge_manager.table_store.get_graph_embeddings = AsyncMock()
         
-        # Mock publishers
-        mock_triples_pub = AsyncMock()
-        mock_ge_pub = AsyncMock()
-        
-        with patch('trustgraph.cores.knowledge.Publisher') as mock_publisher_class:
-            mock_publisher_class.side_effect = [mock_triples_pub, mock_ge_pub]
-            
-            # Start the core loader background task
-            knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+        # Mock producers
+        mock_triples_prod = AsyncMock()
+        mock_ge_prod = AsyncMock()
 
-            # Wait for background processing
-            import asyncio
-            await asyncio.sleep(0.1)
+        knowledge_manager.flow_config.pubsub.create_producer = AsyncMock(
+            side_effect=[mock_triples_prod, mock_ge_prod]
+        )
 
-            # Verify triples were sent with default collection
-            mock_triples_pub.send.assert_called_once()
-            sent_triples = mock_triples_pub.send.call_args[0][1]
-            assert sent_triples.metadata.collection == "default"
+        # Start the core loader background task
+        knowledge_manager.background_task = None
+        await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
+        # Wait for background processing
+        import asyncio
+        await asyncio.sleep(0.1)
+
+        # Verify triples were sent with default collection
+        mock_triples_prod.send.assert_called_once()
+        sent_triples = mock_triples_prod.send.call_args[0][0]
+        assert sent_triples.metadata.collection == "default"
 
     @pytest.mark.asyncio
     async def test_load_kg_core_handles_both_triples_and_graph_embeddings(self, knowledge_manager, mock_request, sample_triples, sample_graph_embeddings):
@@ -241,29 +242,30 @@ class TestKnowledgeManagerLoadCore:
         knowledge_manager.table_store.get_triples = mock_get_triples
         knowledge_manager.table_store.get_graph_embeddings = mock_get_graph_embeddings
         
-        # Mock publishers
-        mock_triples_pub = AsyncMock()
-        mock_ge_pub = AsyncMock()
-        
-        with patch('trustgraph.cores.knowledge.Publisher') as mock_publisher_class:
-            mock_publisher_class.side_effect = [mock_triples_pub, mock_ge_pub]
-            
-            # Start the core loader background task
-            knowledge_manager.background_task = None
-            await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+        # Mock producers
+        mock_triples_prod = AsyncMock()
+        mock_ge_prod = AsyncMock()
 
-            # Wait for background processing
-            import asyncio
-            await asyncio.sleep(0.1)
+        knowledge_manager.flow_config.pubsub.create_producer = AsyncMock(
+            side_effect=[mock_triples_prod, mock_ge_prod]
+        )
 
-            # Verify both publishers were used with correct collection
-            mock_triples_pub.send.assert_called_once()
-            sent_triples = mock_triples_pub.send.call_args[0][1]
-            assert sent_triples.metadata.collection == "test-collection"
-            
-            mock_ge_pub.send.assert_called_once()
-            sent_ge = mock_ge_pub.send.call_args[0][1]
-            assert sent_ge.metadata.collection == "test-collection"
+        # Start the core loader background task
+        knowledge_manager.background_task = None
+        await knowledge_manager.load_kg_core(mock_request, mock_respond, "test-user")
+
+        # Wait for background processing
+        import asyncio
+        await asyncio.sleep(0.1)
+
+        # Verify both producers were used with correct collection
+        mock_triples_prod.send.assert_called_once()
+        sent_triples = mock_triples_prod.send.call_args[0][0]
+        assert sent_triples.metadata.collection == "test-collection"
+
+        mock_ge_prod.send.assert_called_once()
+        sent_ge = mock_ge_prod.send.call_args[0][0]
+        assert sent_ge.metadata.collection == "test-collection"
 
     @pytest.mark.asyncio
     async def test_load_kg_core_validates_flow_configuration(self, knowledge_manager):
@@ -401,9 +403,10 @@ class TestKnowledgeManagerLibraryDownload:
                 cassandra_password="test_pass",
                 keyspace="test_keyspace",
                 flow_config=mock_flow_config,
-                librarian=mock_librarian,
+                librarian_clients={"test-user": mock_librarian},
             )
             manager.table_store = AsyncMock()
+            manager._mock_librarian = mock_librarian
             return manager
 
     @pytest.mark.asyncio
@@ -411,6 +414,7 @@ class TestKnowledgeManagerLibraryDownload:
         mock_request = Mock()
         mock_request.id = "root-doc"
         mock_respond = AsyncMock()
+        librarian = manager_with_librarian._mock_librarian
 
         manager_with_librarian.table_store.get_triples = AsyncMock()
         manager_with_librarian.table_store.get_graph_embeddings = AsyncMock()
@@ -424,11 +428,12 @@ class TestKnowledgeManagerLibraryDownload:
             parent_id="root-doc", document_type="chunk",
         )
 
-        manager_with_librarian.librarian.fetch_document_metadata.return_value = root_meta
-        manager_with_librarian.librarian.request.return_value = LibrarianResponse(
-            document_metadatas=[child_meta],
-        )
-        manager_with_librarian.librarian.fetch_document_content.side_effect = [
+        librarian.fetch_document_metadata.return_value = root_meta
+        librarian.request.side_effect = [
+            LibrarianResponse(document_metadatas=[child_meta]),
+            LibrarianResponse(document_metadatas=[]),
+        ]
+        librarian.fetch_document_content.side_effect = [
             b"cm9vdCBjb250ZW50",
             b"Y2h1bmsgY29udGVudA==",
         ]
@@ -488,7 +493,7 @@ class TestKnowledgeManagerLibraryDownload:
 
         manager_with_librarian.table_store.get_triples = AsyncMock()
         manager_with_librarian.table_store.get_graph_embeddings = AsyncMock()
-        manager_with_librarian.librarian.fetch_document_metadata.side_effect = (
+        manager_with_librarian._mock_librarian.fetch_document_metadata.side_effect = (
             RuntimeError("not found")
         )
 
@@ -512,9 +517,10 @@ class TestKnowledgeManagerLibraryUpload:
                 cassandra_host=["localhost"],
                 cassandra_username="u", cassandra_password="p",
                 keyspace="ks", flow_config=mock_flow_config,
-                librarian=mock_librarian,
+                librarian_clients={"ws": mock_librarian},
             )
             manager.table_store = AsyncMock()
+            manager._mock_librarian = mock_librarian
             return manager
 
     @pytest.mark.asyncio
@@ -522,7 +528,8 @@ class TestKnowledgeManagerLibraryUpload:
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
-        manager_with_librarian.librarian.request.return_value = LibrarianResponse()
+        librarian = manager_with_librarian._mock_librarian
+        librarian.request.return_value = LibrarianResponse()
 
         # First call: metadata
         req_meta = Mock()
@@ -536,7 +543,7 @@ class TestKnowledgeManagerLibraryUpload:
         await manager_with_librarian.put_kg_core(req_meta, mock_respond, "ws")
 
         # Metadata is buffered, librarian not called yet
-        manager_with_librarian.librarian.request.assert_not_called()
+        librarian.request.assert_not_called()
 
         # Second call: blob
         req_blob = Mock()
@@ -549,8 +556,8 @@ class TestKnowledgeManagerLibraryUpload:
         await manager_with_librarian.put_kg_core(req_blob, mock_respond, "ws")
 
         # Now librarian should have been called with add-document
-        manager_with_librarian.librarian.request.assert_called_once()
-        call_args = manager_with_librarian.librarian.request.call_args[0][0]
+        librarian.request.assert_called_once()
+        call_args = librarian.request.call_args[0][0]
         assert call_args.operation == "add-document"
         assert call_args.document_metadata.id == "doc-1"
         assert call_args.document_metadata.kind == "application/pdf"
@@ -561,7 +568,8 @@ class TestKnowledgeManagerLibraryUpload:
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
-        manager_with_librarian.librarian.request.return_value = LibrarianResponse()
+        librarian = manager_with_librarian._mock_librarian
+        librarian.request.return_value = LibrarianResponse()
 
         req_meta = Mock()
         req_meta.triples = None
@@ -580,7 +588,7 @@ class TestKnowledgeManagerLibraryUpload:
         req_blob.library_blob = LibraryBlob(id="chunk-1", data=b"Y2h1bms=")
         await manager_with_librarian.put_kg_core(req_blob, mock_respond, "ws")
 
-        call_args = manager_with_librarian.librarian.request.call_args[0][0]
+        call_args = librarian.request.call_args[0][0]
         assert call_args.operation == "add-child-document"
         assert call_args.document_metadata.parent_id == "doc-1"
 
@@ -589,6 +597,7 @@ class TestKnowledgeManagerLibraryUpload:
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
+        librarian = manager_with_librarian._mock_librarian
 
         req_blob = Mock()
         req_blob.triples = None
@@ -598,14 +607,15 @@ class TestKnowledgeManagerLibraryUpload:
         await manager_with_librarian.put_kg_core(req_blob, mock_respond, "ws")
 
         # Librarian should not be called for orphan blob
-        manager_with_librarian.librarian.request.assert_not_called()
+        librarian.request.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_put_existing_document_is_graceful(
         self, manager_with_librarian,
     ):
         mock_respond = AsyncMock()
-        manager_with_librarian.librarian.request.side_effect = RuntimeError(
+        librarian = manager_with_librarian._mock_librarian
+        librarian.request.side_effect = RuntimeError(
             "Document already exists"
         )
 

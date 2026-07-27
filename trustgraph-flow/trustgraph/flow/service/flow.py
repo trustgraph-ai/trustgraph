@@ -13,10 +13,10 @@ DELETE_RETRY_DELAY = 2  # seconds
 
 
 class FlowConfig:
-    def __init__(self, config, pubsub):
+    def __init__(self, config, async_backend):
 
         self.config = config
-        self.pubsub = pubsub
+        self.async_backend = async_backend
         # Per-workspace cache for parameter type definitions
         # Keyed by (workspace, type-name)
         self.param_type_cache = {}
@@ -241,7 +241,7 @@ class FlowConfig:
         # before processors receive their config and start connecting.
         topics = self._collect_flow_topics(cls, repl_template_with_params)
         for topic in topics:
-            await self.pubsub.create_topic(topic)
+            await self.async_backend.create_topic(topic)
 
         # Build all processor config updates, then write in a single batch.
         updates = []
@@ -364,7 +364,7 @@ class FlowConfig:
 
                     topics = self._collect_flow_topics(cls, repl_template)
                     for topic in topics:
-                        await self.pubsub.ensure_topic(topic)
+                        await self.async_backend.ensure_topic(topic)
 
                     logger.info(
                         f"Ensured topics for existing flow "
@@ -524,7 +524,7 @@ class FlowConfig:
 
             for topic in topics:
                 try:
-                    await self.pubsub.delete_topic(topic)
+                    await self.async_backend.delete_topic(topic)
                 except Exception as e:
                     logger.warning(
                         f"Topic delete failed (attempt {attempt + 1}/"

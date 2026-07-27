@@ -15,13 +15,19 @@ from . types import Triple
 from . exceptions import ProtocolException
 
 
-def _string_to_term(value: str) -> Dict[str, Any]:
+def _string_to_term(
+    value: str, datatype: str = "", language: str = ""
+) -> Dict[str, Any]:
     """Convert a string value to Term format for the gateway."""
-    # Treat URIs as IRI type, otherwise as literal
     if value.startswith("http://") or value.startswith("https://") or "://" in value:
         return {"t": "i", "i": value}
     else:
-        return {"t": "l", "v": value}
+        result: Dict[str, Any] = {"t": "l", "v": value}
+        if datatype:
+            result["dt"] = datatype
+        if language:
+            result["ln"] = language
+        return result
 
 
 class BulkClient:
@@ -141,7 +147,11 @@ class BulkClient:
                 batch.append({
                     "s": _string_to_term(triple.s),
                     "p": _string_to_term(triple.p),
-                    "o": _string_to_term(triple.o)
+                    "o": _string_to_term(
+                        triple.o,
+                        datatype=triple.o_datatype,
+                        language=triple.o_language,
+                    ),
                 })
                 if len(batch) >= batch_size:
                     message = {
@@ -528,7 +538,11 @@ class BulkClient:
             async for raw_message in websocket:
                 yield json.loads(raw_message)
 
-    def import_rows(self, flow: str, rows: Iterator[Dict[str, Any]], **kwargs: Any) -> None:
+    def import_rows(
+        self, flow: str, rows: Iterator[Dict[str, Any]],
+        batch_size: int = 40,
+        **kwargs: Any,
+    ) -> None:
         """
         Bulk import structured rows into a flow.
 
@@ -538,6 +552,7 @@ class BulkClient:
         Args:
             flow: Flow identifier
             rows: Iterator yielding row dictionaries
+            batch_size: Number of rows per batch (default 40)
             **kwargs: Additional parameters (reserved for future use)
 
         Example:
@@ -556,15 +571,31 @@ class BulkClient:
             )
             ```
         """
-        self._run_async(self._import_rows_async(flow, rows))
+        self._run_async(self._import_rows_async(flow, rows, batch_size))
 
-    async def _import_rows_async(self, flow: str, rows: Iterator[Dict[str, Any]]) -> None:
+    async def _import_rows_async(
+        self, flow: str, rows: Iterator[Dict[str, Any]],
+        batch_size: int,
+    ) -> None:
         """Async implementation of rows import"""
         ws_url = self._build_ws_url(f"/api/v1/flow/{flow}/import/rows")
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            batch = []
+            template = None
             for row in rows:
-                await websocket.send(json.dumps(row))
+                if template is None:
+                    template = row
+                batch.append(row.get("values", row))
+                if len(batch) >= batch_size:
+                    message = dict(template)
+                    message["values"] = batch
+                    await websocket.send(json.dumps(message))
+                    batch = []
+            if batch:
+                message = dict(template)
+                message["values"] = batch
+                await websocket.send(json.dumps(message))
 
     def close(self) -> None:
         """Close connections"""

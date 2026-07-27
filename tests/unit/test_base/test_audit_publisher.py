@@ -18,14 +18,10 @@ class TestAuditPublisherInit:
     def test_queue_is_notify_class(self):
         assert audit_events_queue == "notify:tg:audit-events"
 
-    def test_creates_producer_with_audit_queue(self):
-        backend = MagicMock()
+    def test_creates_with_component_name(self):
         pub = AuditPublisher(
-            backend=backend,
             component_name="test-component",
         )
-        assert pub.producer.topic == audit_events_queue
-        assert pub.producer.schema == AuditEvent
         assert pub.component_name == "test-component"
 
 
@@ -33,21 +29,18 @@ class TestAuditPublisherEmit:
 
     @pytest.fixture
     def publisher(self):
-        backend = MagicMock()
         pub = AuditPublisher(
-            backend=backend,
             component_name="test-svc",
-            processor_id="proc-1",
         )
-        pub.producer = AsyncMock()
+        pub._handle = AsyncMock()
         return pub
 
     @pytest.mark.asyncio
     async def test_emit_sends_structured_envelope(self, publisher):
         await publisher.emit("gateway.request", {"path": "/test"})
 
-        publisher.producer.send.assert_called_once()
-        event = publisher.producer.send.call_args[0][0]
+        publisher._handle.send.assert_called_once()
+        event = publisher._handle.send.call_args[0][0]
 
         assert isinstance(event, AuditEvent)
         assert event.schema_version == 1
@@ -61,7 +54,7 @@ class TestAuditPublisherEmit:
         payload = {"method": "POST", "status_code": 200}
         await publisher.emit("gateway.request", payload)
 
-        event = publisher.producer.send.call_args[0][0]
+        event = publisher._handle.send.call_args[0][0]
         decoded = json.loads(event.payload_json)
         assert decoded == payload
 
@@ -72,19 +65,19 @@ class TestAuditPublisherEmit:
 
         ids = [
             call[0][0].event_id
-            for call in publisher.producer.send.call_args_list
+            for call in publisher._handle.send.call_args_list
         ]
         assert ids[0] != ids[1]
 
     @pytest.mark.asyncio
     async def test_emit_swallows_send_failure(self, publisher):
-        publisher.producer.send.side_effect = RuntimeError("pub/sub down")
+        publisher._handle.send.side_effect = RuntimeError("pub/sub down")
         await publisher.emit("test.event", {"key": "value"})
 
     @pytest.mark.asyncio
     async def test_emit_timestamp_is_utc_iso(self, publisher):
         await publisher.emit("test.event", {})
 
-        event = publisher.producer.send.call_args[0][0]
+        event = publisher._handle.send.call_args[0][0]
         assert "T" in event.timestamp
         assert "+" in event.timestamp or "Z" in event.timestamp

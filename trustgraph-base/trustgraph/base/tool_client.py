@@ -1,10 +1,10 @@
 
 import json
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import ToolRequest, ToolResponse
 
-class ToolClient(RequestResponse):
+class ToolClient:
     """
     Client for invoking tools over the flow messaging fabric.
     

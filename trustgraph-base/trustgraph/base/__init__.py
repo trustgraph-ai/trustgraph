@@ -1,10 +1,6 @@
 
-from . pubsub import get_pubsub, add_pubsub_args
+from . pubsub import get_async_pubsub, add_pubsub_args
 from . async_processor import AsyncProcessor
-from . consumer import Consumer
-from . producer import Producer
-from . publisher import Publisher
-from . subscriber import Subscriber
 from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics, SubscriberMetrics
 from . logging import add_logging_args, setup_logging
 from . workspace_processor import WorkspaceProcessor
@@ -12,10 +8,8 @@ from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . parameter_spec import ParameterSpec
 from . producer_spec import ProducerSpec
-from . subscriber_spec import SubscriberSpec
 from . request_response_spec import RequestResponseSpec
 from . llm_service import LlmService, LlmResult, LlmChunk
-from . librarian_client import LibrarianClient
 from . librarian_spec import LibrarianSpec
 from . chunking_service import ChunkingService
 from . embeddings_service import EmbeddingsService
@@ -51,4 +45,11 @@ from . row_embeddings_query_client import RowEmbeddingsQueryClientSpec
 from . collection_config_handler import CollectionConfigHandler
 from . audit_publisher import AuditPublisher
 from . schema_compatibility import is_strict_mode_compatible
+from . async_backend import (
+    AsyncPubSubBackend, AsyncBackendConsumer, AsyncBackendProducer, Message,
+)
+from . receiver_pool import ReceiverPool, ConsumerRegistration
+from . sender_pool import SenderPool, ProducerHandle
+from . request_response_client import RequestResponseClient
+from . async_librarian_client import AsyncLibrarianClient
 

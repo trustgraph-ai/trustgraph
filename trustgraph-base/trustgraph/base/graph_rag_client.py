@@ -1,8 +1,8 @@
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import GraphRagQuery, GraphRagResponse
 
-class GraphRagClient(RequestResponse):
+class GraphRagClient:
     async def rag(self, query, collection="default",
                   chunk_callback=None, explain_callback=None,
                   parent_uri="",

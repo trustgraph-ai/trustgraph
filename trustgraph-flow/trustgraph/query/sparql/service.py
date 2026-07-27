@@ -303,14 +303,6 @@ class Processor(FlowProcessor):
     def add_args(parser):
         FlowProcessor.add_args(parser)
 
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Number of concurrent requests '
-                 f'(default: {default_concurrency})'
-        )
-
 
 def run():
     Processor.launch(default_ident, __doc__)

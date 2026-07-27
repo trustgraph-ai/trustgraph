@@ -40,7 +40,7 @@ class TestDynamicToolServiceInvokeContract:
 
         svc = DynamicToolService.__new__(DynamicToolService)
         svc.id = "test-svc"
-        svc.producer = AsyncMock()
+        svc._producer_handle = AsyncMock()
 
         calls = []
 
@@ -74,7 +74,7 @@ class TestDynamicToolServiceInvokeContract:
 
         svc = DynamicToolService.__new__(DynamicToolService)
         svc.id = "test-svc"
-        svc.producer = AsyncMock()
+        svc._producer_handle = AsyncMock()
 
         async def string_invoke(config, arguments):
             return "hello world"
@@ -90,7 +90,7 @@ class TestDynamicToolServiceInvokeContract:
 
         await svc.on_request(msg, MagicMock(), None)
 
-        sent = svc.producer.send.call_args[0][0]
+        sent = svc._producer_handle.send.call_args[0][0]
         assert isinstance(sent, ToolServiceResponse)
         assert sent.response == "hello world"
         assert sent.end_of_stream is True
@@ -103,7 +103,7 @@ class TestDynamicToolServiceInvokeContract:
 
         svc = DynamicToolService.__new__(DynamicToolService)
         svc.id = "test-svc"
-        svc.producer = AsyncMock()
+        svc._producer_handle = AsyncMock()
 
         async def dict_invoke(config, arguments):
             return {"result": 42}
@@ -119,7 +119,7 @@ class TestDynamicToolServiceInvokeContract:
 
         await svc.on_request(msg, MagicMock(), None)
 
-        sent = svc.producer.send.call_args[0][0]
+        sent = svc._producer_handle.send.call_args[0][0]
         assert json.loads(sent.response) == {"result": 42}
 
     @pytest.mark.asyncio
@@ -129,7 +129,7 @@ class TestDynamicToolServiceInvokeContract:
 
         svc = DynamicToolService.__new__(DynamicToolService)
         svc.id = "test-svc"
-        svc.producer = AsyncMock()
+        svc._producer_handle = AsyncMock()
 
         async def failing_invoke(config, arguments):
             raise ValueError("bad input")
@@ -142,7 +142,7 @@ class TestDynamicToolServiceInvokeContract:
 
         await svc.on_request(msg, MagicMock(), None)
 
-        sent = svc.producer.send.call_args[0][0]
+        sent = svc._producer_handle.send.call_args[0][0]
         assert sent.error is not None
         assert sent.error.type == "tool-service-error"
         assert "bad input" in sent.error.message
@@ -155,7 +155,7 @@ class TestDynamicToolServiceInvokeContract:
 
         svc = DynamicToolService.__new__(DynamicToolService)
         svc.id = "test-svc"
-        svc.producer = AsyncMock()
+        svc._producer_handle = AsyncMock()
 
         async def rate_limited_invoke(config, arguments):
             raise TooManyRequests("rate limited")
@@ -176,7 +176,7 @@ class TestDynamicToolServiceInvokeContract:
 
         svc = DynamicToolService.__new__(DynamicToolService)
         svc.id = "test-svc"
-        svc.producer = AsyncMock()
+        svc._producer_handle = AsyncMock()
 
         async def ok_invoke(config, arguments):
             return "ok"
@@ -192,7 +192,7 @@ class TestDynamicToolServiceInvokeContract:
 
         await svc.on_request(msg, MagicMock(), None)
 
-        props = svc.producer.send.call_args[1]["properties"]
+        props = svc._producer_handle.send.call_args[1]["properties"]
         assert props["id"] == "unique-42"
 
 

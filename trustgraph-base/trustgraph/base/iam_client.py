@@ -1,7 +1,7 @@
 
 import json
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import (
     IamRequest, IamResponse,
     UserInput, WorkspaceInput, ApiKeyInput,
@@ -10,7 +10,7 @@ from .. schema import (
 IAM_TIMEOUT = 10
 
 
-class IamClient(RequestResponse):
+class IamClient:
     """Client for the IAM service request/response pub/sub protocol.
 
     Mirrors ``ConfigClient``: a thin wrapper around ``RequestResponse``

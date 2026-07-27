@@ -12,9 +12,7 @@ from trustgraph.base.flow_processor import FlowProcessor
 # Patches needed to let AsyncProcessor.__init__ run without real
 # infrastructure while still setting self.id correctly.
 ASYNC_PROCESSOR_PATCHES = [
-    patch('trustgraph.base.async_processor.get_pubsub', return_value=MagicMock()),
-    patch('trustgraph.base.async_processor.ProcessorMetrics', return_value=MagicMock()),
-    patch('trustgraph.base.async_processor.Consumer', return_value=MagicMock()),
+    patch('trustgraph.base.async_processor.get_async_pubsub', return_value=MagicMock()),
 ]
 
 

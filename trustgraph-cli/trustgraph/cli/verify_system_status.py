@@ -21,9 +21,7 @@ from typing import Tuple, Optional
 from trustgraph.api import Api
 from trustgraph.i18n import get_translator
 
-default_pulsar_url = "http://localhost:8080"
-default_api_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
-default_ui_url = "http://localhost:8888"
+default_ui_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
@@ -141,22 +139,6 @@ class HealthChecker:
         self.checks_failed += 1
         return False
 
-
-def check_pulsar(url: str, timeout: int, tr) -> Tuple[bool, str]:
-    """Check if Pulsar admin API is responding."""
-    try:
-        resp = requests.get(f"{url}/admin/v2/clusters", timeout=timeout)
-        if resp.status_code == 200:
-            clusters = resp.json()
-            return True, tr.t("cli.verify_system_status.pulsar.healthy", clusters=len(clusters))
-        else:
-            return False, tr.t("cli.verify_system_status.pulsar.status", status_code=resp.status_code)
-    except requests.exceptions.Timeout:
-        return False, tr.t("cli.verify_system_status.pulsar.timeout")
-    except requests.exceptions.ConnectionError:
-        return False, tr.t("cli.verify_system_status.pulsar.cannot_connect")
-    except Exception as e:
-        return False, tr.t("cli.verify_system_status.pulsar.error", error=str(e))
 
 
 def check_api_gateway(url: str, timeout: int, tr, token: Optional[str] = None) -> Tuple[bool, str]:
@@ -348,21 +330,9 @@ def main():
     )
 
     parser.add_argument(
-        '--pulsar-url',
-        default=default_pulsar_url,
-        help=f'Pulsar admin URL (default: {default_pulsar_url})'
-    )
-
-    parser.add_argument(
-        '--api-url',
-        default=default_api_url,
-        help=f'API Gateway URL (default: {default_api_url})'
-    )
-
-    parser.add_argument(
         '--ui-url',
         default=default_ui_url,
-        help=f'Workbench UI URL (default: {default_ui_url})'
+        help=f'TrustGraph URL (default: {default_ui_url})'
     )
 
     parser.add_argument(
@@ -410,13 +380,10 @@ def main():
     # Phase 1: Infrastructure
     print(tr.t("cli.verify_system_status.phase_1"))
     print("-" * 60)
-    # Pulsar check is skipped — not all deployments use Pulsar.
-    # The API Gateway check covers broker connectivity indirectly.
-
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.api_gateway"),
         check_api_gateway,
-        args.api_url,
+        args.ui_url,
         args.check_timeout,
         tr,
         args.token,
@@ -431,7 +398,7 @@ def main():
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.processors"),
         check_processors,
-        args.api_url,
+        args.ui_url,
         args.min_processors,
         args.check_timeout,
         tr,
@@ -441,7 +408,7 @@ def main():
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.flow_blueprints"),
         check_flow_blueprints,
-        args.api_url,
+        args.ui_url,
         args.check_timeout,
         tr,
         args.token,
@@ -451,7 +418,7 @@ def main():
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.flows"),
         check_flows,
-        args.api_url,
+        args.ui_url,
         args.check_timeout,
         tr,
         args.token,
@@ -461,7 +428,7 @@ def main():
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.prompts"),
         check_prompts,
-        args.api_url,
+        args.ui_url,
         args.check_timeout,
         tr,
         args.token,
@@ -477,7 +444,7 @@ def main():
     checker.run_check(
         tr.t("cli.verify_system_status.check_name.library"),
         check_library,
-        args.api_url,
+        args.ui_url,
         args.check_timeout,
         tr,
         args.token,

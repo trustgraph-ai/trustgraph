@@ -87,6 +87,13 @@ def fetch(url, workspace, id, output, token=None):
 
             for response in socket.get_kg_core(id):
 
+                if response.get("error"):
+                    err = response["error"]
+                    print(
+                        f"Error: {err.get('type', 'unknown')}: "
+                        f"{err.get('message', 'Unknown error')}"
+                    )
+
                 if "triples" in response:
                     t += 1
                     write_triple(f, response["triples"])

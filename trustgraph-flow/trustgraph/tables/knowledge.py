@@ -1,18 +1,92 @@
 
+import json
+
 from .. schema import KnowledgeResponse, Triple, Triples, EntityEmbeddings
-from .. schema import Metadata, Term, IRI, LITERAL, GraphEmbeddings
+from .. schema import Metadata, Term, IRI, BLANK, LITERAL, TRIPLE
+from .. schema import GraphEmbeddings
 from .. schema import DocumentEmbeddings, ChunkEmbeddings
 
 from cassandra.cluster import Cluster
 
 from . cassandra_async import async_execute, async_execute_paged
 
+TRIPLE_MARKER = "<<TRIPLE>>"
+BLANK_MARKER = "<<BLANK>>"
+
+
+def _serialize_term(term):
+    if term.type == IRI:
+        return {"t": "i", "i": term.iri}
+    elif term.type == LITERAL:
+        r = {"t": "l", "v": term.value}
+        if term.datatype:
+            r["dt"] = term.datatype
+        if term.language:
+            r["ln"] = term.language
+        return r
+    elif term.type == BLANK:
+        return {"t": "b", "d": term.id}
+    elif term.type == TRIPLE and term.triple:
+        return {"t": "t", "tr": _serialize_triple(term.triple)}
+    return {"t": term.type}
+
+
+def _deserialize_term(data):
+    t = data.get("t", "")
+    if t == "i":
+        return Term(type=IRI, iri=data.get("i", ""))
+    elif t == "l":
+        return Term(
+            type=LITERAL, value=data.get("v", ""),
+            datatype=data.get("dt", ""), language=data.get("ln", ""),
+        )
+    elif t == "b":
+        return Term(type=BLANK, id=data.get("d", ""))
+    elif t == "t":
+        tr = data.get("tr")
+        return Term(
+            type=TRIPLE,
+            triple=_deserialize_triple(tr) if tr else None,
+        )
+    return Term(type=t)
+
+
+def _serialize_triple(triple):
+    r = {}
+    if triple.s:
+        r["s"] = _serialize_term(triple.s)
+    if triple.p:
+        r["p"] = _serialize_term(triple.p)
+    if triple.o:
+        r["o"] = _serialize_term(triple.o)
+    if triple.g:
+        r["g"] = triple.g
+    return r
+
+
+def _deserialize_triple(data):
+    return Triple(
+        s=_deserialize_term(data["s"]) if "s" in data else None,
+        p=_deserialize_term(data["p"]) if "p" in data else None,
+        o=_deserialize_term(data["o"]) if "o" in data else None,
+        g=data.get("g"),
+    )
+
 
 def term_to_tuple(term):
     """Convert Term to (value, is_uri) tuple for database storage."""
     if term.type == IRI:
         return (term.iri, True)
-    else:  # LITERAL
+    elif term.type == TRIPLE:
+        return (
+            TRIPLE_MARKER + json.dumps(
+                _serialize_triple(term.triple), separators=(",", ":")
+            ),
+            False,
+        )
+    elif term.type == BLANK:
+        return (BLANK_MARKER + term.id, False)
+    else:
         return (term.value, False)
 
 
@@ -20,6 +94,13 @@ def tuple_to_term(value, is_uri):
     """Convert (value, is_uri) tuple from database to Term."""
     if is_uri:
         return Term(type=IRI, iri=value)
+    elif value.startswith(TRIPLE_MARKER):
+        triple_data = json.loads(value[len(TRIPLE_MARKER):])
+        return Term(
+            type=TRIPLE, triple=_deserialize_triple(triple_data),
+        )
+    elif value.startswith(BLANK_MARKER):
+        return Term(type=BLANK, id=value[len(BLANK_MARKER):])
     else:
         return Term(type=LITERAL, value=value)
 from cassandra.auth import PlainTextAuthProvider

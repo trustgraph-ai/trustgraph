@@ -19,10 +19,14 @@ class Triple:
         s: Subject (entity URI or value)
         p: Predicate (relationship URI)
         o: Object (entity URI, literal value, or typed value)
+        o_datatype: XSD datatype URI for literal objects (e.g. "xsd:string")
+        o_language: Language tag for literal objects (e.g. "en", "lt")
     """
     s : str
     p : str
     o : str
+    o_datatype : str = ""
+    o_language : str = ""
 
 @dataclasses.dataclass
 class ConfigKey:

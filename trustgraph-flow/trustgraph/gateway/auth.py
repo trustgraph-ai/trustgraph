@@ -28,7 +28,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from ..base.iam_client import IamClient
-from ..base.metrics import ProducerMetrics, SubscriberMetrics
+from ..base.request_response_client import RequestResponseClient
+from ..base.request_response_spec import _make_impl_wrapper
 from ..schema import (
     IamRequest, IamResponse,
     iam_request_queue, iam_response_queue,
@@ -155,33 +156,24 @@ class IamAuth:
     # ghosts from prior calls.
     # ------------------------------------------------------------------
 
-    def _make_client(self):
-        rr_id = str(uuid.uuid4())
-        return IamClient(
+    async def _make_client(self):
+        rr_client = await RequestResponseClient.create(
             backend=self.backend,
-            subscription=f"{self.id}--iam--{rr_id}",
-            consumer_name=self.id,
             request_topic=iam_request_queue,
-            request_schema=IamRequest,
-            request_metrics=ProducerMetrics(
-                processor=self.id, flow=None, name="iam-request",
-            ),
             response_topic=iam_response_queue,
+            request_schema=IamRequest,
             response_schema=IamResponse,
-            response_metrics=SubscriberMetrics(
-                processor=self.id, flow=None, name="iam-response",
-            ),
         )
+        return _make_impl_wrapper(rr_client, IamClient)
 
     async def _with_client(self, op):
         """Open a short-lived IamClient, run ``op(client)``, close."""
-        client = self._make_client()
-        await client.start()
+        client = await self._make_client()
         try:
             return await op(client)
         finally:
             try:
-                await client.stop()
+                await client.close()
             except Exception:
                 pass
 

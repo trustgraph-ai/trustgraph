@@ -73,8 +73,8 @@ def test_consumer_metrics_reuses_singletons_and_records_events(monkeypatch):
     monkeypatch.setattr(metrics, "Histogram", histogram_factory)
     monkeypatch.setattr(metrics, "Counter", counter_factory)
 
-    first = metrics.ConsumerMetrics("proc", "flow", "name")
-    second = metrics.ConsumerMetrics("proc-2", "flow-2", "name-2")
+    first = metrics.ConsumerMetrics("proc", "cons", workspace="ws", flow="fl")
+    second = metrics.ConsumerMetrics("proc-2", "cons-2")
 
     assert enum_factory.call_count == 1
     assert histogram_factory.call_count == 1
@@ -96,7 +96,7 @@ def test_producer_metrics_increments_counter_once(monkeypatch):
     counter_factory.return_value.labels.return_value = labels
     monkeypatch.setattr(metrics, "Counter", counter_factory)
 
-    producer_metrics = metrics.ProducerMetrics("proc", "flow", "output")
+    producer_metrics = metrics.ProducerMetrics("proc", "output")
     producer_metrics.inc()
 
     counter_factory.assert_called_once()
@@ -133,7 +133,7 @@ def test_subscriber_metrics_tracks_received_state_and_dropped(monkeypatch):
     monkeypatch.setattr(metrics, "Enum", enum_factory)
     monkeypatch.setattr(metrics, "Counter", counter_factory)
 
-    subscriber_metrics = metrics.SubscriberMetrics("proc", "flow", "input")
+    subscriber_metrics = metrics.SubscriberMetrics("proc", "input")
     subscriber_metrics.received()
     subscriber_metrics.state("running")
     subscriber_metrics.dropped("ignored")

@@ -200,13 +200,6 @@ class Processor(FlowProcessor):
         FlowProcessor.add_args(parser)
         add_qdrant_args(parser)
 
-        parser.add_argument(
-            '-c', '--concurrency',
-            type=int,
-            default=default_concurrency,
-            help=f'Number of concurrent requests (default: {default_concurrency})'
-        )
-
 
 def run():
     """Entry point for row-embeddings-query-qdrant command"""

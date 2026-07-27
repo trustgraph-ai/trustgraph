@@ -44,15 +44,21 @@ class KnowledgeLoader:
         for e in g:
             s_value = str(e[0])
             p_value = str(e[1])
+            o_value = str(e[2])
 
-            if isinstance(e[2], rdflib.term.URIRef):
-                o_value = str(e[2])
-                o_is_uri = True
-            else:
-                o_value = str(e[2])
-                o_is_uri = False
+            o_datatype = ""
+            o_language = ""
 
-            yield Triple(s=s_value, p=p_value, o=o_value)
+            if isinstance(e[2], rdflib.term.Literal):
+                if e[2].language:
+                    o_language = str(e[2].language)
+                if e[2].datatype:
+                    o_datatype = str(e[2].datatype)
+
+            yield Triple(
+                s=s_value, p=p_value, o=o_value,
+                o_datatype=o_datatype, o_language=o_language,
+            )
 
     def load_entity_contexts_from_file(self, file) -> Iterator[Tuple[str, str]]:
         """Generator that yields (entity, context) tuples from a Turtle file"""

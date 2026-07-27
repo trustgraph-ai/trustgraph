@@ -1,0 +1,57 @@
+
+# ----------------------------------------------------------------------------
+# Base container with system dependencies
+# ----------------------------------------------------------------------------
+
+FROM docker.io/fedora:42 AS base
+
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+# This is cached, same as other containers
+RUN dnf install -y python3.11 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.11 1 && \
+  python -m ensurepip --upgrade && \
+  pip3 install --no-cache-dir --upgrade 'pip>=26.0' 'setuptools>=78.1.1' && \
+  pip3 install --no-cache-dir build wheel aiohttp && \
+  pip3 install --no-cache-dir pulsar-client==3.11.0 && \
+  dnf clean all
+
+# Installs local to me
+RUN pip install --no-cache-dir \
+  torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+RUN dnf install -y libxcb mesa-libGL && \
+  dnf clean all
+
+# ----------------------------------------------------------------------------
+# Build a container which contains the built Python packages.  The build
+# creates a bunch of left-over cruft, a separate phase means this is only
+# needed to support package build
+# ----------------------------------------------------------------------------
+
+FROM base AS build
+
+COPY trustgraph-base/ /root/build/trustgraph-base/
+COPY trustgraph-docling/ /root/build/trustgraph-docling/
+
+WORKDIR /root/build/
+
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-docling/
+
+RUN ls /root/wheels
+
+# ----------------------------------------------------------------------------
+# Finally, the target container.  Start with base and add the package.
+# ----------------------------------------------------------------------------
+
+FROM base
+
+COPY --from=build /root/wheels /root/wheels
+
+RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_docling-* && \
+    rm -rf /root/wheels
+
+WORKDIR /

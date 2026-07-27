@@ -122,10 +122,16 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     fields=fields
                 )
 
+                vector_indexes = set(schema_def.get("vector-indexes", []))
+                for field in fields:
+                    if field.name in vector_indexes:
+                        field.indexed = True
+
                 ws_schemas[schema_name] = row_schema
                 logger.info(
                     f"Loaded schema: {schema_name} with "
-                    f"{len(fields)} fields for {workspace}"
+                    f"{len(fields)} fields, {len(vector_indexes)} vector-indexed "
+                    f"for {workspace}"
                 )
 
             except Exception as e:
@@ -140,7 +146,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """Get all index names for a schema."""
         index_names = []
         for field in schema.fields:
-            if field.primary or field.indexed:
+            if field.indexed:
                 index_names.append(field.name)
         return index_names
 

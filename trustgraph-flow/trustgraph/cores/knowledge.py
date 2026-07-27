@@ -5,7 +5,6 @@ from .. schema import LibrarianRequest, DocumentMetadata
 from .. knowledge import hash
 from .. exceptions import RequestError
 from .. tables.knowledge import KnowledgeTableStore
-from .. base import Publisher
 
 import base64
 import asyncio
@@ -15,11 +14,24 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
+
+async def _librarian_error(respond, message):
+    await respond(
+        KnowledgeResponse(
+            error=Error(
+                type="librarian-error",
+                message=message,
+            ),
+        )
+    )
+
+
 class KnowledgeManager:
 
     def __init__(
             self, cassandra_host, cassandra_username, cassandra_password,
-            keyspace, flow_config, librarian=None, replication_factor=1,
+            keyspace, flow_config, librarian_clients=None,
+            replication_factor=1,
     ):
 
         self.table_store = KnowledgeTableStore(
@@ -27,7 +39,7 @@ class KnowledgeManager:
             replication_factor
         )
 
-        self.librarian = librarian
+        self.librarian_clients = librarian_clients if librarian_clients is not None else {}
         self._pending_library_metadata = {}
 
         self.loader_queue = asyncio.Queue(maxsize=20)
@@ -90,8 +102,19 @@ class KnowledgeManager:
             publish_ge,
         )
 
-        if self.librarian:
-            await self._stream_library_docs(request.id, respond)
+        librarian = self.librarian_clients.get(workspace)
+        if librarian is None:
+            logger.error(
+                f"No librarian client for workspace {workspace}"
+            )
+            await _librarian_error(
+                respond,
+                f"No librarian client for workspace {workspace}",
+            )
+        else:
+            await self._stream_library_docs(
+                librarian, request.id, respond,
+            )
 
         logger.debug("Knowledge core retrieval complete")
 
@@ -129,11 +152,22 @@ class KnowledgeManager:
                 workspace, request.graph_embeddings
             )
 
-        if request.library_metadata and self.librarian:
-            await self._put_library_metadata(request.library_metadata, workspace)
+        librarian = self.librarian_clients.get(workspace)
 
-        if request.library_blob and self.librarian:
-            await self._put_library_blob(request.library_blob, workspace)
+        if request.library_metadata or request.library_blob:
+            if librarian is None:
+                logger.error(
+                    f"No librarian client for workspace {workspace}"
+                )
+            else:
+                if request.library_metadata:
+                    await self._put_library_metadata(
+                        request.library_metadata, workspace,
+                    )
+                if request.library_blob:
+                    await self._put_library_blob(
+                        librarian, request.library_blob, workspace,
+                    )
 
         await respond(
             KnowledgeResponse(
@@ -263,36 +297,42 @@ class KnowledgeManager:
 
         await self.loader_queue.put((request, respond, workspace))
 
-    async def _stream_library_docs(self, document_id, respond):
+    async def _stream_library_docs(self, librarian, document_id, respond):
 
         try:
-            root_meta = await self.librarian.fetch_document_metadata(
+            root_meta = await librarian.fetch_document_metadata(
                 document_id
             )
         except Exception as e:
             logger.warning(f"Could not fetch library metadata for {document_id}: {e}")
+            await _librarian_error(respond, str(e))
             return
 
         if root_meta is None:
             return
 
-        await self._stream_one_doc(root_meta, respond)
+        await self._stream_doc_tree(librarian, root_meta, respond)
+
+    async def _stream_doc_tree(self, librarian, doc_meta, respond):
+
+        await self._stream_one_doc(librarian, doc_meta, respond)
 
         try:
-            resp = await self.librarian.request(
+            resp = await librarian.request(
                 LibrarianRequest(
                     operation="list-children",
-                    document_id=document_id,
+                    document_id=doc_meta.id,
                 )
             )
         except Exception as e:
-            logger.warning(f"Could not list children for {document_id}: {e}")
+            logger.warning(f"Could not list children for {doc_meta.id}: {e}")
+            await _librarian_error(respond, str(e))
             return
 
         for child_meta in resp.document_metadatas:
-            await self._stream_one_doc(child_meta, respond)
+            await self._stream_doc_tree(librarian, child_meta, respond)
 
-    async def _stream_one_doc(self, doc_meta, respond):
+    async def _stream_one_doc(self, librarian, doc_meta, respond):
 
         lm = LibraryMetadata(
             id=doc_meta.id,
@@ -309,11 +349,12 @@ class KnowledgeManager:
         )
 
         try:
-            content = await self.librarian.fetch_document_content(
+            content = await librarian.fetch_document_content(
                 doc_meta.id
             )
         except Exception as e:
             logger.warning(f"Could not fetch content for {doc_meta.id}: {e}")
+            await _librarian_error(respond, str(e))
             return
 
         await respond(
@@ -328,7 +369,7 @@ class KnowledgeManager:
     async def _put_library_metadata(self, lm, workspace):
         self._pending_library_metadata[lm.id] = lm
 
-    async def _put_library_blob(self, lb, workspace):
+    async def _put_library_blob(self, librarian, lb, workspace):
 
         lm = self._pending_library_metadata.pop(lb.id, None)
         if lm is None:
@@ -353,7 +394,7 @@ class KnowledgeManager:
             operation = "add-document"
 
         try:
-            await self.librarian.request(
+            await librarian.request(
                 LibrarianRequest(
                     operation=operation,
                     document_id=lm.id,
@@ -449,32 +490,25 @@ class KnowledgeManager:
             )
         )
 
-        t_pub = None
-        ge_pub = None
+        t_prod = None
+        ge_prod = None
 
         try:
 
             logger.debug(f"Triples queue: {t_q}")
             logger.debug(f"Graph embeddings queue: {ge_q}")
 
-            t_pub = Publisher(
-                self.flow_config.pubsub, t_q,
-                schema=Triples,
+            t_prod = await self.flow_config.pubsub.create_producer(
+                topic=t_q, schema=Triples,
             )
-            ge_pub = Publisher(
-                self.flow_config.pubsub, ge_q,
-                schema=GraphEmbeddings
+            ge_prod = await self.flow_config.pubsub.create_producer(
+                topic=ge_q, schema=GraphEmbeddings,
             )
-
-            logger.debug("Starting publishers...")
-
-            await t_pub.start()
-            await ge_pub.start()
 
             async def publish_triples(t):
                 if hasattr(t, 'metadata') and hasattr(t.metadata, 'collection'):
                     t.metadata.collection = request.collection or "default"
-                await t_pub.send(None, t)
+                await t_prod.send(t)
 
             logger.debug("Publishing triples...")
 
@@ -487,7 +521,7 @@ class KnowledgeManager:
             async def publish_ge(g):
                 if hasattr(g, 'metadata') and hasattr(g.metadata, 'collection'):
                     g.metadata.collection = request.collection or "default"
-                await ge_pub.send(None, g)
+                await ge_prod.send(g)
 
             logger.debug("Publishing graph embeddings...")
 
@@ -505,10 +539,8 @@ class KnowledgeManager:
 
         finally:
 
-            logger.debug("Stopping publishers...")
-
-            if t_pub: await t_pub.stop()
-            if ge_pub: await ge_pub.stop()
+            if t_prod: await t_prod.close()
+            if ge_prod: await ge_prod.close()
 
     async def _load_de_core(self, request, respond, workspace, flow):
 
@@ -527,25 +559,20 @@ class KnowledgeManager:
             )
         )
 
-        de_pub = None
+        de_prod = None
 
         try:
 
             logger.debug(f"Document embeddings queue: {de_q}")
 
-            de_pub = Publisher(
-                self.flow_config.pubsub, de_q,
-                schema=DocumentEmbeddings,
+            de_prod = await self.flow_config.pubsub.create_producer(
+                topic=de_q, schema=DocumentEmbeddings,
             )
-
-            logger.debug("Starting publisher...")
-
-            await de_pub.start()
 
             async def publish_de(de):
                 if hasattr(de, 'metadata') and hasattr(de.metadata, 'collection'):
                     de.metadata.collection = request.collection or "default"
-                await de_pub.send(None, de)
+                await de_prod.send(de)
 
             logger.debug("Publishing document embeddings...")
 
@@ -563,6 +590,4 @@ class KnowledgeManager:
 
         finally:
 
-            logger.debug("Stopping publisher...")
-
-            if de_pub: await de_pub.stop()
+            if de_prod: await de_prod.close()

@@ -277,13 +277,11 @@ class ToolServiceImpl:
 
         request_metrics = ProducerMetrics(
             processor=self.processor.id,
-            flow="tool-service",
-            name=self.request_queue
+            producer=self.request_queue,
         )
         response_metrics = SubscriberMetrics(
             processor=self.processor.id,
-            flow="tool-service",
-            name=self.response_queue
+            subscriber=self.response_queue,
         )
 
         # Create unique subscription for responses

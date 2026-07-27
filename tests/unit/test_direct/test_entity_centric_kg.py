@@ -99,8 +99,8 @@ class TestEntityCentricKnowledgeGraph:
         # Verify batch was executed
         mock_session.execute.assert_called()
 
-    def test_insert_literal_object_creates_3_entity_rows(self, entity_kg):
-        """Test that inserting a quad with literal object creates 3 entity rows"""
+    def test_insert_literal_object_creates_4_rows(self, entity_kg):
+        """Test that inserting a quad with literal object creates S+P+O entity rows + collection"""
         kg, mock_session = entity_kg
 
         mock_session.reset_mock()

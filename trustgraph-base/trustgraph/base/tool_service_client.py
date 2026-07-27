@@ -2,13 +2,13 @@
 import json
 import logging
 
-from . request_response_spec import RequestResponse, RequestResponseSpec
+from . request_response_spec import RequestResponseSpec
 from .. schema import ToolServiceRequest, ToolServiceResponse
 
 logger = logging.getLogger(__name__)
 
 
-class ToolServiceClient(RequestResponse):
+class ToolServiceClient:
     """Client for invoking dynamically configured tool services."""
 
     async def call(self, config, arguments, timeout=600):

@@ -14,11 +14,9 @@ from trustgraph.schema import DocumentEmbeddingsRequest, DocumentEmbeddingsRespo
 class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
     """Test async document embeddings client functionality"""
 
-    @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
-    async def test_query_success_with_chunks(self, mock_parent_init):
+    async def test_query_success_with_chunks(self):
         """Test successful query returning chunks"""
         # Arrange
-        mock_parent_init.return_value = None
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
@@ -46,11 +44,9 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         assert call_args.limit == 10
         assert call_args.collection == "test_collection"
 
-    @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
-    async def test_query_with_error_raises_exception(self, mock_parent_init):
+    async def test_query_with_error_raises_exception(self):
         """Test query raises RuntimeError when response contains error"""
         # Arrange
-        mock_parent_init.return_value = None
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = MagicMock()
@@ -65,11 +61,9 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
                 limit=5
             )
 
-    @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
-    async def test_query_with_empty_chunks(self, mock_parent_init):
+    async def test_query_with_empty_chunks(self):
         """Test query with empty chunks list"""
         # Arrange
-        mock_parent_init.return_value = None
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
@@ -83,11 +77,9 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         # Assert
         assert result == []
 
-    @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
-    async def test_query_with_default_parameters(self, mock_parent_init):
+    async def test_query_with_default_parameters(self):
         """Test query uses correct default parameters"""
         # Arrange
-        mock_parent_init.return_value = None
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
@@ -104,11 +96,9 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         assert call_args.limit == 20  # Default limit
         assert call_args.collection == "default"  # Default collection
 
-    @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
-    async def test_query_with_custom_timeout(self, mock_parent_init):
+    async def test_query_with_custom_timeout(self):
         """Test query passes custom timeout to request"""
         # Arrange
-        mock_parent_init.return_value = None
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
@@ -125,11 +115,9 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         # Assert
         assert client.request.call_args[1]["timeout"] == 60
 
-    @patch('trustgraph.base.request_response_spec.RequestResponse.__init__')
-    async def test_query_logging(self, mock_parent_init):
+    async def test_query_logging(self):
         """Test query logs response for debugging"""
         # Arrange
-        mock_parent_init.return_value = None
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None

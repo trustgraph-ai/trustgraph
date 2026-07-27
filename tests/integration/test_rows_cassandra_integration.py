@@ -108,6 +108,7 @@ class TestRowsCassandraIntegration:
         processor.ensure_tables = Processor.ensure_tables.__get__(processor, Processor)
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.get_index_names = Processor.get_index_names.__get__(processor, Processor)
+        processor.get_row_id = Processor.get_row_id.__get__(processor, Processor)
         processor.build_index_value = Processor.build_index_value.__get__(processor, Processor)
         processor.register_partitions = Processor.register_partitions.__get__(processor, Processor)
         processor._apply_schema_config = Processor._apply_schema_config.__get__(processor, Processor)
@@ -477,9 +478,9 @@ class TestRowsCassandraIntegration:
             # Check that data is passed as a dict (will be map in Cassandra)
             insert_call = rows_insert_calls[0]
             values = insert_call[0][1]
-            # Values are: (collection, schema_name, index_name, index_value, data, source)
-            # values[4] should be the data map
-            data_map = values[4]
+            # Values are: (collection, schema_name, index_name, index_value, row_id, data, source)
+            # values[5] should be the data map
+            data_map = values[5]
             assert isinstance(data_map, dict)
             assert data_map["id"] == "123"
             assert data_map["name"] == "Test Item"

@@ -4,9 +4,10 @@ Cross-layer wiring contract for the Document-RAG reranker (issue #878).
 The Document-RAG processor registers a ``RerankerClientSpec`` for the
 ``reranker-request`` / ``reranker-response`` roles (see
 ``retrieval/document_rag/rag.py``). At flow construction every spec runs
-``spec.add(flow, processor, definition)``, and ``RequestResponseSpec.add``
-resolves its topics via ``definition["topics"][name]`` - which raises
-``KeyError`` if the flow blueprint does not provide those topics.
+``await spec.register(flow, processor, definition)``, and
+``RequestResponseSpec.register`` resolves its topics via
+``definition["topics"][name]`` - which raises ``KeyError`` if the flow
+blueprint does not provide those topics.
 
 This means the monorepo code change is only safe to deploy together with the
 companion ``trustgraph-templates`` change that wires ``reranker-request`` /
@@ -20,12 +21,12 @@ contract from the monorepo side:
     KeyError naming the missing role - documenting exactly why the templates
     change is required.
 
-No broker/network: the pub/sub backend is mocked (topics are bound at add()
-time, connections happen later at start()).
+No broker/network: the pub/sub backend is mocked (topics are bound at
+register() time, connections happen later at start()).
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from trustgraph.base import RerankerClientSpec
 
@@ -42,6 +43,7 @@ def _flow():
 def _processor():
     p = MagicMock()
     p.pubsub = MagicMock()
+    p.async_backend = AsyncMock()
     p.id = "proc1"
     p.taskgroup = MagicMock()
     return p
@@ -74,16 +76,19 @@ DEFINITION_WITHOUT_RERANKER = {
 }
 
 
-def test_reranker_client_binds_when_flow_provides_topics():
+@pytest.mark.asyncio
+async def test_reranker_client_binds_when_flow_provides_topics():
     flow = _flow()
-    _spec().add(flow, _processor(), DEFINITION_WITH_RERANKER)
-    # The client consumer is registered against the reranker role.
+    with patch(
+        "trustgraph.base.request_response_client.RequestResponseClient"
+    ) as mock_rrc:
+        mock_rrc.create = AsyncMock(return_value=AsyncMock())
+        await _spec().register(flow, _processor(), DEFINITION_WITH_RERANKER)
     assert "reranker-request" in flow.consumer
 
 
-def test_reranker_client_keyerrors_without_companion_template_topics():
+@pytest.mark.asyncio
+async def test_reranker_client_keyerrors_without_companion_template_topics():
     with pytest.raises(KeyError) as exc:
-        _spec().add(_flow(), _processor(), DEFINITION_WITHOUT_RERANKER)
-    # Fails fast naming the missing role -> the trustgraph-templates companion
-    # change (wire reranker-request/response into the document-rag flow) is required.
+        await _spec().register(_flow(), _processor(), DEFINITION_WITHOUT_RERANKER)
     assert "reranker-request" in str(exc.value)

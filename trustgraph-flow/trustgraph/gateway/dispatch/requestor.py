@@ -1,10 +1,8 @@
 
 import asyncio
-import uuid
 import logging
 
-from ... base import Publisher
-from ... base import Subscriber
+from ... base.request_response_client import RequestResponseClient
 
 logger = logging.getLogger("requestor")
 logger.setLevel(logging.INFO)
@@ -20,30 +18,30 @@ class ServiceRequestor:
             timeout=600,
     ):
 
-        self.pub = Publisher(
-            backend, request_queue,
-            schema=request_schema,
-        )
-
-        self.sub = Subscriber(
-            backend, response_queue,
-            subscription, consumer_name,
-            response_schema
-        )
-
+        self.backend = backend
+        self.request_queue = request_queue
+        self.request_schema = request_schema
+        self.response_queue = response_queue
+        self.response_schema = response_schema
         self.timeout = timeout
-
+        self.client = None
         self.running = True
 
     async def start(self):
         self.running = True
-        await self.sub.start()
-        await self.pub.start()
+        self.client = await RequestResponseClient.create(
+            backend=self.backend,
+            request_topic=self.request_queue,
+            response_topic=self.response_queue,
+            request_schema=self.request_schema,
+            response_schema=self.response_schema,
+        )
 
     async def stop(self):
-        await self.pub.stop()
-        await self.sub.stop()
         self.running = False
+        if self.client:
+            await self.client.close()
+            self.client = None
 
     def to_request(self, request):
         raise RuntimeError("Not defined")
@@ -53,40 +51,41 @@ class ServiceRequestor:
 
     async def process(self, request, responder=None):
 
-        id = str(uuid.uuid4())
-
         try:
 
-            q = await self.sub.subscribe(id)
+            if responder is None:
+                resp = await self.client.request(
+                    self.to_request(request),
+                    timeout=self.timeout,
+                )
 
-            await self.pub.send(id, self.to_request(request))
+                if resp.error:
+                    return { "error": {
+                        "type": resp.error.type,
+                        "message": resp.error.message,
+                    } }
 
-            while self.running:
+                result, fin = self.from_response(resp)
+                return result
 
-                try:
-                    resp = await asyncio.wait_for(
-                        q.get(), timeout=self.timeout
-                    )
-                except Exception as e:
-                    logger.error(f"Request timeout exception: {e}", exc_info=True)
-                    raise RuntimeError("Timeout")
+            async for resp in self.client.request_stream(
+                self.to_request(request),
+                timeout=self.timeout,
+            ):
 
                 if resp.error:
                     err = { "error": {
                         "type": resp.error.type,
                         "message": resp.error.message,
                     } }
-                    if responder:
-                        await responder(err, True)
+                    await responder(err, True)
                     return err
 
-                resp, fin = self.from_response(resp)
-
-                if responder:
-                    await responder(resp, fin)
+                result, fin = self.from_response(resp)
+                await responder(result, fin)
 
                 if fin:
-                    return resp
+                    return result
 
         except Exception as e:
 
@@ -99,7 +98,4 @@ class ServiceRequestor:
             if responder:
                 await responder(err, True)
             return err
-
-        finally:
-            await self.sub.unsubscribe(id)
 
