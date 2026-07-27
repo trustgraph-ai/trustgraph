@@ -5,8 +5,6 @@ from .. schema import LibrarianRequest, DocumentMetadata
 from .. knowledge import hash
 from .. exceptions import RequestError
 from .. tables.knowledge import KnowledgeTableStore
-from .. base import Publisher
-
 import base64
 import asyncio
 import uuid
@@ -491,32 +489,25 @@ class KnowledgeManager:
             )
         )
 
-        t_pub = None
-        ge_pub = None
+        t_prod = None
+        ge_prod = None
 
         try:
 
             logger.debug(f"Triples queue: {t_q}")
             logger.debug(f"Graph embeddings queue: {ge_q}")
 
-            t_pub = Publisher(
-                self.flow_config.pubsub, t_q,
-                schema=Triples,
+            t_prod = await self.flow_config.pubsub.create_producer(
+                topic=t_q, schema=Triples,
             )
-            ge_pub = Publisher(
-                self.flow_config.pubsub, ge_q,
-                schema=GraphEmbeddings
+            ge_prod = await self.flow_config.pubsub.create_producer(
+                topic=ge_q, schema=GraphEmbeddings,
             )
-
-            logger.debug("Starting publishers...")
-
-            await t_pub.start()
-            await ge_pub.start()
 
             async def publish_triples(t):
                 if hasattr(t, 'metadata') and hasattr(t.metadata, 'collection'):
                     t.metadata.collection = request.collection or "default"
-                await t_pub.send(None, t)
+                await t_prod.send(t)
 
             logger.debug("Publishing triples...")
 
@@ -529,7 +520,7 @@ class KnowledgeManager:
             async def publish_ge(g):
                 if hasattr(g, 'metadata') and hasattr(g.metadata, 'collection'):
                     g.metadata.collection = request.collection or "default"
-                await ge_pub.send(None, g)
+                await ge_prod.send(g)
 
             logger.debug("Publishing graph embeddings...")
 
@@ -547,10 +538,10 @@ class KnowledgeManager:
 
         finally:
 
-            logger.debug("Stopping publishers...")
+            logger.debug("Closing producers...")
 
-            if t_pub: await t_pub.stop()
-            if ge_pub: await ge_pub.stop()
+            if t_prod: await t_prod.close()
+            if ge_prod: await ge_prod.close()
 
     async def _load_de_core(self, request, respond, workspace, flow):
 
@@ -569,25 +560,20 @@ class KnowledgeManager:
             )
         )
 
-        de_pub = None
+        de_prod = None
 
         try:
 
             logger.debug(f"Document embeddings queue: {de_q}")
 
-            de_pub = Publisher(
-                self.flow_config.pubsub, de_q,
-                schema=DocumentEmbeddings,
+            de_prod = await self.flow_config.pubsub.create_producer(
+                topic=de_q, schema=DocumentEmbeddings,
             )
-
-            logger.debug("Starting publisher...")
-
-            await de_pub.start()
 
             async def publish_de(de):
                 if hasattr(de, 'metadata') and hasattr(de.metadata, 'collection'):
                     de.metadata.collection = request.collection or "default"
-                await de_pub.send(None, de)
+                await de_prod.send(de)
 
             logger.debug("Publishing document embeddings...")
 
@@ -605,6 +591,6 @@ class KnowledgeManager:
 
         finally:
 
-            logger.debug("Stopping publisher...")
+            logger.debug("Closing producer...")
 
-            if de_pub: await de_pub.stop()
+            if de_prod: await de_prod.close()
