@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 
+import time
 import logging
+from prometheus_client import Counter, Histogram
 
 from .. schema import (
     RerankerRequest, RerankerResponse, RerankerResult, Error,
@@ -50,6 +52,26 @@ class RerankerService(FlowProcessor):
             )
         )
 
+        if not hasattr(__class__, "reranker_request_metric"):
+            from . metrics import BUCKETS_STANDARD
+            __class__.reranker_request_metric = Counter(
+                'tg_reranker_request_total',
+                'Reranker requests per model',
+                ["processor", "model"],
+            )
+            __class__.reranker_duration_metric = Histogram(
+                'tg_reranker_duration_seconds',
+                'Rerank call latency (seconds)',
+                ["processor", "model"],
+                buckets=BUCKETS_STANDARD,
+            )
+            __class__.reranker_result_count_metric = Histogram(
+                'tg_reranker_result_count',
+                'Number of results per rerank call',
+                ["processor", "model"],
+                buckets=[1, 2, 5, 10, 20, 50, 100],
+            )
+
     async def on_request(self, msg, consumer, flow):
 
         try:
@@ -61,9 +83,22 @@ class RerankerService(FlowProcessor):
             logger.debug(f"Handling reranker request {id}...")
 
             model = flow("model")
+            model_label = str(model) if model else ""
+
+            t0 = time.monotonic()
             results = await self.on_rerank(
                 request.queries, request.documents,
                 request.limit, model=model,
+            )
+            duration = time.monotonic() - t0
+
+            labels = dict(processor=self.id, model=model_label)
+            __class__.reranker_request_metric.labels(**labels).inc()
+            __class__.reranker_duration_metric.labels(**labels).observe(
+                duration,
+            )
+            __class__.reranker_result_count_metric.labels(**labels).observe(
+                len(results),
             )
 
             await flow("response").send(

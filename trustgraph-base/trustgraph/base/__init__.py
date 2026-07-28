@@ -1,7 +1,8 @@
 
 from . pubsub import get_async_pubsub, add_pubsub_args
 from . async_processor import AsyncProcessor
-from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics, SubscriberMetrics
+from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics, DownstreamMetrics
+from . metrics import BUCKETS_STANDARD, BUCKETS_LLM, BUCKETS_SESSION
 from . logging import add_logging_args, setup_logging
 from . workspace_processor import WorkspaceProcessor
 from . flow_processor import FlowProcessor

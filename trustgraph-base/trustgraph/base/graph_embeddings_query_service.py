@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 
+import time
 import logging
+from prometheus_client import Histogram
 
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .. schema import Error, Term
@@ -49,6 +51,21 @@ class GraphEmbeddingsQueryService(FlowProcessor):
             )
         )
 
+        if not hasattr(__class__, "query_duration_metric"):
+            from . metrics import BUCKETS_STANDARD
+            __class__.query_duration_metric = Histogram(
+                'tg_graph_embeddings_query_duration_seconds',
+                'Graph embeddings query backend latency (seconds)',
+                ["processor"],
+                buckets=BUCKETS_STANDARD,
+            )
+            __class__.query_result_count_metric = Histogram(
+                'tg_graph_embeddings_query_result_count',
+                'Number of entities returned per query',
+                ["processor"],
+                buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000],
+            )
+
     async def on_message(self, msg, consumer, flow):
 
         try:
@@ -60,9 +77,16 @@ class GraphEmbeddingsQueryService(FlowProcessor):
 
             logger.debug(f"Handling graph embeddings query request {id}...")
 
+            t0 = time.monotonic()
             entities = await self.query_graph_embeddings(
                 flow.workspace, request,
             )
+            __class__.query_duration_metric.labels(
+                processor=self.id,
+            ).observe(time.monotonic() - t0)
+            __class__.query_result_count_metric.labels(
+                processor=self.id,
+            ).observe(len(entities))
 
             logger.debug("Sending graph embeddings query response...")
             r = GraphEmbeddingsResponse(entities=entities, error=None)

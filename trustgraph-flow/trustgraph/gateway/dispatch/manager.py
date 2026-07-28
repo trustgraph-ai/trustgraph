@@ -309,6 +309,7 @@ class DispatcherManager:
                         request_queue = request_queue,
                         response_queue = response_queue,
                     )
+                    dispatcher.service_kind = kind
 
                     await dispatcher.start()
                     self.dispatchers[key] = dispatcher
@@ -464,6 +465,7 @@ class DispatcherManager:
                             consumer = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                             subscriber = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
                         )
+                        dispatcher.service_kind = kind
                     elif kind in sender_dispatchers:
                         dispatcher = sender_dispatchers[kind](
                             backend = self.backend,

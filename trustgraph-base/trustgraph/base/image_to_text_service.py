@@ -72,22 +72,17 @@ class ImageToTextService(FlowProcessor):
         )
 
         if not hasattr(__class__, "image_to_text_metric"):
+            from . metrics import BUCKETS_LLM
             __class__.image_to_text_metric = Histogram(
-                'image_to_text_duration',
+                'tg_image_to_text_duration_seconds',
                 'Image-to-text duration (seconds)',
                 ["processor"],
-                buckets=[
-                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
-                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
-                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
-                    120.0
-                ]
+                buckets=BUCKETS_LLM,
             )
 
         if not hasattr(__class__, "image_to_text_model_metric"):
             __class__.image_to_text_model_metric = Info(
-                'image_to_text_model',
+                'tg_image_to_text_model',
                 'Image-to-text model',
                 ["processor"]
             )

@@ -56,7 +56,7 @@ class DynamicToolService(AsyncProcessor):
 
         if not hasattr(__class__, "tool_service_metric"):
             __class__.tool_service_metric = Counter(
-                'dynamic_tool_service_invocation_count',
+                'tg_dynamic_tool_service_invocation_total',
                 'Dynamic tool service invocation count',
                 ["processor"],
             )

@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 
 import time
 import logging
+from prometheus_client import Counter, Histogram
 
 from .. schema import EmbeddingsRequest, EmbeddingsResponse, Error
 from .. exceptions import TooManyRequests
@@ -53,6 +54,26 @@ class EmbeddingsService(FlowProcessor):
             )
         )
 
+        if not hasattr(__class__, "embeddings_request_metric"):
+            from . metrics import BUCKETS_STANDARD
+            __class__.embeddings_request_metric = Counter(
+                'tg_embeddings_request_total',
+                'Embeddings requests per model',
+                ["processor", "model"],
+            )
+            __class__.embeddings_duration_metric = Histogram(
+                'tg_embeddings_duration_seconds',
+                'Embeddings call latency (seconds)',
+                ["processor", "model"],
+                buckets=BUCKETS_STANDARD,
+            )
+            __class__.embeddings_batch_size_metric = Histogram(
+                'tg_embeddings_batch_size',
+                'Number of texts per embedding request',
+                ["processor", "model"],
+                buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000],
+            )
+
     async def on_request(self, msg, consumer, flow):
 
         try:
@@ -65,9 +86,21 @@ class EmbeddingsService(FlowProcessor):
 
             logger.debug(f"Handling embeddings request {id}...")
 
-            # Pass model from request if specified (non-empty), otherwise use default
             model = flow("model")
+            model_label = str(model) if model else ""
+
+            t0 = time.monotonic()
             vectors = await self.on_embeddings(request.texts, model=model)
+            duration = time.monotonic() - t0
+
+            labels = dict(processor=self.id, model=model_label)
+            __class__.embeddings_request_metric.labels(**labels).inc()
+            __class__.embeddings_duration_metric.labels(**labels).observe(
+                duration,
+            )
+            __class__.embeddings_batch_size_metric.labels(**labels).observe(
+                len(request.texts),
+            )
 
             await flow("response").send(
                 EmbeddingsResponse(

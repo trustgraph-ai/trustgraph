@@ -6,7 +6,9 @@ Extracts ontology-conformant triples from text chunks.
 import json
 import logging
 import asyncio
+import time
 from typing import List, Dict, Any, Optional
+from prometheus_client import Counter, Histogram, Gauge
 
 from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from .... schema import EntityContext, EntityContexts
@@ -67,6 +69,52 @@ class Processor(FlowProcessor):
                 "concurrency": concurrency,
             }
         )
+
+        if not hasattr(__class__, "extraction_duration_metric"):
+            from trustgraph.base.metrics import BUCKETS_LLM, BUCKETS_STANDARD
+            __class__.extraction_duration_metric = Histogram(
+                'tg_extraction_duration_seconds',
+                'Wall-clock time per chunk extraction',
+                ["processor", "extractor"],
+                buckets=BUCKETS_LLM,
+            )
+            __class__.extraction_triple_metric = Counter(
+                'tg_extraction_triple_total',
+                'Triples produced per extractor',
+                ["processor", "extractor"],
+            )
+            __class__.extraction_empty_metric = Counter(
+                'tg_extraction_empty_total',
+                'Chunks that yielded zero extractions',
+                ["processor", "extractor"],
+            )
+            __class__.ontology_loaded_metric = Gauge(
+                'tg_ontology_loaded_count',
+                'Number of ontology definitions loaded from config',
+                ["processor", "workspace"],
+            )
+            __class__.ontology_element_metric = Gauge(
+                'tg_ontology_element_count',
+                'Number of embedded ontology elements',
+                ["processor"],
+            )
+            __class__.ontology_selection_count_metric = Histogram(
+                'tg_ontology_selection_count',
+                'Ontology elements selected per chunk',
+                ["processor"],
+                buckets=[0, 1, 2, 3, 5, 8, 10, 15, 20, 30, 50],
+            )
+            __class__.ontology_selection_duration_metric = Histogram(
+                'tg_ontology_selection_duration_seconds',
+                'Similarity selection time per chunk',
+                ["processor"],
+                buckets=BUCKETS_STANDARD,
+            )
+            __class__.ontology_no_match_metric = Counter(
+                'tg_ontology_no_match_total',
+                'Chunks with no ontology match',
+                ["processor"],
+            )
 
         # Register specifications
         self.register_specification(
@@ -181,7 +229,11 @@ class Processor(FlowProcessor):
                 )
                 for ont_id, ontology in loader.get_all_ontologies().items():
                     await ontology_embedder.embed_ontology(ontology)
-                logger.info(f"Embedded {ontology_embedder.get_embedded_count()} ontology elements for flow {flow_id}")
+                embedded_count = ontology_embedder.get_embedded_count()
+                logger.info(f"Embedded {embedded_count} ontology elements for flow {flow_id}")
+                __class__.ontology_element_metric.labels(
+                    processor=self.id,
+                ).set(embedded_count)
 
             # Initialize ontology selector
             ontology_selector = OntologySelector(
@@ -246,6 +298,10 @@ class Processor(FlowProcessor):
                 f"Loaded {len(ontologies)} ontology definitions "
                 f"for {workspace}"
             )
+
+            __class__.ontology_loaded_metric.labels(
+                processor=self.id, workspace=workspace,
+            ).set(len(ontologies))
 
             # Determine what changed for this workspace
             ws_loaded_ids = self.loaded_ontology_ids.get(workspace, set())
@@ -313,16 +369,31 @@ class Processor(FlowProcessor):
         chunk = v.chunk.decode("utf-8")
         logger.debug(f"Processing chunk: {chunk[:200]}...")
 
+        t0 = time.monotonic()
+        extractor_label = "ontology"
+
         try:
             # Process text into segments
             segments = self.text_processor.process_chunk(chunk, extract_phrases=True)
             logger.debug(f"Split chunk into {len(segments)} segments")
 
             # Select relevant ontology subset (using flow-specific selector)
+            t_sel = time.monotonic()
             ontology_subsets = await components['selector'].select_ontology_subset(segments)
+            __class__.ontology_selection_duration_metric.labels(
+                processor=self.id,
+            ).observe(time.monotonic() - t_sel)
 
             if not ontology_subsets:
                 logger.warning("No relevant ontology elements found for chunk")
+                __class__.ontology_no_match_metric.labels(
+                    processor=self.id,
+                ).inc()
+                labels = dict(processor=self.id, extractor=extractor_label)
+                __class__.extraction_duration_metric.labels(**labels).observe(
+                    time.monotonic() - t0,
+                )
+                __class__.extraction_empty_metric.labels(**labels).inc()
                 return
 
             # Merge subsets if multiple ontologies matched
@@ -330,6 +401,15 @@ class Processor(FlowProcessor):
                 ontology_subset = components['selector'].merge_subsets(ontology_subsets)
             else:
                 ontology_subset = ontology_subsets[0]
+
+            selected_count = (
+                len(ontology_subset.classes)
+                + len(ontology_subset.object_properties)
+                + len(ontology_subset.datatype_properties)
+            )
+            __class__.ontology_selection_count_metric.labels(
+                processor=self.id,
+            ).observe(selected_count)
 
             logger.debug(f"Selected ontology subset with {len(ontology_subset.classes)} classes, "
                         f"{len(ontology_subset.object_properties)} object properties, "
@@ -386,6 +466,16 @@ class Processor(FlowProcessor):
 
             logger.info(f"Extracted {len(triples)} content triples + {len(ontology_triples)} ontology triples "
                        f"= {len(all_triples)} total triples and {len(entity_contexts)} entity contexts")
+
+            labels = dict(processor=self.id, extractor=extractor_label)
+            __class__.extraction_duration_metric.labels(**labels).observe(
+                time.monotonic() - t0,
+            )
+            __class__.extraction_triple_metric.labels(**labels).inc(
+                len(triples),
+            )
+            if not triples:
+                __class__.extraction_empty_metric.labels(**labels).inc()
 
         except Exception as e:
             logger.error(f"OntoRAG extraction exception: {e}", exc_info=True)

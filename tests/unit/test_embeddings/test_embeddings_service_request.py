@@ -11,13 +11,39 @@ from trustgraph.schema import EmbeddingsRequest, EmbeddingsResponse, Error
 from trustgraph.exceptions import TooManyRequests
 
 
+def _ensure_embeddings_metrics():
+    """Initialize EmbeddingsService class-level metrics if not already set."""
+    if not hasattr(EmbeddingsService, "embeddings_request_metric"):
+        from prometheus_client import Counter, Histogram
+        from trustgraph.base.metrics import BUCKETS_STANDARD
+        EmbeddingsService.embeddings_request_metric = Counter(
+            'tg_embeddings_request_total',
+            'Embeddings requests per model',
+            ["processor", "model"],
+        )
+        EmbeddingsService.embeddings_duration_metric = Histogram(
+            'tg_embeddings_duration_seconds',
+            'Embeddings call latency (seconds)',
+            ["processor", "model"],
+            buckets=BUCKETS_STANDARD,
+        )
+        EmbeddingsService.embeddings_batch_size_metric = Histogram(
+            'tg_embeddings_batch_size',
+            'Number of texts per embedding request',
+            ["processor", "model"],
+            buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000],
+        )
+
+
 class StubEmbeddingsService(EmbeddingsService):
     """Minimal concrete implementation for testing on_request."""
 
     def __init__(self, embed_result=None, embed_error=None):
         # Skip super().__init__ to avoid taskgroup/registration
+        self.id = "test-embeddings"
         self.embed_result = embed_result or [[0.1, 0.2]]
         self.embed_error = embed_error
+        _ensure_embeddings_metrics()
 
     async def on_embeddings(self, texts, model=None):
         if self.embed_error:
@@ -76,7 +102,8 @@ class TestEmbeddingsServiceOnRequest:
 
         class TrackingService(EmbeddingsService):
             def __init__(self):
-                pass
+                self.id = "test-embeddings"
+                _ensure_embeddings_metrics()
 
             async def on_embeddings(self, texts, model=None):
                 calls.append({"texts": texts, "model": model})

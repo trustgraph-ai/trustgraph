@@ -23,6 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from aiohttp import web
+from prometheus_client import Counter, Enum, Gauge
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -129,6 +130,31 @@ class IamAuth:
         self.backend = backend
         self.id = id
 
+        if not hasattr(__class__, "_metrics_initialized"):
+            __class__._metrics_initialized = True
+            __class__.signing_key_state_metric = Enum(
+                'tg_gateway_signing_key_state',
+                'Whether the IAM signing public key has been fetched',
+                [],
+                states=['absent', 'present'],
+            )
+            __class__.known_workspaces_metric = Gauge(
+                'tg_gateway_known_workspaces',
+                'Number of workspaces known to the gateway',
+                [],
+            )
+            __class__.auth_failure_metric = Counter(
+                'tg_gateway_auth_failure_total',
+                'Authentication failure count',
+                ["reason"],
+            )
+            __class__.authz_decision_metric = Counter(
+                'tg_gateway_authz_decision_total',
+                'Authorisation decisions',
+                ["outcome"],
+            )
+            __class__.signing_key_state_metric.state("absent")
+
         # Populated at start() via IAM.
         self._signing_public_pem = None
 
@@ -191,6 +217,7 @@ class IamAuth:
             pem = await self._with_client(_fetch)
             if pem:
                 self._signing_public_pem = pem
+                __class__.signing_key_state_metric.state("present")
                 logger.info(
                     "IamAuth: fetched IAM signing public key "
                     f"({len(pem)} bytes)"
@@ -285,16 +312,21 @@ class IamAuth:
         if not self._signing_public_pem:
             await self._fetch_signing_key()
         if not self._signing_public_pem:
+            __class__.auth_failure_metric.labels(reason="no-signing-key").inc()
             raise _auth_failure()
         try:
             claims = _verify_jwt_eddsa(token, self._signing_public_pem)
         except Exception as e:
             logger.debug(f"JWT validation failed: {type(e).__name__}: {e}")
+            __class__.auth_failure_metric.labels(reason="invalid-jwt").inc()
             raise _auth_failure()
 
         sub = claims.get("sub", "")
         ws = claims.get("default_workspace", "")
         if not sub or not ws:
+            __class__.auth_failure_metric.labels(
+                reason="jwt-missing-claims",
+            ).inc()
             raise _auth_failure()
 
         return Identity(
@@ -316,9 +348,15 @@ class IamAuth:
                 f"Anonymous authentication rejected: "
                 f"{type(e).__name__}: {e}"
             )
+            __class__.auth_failure_metric.labels(
+                reason="anonymous-rejected",
+            ).inc()
             raise _auth_failure()
 
         if not user_id or not default_workspace:
+            __class__.auth_failure_metric.labels(
+                reason="anonymous-rejected",
+            ).inc()
             raise _auth_failure()
 
         return Identity(
@@ -356,9 +394,15 @@ class IamAuth:
                     f"API key resolution failed: "
                     f"{type(e).__name__}: {e}"
                 )
+                __class__.auth_failure_metric.labels(
+                    reason="invalid-api-key",
+                ).inc()
                 raise _auth_failure()
 
             if not user_id or not default_workspace:
+                __class__.auth_failure_metric.labels(
+                    reason="invalid-api-key",
+                ).inc()
                 raise _auth_failure()
 
             identity = Identity(
@@ -409,7 +453,9 @@ class IamAuth:
         if cached and cached[1] > now:
             allow, _ = cached
             if not allow:
+                __class__.authz_decision_metric.labels(outcome="deny").inc()
                 raise _access_denied()
+            __class__.authz_decision_metric.labels(outcome="allow").inc()
             return
 
         async with self._authz_cache_lock:
@@ -417,7 +463,13 @@ class IamAuth:
             if cached and cached[1] > now:
                 allow, _ = cached
                 if not allow:
+                    __class__.authz_decision_metric.labels(
+                        outcome="deny",
+                    ).inc()
                     raise _access_denied()
+                __class__.authz_decision_metric.labels(
+                    outcome="allow",
+                ).inc()
                 return
 
             try:
@@ -434,11 +486,18 @@ class IamAuth:
                     f"failing closed for "
                     f"{identity.principal_id!r} cap={capability!r}"
                 )
+                __class__.authz_decision_metric.labels(
+                    outcome="error",
+                ).inc()
                 raise _auth_failure()
 
             ttl = max(0, min(int(ttl or 0), AUTHZ_CACHE_TTL_MAX))
             self._authz_cache[key] = (bool(allow), now + ttl)
 
             if not allow:
+                __class__.authz_decision_metric.labels(
+                    outcome="deny",
+                ).inc()
                 raise _access_denied()
+            __class__.authz_decision_metric.labels(outcome="allow").inc()
             return

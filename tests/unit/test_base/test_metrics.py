@@ -23,11 +23,14 @@ def reset_metric_singletons():
             "rate_limit_metric",
         ],
         metrics.ProducerMetrics: ["producer_metric"],
-        metrics.ProcessorMetrics: ["processor_metric"],
-        metrics.SubscriberMetrics: [
-            "state_metric",
-            "received_metric",
-            "dropped_metric",
+        metrics.ProcessorMetrics: [
+            "processor_metric",
+            "config_version_metric",
+        ],
+        metrics.DownstreamMetrics: [
+            "duration_metric",
+            "timeout_metric",
+            "error_metric",
         ],
     }
 
@@ -59,11 +62,9 @@ def test_consumer_metrics_reuses_singletons_and_records_events(monkeypatch):
     request_labels = MagicMock()
     processing_labels = MagicMock()
     rate_limit_labels = MagicMock()
-    timer = MagicMock()
 
     enum_factory.return_value.labels.return_value = state_labels
     histogram_factory.return_value.labels.return_value = request_labels
-    request_labels.time.return_value = timer
     counter_factory.side_effect = [
         MagicMock(labels=MagicMock(return_value=processing_labels)),
         MagicMock(labels=MagicMock(return_value=rate_limit_labels)),
@@ -73,7 +74,7 @@ def test_consumer_metrics_reuses_singletons_and_records_events(monkeypatch):
     monkeypatch.setattr(metrics, "Histogram", histogram_factory)
     monkeypatch.setattr(metrics, "Counter", counter_factory)
 
-    first = metrics.ConsumerMetrics("proc", "cons", workspace="ws", flow="fl")
+    first = metrics.ConsumerMetrics("proc", "cons")
     second = metrics.ConsumerMetrics("proc-2", "cons-2")
 
     assert enum_factory.call_count == 1
@@ -83,11 +84,12 @@ def test_consumer_metrics_reuses_singletons_and_records_events(monkeypatch):
     first.process("ok")
     first.rate_limit()
     first.state("running")
-    assert first.record_time() is timer
+    first.observe_latency(1.5)
 
     processing_labels.inc.assert_called_once_with()
     rate_limit_labels.inc.assert_called_once_with()
     state_labels.state.assert_called_once_with("running")
+    request_labels.observe.assert_called_once_with(1.5)
 
 
 def test_producer_metrics_increments_counter_once(monkeypatch):
@@ -105,39 +107,59 @@ def test_producer_metrics_increments_counter_once(monkeypatch):
 
 def test_processor_metrics_reports_info(monkeypatch):
     info_factory = MagicMock()
-    labels = MagicMock()
-    info_factory.return_value.labels.return_value = labels
+    gauge_factory = MagicMock()
+    info_labels = MagicMock()
+    gauge_labels = MagicMock()
+    info_factory.return_value.labels.return_value = info_labels
+    gauge_factory.return_value.labels.return_value = gauge_labels
     monkeypatch.setattr(metrics, "Info", info_factory)
+    monkeypatch.setattr(metrics, "Gauge", gauge_factory)
 
     processor_metrics = metrics.ProcessorMetrics("proc")
     processor_metrics.info({"kind": "test"})
 
     info_factory.assert_called_once()
-    labels.info.assert_called_once_with({"kind": "test"})
+    info_labels.info.assert_called_once_with({"kind": "test"})
 
 
-def test_subscriber_metrics_tracks_received_state_and_dropped(monkeypatch):
-    enum_factory = MagicMock()
+def test_processor_metrics_sets_config_version(monkeypatch):
+    info_factory = MagicMock()
+    gauge_factory = MagicMock()
+    gauge_labels = MagicMock()
+    info_factory.return_value.labels.return_value = MagicMock()
+    gauge_factory.return_value.labels.return_value = gauge_labels
+    monkeypatch.setattr(metrics, "Info", info_factory)
+    monkeypatch.setattr(metrics, "Gauge", gauge_factory)
+
+    processor_metrics = metrics.ProcessorMetrics("proc")
+    processor_metrics.set_config_version(42)
+
+    gauge_labels.set.assert_called_once_with(42)
+
+
+def test_downstream_metrics_tracks_duration_timeout_error(monkeypatch):
+    histogram_factory = MagicMock()
     counter_factory = MagicMock()
 
-    state_labels = MagicMock()
-    received_labels = MagicMock()
-    dropped_labels = MagicMock()
+    duration_labels = MagicMock()
+    timeout_labels = MagicMock()
+    error_labels = MagicMock()
 
-    enum_factory.return_value.labels.return_value = state_labels
+    histogram_factory.return_value.labels.return_value = duration_labels
     counter_factory.side_effect = [
-        MagicMock(labels=MagicMock(return_value=received_labels)),
-        MagicMock(labels=MagicMock(return_value=dropped_labels)),
+        MagicMock(labels=MagicMock(return_value=timeout_labels)),
+        MagicMock(labels=MagicMock(return_value=error_labels)),
     ]
 
-    monkeypatch.setattr(metrics, "Enum", enum_factory)
+    monkeypatch.setattr(metrics, "Histogram", histogram_factory)
     monkeypatch.setattr(metrics, "Counter", counter_factory)
 
-    subscriber_metrics = metrics.SubscriberMetrics("proc", "input")
-    subscriber_metrics.received()
-    subscriber_metrics.state("running")
-    subscriber_metrics.dropped("ignored")
+    dm = metrics.DownstreamMetrics("proc", "embeddings")
 
-    received_labels.inc.assert_called_once_with()
-    dropped_labels.inc.assert_called_once_with()
-    state_labels.state.assert_called_once_with("running")
+    dm.observe_duration(2.5)
+    dm.timeout()
+    dm.error("connection-error")
+
+    duration_labels.observe.assert_called_once_with(2.5)
+    timeout_labels.inc.assert_called_once_with()
+    error_labels.inc.assert_called_once_with()

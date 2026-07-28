@@ -271,17 +271,13 @@ class ToolServiceImpl:
 
         # Import here to avoid circular imports
         from trustgraph.base.tool_service_client import ToolServiceClient
-        from trustgraph.base.metrics import ProducerMetrics, SubscriberMetrics
+        from trustgraph.base.metrics import ProducerMetrics
         from trustgraph.schema import ToolServiceRequest, ToolServiceResponse
         import uuid
 
         request_metrics = ProducerMetrics(
             processor=self.processor.id,
             producer=self.request_queue,
-        )
-        response_metrics = SubscriberMetrics(
-            processor=self.processor.id,
-            subscriber=self.response_queue,
         )
 
         # Create unique subscription for responses
@@ -296,7 +292,6 @@ class ToolServiceImpl:
             request_metrics=request_metrics,
             response_topic=self.response_queue,
             response_schema=ToolServiceResponse,
-            response_metrics=response_metrics,
         )
 
         # Start the client

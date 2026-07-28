@@ -40,6 +40,8 @@ class RequestResponseSpec(Spec):
             response_topic=topics[self.response_name],
             request_schema=self.request_schema,
             response_schema=self.response_schema,
+            processor_id=getattr(processor, 'id', None),
+            target_service=self.request_name,
         )
 
         wrapper = _make_impl_wrapper(rr_client, self.impl)

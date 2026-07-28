@@ -9,6 +9,7 @@ import asyncio
 import uuid
 import logging
 import json
+from prometheus_client import Gauge
 
 from ... schema import ConfigPush, ConfigRequest, ConfigResponse
 from ... schema import config_push_queue, config_request_queue
@@ -17,6 +18,12 @@ from ... base.request_response_client import RequestResponseClient
 
 logger = logging.getLogger("config.receiver")
 logger.setLevel(logging.INFO)
+
+
+_flow_count_gauge = Gauge(
+    'tg_gateway_active_flow_count',
+    'Number of active flows tracked by the gateway',
+)
 
 
 class ConfigReceiver:
@@ -58,6 +65,11 @@ class ConfigReceiver:
                 for ws in (v.workspace_changes.deleted or []):
                     self.auth.known_workspaces.discard(ws)
                     logger.info(f"Workspace deregistered: {ws}")
+                from ..auth import IamAuth
+                if hasattr(IamAuth, 'known_workspaces_metric'):
+                    IamAuth.known_workspaces_metric.set(
+                        len(self.auth.known_workspaces),
+                    )
 
             flow_workspaces = changes.get("flow", [])
             if changes and not flow_workspaces:
@@ -150,6 +162,10 @@ class ConfigReceiver:
 
                 self.flows[workspace] = ws_flows
 
+                _flow_count_gauge.set(
+                    sum(len(v) for v in self.flows.values())
+                )
+
                 return
 
             except Exception as e:
@@ -195,6 +211,11 @@ class ConfigReceiver:
 
                     if self.auth:
                         self.auth.known_workspaces = discovered
+                        from ..auth import IamAuth
+                        if hasattr(IamAuth, 'known_workspaces_metric'):
+                            IamAuth.known_workspaces_metric.set(
+                                len(discovered),
+                            )
 
                     logger.info(
                         f"Known workspaces: {discovered}"
