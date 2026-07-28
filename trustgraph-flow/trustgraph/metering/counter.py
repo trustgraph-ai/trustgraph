@@ -22,14 +22,14 @@ class Processor(FlowProcessor):
 
         if not hasattr(__class__, "token_metric"):
             __class__.token_metric = Counter(
-                'tokens',
+                'tg_metering_tokens_total',
                 'Token count',
                 ['model', 'direction']
             )
 
         if not hasattr(__class__, "cost_metric"):
             __class__.cost_metric = Counter(
-                'cost',
+                'tg_metering_cost_usd_total',
                 'Cost in USD',
                 ['model', 'direction']
             )

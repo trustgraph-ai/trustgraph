@@ -50,7 +50,7 @@ class Processor(ChunkingService):
 
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
-                'chunk_size', 'Chunk size',
+                'tg_chunk_size', 'Chunk size',
                 ["processor"],
                 buckets=[100, 160, 250, 400, 650, 1000, 1600,
                          2500, 4000, 6400, 10000, 16000]

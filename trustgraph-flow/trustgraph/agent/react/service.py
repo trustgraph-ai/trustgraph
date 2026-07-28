@@ -8,9 +8,11 @@ import re
 import sys
 import functools
 import logging
+import time
 import uuid
 from typing import Dict
 from datetime import datetime, timezone
+from prometheus_client import Counter, Histogram
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -72,6 +74,42 @@ class Processor(AgentService):
 
         # Track active tool service clients for cleanup
         self.tool_service_clients = {}
+
+        if not hasattr(__class__, "agent_session_metric"):
+            from trustgraph.base.metrics import BUCKETS_LLM, BUCKETS_SESSION
+            __class__.agent_session_metric = Counter(
+                'tg_agent_session_total',
+                'Agent sessions by outcome',
+                ["processor", "outcome"],
+            )
+            __class__.agent_iteration_metric = Histogram(
+                'tg_agent_iteration_count',
+                'Number of ReAct iterations per session',
+                ["processor"],
+                buckets=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20],
+            )
+            __class__.agent_tool_invocation_metric = Counter(
+                'tg_agent_tool_invocation_total',
+                'Agent tool calls per tool name',
+                ["processor", "tool"],
+            )
+            __class__.agent_tool_duration_metric = Histogram(
+                'tg_agent_tool_duration_seconds',
+                'Per-tool invocation latency (seconds)',
+                ["processor", "tool"],
+                buckets=BUCKETS_LLM,
+            )
+            __class__.agent_tool_error_metric = Counter(
+                'tg_agent_tool_error_total',
+                'Tool invocation failures',
+                ["processor", "tool"],
+            )
+            __class__.agent_llm_duration_metric = Histogram(
+                'tg_agent_llm_duration_seconds',
+                'LLM reasoning step latency per iteration (seconds)',
+                ["processor"],
+                buckets=BUCKETS_LLM,
+            )
 
         self.register_config_handler(
             self.on_tools_config, types=["tool", "tool-service"]
@@ -372,6 +410,12 @@ class Processor(AgentService):
             logger.info(f"Question: {request.question}")
 
             if len(history) >= self.max_iterations:
+                __class__.agent_session_metric.labels(
+                    processor=self.id, outcome="max-iterations",
+                ).inc()
+                __class__.agent_iteration_metric.labels(
+                    processor=self.id,
+                ).observe(self.max_iterations)
                 raise RuntimeError("Too many agent iterations")
 
             logger.debug(f"History: {history}")
@@ -557,6 +601,24 @@ class Processor(AgentService):
 
             logger.debug(f"Action: {act}")
 
+            if hasattr(act, 'llm_duration_ms') and act.llm_duration_ms:
+                __class__.agent_llm_duration_metric.labels(
+                    processor=self.id,
+                ).observe(act.llm_duration_ms / 1000.0)
+
+            if isinstance(act, Action) and act.name != "__parse_error__":
+                __class__.agent_tool_invocation_metric.labels(
+                    processor=self.id, tool=act.name,
+                ).inc()
+                if hasattr(act, 'tool_duration_ms') and act.tool_duration_ms:
+                    __class__.agent_tool_duration_metric.labels(
+                        processor=self.id, tool=act.name,
+                    ).observe(act.tool_duration_ms / 1000.0)
+                if hasattr(act, 'tool_error') and act.tool_error:
+                    __class__.agent_tool_error_metric.labels(
+                        processor=self.id, tool=act.name,
+                    ).inc()
+
             if isinstance(act, Final):
 
                 logger.debug("Send final response...")
@@ -638,6 +700,13 @@ class Processor(AgentService):
                     )
 
                 await respond(r)
+
+                __class__.agent_session_metric.labels(
+                    processor=self.id, outcome="completed",
+                ).inc()
+                __class__.agent_iteration_metric.labels(
+                    processor=self.id,
+                ).observe(iteration_num)
 
                 logger.debug("Done.")
 
@@ -729,6 +798,11 @@ class Processor(AgentService):
         except Exception as e:
 
             logger.error(f"agent_request Exception: {e}", exc_info=True)
+
+            if "Too many agent iterations" not in str(e):
+                __class__.agent_session_metric.labels(
+                    processor=self.id, outcome="error",
+                ).inc()
 
             logger.debug("Send error response...")
 

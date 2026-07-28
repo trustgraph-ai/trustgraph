@@ -6,8 +6,10 @@ entity/context definitions for embedding.
 """
 
 import json
+import time
 import urllib.parse
 import logging
+from prometheus_client import Counter, Histogram
 
 from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 
@@ -45,6 +47,30 @@ class Processor(FlowProcessor):
                 "concurrency": concurrency,
             }
         )
+
+        if not hasattr(__class__, "extraction_duration_metric"):
+            from trustgraph.base.metrics import BUCKETS_LLM
+            __class__.extraction_duration_metric = Histogram(
+                'tg_extraction_duration_seconds',
+                'Wall-clock time per chunk extraction',
+                ["processor", "extractor"],
+                buckets=BUCKETS_LLM,
+            )
+            __class__.extraction_entity_metric = Counter(
+                'tg_extraction_entity_total',
+                'Entities extracted',
+                ["processor", "extractor"],
+            )
+            __class__.extraction_triple_metric = Counter(
+                'tg_extraction_triple_total',
+                'Triples produced per extractor',
+                ["processor", "extractor"],
+            )
+            __class__.extraction_empty_metric = Counter(
+                'tg_extraction_empty_total',
+                'Chunks that yielded zero extractions',
+                ["processor", "extractor"],
+            )
 
         self.register_specification(
             ConsumerSpec(
@@ -112,6 +138,9 @@ class Processor(FlowProcessor):
         chunk = v.chunk.decode("utf-8")
 
         logger.debug(f"Processing chunk: {chunk[:200]}...")  # Log first 200 chars
+
+        t0 = time.monotonic()
+        extractor_label = "definitions"
 
         try:
 
@@ -230,6 +259,19 @@ class Processor(FlowProcessor):
                     ),
                     batch
                 )
+
+            labels = dict(processor=self.id, extractor=extractor_label)
+            __class__.extraction_duration_metric.labels(
+                **labels,
+            ).observe(time.monotonic() - t0)
+            __class__.extraction_triple_metric.labels(
+                **labels,
+            ).inc(len(extracted_triples))
+            __class__.extraction_entity_metric.labels(
+                **labels,
+            ).inc(len(entities))
+            if not extracted_triples:
+                __class__.extraction_empty_metric.labels(**labels).inc()
 
         except Exception as e:
             logger.error(f"Definitions extraction exception: {e}", exc_info=True)

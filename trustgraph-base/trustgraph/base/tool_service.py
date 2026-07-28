@@ -49,7 +49,7 @@ class ToolService(FlowProcessor):
 
         if not hasattr(__class__, "tool_invocation_metric"):
             __class__.tool_invocation_metric = Counter(
-                'tool_invocation_count', 'Tool invocation count',
+                'tg_tool_invocation_total', 'Tool invocation count',
                 ["processor", "tool"],
             )
 

@@ -10,10 +10,12 @@ signal completion via futures.
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Awaitable
 
 from .async_backend import AsyncPubSubBackend, AsyncBackendConsumer, Message
+from ..exceptions import TooManyRequests
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +140,7 @@ class ReceiverPool:
         self, topic: str, subscription: str, schema: type,
         handler: Callable[..., Awaitable[None]],
         initial_position: str = 'latest',
+        instrument: bool = True,
     ) -> ConsumerRegistration:
         backend_consumer = await self.backend.create_consumer(
             topic=topic,
@@ -147,7 +150,7 @@ class ReceiverPool:
         )
 
         metrics = None
-        if self.processor_id:
+        if instrument and self.processor_id:
             from .metrics import ConsumerMetrics
             metrics = ConsumerMetrics(
                 processor=self.processor_id, consumer=topic,
@@ -183,13 +186,18 @@ class ReceiverPool:
             return handler
 
         async def wrapper(message):
-            with metrics.record_time():
-                try:
-                    await handler(message)
-                    metrics.process("ok")
-                except Exception:
-                    metrics.process("error")
-                    raise
+            t0 = time.monotonic()
+            try:
+                await handler(message)
+                metrics.observe_latency(time.monotonic() - t0)
+                metrics.process("ok")
+            except TooManyRequests:
+                metrics.rate_limit()
+                raise
+            except Exception:
+                metrics.observe_latency(time.monotonic() - t0)
+                metrics.process("error")
+                raise
 
         return wrapper
 

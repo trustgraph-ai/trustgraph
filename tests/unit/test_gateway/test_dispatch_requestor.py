@@ -84,6 +84,8 @@ class TestServiceRequestor:
             response_topic="response-queue",
             request_schema=mock_request_schema,
             response_schema=mock_response_schema,
+            processor_id="api-gateway",
+            target_service=None,
         )
         assert requestor.client is mock_client_instance
         assert requestor.running is True

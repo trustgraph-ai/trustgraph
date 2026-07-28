@@ -157,6 +157,7 @@ class AsyncProcessor:
                 schema=ConfigPush,
                 handler=config_notify_handler,
                 initial_position='latest',
+                instrument=False,
             )
 
         await self.fetch_and_apply_config()
@@ -196,6 +197,11 @@ class AsyncProcessor:
                         f"Applied startup config version {version}"
                     )
                     self.config_version = version
+
+                    from . metrics import ProcessorMetrics
+                    ProcessorMetrics(
+                        processor=self.id
+                    ).set_config_version(version)
 
                 finally:
                     await client.close()
@@ -287,6 +293,10 @@ class AsyncProcessor:
                 f"no handlers for types {notify_types}"
             )
             self.config_version = notify_version
+            from . metrics import ProcessorMetrics
+            ProcessorMetrics(
+                processor=self.id
+            ).set_config_version(notify_version)
             return
 
         logger.info(
@@ -322,6 +332,10 @@ class AsyncProcessor:
                 await client.close()
 
             self.config_version = notify_version
+            from . metrics import ProcessorMetrics
+            ProcessorMetrics(
+                processor=self.id
+            ).set_config_version(notify_version)
 
         except BaseException as e:
             if isinstance(e, asyncio.CancelledError):

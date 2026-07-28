@@ -8,6 +8,8 @@ Shape mirrors trustgraph.config.service.
 
 import logging
 import os
+import time
+from prometheus_client import Counter, Gauge, Histogram
 
 from trustgraph.schema import Error
 from trustgraph.schema import IamRequest, IamResponse
@@ -115,6 +117,37 @@ class Processor(AsyncProcessor):
             }
         )
 
+        if not hasattr(__class__, "_metrics_initialized"):
+            from trustgraph.base.metrics import BUCKETS_STANDARD
+            __class__._metrics_initialized = True
+            __class__.iam_request_metric = Counter(
+                'tg_iam_request_total',
+                'IAM service requests by operation and outcome',
+                ["operation", "outcome"],
+            )
+            __class__.iam_request_duration_metric = Histogram(
+                'tg_iam_request_duration_seconds',
+                'IAM service per-operation latency',
+                ["operation"],
+                buckets=BUCKETS_STANDARD,
+            )
+            __class__.iam_user_count_metric = Gauge(
+                'tg_iam_user_count',
+                'Total number of IAM users',
+            )
+            __class__.iam_workspace_count_metric = Gauge(
+                'tg_iam_workspace_count',
+                'Total number of IAM workspaces',
+            )
+            __class__.iam_api_key_created_metric = Counter(
+                'tg_iam_api_key_created_total',
+                'Total API keys created (lifetime)',
+            )
+            __class__.iam_api_key_revoked_metric = Counter(
+                'tg_iam_api_key_revoked_total',
+                'Total API keys revoked (lifetime)',
+            )
+
         self.iam_request_topic = iam_req_q
         self.iam_response_topic = iam_resp_q
 
@@ -165,6 +198,26 @@ class Processor(AsyncProcessor):
         # Token-mode auto-bootstrap runs before we accept requests so
         # the first inbound call always sees a populated table.
         await self.iam.auto_bootstrap_if_token_mode()
+
+        await self._refresh_inventory_gauges()
+
+    _INVENTORY_OPS = frozenset({
+        "create-user", "delete-user",
+        "create-workspace", "disable-workspace",
+        "bootstrap",
+    })
+
+    async def _refresh_inventory_gauges(self):
+        try:
+            ts = self.iam.table_store
+            users = await ts.list_users()
+            __class__.iam_user_count_metric.set(len(users))
+            workspaces = await ts.list_workspaces()
+            __class__.iam_workspace_count_metric.set(len(workspaces))
+        except Exception as e:
+            logger.debug(
+                f"Inventory gauge refresh failed: {e}", exc_info=True,
+            )
 
     async def _config_put(self, workspace, type, key, value):
         client = await self._create_config_client()
@@ -234,22 +287,45 @@ class Processor(AsyncProcessor):
     async def on_iam_request(self, msg, consumer, flow):
 
         id = None
+        op = "unknown"
+        t0 = time.monotonic()
         try:
             v = msg.value()
+            op = v.operation or "unknown"
             id = msg.properties()["id"]
             logger.debug(
-                f"Handling IAM request {id} op={v.operation!r}"
+                f"Handling IAM request {id} op={op!r}"
             )
             resp = await self.iam.handle(v)
             await self.iam_response_producer.send(
                 resp, properties={"id": id},
             )
             await self._emit_audit(v, resp)
+            outcome = "error" if resp.error else "ok"
+            __class__.iam_request_metric.labels(
+                operation=op, outcome=outcome,
+            ).inc()
+            __class__.iam_request_duration_metric.labels(
+                operation=op,
+            ).observe(time.monotonic() - t0)
+            if not resp.error:
+                if op in self._INVENTORY_OPS:
+                    await self._refresh_inventory_gauges()
+                if op == "create-api-key":
+                    __class__.iam_api_key_created_metric.inc()
+                elif op == "revoke-api-key":
+                    __class__.iam_api_key_revoked_metric.inc()
         except Exception as e:
             logger.error(
                 f"IAM request failed: {type(e).__name__}: {e}",
                 exc_info=True,
             )
+            __class__.iam_request_metric.labels(
+                operation=op, outcome="exception",
+            ).inc()
+            __class__.iam_request_duration_metric.labels(
+                operation=op,
+            ).observe(time.monotonic() - t0)
             resp = IamResponse(
                 error=Error(type="internal-error", message=str(e)),
             )

@@ -31,7 +31,49 @@ def _make_processor():
     proc.id = "test-iam-svc"
     proc.iam_response_producer = AsyncMock()
     proc.audit = AsyncMock()
+
+    # Ensure class-level metrics are initialized (normally done in __init__)
+    if not hasattr(Processor, "_metrics_initialized"):
+        from trustgraph.base.metrics import BUCKETS_STANDARD
+        from prometheus_client import Counter, Gauge, Histogram
+        Processor._metrics_initialized = True
+        Processor.iam_request_metric = Counter(
+            'tg_iam_request_total',
+            'IAM service requests by operation and outcome',
+            ["operation", "outcome"],
+        )
+        Processor.iam_request_duration_metric = Histogram(
+            'tg_iam_request_duration_seconds',
+            'IAM service per-operation latency',
+            ["operation"],
+            buckets=BUCKETS_STANDARD,
+        )
+        Processor.iam_user_count_metric = Gauge(
+            'tg_iam_user_count',
+            'Total number of IAM users',
+        )
+        Processor.iam_workspace_count_metric = Gauge(
+            'tg_iam_workspace_count',
+            'Total number of IAM workspaces',
+        )
+        Processor.iam_api_key_created_metric = Counter(
+            'tg_iam_api_key_created_total',
+            'Total API keys created (lifetime)',
+        )
+        Processor.iam_api_key_revoked_metric = Counter(
+            'tg_iam_api_key_revoked_total',
+            'Total API keys revoked (lifetime)',
+        )
+
     return proc
+
+
+def _make_table_store_mock():
+    """Create a mock table store with async list methods."""
+    ts = MagicMock()
+    ts.list_users = AsyncMock(return_value=[])
+    ts.list_workspaces = AsyncMock(return_value=[])
+    return ts
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ via futures. No worker pool involvement.
 
 import asyncio
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -33,13 +34,14 @@ class RequestResponseClient:
         await client.close()
     """
 
-    def __init__(self, default_timeout=60):
+    def __init__(self, default_timeout=60, metrics=None):
         self.producer = None
         self.consumer = None
         self.receiver_task = None
         self.pending: dict[str, asyncio.Future] = {}
         self.running = False
         self.default_timeout = default_timeout
+        self.metrics = metrics
 
     @classmethod
     async def create(
@@ -51,8 +53,18 @@ class RequestResponseClient:
         response_schema: type,
         subscription: str | None = None,
         default_timeout: float = 60,
+        processor_id: str | None = None,
+        target_service: str | None = None,
     ) -> 'RequestResponseClient':
-        client = cls(default_timeout=default_timeout)
+        metrics = None
+        if processor_id and target_service:
+            from .metrics import DownstreamMetrics
+            metrics = DownstreamMetrics(
+                processor=processor_id,
+                target_service=target_service,
+            )
+
+        client = cls(default_timeout=default_timeout, metrics=metrics)
 
         client.producer = await backend.create_producer(
             topic=request_topic,
@@ -98,10 +110,17 @@ class RequestResponseClient:
 
         await self.producer.send(message, send_properties)
 
+        t0 = time.monotonic()
         try:
-            return await asyncio.wait_for(future, timeout=timeout)
+            result = await asyncio.wait_for(future, timeout=timeout)
+            if self.metrics:
+                self.metrics.observe_duration(time.monotonic() - t0)
+            return result
         except asyncio.TimeoutError:
             self.pending.pop(request_id, None)
+            if self.metrics:
+                self.metrics.observe_duration(time.monotonic() - t0)
+                self.metrics.timeout()
             raise
 
     async def request_stream(
@@ -121,6 +140,8 @@ class RequestResponseClient:
 
         await self.producer.send(message, send_properties)
 
+        t0 = time.monotonic()
+        timed_out = False
         try:
             while True:
                 resp = await asyncio.wait_for(
@@ -128,8 +149,14 @@ class RequestResponseClient:
                 )
                 yield resp
         except asyncio.TimeoutError:
+            timed_out = True
+            if self.metrics:
+                self.metrics.observe_duration(time.monotonic() - t0)
+                self.metrics.timeout()
             raise
         finally:
+            if not timed_out and self.metrics:
+                self.metrics.observe_duration(time.monotonic() - t0)
             self.pending.pop(request_id, None)
 
     async def _response_loop(self):
