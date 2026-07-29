@@ -99,17 +99,28 @@ async def monitor_queue(consumer, queue_name, central_queue, shutdown_event):
     try:
         while not shutdown_event.is_set():
             try:
-                msg = await asyncio.wait_for(consumer.receive(), timeout=0.5)
-                timestamp = datetime.now()
-                formatted = format_message(queue_name, msg)
+                receive_task = asyncio.ensure_future(consumer.receive())
+                shutdown_task = asyncio.ensure_future(shutdown_event.wait())
 
-                # Forward to central queue for writing
-                await central_queue.put((timestamp, queue_name, formatted))
+                done, pending = await asyncio.wait(
+                    [receive_task, shutdown_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
 
-                await consumer.acknowledge(msg)
-            except asyncio.TimeoutError:
-                # No message, check shutdown flag again
-                continue
+                if shutdown_task in done:
+                    receive_task.cancel()
+                    break
+
+                if receive_task in done:
+                    shutdown_task.cancel()
+                    msg = receive_task.result()
+                    timestamp = datetime.now()
+                    formatted = format_message(queue_name, msg)
+                    await central_queue.put((timestamp, queue_name, formatted))
+                    await consumer.acknowledge(msg)
+
+            except asyncio.CancelledError:
+                break
 
     except Exception as e:
         if not shutdown_event.is_set():

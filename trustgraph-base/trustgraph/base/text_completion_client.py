@@ -30,6 +30,9 @@ class TextCompletionClient:
         if resp.error:
             raise RuntimeError(resp.error.message)
 
+        if resp.response is None:
+            raise RuntimeError("LLM returned empty response")
+
         return TextCompletionResult(
             text = resp.response,
             in_token = resp.in_token,

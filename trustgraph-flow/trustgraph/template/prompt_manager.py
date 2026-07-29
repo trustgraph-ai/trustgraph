@@ -167,6 +167,9 @@ class PromptManager:
 
         resp = await llm(**prompt)
 
+        if resp is None:
+            raise RuntimeError("LLM returned no response")
+
         if resp_type == "text":
             return resp
 

@@ -10,6 +10,11 @@ import time
 from typing import List, Dict, Any, Optional
 from prometheus_client import Counter, Histogram, Gauge
 
+from .. extract_metrics import (
+    extraction_duration_metric, extraction_triple_metric,
+    extraction_empty_metric,
+)
+
 from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
@@ -70,24 +75,8 @@ class Processor(FlowProcessor):
             }
         )
 
-        if not hasattr(__class__, "extraction_duration_metric"):
-            from trustgraph.base.metrics import BUCKETS_LLM, BUCKETS_STANDARD
-            __class__.extraction_duration_metric = Histogram(
-                'tg_extraction_duration_seconds',
-                'Wall-clock time per chunk extraction',
-                ["processor", "extractor"],
-                buckets=BUCKETS_LLM,
-            )
-            __class__.extraction_triple_metric = Counter(
-                'tg_extraction_triple_total',
-                'Triples produced per extractor',
-                ["processor", "extractor"],
-            )
-            __class__.extraction_empty_metric = Counter(
-                'tg_extraction_empty_total',
-                'Chunks that yielded zero extractions',
-                ["processor", "extractor"],
-            )
+        if not hasattr(__class__, "ontology_loaded_metric"):
+            from trustgraph.base.metrics import BUCKETS_STANDARD
             __class__.ontology_loaded_metric = Gauge(
                 'tg_ontology_loaded_count',
                 'Number of ontology definitions loaded from config',
@@ -390,10 +379,10 @@ class Processor(FlowProcessor):
                     processor=self.id,
                 ).inc()
                 labels = dict(processor=self.id, extractor=extractor_label)
-                __class__.extraction_duration_metric.labels(**labels).observe(
+                extraction_duration_metric.labels(**labels).observe(
                     time.monotonic() - t0,
                 )
-                __class__.extraction_empty_metric.labels(**labels).inc()
+                extraction_empty_metric.labels(**labels).inc()
                 return
 
             # Merge subsets if multiple ontologies matched
@@ -468,14 +457,14 @@ class Processor(FlowProcessor):
                        f"= {len(all_triples)} total triples and {len(entity_contexts)} entity contexts")
 
             labels = dict(processor=self.id, extractor=extractor_label)
-            __class__.extraction_duration_metric.labels(**labels).observe(
+            extraction_duration_metric.labels(**labels).observe(
                 time.monotonic() - t0,
             )
-            __class__.extraction_triple_metric.labels(**labels).inc(
+            extraction_triple_metric.labels(**labels).inc(
                 len(triples),
             )
             if not triples:
-                __class__.extraction_empty_metric.labels(**labels).inc()
+                extraction_empty_metric.labels(**labels).inc()
 
         except Exception as e:
             logger.error(f"OntoRAG extraction exception: {e}", exc_info=True)

@@ -60,7 +60,7 @@ container-bedrock container-vertexai \
 container-hf container-ocr \
 container-unstructured container-docling container-mcp
 
-some-containers: container-base container-flow
+some-containers: container-base container-flow container-docling
 # container-unstructured
 
 push:

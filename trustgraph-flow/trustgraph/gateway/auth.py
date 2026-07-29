@@ -289,6 +289,9 @@ class IamAuth:
             identity = await self._verify_jwt(token)
             self._annotate_request(request, identity)
             return identity
+        __class__.auth_failure_metric.labels(
+            reason="malformed-credential",
+        ).inc()
         raise _auth_failure()
 
     @staticmethod
