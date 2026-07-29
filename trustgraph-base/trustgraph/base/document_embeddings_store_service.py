@@ -74,7 +74,7 @@ class DocumentEmbeddingsStoreService(FlowProcessor):
             ).observe(time.monotonic() - t0)
             __class__.store_write_batch_metric.labels(
                 processor=self.id,
-            ).observe(len(request.vectors) if request.vectors else 0)
+            ).observe(len(request.chunks) if request.chunks else 0)
 
         except TooManyRequests as e:
             raise e
