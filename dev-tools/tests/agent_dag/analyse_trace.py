@@ -4,7 +4,7 @@ Analyse a captured agent trace JSON file and check DAG integrity.
 
 Usage:
     python analyse_trace.py react.json
-    python analyse_trace.py -u http://localhost:8088/ react.json
+    python analyse_trace.py -u http://localhost:8888/ react.json
 """
 
 import argparse
@@ -14,7 +14,7 @@ import os
 import sys
 import websockets
 
-DEFAULT_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
+DEFAULT_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 DEFAULT_USER = "trustgraph"
 DEFAULT_COLLECTION = "default"
 DEFAULT_FLOW = "default"

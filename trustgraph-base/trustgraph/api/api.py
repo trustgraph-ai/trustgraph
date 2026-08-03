@@ -40,7 +40,7 @@ class Api:
 
     The client can be used as a context manager for automatic resource cleanup:
         ```python
-        with Api(url="http://localhost:8088/") as api:
+        with Api(url="http://localhost:8888/") as api:
             result = api.flow().id("default").graph_rag(query="test")
         ```
 
@@ -50,12 +50,12 @@ class Api:
         token: Optional bearer token for authentication
     """
 
-    def __init__(self, url="http://localhost:8088/", timeout=60, token: Optional[str] = None, workspace: str = "default"):
+    def __init__(self, url="http://localhost:8888/", timeout=60, token: Optional[str] = None, workspace: str = "default"):
         """
         Initialize the TrustGraph API client.
 
         Args:
-            url: Base URL for TrustGraph API (default: "http://localhost:8088/")
+            url: Base URL for TrustGraph API (default: "http://localhost:8888/")
             timeout: Request timeout in seconds (default: 60)
             token: Optional bearer token for authentication
 

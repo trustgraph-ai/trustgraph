@@ -14,7 +14,7 @@ from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
 from trustgraph.knowledge import Organization, PublicationEvent
 from trustgraph.knowledge import DigitalDocument
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 

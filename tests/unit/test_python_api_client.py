@@ -25,7 +25,7 @@ class TestApiInstantiation:
     def test_api_instantiation_defaults(self):
         """Test Api with default parameters"""
         api = Api()
-        assert api.url == "http://localhost:8088/api/v1/"
+        assert api.url == "http://localhost:8888/api/v1/"
         assert api.timeout == 60
         assert api.token is None
 
@@ -180,7 +180,7 @@ class TestSocketClient:
 
     def test_socket_client_url_conversion_http(self):
         """Test HTTP URL converted to WebSocket"""
-        api = Api(url="http://test-server:8088/")
+        api = Api(url="http://test-server:8888/")
         socket = api.socket()
 
         assert socket.url.startswith("ws://")
@@ -188,7 +188,7 @@ class TestSocketClient:
 
     def test_socket_client_url_conversion_https(self):
         """Test HTTPS URL converted to secure WebSocket"""
-        api = Api(url="https://test-server:8088/")
+        api = Api(url="https://test-server:8888/")
         socket = api.socket()
 
         assert socket.url.startswith("wss://")

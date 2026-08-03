@@ -6,7 +6,7 @@ import os
 import requests
 import argparse
 
-default_metrics_url = "http://localhost:8088/api/metrics"
+default_metrics_url = "http://localhost:8888/api/metrics"
 DEFAULT_TOKEN = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def dump_status(metrics_url, token=None):

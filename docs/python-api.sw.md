@@ -22,7 +22,7 @@ Madarasa na aina zote zinaingizwa kutoka kwenye kifurushi cha `trustgraph.api`:
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ mifumo ya mawasiliano ya msingi wa REST na WebSocket.
 
 Mteja unaweza kutumika kama meneja wa muktadha kwa usafi wa kiotomatiki wa rasilimali:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ Ingia katika meneja wa muktadha wa sinkroni.
 
 Ondoka katika meneja wa muktadha wa sinkroni na ufungue miunganisho.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 Anzisha mteja wa API ya TrustGraph.
 
 **Vigezo:**
 
-`url`: URL ya msingi kwa API ya TrustGraph (kiwango chachilia: "http://localhost:8088/"")
+`url`: URL ya msingi kwa API ya TrustGraph (kiwango chachilia: "http://localhost:8888/"")
 `timeout`: Muda wa kikao wa ombi katika sekunde (kiwango chachilia: 60)
 `token`: Tokeni ya kuhudhuria ya hiari kwa uthibitishaji
 

@@ -71,7 +71,7 @@ Bob Johnson,bob@company.org,42,UK"""
         try:
             # Dry run should complete without errors
             result = load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file=input_file,
                 descriptor_file=descriptor_file,
                 dry_run=True
@@ -93,7 +93,7 @@ Bob Johnson,bob@company.org,42,UK"""
         
         try:
             result = load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file=input_file,
                 descriptor_file=descriptor_file,
                 parse_only=True,
@@ -122,7 +122,7 @@ Bob Johnson,bob@company.org,42,UK"""
         try:
             # Should accept verbose parameter without error
             result = load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file=input_file,
                 descriptor_file=descriptor_file,
                 verbose=True,
@@ -167,7 +167,7 @@ Bob Johnson,bob@company.org,42,UK"""
         """Test handling of file not found error"""
         with pytest.raises(FileNotFoundError):
             load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file="/nonexistent/file.csv",
                 descriptor_file=self.create_temp_file(json.dumps(self.test_descriptor), '.json'),
                 parse_only=True  # Use parse_only mode which will propagate FileNotFoundError
@@ -186,7 +186,7 @@ Bob Johnson,bob@company.org,42,UK"""
                 try:
                     # Should handle invalid descriptor gracefully - creates default processing
                     result = load_structured_data(
-                        api_url="http://localhost:8088",
+                        api_url="http://localhost:8888",
                         input_file=input_file.name,
                         descriptor_file=desc_file.name,
                         dry_run=True
@@ -206,7 +206,7 @@ Bob Johnson,bob@company.org,42,UK"""
         try:
             # Should handle parsing errors gracefully
             result = load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file=input_file,
                 descriptor_file=descriptor_file,
                 dry_run=True
@@ -251,7 +251,7 @@ Bob Johnson,bob@company.org,42,UK"""
         try:
             # Should process despite validation issues (warnings logged)
             result = load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file=input_file,
                 descriptor_file=descriptor_file,
                 dry_run=True

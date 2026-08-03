@@ -62,7 +62,7 @@ info:
 
 servers:
   production:
-    host: localhost:8088
+    host: localhost:8888
     protocol: ws
     description: Local development WebSocket server
     security:

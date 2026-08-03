@@ -22,7 +22,7 @@ class TestSchemaDescriptorGeneration:
     
     def setup_method(self):
         """Set up test fixtures"""
-        self.api_url = "http://localhost:8088"
+        self.api_url = "http://localhost:8888"
         
         # Sample data for different formats
         self.customer_csv = """name,email,age,country,registration_date,status

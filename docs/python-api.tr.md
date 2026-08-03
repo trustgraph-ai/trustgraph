@@ -22,7 +22,7 @@ Tüm sınıflar ve tipler, `trustgraph.api` paketinden içe aktarılmıştır:
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ bilgi grafiği işlemleri, belge işleme, RAG sorguları ve daha fazlası dahil 
 
 İstemci, otomatik kaynak temizliği için bir bağlam yöneticisi olarak kullanılabilir:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ Senkron bağlam yöneticisine girin.
 
 Senkron bağlam yöneticisinden çıkın ve bağlantıları kapatın.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 TrustGraph API istemciyi başlatın.
 
 **Argümanlar:**
 
-`url`: TrustGraph API'si için temel URL (varsayılan: "http://localhost:8088/"")
+`url`: TrustGraph API'si için temel URL (varsayılan: "http://localhost:8888/"")
 `timeout`: İstek zaman aşımı süresi (saniye cinsinden) (varsayılan: 60)
 `token`: İsteğe bağlı doğrulama için taşıyıcı belirteci
 

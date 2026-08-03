@@ -17,7 +17,7 @@ starts the stack, and opens the Workbench UI.
 
 The installer walks you through each step interactively. When it finishes,
 the Workbench UI opens at `http://localhost:8888` and the API gateway is
-available at `http://localhost:8088/`.
+available at `http://localhost:8888/`.
 
 ## Prerequisites
 
@@ -59,7 +59,7 @@ they are installed but not running.
 | Option | Description |
 |---|---|
 | `--install-dir PATH` | Directory for deployment files (default: `./trustgraph-deploy`) |
-| `--api-url URL` | API gateway URL for health checks (default: `http://localhost:8088/`) |
+| `--api-url URL` | API gateway URL for health checks (default: `http://localhost:8888/`) |
 | `--ui-url URL` | Workbench UI URL to open (default: `http://localhost:8888`) |
 | `--use-existing-compose FILE` | Skip config generation and start this compose file directly |
 | `--skip-tests` | Do not run the pytest suite |

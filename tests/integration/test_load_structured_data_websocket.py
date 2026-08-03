@@ -21,8 +21,8 @@ class TestLoadStructuredDataWebSocket:
     
     def setup_method(self):
         """Set up test fixtures"""
-        self.api_url = "http://localhost:8088"
-        self.ws_url = "ws://localhost:8088"
+        self.api_url = "http://localhost:8888"
+        self.ws_url = "ws://localhost:8888"
         
         self.test_csv_data = """name,email,age,country
 John Smith,john@email.com,35,US
@@ -275,7 +275,7 @@ Charlie Davis,charlie@email.com,39,DE"""
                 
                 # Test HTTP URL conversion
                 result = load_structured_data(
-                    api_url="http://localhost:8088",  # HTTP URL
+                    api_url="http://localhost:8888",  # HTTP URL
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
@@ -289,7 +289,7 @@ Charlie Davis,charlie@email.com,39,DE"""
                 mock_connect.reset_mock()
                 
                 result = load_structured_data(
-                    api_url="https://example.com:8088",  # HTTPS URL
+                    api_url="https://example.com:8888",  # HTTPS URL
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='test-flow',

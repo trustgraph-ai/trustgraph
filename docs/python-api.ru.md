@@ -22,7 +22,7 @@ pip install trustgraph
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ from trustgraph.api import Api
 
 Клиент может использоваться как менеджер контекста для автоматической очистки ресурсов:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ from trustgraph.api import Api
 
 Выйдите из синхронного контекстного менеджера и закройте соединения.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 Инициализируйте клиент API TrustGraph.
 
 **Аргументы:**
 
-`url`: Базовый URL для API TrustGraph (по умолчанию: "http://localhost:8088/"")
+`url`: Базовый URL для API TrustGraph (по умолчанию: "http://localhost:8888/"")
 `timeout`: Время ожидания запроса в секундах (по умолчанию: 60)
 `token`: Необязательный токен для аутентификации
 

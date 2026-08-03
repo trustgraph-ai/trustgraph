@@ -15,7 +15,7 @@ import sys
 import requests
 
 
-DEFAULT_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
+DEFAULT_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 DEFAULT_TOKEN = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 

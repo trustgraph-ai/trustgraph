@@ -22,7 +22,7 @@ class TestLoadStructuredDataIntegration:
     
     def setup_method(self):
         """Set up test fixtures"""
-        self.api_url = "http://localhost:8088"
+        self.api_url = "http://localhost:8888"
         self.test_schema_name = "integration_test_schema"
         
         self.test_csv_data = """name,email,age,country,status
@@ -334,12 +334,12 @@ Charlie Davis,charlie@email.com,39,DE,inactive"""
     # Schema Suggestion Integration Tests
     def test_schema_suggestion_integration(self):
         """Test schema suggestion integration with API"""
-        pytest.skip("Requires running TrustGraph API at localhost:8088")
+        pytest.skip("Requires running TrustGraph API at localhost:8888")
     
     # Descriptor Generation Integration Tests
     def test_descriptor_generation_integration(self):
         """Test descriptor generation integration"""
-        pytest.skip("Requires running TrustGraph API at localhost:8088")
+        pytest.skip("Requires running TrustGraph API at localhost:8888")
     
     # Error Handling Integration Tests
     @pytest.mark.asyncio

@@ -9,7 +9,7 @@ import base64
 import websockets
 
 async def main():
-    url = "ws://localhost:8088/api/v1/socket"
+    url = "ws://localhost:8888/api/v1/socket"
 
     document_id = "test-chunked-doc-001"
     chunk_size = 10  # Tiny chunks!

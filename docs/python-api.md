@@ -14,7 +14,7 @@ All classes and types are imported from the `trustgraph.api` package:
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -107,7 +107,7 @@ both REST-based and WebSocket-based communication patterns.
 
 The client can be used as a context manager for automatic resource cleanup:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -129,13 +129,13 @@ Enter synchronous context manager.
 
 Exit synchronous context manager and close connections.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None, workspace: str = 'default')`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None, workspace: str = 'default')`
 
 Initialize the TrustGraph API client.
 
 **Arguments:**
 
-- `url`: Base URL for TrustGraph API (default: "http://localhost:8088/")
+- `url`: Base URL for TrustGraph API (default: "http://localhost:8888/")
 - `timeout`: Request timeout in seconds (default: 60)
 - `token`: Optional bearer token for authentication
 

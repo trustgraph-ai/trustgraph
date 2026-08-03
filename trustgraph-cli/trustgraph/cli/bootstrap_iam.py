@@ -15,7 +15,7 @@ import sys
 
 import requests
 
-default_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
+default_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 
 
 def bootstrap(url):

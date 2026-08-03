@@ -10,7 +10,7 @@ import time
 import websockets
 
 async def main():
-    url = "ws://localhost:8088/api/v1/socket"
+    url = "ws://localhost:8888/api/v1/socket"
 
     # Small text content
     content = b"AAAAAAAAAABBBBBBBBBBCCCCCCCCCC"

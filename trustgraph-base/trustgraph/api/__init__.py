@@ -19,7 +19,7 @@ Quick Start:
     from trustgraph.api import Api
 
     # Create API client
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Get a flow instance
     flow = api.flow().id("default")
@@ -41,7 +41,7 @@ For streaming and async operations:
         print(chunk.content)
 
     # Async operations
-    async with Api(url="http://localhost:8088/") as api:
+    async with Api(url="http://localhost:8888/") as api:
         async_flow = api.async_flow()
         result = await async_flow.id("default").text_completion(
             system="You are helpful",

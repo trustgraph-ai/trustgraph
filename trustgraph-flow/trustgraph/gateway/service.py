@@ -36,7 +36,7 @@ default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 default_timeout = 600
-default_port = 8088
+default_port = 8888
 
 class Api:
 

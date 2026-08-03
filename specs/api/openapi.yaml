@@ -82,7 +82,7 @@ info:
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 servers:
-  - url: http://localhost:8088
+  - url: http://localhost:8888
     description: Local development server
 
 security:

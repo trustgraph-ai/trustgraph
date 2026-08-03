@@ -175,7 +175,7 @@ class TestXMLXPathParsing:
         try:
             # Test parse-only mode to verify XML parsing works
             load_structured_data(
-                api_url="http://localhost:8088",
+                api_url="http://localhost:8888",
                 input_file=input_file,
                 descriptor_file=descriptor_file,
                 parse_only=True,

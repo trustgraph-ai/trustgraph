@@ -63,7 +63,7 @@ established by the authentication frame.</p>
 <h2 id="schema-reuse">Schema Reuse</h2>
 <p>Request and response payloads use identical schemas to the REST API.
 See OpenAPI specification for detailed schema documentation.</p>
-</div></div></div><div class="panel-item--right"></div></div><section id="servers" class="mt-16"><h2 class="2xl:w-7/12 text-3xl font-light mb-4 px-8">Servers</h2><ul><li class="mb-4" id="server-production"><div class="panel-item"><div class="panel-item--center px-8"><div class="shadow rounded bg-gray-200 p-4 border bg-gray-100"><div><span class="font-mono text-base">ws://localhost:8088/</span><strong class="bg-teal-500 no-underline text-white uppercase rounded mx-2 px-2 py-1 text-sm">ws</strong><strong class="bg-blue-500 no-underline text-white uppercase rounded px-2 py-1 text-sm">production</strong></div><div class="mt-2"><div class="prose max-w-none text-sm"><p>Local development WebSocket server</p>
+</div></div></div><div class="panel-item--right"></div></div><section id="servers" class="mt-16"><h2 class="2xl:w-7/12 text-3xl font-light mb-4 px-8">Servers</h2><ul><li class="mb-4" id="server-production"><div class="panel-item"><div class="panel-item--center px-8"><div class="shadow rounded bg-gray-200 p-4 border bg-gray-100"><div><span class="font-mono text-base">ws://localhost:8888/</span><strong class="bg-teal-500 no-underline text-white uppercase rounded mx-2 px-2 py-1 text-sm">ws</strong><strong class="bg-blue-500 no-underline text-white uppercase rounded px-2 py-1 text-sm">production</strong></div><div class="mt-2"><div class="prose max-w-none text-sm"><p>Local development WebSocket server</p>
 </div></div><div id="server-production-security"><div class="text-sm mt-4"><h5 class="text-gray-800">Security<!-- -->:</h5><ul><li class="mt-2"><div><div><span>HTTP API key<ul class="inline-block ml-2"><li class="inline-block font-bold no-underline bg-blue-400 text-white text-xs uppercase rounded px-2 py-0 ml-1"><span>Name: <!-- -->Authorization</span></li><li class="inline-block font-bold no-underline bg-blue-400 text-white text-xs uppercase rounded px-2 py-0 ml-1"><span>In: <!-- -->header</span></li></ul></span></div><div><div class="prose max-w-none text-sm"><p>Bearer token authentication.  The <code>/api/v1/socket</code> endpoint
 uses in-band authentication: the WebSocket handshake is
 accepted unconditionally and the client sends a bearer token
@@ -118,7 +118,7 @@ string obtained via the IAM service.</p>
   },
   "servers": {
     "production": {
-      "host": "localhost:8088",
+      "host": "localhost:8888",
       "protocol": "ws",
       "description": "Local development WebSocket server",
       "security": [

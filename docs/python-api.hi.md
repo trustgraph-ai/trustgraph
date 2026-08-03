@@ -22,7 +22,7 @@ pip install trustgraph
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ from trustgraph.api import Api
 
 क्लाइंट का उपयोग स्वचालित संसाधन सफाई के लिए एक संदर्भ प्रबंधक के रूप में किया जा सकता है:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ from trustgraph.api import Api
 
 सिंक्रोनस संदर्भ प्रबंधक से बाहर निकलें और कनेक्शन बंद करें।
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 ट्रस्टग्राफ एपीआई क्लाइंट को आरंभ करें।
 
 **तर्क:**
 
-`url`: ट्रस्टग्राफ एपीआई के लिए आधार यूआरएल (डिफ़ॉल्ट: "http://localhost:8088/"")
+`url`: ट्रस्टग्राफ एपीआई के लिए आधार यूआरएल (डिफ़ॉल्ट: "http://localhost:8888/"")
 `timeout`: सेकंड में अनुरोध समय-सीमा (डिफ़ॉल्ट: 60)
 `token`: प्रमाणीकरण के लिए वैकल्पिक बेयरर टोकन
 

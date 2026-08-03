@@ -17,7 +17,7 @@ get:
 
     Establish WebSocket connection to:
     ```
-    ws://localhost:8088/api/v1/socket
+    ws://localhost:8888/api/v1/socket
     ```
 
     ## Message Protocol

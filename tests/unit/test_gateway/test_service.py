@@ -29,7 +29,7 @@ class TestDefaults:
     def test_exports_default_constants(self):
         # These are consumed by CLIs / tests / docs.  Sanity-check
         # that they're the expected shape.
-        assert default_port == 8088
+        assert default_port == 8888
         assert default_timeout == 600
         assert default_pulsar_host.startswith("pulsar://")
         assert default_prometheus_url.startswith("http")
