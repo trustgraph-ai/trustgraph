@@ -119,7 +119,24 @@ def register(op: Operation) -> None:
 
 
 def lookup(name: str) -> Operation | None:
-    return _REGISTRY.get(name)
+    op = _REGISTRY.get(name)
+    if op is not None:
+        return op
+
+    # Passthrough flow services: flow-service:thru/<anything> is
+    # allowed for any authenticated caller with flow-level access.
+    # The gateway forwards the payload without interpretation; the
+    # downstream service handles its own authorisation.
+    if name.startswith("flow-service:thru/"):
+        return Operation(
+            name=name,
+            capability=AUTHENTICATED,
+            resource_level=ResourceLevel.FLOW,
+            extract_resource=_flow_from_match_info,
+            extract_parameters=_no_parameters,
+        )
+
+    return None
 
 
 def all_operations() -> list[Operation]:
