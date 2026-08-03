@@ -24,7 +24,7 @@ class TestErrorHandlingEdgeCases:
     
     def setup_method(self):
         """Set up test fixtures"""
-        self.api_url = "http://localhost:8088"
+        self.api_url = "http://localhost:8888"
         
         # Valid descriptor for testing
         self.valid_descriptor = {

@@ -111,7 +111,7 @@ LLM 生成过程中没有实时反馈。
 import asyncio
 
 # Synchronous interfaces
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # REST (existing, unchanged)
 flow = api.flow().id("default")
@@ -129,7 +129,7 @@ bulk.import_triples(flow="default", triples=triple_generator())
 
 # Asynchronous interfaces
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async REST (new)
     flow = api.async_flow().id("default")
@@ -148,7 +148,7 @@ asyncio.run(main())
 ```
 
 **关键设计原则**:
-**所有接口使用相同的URL**: `Api(url="http://localhost:8088/")` 对所有接口都有效。
+**所有接口使用相同的URL**: `Api(url="http://localhost:8888/")` 对所有接口都有效。
 **同步/异步对称**: 每个接口都具有同步和异步变体，方法签名相同。
 **相同的签名**: 当功能重叠时，REST 和 WebSocket 之间的同步和异步方法签名相同。
 **渐进式增强**: 根据需求选择接口（REST 用于简单操作，WebSocket 用于流式传输，Bulk 用于大型数据集，async 用于现代框架）。
@@ -819,7 +819,7 @@ class Metrics:
 
 ```python
 # Single API instance, same URL for all interfaces
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Synchronous interfaces
 rest_flow = api.flow().id("default")           # Sync REST
@@ -839,7 +839,7 @@ async_metrics = api.async_metrics()                    # Async metrics
 **代理流式传输**:
 
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # REST interface - non-streaming (existing)
 rest_flow = api.flow().id("default")
@@ -866,7 +866,7 @@ for chunk in socket_flow.agent(question="What is ML?", user="user123", streaming
 **RAG 流式传输**:
 
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # REST interface - non-streaming (existing)
 rest_flow = api.flow().id("default")
@@ -889,7 +889,7 @@ for chunk in socket_flow.graph_rag(
 **批量操作 (同步)**:
 
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Bulk import triples
 def triple_generator():
@@ -911,7 +911,7 @@ for triple in bulk.export_triples(flow="default"):
 import asyncio
 
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async bulk import triples
     async def async_triple_generator():
@@ -935,7 +935,7 @@ asyncio.run(main())
 import asyncio
 
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async REST flow operations
     flow = api.async_flow().id("default")
@@ -951,7 +951,7 @@ asyncio.run(main())
 import asyncio
 
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async WebSocket streaming
     socket = api.async_socket()
@@ -1069,7 +1069,7 @@ asyncio.run(main())
 **WebSocket 连接错误：**
 ```python
 try:
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
     socket = api.socket()
     socket_flow = socket.flow("default")
     response = socket_flow.agent(question="...", user="user123")
@@ -1080,7 +1080,7 @@ except ConnectionError as e:
 
 **优雅的降级方案**:
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 try:
     # Try WebSocket streaming first
@@ -1097,7 +1097,7 @@ except ConnectionError:
 
 **部分流式错误：**
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 socket_flow = api.socket().flow("default")
 
 accumulated = []
@@ -1118,13 +1118,13 @@ except Exception as e:
 **上下文管理器支持：**
 ```python
 # Automatic cleanup
-with Api(url="http://localhost:8088/") as api:
+with Api(url="http://localhost:8888/") as api:
     socket_flow = api.socket().flow("default")
     response = socket_flow.agent(question="...", user="user123")
 # All connections automatically closed
 
 # Manual cleanup
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 try:
     socket_flow = api.socket().flow("default")
     response = socket_flow.agent(question="...", user="user123")
@@ -1146,7 +1146,7 @@ WebSocket 传输使用锁进行线程安全的请求复用。
 import asyncio
 
 async def main():
-    api = await AsyncApi(url="ws://localhost:8088/")
+    api = await AsyncApi(url="ws://localhost:8888/")
     flow = api.flow().id("default")
 
     async for chunk in flow.agent(question="...", streaming=True):
@@ -1164,10 +1164,10 @@ asyncio.run(main())
 **令牌参数**:
 ```python
 # No authentication (default)
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # With authentication
-api = Api(url="http://localhost:8088/", token="mytoken")
+api = Api(url="http://localhost:8888/", token="mytoken")
 ```
 
 **REST 传输：**
@@ -1178,7 +1178,7 @@ api = Api(url="http://localhost:8088/", token="mytoken")
 **WebSocket 传输：**
 通过附加到 WebSocket URL 的查询参数传递认证令牌
 在连接建立期间自动应用
-格式：`ws://localhost:8088/api/v1/socket?token=<token>`
+格式：`ws://localhost:8888/api/v1/socket?token=<token>`
 
 **实现：**
 ```python
@@ -1195,13 +1195,13 @@ class SocketClient:
 **示例：**
 ```python
 # REST with auth
-api = Api(url="http://localhost:8088/", token="mytoken")
+api = Api(url="http://localhost:8888/", token="mytoken")
 flow = api.flow().id("default")
 # All REST calls include: Authorization: Bearer mytoken
 
 # WebSocket with auth
 socket = api.socket()
-# Connects to: ws://localhost:8088/api/v1/socket?token=mytoken
+# Connects to: ws://localhost:8888/api/v1/socket?token=mytoken
 ```
 
 ### 安全通信
@@ -1340,7 +1340,7 @@ WSS 连接的 TLS 证书验证。
 
 ```python
 # Existing code works unchanged
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 flow = api.flow().id("default")
 response = flow.agent(question="What is ML?", user="user123")
 ```
@@ -1351,13 +1351,13 @@ response = flow.agent(question="What is ML?", user="user123")
 
 ```python
 # Before: Non-streaming REST
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 rest_flow = api.flow().id("default")
 response = rest_flow.agent(question="What is ML?", user="user123")
 print(response["response"])
 
 # After: Streaming WebSocket (same parameters!)
-api = Api(url="http://localhost:8088/")  # Same URL
+api = Api(url="http://localhost:8888/")  # Same URL
 socket_flow = api.socket().flow("default")
 
 for chunk in socket_flow.agent(question="What is ML?", user="user123", streaming=True):
@@ -1376,7 +1376,7 @@ REST 和 WebSocket 都使用相同的 URL
 
 ```python
 # Before: Inefficient per-item operations
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 flow = api.flow().id("default")
 
 for triple in my_large_triple_list:
@@ -1385,7 +1385,7 @@ for triple in my_large_triple_list:
     pass
 
 # After: Efficient bulk loading
-api = Api(url="http://localhost:8088/")  # Same URL
+api = Api(url="http://localhost:8888/")  # Same URL
 bulk = api.bulk()
 
 # This is fast (10,000 triples/second)

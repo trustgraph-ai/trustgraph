@@ -22,7 +22,7 @@ pip install trustgraph
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ from trustgraph.api import Api
 
 ניתן להשתמש בלקוח כמנהל הקשר לניקוי אוטומטי של משאבים:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ from trustgraph.api import Api
 
 יציאה ממנהל הקשר הסינכרוני וסגירת חיבורים.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 אתחול לקוח ה-API של TrustGraph.
 
 **ארגומנטים:**
 
-`url`: כתובת הבסיס עבור ה-API של TrustGraph (ברירת מחדל: "http://localhost:8088/"")
+`url`: כתובת הבסיס עבור ה-API של TrustGraph (ברירת מחדל: "http://localhost:8888/"")
 `timeout`: זמן אחזור מקסימלי בשניות (ברירת מחדל: 60)
 `token`: טוקן bearer אופציונלי לאימות
 

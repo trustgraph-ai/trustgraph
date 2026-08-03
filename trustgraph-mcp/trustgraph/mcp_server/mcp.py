@@ -96,7 +96,7 @@ class AppContext:
 @asynccontextmanager
 async def app_lifespan(
     server: FastMCP,
-    websocket_url: str = "ws://api-gateway:8088/api/v1/socket",
+    websocket_url: str = "ws://api-gateway:8888/api/v1/socket",
 ) -> AsyncIterator[AppContext]:
     """Manage per-server state: the pool of per-caller WebSocket
     connections to the gateway."""
@@ -322,7 +322,7 @@ class McpServer:
         self,
         host: str = "0.0.0.0",
         port: int = 8000,
-        websocket_url: str = "ws://api-gateway:8088/api/v1/socket",
+        websocket_url: str = "ws://api-gateway:8888/api/v1/socket",
         auth_issuer: str = "",
         auth_resource_url: str = "",
     ):
@@ -1958,7 +1958,7 @@ def main():
     )
     parser.add_argument(
         '--websocket-url',
-        default='ws://api-gateway:8088/api/v1/socket',
+        default='ws://api-gateway:8888/api/v1/socket',
         help='WebSocket URL for the TrustGraph gateway',
     )
     parser.add_argument(

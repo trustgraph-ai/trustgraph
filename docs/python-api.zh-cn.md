@@ -22,7 +22,7 @@ pip install trustgraph
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ from trustgraph.api import Api
 
 客户端可以作为上下文管理器使用，以进行自动资源清理：
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ from trustgraph.api import Api
 
 退出同步上下文管理器并关闭连接。
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 初始化 TrustGraph API 客户端。
 
 **参数：**
 
-`url`: TrustGraph API 的基本 URL (默认值: "http://localhost:8088/"")
+`url`: TrustGraph API 的基本 URL (默认值: "http://localhost:8888/"")
 `timeout`: 请求超时时间，单位为秒 (默认值: 60)
 `token`: 可选的用于身份验证的 bearer token
 

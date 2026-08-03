@@ -244,7 +244,7 @@ class TestCLIArgumentParsing:
         assert call_args['flow'] == 'default'
         assert call_args['workspace'] == 'default'
         assert call_args['collection'] == 'default'
-        assert call_args['url'] == 'http://localhost:8088/'
+        assert call_args['url'] == 'http://localhost:8888/'
         assert call_args['token'] is None
 
 

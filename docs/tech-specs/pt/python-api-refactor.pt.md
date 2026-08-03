@@ -111,7 +111,7 @@ A API Python refatorada usa uma **abordagem de interface modular** com objetos s
 import asyncio
 
 # Synchronous interfaces
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # REST (existing, unchanged)
 flow = api.flow().id("default")
@@ -129,7 +129,7 @@ bulk.import_triples(flow="default", triples=triple_generator())
 
 # Asynchronous interfaces
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async REST (new)
     flow = api.async_flow().id("default")
@@ -148,7 +148,7 @@ asyncio.run(main())
 ```
 
 **Princípios de Design Chave:**
-**Mesmo URL para todas as interfaces:** `Api(url="http://localhost:8088/")` funciona para todas.
+**Mesmo URL para todas as interfaces:** `Api(url="http://localhost:8888/")` funciona para todas.
 **Simetria Síncrona/Assíncrona:** Cada interface possui variantes síncronas e assíncronas com assinaturas de método idênticas.
 **Assinaturas Idênticas:** Onde a funcionalidade se sobrepõe, as assinaturas dos métodos são idênticas entre REST e WebSocket, síncronas e assíncronas.
 **Melhoria Progressiva:** Escolha a interface com base nas necessidades (REST para tarefas simples, WebSocket para streaming, Bulk para grandes conjuntos de dados, assíncrono para frameworks modernos).
@@ -819,7 +819,7 @@ class Metrics:
 
 ```python
 # Single API instance, same URL for all interfaces
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Synchronous interfaces
 rest_flow = api.flow().id("default")           # Sync REST
@@ -839,7 +839,7 @@ async_metrics = api.async_metrics()                    # Async metrics
 **Streaming do Agente**:
 
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # REST interface - non-streaming (existing)
 rest_flow = api.flow().id("default")
@@ -866,7 +866,7 @@ for chunk in socket_flow.agent(question="What is ML?", user="user123", streaming
 **Streaming RAG**:
 
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # REST interface - non-streaming (existing)
 rest_flow = api.flow().id("default")
@@ -889,7 +889,7 @@ for chunk in socket_flow.graph_rag(
 **Operações em Lote (Síncronas):**
 
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Bulk import triples
 def triple_generator():
@@ -911,7 +911,7 @@ for triple in bulk.export_triples(flow="default"):
 import asyncio
 
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async bulk import triples
     async def async_triple_generator():
@@ -935,7 +935,7 @@ asyncio.run(main())
 import asyncio
 
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async REST flow operations
     flow = api.async_flow().id("default")
@@ -951,7 +951,7 @@ asyncio.run(main())
 import asyncio
 
 async def main():
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
 
     # Async WebSocket streaming
     socket = api.async_socket()
@@ -1069,7 +1069,7 @@ asyncio.run(main())
 **Erros de Conexão WebSocket**:
 ```python
 try:
-    api = Api(url="http://localhost:8088/")
+    api = Api(url="http://localhost:8888/")
     socket = api.socket()
     socket_flow = socket.flow("default")
     response = socket_flow.agent(question="...", user="user123")
@@ -1080,7 +1080,7 @@ except ConnectionError as e:
 
 **Fallback Elegante**:
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 try:
     # Try WebSocket streaming first
@@ -1097,7 +1097,7 @@ except ConnectionError:
 
 **Erros de Streaming Parcial:**
 ```python
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 socket_flow = api.socket().flow("default")
 
 accumulated = []
@@ -1118,13 +1118,13 @@ except Exception as e:
 **Suporte a Gerenciadores de Contexto**:
 ```python
 # Automatic cleanup
-with Api(url="http://localhost:8088/") as api:
+with Api(url="http://localhost:8888/") as api:
     socket_flow = api.socket().flow("default")
     response = socket_flow.agent(question="...", user="user123")
 # All connections automatically closed
 
 # Manual cleanup
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 try:
     socket_flow = api.socket().flow("default")
     response = socket_flow.agent(question="...", user="user123")
@@ -1146,7 +1146,7 @@ Iteradores de streaming não são seguros para threads (consumir de uma única t
 import asyncio
 
 async def main():
-    api = await AsyncApi(url="ws://localhost:8088/")
+    api = await AsyncApi(url="ws://localhost:8888/")
     flow = api.flow().id("default")
 
     async for chunk in flow.agent(question="...", streaming=True):
@@ -1164,10 +1164,10 @@ asyncio.run(main())
 **Parâmetro de Token**:
 ```python
 # No authentication (default)
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # With authentication
-api = Api(url="http://localhost:8088/", token="mytoken")
+api = Api(url="http://localhost:8888/", token="mytoken")
 ```
 
 **Transporte REST**:
@@ -1178,7 +1178,7 @@ Formato: `Authorization: Bearer <token>`
 **Transporte WebSocket**:
 Token via parâmetro de consulta anexado à URL do WebSocket
 Aplicado automaticamente durante o estabelecimento da conexão
-Formato: `ws://localhost:8088/api/v1/socket?token=<token>`
+Formato: `ws://localhost:8888/api/v1/socket?token=<token>`
 
 **Implementação**:
 ```python
@@ -1195,13 +1195,13 @@ class SocketClient:
 **Exemplo**:
 ```python
 # REST with auth
-api = Api(url="http://localhost:8088/", token="mytoken")
+api = Api(url="http://localhost:8888/", token="mytoken")
 flow = api.flow().id("default")
 # All REST calls include: Authorization: Bearer mytoken
 
 # WebSocket with auth
 socket = api.socket()
-# Connects to: ws://localhost:8088/api/v1/socket?token=mytoken
+# Connects to: ws://localhost:8888/api/v1/socket?token=mytoken
 ```
 
 ### Comunicação Segura
@@ -1340,7 +1340,7 @@ Testar o caminho de migração para padrões comuns
 
 ```python
 # Existing code works unchanged
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 flow = api.flow().id("default")
 response = flow.agent(question="What is ML?", user="user123")
 ```
@@ -1351,13 +1351,13 @@ response = flow.agent(question="What is ML?", user="user123")
 
 ```python
 # Before: Non-streaming REST
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 rest_flow = api.flow().id("default")
 response = rest_flow.agent(question="What is ML?", user="user123")
 print(response["response"])
 
 # After: Streaming WebSocket (same parameters!)
-api = Api(url="http://localhost:8088/")  # Same URL
+api = Api(url="http://localhost:8888/")  # Same URL
 socket_flow = api.socket().flow("default")
 
 for chunk in socket_flow.agent(question="What is ML?", user="user123", streaming=True):
@@ -1376,7 +1376,7 @@ Basta adicionar `.socket()` e `streaming=True`
 
 ```python
 # Before: Inefficient per-item operations
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 flow = api.flow().id("default")
 
 for triple in my_large_triple_list:
@@ -1385,7 +1385,7 @@ for triple in my_large_triple_list:
     pass
 
 # After: Efficient bulk loading
-api = Api(url="http://localhost:8088/")  # Same URL
+api = Api(url="http://localhost:8888/")  # Same URL
 bulk = api.bulk()
 
 # This is fast (10,000 triples/second)

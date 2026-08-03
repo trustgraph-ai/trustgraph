@@ -22,7 +22,7 @@ pip install trustgraph
 from trustgraph.api import Api, Triple, ConfigKey
 
 # Create API client
-api = Api(url="http://localhost:8088/")
+api = Api(url="http://localhost:8888/")
 
 # Get a flow instance
 flow = api.flow().id("default")
@@ -115,7 +115,7 @@ from trustgraph.api import Api
 
 يمكن استخدام العميل كمدير سياق للتنظيف التلقائي للموارد:
     ```python
-    with Api(url="http://localhost:8088/") as api:
+    with Api(url="http://localhost:8888/") as api:
         result = api.flow().id("default").graph_rag(query="test")
     ```
 
@@ -137,13 +137,13 @@ from trustgraph.api import Api
 
 اخرج من مدير السياق المتزامن وأغلق الاتصالات.
 
-### `__init__(self, url='http://localhost:8088/', timeout=60, token: str | None = None)`
+### `__init__(self, url='http://localhost:8888/', timeout=60, token: str | None = None)`
 
 تهيئة عميل واجهة برمجة تطبيقات TrustGraph.
 
 **الوسائط:**
 
-`url`: عنوان URL الأساسي لواجهة برمجة تطبيقات TrustGraph (الافتراضي: "http://localhost:8088/"")
+`url`: عنوان URL الأساسي لواجهة برمجة تطبيقات TrustGraph (الافتراضي: "http://localhost:8888/"")
 `timeout`: المهلة الزمنية للطلبات بالثواني (الافتراضي: 60)
 `token`: رمز مميز اختياري للمصادقة
 

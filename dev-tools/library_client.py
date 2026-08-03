@@ -24,7 +24,7 @@ from trustgraph.api.types import Uri, Literal, Triple
 BUCKET_URL = "https://storage.googleapis.com/trustgraph-library"
 INDEX_URL = f"{BUCKET_URL}/index.json"
 
-default_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
+default_url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 

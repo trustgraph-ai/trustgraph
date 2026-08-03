@@ -43,7 +43,7 @@ const QUESTION = "Tell me about the author of the document";
 // Likely to trigger the deep research plan-and-execute pattern
 //const QUESTION = "Do deep research and explain the risks posed globalisation in the modern world";
 
-const SOCKET_URL = "ws://localhost:8088/api/v1/socket";
+const SOCKET_URL = "ws://localhost:8888/api/v1/socket";
 
 // ---------------------------------------------------------------------------
 // RDF predicates and TrustGraph namespace constants

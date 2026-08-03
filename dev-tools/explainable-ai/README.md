@@ -16,7 +16,7 @@ chain from answer back to source documents.
 ## Prerequisites
 
 A running TrustGraph instance with at least one loaded document and a
-running flow. The default configuration connects to `ws://localhost:8088`.
+running flow. The default configuration connects to `ws://localhost:8888`.
 
 ## Usage
 

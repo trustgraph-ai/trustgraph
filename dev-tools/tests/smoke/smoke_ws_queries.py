@@ -214,7 +214,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--url",
-        default=os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/"),
+        default=os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/"),
         help="Gateway URL (http or ws). Default: %(default)s",
     )
     p.add_argument(

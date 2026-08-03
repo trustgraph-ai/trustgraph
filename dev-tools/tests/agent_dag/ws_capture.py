@@ -5,7 +5,7 @@ response messages to a JSON file.
 
 Usage:
     python ws_capture.py -q "What is the document about?" -o trace.json
-    python ws_capture.py -q "..." -u http://localhost:8088/ -o out.json
+    python ws_capture.py -q "..." -u http://localhost:8888/ -o out.json
 """
 
 import argparse
@@ -14,7 +14,7 @@ import json
 import os
 import websockets
 
-DEFAULT_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
+DEFAULT_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 DEFAULT_USER = "trustgraph"
 DEFAULT_COLLECTION = "default"
 DEFAULT_FLOW = "default"

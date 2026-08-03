@@ -27,7 +27,7 @@ from trustgraph.api import Api
 from trustgraph.api.types import ConfigValue, Triple
 from trustgraph.cli.nquads import parse_nquads
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 SUPPORTED_FORMAT = "tgx"

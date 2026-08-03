@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 APP_NAME="TrustGraph"
-DEFAULT_API_URL="http://localhost:8088/"
+DEFAULT_API_URL="http://localhost:8888/"
 DEFAULT_UI_URL="http://localhost:8888"
 DEFAULT_INSTALL_DIR="trustgraph-deploy"
 DEFAULT_OLLAMA_MODEL="granite4:350m"

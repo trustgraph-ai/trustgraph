@@ -13,7 +13,7 @@ import json
 import sys
 from trustgraph.api import Api
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 

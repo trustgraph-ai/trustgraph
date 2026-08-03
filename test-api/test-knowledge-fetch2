@@ -8,7 +8,7 @@ import base64
 import time
 from websockets.asyncio.client import connect
 
-url = "ws://localhost:8088/api/v1/socket"
+url = "ws://localhost:8888/api/v1/socket"
 
 ############################################################################
 

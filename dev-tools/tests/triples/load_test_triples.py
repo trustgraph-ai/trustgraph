@@ -17,7 +17,7 @@ import os
 import websockets
 
 # Configuration
-API_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8088/")
+API_URL = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
 TOKEN = os.getenv("TRUSTGRAPH_TOKEN", None)
 FLOW = "default"
 USER = "trustgraph"

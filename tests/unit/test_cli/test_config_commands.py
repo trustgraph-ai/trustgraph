@@ -126,7 +126,7 @@ class TestListConfigItems:
             list_main()
             
             mock_list.assert_called_once_with(
-                url='http://localhost:8088/',
+                url='http://localhost:8888/',
                 config_type='prompt',
                 format_type='text',
                 token=None,
@@ -278,7 +278,7 @@ class TestPutConfigItem:
             put_main()
             
             mock_put.assert_called_once_with(
-                url='http://localhost:8088/',
+                url='http://localhost:8888/',
                 config_type='prompt',
                 key='stdin-template',
                 value=stdin_content,

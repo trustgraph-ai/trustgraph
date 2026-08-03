@@ -142,7 +142,7 @@ async def main(running):
         description=__doc__,
     )
 
-    default_url = os.getenv("TRUSTGRAPH_API", "http://localhost:8088/")
+    default_url = os.getenv("TRUSTGRAPH_API", "http://localhost:8888/")
     collection = "default"
 
     parser.add_argument(

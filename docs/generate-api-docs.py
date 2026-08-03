@@ -262,7 +262,7 @@ def generate_toc(items):
     md.append("from trustgraph.api import Api, Triple, ConfigKey")
     md.append("")
     md.append("# Create API client")
-    md.append("api = Api(url=\"http://localhost:8088/\")")
+    md.append("api = Api(url=\"http://localhost:8888/\")")
     md.append("")
     md.append("# Get a flow instance")
     md.append("flow = api.flow().id(\"default\")")

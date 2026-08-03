@@ -9,7 +9,7 @@ import argparse
 import json
 import time
 
-default_metrics_url = "http://localhost:8088/api/metrics"
+default_metrics_url = "http://localhost:8888/api/metrics"
 DEFAULT_TOKEN = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 class Collate:
