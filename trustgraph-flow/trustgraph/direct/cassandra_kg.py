@@ -8,7 +8,7 @@ from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement, SimpleStatement
 import ssl
 
-from ..tables.cassandra_async import async_execute
+from ..tables.cassandra_async import async_execute, async_scan
 
 # Global list to track clusters for cleanup
 _active_clusters = []
@@ -1217,7 +1217,10 @@ class EntityCentricKnowledgeGraph:
         logger.info(f"Created collection metadata for {collection}")
 
     async def async_delete_collection(self, collection):
-        rows = await async_execute(
+        # This enumerates every quad in the collection, so it must page.
+        # async_execute materialises only the first result page, which silently
+        # left ~78% of a 23k-quad collection behind while reporting success.
+        rows = await async_scan(
             self.session,
             f"SELECT d, s, p, o, otype, dtype, lang FROM {self.collection_table} WHERE collection = %s",
             (collection,)

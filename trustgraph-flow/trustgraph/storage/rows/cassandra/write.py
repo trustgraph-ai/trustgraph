@@ -30,7 +30,7 @@ from .... schema import RowSchema, Field
 from .... base import FlowProcessor, ConsumerSpec
 from .... base import CollectionConfigHandler
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
-from .... tables.cassandra_async import async_execute
+from .... tables.cassandra_async import async_execute, async_scan
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -515,7 +515,10 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """
 
         try:
-            partition_list = await async_execute(
+            # Pages: this enumerates every partition for the collection, and the
+            # row_partitions manifest is deleted below — so a truncated read would
+            # orphan the surviving rows with no index left to find them by.
+            partition_list = await async_scan(
                 self.session, select_partitions_cql, (collection,)
             )
         except Exception as e:
@@ -583,7 +586,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         """
 
         try:
-            partition_list = await async_execute(
+            # Pages, for the same reason as delete_collection above.
+            partition_list = await async_scan(
                 self.session, select_partitions_cql, (collection, schema_name)
             )
         except Exception as e:
