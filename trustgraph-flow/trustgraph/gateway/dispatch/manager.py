@@ -39,6 +39,7 @@ from . document_embeddings_query import DocumentEmbeddingsQueryRequestor
 from . row_embeddings_query import RowEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
 from . reranker import RerankerRequestor
+from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
 
@@ -458,6 +459,16 @@ class DispatcherManager:
 
                     if kind in request_response_dispatchers:
                         dispatcher = request_response_dispatchers[kind](
+                            backend = self.backend,
+                            request_queue = qconfig["request"],
+                            response_queue = qconfig["response"],
+                            timeout = self.timeout,
+                            consumer = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
+                            subscriber = f"{self.prefix}-{workspace}-{flow}-{kind}-request",
+                        )
+                        dispatcher.service_kind = kind
+                    elif kind.startswith("thru/"):
+                        dispatcher = PassthroughRequestor(
                             backend = self.backend,
                             request_queue = qconfig["request"],
                             response_queue = qconfig["response"],

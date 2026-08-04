@@ -243,6 +243,16 @@ class EndpointManager:
                 in_band_auth=True,
             ),
 
+            # Per-flow passthrough services — must be registered
+            # before the general service route so aiohttp matches
+            # the more specific thru/ prefix first.
+            _RoutedVariableEndpoint(
+                endpoint_path="/api/v1/flow/{flow}/service/{kind:thru/.+}",
+                auth=auth,
+                dispatcher=dispatcher_manager.dispatch_flow_service(),
+                registry_prefix="flow-service",
+            ),
+
             # Per-flow request/response services — gated per
             # ``flow-service:<kind>`` registry entry.
             _RoutedVariableEndpoint(
