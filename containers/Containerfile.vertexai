@@ -14,7 +14,7 @@ RUN dnf install -y python3.13 && \
   pip3 install --no-cache-dir --upgrade 'pip>=26.0' 'setuptools>=78.1.1' && \
   pip3 install --no-cache-dir build wheel aiohttp && \
   pip3 install --no-cache-dir pulsar-client==3.11.0 && \
-  pip3 install --no-cache-dir google-cloud-aiplatform && \
+  pip3 install --no-cache-dir google-genai google-api-core && \
   dnf clean all
 
 # ----------------------------------------------------------------------------
