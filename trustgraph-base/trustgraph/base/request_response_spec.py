@@ -53,7 +53,9 @@ def _make_impl_wrapper(rr_client, impl_cls):
     """Create a domain-specific wrapper that delegates request() to the
     RequestResponseClient while inheriting business methods from impl_cls."""
 
-    class Wrapper(impl_cls):
+    bases = (impl_cls,) if impl_cls is not None else ()
+
+    class Wrapper(*bases):
         def __init__(self):
             self._rr_client = rr_client
 
