@@ -6,7 +6,7 @@ name + parameters, output is the response, either a string or an object.
 
 import json
 import logging
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp import ClientSession
 
 from ... base import ToolService
@@ -75,7 +75,7 @@ class Service(ToolService):
             logger.info(f"Invoking {remote_name} at {url}")
 
             # Connect to a streamable HTTP server with headers
-            async with streamablehttp_client(url, headers=headers) as (
+            async with streamable_http_client(url, headers=headers) as (
                     read_stream,
                     write_stream,
                     _,
@@ -93,8 +93,8 @@ class Service(ToolService):
                         parameters
                     )
 
-                    if result.structuredContent:
-                        return result.structuredContent
+                    if result.structured_content:
+                        return result.structured_content
                     elif hasattr(result, "content"):
                             return "".join([
                                 x.text
