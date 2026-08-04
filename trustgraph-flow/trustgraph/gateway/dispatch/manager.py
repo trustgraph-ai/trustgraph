@@ -452,10 +452,12 @@ class DispatcherManager:
                 if key not in self.dispatchers:
                     intf_defs = self.flows[flow_key]["interfaces"]
 
-                    if kind not in intf_defs:
+                    intf_kind = kind.removeprefix("thru/")
+
+                    if intf_kind not in intf_defs:
                         raise RuntimeError("This kind not supported by flow")
 
-                    qconfig = intf_defs[kind]
+                    qconfig = intf_defs[intf_kind]
 
                     if kind in request_response_dispatchers:
                         dispatcher = request_response_dispatchers[kind](
