@@ -138,6 +138,7 @@ class Query:
             self, rag, collection, verbose,
             entity_limit=50, triple_limit=30, max_subgraph_size=1000,
             max_path_length=2, edge_limit=25, max_reranker_input=350,
+            max_reranker_text_length=240,
             track_usage=None,
     ):
         self.rag = rag
@@ -149,6 +150,7 @@ class Query:
         self.max_path_length = max_path_length
         self.edge_limit = edge_limit
         self.max_reranker_input = max_reranker_input
+        self.max_reranker_text_length = max_reranker_text_length
         self.track_usage = track_usage
 
     async def extract_concepts(self, query):
@@ -431,6 +433,9 @@ class Query:
                         continue
                     text = f"{ls} {lo}"
 
+                if len(text) > self.max_reranker_text_length:
+                    text = text[:self.max_reranker_text_length]
+
                 idx = len(filtered_triples)
                 filtered_triples.append((s, p, o))
                 labeled_hop.append((ls, lp, lo))
@@ -641,6 +646,7 @@ class GraphRag:
             self, query, collection = "default",
             entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
             max_path_length = 2, edge_limit = 25, max_reranker_input = 350,
+            max_reranker_text_length = 240,
             streaming = False,
             chunk_callback = None,
             explain_callback = None, save_answer_callback = None,
@@ -695,6 +701,7 @@ class GraphRag:
             max_path_length = max_path_length,
             edge_limit = edge_limit,
             max_reranker_input = max_reranker_input,
+            max_reranker_text_length = max_reranker_text_length,
             track_usage = track_usage,
         )
 
