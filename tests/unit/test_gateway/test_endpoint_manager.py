@@ -84,7 +84,10 @@ class TestEndpointManager:
         mock_dispatcher_manager.dispatch_global_service.assert_called_once()
         assert mock_dispatcher_manager.dispatch_auth_iam.call_count == 2
         mock_dispatcher_manager.dispatch_socket.assert_called_once()
-        mock_dispatcher_manager.dispatch_flow_service.assert_called_once()
+        # dispatch_flow_service is called twice: once for the general
+        # /api/v1/flow/{flow}/service/{kind} route and once for the
+        # passthrough /api/v1/flow/{flow}/service/{kind:thru/.+} route.
+        assert mock_dispatcher_manager.dispatch_flow_service.call_count == 2
         mock_dispatcher_manager.dispatch_flow_import.assert_called_once()
         mock_dispatcher_manager.dispatch_flow_export.assert_called_once()
         mock_dispatcher_manager.dispatch_core_import.assert_called_once()

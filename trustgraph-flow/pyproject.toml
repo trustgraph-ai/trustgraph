@@ -30,7 +30,7 @@ dependencies = [
     "minio",
     "mistralai<2.0.0",
     "neo4j",
-    "nltk",
+    "nltk>=3.10.2",
     "ollama",
     "openai",
     "pinecone[grpc]",

@@ -38,6 +38,9 @@ class Processor(FlowProcessor):
         max_path_length = params.get("max_path_length", 2)
         edge_limit = params.get("edge_limit", 25)
         max_reranker_input = params.get("max_reranker_input", 350)
+        max_reranker_text_length = params.get(
+            "max_reranker_text_length", 240
+        )
 
         super(Processor, self).__init__(
             **params | {
@@ -49,6 +52,7 @@ class Processor(FlowProcessor):
                 "max_path_length": max_path_length,
                 "edge_limit": edge_limit,
                 "max_reranker_input": max_reranker_input,
+                "max_reranker_text_length": max_reranker_text_length,
             }
         )
 
@@ -58,6 +62,7 @@ class Processor(FlowProcessor):
         self.default_max_path_length = max_path_length
         self.default_edge_limit = edge_limit
         self.default_max_reranker_input = max_reranker_input
+        self.default_max_reranker_text_length = max_reranker_text_length
 
         # Workspace isolation is enforced by the flow layer (flow.workspace).
         # Per-request caching (see GraphRag) keeps within-request state
@@ -239,6 +244,7 @@ class Processor(FlowProcessor):
                     max_path_length = max_path_length,
                     edge_limit = edge_limit,
                     max_reranker_input = max_reranker_input,
+                    max_reranker_text_length = self.default_max_reranker_text_length,
                     streaming = True,
                     chunk_callback = send_chunk,
                     explain_callback = send_explainability,
@@ -255,6 +261,7 @@ class Processor(FlowProcessor):
                     max_path_length = max_path_length,
                     edge_limit = edge_limit,
                     max_reranker_input = max_reranker_input,
+                    max_reranker_text_length = self.default_max_reranker_text_length,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
                     parent_uri = v.parent_uri,
@@ -357,6 +364,13 @@ class Processor(FlowProcessor):
             type=int,
             default=350,
             help=f'Max candidate edges sent to the reranker per hop (default: 350)'
+        )
+
+        parser.add_argument(
+            '--max-reranker-text-length',
+            type=int,
+            default=240,
+            help=f'Max character length of text sent to the reranker per edge (default: 240)'
         )
 
         # Note: Explainability triples are now stored in the request's collection

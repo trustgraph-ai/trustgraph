@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from collections.abc import AsyncIterator
 from functools import partial
 
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server import MCPServer
+from mcp.server.mcpserver.server import Context
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.middleware.auth_context import get_access_token
 
@@ -95,7 +96,7 @@ class AppContext:
 
 @asynccontextmanager
 async def app_lifespan(
-    server: FastMCP,
+    server: MCPServer,
     websocket_url: str = "ws://api-gateway:8888/api/v1/socket",
 ) -> AsyncIterator[AppContext]:
     """Manage per-server state: the pool of per-caller WebSocket
@@ -351,11 +352,9 @@ class McpServer:
             resource_server_url=auth_resource_url or f"http://{host}:{port}",
         )
 
-        self.mcp = FastMCP(
+        self.mcp = MCPServer(
             "TrustGraph",
             dependencies=["trustgraph-base"],
-            host=self.host,
-            port=self.port,
             lifespan=lifespan_with_url,
             token_verifier=PassthroughTokenVerifier(),
             auth=auth_settings,
@@ -398,7 +397,11 @@ class McpServer:
 
     def run(self):
         """Run the MCP server"""
-        self.mcp.run(transport="streamable-http")
+        self.mcp.run(
+            transport="streamable-http",
+            host=self.host,
+            port=self.port,
+        )
 
     async def _get_manager(self, ctx):
         """Get an authenticated WebSocket manager for the current caller.
