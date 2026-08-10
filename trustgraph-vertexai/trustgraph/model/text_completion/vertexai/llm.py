@@ -12,6 +12,7 @@ Supports both Google's Gemini models and Anthropic's Claude models.
 from google.oauth2 import service_account
 import google.auth
 import logging
+import os
 
 from google import genai
 from google.genai import types
@@ -31,16 +32,22 @@ logger = logging.getLogger(__name__)
 default_ident = "text-completion"
 
 default_model = 'gemini-1.5-flash-001'
-default_region = 'us-central1'
+default_region = 'global'
 default_temperature = 0.0
 default_max_output = 8192
 default_private_key = "private.json"
+
+ENV_VERTEXAI_REGION = "VERTEXAI_REGION"
 
 class Processor(LlmService):
 
     def __init__(self, **params):
 
-        region = params.get("region", default_region)
+        region = (
+            params.get("region")
+            or os.environ.get(ENV_VERTEXAI_REGION)
+            or default_region
+        )
         model = params.get("model", default_model)
         private_key = params.get("private_key", default_private_key)
         temperature = params.get("temperature", default_temperature)
