@@ -372,7 +372,6 @@ This is not JSON at all
         config = {
             "prompt": {
                 "system": json.dumps("Test system"),
-                "template-index": json.dumps(["agent-kg-extract"]),
                 "template.agent-kg-extract": json.dumps({
                     "prompt": "Extract knowledge from: {{ text }}",
                     "response-type": "json"

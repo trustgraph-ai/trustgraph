@@ -4,7 +4,7 @@ Sets a model's token costs.
 
 import argparse
 import os
-from trustgraph.api import Api, ConfigKey, ConfigValue
+from trustgraph.api import Api, ConfigValue
 import json
 import tabulate
 import textwrap
@@ -31,12 +31,6 @@ def set_prompt(url, id, prompt, response, schema, workspace="default"):
 
     api = Api(url, workspace=workspace)
 
-    values = api.config_get([
-        ConfigKey(type="prompt", key="template-index")
-    ])
-
-    ix = json.loads(values[0].value)
-
     object = {
         "id": id,
         "prompt": prompt,
@@ -50,13 +44,7 @@ def set_prompt(url, id, prompt, response, schema, workspace="default"):
     if schema:
         object["schema"] = schema
 
-    if id not in ix:
-        ix.append(id)
-
-    values = api.config_put([
-        ConfigValue(
-            type="prompt", key="template-index", value=json.dumps(ix)
-        ),
+    api.config_put([
         ConfigValue(
             type="prompt", key=f"template.{id}", value=json.dumps(object)
         )

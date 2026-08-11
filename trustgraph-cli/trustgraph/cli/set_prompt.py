@@ -4,7 +4,7 @@ Sets a prompt template.
 
 import argparse
 import os
-from trustgraph.api import Api, ConfigKey, ConfigValue
+from trustgraph.api import Api, ConfigValue
 import json
 import tabulate
 import textwrap
@@ -27,12 +27,6 @@ def set_prompt(url, id, prompt, response, schema, token=None, workspace="default
 
     api = Api(url, token=token, workspace=workspace).config()
 
-    values = api.get([
-        ConfigKey(type="prompt", key="template-index")
-    ])
-
-    ix = json.loads(values[0].value)
-
     object = {
         "id": id,
         "prompt": prompt,
@@ -46,13 +40,7 @@ def set_prompt(url, id, prompt, response, schema, token=None, workspace="default
     if schema:
         object["schema"] = schema
 
-    if id not in ix:
-        ix.append(id)
-
-    values = api.put([
-        ConfigValue(
-            type="prompt", key="template-index", value=json.dumps(ix)
-        ),
+    api.put([
         ConfigValue(
             type="prompt", key=f"template.{id}", value=json.dumps(object)
         )

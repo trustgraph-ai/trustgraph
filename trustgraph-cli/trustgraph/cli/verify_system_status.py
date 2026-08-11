@@ -231,18 +231,10 @@ def check_prompts(url: str, timeout: int, tr, token: Optional[str] = None, works
         api = Api(url, token=token, timeout=timeout, workspace=workspace)
         config = api.config()
 
-        # Import ConfigKey here to avoid top-level import issues
-        from trustgraph.api.types import ConfigKey
-        import json
+        all_keys = config.list(type="prompt")
+        ix = [k for k in all_keys if k.startswith("template.")]
 
-        # Get the template-index which lists all prompts
-        values = config.get([
-            ConfigKey(type="prompt", key="template-index")
-        ])
-
-        ix = json.loads(values[0].value)
-
-        if ix and len(ix) > 0:
+        if ix:
             return True, tr.t("cli.verify_system_status.prompts.found", count=len(ix))
         else:
             return False, tr.t("cli.verify_system_status.prompts.none")

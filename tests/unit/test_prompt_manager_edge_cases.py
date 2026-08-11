@@ -23,7 +23,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["large_json"]),
             "template.large_json": json.dumps({
                 "prompt": "Generate large dataset",
                 "response-type": "json"
@@ -60,7 +59,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["unicode"]),
             "template.unicode": json.dumps({
                 "prompt": "Process text: {{ text }}",
                 "response-type": "text"
@@ -85,7 +83,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["text_with_json"]),
             "template.text_with_json": json.dumps({
                 "prompt": "Explain this data",
                 "response-type": "text"  # Text response, not JSON
@@ -116,7 +113,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["multi_json"]),
             "template.multi_json": json.dumps({
                 "prompt": "Generate examples",
                 "response-type": "json"
@@ -148,7 +144,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["json_comments"]),
             "template.json_comments": json.dumps({
                 "prompt": "Generate config",
                 "response-type": "json"
@@ -178,7 +173,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["basic_template"]),
             "template.basic_template": json.dumps({
                 "prompt": """
                     Normal: {{ variable }}
@@ -203,7 +197,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["empty_json"]),
             "template.empty_json": json.dumps({
                 "prompt": "Generate empty data",
                 "response-type": "json"
@@ -233,7 +226,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["malformed"]),
             "template.malformed": json.dumps({
                 "prompt": "Generate data",
                 "response-type": "json"
@@ -255,7 +247,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["recursive"]),
             "template.recursive": json.dumps({
                 "prompt": "{{ recursive_var }}",
                 "response-type": "text"
@@ -282,7 +273,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["long"]),
             "template.long": json.dumps({
                 "prompt": long_template,
                 "response-type": "text"
@@ -311,7 +301,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["strict_schema"]),
             "template.strict_schema": json.dumps({
                 "prompt": "Generate user",
                 "response-type": "json",
@@ -343,7 +332,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["timeout_test"]),
             "template.timeout_test": json.dumps({
                 "prompt": "Test prompt",
                 "response-type": "text"
@@ -362,7 +350,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["filters"]),
             "template.filters": json.dumps({
                 "prompt": """
                     {% if items %}
@@ -400,7 +387,6 @@ class TestPromptManagerEdgeCases:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["concurrent"]),
             "template.concurrent": json.dumps({
                 "prompt": "User: {{ user }}",
                 "response-type": "text"

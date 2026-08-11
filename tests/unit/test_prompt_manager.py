@@ -21,7 +21,6 @@ class TestPromptManager:
         """Sample configuration dict for PromptManager"""
         return {
             "system": json.dumps("You are a helpful assistant."),
-            "template-index": json.dumps(["simple_text", "json_response", "complex_template"]),
             "template.simple_text": json.dumps({
                 "prompt": "Hello {{ name }}, welcome to {{ system_name }}!",
                 "response-type": "text"
@@ -88,7 +87,6 @@ class TestPromptManager:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["test"]),
             "template.test": json.dumps({
                 "prompt": "Value is: {{ value }}",
                 "response-type": "text"
@@ -254,7 +252,6 @@ class TestPromptManager:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["no_schema"]),
             "template.no_schema": json.dumps({
                 "prompt": "Generate any JSON",
                 "response-type": "json"
@@ -291,7 +288,6 @@ class TestPromptManager:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["nested"]),
             "template.nested": json.dumps({
                 "prompt": "{{ greeting }} from {{ company }} in {{ year }}!",
                 "response-type": "text"
@@ -362,7 +358,6 @@ class TestPromptManager:
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["json_response"]),
             "template.json_response": json.dumps({
                 "prompt": "Generate JSON",
                 "response-type": "json"
@@ -390,7 +385,6 @@ class TestPromptManagerJsonl:
         """Configuration with JSONL response type prompts"""
         return {
             "system": json.dumps("You are an extraction assistant."),
-            "template-index": json.dumps(["extract_simple", "extract_with_schema", "extract_mixed"]),
             "template.extract_simple": json.dumps({
                 "prompt": "Extract entities from: {{ text }}",
                 "response-type": "jsonl"

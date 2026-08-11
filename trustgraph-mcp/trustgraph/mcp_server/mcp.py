@@ -1109,9 +1109,13 @@ class McpServer:
         async for response in gen:
             config = response.get("config", {})
             prompt_config = config.get("prompt", {})
-            template_index = prompt_config.get("template-index", "[]")
-            prompts = json.loads(template_index) if isinstance(template_index, str) else template_index
-            return GetPromptsResponse(prompts=prompts)
+            prefix = "template."
+            prompts = [
+                k.removeprefix(prefix)
+                for k in prompt_config
+                if k.startswith(prefix)
+            ]
+            return GetPromptsResponse(prompts=sorted(prompts))
 
     async def get_prompt(
             self,
