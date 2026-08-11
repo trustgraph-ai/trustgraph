@@ -17,17 +17,21 @@ def show_config(url, token=None, workspace="default"):
 
     api = Api(url, token=token, workspace=workspace).config()
 
-    values = api.get([
+    system_values = api.get([
         ConfigKey(type="prompt", key="system"),
-        ConfigKey(type="prompt", key="template-index")
     ])
 
-    system = json.loads(values[0].value)
-    ix = json.loads(values[1].value)
+    system = json.loads(system_values[0].value)
+
+    all_keys = api.list(type="prompt")
+    ix = sorted([
+        k for k in all_keys
+        if k.startswith("template.")
+    ])
 
     values = api.get([
-        ConfigKey(type="prompt", key=f"template.{v}")
-        for v in ix
+        ConfigKey(type="prompt", key=k)
+        for k in ix
     ])
 
     print()
@@ -43,6 +47,7 @@ def show_config(url, token=None, workspace="default"):
 
     for n, key in enumerate(ix):
 
+        key = key.removeprefix("template.")
         data = json.loads(values[n].value)
 
         table = []

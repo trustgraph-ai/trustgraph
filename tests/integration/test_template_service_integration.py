@@ -22,7 +22,6 @@ class TestTemplateServiceSimple:
         """Sample configuration for testing"""
         return {
             "system": json.dumps("You are a helpful assistant."),
-            "template-index": json.dumps(["greeting", "json_test"]),
             "template.greeting": json.dumps({
                 "prompt": "Hello {{ name }}, welcome to {{ system_name }}!",
                 "response-type": "text"
@@ -142,7 +141,6 @@ class TestTemplateServiceSimple:
         # Test configuration with single prompt
         config = {
             "system": json.dumps("Test system"),
-            "template-index": json.dumps(["test"]),
             "template.test": json.dumps({
                 "prompt": "Test {{ value }}",
                 "response-type": "text"

@@ -104,7 +104,6 @@ class TestAgentKgExtractionIntegration:
         # Mock configuration
         config = {
             "system": json.dumps("You are a knowledge extraction agent."),
-            "template-index": json.dumps(["agent-kg-extract"]),
             "template.agent-kg-extract": json.dumps({
                 "prompt": "Extract entities and relationships from: {{ text }}",
                 "response-type": "json"

@@ -36,17 +36,17 @@ class PromptManager:
         except (KeyError, TypeError, json.JSONDecodeError):
             system = "Be helpful."
 
-        try:
-            ix = json.loads(config["template-index"])
-        except (KeyError, TypeError, json.JSONDecodeError):
-            ix = []
-
         prompts = {}
 
-        for k in ix:
+        prefix = "template."
 
-            pc = config[f"template.{k}"]
-            data = json.loads(pc)
+        for cfg_key, cfg_val in config.items():
+
+            if not cfg_key.startswith(prefix):
+                continue
+
+            k = cfg_key[len(prefix):]
+            data = json.loads(cfg_val)
 
             prompt = data.get("prompt")
             rtype = data.get("response-type", "text")
