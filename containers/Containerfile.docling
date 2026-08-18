@@ -5,7 +5,9 @@
 
 FROM docker.io/fedora:42 AS base
 
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
+ENV \
+  PIP_BREAK_SYSTEM_PACKAGES=1 \
+  TORCH_COMPILE_DISABLE=1
 
 # This is cached, same as other containers
 RUN dnf install -y python3.11 && \
