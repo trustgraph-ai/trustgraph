@@ -26,13 +26,11 @@ Modern AI applications fail when they lack shared context. LLMs are powerful rea
 TrustGraph solves this by converting raw enterprise data into AI-ready context using hypergraphs, providing a unified semantic context layer that agents, workflows, and humans can securely query and build upon.
 
 ## The Problem: "Common Context Understanding"
-To understand why AI struggles in the enterprise, consider Abbott and Costello’s classic "Who's on First?" routine.
-
-[![Who's on first?](https://img.youtube.com/vi/sYOUFGfK4bU/maxresdefault.jpg)](https://www.youtube.com/watch?v=sYOUFGfK4bU)
+To understand why AI struggles in the enterprise, consider Abbott and Costello’s classic ["Who's on First?"](https://www.youtube.com/watch?v=sYOUFGfK4bU) routine.
 
 Abbott explains the baseball lineup: `Who` is on first base, `What` is on second base, and `I Don't Know` is on third base. Costello is driven mad because he assumes Abbott is asking questions rather than stating the names of the players: `Who`, `What`, and `I Don't Know`.
 
-Two agents cannot communicate if they do not share the same context.
+Two agents cannot communicate if they do not share the same context understanding.
 
 ## Why Vector Embeddings and Semantic Search Fail Here
 If you feed this scenario into a standard RAG pipeline using vector embeddings and semantic similarity, it breaks completely.
