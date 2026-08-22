@@ -21,9 +21,9 @@
 
 [TrustGraph](https://trustgraph.ai) is an open-source context interoperability layer designed to power the next generation of enterprise AI.
 
-Modern AI applications fail when they lack shared context. LLMs are powerful reasoning engines, but without a structured, unified layer that bridges silos, captures complex relationships, and enforces governance, they hallucinate, break compliance, and fail to execute autonomous workflows.
+AI applications fail without shared context. LLMs are powerful, but without a structured, unified context layer — one that bridges silos, captures complex relationships, and enforces governance — agents hallucinate, violate policies, and produce non-deterministic outcomes.
 
-TrustGraph solves this by converting raw enterprise data into AI-ready context using hypergraphs, providing a unified semantic context layer that agents, workflows, and humans can securely query and build upon.
+TrustGraph builds that layer. It uses hypergraphs to turn raw enterprise data into AI-ready context: a unified semantic context layer where agentic outcomes are deterministic and agent behavior is not just traceable, but cryptographically verifiable.
 
 ## The Problem: "Common Context Understanding"
 To understand why AI struggles in the enterprise, consider Abbott and Costello’s classic ["Who's on First?"](https://www.youtube.com/watch?v=sYOUFGfK4bU) routine.
@@ -96,7 +96,7 @@ When an agent queries a TrustGraph hypergraph, it uses SPARQL or GraphRAG to tra
 ## Going Beyond Traditional Graphs: The Hypergraph
 Standard Knowledge Graphs (KGs) are limited to binary relationships (Node A → Node B). Enterprise context is rarely this simple.
 
-TrustGraph automates the conversation of raw data to a Hypergraph, allowing a single edge to connect multiple nodes simultaneously, capturing the true, multi-dimensional reality of enterprise events.
+TrustGraph leverages [RDF 1.2](https://www.w3.org/TR/rdf12-concepts/) and [Named Graphs](https://en.wikipedia.org/wiki/Named_graph) as [N-Quads](https://en.wikipedia.org/wiki/N-Triples#N-Quads) to achieve a cutting-edge hypergraph architecture. RDF 1.2 introduces the ability to reference entire statements (triples) as nodes themselves. Combining RDF 1.2 with Named Graphs enbables grouping complex, multi-entity events into a single, addressable conceptual unit for true n-ary relationships.
 
 - Standard Knowledge Graph: `Document` → `Author`
 - TrustGraph Hypergraph: Connects `Document`, `Author`, `Approving Manager`, `Compliance Policy`, and `Time/Location` Metadata into a single, complex relational event.
@@ -119,8 +119,8 @@ Managing enterprise context requires strict orchestration. TrustGraph provides p
 - Collections: Enterprise knowledge bases aren't just flat files. Manage, partition, and query distinct knowledge bases directly within the hypergraph. Dynamically combine a "Product Specs" collection and a "Support Tickets" collection in real-time for an agent.
 - Context Cores: Modular, portable, and reusable units of context. Package domain-specific knowledge into a Context Core and plug it into any agent or workflow. It’s context-as-a-service.
 
-## Enterprise-Grade Platform Features
-Beyond the hypergraph and context management, TrustGraph is built to operate securely within any enterprise environment.
+## Agentic Platform Features
+Beyond the hypergraph and context management, TrustGraph is built to provide the full agentic stack for enterprise AI.
 
 - Provenance (Real-Time Traceability): TrustGraph captures all event metadata in the hypergraph, providing real-time traceability for every decision an agent makes. If an agent takes an action, you can trace the exact path through the hypergraph that led to that outcome—solving the "black box" problem for enterprise compliance.
 - Open LLM Inference Stack: Don't lock your enterprise data behind proprietary API paywalls. TrustGraph includes a built-in LLM inference stack capable of running open-source models on any hardware (Nvidia, AMD, or Intel accelerators), keeping your data and compute entirely within your sovereignty.
