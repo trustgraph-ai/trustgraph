@@ -47,7 +47,7 @@ Semantic similarity operates on fuzzy, statistical probability. It cannot distin
 ## Why HyperGraphs Solve Context
 A HyperGraph, specifically built using standards like RDF and OWL, establishes explicit, unambiguous semantics. It doesn't rely on "guessing" based on word proximity; it relies on defined relationships.
 
-Here is the "Who's on First" routine modeled in RDF/OWL. By structuring data this way, the LLM knows exactly what "Who" means in this context:
+Here is the "Who's on First" routine modeled in RDF with an OWL ontology. By structuring data this way, the LLM knows exactly what "Who" means in this context:
 
 ```turtle
 @prefix : <http://trustgraph.ai/baseball#> .
@@ -100,6 +100,7 @@ TrustGraph leverages [RDF 1.2](https://www.w3.org/TR/rdf12-concepts/) and [Named
 
 - Standard Knowledge Graph: `Document` → `Author`
 - TrustGraph Hypergraph: Connects `Document`, `Author`, `Approving Manager`, `Compliance Policy`, and `Time/Location` Metadata into a single, complex relational event.
+- BYOO: TrustGraph allows you to **Bring-Your-Own-Ontology** which can be loaded in [OWL](https://www.w3.org/TR/owl2-rdf-based-semantics/) format. The ontology-enabled hypergraph will use the provided ontology for semantic compliance for all ingested data, dramatically improving agentic accuracy and precision. Ontology-compliant retrieval is automated.
 
 This hyper-relational context is what enables autonomous agents to reason through complex enterprise workflows and governance policies.
 
