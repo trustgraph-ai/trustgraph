@@ -1,15 +1,14 @@
-
 <div align="center">
 
 <img src="TG-fullname-logo.svg" width=100% />
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
 [![Discord](https://img.shields.io/discord/1251652173201149994
-)](https://discord.gg/sQMwkRz5GX) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/trustgraph-ai/trustgraph)
+)](https://discord.gg/kT5dAsaj8v) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/trustgraph-ai/trustgraph)
 
-[**Website**](https://trustgraph.ai) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Terminal**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/yUWRkfbD) | [**Blog**](https://blog.trustgraph.ai/subscribe)
+[**Launch TrustGraph**](https://config-ui.demo.trustgraph.ai/) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Website**](https://trustgraph.ai) 
 
-### The context engineering platfrom for open source AI
+### The Context Interoperability Layer for Agentic AI
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
@@ -20,87 +19,125 @@
 
 ---
 
-Build deterministic agents with open source AI.
+[TrustGraph](https://trustgraph.ai) is an open-source context interoperability layer designed to power the next generation of enterprise AI.
 
-Stop rebuilding context from scratch. TrustGraph treats context as a holon — a modular, independent whole that naturally snaps into a larger domain-wide intelligence layer. By deploying context as holonic context graphs, TrustGraph powers multi-tenant agent workflows, dramatically reduces token consumption, and aligns with semantic web standards (RDF, OWL, SKOS, SHACL). Version your context, share it across teams, and scale with full provenance.
+AI applications fail without shared context. LLMs are powerful, but without a structured, unified context layer — one that bridges silos, captures complex relationships, and enforces governance — agents hallucinate, violate policies, and produce non-deterministic outcomes.
 
-## What TrustGraph Does
+TrustGraph builds that layer. It uses hypergraphs to turn raw enterprise data into AI-ready context: a unified semantic context layer where agentic outcomes are deterministic and agent behavior is not just traceable, but cryptographically verifiable.
 
-TrustGraph is a complete holonic context harness for all LLMs. It provides the full infrastructure layer underneath your agents: knowledge ingestion, structured storage, graph-grounded retrieval, agent orchestration, and a full LLM inferencing stack.
+## The Problem: "Common Context Understanding"
+To understand why AI struggles in the enterprise, consider Abbott and Costello’s classic ["Who's on First?"](https://www.youtube.com/watch?v=sYOUFGfK4bU) routine.
 
-TrustGraph relies on absolutely no 3rd party services aside from optional API integrations to cloud-hosted LLMs. Whether you are using Anthropic's or OpenAI's API, or self-hosting Qwen3.7 via vLLM, TrustGraph handles it all with pre-built API connectors and a full LLM inferencing stack to enrich the models with a sovereign, private holonic system that grounds your agents in reality.
+Abbott explains the baseball lineup: `Who` is on first base, `What` is on second base, and `I Don't Know` is on third base. Costello is driven mad because he assumes Abbott is asking questions rather than stating the names of the players: `Who`, `What`, and `I Don't Know`.
 
-## The Problem: Why Agents Break
+Two agents cannot communicate if they do not share the same context understanding.
 
-When you build an AI agent today, you spend most of your time fighting context:
+## Why Vector Embeddings and Semantic Search Fail Here
+If you feed this scenario into a standard RAG pipeline using vector embeddings and semantic similarity, it breaks completely.
 
-- **RAG retrieves fragments, not meaning**. Chunks of text have no structure. Relationships between facts are invisible. Your agent guesses at the connections.
+If a user asks: "*Who is playing on first base?*"
 
-- **Context is disposable**. What the agent learned in one session is gone in the next. There is no persistent, structured knowledge layer underneath.
+1. The vector database converts the query into an embedding.
+2. Semantic similarity searches for vectors close to "playing," "first base," and "who."
+3. Because "Who" is a common pronoun, the embedding space maps it to general inquiries about identity, not the specific name of a baseball player.
+4. The LLM retrieves irrelevant documents and hallucinates, failing to understand that "Who" is an entity (a Person), not a question.
 
-- **Answers aren't traceable**. You can't explain why the agent said what it said, which means you can't trust it in production.
+Semantic similarity operates on fuzzy, statistical probability. It cannot distinguish between the linguistic usage of a word as a pronoun and its usage as a proper noun within a specific, localized context.
 
-- **Knowledge can't be reused**. You rebuild the same context pipelines for every new project, every new agent, every new environment.
+## Why HyperGraphs Solve Context
+A HyperGraph, specifically built using standards like RDF and OWL, establishes explicit, unambiguous semantics. It doesn't rely on "guessing" based on word proximity; it relies on defined relationships.
 
-These aren't retrieval problems. They are structural problems. Context needs to be organized, versioned, and composable — exactly the way software infrastructure is.
+Here is the "Who's on First" routine modeled in RDF with an OWL ontology. By structuring data this way, the LLM knows exactly what "Who" means in this context:
 
-## The Solution: A Holonic Context System
-The philosopher Arthur Koestler coined the word [holon](https://en.wikipedia.org/wiki/Holon_(philosophy)) to describe something that is simultaneously a whole in itself and a part of something larger. A fact is whole. It is also part of a domain. A domain is whole. It is also part of an organization's knowledge.
+```turtle
+@prefix : <http://trustgraph.ai/baseball#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
 
-AI agents break down because this holonic structure is never built. Context gets shoved into flat text windows, scattered across vector stores, or hardwired into one-off prompts. Facts lose their relationships.
+# Ontology Classes
+:Player a owl:Class ;
+    rdfs:subClassOf owl:Thing .
 
-TrustGraph solves this by organizing your domain into holonic context graphs. Entities, relationships, and evidence are treated as first-class objects. Every agent query is grounded against these holons—marrying symbolic graph structures with vector embeddings. Every answer carries provenance. Every fact is traceable.
+:BaseballPosition a owl:Class .
 
-## Context Cores: Knowledge as a First-Class Citizen
+# Object Properties
+:playsPosition a owl:ObjectProperty ;
+    rdfs:domain :Player ;
+    rdfs:range :BaseballPosition .
 
-A Context Core is the deployable unit of knowledge in TrustGraph. It packages everything an agent needs to reason reliably over a domain into a single, portable artifact.
+# Data (The Context)
+:Who a :Player ;
+    rdfs:label "Who" .
 
-### What's inside a Context Core
-- **Ontology** — your domain schema and entity mappings
-- **Holon** — entities, relationships, and supporting evidence
-- **Embeddings** — vector indexes for fast semantic entry-point lookup
-- **Provenance** — where every fact came from, when, and how it was derived
-- **Retrieval policies** — traversal rules, freshness controls, authority ranking
+:What a :Player ;
+    rdfs:label "What" .
 
-Context Cores decouple what agents know from how agents are deployed. Build once. Run in Docker locally, Kubernetes in production, or on any cloud. Pin a version. Roll back. Promote across environments. This is context engineering — and it works because knowledge is finally treated like the infrastructure it is.
+:IDontKnow a :Player ;
+    rdfs:label "I Don't Know" .
 
-## Explainability: Trust Your Agents in Production
-LLMs are black boxes, and traditional RAG makes it worse. When an agent pulls flat text chunks from a vector store, you have no idea how it connected those fragments to form an answer. You cannot ship agents to production if you can't explain why they said what they said.
+:FirstBase a :BaseballPosition ;
+    rdfs:label "First Base" .
 
-### How TrustGraph makes agents explainable:
+:SecondBase a :BaseballPosition ;
+    rdfs:label "Second Base" .
 
-- **Traceable Reasoning Paths**: Instead of guessing at connections between text chunks, TrustGraph traverses explicit relationship paths in the holonic context graph. You can inspect exactly which entities, relationships, and sub-graphs were pulled into the LLM's context window to generate a given response.
-- **Fact-Level Provenance**: Every node and edge in the graph carries strict provenance. When an agent makes a claim, you can trace it back to the exact source document, the time it was ingested, and the extraction method used to derive it.
-- **No Black-Box Guesses**: By grounding the LLM in a structured, symbolic graph, you eliminate the hallucinations that occur when models are forced to infer relationships from unstructured text. If a fact isn't in the graph, the agent doesn't use it.
+:ThirdBase a :BaseballPosition ;
+    rdfs:label "Third Base" .
 
-TrustGraph doesn't just give you answers - it gives you the receipt. Every fact is traceable, every connection is visible, and every output is verifiable.
+# The Explicit Relationships
+:Who :playsPosition :FirstBase .
+:What :playsPosition :SecondBase .
+:IDontKnow :playsPosition :ThirdBase .
+```
 
-## Workspaces, Collections, and Flows
+When an agent queries a TrustGraph hypergraph, it uses SPARQL or GraphRAG to traverse these explicit paths. The agent knows that `:Who` is a `:Player` whose `:playsPosition` is `:FirstBase`. Hallucination is eliminated because context is structured, not inferred via probability.
 
-TrustGraph has a [three-level system](https://docs.trustgraph.ai/overview/workspaces) for organizing and isolating knowledge. 
+## Going Beyond Traditional Graphs: The Hypergraph
+Standard Knowledge Graphs (KGs) are limited to binary relationships (Node A → Node B). Enterprise context is rarely this simple.
 
-A `Workspace` is the outermost boundary — a fully isolated tenancy scope where all data, users, configuration, and pipelines live independently from every other workspace. Isolation is structural: enforced at the pub/sub queue, storage, and API gateway layers, not by trusting a field in a message body.
+TrustGraph leverages [RDF 1.2](https://www.w3.org/TR/rdf12-concepts/) and [Named Graphs](https://en.wikipedia.org/wiki/Named_graph) as [N-Quads](https://en.wikipedia.org/wiki/N-Triples#N-Quads) to achieve a cutting-edge hypergraph architecture. RDF 1.2 introduces the ability to reference entire statements (triples) as nodes themselves. Combining RDF 1.2 with Named Graphs enbables grouping complex, multi-entity events into a single, addressable conceptual unit for true n-ary relationships.
 
-Within a workspace, a `Collection` groups related holons, graph structures, embeddings, and documents together — think of it as a dedicated shelf in a library, scoped to a specific domain, project, or customer.
+- Standard Knowledge Graph: `Document` → `Author`
+- TrustGraph Hypergraph: Connects `Document`, `Author`, `Approving Manager`, `Compliance Policy`, and `Time/Location` Metadata into a single, complex relational event.
+- BYOO: TrustGraph allows you to **Bring-Your-Own-Ontology** which can be loaded in [OWL](https://www.w3.org/TR/owl2-rdf-based-semantics/) format. The ontology-enabled hypergraph will use the provided ontology for semantic compliance for all ingested data, dramatically improving agentic accuracy and precision. Ontology-compliant retrieval is automated.
 
-A `Flow` is a running data processing pipeline that defines how raw data moves through ingestion, extraction, structuring, and storage — the assembly line that turns documents into queryable knowledge. Together, the three layers let you run multiple isolated tenants on a single deployment, separate knowledge by domain within each tenant, and process that knowledge through fully configurable pipelines — all without restarting the system or rebuilding your infrastructure.
+This hyper-relational context is what enables autonomous agents to reason through complex enterprise workflows and governance policies.
 
-## The Full Stack
-TrustGraph is not a wrapper around a graph database. It is the complete backend for production agentic systems.
+## Core Capabilities of the Interoperability Layer
+TrustGraph provides the infrastructure to convert raw data into agentic context and manage it at scale.
 
-- **Holonic context graph engine**: automated entity and relationship extraction, ontology-driven graph construction, graph-grounded retrieval for explainable outputs
-- **Multi-model database**: tabular/relational, key-value, document, graph, vectors, images, video, and audio — all managed in Cassandra and S3-compatible Garage
-- **Out-of-the-box RAG pipelines**: DocumentRAG, GraphRAG, and OntologyRAG ready to deploy
-- **Fully agentic orchestration**: single or multi-agent, ReAct, Plan-then-Execute, Supervisor patterns, and MCP integration
-- **3D Knowledge Explorer**: interactive graph visualization with BFS neighborhood extraction and edge pulse animation
-- **Automated data ingest**: quick ingest with semantic similarity or ontology-structured precision retrieval
-- **Run anywhere**: Docker/Podman locally, Kubernetes in the cloud
+1. Raw Data to AI-Ready Context
+TrustGraph isn't just a graph database; it is a processing engine. It ingests unstructured, raw enterprise data (PDFs, wikis, APIs, databases), extracts entities and relationships using LLMs, and structures them directly into the hypergraph—transforming chaotic data into AI-ready context.
 
-All major LLMs — Anthropic, Cohere, Gemini, Mistral, OpenAI, and more via API.
+2. Hyperflows: Custom Agents and Workloads
+Hyperflows are unique agentic workflows where processing capabilities are chained together. Developers can configure specific LLMs and specific Context Graph access permissions for every step of a workflow. A Hyperflow can route a query from a lightweight local model for classification, to a heavy reasoning model, drawing from different hypergraph collections at each step based on governance rules.
 
-vLLM, Ollama, TGI, LM Studio, and Llamafiles for fully local inferencing.
+3. Context Management: Workspaces, Collections, and Context Cores
+Managing enterprise context requires strict orchestration. TrustGraph provides purpose-built context management features:
 
-Verified cloud deployments for Alibaba Cloud, AWS, Azure, GCP, OVHcloud, and Scaleway.
+- Workspaces: Deep, programmatic data isolation for users, agents, and hyperflows. Ensure that an HR agent cannot read financial data, and multi-tenant data remains strictly compartmentalized.
+- Collections: Enterprise knowledge bases aren't just flat files. Manage, partition, and query distinct knowledge bases directly within the hypergraph. Dynamically combine a "Product Specs" collection and a "Support Tickets" collection in real-time for an agent.
+- Context Cores: Modular, portable, and reusable units of context. Package domain-specific knowledge into a Context Core and plug it into any agent or workflow. It’s context-as-a-service.
+
+## Agentic Platform Features
+Beyond the hypergraph and context management, TrustGraph is built to provide the full agentic stack for enterprise AI.
+
+- Provenance (Real-Time Traceability): TrustGraph captures all event metadata in the hypergraph, providing real-time traceability for every decision an agent makes. If an agent takes an action, you can trace the exact path through the hypergraph that led to that outcome—solving the "black box" problem for enterprise compliance.
+- Open LLM Inference Stack: Don't lock your enterprise data behind proprietary API paywalls. TrustGraph includes a built-in LLM inference stack capable of running open-source models on any hardware (Nvidia, AMD, or Intel accelerators), keeping your data and compute entirely within your sovereignty.
+- Deployment Flexibility: Enterprise requirements dictate where data lives. TrustGraph can be totally self-hosted (air-gapped on-premise), deployed as Bring-Your-Own-Cloud (BYOC) into your existing VPC, or consumed as a fully managed SaaS.
+
+## TrustGraph vs. Standard Enterprise Context Search
+
+| Capability | Standard Enterprise Search (e.g., Glean) | TrustGraph |
+| :--- | :--- | :--- |
+| **Core Architecture** | Search indexing over documents/connectors | **Context Interoperability Layer** via Hypergraph |
+| **Context Depth** | Document retrieval & vector similarity | **Hyper-relational Context**: N-ary relationships capturing true enterprise events |
+| **Context Management** | Basic RBAC tied to SSO | **Workspaces, Collections, & Cores**: Modular, isolated, reusable context units |
+| **Agent Orchestration** | Basic Q&A or simple LLM chains | **Hyperflows**: Complex, chained agentic workflows with step-level LLM and graph config |
+| **Traceability** | Logs of search queries | **Provenance**: Real-time hypergraph traceability for all agent reasoning |
+| **Compute** | API calls to proprietary LLMs | **Open LLM Stack**: Runs open models natively on Nvidia, AMD, or Intel hardware |
+| **Deployment** | SaaS only | **Flexible**: Self-hosted, BYOC, or SaaS |
      
 ## No API Keys Required
 
@@ -136,11 +173,11 @@ width="80%" controls></video>
 
 For a browser based configuration, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
 
-## Watch What is a Holonic Context Graph?
+## Watch What is a Context HyperGraph?
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
-## Watch Building Real Agents from a Context Graph
+## Watch Building Agents with a Hypergraph
 
 [![Real Agents from context graphs with TrustGraph](https://img.youtube.com/vi/lmhmrJ7zRE0/maxresdefault.jpg)](https://www.youtube.com/watch?v=lmhmrJ7zRE0)
 
