@@ -4,7 +4,7 @@ Dumps out token cost configuration
 
 import argparse
 import os
-from trustgraph.api import Api, ConfigKey
+from trustgraph.api import Api, ConfigKey, ProtocolException
 import json
 import tabulate
 import textwrap
@@ -37,7 +37,13 @@ def show_config(url, token=None, workspace="default"):
                 fmt(values.get("input_price")),
                 fmt(values.get("output_price")),
             ))
-        except:
+        except (
+            ProtocolException,
+            IndexError,
+            AttributeError,
+            TypeError,
+            ValueError,
+        ):
             costs.append((
                 model, "-", "-"
             ))
