@@ -30,7 +30,10 @@ _ESCAPES = [
 # Characters the IRIREF production cannot carry: controls/space plus the
 # explicitly forbidden set. One compiled scan keeps this off the profile
 # for large exports (it runs per term).
-_BAD_IRI = re.compile(r'[\x00-\x20<>"{}|^\x60]')
+_BAD_IRI = re.compile(r'[\x00-\x20<>"{}|^\x60\\]')
+
+# BCP47 / LANGTAG: [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*
+_LANGTAG = re.compile(r'^[a-zA-Z]+(-[a-zA-Z0-9]+)*$')
 
 
 def _escape_literal(value):
@@ -67,6 +70,8 @@ def encode_term(term, is_object=False):
         language = term.get("l")
         datatype = term.get("d")
         if language:
+            if not _LANGTAG.match(language):
+                return None
             return f'"{value}"@{language}'
         if datatype:
             dt = _encode_iri(datatype)
