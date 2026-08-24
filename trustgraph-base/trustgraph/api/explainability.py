@@ -11,6 +11,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Tuple, Union
 
+from .types import Triple
+
 # Provenance predicates
 TG = "https://trustgraph.ai/ns/"
 TG_QUERY = TG + "query"
@@ -464,13 +466,20 @@ def extract_term_value(term: Dict[str, Any]) -> Any:
         return term.get("i") or term.get("v") or term.get("iri") or term.get("value") or str(term)
 
 
-def wire_triples_to_tuples(wire_triples: List[Dict[str, Any]]) -> List[Tuple[str, str, Any]]:
-    """Convert wire-format triples to (s, p, o) tuples."""
+def wire_triples_to_tuples(
+    wire_triples: List[Union[Dict[str, Any], Triple]]
+) -> List[Tuple[str, str, Any]]:
+    """Convert wire-format or REST API triples to (s, p, o) tuples."""
     result = []
     for t in wire_triples:
-        s = extract_term_value(t.get("s", {}))
-        p = extract_term_value(t.get("p", {}))
-        o = extract_term_value(t.get("o", {}))
+        if isinstance(t, Triple):
+            s = str(t.s)
+            p = str(t.p)
+            o = str(t.o)
+        else:
+            s = extract_term_value(t.get("s", {}))
+            p = extract_term_value(t.get("p", {}))
+            o = extract_term_value(t.get("o", {}))
         result.append((s, p, o))
     return result
 

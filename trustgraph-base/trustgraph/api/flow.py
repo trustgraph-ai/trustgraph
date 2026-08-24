@@ -755,7 +755,7 @@ class FlowInstance:
         raise ProtocolException("Response not formatted correctly")
 
     def triples_query(
-            self, s=None, p=None, o=None,
+            self, s=None, p=None, o=None, g=None,
             collection=None, limit=10000
     ):
         """
@@ -765,9 +765,10 @@ class FlowInstance:
         object patterns. Unspecified parameters act as wildcards.
 
         Args:
-            s: Subject URI (optional, use None for wildcard)
-            p: Predicate URI (optional, use None for wildcard)
-            o: Object URI or Literal (optional, use None for wildcard)
+            s: Subject URI as Uri or string (optional, None for wildcard)
+            p: Predicate URI as Uri or string (optional, None for wildcard)
+            o: Object as Uri, Literal, or string (optional, None for wildcard)
+            g: Named graph identifier (None for default graph, "*" for all)
             collection: Collection identifier (optional)
             limit: Maximum results to return (default: 10000)
 
@@ -775,7 +776,7 @@ class FlowInstance:
             list[Triple]: List of matching Triple objects
 
         Raises:
-            RuntimeError: If s or p is not a Uri, or o is not Uri/Literal
+            RuntimeError: If a query term has an unsupported type
 
         Example:
             ```python
@@ -803,19 +804,33 @@ class FlowInstance:
             input["collection"] = collection
 
         if s:
+            if isinstance(s, str) and not isinstance(s, (Uri, Literal)):
+                s = Uri(s)
             if not isinstance(s, Uri):
-                raise RuntimeError("s must be Uri")
+                raise RuntimeError("s must be Uri or str")
             input["s"] = from_value(s)
 
         if p:
+            if isinstance(p, str) and not isinstance(p, (Uri, Literal)):
+                p = Uri(p)
             if not isinstance(p, Uri):
-                raise RuntimeError("p must be Uri")
+                raise RuntimeError("p must be Uri or str")
             input["p"] = from_value(p)
 
         if o:
+            if isinstance(o, str) and not isinstance(o, (Uri, Literal)):
+                if o.startswith("<") and o.endswith(">"):
+                    o = Uri(o[1:-1])
+                elif o.startswith(("http://", "https://", "urn:")):
+                    o = Uri(o)
+                else:
+                    o = Literal(o)
             if not isinstance(o, Uri) and not isinstance(o, Literal):
-                raise RuntimeError("o must be Uri or Literal")
+                raise RuntimeError("o must be Uri, Literal, or str")
             input["o"] = from_value(o)
+
+        if g is not None:
+            input["g"] = g
 
         object = self.request(
             "service/triples",
