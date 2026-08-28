@@ -8,7 +8,7 @@
 
 [**Launch TrustGraph**](https://config-ui.demo.trustgraph.ai/) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Website**](https://trustgraph.ai) 
 
-### The Context Interoperability Layer for Agentic AI
+### The Context Orchestration Layer for Agentic AI
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
@@ -19,7 +19,7 @@
 
 ---
 
-[TrustGraph](https://trustgraph.ai) is an open-source context interoperability layer designed to power the next generation of enterprise AI.
+[TrustGraph](https://trustgraph.ai) is an open-source context orchestration layer designed to power the next generation of enterprise AI.
 
 AI applications fail without shared context. LLMs are powerful, but without a structured, unified context layer — one that bridges silos, captures complex relationships, and enforces governance — agents hallucinate, violate policies, and produce non-deterministic outcomes.
 
