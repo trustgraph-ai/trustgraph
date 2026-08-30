@@ -12,6 +12,8 @@ import os
 
 from trustgraph.api import Api
 
+from . nquads import valid_language_tag
+
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_collection = 'default'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
@@ -36,6 +38,11 @@ def term_to_rdflib(term):
         datatype = term.get("d")
         language = term.get("l")
         if language:
+            # Skip malformed tags: Literal(lang=...) raises on them, and
+            # the graph is only serialized once the whole stream has been
+            # consumed, so an escaping exception loses the entire dump.
+            if not valid_language_tag(language):
+                return None
             return rdflib.term.Literal(value, lang=language)
         elif datatype:
             return rdflib.term.Literal(value, datatype=rdflib.term.URIRef(datatype))
