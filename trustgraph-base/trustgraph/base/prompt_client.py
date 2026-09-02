@@ -8,6 +8,8 @@ from typing import Optional, Any
 from . request_response_spec import RequestResponseSpec
 from .. schema import PromptRequest, PromptResponse
 
+default_prompt_timeout = 600
+
 @dataclass
 class PromptResult:
     response_type: str              # "text", "json", or "jsonl"
@@ -20,7 +22,7 @@ class PromptResult:
 
 class PromptClient:
 
-    async def prompt(self, id, variables, timeout=600, streaming=False, chunk_callback=None):
+    async def prompt(self, id, variables, timeout=None, streaming=False, chunk_callback=None):
 
         if not streaming:
 
@@ -136,28 +138,28 @@ class PromptClient:
                 model=last_resp.model,
             )
 
-    async def extract_definitions(self, text, timeout=600):
+    async def extract_definitions(self, text, timeout=None):
         return await self.prompt(
             id = "extract-definitions",
             variables = { "text": text },
             timeout = timeout,
         )
 
-    async def extract_relationships(self, text, timeout=600):
+    async def extract_relationships(self, text, timeout=None):
         return await self.prompt(
             id = "extract-relationships",
             variables = { "text": text },
             timeout = timeout,
         )
 
-    async def extract_objects(self, text, schema, timeout=600):
+    async def extract_objects(self, text, schema, timeout=None):
         return await self.prompt(
             id = "extract-rows",
             variables = { "text": text, "schema": schema, },
             timeout = timeout,
         )
 
-    async def document_prompt(self, query, documents, timeout=600, streaming=False, chunk_callback=None):
+    async def document_prompt(self, query, documents, timeout=None, streaming=False, chunk_callback=None):
         return await self.prompt(
             id = "document-prompt",
             variables = {
@@ -169,7 +171,7 @@ class PromptClient:
             chunk_callback = chunk_callback,
         )
 
-    async def agent_react(self, variables, timeout=600, streaming=False, chunk_callback=None):
+    async def agent_react(self, variables, timeout=None, streaming=False, chunk_callback=None):
         return await self.prompt(
             id = "agent-react",
             variables = variables,
@@ -178,7 +180,7 @@ class PromptClient:
             chunk_callback = chunk_callback,
         )
 
-    async def question(self, question, timeout=600):
+    async def question(self, question, timeout=None):
         return await self.prompt(
             id = "question",
             variables = {
@@ -188,8 +190,12 @@ class PromptClient:
         )
 
 class PromptClientSpec(RequestResponseSpec):
+
+    timeout_param = "prompt_timeout"
+    default_timeout = default_prompt_timeout
+
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, timeout=None,
     ):
         super(PromptClientSpec, self).__init__(
             request_name = request_name,
@@ -197,4 +203,5 @@ class PromptClientSpec(RequestResponseSpec):
             response_name = response_name,
             response_schema = PromptResponse,
             impl = PromptClient,
+            timeout = timeout,
         )

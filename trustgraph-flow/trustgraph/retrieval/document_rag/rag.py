@@ -337,7 +337,8 @@ class Processor(FlowProcessor):
             type=int,
             default=120,
             help='Timeout in seconds for fetching a document chunk from the '
-                 'librarian (default: 120)'
+                 'librarian, overrides --librarian-timeout for that call '
+                 '(default: 120)'
         )
         
         parser.add_argument(
