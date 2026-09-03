@@ -324,7 +324,8 @@ class TestImportKnowledge:
         assert call.args[0] == "default"  # flow id
         triples = sorted(list(call.args[1]), key=lambda t: t.p)
         assert triples == [
-            Triple(s="http://ex.com/s", p="http://ex.com/count", o="42"),
+            Triple(s="http://ex.com/s", p="http://ex.com/count", o="42",
+                   o_datatype="http://www.w3.org/2001/XMLSchema#integer"),
             Triple(s="http://ex.com/s", p="http://ex.com/p",
                    o="http://ex.com/o"),
         ]

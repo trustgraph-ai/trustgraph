@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from . spec import Spec
+from . spec import Spec, TimeoutSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -12,10 +12,13 @@ logger = logging.getLogger(__name__)
 # use another service in request/response mode.  Uses two topics:
 # - we send on the request topic as a producer
 # - we receive on the response topic as a subscriber
-class RequestResponseSpec(Spec):
+class RequestResponseSpec(TimeoutSpec, Spec):
+
+    default_timeout = 300
+
     def __init__(
             self, request_name, request_schema, response_name,
-            response_schema, impl=None, optional=False
+            response_schema, impl=None, optional=False, timeout=None,
     ):
         self.request_name = request_name
         self.request_schema = request_schema
@@ -23,6 +26,7 @@ class RequestResponseSpec(Spec):
         self.response_schema = response_schema
         self.impl = impl
         self.optional = optional
+        self.timeout = timeout
 
     async def register(self, flow: Any, processor: Any, definition: dict[str, Any]) -> Any:
 
@@ -42,6 +46,7 @@ class RequestResponseSpec(Spec):
             response_schema=self.response_schema,
             processor_id=getattr(processor, 'id', None),
             target_service=self.request_name,
+            default_timeout=self.resolve_timeout(processor),
         )
 
         wrapper = _make_impl_wrapper(rr_client, self.impl)
@@ -59,7 +64,7 @@ def _make_impl_wrapper(rr_client, impl_cls):
         def __init__(self):
             self._rr_client = rr_client
 
-        async def request(self, req, timeout=300, recipient=None):
+        async def request(self, req, timeout=None, recipient=None):
             if recipient is None:
                 return await self._rr_client.request(req, timeout=timeout)
 

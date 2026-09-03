@@ -10,7 +10,11 @@ from unittest.mock import AsyncMock, MagicMock
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
 
-from trustgraph.gateway.audit import make_audit_middleware, _client_ip, _outcome_from_status
+from trustgraph.gateway.audit import (
+    make_audit_middleware, _client_ip, _outcome_from_status,
+    audit_request_id_key, audit_identity_key, audit_capability_key,
+    audit_workspace_key,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +135,7 @@ class TestAuditMiddleware:
     async def test_includes_identity_when_annotated(self, middleware,
                                                      audit_publisher):
         async def handler(request):
-            request['audit_identity'] = "user:mark"
+            request[audit_identity_key] = "user:mark"
             return web.json_response({"ok": True})
 
         req = _make_request()
@@ -144,8 +148,8 @@ class TestAuditMiddleware:
     async def test_includes_capability_when_annotated(self, middleware,
                                                        audit_publisher):
         async def handler(request):
-            request['audit_capability'] = "config:read"
-            request['audit_workspace'] = "production"
+            request[audit_capability_key] = "config:read"
+            request[audit_workspace_key] = "production"
             return web.json_response({"ok": True})
 
         req = _make_request()
@@ -175,7 +179,7 @@ class TestAuditMiddleware:
 
         async def handler(request):
             nonlocal captured_id
-            captured_id = request.get('audit_request_id')
+            captured_id = request.get(audit_request_id_key)
             return web.json_response({"ok": True})
 
         req = _make_request()

@@ -140,6 +140,7 @@ class Processor(WorkspaceProcessor):
                 librarian_response_queue, workspace,
             ),
             subscription=f"{self.id}--{workspace}--librarian",
+            default_timeout=self.librarian_timeout,
         )
 
         self.librarian_clients[workspace] = librarian_client
@@ -266,6 +267,7 @@ class Processor(WorkspaceProcessor):
     def add_args(parser):
 
         WorkspaceProcessor.add_args(parser)
+        WorkspaceProcessor.add_librarian_args(parser)
 
         parser.add_argument(
             '--knowledge-request-queue',
