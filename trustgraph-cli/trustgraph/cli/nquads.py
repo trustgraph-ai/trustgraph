@@ -32,8 +32,20 @@ _ESCAPES = [
 # for large exports (it runs per term).
 _BAD_IRI = re.compile(r'[\x00-\x20<>"{}|^\x60\\]')
 
-# BCP47 / LANGTAG: [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*
-_LANGTAG = re.compile(r'^[a-zA-Z]+(-[a-zA-Z0-9]+)*$')
+# The body of the LANGTAG production, [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*, which
+# Turtle shares and which is the shape rdflib's Literal(lang=...) accepts.
+# fullmatch, not a trailing $: $ also matches before a trailing newline, so
+# "en\n" would pass and split the quad across two lines.
+_LANGTAG = re.compile(r"[a-zA-Z]+(?:-[a-zA-Z0-9]+)*")
+
+
+def valid_language_tag(language):
+    """True when language can be emitted after the '@' of a LANGTAG.
+
+    The wire schema types the language field as a free-form str, so an
+    unusable tag arrives here as data, not as a bug.
+    """
+    return isinstance(language, str) and _LANGTAG.fullmatch(language) is not None
 
 
 def _escape_literal(value):
@@ -70,7 +82,7 @@ def encode_term(term, is_object=False):
         language = term.get("l")
         datatype = term.get("d")
         if language:
-            if not _LANGTAG.match(language):
+            if not valid_language_tag(language):
                 return None
             return f'"{value}"@{language}'
         if datatype:

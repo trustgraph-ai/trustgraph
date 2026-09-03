@@ -78,45 +78,49 @@ class TestNquadsRoundTrip:
             # literal in predicate position: invalid RDF
             {"s": iri("http://example.com/s"), "p": lit("not-a-predicate"),
              "o": lit("x")},
+            # language tag outside the LANGTAG production: emitting it raw
+            # would break the line and make the whole member unparseable
+            {"s": iri("http://example.com/s"), "p": iri("http://example.com/label"),
+             "o": lit("bonjour", lang="fr CA")},
             # one good triple to prove the stream continues past skips
             {"s": iri("http://example.com/s"), "p": iri("http://example.com/p"),
              "o": lit("good")},
         ]]
         ds, written, skipped = roundtrip(batches)
 
-        assert (written, skipped) == (1, 3)
+        assert (written, skipped) == (1, 4)
         assert len(list(ds.quads((None, None, None, None)))) == 1
 
-    def test_newline_in_language_tag_is_rejected(self):
-        """GHSA-2jrc-mr3c-ch6g: language tag injection via newline."""
-        injected_tag = (
-            'en <http://example.org/g> .\n'
-            '<http://example.org/injected> <http://example.org/is> '
-            '<http://example.org/real>'
-        )
-        batches = [[{
-            "s": iri("http://example.com/s"),
-            "p": iri("http://example.com/p"),
-            "o": lit("x", lang=injected_tag),
-        }]]
-        ds, written, skipped = roundtrip(batches)
+    def test_unusable_language_tags_are_skipped_not_emitted(self):
+        """One bad tag must not cost the whole member.
 
-        assert written == 0
-        assert skipped == 1
-        assert len(list(ds.quads((None, None, None, None)))) == 0
+        parse_nquads hands the entire member to rdflib at once, and its
+        N-Quads parser aborts on the first malformed line, so a tag emitted
+        raw takes every other triple in the bundle down with it.
+        """
+        good = {"s": iri("http://example.com/s"), "p": iri("http://example.com/p"),
+                "o": lit("good")}
 
-    def test_malformed_language_tags_are_rejected(self):
-        invalid_tags = ["en_US", "123", "en US", "en\ttab", "en<x>"]
-        for tag in invalid_tags:
-            result = encode_term(lit("value", lang=tag), is_object=True)
-            assert result is None, f"expected rejection for tag {tag!r}"
+        for bad in ["fr CA", "en_US", "en\n", 'en> "x" <urn:evil', 7]:
+            batches = [[
+                {"s": iri("http://example.com/s"),
+                 "p": iri("http://example.com/label"),
+                 "o": lit("bonjour", lang=bad)},
+                good,
+            ]]
+            ds, written, skipped = roundtrip(batches)
+            assert (written, skipped) == (1, 1), f"tag {bad!r} was not skipped"
+            assert len(list(ds.quads((None, None, None, None)))) == 1
 
-    def test_valid_language_tags_are_accepted(self):
-        valid_tags = ["en", "fr", "en-US", "zh-Hant-TW", "x-custom"]
-        for tag in valid_tags:
-            result = encode_term(lit("value", lang=tag), is_object=True)
-            assert result is not None, f"expected acceptance for tag {tag!r}"
-            assert f"@{tag}" in result
+        # subtags are part of the production and must still survive
+        for ok in ["fr", "fr-CA", "de-DE-1996"]:
+            batches = [[{"s": iri("http://example.com/s"),
+                         "p": iri("http://example.com/label"),
+                         "o": lit("bonjour", lang=ok)}]]
+            ds, written, skipped = roundtrip(batches)
+            assert (written, skipped) == (1, 0), f"tag {ok!r} was wrongly skipped"
+            obj = next(iter(ds.quads((None, None, None, None))))[2]
+            assert obj == rdflib.Literal("bonjour", lang=ok)
 
     def test_streaming_shape_one_line_per_triple(self):
         line = triple_to_nquad(
