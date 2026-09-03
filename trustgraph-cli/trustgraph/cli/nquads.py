@@ -135,11 +135,20 @@ def serialize_nquads(batches, graph_iri, out):
     return written, skipped
 
 
+def _term_to_triple_field(term):
+    """Convert an rdflib term to (str_value, datatype, language)."""
+    if isinstance(term, rdflib.Literal):
+        dt = str(term.datatype) if term.datatype else ""
+        lang = str(term.language) if term.language else ""
+        return str(term), dt, lang
+    return str(term), "", ""
+
+
 def parse_nquads(data):
     """Parse N-Quads bytes back into api Triple values.
 
-    Terms are stringified with str(), the same convention tg-load-knowledge
-    uses, so values survive the store round trip unchanged. The whole
+    Preserves datatype, language tag and IRI-vs-literal distinctions
+    via the Triple.o_datatype and Triple.o_language fields. The whole
     member is materialized in memory (bundles are bounded by
     --triples-limit at export); line-streaming is a possible follow-up.
 
@@ -148,7 +157,11 @@ def parse_nquads(data):
     """
     ds = rdflib.Dataset()
     ds.parse(data=data.decode("utf-8"), format="nquads")
-    return [
-        Triple(s=str(s), p=str(p), o=str(o))
-        for s, p, o, _g in ds.quads((None, None, None, None))
-    ]
+    result = []
+    for s, p, o, _g in ds.quads((None, None, None, None)):
+        o_val, o_dt, o_lang = _term_to_triple_field(o)
+        result.append(Triple(
+            s=str(s), p=str(p), o=o_val,
+            o_datatype=o_dt, o_language=o_lang,
+        ))
+    return result

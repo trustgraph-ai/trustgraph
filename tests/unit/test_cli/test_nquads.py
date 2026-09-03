@@ -9,7 +9,7 @@ import io
 
 import rdflib
 
-from trustgraph.cli.nquads import serialize_nquads, triple_to_nquad, encode_term
+from trustgraph.cli.nquads import serialize_nquads, parse_nquads, triple_to_nquad, encode_term
 
 from tests.unit.test_cli.conftest import iri, lit
 
@@ -121,6 +121,46 @@ class TestNquadsRoundTrip:
             assert (written, skipped) == (1, 0), f"tag {ok!r} was wrongly skipped"
             obj = next(iter(ds.quads((None, None, None, None))))[2]
             assert obj == rdflib.Literal("bonjour", lang=ok)
+
+    def test_parse_nquads_preserves_term_types(self):
+        """parse_nquads must preserve datatype, language and IRI-vs-literal."""
+        batches = [[
+            {"s": iri("http://example.com/s"), "p": iri("http://example.com/typed"),
+             "o": lit("42", d="http://www.w3.org/2001/XMLSchema#integer")},
+            {"s": iri("http://example.com/s"), "p": iri("http://example.com/tagged"),
+             "o": lit("bonjour", lang="fr")},
+            {"s": iri("http://example.com/s"), "p": iri("http://example.com/ref"),
+             "o": iri("http://example.com/o")},
+            {"s": iri("http://example.com/s"), "p": iri("http://example.com/str"),
+             "o": lit("http://example.com/o")},
+        ]]
+        out = io.StringIO()
+        serialize_nquads(batches, GRAPH, out)
+        triples = parse_nquads(out.getvalue().encode())
+
+        by_pred = {t.p: t for t in triples}
+
+        typed = by_pred["http://example.com/typed"]
+        assert typed.o == "42"
+        assert typed.o_datatype == "http://www.w3.org/2001/XMLSchema#integer"
+        assert typed.o_language == ""
+
+        tagged = by_pred["http://example.com/tagged"]
+        assert tagged.o == "bonjour"
+        assert tagged.o_language == "fr"
+        assert tagged.o_datatype == ""
+
+        ref = by_pred["http://example.com/ref"]
+        assert ref.o == "http://example.com/o"
+        assert ref.o_datatype == ""
+        assert ref.o_language == ""
+
+        string_lit = by_pred["http://example.com/str"]
+        assert string_lit.o == "http://example.com/o"
+        assert string_lit.o_datatype == ""
+
+        # IRI and literal with the same lexical form must remain distinguishable
+        assert ref.o == string_lit.o
 
     def test_streaming_shape_one_line_per_triple(self):
         line = triple_to_nquad(
