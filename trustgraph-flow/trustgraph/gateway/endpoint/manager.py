@@ -12,6 +12,7 @@ from . auth_endpoints import AuthEndpoints
 from . iam_endpoint import IamEndpoint
 from . registry_endpoint import RegistryRoutedVariableEndpoint
 
+from .. audit import audit_request_id_key, audit_capability_key, audit_workspace_key
 from .. capabilities import PUBLIC, AUTHENTICATED, auth_failure, workspace_not_found
 from .. registry import lookup as _registry_lookup, RequestContext, ResourceLevel
 
@@ -75,14 +76,14 @@ class _RoutedVariableEndpoint:
             parameters = op.extract_parameters(ctx)
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
-                request_id=request.get('audit_request_id', ''),
+                request_id=request.get(audit_request_id_key, ''),
                 client_ip=self.auth._extract_client_ip(request),
             )
-            request['audit_capability'] = op.capability
+            request[audit_capability_key] = op.capability
 
             ws = resource.get("workspace", "")
             if ws:
-                request['audit_workspace'] = ws
+                request[audit_workspace_key] = ws
             if ws and ws not in self.auth.known_workspaces:
                 raise workspace_not_found()
 
@@ -148,14 +149,14 @@ class _RoutedSocketEndpoint:
             parameters = op.extract_parameters(ctx)
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
-                request_id=request.get('audit_request_id', ''),
+                request_id=request.get(audit_request_id_key, ''),
                 client_ip=self.auth._extract_client_ip(request),
             )
-            request['audit_capability'] = op.capability
+            request[audit_capability_key] = op.capability
 
             ws = resource.get("workspace", "")
             if ws:
-                request['audit_workspace'] = ws
+                request[audit_workspace_key] = ws
             if ws and ws not in self.auth.known_workspaces:
                 raise workspace_not_found()
 
