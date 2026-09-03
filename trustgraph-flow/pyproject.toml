@@ -26,7 +26,7 @@ dependencies = [
     "langchain-community",
     "langchain-core",
     "langchain-text-splitters",
-    "mcp",
+    "mcp>=1.8,<3",
     "minio",
     "mistralai<2.0.0",
     "neo4j",
