@@ -28,6 +28,7 @@ from prometheus_client import Counter, Enum, Gauge
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
+from .audit import audit_identity_key, audit_request_id_key
 from ..base.iam_client import IamClient
 from ..base.request_response_client import RequestResponseClient
 from ..base.request_response_spec import _make_impl_wrapper
@@ -259,7 +260,7 @@ class IamAuth:
         cannot distinguish missing / malformed / invalid / expired /
         revoked credentials."""
 
-        request_id = request.get('audit_request_id', '') if hasattr(request, 'get') else ''
+        request_id = request.get(audit_request_id_key, '') if hasattr(request, 'get') else ''
         client_ip = self._extract_client_ip(request)
 
         header = request.headers.get("Authorization", "")
@@ -307,7 +308,7 @@ class IamAuth:
     @staticmethod
     def _annotate_request(request, identity):
         try:
-            request['audit_identity'] = identity.principal_id
+            request[audit_identity_key] = identity.principal_id
         except Exception:
             pass
 

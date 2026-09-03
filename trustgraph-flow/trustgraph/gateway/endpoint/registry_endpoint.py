@@ -19,6 +19,7 @@ import logging
 
 from aiohttp import web
 
+from .. audit import audit_request_id_key, audit_capability_key, audit_workspace_key
 from .. capabilities import (
     PUBLIC, AUTHENTICATED, auth_failure, workspace_not_found,
 )
@@ -98,13 +99,13 @@ class RegistryRoutedVariableEndpoint:
 
             await self.auth.authorise(
                 identity, op.capability, resource, parameters,
-                request_id=request.get('audit_request_id', ''),
+                request_id=request.get(audit_request_id_key, ''),
                 client_ip=self.auth._extract_client_ip(request),
             )
-            request['audit_capability'] = op.capability
+            request[audit_capability_key] = op.capability
             ws = resource.get('workspace', '')
             if ws:
-                request['audit_workspace'] = ws
+                request[audit_workspace_key] = ws
 
             # Default-fill workspace into the body so downstream
             # dispatchers see the canonical resolved value.  The

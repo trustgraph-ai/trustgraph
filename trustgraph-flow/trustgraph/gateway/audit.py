@@ -3,11 +3,11 @@ Audit middleware for the API gateway.
 
 Wraps every HTTP request with timing and metadata collection, then
 emits a ``gateway.request`` audit event after the response is sent.
-Handlers can enrich the event by annotating the request dict:
+Handlers can enrich the event by annotating the request:
 
-    request['audit_identity'] = identity.principal_id
-    request['audit_capability'] = capability
-    request['audit_workspace'] = workspace
+    request[audit_identity_key] = identity.principal_id
+    request[audit_capability_key] = capability
+    request[audit_workspace_key] = workspace
 """
 
 import time
@@ -15,6 +15,11 @@ import logging
 from uuid import uuid4
 
 from aiohttp import web
+
+audit_request_id_key = web.RequestKey("audit_request_id", str)
+audit_identity_key = web.RequestKey("audit_identity", str)
+audit_capability_key = web.RequestKey("audit_capability", str)
+audit_workspace_key = web.RequestKey("audit_workspace", str)
 
 from trustgraph.base import AuditPublisher
 
@@ -44,7 +49,7 @@ def make_audit_middleware(audit_publisher):
     @web.middleware
     async def audit_middleware(request, handler):
         request_id = str(uuid4())
-        request['audit_request_id'] = request_id
+        request[audit_request_id_key] = request_id
         start = time.monotonic()
 
         status_code = 500
@@ -81,15 +86,15 @@ def make_audit_middleware(audit_publisher):
                 "response_size_bytes": response_size,
             }
 
-            identity = request.get('audit_identity')
+            identity = request.get(audit_identity_key)
             if identity:
                 payload["identity"] = identity
 
-            capability = request.get('audit_capability')
+            capability = request.get(audit_capability_key)
             if capability:
                 payload["capability"] = capability
 
-            workspace = request.get('audit_workspace')
+            workspace = request.get(audit_workspace_key)
             if workspace:
                 payload["workspace"] = workspace
 
