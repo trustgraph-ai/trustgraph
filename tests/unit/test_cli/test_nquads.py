@@ -78,14 +78,49 @@ class TestNquadsRoundTrip:
             # literal in predicate position: invalid RDF
             {"s": iri("http://example.com/s"), "p": lit("not-a-predicate"),
              "o": lit("x")},
+            # language tag outside the LANGTAG production: emitting it raw
+            # would break the line and make the whole member unparseable
+            {"s": iri("http://example.com/s"), "p": iri("http://example.com/label"),
+             "o": lit("bonjour", lang="fr CA")},
             # one good triple to prove the stream continues past skips
             {"s": iri("http://example.com/s"), "p": iri("http://example.com/p"),
              "o": lit("good")},
         ]]
         ds, written, skipped = roundtrip(batches)
 
-        assert (written, skipped) == (1, 3)
+        assert (written, skipped) == (1, 4)
         assert len(list(ds.quads((None, None, None, None)))) == 1
+
+    def test_unusable_language_tags_are_skipped_not_emitted(self):
+        """One bad tag must not cost the whole member.
+
+        parse_nquads hands the entire member to rdflib at once, and its
+        N-Quads parser aborts on the first malformed line, so a tag emitted
+        raw takes every other triple in the bundle down with it.
+        """
+        good = {"s": iri("http://example.com/s"), "p": iri("http://example.com/p"),
+                "o": lit("good")}
+
+        for bad in ["fr CA", "en_US", "en\n", 'en> "x" <urn:evil', 7]:
+            batches = [[
+                {"s": iri("http://example.com/s"),
+                 "p": iri("http://example.com/label"),
+                 "o": lit("bonjour", lang=bad)},
+                good,
+            ]]
+            ds, written, skipped = roundtrip(batches)
+            assert (written, skipped) == (1, 1), f"tag {bad!r} was not skipped"
+            assert len(list(ds.quads((None, None, None, None)))) == 1
+
+        # subtags are part of the production and must still survive
+        for ok in ["fr", "fr-CA", "de-DE-1996"]:
+            batches = [[{"s": iri("http://example.com/s"),
+                         "p": iri("http://example.com/label"),
+                         "o": lit("bonjour", lang=ok)}]]
+            ds, written, skipped = roundtrip(batches)
+            assert (written, skipped) == (1, 0), f"tag {ok!r} was wrongly skipped"
+            obj = next(iter(ds.quads((None, None, None, None))))[2]
+            assert obj == rdflib.Literal("bonjour", lang=ok)
 
     def test_streaming_shape_one_line_per_triple(self):
         line = triple_to_nquad(
