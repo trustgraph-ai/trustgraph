@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 import logging
 
 from . async_processor import AsyncProcessor
+from . async_librarian_client import default_librarian_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,10 @@ class WorkspaceProcessor(AsyncProcessor):
     def __init__(self, **params):
 
         super(WorkspaceProcessor, self).__init__(**params)
+
+        self.librarian_timeout = int(params.get(
+            "librarian_timeout", default_librarian_timeout
+        ))
 
         self.active_workspaces = set()
 
@@ -63,3 +68,13 @@ class WorkspaceProcessor(AsyncProcessor):
     @staticmethod
     def add_args(parser: ArgumentParser) -> None:
         AsyncProcessor.add_args(parser)
+
+    @staticmethod
+    def add_librarian_args(parser: ArgumentParser) -> None:
+        parser.add_argument(
+            '--librarian-timeout',
+            type=int,
+            default=default_librarian_timeout,
+            help=f'Librarian request timeout in seconds '
+                 f'(default: {default_librarian_timeout})',
+        )

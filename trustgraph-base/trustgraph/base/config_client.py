@@ -1,5 +1,6 @@
 
 from . request_response_spec import RequestResponseSpec
+from . async_processor import default_config_timeout
 from .. schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 
 CONFIG_TIMEOUT = 10
@@ -108,8 +109,12 @@ class ConfigClient:
 
 
 class ConfigClientSpec(RequestResponseSpec):
+
+    timeout_param = "config_timeout"
+    default_timeout = default_config_timeout
+
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, timeout=None,
     ):
         super(ConfigClientSpec, self).__init__(
             request_name=request_name,
@@ -117,4 +122,5 @@ class ConfigClientSpec(RequestResponseSpec):
             response_name=response_name,
             response_schema=ConfigResponse,
             impl=ConfigClient,
+            timeout=timeout,
         )

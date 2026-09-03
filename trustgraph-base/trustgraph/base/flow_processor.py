@@ -16,6 +16,7 @@ from .. schema import config_push_queue
 from .. log_level import LogLevel
 from . workspace_processor import WorkspaceProcessor
 from . flow import Flow
+from . prompt_client import default_prompt_timeout
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -28,6 +29,10 @@ class FlowProcessor(WorkspaceProcessor):
 
         # Initialise base class
         super(FlowProcessor, self).__init__(**params)
+
+        self.prompt_timeout = int(params.get(
+            "prompt_timeout", default_prompt_timeout
+        ))
 
         # Register configuration handler for this processor's config type
         self.register_config_handler(
@@ -114,6 +119,15 @@ class FlowProcessor(WorkspaceProcessor):
     def add_args(parser: ArgumentParser) -> None:
 
         WorkspaceProcessor.add_args(parser)
+        WorkspaceProcessor.add_librarian_args(parser)
+
+        parser.add_argument(
+            '--prompt-timeout',
+            type=int,
+            default=default_prompt_timeout,
+            help=f'Prompt request timeout in seconds '
+                 f'(default: {default_prompt_timeout})',
+        )
 
         # parser.add_argument(
         #     '--rate-limit-retry',

@@ -15,10 +15,13 @@ from ..schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 
+default_librarian_timeout = 120
+
 
 class AsyncLibrarianClient:
 
-    def __init__(self):
+    def __init__(self, default_timeout=default_librarian_timeout):
+        self.default_timeout = default_timeout
         self._producer = None
         self._consumer = None
         self._receiver_task = None
@@ -29,9 +32,9 @@ class AsyncLibrarianClient:
     @classmethod
     async def create(
         cls, backend, request_topic, response_topic,
-        subscription=None,
+        subscription=None, default_timeout=default_librarian_timeout,
     ):
-        client = cls()
+        client = cls(default_timeout=default_timeout)
 
         client._producer = await backend.create_producer(
             topic=request_topic,
@@ -63,6 +66,9 @@ class AsyncLibrarianClient:
     async def start(self):
         pass
 
+    def _timeout(self, timeout):
+        return self.default_timeout if timeout is None else timeout
+
     async def _response_loop(self):
         try:
             while self.running:
@@ -87,7 +93,8 @@ class AsyncLibrarianClient:
                 f"Librarian response loop error: {e}", exc_info=True,
             )
 
-    async def request(self, request, timeout=120):
+    async def request(self, request, timeout=None):
+        timeout = self._timeout(timeout)
         request_id = str(uuid.uuid4())
 
         future = asyncio.get_event_loop().create_future()
@@ -111,7 +118,8 @@ class AsyncLibrarianClient:
             self._pending.pop(request_id, None)
             raise RuntimeError("Timeout waiting for librarian response")
 
-    async def stream(self, request, timeout=120):
+    async def stream(self, request, timeout=None):
+        timeout = self._timeout(timeout)
         request_id = str(uuid.uuid4())
 
         q = asyncio.Queue()
@@ -180,7 +188,7 @@ class AsyncLibrarianClient:
 
         logger.info("AsyncLibrarianClient closed")
 
-    async def fetch_document_content(self, document_id, timeout=120):
+    async def fetch_document_content(self, document_id, timeout=None):
         req = LibrarianRequest(
             operation="stream-document",
             document_id=document_id,
@@ -199,13 +207,13 @@ class AsyncLibrarianClient:
 
         return base64.b64encode(raw)
 
-    async def fetch_document_text(self, document_id, timeout=120):
+    async def fetch_document_text(self, document_id, timeout=None):
         content = await self.fetch_document_content(
             document_id, timeout=timeout,
         )
         return base64.b64decode(content).decode("utf-8")
 
-    async def fetch_document_metadata(self, document_id, timeout=120):
+    async def fetch_document_metadata(self, document_id, timeout=None):
         req = LibrarianRequest(
             operation="get-document-metadata",
             document_id=document_id,
@@ -215,7 +223,7 @@ class AsyncLibrarianClient:
 
     async def save_child_document(self, doc_id, parent_id, content,
                                   document_type="chunk", title=None,
-                                  kind="text/plain", timeout=120):
+                                  kind="text/plain", timeout=None):
         if isinstance(content, str):
             content = content.encode("utf-8")
 
@@ -238,7 +246,7 @@ class AsyncLibrarianClient:
 
     async def save_document(self, doc_id, content, title=None,
                             document_type="answer", kind="text/plain",
-                            timeout=120):
+                            timeout=None):
         if isinstance(content, str):
             content = content.encode("utf-8")
 
