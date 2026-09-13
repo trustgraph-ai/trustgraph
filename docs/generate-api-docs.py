@@ -109,7 +109,8 @@ def format_signature(name, obj):
     try:
         sig = inspect.signature(obj)
         return f"{name}{sig}"
-    except:
+    except (TypeError, ValueError):
+        # No signature available (builtins, some C callables): fall back.
         return f"{name}(...)"
 
 def document_function(name, func, indent=0):

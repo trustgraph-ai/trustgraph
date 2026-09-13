@@ -164,7 +164,7 @@ def load_structured_data(
             try:
                 import os
                 os.unlink(temp_descriptor.name)
-            except:
+            except OSError:
                 pass
     
     elif discover_schema:

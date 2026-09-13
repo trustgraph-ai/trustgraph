@@ -126,8 +126,8 @@ def main():
             if args.schema:
                 try:
                     schobj = json.loads(args.schema)
-                except:
-                    raise RuntimeError("JSON schema must be valid JSON")
+                except json.JSONDecodeError as e:
+                    raise RuntimeError("JSON schema must be valid JSON") from e
             else:
                 schobj = None
 
