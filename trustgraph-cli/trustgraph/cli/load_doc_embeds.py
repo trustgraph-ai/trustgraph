@@ -37,9 +37,7 @@ async def load_de(running, queue, url):
                     if msg is None:
                         break
 
-                except:
-                    # Hopefully it's TimeoutError.  Annoying to match since
-                    # it changed in 3.11.
+                except asyncio.TimeoutError:
                     continue
 
                 msg = {
@@ -92,7 +90,8 @@ async def loader(running, de_queue, path, format, collection):
 
                 try:
                     unpacked = unpacker.unpack()
-                except:
+                except msgpack.exceptions.OutOfData:
+                    # No more complete messages in the file.
                     break
 
                 if collection:
@@ -109,9 +108,7 @@ async def loader(running, de_queue, path, format, collection):
                         # Successful put message, move on
                         break
 
-                    except:
-                        # Hopefully it's TimeoutError.  Annoying to match since
-                        # it changed in 3.11.
+                    except asyncio.TimeoutError:
                         continue
 
                 if not running.get(): break
@@ -125,9 +122,7 @@ async def loader(running, de_queue, path, format, collection):
                 # Successful put message, move on
                 break
 
-            except:
-                # Hopefully it's TimeoutError.  Annoying to match since
-                # it changed in 3.11.
+            except asyncio.TimeoutError:
                 continue
 
 async def run(running, **args):
