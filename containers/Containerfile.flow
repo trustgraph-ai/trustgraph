@@ -61,5 +61,14 @@ RUN \
     pip3 install --no-cache-dir /root/wheels/trustgraph_cli-* && \
     rm -rf /root/wheels
 
+# Pre-download default models so they are available offline
+ENV FASTEMBED_CACHE_PATH=/opt/models/fastembed
+RUN python -c "\
+from fastembed import TextEmbedding; \
+TextEmbedding(model_name='sentence-transformers/all-MiniLM-L6-v2')"
+RUN python -c "\
+from flashrank import Ranker; \
+Ranker(model_name='ms-marco-MiniLM-L-12-v2')"
+
 WORKDIR /
 
