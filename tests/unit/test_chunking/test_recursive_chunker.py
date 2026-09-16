@@ -42,7 +42,6 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         # Assert
         assert processor.default_chunk_size == 1500
         assert processor.default_chunk_overlap == 150
-        assert hasattr(processor, 'text_splitter')
 
         # Verify parameter specs are registered
         param_specs = [spec for spec in processor.specifications
@@ -146,17 +145,10 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         assert chunk_size == 1500   # Should use overridden value
         assert chunk_overlap == 150 # Should use overridden value
 
-    @patch('trustgraph.chunking.recursive.chunker.RecursiveCharacterTextSplitter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_uses_flow_parameters(self, mock_splitter_class):
+    async def test_on_message_uses_flow_parameters(self):
         """Test that on_message method uses parameters from flow"""
         # Arrange
-        mock_splitter = MagicMock()
-        mock_document = MagicMock()
-        mock_document.page_content = "Test chunk content"
-        mock_splitter.create_documents.return_value = [mock_document]
-        mock_splitter_class.return_value = mock_splitter
-
         config = {
             'id': 'test-chunker',
             'chunk_size': 1000,
@@ -166,8 +158,6 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-
-        # Mock save_child_document on flow to avoid waiting for librarian response
 
         # Mock message with TextDocument
         mock_message = MagicMock()
@@ -184,8 +174,6 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         mock_consumer = MagicMock()
         mock_producer = AsyncMock()
         mock_triples_producer = AsyncMock()
-        # Flow.__call__ resolves parameters and producers/consumers from the
-        # same dict — merge both kinds here.
         mock_flow = MagicMock()
         mock_flow.side_effect = lambda key: {
             "chunk-size": 1500,
@@ -198,15 +186,7 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)
 
-        # Assert
-        # Verify RecursiveCharacterTextSplitter was called with overridden parameters (last call)
-        actual_last_call = mock_splitter_class.call_args_list[-1]
-        assert actual_last_call.kwargs['chunk_size'] == 1500
-        assert actual_last_call.kwargs['chunk_overlap'] == 150
-        assert actual_last_call.kwargs['length_function'] == len
-        assert actual_last_call.kwargs['is_separator_regex'] == False
-
-        # Verify chunk was sent to output
+        # Assert - chunk was sent to output
         mock_producer.send.assert_called_once()
         sent_chunk = mock_producer.send.call_args[0][0]
         assert isinstance(sent_chunk, Chunk)

@@ -10,8 +10,6 @@ from prometheus_client import Histogram
 from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
 
-RecursiveCharacterTextSplitter = None
-
 from ... provenance import (
     chunk_uri as make_chunk_uri, derived_entity_triples,
     set_graph, GRAPH_SOURCE,
@@ -43,13 +41,6 @@ class Processor(ChunkingService):
         self.default_chunk_size = chunk_size
         self.default_chunk_overlap = chunk_overlap
 
-        global RecursiveCharacterTextSplitter
-        if RecursiveCharacterTextSplitter is None:
-            from langchain_text_splitters import (
-                RecursiveCharacterTextSplitter as _cls,
-            )
-            RecursiveCharacterTextSplitter = _cls
-
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
                 'tg_chunk_size', 'Chunk size',
@@ -57,13 +48,6 @@ class Processor(ChunkingService):
                 buckets=[100, 160, 250, 400, 650, 1000, 1600,
                          2500, 4000, 6400, 10000, 16000]
             )
-
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            length_function=len,
-            is_separator_regex=False,
-        )
 
         self.register_specification(
             ConsumerSpec(
@@ -89,6 +73,80 @@ class Processor(ChunkingService):
 
         logger.info("Recursive chunker initialized")
 
+    SEPARATORS = ["\n\n", "\n", " ", ""]
+
+    def _recursive_split(self, text, chunk_size, chunk_overlap):
+        return self._split_text(text, self.SEPARATORS, chunk_size, chunk_overlap)
+
+    def _split_text(self, text, separators, chunk_size, chunk_overlap):
+        final_chunks = []
+        separator = separators[-1]
+        new_separators = []
+
+        for i, sep in enumerate(separators):
+            if sep == "":
+                separator = sep
+                break
+            if sep in text:
+                separator = sep
+                new_separators = separators[i + 1:]
+                break
+
+        splits = list(text) if separator == "" else text.split(separator)
+
+        good_splits = []
+        for s in splits:
+            if len(s) < chunk_size:
+                good_splits.append(s)
+            else:
+                if good_splits:
+                    final_chunks.extend(
+                        self._merge_splits(good_splits, separator, chunk_size, chunk_overlap)
+                    )
+                    good_splits = []
+                if not new_separators:
+                    final_chunks.append(s)
+                else:
+                    final_chunks.extend(
+                        self._split_text(s, new_separators, chunk_size, chunk_overlap)
+                    )
+
+        if good_splits:
+            final_chunks.extend(
+                self._merge_splits(good_splits, separator, chunk_size, chunk_overlap)
+            )
+
+        return [c for c in final_chunks if c.strip()]
+
+    @staticmethod
+    def _merge_splits(splits, separator, chunk_size, chunk_overlap):
+        chunks = []
+        current = []
+        total = 0
+
+        for s in splits:
+            s_len = len(s)
+            sep_len = len(separator) if current else 0
+
+            if total + s_len + sep_len > chunk_size and current:
+                chunks.append(separator.join(current))
+                while total > chunk_overlap and len(current) > 1:
+                    dropped = current.pop(0)
+                    total -= len(dropped) + len(separator)
+                if total > chunk_overlap:
+                    current = []
+                    total = 0
+
+            current.append(s)
+            total += s_len + (len(separator) if len(current) > 1 else 0)
+
+        if current:
+            chunk = separator.join(current)
+            if chunk.strip():
+                chunks.append(chunk)
+
+        return chunks
+
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
@@ -110,15 +168,7 @@ class Processor(ChunkingService):
         if isinstance(chunk_overlap, str):
             chunk_overlap = int(chunk_overlap)
 
-        # Create text splitter with effective parameters
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            length_function=len,
-            is_separator_regex=False,
-        )
-
-        texts = text_splitter.create_documents([text])
+        chunks = self._recursive_split(text, chunk_size, chunk_overlap)
 
         # Get parent document ID for provenance linking
         # This could be a page URI (doc/p3) or document URI (doc) - we don't need to parse it
@@ -127,18 +177,18 @@ class Processor(ChunkingService):
         # Track character offset for provenance
         char_offset = 0
 
-        for ix, chunk in enumerate(texts):
+        for ix, chunk_text in enumerate(chunks):
             chunk_index = ix + 1  # 1-indexed
 
-            logger.debug(f"Created chunk of size {len(chunk.page_content)}")
+            logger.debug(f"Created chunk of size {len(chunk_text)}")
 
             # Generate unique chunk ID
             c_uri = make_chunk_uri()
             chunk_doc_id = c_uri
             parent_uri = parent_doc_id
 
-            chunk_content = chunk.page_content.encode("utf-8")
-            chunk_length = len(chunk.page_content)
+            chunk_content = chunk_text.encode("utf-8")
+            chunk_length = len(chunk_text)
 
             # Save chunk to librarian as child document
             await flow.librarian.save_child_document(

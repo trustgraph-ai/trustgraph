@@ -5,12 +5,12 @@ as text as separate output objects.
 """
 
 import logging
+
+import tiktoken
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
-
-TokenTextSplitter = None
 
 from ... provenance import (
     chunk_uri as make_chunk_uri, derived_entity_triples,
@@ -43,10 +43,7 @@ class Processor(ChunkingService):
         self.default_chunk_size = chunk_size
         self.default_chunk_overlap = chunk_overlap
 
-        global TokenTextSplitter
-        if TokenTextSplitter is None:
-            from langchain_text_splitters import TokenTextSplitter as _cls
-            TokenTextSplitter = _cls
+        self.encoding = tiktoken.get_encoding("cl100k_base")
 
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
@@ -55,12 +52,6 @@ class Processor(ChunkingService):
                 buckets=[100, 160, 250, 400, 650, 1000, 1600,
                          2500, 4000, 6400, 10000, 16000]
             )
-
-        self.text_splitter = TokenTextSplitter(
-            encoding_name="cl100k_base",
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
 
         self.register_specification(
             ConsumerSpec(
@@ -86,6 +77,19 @@ class Processor(ChunkingService):
 
         logger.info("Token chunker initialized")
 
+    def _split_by_tokens(self, text, chunk_size, chunk_overlap):
+        tokens = self.encoding.encode(text)
+        chunks = []
+        start = 0
+        while start < len(tokens):
+            end = start + chunk_size
+            chunk_tokens = tokens[start:end]
+            chunks.append(self.encoding.decode(chunk_tokens))
+            if end >= len(tokens):
+                break
+            start += chunk_size - chunk_overlap
+        return chunks
+
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
@@ -107,14 +111,8 @@ class Processor(ChunkingService):
         if isinstance(chunk_overlap, str):
             chunk_overlap = int(chunk_overlap)
 
-        # Create text splitter with effective parameters
-        text_splitter = TokenTextSplitter(
-            encoding_name="cl100k_base",
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
-
-        texts = text_splitter.create_documents([text])
+        # Split text by token count using tiktoken
+        chunks = self._split_by_tokens(text, chunk_size, chunk_overlap)
 
         # Get parent document ID for provenance linking
         # This could be a page URI (doc/p3) or document URI (doc) - we don't need to parse it
@@ -123,18 +121,18 @@ class Processor(ChunkingService):
         # Track token offset for provenance (approximate)
         token_offset = 0
 
-        for ix, chunk in enumerate(texts):
+        for ix, chunk_text in enumerate(chunks):
             chunk_index = ix + 1  # 1-indexed
 
-            logger.debug(f"Created chunk of size {len(chunk.page_content)}")
+            logger.debug(f"Created chunk of size {len(chunk_text)}")
 
             # Generate unique chunk ID
             c_uri = make_chunk_uri()
             chunk_doc_id = c_uri
             parent_uri = parent_doc_id
 
-            chunk_content = chunk.page_content.encode("utf-8")
-            chunk_length = len(chunk.page_content)
+            chunk_content = chunk_text.encode("utf-8")
+            chunk_length = len(chunk_text)
 
             # Save chunk to librarian as child document
             await flow.librarian.save_child_document(
