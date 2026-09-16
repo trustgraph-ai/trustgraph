@@ -4,8 +4,8 @@
 # Out of scope:
 #   - api-gateway       (aiohttp, not AsyncProcessor)
 #   - init-trustgraph   (one-shot init, not a processor)
-#   - document-decoder  (universal-decoder, trustgraph-unstructured package —
-#                        packable but lives in a separate image/package)
+#   - document-decoder  (docling-decoder, trustgraph-docling package —
+#                        lives in a separate image/package)
 #   - mcp-server        (trustgraph-mcp package, separate image)
 #   - ddg-mcp-server    (third-party image)
 #   - infrastructure    (cassandra, rabbitmq, qdrant, garage, grafana,
@@ -38,11 +38,6 @@ processors:
       <<: *defaults
       id: config-svc
       cassandra_host: localhost
-
-  - class: trustgraph.decoding.universal.Processor
-    params:
-      <<: *defaults
-      id: document-decoder
 
   - class: trustgraph.embeddings.document_embeddings.Processor
     params:

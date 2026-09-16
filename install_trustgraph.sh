@@ -1946,7 +1946,6 @@ ensure_version_files() {
         "trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py:trustgraph.embeddings_hf_version"
         "trustgraph-cli/trustgraph/cli_version.py:trustgraph.cli_version"
         "trustgraph-ocr/trustgraph/ocr_version.py:trustgraph.ocr_version"
-        "trustgraph-unstructured/trustgraph/unstructured_version.py:trustgraph.unstructured_version"
         "trustgraph-mcp/trustgraph/mcp_version.py:trustgraph.mcp_version"
         "trustgraph/trustgraph/trustgraph_version.py:trustgraph.trustgraph_version"
     )
@@ -1968,7 +1967,6 @@ local_package_pythonpath() {
         "$SCRIPT_DIR/trustgraph-cli"
         "$SCRIPT_DIR/trustgraph-bedrock"
         "$SCRIPT_DIR/trustgraph-ocr"
-        "$SCRIPT_DIR/trustgraph-unstructured"
         "$SCRIPT_DIR/trustgraph-mcp"
         "$SCRIPT_DIR/trustgraph-vertexai"
         "$SCRIPT_DIR/trustgraph"
@@ -2040,7 +2038,6 @@ install_test_packages() {
         trustgraph-bedrock
         trustgraph-embeddings-hf
         trustgraph-ocr
-        trustgraph-unstructured
         trustgraph-mcp
     )
 
