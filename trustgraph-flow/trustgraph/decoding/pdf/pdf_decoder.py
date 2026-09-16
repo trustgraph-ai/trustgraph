@@ -15,7 +15,7 @@ from ... schema import Document, TextDocument, Metadata
 from ... schema import Triples
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianSpec
 
-PyPDFLoader = None
+from pypdf import PdfReader
 
 from ... provenance import (
     document_uri, page_uri as make_page_uri, derived_entity_triples,
@@ -130,15 +130,9 @@ class Processor(FlowProcessor):
             fp.write(decoded_content)
             fp.close()
 
-            global PyPDFLoader
-            if PyPDFLoader is None:
-                from langchain_community.document_loaders import (
-                    PyPDFLoader as _cls,
-                )
-                PyPDFLoader = _cls
-            loader = PyPDFLoader(temp_path)
             try:
-                pages = loader.load()
+                reader = PdfReader(temp_path)
+                pages = reader.pages
             except Exception as e:
                 source_doc_id = v.document_id or v.metadata.id
                 logger.error(
@@ -158,7 +152,7 @@ class Processor(FlowProcessor):
                 # Generate unique page ID
                 pg_uri = make_page_uri()
                 page_doc_id = pg_uri
-                page_content = page.page_content.encode("utf-8")
+                page_content = page.extract_text().encode("utf-8")
 
                 # Save page as child document in librarian
                 await flow.librarian.save_child_document(
