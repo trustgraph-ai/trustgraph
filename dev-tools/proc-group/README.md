@@ -22,13 +22,13 @@ bad idea in prod.
 Install the TrustGraph packages into a venv:
 
 ```
-pip install trustgraph-base trustgraph-flow trustgraph-unstructured
+pip install trustgraph-base trustgraph-flow
 ```
 
 `trustgraph-base` provides the `processor-group` endpoint. The others
 provide the processor classes that `group.yaml` imports at runtime.
-`trustgraph-unstructured` is only needed if you want `document-decoder`
-(the `universal-decoder` processor).
+The document decoder (docling) is not included -- it lives in a separate
+package (`trustgraph-docling`) with heavy dependencies (PyTorch, etc.).
 
 ## Running it
 
