@@ -19,9 +19,6 @@ jobs:
   build-platform:
 
     name: Build ${{ inputs.container }} (${{ matrix.platform }})
-    permissions:
-      contents: write
-      id-token: write
     environment:
       name: release
     strategy:
@@ -66,9 +63,6 @@ jobs:
     name: Combine manifest ${{ inputs.container }}
     runs-on: ubuntu-24.04
     needs: build-platform
-    permissions:
-      contents: write
-      id-token: write
     environment:
       name: release
 
