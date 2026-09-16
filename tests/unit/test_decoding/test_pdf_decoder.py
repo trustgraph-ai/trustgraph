@@ -40,20 +40,22 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         assert consumer_specs[0].name == "input"
         assert consumer_specs[0].schema == Document
 
-    @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_success(self, mock_pdf_loader_class):
+    async def test_on_message_success(self, mock_pdf_reader_class):
         """Test successful PDF processing"""
         # Mock PDF content
         pdf_content = b"%PDF-1.7\nfake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
 
-        # Mock PyPDFLoader
-        mock_loader = MagicMock()
-        mock_page1 = MagicMock(page_content="Page 1 content")
-        mock_page2 = MagicMock(page_content="Page 2 content")
-        mock_loader.load.return_value = [mock_page1, mock_page2]
-        mock_pdf_loader_class.return_value = mock_loader
+        # Mock PdfReader
+        mock_reader = MagicMock()
+        mock_page1 = MagicMock()
+        mock_page1.extract_text.return_value = "Page 1 content"
+        mock_page2 = MagicMock()
+        mock_page2.extract_text.return_value = "Page 2 content"
+        mock_reader.pages = [mock_page1, mock_page2]
+        mock_pdf_reader_class.return_value = mock_reader
 
         # Mock message
         mock_metadata = Metadata(id="test-doc")
@@ -84,9 +86,9 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         # Verify triples were sent for each page (provenance)
         assert mock_triples_flow.send.call_count == 2
 
-    @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_rejects_librarian_content_that_is_not_pdf(self, mock_pdf_loader_class):
+    async def test_on_message_rejects_librarian_content_that_is_not_pdf(self, mock_pdf_reader_class):
         """Test rejecting non-PDF content before invoking the PDF loader"""
         html_content = b"<html><body>Not found</body></html>"
         html_base64 = base64.b64encode(html_content)
@@ -119,21 +121,21 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         await processor.on_message(mock_msg, None, mock_flow)
 
-        mock_pdf_loader_class.assert_not_called()
+        mock_pdf_reader_class.assert_not_called()
         mock_output_flow.send.assert_not_called()
         mock_triples_flow.send.assert_not_called()
         mock_flow.librarian.save_child_document.assert_not_called()
 
-    @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_empty_pdf(self, mock_pdf_loader_class):
+    async def test_on_message_empty_pdf(self, mock_pdf_reader_class):
         """Test handling of empty PDF"""
         pdf_content = b"%PDF-1.7\nfake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
 
-        mock_loader = MagicMock()
-        mock_loader.load.return_value = []
-        mock_pdf_loader_class.return_value = mock_loader
+        mock_reader = MagicMock()
+        mock_reader.pages = []
+        mock_pdf_reader_class.return_value = mock_reader
 
         mock_metadata = Metadata(id="test-doc")
         mock_document = Document(metadata=mock_metadata, data=pdf_base64)
@@ -154,17 +156,18 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         mock_output_flow.send.assert_not_called()
 
-    @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_unicode_content(self, mock_pdf_loader_class):
+    async def test_on_message_unicode_content(self, mock_pdf_reader_class):
         """Test handling of unicode content in PDF"""
         pdf_content = b"%PDF-1.7\nfake pdf content"
         pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
 
-        mock_loader = MagicMock()
-        mock_page = MagicMock(page_content="Page with unicode: 你好世界 🌍")
-        mock_loader.load.return_value = [mock_page]
-        mock_pdf_loader_class.return_value = mock_loader
+        mock_reader = MagicMock()
+        mock_page = MagicMock()
+        mock_page.extract_text.return_value = "Page with unicode: 你好世界 🌍"
+        mock_reader.pages = [mock_page]
+        mock_pdf_reader_class.return_value = mock_reader
 
         mock_metadata = Metadata(id="test-doc")
         mock_document = Document(metadata=mock_metadata, data=pdf_base64)
