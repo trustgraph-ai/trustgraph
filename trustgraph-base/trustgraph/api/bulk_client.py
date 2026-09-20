@@ -154,7 +154,7 @@ class BulkClient:
                     ),
                 }
                 if triple.g:
-                    t["g"] = _string_to_term(triple.g)
+                    t["g"] = triple.g
                 batch.append(t)
                 if len(batch) >= batch_size:
                     message = {

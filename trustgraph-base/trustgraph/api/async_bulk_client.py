@@ -55,7 +55,7 @@ class AsyncBulkClient:
                     ),
                 }
                 if triple.g:
-                    t["g"] = _string_to_term(triple.g)
+                    t["g"] = triple.g
                 await websocket.send(json.dumps(t))
 
     async def export_triples(self, flow: str, **kwargs: Any) -> AsyncIterator[Triple]:
