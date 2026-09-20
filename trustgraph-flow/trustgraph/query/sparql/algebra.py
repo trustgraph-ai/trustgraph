@@ -461,15 +461,15 @@ async def _eval_extend(node, tc, collection, limit):
         new_sol = dict(sol)
         if isinstance(val, Term):
             new_sol[var_name] = val
-        elif isinstance(val, (int, float)):
-            new_sol[var_name] = Term(type=LITERAL, value=str(val))
-        elif isinstance(val, str):
-            new_sol[var_name] = Term(type=LITERAL, value=val)
         elif isinstance(val, bool):
             new_sol[var_name] = Term(
                 type=LITERAL, value=str(val).lower(),
                 datatype="http://www.w3.org/2001/XMLSchema#boolean"
             )
+        elif isinstance(val, (int, float)):
+            new_sol[var_name] = Term(type=LITERAL, value=str(val))
+        elif isinstance(val, str):
+            new_sol[var_name] = Term(type=LITERAL, value=val)
         elif val is not None:
             new_sol[var_name] = Term(type=LITERAL, value=str(val))
         yield new_sol
