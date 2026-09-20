@@ -144,7 +144,7 @@ class BulkClient:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             batch = []
             for triple in triples:
-                batch.append({
+                t = {
                     "s": _string_to_term(triple.s),
                     "p": _string_to_term(triple.p),
                     "o": _string_to_term(
@@ -152,7 +152,10 @@ class BulkClient:
                         datatype=triple.o_datatype,
                         language=triple.o_language,
                     ),
-                })
+                }
+                if triple.g:
+                    t["g"] = _string_to_term(triple.g)
+                batch.append(t)
                 if len(batch) >= batch_size:
                     message = {
                         "metadata": metadata,
@@ -224,7 +227,8 @@ class BulkClient:
                 yield Triple(
                     s=data.get("s", ""),
                     p=data.get("p", ""),
-                    o=data.get("o", "")
+                    o=data.get("o", ""),
+                    g=data.get("g", ""),
                 )
 
     def import_graph_embeddings(self, flow: str, embeddings: Iterator[Dict[str, Any]], **kwargs: Any) -> None:
