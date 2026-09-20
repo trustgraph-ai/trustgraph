@@ -45,7 +45,7 @@ class AsyncBulkClient:
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for triple in triples:
-                message = {
+                t = {
                     "s": _string_to_term(triple.s),
                     "p": _string_to_term(triple.p),
                     "o": _string_to_term(
@@ -54,7 +54,9 @@ class AsyncBulkClient:
                         language=triple.o_language,
                     ),
                 }
-                await websocket.send(json.dumps(message))
+                if triple.g:
+                    t["g"] = _string_to_term(triple.g)
+                await websocket.send(json.dumps(t))
 
     async def export_triples(self, flow: str, **kwargs: Any) -> AsyncIterator[Triple]:
         """Bulk export triples via WebSocket"""
@@ -66,7 +68,8 @@ class AsyncBulkClient:
                 yield Triple(
                     s=data.get("s", ""),
                     p=data.get("p", ""),
-                    o=data.get("o", "")
+                    o=data.get("o", ""),
+                    g=data.get("g", ""),
                 )
 
     async def import_graph_embeddings(self, flow: str, embeddings: AsyncIterator[Dict[str, Any]], **kwargs: Any) -> None:

@@ -21,12 +21,14 @@ class Triple:
         o: Object (entity URI, literal value, or typed value)
         o_datatype: XSD datatype URI for literal objects (e.g. "xsd:string")
         o_language: Language tag for literal objects (e.g. "en", "lt")
+        g: Named graph URI (e.g. "urn:graph:catalog")
     """
     s : str
     p : str
     o : str
     o_datatype : str = ""
     o_language : str = ""
+    g : str = ""
 
 @dataclasses.dataclass
 class ConfigKey:
