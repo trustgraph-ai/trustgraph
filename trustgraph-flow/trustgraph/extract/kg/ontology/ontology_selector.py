@@ -3,6 +3,7 @@ Ontology selection algorithm for OntoRAG system.
 Selects relevant ontology subsets based on text similarity.
 """
 
+import ast
 import logging
 from typing import List, Dict, Any, Set, Optional, Tuple
 from dataclasses import dataclass
@@ -186,11 +187,17 @@ class OntologySelector:
         for ont_id, elem_type, elem_id, definition in relevant_elements:
             # Parse definition back from string if needed
             if isinstance(definition, str):
-                import json
+                # These strings come from str(dict) above, which is a Python
+                # repr and not JSON. Swapping quotes breaks on any value
+                # containing an apostrophe, and the old fallback ran eval on
+                # metadata that arrives from the vector store.
                 try:
-                    definition = json.loads(definition.replace("'", '"'))
-                except:
-                    definition = eval(definition)  # Fallback for dict-like strings
+                    definition = ast.literal_eval(definition)
+                except (ValueError, SyntaxError):
+                    logger.warning(
+                        f"Could not parse definition for {ont_id}/{elem_id}, skipping"
+                    )
+                    continue
 
             # Get the actual ontology and element
             ontology = self.loader.get_ontology(ont_id)
