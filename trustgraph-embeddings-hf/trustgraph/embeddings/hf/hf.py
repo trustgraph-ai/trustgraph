@@ -36,9 +36,9 @@ class Processor(EmbeddingsService):
     def _load_model(self, model_name):
         """Load a model, caching it for reuse"""
         if self.cached_model_name != model_name:
-            from langchain_huggingface import HuggingFaceEmbeddings
+            from sentence_transformers import SentenceTransformer
             logger.info(f"Loading HuggingFace embeddings model: {model_name}")
-            self.embeddings = HuggingFaceEmbeddings(model_name=model_name)
+            self.embeddings = SentenceTransformer(model_name)
             self.cached_model_name = model_name
             logger.info(f"HuggingFace model {model_name} loaded successfully")
         else:
@@ -51,7 +51,7 @@ class Processor(EmbeddingsService):
         # Reload model if it has changed
         self._load_model(use_model)
 
-        embeds = self.embeddings.embed_documents([text])
+        embeds = self.embeddings.encode([text]).tolist()
         logger.debug("Embeddings generation complete")
         return embeds
 

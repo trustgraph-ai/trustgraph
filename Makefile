@@ -17,7 +17,6 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
-	pip3 wheel --no-deps --wheel-dir dist trustgraph-unstructured/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-docling/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-mcp/
 
@@ -31,7 +30,6 @@ packages: update-package-versions
 	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
 	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
-	cd trustgraph-unstructured && python -m build --sdist --outdir ../dist/
 	cd trustgraph-docling && python -m build --sdist --outdir ../dist/
 	cd trustgraph-mcp && python -m build --sdist --outdir ../dist/
 
@@ -50,7 +48,6 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-unstructured/trustgraph/unstructured_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-docling/trustgraph/docling_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
@@ -58,10 +55,9 @@ update-package-versions:
 containers: container-base container-flow \
 container-bedrock container-vertexai \
 container-hf container-ocr \
-container-unstructured container-docling container-mcp
+container-docling container-mcp
 
 some-containers: container-base container-flow container-docling
-# container-unstructured
 
 push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
@@ -70,7 +66,6 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-docling:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
 

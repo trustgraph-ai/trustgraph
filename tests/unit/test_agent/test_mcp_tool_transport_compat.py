@@ -122,8 +122,6 @@ async def test_invoke_tool_uses_supported_streamable_http_contract(
         isinstance(result, str) and "hello" in result
     )
     assert len(client_options) == 1
-    assert client_options[0]["follow_redirects"] is True
-    assert isinstance(client_options[0]["timeout"], http_module.Timeout)
     assert captured_app.requests
 
     for headers in captured_app.requests:

@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "trustgraph-base>=2.9,<2.10",
+    "trustgraph-base>=2.10,<2.11",
     "aiohttp",
     "anthropic",
     "scylla-driver",
@@ -22,10 +22,6 @@ dependencies = [
     "flashrank",
     "ibis",
     "jsonschema",
-    "langchain",
-    "langchain-community",
-    "langchain-core",
-    "langchain-text-splitters",
     "mcp>=1.8,<3",
     "minio",
     "mistralai<2.0.0",

@@ -8,14 +8,32 @@ on:
       - v*
 
 permissions:
-  contents: read
+  contents: write
+  id-token: write
 
 jobs:
+
+  get-version:
+
+    name: Determine version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
   python-packages:
 
     name: Release Python packages
     runs-on: ubuntu-24.04
+    needs: get-version
     permissions:
       contents: write
       id-token: write
@@ -26,116 +44,92 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: pip install build wheel
 
       - name: Build packages
-        run: make packages VERSION=${{ steps.version.outputs.VERSION }}
+        run: make packages VERSION=${{ needs.get-version.outputs.version }}
 
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-  build-platform-image:
+  container-base:
+    name: base
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: base
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-    name: Build ${{ matrix.container }} (${{ matrix.platform }})
-    permissions:
-      contents: write
-      id-token: write
-    environment:
-      name: release
-    strategy:
-      matrix:
-        container:
-          - base
-          - flow
-          - bedrock
-          - vertexai
-          - hf
-          - ocr
-          - unstructured
-          - docling
-          - mcp
-        platform:
-          - amd64
-          - arm64
-        include:
-          - platform: amd64
-            runner: ubuntu-24.04
-          - platform: arm64
-            runner: ubuntu-24.04-arm
+  container-flow:
+    name: flow
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: flow
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-    runs-on: ${{ matrix.runner }}
+  container-bedrock:
+    name: bedrock
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: bedrock
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-    steps:
+  container-vertexai:
+    name: vertexai
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: vertexai
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-      - name: Checkout
-        uses: actions/checkout@v4
+  container-hf:
+    name: hf
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: hf
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-      - name: "Free up some disk space"
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          podman image prune --all --force
-          podman builder prune -a -f
+  container-ocr:
+    name: ocr
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: ocr
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-      - name: Docker Hub token
-        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+  container-docling:
+    name: docling
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: docling
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-      - name: Authenticate with Docker hub
-        run: make docker-hub-login
-
-      - name: Get version
-        id: version
-        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
-
-      - name: Build container
-        run: make platform-${{ matrix.container }}-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
-
-      - name: Push container
-        run: make push-platform-${{ matrix.container }}-${{ matrix.platform }} VERSION=${{ steps.version.outputs.VERSION }}
-
-  combine-manifests:
-
-    name: Combine manifest ${{ matrix.container }}
-    runs-on: ubuntu-24.04
-    needs: build-platform-image
-    permissions:
-      contents: write
-      id-token: write
-    environment:
-      name: release
-    strategy:
-      matrix:
-        container:
-          - base
-          - flow
-          - bedrock
-          - vertexai
-          - hf
-          - ocr
-          - unstructured
-          - docling
-          - mcp
-
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Docker Hub token
-        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
-
-      - name: Authenticate with Docker hub
-        run: make docker-hub-login
-
-      - name: Get version
-        id: version
-        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
-
-      - name: Combine and push manifest
-        run: make combine-manifest-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}
+  container-mcp:
+    name: mcp
+    needs: get-version
+    uses: ./.github/workflows/build-container.yaml
+    with:
+      container: mcp
+      version: ${{ needs.get-version.outputs.version }}
+    secrets:
+      DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}

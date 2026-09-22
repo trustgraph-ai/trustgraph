@@ -56,4 +56,10 @@ RUN \
     pip3 install --no-cache-dir /root/wheels/trustgraph_docling-* && \
     rm -rf /root/wheels
 
+# Pre-initialise Docling PDF pipeline to cache model weights
+RUN python -c "\
+from docling.document_converter import DocumentConverter, InputFormat; \
+converter = DocumentConverter(); \
+converter.initialize_pipeline(InputFormat.PDF)"
+
 WORKDIR /
