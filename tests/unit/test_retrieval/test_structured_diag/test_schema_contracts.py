@@ -5,7 +5,7 @@ Contract tests for structured-diag service schemas
 import pytest
 import json
 from pulsar.schema import JsonSchema
-from trustgraph.schema.services.diagnosis import (
+from trustgraph.schema import (
     StructuredDataDiagnosisRequest,
     StructuredDataDiagnosisResponse
 )

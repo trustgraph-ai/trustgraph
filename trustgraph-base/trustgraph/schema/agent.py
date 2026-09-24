@@ -1,12 +1,11 @@
 
 from dataclasses import dataclass, field
-from typing import Optional
 
-from ..core.primitives import Error, Triple
+from .core.primitives import Error, Triple
 
 ############################################################################
 
-# Prompt services, abstract the prompt generation
+# Agent
 
 @dataclass
 class PlanStep:
@@ -71,3 +70,37 @@ class AgentResponse:
 
 ############################################################################
 
+# Tool service
+
+@dataclass
+class ToolServiceRequest:
+    """Request to a dynamically configured tool service."""
+    # Config values (collection, etc.) as JSON
+    config: str = ""
+    # Arguments from LLM as JSON
+    arguments: str = ""
+
+@dataclass
+class ToolServiceResponse:
+    """Response from a tool service."""
+    error: Error | None = None
+    # Response text (the observation)
+    response: str = ""
+    # End of stream marker for streaming responses
+    end_of_stream: bool = False
+
+############################################################################
+
+# Passthrough
+
+@dataclass
+class PassthroughRequest:
+    payload: dict = field(default_factory=dict)
+
+@dataclass
+class PassthroughResponse:
+    payload: dict = field(default_factory=dict)
+    error: Error | None = None
+    is_final: bool = True
+
+############################################################################

@@ -7,7 +7,7 @@ from trustgraph.messaging.translators.diagnosis import (
     StructuredDataDiagnosisRequestTranslator,
     StructuredDataDiagnosisResponseTranslator
 )
-from trustgraph.schema.services.diagnosis import (
+from trustgraph.schema import (
     StructuredDataDiagnosisRequest,
     StructuredDataDiagnosisResponse
 )
