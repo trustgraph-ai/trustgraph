@@ -6,7 +6,7 @@ import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.retrieval.structured_diag.service import Processor
-from trustgraph.schema.services.diagnosis import StructuredDataDiagnosisRequest, StructuredDataDiagnosisResponse
+from trustgraph.schema import StructuredDataDiagnosisRequest, StructuredDataDiagnosisResponse
 from trustgraph.schema import RowSchema, Field as SchemaField, Error
 
 

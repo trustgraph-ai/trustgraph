@@ -7,8 +7,7 @@ collecting labels and definitions for entity embedding and retrieval.
 
 import pytest
 from trustgraph.extract.kg.ontology.extract import Processor
-from trustgraph.schema.core.primitives import Triple, Term, IRI, LITERAL
-from trustgraph.schema.knowledge.graph import EntityContext
+from trustgraph.schema import Triple, Term, IRI, LITERAL, EntityContext
 
 
 @pytest.fixture

@@ -1,86 +1,136 @@
+
 from dataclasses import dataclass, field
-from ..core.primitives import Triple, Error
-from ..core.topic import queue
-from ..core.metadata import Metadata
-# Note: Document imports will be updated after knowledge schemas are converted
 
-# add-document
-#   -> (document_id, document_metadata, content)
-#   <- ()
-#   <- (error)
+from .core.metadata import Metadata
+from .core.primitives import Triple, Error
+from .core.topic import queue
 
-# remove-document
-#   -> (document_id)
-#   <- ()
-#   <- (error)
+############################################################################
 
-# update-document
-#   -> (document_id, document_metadata)
-#   <- ()
-#   <- (error)
+# PDF docs etc.
+@dataclass
+class Document:
+    metadata: Metadata | None = None
+    data: bytes = b""
+    # For large document streaming: if document_id is set, the receiver should
+    # fetch content from librarian instead of using inline data
+    document_id: str = ""
 
-# get-document-metadata
-#   -> (document_id)
-#   <- (document_metadata)
-#   <- (error)
+############################################################################
 
-# get-document-content [DEPRECATED — use stream-document instead]
-#   -> (document_id)
-#   <- (content)
-#   <- (error)
-#   NOTE: Returns entire document in a single message. Fails for documents
-#   exceeding the broker's max message size. Use stream-document which
-#   returns content in chunks.
+# Text documents / text from PDF
 
-# add-processing
-#   -> (processing_id, processing_metadata)
-#   <- ()
-#   <- (error)
+@dataclass
+class TextDocument:
+    metadata: Metadata | None = None
+    text: bytes = b""
+    # For large document streaming: if document_id is set, the receiver should
+    # fetch content from librarian instead of using inline text
+    document_id: str = ""
 
-# remove-processing
-#   -> (processing_id)
-#   <- ()
-#   <- (error)
+############################################################################
 
-# list-documents
-#   -> (collection?)
-#   <- (document_metadata[])
-#   <- (error)
+# Chunks of text
 
-# list-processing
-#   -> (collection?)
-#   <- (processing_metadata[])
-#   <- (error)
+@dataclass
+class Chunk:
+    metadata: Metadata | None = None
+    chunk: bytes = b""
+    # For provenance: document_id of this chunk in librarian
+    # Post-chunker optimization: both document_id AND chunk content are included
+    # so downstream processors have the ID for provenance and content to work with
+    document_id: str = ""
 
-# begin-upload
-#   -> (document_metadata, total_size, chunk_size)
-#   <- (upload_id, chunk_size, total_chunks)
-#   <- (error)
+############################################################################
 
-# upload-chunk
-#   -> (upload_id, chunk_index, content)
-#   <- (upload_id, chunk_index, chunks_received, total_chunks, bytes_received, total_bytes)
-#   <- (error)
+# NLP extraction data types
 
-# complete-upload
-#   -> (upload_id)
-#   <- (document_id, object_id)
-#   <- (error)
+@dataclass
+class Definition:
+    name: str = ""
+    definition: str = ""
 
-# abort-upload
-#   -> (upload_id)
-#   <- ()
-#   <- (error)
+@dataclass
+class Topic:
+    name: str = ""
+    definition: str = ""
 
-# get-upload-status
-#   -> (upload_id)
-#   <- (upload_id, state, chunks_received, missing_chunks, total_chunks, bytes_received, total_bytes)
-#   <- (error)
+@dataclass
+class Relationship:
+    s: str = ""
+    p: str = ""
+    o: str = ""
+    o_entity: bool = False
 
-# list-uploads
-#   -> ()
-#   <- (uploads[])
-#   <- (error)
+@dataclass
+class Fact:
+    s: str = ""
+    p: str = ""
+    o: str = ""
+
+############################################################################
+
+# Knowledge core
+
+@dataclass
+class LibraryMetadata:
+    id: str = ""
+    kind: str = ""
+    title: str = ""
+    parent_id: str = ""
+    document_type: str = ""
+    comments: str = ""
+    tags: list[str] = field(default_factory=list)
+
+@dataclass
+class LibraryBlob:
+    id: str = ""
+    data: bytes = b""
+
+@dataclass
+class KnowledgeRequest:
+    # get-kg-core, delete-kg-core, list-kg-cores, put-kg-core
+    # load-kg-core, unload-kg-core
+    operation: str = ""
+
+    # get-kg-core, list-kg-cores, delete-kg-core, put-kg-core,
+    # load-kg-core, unload-kg-core
+    id: str = ""
+
+    # load-kg-core
+    flow: str = ""
+
+    # load-kg-core
+    collection: str = ""
+
+    # put-kg-core
+    triples: "Triples | None" = None
+    graph_embeddings: "GraphEmbeddings | None" = None
+
+    # put-de-core
+    document_embeddings: "DocumentEmbeddings | None" = None
+
+    # put-kg-core (source material)
+    library_metadata: LibraryMetadata | None = None
+    library_blob: LibraryBlob | None = None
+
+@dataclass
+class KnowledgeResponse:
+    error: Error | None = None
+    ids: list[str] | None = None
+    eos: bool = False     # Indicates end of knowledge core stream
+    triples: "Triples | None" = None
+    graph_embeddings: "GraphEmbeddings | None" = None
+    document_embeddings: "DocumentEmbeddings | None" = None
+    library_metadata: LibraryMetadata | None = None
+    library_blob: LibraryBlob | None = None
+
+knowledge_request_queue = queue('knowledge', cls='request')
+knowledge_response_queue = queue('knowledge', cls='response')
+
+############################################################################
+
+# Librarian service
 
 @dataclass
 class DocumentMetadata:
@@ -220,3 +270,5 @@ class LibrarianResponse:
 
 librarian_request_queue = queue('librarian', cls='request')
 librarian_response_queue = queue('librarian', cls='response')
+
+############################################################################

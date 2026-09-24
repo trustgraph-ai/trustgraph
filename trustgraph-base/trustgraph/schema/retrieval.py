@@ -1,5 +1,7 @@
+
 from dataclasses import dataclass, field
-from ..core.primitives import Error, Term, Triple
+
+from .core.primitives import Error, Term, Triple
 
 ############################################################################
 
@@ -66,3 +68,19 @@ class DocumentRagResponse:
     in_token: int | None = None
     out_token: int | None = None
     model: str | None = None
+
+############################################################################
+
+# Lookups
+
+@dataclass
+class LookupRequest:
+    kind: str = ""
+    term: str = ""
+
+@dataclass
+class LookupResponse:
+    text: str = ""
+    error: Error | None = None
+
+############################################################################

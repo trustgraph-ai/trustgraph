@@ -144,21 +144,21 @@ class TestQueueDefinitions:
     """Verify the actual queue constants produce correct names."""
 
     def test_config_request(self):
-        from trustgraph.schema.services.config import config_request_queue
+        from trustgraph.schema import config_request_queue
         assert config_request_queue == 'request:tg:config'
 
     def test_config_response(self):
-        from trustgraph.schema.services.config import config_response_queue
+        from trustgraph.schema import config_response_queue
         assert config_response_queue == 'response:tg:config'
 
     def test_config_push(self):
-        from trustgraph.schema.services.config import config_push_queue
+        from trustgraph.schema import config_push_queue
         assert config_push_queue == 'notify:tg:config'
 
     def test_librarian_request(self):
-        from trustgraph.schema.services.library import librarian_request_queue
+        from trustgraph.schema import librarian_request_queue
         assert librarian_request_queue == 'request:tg:librarian'
 
     def test_knowledge_request(self):
-        from trustgraph.schema.knowledge.knowledge import knowledge_request_queue
+        from trustgraph.schema import knowledge_request_queue
         assert knowledge_request_queue == 'request:tg:knowledge'
