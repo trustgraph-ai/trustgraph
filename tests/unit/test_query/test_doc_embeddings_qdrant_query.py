@@ -110,7 +110,8 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
             collection_name=expected_collection,
             query=[0.1, 0.2, 0.3],
             limit=5,  # Direct limit, no multiplication
-            with_payload=True
+            with_payload=True,
+            query_filter=None,
         )
         
         # Verify result contains expected ChunkMatch objects

@@ -8,6 +8,7 @@ import asyncio
 import logging
 
 from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 
 from .... schema import DocumentEmbeddingsResponse, ChunkMatch
 from .... schema import Error
@@ -40,6 +41,35 @@ class Processor(DocumentEmbeddingsQueryService):
 
         self.qdrant = QdrantClient(url=url, api_key=api_key)
 
+    KNOWN_PAYLOAD_KEYS = frozenset({
+        "chunk_id", "doc_id",
+    })
+
+    def build_filter(self, msg):
+        conditions = []
+
+        attrs = msg.attributes if isinstance(msg.attributes, dict) else {}
+        for k, v in attrs.items():
+            if isinstance(v, list):
+                for item in v:
+                    conditions.append(
+                        FieldCondition(key=k, match=MatchValue(value=item))
+                    )
+            else:
+                conditions.append(
+                    FieldCondition(key=k, match=MatchValue(value=v))
+                )
+
+        if conditions:
+            return Filter(must=conditions)
+        return None
+
+    def extract_attributes(self, payload):
+        return {
+            k: v for k, v in payload.items()
+            if k not in self.KNOWN_PAYLOAD_KEYS
+        }
+
     async def query_document_embeddings(self, workspace, msg):
 
         try:
@@ -58,22 +88,27 @@ class Processor(DocumentEmbeddingsQueryService):
                 logger.info(f"Collection {collection} does not exist, returning empty results")
                 return []
 
+            query_filter = self.build_filter(msg)
+
             result = await asyncio.to_thread(
                 self.qdrant.query_points,
                 collection_name=collection,
                 query=vec,
                 limit=msg.limit,
                 with_payload=True,
+                query_filter=query_filter,
             )
             search_result = result.points
 
             chunks = []
             for r in search_result:
-                chunk_id = r.payload["chunk_id"]
+                payload = r.payload or {}
+                chunk_id = payload["chunk_id"]
                 score = r.score if hasattr(r, 'score') else 0.0
                 chunks.append(ChunkMatch(
                     chunk_id=chunk_id,
                     score=score,
+                    attributes=self.extract_attributes(payload),
                 ))
 
             return chunks

@@ -11,7 +11,10 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def query(url, flow_id, query_text, schema_name, collection, index_name, limit, token=None, workspace="default"):
+def query(
+    url, flow_id, query_text, schema_name, collection, index_name, limit,
+    attributes=None, token=None, workspace="default",
+):
 
     # Create API client
     api = Api(url=url, token=token, workspace=workspace)
@@ -25,6 +28,7 @@ def query(url, flow_id, query_text, schema_name, collection, index_name, limit, 
             schema_name=schema_name,
             collection=collection,
             index_name=index_name,
+            attributes=attributes,
             limit=limit
         )
 
@@ -97,12 +101,24 @@ def main():
     )
 
     parser.add_argument(
+        '-a', '--attribute',
+        action='append',
+        default=[],
+        help='Filter attribute as key=value (repeatable)',
+    )
+
+    parser.add_argument(
         'query',
         nargs=1,
         help='Query text to search for similar row index values',
     )
 
     args = parser.parse_args()
+
+    attributes = {}
+    for attr in args.attribute:
+        k, _, v = attr.partition('=')
+        attributes[k] = v
 
     try:
 
@@ -114,6 +130,7 @@ def main():
             collection=args.collection,
             index_name=args.index_name,
             limit=args.limit,
+            attributes=attributes or None,
             token=args.token,
             workspace=args.workspace,
         )

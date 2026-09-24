@@ -182,7 +182,8 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
             collection_name=expected_collection,
             query=[0.1, 0.2, 0.3],
             limit=10,  # limit * 2 for deduplication
-            with_payload=True
+            with_payload=True,
+            query_filter=None,
         )
         
         # Verify result contains expected EntityMatch objects

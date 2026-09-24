@@ -4,13 +4,14 @@ from .. schema import RowEmbeddingsRequest, RowEmbeddingsResponse
 class RowEmbeddingsQueryClient:
     async def row_embeddings_query(
             self, vector, schema_name, collection="default",
-            index_name=None, limit=10, timeout=600
+            index_name=None, attributes=None, limit=10, timeout=600
     ):
         request = RowEmbeddingsRequest(
             vector=vector,
             schema_name=schema_name,
             collection=collection,
-            limit=limit
+            limit=limit,
+            attributes=attributes or {},
         )
         if index_name:
             request.index_name = index_name
@@ -26,7 +27,8 @@ class RowEmbeddingsQueryClient:
                 "index_name": match.index_name,
                 "index_value": match.index_value,
                 "text": match.text,
-                "score": match.score
+                "score": match.score,
+                "attributes": match.attributes,
             }
             for match in (resp.matches or [])
         ]

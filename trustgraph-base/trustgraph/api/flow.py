@@ -559,7 +559,10 @@ class FlowInstance:
             input
         )
 
-    def graph_embeddings_query(self, text, collection, limit=10):
+    def graph_embeddings_query(
+        self, text, collection, limit=10,
+        rdf_type=None, attributes=None,
+    ):
         """
         Query knowledge graph entities using semantic similarity.
 
@@ -570,6 +573,8 @@ class FlowInstance:
             text: Query text for semantic search
             collection: Collection identifier
             limit: Maximum number of results (default: 10)
+            rdf_type: Optional RDF type IRI to filter results
+            attributes: Optional dict of key-value attributes to filter results
 
         Returns:
             dict: Query results with similar entities
@@ -596,12 +601,19 @@ class FlowInstance:
             "limit": limit
         }
 
+        if rdf_type:
+            input["rdf_type"] = rdf_type
+        if attributes:
+            input["attributes"] = attributes
+
         return self.request(
             "service/graph-embeddings",
             input
         )
 
-    def document_embeddings_query(self, text, collection, limit=10):
+    def document_embeddings_query(
+        self, text, collection, limit=10, attributes=None,
+    ):
         """
         Query document chunks using semantic similarity.
 
@@ -612,6 +624,7 @@ class FlowInstance:
             text: Query text for semantic search
             collection: Collection identifier
             limit: Maximum number of results (default: 10)
+            attributes: Optional dict of key-value attributes to filter results
 
         Returns:
             dict: Query results with chunks containing chunk_id and score
@@ -637,6 +650,9 @@ class FlowInstance:
             "collection": collection,
             "limit": limit
         }
+
+        if attributes:
+            input["attributes"] = attributes
 
         return self.request(
             "service/document-embeddings",
@@ -1320,8 +1336,8 @@ class FlowInstance:
         return response["schema-matches"]
 
     def row_embeddings_query(
-            self, text, schema_name,collection="default",
-            index_name=None, limit=10
+            self, text, schema_name, collection="default",
+            index_name=None, attributes=None, limit=10,
     ):
         """
         Query row data using semantic similarity on indexed fields.
@@ -1335,6 +1351,7 @@ class FlowInstance:
             schema_name: Schema name to search within
             collection: Collection identifier (default: "default")
             index_name: Optional index name to filter search to specific index
+            attributes: Optional dict of key-value attributes to filter results
             limit: Maximum number of results (default: 10)
 
         Returns:
@@ -1348,7 +1365,7 @@ class FlowInstance:
             # Search for customers by name similarity
             results = flow.row_embeddings_query(
                 text="John Smith",
-                schema_name="customers",collection="sales",
+                schema_name="customers", collection="sales",
                 limit=5
             )
 
@@ -1376,6 +1393,8 @@ class FlowInstance:
 
         if index_name:
             input["index_name"] = index_name
+        if attributes:
+            input["attributes"] = attributes
 
         response = self.request(
             "service/row-embeddings",
