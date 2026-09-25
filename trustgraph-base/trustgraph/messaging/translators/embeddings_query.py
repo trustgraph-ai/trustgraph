@@ -15,15 +15,19 @@ class DocumentEmbeddingsRequestTranslator(MessageTranslator):
         return DocumentEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
-            collection=data.get("collection", "default")
+            collection=data.get("collection", "default"),
+            attributes=data.get("attributes", {}),
         )
 
     def encode(self, obj: DocumentEmbeddingsRequest) -> Dict[str, Any]:
-        return {
+        result = {
             "vector": obj.vector,
             "limit": obj.limit,
-            "collection": obj.collection
+            "collection": obj.collection,
         }
+        if obj.attributes:
+            result["attributes"] = obj.attributes
+        return result
 
 
 class DocumentEmbeddingsResponseTranslator(MessageTranslator):
@@ -39,7 +43,8 @@ class DocumentEmbeddingsResponseTranslator(MessageTranslator):
             result["chunks"] = [
                 {
                     "chunk_id": chunk.chunk_id,
-                    "score": chunk.score
+                    "score": chunk.score,
+                    **({"attributes": chunk.attributes} if chunk.attributes else {}),
                 }
                 for chunk in obj.chunks
             ]
@@ -58,15 +63,22 @@ class GraphEmbeddingsRequestTranslator(MessageTranslator):
         return GraphEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
-            collection=data.get("collection", "default")
+            collection=data.get("collection", "default"),
+            rdf_type=data.get("rdf_type", ""),
+            attributes=data.get("attributes", {}),
         )
 
     def encode(self, obj: GraphEmbeddingsRequest) -> Dict[str, Any]:
-        return {
+        result = {
             "vector": obj.vector,
             "limit": obj.limit,
-            "collection": obj.collection
+            "collection": obj.collection,
         }
+        if obj.rdf_type:
+            result["rdf_type"] = obj.rdf_type
+        if obj.attributes:
+            result["attributes"] = obj.attributes
+        return result
 
 
 class GraphEmbeddingsResponseTranslator(MessageTranslator):
@@ -85,7 +97,9 @@ class GraphEmbeddingsResponseTranslator(MessageTranslator):
             result["entities"] = [
                 {
                     "entity": self.value_translator.encode(match.entity),
-                    "score": match.score
+                    "score": match.score,
+                    **({"rdf_type": match.rdf_type} if match.rdf_type else {}),
+                    **({"attributes": match.attributes} if match.attributes else {}),
                 }
                 for match in obj.entities
             ]
@@ -106,7 +120,8 @@ class RowEmbeddingsRequestTranslator(MessageTranslator):
             limit=int(data.get("limit", 10)),
             collection=data.get("collection", "default"),
             schema_name=data.get("schema_name", ""),
-            index_name=data.get("index_name")
+            index_name=data.get("index_name"),
+            attributes=data.get("attributes", {}),
         )
 
     def encode(self, obj: RowEmbeddingsRequest) -> Dict[str, Any]:
@@ -118,6 +133,8 @@ class RowEmbeddingsRequestTranslator(MessageTranslator):
         }
         if obj.index_name:
             result["index_name"] = obj.index_name
+        if obj.attributes:
+            result["attributes"] = obj.attributes
         return result
 
 
@@ -142,7 +159,8 @@ class RowEmbeddingsResponseTranslator(MessageTranslator):
                     "index_name": match.index_name,
                     "index_value": match.index_value,
                     "text": match.text,
-                    "score": match.score
+                    "score": match.score,
+                    **({"attributes": match.attributes} if match.attributes else {}),
                 }
                 for match in obj.matches
             ]

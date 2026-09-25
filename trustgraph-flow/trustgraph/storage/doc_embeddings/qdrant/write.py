@@ -19,6 +19,11 @@ from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 # Module logger
 logger = logging.getLogger(__name__)
 
+RESERVED_PAYLOAD_KEYS = frozenset({
+    "entity", "doc_id", "chunk_id", "rdf_type",
+    "index_name", "index_value", "text", "schema_name",
+})
+
 default_ident = "doc-embeddings-write"
 
 class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
@@ -100,6 +105,24 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
             await self.ensure_collection(collection, dim)
 
+            payload = {
+                "chunk_id": chunk_id,
+            }
+
+            # Provenance from metadata
+            if message.metadata:
+                if message.metadata.root:
+                    payload["doc_id"] = message.metadata.root
+
+            # Merge generic attributes, rejecting reserved keys
+            for k, v in (emb.attributes or {}).items():
+                if k in RESERVED_PAYLOAD_KEYS:
+                    logger.warning(
+                        f"Attribute key '{k}' is reserved, skipping"
+                    )
+                    continue
+                payload[k] = v
+
             await asyncio.to_thread(
                 self.qdrant.upsert,
                 collection_name=collection,
@@ -107,9 +130,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                     PointStruct(
                         id=str(uuid.uuid4()),
                         vector=vec,
-                        payload={
-                            "chunk_id": chunk_id,
-                        }
+                        payload=payload,
                     )
                 ],
             )

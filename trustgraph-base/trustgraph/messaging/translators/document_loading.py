@@ -142,7 +142,8 @@ class DocumentEmbeddingsTranslator(SendTranslator):
         chunks = [
             ChunkEmbeddings(
                 chunk_id=chunk["chunk_id"],
-                vector=chunk["vector"]
+                vector=chunk["vector"],
+                attributes=chunk.get("attributes", {}),
             )
             for chunk in data.get("chunks", [])
         ]

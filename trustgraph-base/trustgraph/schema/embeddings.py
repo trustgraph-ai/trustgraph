@@ -15,6 +15,8 @@ class EntityEmbeddings:
     vector: list[float] = field(default_factory=list)
     # Provenance: which chunk this embedding was derived from
     chunk_id: str = ""
+    rdf_type: list[str] = field(default_factory=list)
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 # This is a 'batching' mechanism for the above data
 @dataclass
@@ -30,6 +32,7 @@ class GraphEmbeddings:
 class ChunkEmbeddings:
     chunk_id: str = ""
     vector: list[float] = field(default_factory=list)
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 # This is a 'batching' mechanism for the above data
 @dataclass
@@ -74,6 +77,7 @@ class RowIndexEmbedding:
     index_value: list[str] = field(default_factory=list)  # The field value(s)
     text: str = ""                    # Text that was embedded
     vector: list[float] = field(default_factory=list)
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class RowEmbeddings:
@@ -104,12 +108,16 @@ class GraphEmbeddingsRequest:
     vector: list[float] = field(default_factory=list)
     limit: int = 0
     collection: str = ""
+    rdf_type: str = ""
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class EntityMatch:
     """A matching entity from a semantic search with similarity score"""
     entity: Term | None = None
     score: float = 0.0
+    rdf_type: list[str] = field(default_factory=list)
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class GraphEmbeddingsResponse:
@@ -125,12 +133,14 @@ class DocumentEmbeddingsRequest:
     vector: list[float] = field(default_factory=list)
     limit: int = 0
     collection: str = ""
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class ChunkMatch:
     """A matching chunk from a semantic search with similarity score"""
     chunk_id: str = ""
     score: float = 0.0
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class DocumentEmbeddingsResponse:
@@ -169,6 +179,7 @@ class RowIndexMatch:
     index_value: list[str] = field(default_factory=list)  # The index values
     text: str = ""                          # The text that was embedded
     score: float = 0.0                      # Similarity score
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class RowEmbeddingsRequest:
@@ -178,6 +189,7 @@ class RowEmbeddingsRequest:
     collection: str = ""                    # Collection name
     schema_name: str = ""                   # Schema name to search within
     index_name: str | None = None           # Optional: filter to specific index
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 @dataclass
 class RowEmbeddingsResponse:

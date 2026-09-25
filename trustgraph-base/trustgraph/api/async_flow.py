@@ -626,7 +626,11 @@ class AsyncFlowInstance:
         result = await self.request("document-rag", request_data)
         return result.get("response", "")
 
-    async def graph_embeddings_query(self, text: str, collection: str, limit: int = 10, **kwargs: Any):
+    async def graph_embeddings_query(
+        self, text: str, collection: str, limit: int = 10,
+        rdf_type: str = "", attributes: dict = None,
+        **kwargs: Any,
+    ):
         """
         Query graph embeddings for semantic entity search.
 
@@ -637,6 +641,8 @@ class AsyncFlowInstance:
             text: Query text for semantic search
             collection: Collection identifier containing graph embeddings
             limit: Maximum number of results to return (default: 10)
+            rdf_type: Optional RDF type IRI to filter results
+            attributes: Optional dict of key-value attributes to filter results
             **kwargs: Additional service-specific parameters
 
         Returns:
@@ -649,7 +655,7 @@ class AsyncFlowInstance:
 
             # Find related entities
             results = await flow.graph_embeddings_query(
-                text="machine learning algorithms",collection="tech-kb",
+                text="machine learning algorithms", collection="tech-kb",
                 limit=5
             )
 
@@ -666,6 +672,10 @@ class AsyncFlowInstance:
             "collection": collection,
             "limit": limit
         }
+        if rdf_type:
+            request_data["rdf_type"] = rdf_type
+        if attributes:
+            request_data["attributes"] = attributes
         request_data.update(kwargs)
 
         return await self.request("graph-embeddings", request_data)
@@ -815,6 +825,7 @@ class AsyncFlowInstance:
     async def row_embeddings_query(
         self, text: str, schema_name: str,
         collection: str = "default", index_name: Optional[str] = None,
+        attributes: dict = None,
         limit: int = 10, **kwargs: Any
     ):
         """
@@ -829,6 +840,7 @@ class AsyncFlowInstance:
             schema_name: Schema name to search within
             collection: Collection identifier (default: "default")
             index_name: Optional index name to filter search to specific index
+            attributes: Optional dict of key-value attributes to filter results
             limit: Maximum number of results to return (default: 10)
             **kwargs: Additional service-specific parameters
 
@@ -844,7 +856,7 @@ class AsyncFlowInstance:
             # Search for customers by name similarity
             results = await flow.row_embeddings_query(
                 text="John Smith",
-                schema_name="customers",collection="sales",
+                schema_name="customers", collection="sales",
                 limit=5
             )
 
@@ -864,6 +876,8 @@ class AsyncFlowInstance:
         }
         if index_name:
             request_data["index_name"] = index_name
+        if attributes:
+            request_data["attributes"] = attributes
         request_data.update(kwargs)
 
         return await self.request("row-embeddings", request_data)

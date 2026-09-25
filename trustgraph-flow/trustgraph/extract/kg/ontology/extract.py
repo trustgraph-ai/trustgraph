@@ -997,7 +997,7 @@ class Processor(FlowProcessor):
             List of EntityContext objects
         """
         # Group triples by subject to collect entity information
-        entity_data = {}  # subject_uri -> {labels: [], definitions: []}
+        entity_data = {}  # subject_uri -> {labels: [], definitions: [], rdf_types: []}
 
         for triple in triples:
             subject_uri = triple.s.iri if triple.s.type == IRI else triple.s.value
@@ -1006,7 +1006,9 @@ class Processor(FlowProcessor):
 
             # Initialize entity data if not exists
             if subject_uri not in entity_data:
-                entity_data[subject_uri] = {'labels': [], 'definitions': []}
+                entity_data[subject_uri] = {
+                    'labels': [], 'definitions': [], 'rdf_types': [],
+                }
 
             # Collect labels (rdfs:label)
             if predicate_uri == RDF_LABEL:
@@ -1017,6 +1019,11 @@ class Processor(FlowProcessor):
             elif predicate_uri == DEFINITION or predicate_uri == "https://schema.org/description":
                 if triple.o.type == LITERAL:
                     entity_data[subject_uri]['definitions'].append(object_val)
+
+            # Collect RDF types
+            elif predicate_uri == RDF_TYPE:
+                if triple.o.type == IRI:
+                    entity_data[subject_uri]['rdf_types'].append(triple.o.iri)
 
         # Build EntityContext objects
         entity_contexts = []
@@ -1035,7 +1042,8 @@ class Processor(FlowProcessor):
                 context_text = ". ".join(context_parts)
                 entity_contexts.append(EntityContext(
                     entity=make_term(subject_uri, is_uri=True),
-                    context=context_text
+                    context=context_text,
+                    rdf_type=data['rdf_types'],
                 ))
 
         logger.debug(f"Built {len(entity_contexts)} entity contexts from {len(triples)} triples")

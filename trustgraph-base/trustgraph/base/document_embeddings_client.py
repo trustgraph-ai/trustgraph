@@ -9,13 +9,17 @@ from .. knowledge import Uri, Literal
 logger = logging.getLogger(__name__)
 
 class DocumentEmbeddingsClient:
-    async def query(self, vector, limit=20, collection="default", timeout=30):
+    async def query(
+        self, vector, limit=20, collection="default",
+        attributes=None, timeout=30,
+    ):
 
         resp = await self.request(
             DocumentEmbeddingsRequest(
-                vector = vector,
-                limit = limit,
-                collection = collection
+                vector=vector,
+                limit=limit,
+                collection=collection,
+                attributes=attributes or {},
             ),
             timeout=timeout
         )

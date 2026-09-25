@@ -40,6 +40,7 @@ class Chunk:
     # Post-chunker optimization: both document_id AND chunk content are included
     # so downstream processors have the ID for provenance and content to work with
     document_id: str = ""
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 ############################################################################
 

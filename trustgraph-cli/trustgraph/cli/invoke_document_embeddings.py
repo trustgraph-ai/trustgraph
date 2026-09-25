@@ -11,7 +11,10 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def query(url, flow_id, query_text, collection, limit, token=None, workspace="default"):
+def query(
+    url, flow_id, query_text, collection, limit,
+    attributes=None, token=None, workspace="default",
+):
 
     # Create API client
     api = Api(url=url, token=token, workspace=workspace)
@@ -23,7 +26,8 @@ def query(url, flow_id, query_text, collection, limit, token=None, workspace="de
         result = flow.document_embeddings_query(
             text=query_text,
             collection=collection,
-            limit=limit
+            limit=limit,
+            attributes=attributes,
         )
 
         chunks = result.get("chunks", [])
@@ -84,12 +88,24 @@ def main():
     )
 
     parser.add_argument(
+        '-a', '--attribute',
+        action='append',
+        default=[],
+        help='Filter attribute as key=value (repeatable)',
+    )
+
+    parser.add_argument(
         'query',
         nargs=1,
         help='Query text to search for similar document chunks',
     )
 
     args = parser.parse_args()
+
+    attributes = {}
+    for attr in args.attribute:
+        k, _, v = attr.partition('=')
+        attributes[k] = v
 
     try:
 
@@ -99,6 +115,7 @@ def main():
             query_text=args.query[0],
             collection=args.collection,
             limit=args.limit,
+            attributes=attributes or None,
             token=args.token,
             workspace=args.workspace,
         )

@@ -8,6 +8,7 @@ import asyncio
 import logging
 
 from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
 
 from .... schema import GraphEmbeddingsResponse, EntityMatch
 from .... schema import Error, Term, IRI, LITERAL
@@ -39,12 +40,49 @@ class Processor(GraphEmbeddingsQueryService):
 
         self.qdrant = QdrantClient(url=url, api_key=api_key)
 
+    KNOWN_PAYLOAD_KEYS = frozenset({
+        "entity", "doc_id", "chunk_id", "rdf_type",
+    })
+
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
             return Term(type=IRI, iri=ent)
         else:
             return Term(type=LITERAL, value=ent)
-        
+
+    def build_filter(self, msg):
+        conditions = []
+
+        if isinstance(msg.rdf_type, str) and msg.rdf_type:
+            conditions.append(
+                FieldCondition(
+                    key="rdf_type",
+                    match=MatchAny(any=[msg.rdf_type]),
+                )
+            )
+
+        attrs = msg.attributes if isinstance(msg.attributes, dict) else {}
+        for k, v in attrs.items():
+            if isinstance(v, list):
+                for item in v:
+                    conditions.append(
+                        FieldCondition(key=k, match=MatchValue(value=item))
+                    )
+            else:
+                conditions.append(
+                    FieldCondition(key=k, match=MatchValue(value=v))
+                )
+
+        if conditions:
+            return Filter(must=conditions)
+        return None
+
+    def extract_attributes(self, payload):
+        return {
+            k: v for k, v in payload.items()
+            if k not in self.KNOWN_PAYLOAD_KEYS
+        }
+
     async def query_graph_embeddings(self, workspace, msg):
 
         try:
@@ -63,6 +101,8 @@ class Processor(GraphEmbeddingsQueryService):
                 logger.info(f"Collection {collection} does not exist")
                 return []
 
+            query_filter = self.build_filter(msg)
+
             # Heuristic hack, get (2*limit), so that we have more chance
             # of getting (limit) unique entities
             result = await asyncio.to_thread(
@@ -71,6 +111,7 @@ class Processor(GraphEmbeddingsQueryService):
                 query=vec,
                 limit=msg.limit * 2,
                 with_payload=True,
+                query_filter=query_filter,
             )
             search_result = result.points
 
@@ -78,7 +119,8 @@ class Processor(GraphEmbeddingsQueryService):
             entities = []
 
             for r in search_result:
-                ent = r.payload["entity"]
+                payload = r.payload or {}
+                ent = payload["entity"]
                 score = r.score if hasattr(r, 'score') else 0.0
 
                 # De-dupe entities, keep highest score
@@ -87,6 +129,8 @@ class Processor(GraphEmbeddingsQueryService):
                     entities.append(EntityMatch(
                         entity=self.create_value(ent),
                         score=score,
+                        rdf_type=payload.get("rdf_type", []),
+                        attributes=self.extract_attributes(payload),
                     ))
 
                 # Keep adding entities until limit

@@ -20,6 +20,11 @@ from .... schema import IRI, LITERAL
 # Module logger
 logger = logging.getLogger(__name__)
 
+RESERVED_PAYLOAD_KEYS = frozenset({
+    "entity", "doc_id", "chunk_id", "rdf_type",
+    "index_name", "index_value", "text", "schema_name",
+})
+
 
 def get_term_value(term):
     """Extract the string value from a Term"""
@@ -119,6 +124,24 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             }
             if entity.chunk_id:
                 payload["chunk_id"] = entity.chunk_id
+            if entity.rdf_type:
+                payload["rdf_type"] = entity.rdf_type
+
+            # Provenance from metadata
+            if message.metadata:
+                if message.metadata.root:
+                    payload["doc_id"] = message.metadata.root
+                if message.metadata.id:
+                    payload["chunk_id"] = message.metadata.id
+
+            # Merge generic attributes, rejecting reserved keys
+            for k, v in (entity.attributes or {}).items():
+                if k in RESERVED_PAYLOAD_KEYS:
+                    logger.warning(
+                        f"Attribute key '{k}' is reserved, skipping"
+                    )
+                    continue
+                payload[k] = v
 
             await asyncio.to_thread(
                 self.qdrant.upsert,
