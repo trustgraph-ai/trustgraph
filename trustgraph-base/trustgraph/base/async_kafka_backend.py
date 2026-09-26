@@ -32,6 +32,36 @@ logger = logging.getLogger(__name__)
 
 LONG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000   # 7 days
 SHORT_RETENTION_MS = 300 * 1000                 # 5 minutes
+CONSUMER_ASSIGNMENT_TIMEOUT_SECONDS = 10
+CONSUMER_ASSIGNMENT_POLL_SECONDS = 0.05
+
+
+async def _wait_for_consumer_assignment(
+    consumer,
+    timeout=CONSUMER_ASSIGNMENT_TIMEOUT_SECONDS,
+):
+    """Wait until Kafka has assigned and positioned every partition.
+
+    ``AIOKafkaConsumer.start()`` only starts the group-coordinator task.  It
+    can return before the initial rebalance has assigned any partitions.  A
+    producer publishing in that window can therefore place a message before
+    a ``latest`` consumer establishes its starting offset, causing the first
+    request or flow message to be skipped.
+    """
+
+    async def wait_until_ready():
+        while not (partitions := consumer.assignment()):
+            await asyncio.sleep(CONSUMER_ASSIGNMENT_POLL_SECONDS)
+
+        # Force offset initialization before the consumer is exposed.  For a
+        # new group this applies auto_offset_reset while the topic is still
+        # quiescent, so messages published after create_consumer() returns are
+        # observable even when the policy is ``latest``.
+        await asyncio.gather(*(
+            consumer.position(partition) for partition in partitions
+        ))
+
+    await asyncio.wait_for(wait_until_ready(), timeout=timeout)
 
 
 class AsyncKafkaMessage:
@@ -230,6 +260,15 @@ class AsyncKafkaBackend:
             heartbeat_interval_ms=1000,
         )
         await consumer.start()
+
+        try:
+            await _wait_for_consumer_assignment(consumer)
+        except asyncio.TimeoutError as exc:
+            await consumer.stop()
+            raise RuntimeError(
+                f"Timed out waiting for Kafka partition assignment: "
+                f"topic={topic_name}, group={group_id}"
+            ) from exc
 
         logger.debug(
             f"Created async consumer: topic={topic_name}, "
