@@ -8,7 +8,7 @@
 
 [**Playground**](https://docs.google.com/forms/d/e/1FAIpQLSeTnF22ZjUP20FWV--VvS5606x-5cOvnKty6AqcPdtlnPuqbQ/viewform) | [**Self-Host**](https://config-ui.demo.trustgraph.ai/) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Website**](https://trustgraph.ai) 
 
-### The Semantic Intelligence Layer
+### The Semantic Intelligence Layer for Ontologies
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
@@ -18,9 +18,9 @@
 
 ---
 
-[TrustGraph](https://trustgraph.ai) is an open-source Semantic Intelligence Layer. It transforms raw, unstructured data into formally defined, ontology-grounded knowledge making that knowledge retrieval-ready with natural language, fully traceable, and portable across any standards-compliant system.
+Bring your own ontology, build one, or use a domain standard in OWL. [TrustGraph](https://trustgraph.ai) turns raw data into governed, traceable, ontology-enhanced knowledge that agents can retrieve through native natural-language search.
 
-AI applications fail without shared, unambiguous semantics. LLMs and agents operating on vector proximity across isolated text chunks can hallucinate, lose provenance, and produce non-deterministic outcomes. TrustGraph is the missing layer, a semantic substrate where every fact is typed, every relationship is defined, every agent action is traced back to its source knowledge stored in standards-compliant interoperable formats.
+AI applications need shared, unambiguous semantics. Vector search over isolated text chunks can leave agents without the structure or provenance to produce consistent outcomes. TrustGraph provides that foundation: typed facts, defined relationships, and agent actions traceable to source knowledge in interoperable, standards-compliant formats.
 
 ## The Problem: "Common Semantic Understanding"
 To understand why AI struggles in complex use cases, consider Abbott and Costello’s classic ["Who's on First?"](https://www.youtube.com/watch?v=sYOUFGfK4bU) routine.
