@@ -41,6 +41,11 @@ If a user asks: "*Who is playing on first base?*"
 
 Cosine similarity operates on fuzzy, statistical probability. It cannot distinguish between the linguistic usage of a word as a pronoun and its usage as a proper noun within a specific, localized context.
 
+## Put Ontologies in Action
+An ontology defines the concepts, unique definitions, and relationships that matter in a domain. In the “Who’s on First?” example, it distinguishes a player’s name from their position, so “Who” can be the name of the player at first base without being mistaken for a question. It gives knowledge extraction and retrieval a shared understanding instead of leaving a LLM to infer entity types, definitions, and relationships from each text chunk.
+
+TrustGraph puts that shared understanding to work. Bring an OWL ontology, build your own, or start with a domain standard. For each chunk of source text, TrustGraph retrieves the relevant part of the ontology to guide extraction, turning raw data into more consistent, ontology-enhanced knowledge. Native natural-language retrieval then makes that knowledge available to agents, with its provenance intact.
+
 ## The Semantic Intelligence Layer
 A semantic intelligence layer built using standards like RDF and OWL, establishes explicit, unambiguous semantics. It doesn't rely on "guessing" based on word proximity; it relies on defined relationships.
 
