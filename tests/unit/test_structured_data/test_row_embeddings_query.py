@@ -93,27 +93,27 @@ class TestFindCollection:
     async def test_finds_matching_collection(self):
         proc = _make_processor()
         mock_coll = MagicMock()
-        mock_coll.name = "rows_test_workspace_test_col_customers_384"
+        mock_coll.name = "rows_test_workspace_test_col_384"
 
         mock_collections = MagicMock()
         mock_collections.collections = [mock_coll]
         proc.qdrant.get_collections.return_value = mock_collections
 
-        result = await proc.find_collection("test-workspace", "test-col", "customers")
+        result = await proc.find_collection("test-workspace", "test-col")
 
-        assert result == "rows_test_workspace_test_col_customers_384"
+        assert result == "rows_test_workspace_test_col_384"
 
     @pytest.mark.asyncio
     async def test_returns_none_when_no_match(self):
         proc = _make_processor()
         mock_coll = MagicMock()
-        mock_coll.name = "rows_other_workspace_other_col_schema_768"
+        mock_coll.name = "rows_other_workspace_other_col_768"
 
         mock_collections = MagicMock()
         mock_collections.collections = [mock_coll]
         proc.qdrant.get_collections.return_value = mock_collections
 
-        result = await proc.find_collection("test-workspace", "test-col", "customers")
+        result = await proc.find_collection("test-workspace", "test-col")
         assert result is None
 
     @pytest.mark.asyncio
@@ -121,7 +121,7 @@ class TestFindCollection:
         proc = _make_processor()
         proc.qdrant.get_collections.side_effect = Exception("connection error")
 
-        result = await proc.find_collection("workspace", "col", "schema")
+        result = await proc.find_collection("workspace", "col")
         assert result is None
 
 
@@ -188,10 +188,10 @@ class TestQueryRowEmbeddings:
         assert call_kwargs["query_filter"] is not None
 
     @pytest.mark.asyncio
-    async def test_no_index_name_no_filter(self):
-        """When index_name is empty, no filter should be applied."""
+    async def test_no_index_name_filter_has_schema_only(self):
+        """When index_name is empty, filter should only contain schema_name."""
         proc = _make_processor()
-        proc.find_collection = AsyncMock(return_value="rows_w_c_s_384")
+        proc.find_collection = AsyncMock(return_value="rows_w_c_384")
 
         mock_result = MagicMock()
         mock_result.points = []
@@ -201,7 +201,10 @@ class TestQueryRowEmbeddings:
         await proc.query_row_embeddings("test-workspace", request)
 
         call_kwargs = proc.qdrant.query_points.call_args[1]
-        assert call_kwargs["query_filter"] is None
+        query_filter = call_kwargs["query_filter"]
+        assert query_filter is not None
+        assert len(query_filter.must) == 1
+        assert query_filter.must[0].key == "schema_name"
 
     @pytest.mark.asyncio
     async def test_missing_payload_fields_default(self):

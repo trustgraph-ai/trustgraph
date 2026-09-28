@@ -22,13 +22,18 @@ def to_value(x: Any) -> Any:
     return Literal(x.value or x.iri)
 
 class GraphEmbeddingsClient:
-    async def query(self, vector, limit=20, collection="default", timeout=30):
+    async def query(
+        self, vector, limit=20, collection="default",
+        rdf_type="", attributes=None, timeout=30,
+    ):
 
         resp = await self.request(
             GraphEmbeddingsRequest(
-                vector = vector,
-                limit = limit,
-                collection = collection
+                vector=vector,
+                limit=limit,
+                collection=collection,
+                rdf_type=rdf_type,
+                attributes=attributes or {},
             ),
             timeout=timeout
         )

@@ -73,7 +73,9 @@ class Processor(FlowProcessor):
                 EntityEmbeddings(
                     entity=entity.entity,
                     vector=vector,
-                    chunk_id=entity.chunk_id,  # Provenance: source chunk
+                    chunk_id=entity.chunk_id,
+                    rdf_type=entity.rdf_type,
+                    attributes=entity.attributes,
                 )
                 for entity, vector in zip(v.entities, all_vectors)
             ]

@@ -43,6 +43,9 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     EntityEmbeddings(
                         entity=self.value_translator.decode(ent["entity"]),
                         vector=ent["vector"],
+                        chunk_id=ent.get("chunk_id", ""),
+                        rdf_type=ent.get("rdf_type", []),
+                        attributes=ent.get("attributes", {}),
                     )
                     for ent in data["graph-embeddings"]["entities"]
                 ]
@@ -60,6 +63,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     ChunkEmbeddings(
                         chunk_id=ch["chunk_id"],
                         vector=ch["vector"],
+                        attributes=ch.get("attributes", {}),
                     )
                     for ch in data["document-embeddings"]["chunks"]
                 ]
@@ -131,6 +135,9 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     {
                         "vector": entity.vector,
                         "entity": self.value_translator.encode(entity.entity),
+                        **({"chunk_id": entity.chunk_id} if entity.chunk_id else {}),
+                        **({"rdf_type": entity.rdf_type} if entity.rdf_type else {}),
+                        **({"attributes": entity.attributes} if entity.attributes else {}),
                     }
                     for entity in obj.graph_embeddings.entities
                 ],
@@ -147,6 +154,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                     {
                         "chunk_id": ch.chunk_id,
                         "vector": ch.vector,
+                        **({"attributes": ch.attributes} if ch.attributes else {}),
                     }
                     for ch in obj.document_embeddings.chunks
                 ],

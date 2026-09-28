@@ -4,6 +4,7 @@ Returns a list of matching graph entities.
 """
 
 import argparse
+import json
 import os
 from trustgraph.api import Api
 
@@ -11,7 +12,11 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
-def query(url, flow_id, query_text, collection, limit, token=None, workspace="default"):
+def query(
+    url, flow_id, query_text, collection, limit,
+    rdf_type=None, attributes=None,
+    token=None, workspace="default",
+):
 
     # Create API client
     api = Api(url=url, token=token, workspace=workspace)
@@ -23,7 +28,9 @@ def query(url, flow_id, query_text, collection, limit, token=None, workspace="de
         result = flow.graph_embeddings_query(
             text=query_text,
             collection=collection,
-            limit=limit
+            limit=limit,
+            rdf_type=rdf_type,
+            attributes=attributes,
         )
 
         entities = result.get("entities", [])
@@ -94,12 +101,30 @@ def main():
     )
 
     parser.add_argument(
+        '--rdf-type',
+        default=None,
+        help='RDF type IRI to filter results (optional)',
+    )
+
+    parser.add_argument(
+        '-a', '--attribute',
+        action='append',
+        default=[],
+        help='Filter attribute as key=value (repeatable)',
+    )
+
+    parser.add_argument(
         'query',
         nargs=1,
         help='Query text to search for similar graph entities',
     )
 
     args = parser.parse_args()
+
+    attributes = {}
+    for attr in args.attribute:
+        k, _, v = attr.partition('=')
+        attributes[k] = v
 
     try:
 
@@ -109,6 +134,8 @@ def main():
             query_text=args.query[0],
             collection=args.collection,
             limit=args.limit,
+            rdf_type=args.rdf_type,
+            attributes=attributes or None,
             token=args.token,
             workspace=args.workspace,
         )

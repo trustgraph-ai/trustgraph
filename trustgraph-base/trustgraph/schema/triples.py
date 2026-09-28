@@ -15,6 +15,8 @@ class EntityContext:
     context: str = ""
     # Provenance: which chunk this entity context was derived from
     chunk_id: str = ""
+    rdf_type: list[str] = field(default_factory=list)
+    attributes: dict[str, str | list[str]] = field(default_factory=dict)
 
 # This is a 'batching' mechanism for the above data
 @dataclass

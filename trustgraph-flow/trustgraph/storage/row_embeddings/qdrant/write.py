@@ -2,18 +2,16 @@
 Row embeddings writer for Qdrant (Stage 2).
 
 Consumes RowEmbeddings messages (which already contain computed vectors)
-and writes them to Qdrant. One Qdrant collection per (workspace, collection, schema_name) pair.
+and writes them to Qdrant.
 
-This follows the two-stage pattern used by graph-embeddings and document-embeddings:
-  Stage 1 (row-embeddings): Compute embeddings
-  Stage 2 (this processor): Store embeddings
-
-Collection naming: rows_{workspace}_{collection}_{schema_name}_{dimension}
+Collection naming: rows_{workspace}_{collection}_{dimension}
 
 Payload structure:
+    - schema_name: The schema this embedding belongs to
     - index_name: The indexed field(s) this embedding represents
     - index_value: The original list of values (for Cassandra lookup)
     - text: The text that was embedded (for debugging/display)
+    - plus any generic attributes from the embedding message
 """
 
 import asyncio
@@ -22,7 +20,10 @@ import re
 import uuid
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct, Distance, VectorParams
+from qdrant_client.models import (
+    PointStruct, Distance, VectorParams, Filter, FieldCondition, MatchValue,
+    PointsSelector, FilterSelector,
+)
 
 from .... schema import RowEmbeddings
 from .... base import FlowProcessor, ConsumerSpec
@@ -31,6 +32,11 @@ from .... base.qdrant_config import add_qdrant_args, resolve_qdrant_config
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+RESERVED_PAYLOAD_KEYS = frozenset({
+    "entity", "doc_id", "chunk_id", "rdf_type",
+    "index_name", "index_value", "text", "schema_name",
+})
 
 default_ident = "row-embeddings-write"
 
@@ -83,13 +89,12 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         return safe_name.lower()
 
     def get_collection_name(
-        self, workspace: str, collection: str, schema_name: str, dimension: int
+        self, workspace: str, collection: str, dimension: int
     ) -> str:
         """Generate Qdrant collection name"""
         safe_user = self.sanitize_name(workspace)
         safe_collection = self.sanitize_name(collection)
-        safe_schema = self.sanitize_name(schema_name)
-        return f"rows_{safe_user}_{safe_collection}_{safe_schema}_{dimension}"
+        return f"rows_{safe_user}_{safe_collection}_{dimension}"
 
     async def ensure_collection(self, collection_name: str, dimension: int):
         """Create Qdrant collection if it doesn't exist"""
@@ -156,9 +161,32 @@ class Processor(CollectionConfigHandler, FlowProcessor):
 
             if qdrant_collection is None:
                 qdrant_collection = self.get_collection_name(
-                    workspace, collection, schema_name, dimension
+                    workspace, collection, dimension
                 )
                 await self.ensure_collection(qdrant_collection, dimension)
+
+            payload = {
+                "schema_name": schema_name,
+                "index_name": row_emb.index_name,
+                "index_value": row_emb.index_value,
+                "text": row_emb.text,
+            }
+
+            # Provenance from metadata
+            if embeddings.metadata:
+                if embeddings.metadata.root:
+                    payload["doc_id"] = embeddings.metadata.root
+                if embeddings.metadata.id:
+                    payload["chunk_id"] = embeddings.metadata.id
+
+            # Merge generic attributes, rejecting reserved keys
+            for k, v in (row_emb.attributes or {}).items():
+                if k in RESERVED_PAYLOAD_KEYS:
+                    logger.warning(
+                        f"Attribute key '{k}' is reserved, skipping"
+                    )
+                    continue
+                payload[k] = v
 
             await asyncio.to_thread(
                 self.qdrant.upsert,
@@ -167,11 +195,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                     PointStruct(
                         id=str(uuid.uuid4()),
                         vector=vector,
-                        payload={
-                            "index_name": row_emb.index_name,
-                            "index_value": row_emb.index_value,
-                            "text": row_emb.text
-                        }
+                        payload=payload,
                     )
                 ],
             )
@@ -224,11 +248,11 @@ class Processor(CollectionConfigHandler, FlowProcessor):
     async def delete_collection_schema(
         self, workspace: str, collection: str, schema_name: str
     ):
-        """Delete Qdrant collection for a specific workspace/collection/schema"""
+        """Delete points for a specific schema from row embeddings collections"""
         try:
             prefix = (
                 f"rows_{self.sanitize_name(workspace)}_"
-                f"{self.sanitize_name(collection)}_{self.sanitize_name(schema_name)}_"
+                f"{self.sanitize_name(collection)}_"
             )
 
             all_collections = await asyncio.to_thread(
@@ -242,13 +266,26 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             if not matching_collections:
                 logger.info(f"No Qdrant collections found matching prefix {prefix}")
             else:
+                schema_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="schema_name",
+                            match=MatchValue(value=schema_name),
+                        )
+                    ]
+                )
                 for collection_name in matching_collections:
                     await asyncio.to_thread(
-                        self.qdrant.delete_collection, collection_name
+                        self.qdrant.delete,
+                        collection_name=collection_name,
+                        points_selector=FilterSelector(
+                            filter=schema_filter,
+                        ),
                     )
-                    async with self._cache_lock:
-                        self._known_collections.discard(collection_name)
-                    logger.info(f"Deleted Qdrant collection: {collection_name}")
+                    logger.info(
+                        f"Deleted points for schema '{schema_name}' "
+                        f"from {collection_name}"
+                    )
 
         except Exception as e:
             logger.error(

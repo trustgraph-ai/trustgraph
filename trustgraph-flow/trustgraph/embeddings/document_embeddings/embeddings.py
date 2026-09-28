@@ -73,6 +73,7 @@ class Processor(FlowProcessor):
                 ChunkEmbeddings(
                     chunk_id=v.document_id,
                     vector=vector,
+                    attributes=v.attributes,
                 )
             ]
 

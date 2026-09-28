@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 default_ident = "row-embeddings-query"
 default_concurrency = 10
 
+KNOWN_PAYLOAD_KEYS = frozenset({
+    "schema_name", "index_name", "index_value", "text",
+    "doc_id", "chunk_id",
+})
+
 
 class Processor(FlowProcessor):
 
@@ -75,11 +80,11 @@ class Processor(FlowProcessor):
             safe_name = 'r_' + safe_name
         return safe_name.lower()
 
-    async def find_collection(self, workspace: str, collection: str, schema_name: str) -> Optional[str]:
-        """Find the Qdrant collection for a given workspace/collection/schema"""
+    async def find_collection(self, workspace: str, collection: str) -> Optional[str]:
+        """Find the Qdrant collection for a given workspace/collection"""
         prefix = (
             f"rows_{self.sanitize_name(workspace)}_"
-            f"{self.sanitize_name(collection)}_{self.sanitize_name(schema_name)}_"
+            f"{self.sanitize_name(collection)}_"
         )
 
         try:
@@ -99,6 +104,47 @@ class Processor(FlowProcessor):
 
         return None
 
+    def build_filter(self, request):
+        conditions = []
+
+        if request.schema_name:
+            conditions.append(
+                FieldCondition(
+                    key="schema_name",
+                    match=MatchValue(value=request.schema_name),
+                )
+            )
+
+        if request.index_name:
+            conditions.append(
+                FieldCondition(
+                    key="index_name",
+                    match=MatchValue(value=request.index_name),
+                )
+            )
+
+        attrs = request.attributes if isinstance(request.attributes, dict) else {}
+        for k, v in attrs.items():
+            if isinstance(v, list):
+                for item in v:
+                    conditions.append(
+                        FieldCondition(key=k, match=MatchValue(value=item))
+                    )
+            else:
+                conditions.append(
+                    FieldCondition(key=k, match=MatchValue(value=v))
+                )
+
+        if conditions:
+            return Filter(must=conditions)
+        return None
+
+    def extract_attributes(self, payload):
+        return {
+            k: v for k, v in payload.items()
+            if k not in KNOWN_PAYLOAD_KEYS
+        }
+
     async def query_row_embeddings(self, workspace, request: RowEmbeddingsRequest):
         """Execute row embeddings query"""
 
@@ -107,27 +153,18 @@ class Processor(FlowProcessor):
             return []
 
         qdrant_collection = await self.find_collection(
-            workspace, request.collection, request.schema_name
+            workspace, request.collection
         )
 
         if not qdrant_collection:
             logger.info(
                 f"No Qdrant collection found for "
-                f"{workspace}/{request.collection}/{request.schema_name}"
+                f"{workspace}/{request.collection}"
             )
             return []
 
         try:
-            query_filter = None
-            if request.index_name:
-                query_filter = Filter(
-                    must=[
-                        FieldCondition(
-                            key="index_name",
-                            match=MatchValue(value=request.index_name)
-                        )
-                    ]
-                )
+            query_filter = self.build_filter(request)
 
             result = await asyncio.to_thread(
                 self.qdrant.query_points,
@@ -146,7 +183,8 @@ class Processor(FlowProcessor):
                     index_name=payload.get("index_name", ""),
                     index_value=payload.get("index_value", []),
                     text=payload.get("text", ""),
-                    score=point.score if hasattr(point, 'score') else 0.0
+                    score=point.score if hasattr(point, 'score') else 0.0,
+                    attributes=self.extract_attributes(payload),
                 )
                 matches.append(match)
 

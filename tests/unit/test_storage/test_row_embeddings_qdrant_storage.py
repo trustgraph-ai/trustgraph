@@ -103,11 +103,10 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         collection_name = processor.get_collection_name(
             workspace="test_workspace",
             collection="test_collection",
-            schema_name="customer_data",
             dimension=384
         )
 
-        assert collection_name == "rows_test_workspace_test_collection_customer_data_384"
+        assert collection_name == "rows_test_workspace_test_collection_384"
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_ensure_collection_creates_new(self, mock_qdrant_client):
@@ -225,10 +224,11 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Verify upsert parameters
         upsert_call_args = mock_qdrant_instance.upsert.call_args
-        assert upsert_call_args[1]['collection_name'] == 'rows_test_workspace_test_collection_customers_3'
+        assert upsert_call_args[1]['collection_name'] == 'rows_test_workspace_test_collection_3'
 
         point = upsert_call_args[1]['points'][0]
         assert point.vector == [0.1, 0.2, 0.3]
+        assert point.payload['schema_name'] == 'customers'
         assert point.payload['index_name'] == 'customer_id'
         assert point.payload['index_value'] == ['CUST001']
         assert point.payload['text'] == 'CUST001'
@@ -373,11 +373,11 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Mock collections list
         mock_coll1 = MagicMock()
-        mock_coll1.name = 'rows_test_workspace_test_collection_schema1_384'
+        mock_coll1.name = 'rows_test_workspace_test_collection_384'
         mock_coll2 = MagicMock()
-        mock_coll2.name = 'rows_test_workspace_test_collection_schema2_384'
+        mock_coll2.name = 'rows_test_workspace_test_collection_768'
         mock_coll3 = MagicMock()
-        mock_coll3.name = 'rows_other_workspace_other_collection_schema_384'
+        mock_coll3.name = 'rows_other_workspace_other_collection_384'
 
         mock_collections = MagicMock()
         mock_collections.collections = [mock_coll1, mock_coll2, mock_coll3]
@@ -391,7 +391,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        processor._known_collections.add('rows_test_workspace_test_collection_schema1_384')
+        processor._known_collections.add('rows_test_workspace_test_collection_384')
 
         await processor.delete_collection('test_workspace', 'test_collection')
 
@@ -399,22 +399,20 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         assert mock_qdrant_instance.delete_collection.call_count == 2
 
         # Verify the cached collection was removed
-        assert 'rows_test_workspace_test_collection_schema1_384' not in processor._known_collections
+        assert 'rows_test_workspace_test_collection_384' not in processor._known_collections
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_delete_collection_schema(self, mock_qdrant_client):
-        """Test deleting collections for a specific schema"""
+        """Test deleting points for a specific schema via filter"""
         from trustgraph.storage.row_embeddings.qdrant.write import Processor
 
         mock_qdrant_instance = MagicMock()
 
         mock_coll1 = MagicMock()
-        mock_coll1.name = 'rows_test_workspace_test_collection_customers_384'
-        mock_coll2 = MagicMock()
-        mock_coll2.name = 'rows_test_workspace_test_collection_orders_384'
+        mock_coll1.name = 'rows_test_workspace_test_collection_384'
 
         mock_collections = MagicMock()
-        mock_collections.collections = [mock_coll1, mock_coll2]
+        mock_collections.collections = [mock_coll1]
         mock_qdrant_instance.get_collections.return_value = mock_collections
 
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -430,10 +428,9 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
             'test_workspace', 'test_collection', 'customers'
         )
 
-        # Should only delete the customers schema collection
-        mock_qdrant_instance.delete_collection.assert_called_once()
-        call_args = mock_qdrant_instance.delete_collection.call_args[0]
-        assert call_args[0] == 'rows_test_workspace_test_collection_customers_384'
+        # Should delete points by filter, not drop the collection
+        mock_qdrant_instance.delete.assert_called_once()
+        mock_qdrant_instance.delete_collection.assert_not_called()
 
 
 if __name__ == '__main__':

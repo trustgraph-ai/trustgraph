@@ -59,6 +59,8 @@ class TestSchemaFieldContracts:
             "entity",
             "vector",
             "chunk_id",
+            "rdf_type",
+            "attributes",
         }
 
     def test_chunk_embeddings_fields(self):
@@ -66,6 +68,7 @@ class TestSchemaFieldContracts:
         assert _field_names(ChunkEmbeddings) == {
             "chunk_id",
             "vector",
+            "attributes",
         }
 
     def test_entity_context_fields(self):
@@ -73,6 +76,8 @@ class TestSchemaFieldContracts:
             "entity",
             "context",
             "chunk_id",
+            "rdf_type",
+            "attributes",
         }
 
     def test_audit_event_fields(self):
