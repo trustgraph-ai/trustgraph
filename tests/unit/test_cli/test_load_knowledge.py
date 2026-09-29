@@ -216,8 +216,9 @@ class TestCLIArgumentParsing:
             token='my-token',
             flow='my-flow',
             files=['file1.ttl', 'file2.ttl'],
+            collection='my-collection',
             workspace='my-user',
-            collection='my-collection'
+            graph=''
         )
 
         # Verify run was called
