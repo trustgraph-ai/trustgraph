@@ -26,6 +26,7 @@ class KnowledgeLoader:
             document_id,
             url=default_url,
             token=None, workspace="default",
+            graph="",
     ):
         self.files = files
         self.flow = flow
@@ -34,6 +35,7 @@ class KnowledgeLoader:
         self.url = url
         self.token = token
         self.workspace = workspace
+        self.graph = graph
 
     def load_triples_from_file(self, file) -> Iterator[Triple]:
         """Generator that yields Triple objects from a Turtle file"""
@@ -58,6 +60,7 @@ class KnowledgeLoader:
             yield Triple(
                 s=s_value, p=p_value, o=o_value,
                 o_datatype=o_datatype, o_language=o_language,
+                g=self.graph,
             )
 
     def load_entity_contexts_from_file(self, file) -> Iterator[Tuple[str, str]]:
@@ -185,6 +188,12 @@ def main():
     )
 
     parser.add_argument(
+        '-g', '--graph',
+        default="",
+        help='Named graph URI (e.g. urn:graph:policy). Default: default graph'
+    )
+
+    parser.add_argument(
         'files', nargs='+',
         help=f'Turtle files to load'
     )
@@ -202,6 +211,7 @@ def main():
                 files=args.files,
                 collection=args.collection,
                 workspace=args.workspace,
+                graph=args.graph,
             )
 
             loader.run()
