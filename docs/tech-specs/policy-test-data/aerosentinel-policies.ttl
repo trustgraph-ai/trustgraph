@@ -72,16 +72,13 @@ tg-pol:DefenseBarrierPolicy a sh:NodeShape ;
         a sh:SPARQLRule ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:DefenseBarrierPolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Violation ;
-                    tg-pol:reason "Security barrier: non-defense user attempted access to ITAR/Secret defense data." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:DefenseBarrierPolicy ;
+                    sh:resultSeverity tg-pol:Violation ;
+                    sh:resultMessage "Security barrier: non-defense user attempted access to ITAR/Secret defense data." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .
@@ -122,16 +119,13 @@ tg-pol:CommercialIsolationPolicy a sh:NodeShape ;
         a sh:SPARQLRule ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:CommercialIsolationPolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Filtered ;
-                    tg-pol:reason "Proprietary commercial data filtered from non-commercial user." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:CommercialIsolationPolicy ;
+                    sh:resultSeverity tg-pol:Filtered ;
+                    sh:resultMessage "Proprietary commercial data filtered from non-commercial user." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .
@@ -199,16 +193,13 @@ tg-pol:AssignmentScopePolicy a sh:NodeShape ;
         a sh:SPARQLRule ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:AssignmentScopePolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Filtered ;
-                    tg-pol:reason "Data not related to user's assigned resources." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:AssignmentScopePolicy ;
+                    sh:resultSeverity tg-pol:Filtered ;
+                    sh:resultMessage "Data not related to user's assigned resources." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .
@@ -252,16 +243,13 @@ tg-pol:PublicOnlyPolicy a sh:NodeShape ;
         a sh:SPARQLRule ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:PublicOnlyPolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Filtered ;
-                    tg-pol:reason "User entitlement restricted to public catalog." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:PublicOnlyPolicy ;
+                    sh:resultSeverity tg-pol:Filtered ;
+                    sh:resultMessage "User entitlement restricted to public catalog." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .

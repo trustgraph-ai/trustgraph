@@ -13,4 +13,5 @@ from .agent import *
 from .config import *
 from .iam import *
 from .audit import *
+from .policy_event import *
 from .user_context import *

@@ -83,11 +83,6 @@ class TriplesQueryService(FlowProcessor):
                 async for batch, is_final in self.query_triples_stream(
                     workspace, request,
                 ):
-                    if request.user_context:
-                        batch = await self.filter_triples(
-                            batch, request.collection, request.user_context,
-                            workspace=workspace,
-                        )
                     total_results += len(batch)
                     r = TriplesQueryResponse(
                         triples=batch,
@@ -105,11 +100,6 @@ class TriplesQueryService(FlowProcessor):
             else:
                 t0 = time.monotonic()
                 triples = await self.query_triples(workspace, request)
-                if request.user_context:
-                    triples = await self.filter_triples(
-                        triples, request.collection, request.user_context,
-                        workspace=workspace,
-                    )
                 __class__.query_duration_metric.labels(
                     processor=self.id,
                 ).observe(time.monotonic() - t0)
@@ -136,15 +126,6 @@ class TriplesQueryService(FlowProcessor):
             )
 
             await flow("response").send(r, properties={"id": id})
-
-    async def filter_triples(self, triples, collection, user_context,
-                             workspace=None):
-        """
-        Apply policy filtering to query results. Default implementation
-        is a no-op pass-through. Subclasses override to wire in a
-        PolicyFilter instance.
-        """
-        return triples
 
     async def query_triples_stream(self, workspace, request):
         """
