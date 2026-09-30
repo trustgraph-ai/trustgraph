@@ -48,7 +48,8 @@ class TriplesClient:
 
     async def query_gen(self, s=None, p=None, o=None, limit=20,
                         collection="default",
-                        batch_size=20, timeout=30, g=None):
+                        batch_size=20, timeout=30, g=None,
+                        user_context=None):
         """Async generator yielding Triple objects as batches arrive."""
         queue = asyncio.Queue()
         done = False
@@ -79,6 +80,7 @@ class TriplesClient:
                 streaming=True,
                 batch_size=batch_size,
                 g=g,
+                user_context=user_context,
             ),
             timeout=timeout,
             recipient=recipient,
@@ -101,7 +103,8 @@ class TriplesClient:
 
     async def query(self, s=None, p=None, o=None, limit=20,
                     collection="default",
-                    timeout=30, g=None):
+                    timeout=30, g=None,
+                    user_context=None):
 
         resp = await self.request(
             TriplesQueryRequest(
@@ -111,6 +114,7 @@ class TriplesClient:
                 limit = limit,
                 collection = collection,
                 g = g,
+                user_context = user_context,
             ),
             timeout=timeout
         )
@@ -128,7 +132,8 @@ class TriplesClient:
     async def query_stream(self, s=None, p=None, o=None, limit=20,
                            collection="default",
                            batch_size=20, timeout=30,
-                           batch_callback=None, g=None):
+                           batch_callback=None, g=None,
+                           user_context=None):
         """
         Streaming triple query - calls callback for each batch as it arrives.
 
@@ -173,6 +178,7 @@ class TriplesClient:
                 streaming=True,
                 batch_size=batch_size,
                 g=g,
+                user_context=user_context,
             ),
             timeout=timeout,
             recipient=recipient,

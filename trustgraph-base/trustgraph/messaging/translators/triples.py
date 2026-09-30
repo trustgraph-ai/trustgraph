@@ -1,5 +1,6 @@
 from typing import Dict, Any, Tuple, Optional
-from ...schema import TriplesQueryRequest, TriplesQueryResponse
+from ...schema import TriplesQueryRequest, TriplesQueryResponse, UserContext
+from ...base.serialization import dict_to_dataclass, dataclass_to_dict
 from .base import MessageTranslator
 from .primitives import ValueTranslator, SubgraphTranslator
 
@@ -15,6 +16,7 @@ class TriplesQueryRequestTranslator(MessageTranslator):
         p = self.value_translator.decode(data["p"]) if "p" in data else None
         o = self.value_translator.decode(data["o"]) if "o" in data else None
         g = data.get("g")  # None=default graph, "*"=all graphs
+        uc = data.get("user-context")
 
         return TriplesQueryRequest(
             s=s,
@@ -25,6 +27,7 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             collection=data.get("collection", "default"),
             streaming=data.get("streaming", False),
             batch_size=int(data.get("batch-size", 20)),
+            user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
     def encode(self, obj: TriplesQueryRequest) -> Dict[str, Any]:
@@ -43,6 +46,8 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             result["o"] = self.value_translator.encode(obj.o)
         if obj.g is not None:
             result["g"] = obj.g
+        if obj.user_context is not None:
+            result["user-context"] = dataclass_to_dict(obj.user_context)
 
         return result
 

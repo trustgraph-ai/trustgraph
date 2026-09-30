@@ -1,0 +1,267 @@
+@prefix tg-pol: <https://trustgraph.ai/ontology/policy/> .
+@prefix tg-uc:  <https://trustgraph.ai/ontology/user-context/> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix aso:    <http://aerosentinel.com/ontology/> .
+@prefix as:     <http://aerosentinel.com/data/> .
+
+# =============================================================
+# AeroSentinel Dynamics — Policy Shapes
+#
+# Stored in named graph urn:graph:policy.
+#
+# Policy precedence (sh:order, lower = higher priority):
+#   0 — Security barriers (Violation)
+#   1 — Scope filtering (Filtered)
+#   2 — Role-specific filtering (Filtered)
+# =============================================================
+
+
+# -------------------------------------------------------------
+# Policy 1: Defense Division Information Barrier
+#
+# Users outside the Defense Division who attempt to access
+# defense-classified data (ITAR or Secret) trigger a Violation.
+# This is a security barrier, not routine filtering.
+# -------------------------------------------------------------
+
+tg-pol:DefenseBarrierPolicy a sh:NodeShape ;
+    rdfs:label "Defense division information barrier" ;
+    rdfs:comment "Blocks non-defense users from accessing ITAR-controlled or Secret defense data. Produces a Violation — this is a security event, not routine over-retrieval." ;
+    tg-pol:producesDetermination tg-pol:Violation ;
+    sh:order 0 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is classified as ITAR or Secret
+                ?this aso:classification ?class .
+                FILTER (?class IN (as:ITAR_Controlled, as:Secret))
+
+                # Node belongs to Defense Division
+                ?this aso:organisationalUnit as:Defense_Division .
+
+                # User is NOT in Defense Division
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:organisationalUnit as:Defense_Division .
+                }
+
+                # User does not have an override authority for
+                # export control
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasOverrideAuthority ?oa .
+                    ?oa tg-uc:policyArea "ExportControlITAR" .
+                }
+
+                # User is not acting under delegation from
+                # someone in Defense Division
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasDelegation ?del .
+                    ?del tg-uc:delegatorId ?delegator .
+                    ?delegator tg-uc:organisationalUnit
+                        as:Defense_Division .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:DefenseBarrierPolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Violation ;
+                    tg-pol:reason "Security barrier: non-defense user attempted access to ITAR/Secret defense data." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 2: Commercial Division Isolation
+#
+# Users outside the Commercial Division cannot see proprietary
+# commercial data. This is Filtered — a broad query pulling in
+# another division's commercial IP is routine over-retrieval.
+# -------------------------------------------------------------
+
+tg-pol:CommercialIsolationPolicy a sh:NodeShape ;
+    rdfs:label "Commercial division isolation" ;
+    rdfs:comment "Filters proprietary commercial data from users outside the Commercial Division. Routine over-retrieval." ;
+    tg-pol:producesDetermination tg-pol:Filtered ;
+    sh:order 1 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is proprietary and in Commercial Division
+                ?this aso:classification as:Proprietary .
+                ?this aso:organisationalUnit as:Commercial_Division .
+
+                # User is NOT in Commercial Division
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:organisationalUnit
+                        as:Commercial_Division .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:CommercialIsolationPolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Filtered ;
+                    tg-pol:reason "Proprietary commercial data filtered from non-commercial user." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 3: Assignment-Based Scope Filter
+#
+# When a user has resource assignments, only data related to
+# their assigned products/projects passes through. Unrelated
+# proprietary data within their own division is filtered.
+#
+# Public data is exempt — it passes through regardless.
+# -------------------------------------------------------------
+
+tg-pol:AssignmentScopePolicy a sh:NodeShape ;
+    rdfs:label "Assignment-based scope filter" ;
+    rdfs:comment "When a user has assignments, filters proprietary data not related to their assigned resources. Public data is always visible." ;
+    tg-pol:producesDetermination tg-pol:Filtered ;
+    sh:order 2 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is not public
+                ?this aso:classification ?class .
+                FILTER (?class != as:Public)
+
+                # User has at least one assignment
+                ?ctx a tg-uc:UserContext ;
+                     tg-uc:hasAssignment ?assignment .
+
+                # Node is not directly an assigned resource
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?a .
+                    ?a tg-uc:resource ?this .
+                }
+
+                # Node is not linked to an assigned resource
+                # via specFor, codeFor, schematicFor, testFor,
+                # briefingFor, contractFor, supplierFor
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?a2 .
+                    ?a2 tg-uc:resource ?product .
+                    ?this ?rel ?product .
+                    FILTER (?rel IN (
+                        aso:specFor, aso:codeFor,
+                        aso:schematicFor, aso:testFor,
+                        aso:briefingFor, aso:contractFor,
+                        aso:supplierFor, aso:technologyFor
+                    ))
+                }
+
+                # Node is not a client of an assigned product
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?a3 .
+                    ?a3 tg-uc:resource ?product .
+                    ?this aso:product ?product .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:AssignmentScopePolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Filtered ;
+                    tg-pol:reason "Data not related to user's assigned resources." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 4: Entitlement-Based Scope Filter
+#
+# Users with a PublicCatalog entitlement can only see data
+# classified as Public. Everything else is filtered.
+# This applies to marketing and external-facing roles.
+# -------------------------------------------------------------
+
+tg-pol:PublicOnlyPolicy a sh:NodeShape ;
+    rdfs:label "Public catalog entitlement filter" ;
+    rdfs:comment "Users entitled only to the public catalog see nothing beyond Public-classified data." ;
+    tg-pol:producesDetermination tg-pol:Filtered ;
+    sh:order 1 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is not public
+                ?this aso:classification ?class .
+                FILTER (?class != as:Public)
+
+                # User has a PublicCatalog entitlement and
+                # no assignments (which would widen scope)
+                ?ctx a tg-uc:UserContext ;
+                     tg-uc:hasEntitlement ?ent .
+                ?ent tg-uc:resourceScope "PublicCatalog" .
+
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?any .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:PublicOnlyPolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Filtered ;
+                    tg-pol:reason "User entitlement restricted to public catalog." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .

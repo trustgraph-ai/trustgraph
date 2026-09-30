@@ -17,6 +17,7 @@ from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Term, Triple, IRI, LITERAL, TRIPLE, BLANK
 from .... base import TriplesQueryService
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .... policy import PolicyFilter
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -199,6 +200,17 @@ class Processor(TriplesQueryService):
                     )
                 self._connections[workspace] = tg
             return self._connections[workspace]
+
+    async def filter_triples(self, triples, collection, user_context,
+                             workspace=None):
+        async def query_fn(s, p, o, col, g=""):
+            request = TriplesQueryRequest(
+                s=s, p=p, o=o, collection=col, g=g, limit=10000,
+            )
+            return await self.query_triples(workspace, request)
+
+        policy_filter = PolicyFilter(query_fn)
+        return await policy_filter.apply(triples, collection, user_context)
 
     async def query_triples(self, workspace, query):
 

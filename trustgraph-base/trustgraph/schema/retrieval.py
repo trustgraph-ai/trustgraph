@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 
 from .core.primitives import Error, Term, Triple
+from .user_context import UserContext
 
 ############################################################################
 
@@ -20,6 +21,7 @@ class GraphRagQuery:
     max_reranker_input: int = 0
     streaming: bool = False
     parent_uri: str = ""
+    user_context: UserContext | None = None
 
 @dataclass
 class Source:

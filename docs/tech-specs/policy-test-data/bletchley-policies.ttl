@@ -1,0 +1,297 @@
+@prefix tg-pol: <https://trustgraph.ai/ontology/policy/> .
+@prefix tg-uc:  <https://trustgraph.ai/ontology/user-context/> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix bpo:    <http://bletchleypark.gov.uk/ontology/> .
+@prefix bp:     <http://bletchleypark.gov.uk/data/> .
+
+# =============================================================
+# GC&CS Bletchley Park — Policy Shapes
+#
+# Stored in named graph urn:graph:policy.
+#
+# Policy precedence (sh:order, lower = higher priority):
+#   0 — Ultra security barrier (Violation)
+#   1 — Hut compartmentalisation (Filtered)
+#   2 — Classification clearance (Filtered)
+#   3 — Methods/sources separation (Filtered)
+# =============================================================
+
+
+# -------------------------------------------------------------
+# Prefix Declarations for SPARQL
+#
+# SHACL-AF standard: sh:prefixes points to a resource that
+# carries sh:declare entries. The policy engine resolves these
+# and prepends PREFIX declarations to each SPARQL query.
+# -------------------------------------------------------------
+
+tg-pol:BletchleyPrefixes
+    sh:declare [
+        sh:prefix "rdf" ;
+        sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "rdfs" ;
+        sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "xsd" ;
+        sh:namespace "http://www.w3.org/2001/XMLSchema#"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "bpo" ;
+        sh:namespace "http://bletchleypark.gov.uk/ontology/"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "bp" ;
+        sh:namespace "http://bletchleypark.gov.uk/data/"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "tg-uc" ;
+        sh:namespace "https://trustgraph.ai/ontology/user-context/"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "tg-pol" ;
+        sh:namespace "https://trustgraph.ai/ontology/policy/"^^xsd:anyURI ;
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 1: Ultra Security Barrier
+#
+# Access to Ultra-classified material by anyone without Ultra
+# clearance is a security Violation. Knowledge of Ultra's
+# existence is itself classified Ultra.
+# -------------------------------------------------------------
+
+tg-pol:UltraBarrierPolicy a sh:NodeShape ;
+    rdfs:label "Ultra security barrier" ;
+    rdfs:comment "Blocks access to Ultra-classified material by personnel without explicit Ultra clearance. This is a Violation — the existence of Ultra is itself the most closely guarded secret of the war." ;
+    tg-pol:producesDetermination tg-pol:Violation ;
+    sh:order 0 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is classified Ultra
+                ?this bpo:classification bp:Ultra .
+
+                # User does not have Ultra clearance
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?a .
+                    ?a tg-uc:qualifiers ?q .
+                    ?q tg-uc:classification "Ultra" .
+                }
+
+                # Director override does not apply
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasOverrideAuthority ?oa .
+                    ?oa tg-uc:policyArea "UltraDissemination" .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:UltraBarrierPolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Violation ;
+                    tg-pol:reason "Security barrier: personnel without Ultra clearance attempted access to Ultra material." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 2: Hut Compartmentalisation
+#
+# Personnel may only access Secret or Most Secret material
+# belonging to their assigned section (Hut). Cross-hut access
+# is filtered — this is the foundational compartmentalisation
+# principle at Bletchley Park.
+#
+# Restricted data (admin, personnel) is exempt.
+# Directorate staff are exempt (cross-section oversight).
+# -------------------------------------------------------------
+
+tg-pol:HutCompartmentalisationPolicy a sh:NodeShape ;
+    rdfs:label "Hut compartmentalisation" ;
+    rdfs:comment "Filters Secret and Most Secret material from personnel not assigned to the owning section. The fundamental need-to-know boundary at Bletchley Park." ;
+    tg-pol:producesDetermination tg-pol:Filtered ;
+    sh:order 1 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node belongs to a section and is Secret or above
+                ?this bpo:section ?section .
+                ?this bpo:classification ?class .
+                FILTER (?class IN (bp:Secret, bp:MostSecret, bp:Ultra))
+
+                # User is not assigned to that section
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:organisationalUnit ?section .
+                }
+
+                # User is not in Directorate (cross-section oversight)
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:organisationalUnit bp:Directorate .
+                }
+
+                # User does not have a liaison assignment
+                # covering that section
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?a .
+                    ?a tg-uc:resource ?section .
+                    ?a tg-uc:scope "Liaison" .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:HutCompartmentalisationPolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Filtered ;
+                    tg-pol:reason "Compartmentalisation: data belongs to a section the user is not assigned to." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 3: Classification Clearance Filter
+#
+# Personnel may only access material at or below their
+# clearance level. Most Secret material requires explicit
+# Most Secret clearance.
+#
+# Clearance hierarchy: Restricted < Secret < Most Secret < Ultra
+# (Ultra is handled by the barrier policy above.)
+# -------------------------------------------------------------
+
+tg-pol:ClassificationClearancePolicy a sh:NodeShape ;
+    rdfs:label "Classification clearance filter" ;
+    rdfs:comment "Filters material above the user's clearance level. Most Secret material requires explicit Most Secret or Ultra clearance." ;
+    tg-pol:producesDetermination tg-pol:Filtered ;
+    sh:order 2 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is classified Most Secret
+                ?this bpo:classification bp:MostSecret .
+
+                # User does not have Most Secret or Ultra clearance
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:hasAssignment ?a .
+                    ?a tg-uc:qualifiers ?q .
+                    ?q tg-uc:classification ?cl .
+                    FILTER (?cl IN ("MostSecret", "Ultra"))
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:ClassificationClearancePolicy ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Filtered ;
+                    tg-pol:reason "Clearance insufficient for Most Secret material." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .
+
+
+# -------------------------------------------------------------
+# Policy 4: Methods/Sources Separation
+#
+# Intelligence analysts (Hut 3, Hut 4) receive the product
+# of cryptanalysis but must not see the methods used to
+# produce it. CryptanalyticMethod and CryptanalyticMaterial
+# types are filtered from analysis sections.
+#
+# This is a key Bletchley Park principle: the translator who
+# reads the decrypted German text need not — and must not —
+# know how the cipher was broken.
+# -------------------------------------------------------------
+
+tg-pol:MethodsSourcesSeparation a sh:NodeShape ;
+    rdfs:label "Methods/sources separation" ;
+    rdfs:comment "Intelligence analysts see the product but not the cryptanalytic methods or working materials. Bombe menus, crib procedures, and machine designs are invisible to translation and analysis sections." ;
+    tg-pol:producesDetermination tg-pol:Filtered ;
+    sh:order 3 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                # Node is a cryptanalytic method or working material
+                { ?this a bpo:CryptanalyticMethod . }
+                UNION
+                { ?this a bpo:CryptanalyticMaterial . }
+                UNION
+                { ?this a bpo:TechnicalDocument . }
+
+                # User is in an analysis/translation section
+                ?ctx a tg-uc:UserContext .
+                {
+                    ?ctx tg-uc:organisationalUnit bp:Hut_3 .
+                } UNION {
+                    ?ctx tg-uc:organisationalUnit bp:Hut_4 .
+                }
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes tg-pol:BletchleyPrefixes ;
+        sh:construct """
+            CONSTRUCT {
+                _:det a tg-pol:PolicyEvaluation ;
+                    tg-pol:evaluatedPolicy tg-pol:MethodsSourcesSeparation ;
+                    tg-pol:evaluatedNode $this ;
+                    tg-pol:determination tg-pol:Filtered ;
+                    tg-pol:reason "Methods/sources separation: cryptanalytic methods and technical documents filtered from intelligence analysts." ;
+                    tg-pol:evaluatedAt ?now .
+            }
+            WHERE {
+                BIND(NOW() AS ?now)
+            }
+        """ ;
+        sh:order 1
+    ] .

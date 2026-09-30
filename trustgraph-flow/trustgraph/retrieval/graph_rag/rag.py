@@ -250,6 +250,7 @@ class Processor(FlowProcessor):
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
                     parent_uri = v.parent_uri,
+                    user_context = v.user_context,
                 )
 
             else:
@@ -265,6 +266,7 @@ class Processor(FlowProcessor):
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
                     parent_uri = v.parent_uri,
+                    user_context = v.user_context,
                 )
 
                 # Send single response with answer and token usage

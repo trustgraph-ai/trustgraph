@@ -140,6 +140,7 @@ class Query:
             max_path_length=2, edge_limit=25, max_reranker_input=350,
             max_reranker_text_length=240,
             track_usage=None,
+            user_context=None,
     ):
         self.rag = rag
         self.collection = collection
@@ -152,6 +153,7 @@ class Query:
         self.max_reranker_input = max_reranker_input
         self.max_reranker_text_length = max_reranker_text_length
         self.track_usage = track_usage
+        self.user_context = user_context
 
     async def extract_concepts(self, query):
         """Extract key concepts from query for independent embedding."""
@@ -252,6 +254,7 @@ class Query:
             s=e, p=LABEL, o=None, limit=1,
             collection=self.collection,
             g="",
+            user_context=self.user_context,
         )
 
         if len(res) == 0:
@@ -282,6 +285,7 @@ class Query:
                     limit=limit_per_entity,
                     collection=self.collection,
                     batch_size=20, g="",
+                    user_context=self.user_context,
                 ),
             )
             directions.append(self.FROM_S)
@@ -292,6 +296,7 @@ class Query:
                     limit=limit_per_entity,
                     collection=self.collection,
                     batch_size=20, g="",
+                    user_context=self.user_context,
                 ),
             )
             directions.append(self.FROM_P)
@@ -302,6 +307,7 @@ class Query:
                     limit=limit_per_entity,
                     collection=self.collection,
                     batch_size=20, g="",
+                    user_context=self.user_context,
                 ),
             )
             directions.append(self.FROM_O)
@@ -527,6 +533,7 @@ class Query:
                     s=None, p=TG_CONTAINS, o=quoted, limit=1,
                     collection=self.collection,
                     g=GRAPH_SOURCE,
+                    user_context=self.user_context,
                 )
             )
 
@@ -558,6 +565,7 @@ class Query:
                     s=uri, p=PROV_WAS_DERIVED_FROM, o=None, limit=5,
                     collection=self.collection,
                     g=GRAPH_SOURCE,
+                    user_context=self.user_context,
                 )
                 for uri in current_uris
             ]
@@ -591,6 +599,7 @@ class Query:
             self.rag.triples_client.query(
                 s=uri, p=None, o=None, limit=50,
                 collection=self.collection,
+                user_context=self.user_context,
             )
             for uri in sorted_doc_uris
         ]
@@ -651,6 +660,7 @@ class GraphRag:
             chunk_callback = None,
             explain_callback = None, save_answer_callback = None,
             parent_uri = "",
+            user_context = None,
     ):
         # Accumulate token usage across all prompt calls
         total_in = 0
@@ -703,6 +713,7 @@ class GraphRag:
             max_reranker_input = max_reranker_input,
             max_reranker_text_length = max_reranker_text_length,
             track_usage = track_usage,
+            user_context = user_context,
         )
 
         # Step 1: Extract concepts and find seed entities

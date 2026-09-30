@@ -2,7 +2,9 @@ from typing import Dict, Any, Tuple
 from ...schema import (
     SparqlQueryRequest, SparqlQueryResponse, SparqlBinding,
     Error, Term, Triple, IRI, LITERAL, BLANK,
+    UserContext,
 )
+from ...base.serialization import dict_to_dataclass, dataclass_to_dict
 from .base import MessageTranslator
 from .primitives import TermTranslator, TripleTranslator
 
@@ -11,22 +13,27 @@ class SparqlQueryRequestTranslator(MessageTranslator):
     """Translator for SparqlQueryRequest schema objects."""
 
     def decode(self, data: Dict[str, Any]) -> SparqlQueryRequest:
+        uc = data.get("user-context")
         return SparqlQueryRequest(
             collection=data.get("collection", "default"),
             query=data.get("query", ""),
             limit=int(data.get("limit", 10000)),
             streaming=data.get("streaming", False),
             batch_size=int(data.get("batch-size", 20)),
+            user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
     def encode(self, obj: SparqlQueryRequest) -> Dict[str, Any]:
-        return {
+        result = {
             "collection": obj.collection,
             "query": obj.query,
             "limit": obj.limit,
             "streaming": obj.streaming,
             "batch-size": obj.batch_size,
         }
+        if obj.user_context is not None:
+            result["user-context"] = dataclass_to_dict(obj.user_context)
+        return result
 
 
 class SparqlQueryResponseTranslator(MessageTranslator):

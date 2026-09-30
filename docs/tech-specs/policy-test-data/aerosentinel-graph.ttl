@@ -1,0 +1,249 @@
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix as:     <http://aerosentinel.com/data/> .
+@prefix aso:    <http://aerosentinel.com/ontology/> .
+
+# =============================================================
+# AeroSentinel Dynamics — Test Data Graph
+#
+# A dual-use drone manufacturer with public products, commercial
+# IP and client relationships, and classified defense systems.
+# =============================================================
+
+# -------------------------------------------------------------
+# Company
+# -------------------------------------------------------------
+
+as:AeroSentinel a aso:Company ;
+    rdfs:label "AeroSentinel Dynamics" ;
+    rdfs:comment "Dual-use drone manufacturer: commercial and defense." ;
+    aso:founded "2019"^^xsd:gYear ;
+    aso:headquarters "Austin, TX" .
+
+# -------------------------------------------------------------
+# Organisational Units
+# -------------------------------------------------------------
+
+as:Commercial_Division a aso:OrganisationalUnit ;
+    rdfs:label "Commercial Division" ;
+    aso:partOf as:AeroSentinel .
+
+as:Defense_Division a aso:OrganisationalUnit ;
+    rdfs:label "Defense Division" ;
+    aso:partOf as:AeroSentinel ;
+    aso:classification as:ITAR_Controlled .
+
+as:Corporate a aso:OrganisationalUnit ;
+    rdfs:label "Corporate" ;
+    aso:partOf as:AeroSentinel .
+
+# -------------------------------------------------------------
+# Classification markers
+# -------------------------------------------------------------
+
+as:Public a aso:Classification ;
+    rdfs:label "Public" ;
+    rdfs:comment "Publicly available information." .
+
+as:Proprietary a aso:Classification ;
+    rdfs:label "Proprietary" ;
+    rdfs:comment "Commercial-in-confidence. Internal use only." .
+
+as:ITAR_Controlled a aso:Classification ;
+    rdfs:label "ITAR Controlled" ;
+    rdfs:comment "Subject to International Traffic in Arms Regulations. US persons only." .
+
+as:Secret a aso:Classification ;
+    rdfs:label "Secret" ;
+    rdfs:comment "Government classified. Requires active security clearance." .
+
+# =============================================================
+# PUBLIC DATA
+# =============================================================
+
+# AeroScout-v2 — commercial agricultural drone, public specs
+
+as:AeroScout_v2 a aso:Product ;
+    rdfs:label "AeroScout-v2" ;
+    rdfs:comment "Commercial agricultural monitoring drone." ;
+    aso:organisationalUnit as:Commercial_Division ;
+    aso:classification as:Public ;
+    aso:productCategory "Agricultural Monitoring" ;
+    aso:status "In Production" .
+
+as:AeroScout_v2_Specs a aso:Specification ;
+    rdfs:label "AeroScout-v2 Specifications" ;
+    aso:specFor as:AeroScout_v2 ;
+    aso:classification as:Public ;
+    aso:flightTime "45 minutes" ;
+    aso:maxPayload "2.3 kg" ;
+    aso:cameraResolution "48 MP" ;
+    aso:batteryType "LiPo 6S 22000mAh" ;
+    aso:wingspan "1.8 m" .
+
+as:Office_Austin a aso:Office ;
+    rdfs:label "Austin Headquarters" ;
+    aso:classification as:Public ;
+    aso:address "1200 Drone Parkway, Austin, TX 78701" .
+
+as:Office_Denver a aso:Office ;
+    rdfs:label "Denver Engineering Center" ;
+    aso:classification as:Public ;
+    aso:address "800 Aero Blvd, Denver, CO 80202" .
+
+# =============================================================
+# COMMERCIAL IP & CLIENT RELATIONSHIPS
+# =============================================================
+
+# SkyFreighter — cargo delivery drone, proprietary
+
+as:SkyFreighter a aso:Product ;
+    rdfs:label "SkyFreighter" ;
+    rdfs:comment "Autonomous cargo delivery drone for logistics." ;
+    aso:organisationalUnit as:Commercial_Division ;
+    aso:classification as:Proprietary ;
+    aso:productCategory "Logistics Delivery" ;
+    aso:status "In Development" .
+
+as:SkyFreighter_Specs a aso:Specification ;
+    rdfs:label "SkyFreighter Specifications" ;
+    aso:specFor as:SkyFreighter ;
+    aso:classification as:Proprietary ;
+    aso:flightTime "90 minutes" ;
+    aso:maxPayload "25 kg" ;
+    aso:range "120 km" ;
+    aso:navigationSystem "Dual GPS/INS with terrain following" .
+
+as:SkyFreighter_PayloadCode a aso:SourceCode ;
+    rdfs:label "SkyFreighter Payload Management Code" ;
+    rdfs:comment "Autonomous load balancing and drop sequencing algorithms." ;
+    aso:codeFor as:SkyFreighter ;
+    aso:organisationalUnit as:Commercial_Division ;
+    aso:classification as:Proprietary ;
+    aso:language "Rust" ;
+    aso:repository "git://internal/skyfreighter-payload" .
+
+as:SkyFreighter_SensorSchematics a aso:Schematic ;
+    rdfs:label "SkyFreighter Sensor Array Schematics" ;
+    rdfs:comment "LiDAR and collision avoidance sensor integration." ;
+    aso:schematicFor as:SkyFreighter ;
+    aso:organisationalUnit as:Commercial_Division ;
+    aso:classification as:Proprietary .
+
+# Client relationship — highly confidential
+
+as:Client_GlobalLogistics a aso:Client ;
+    rdfs:label "Global Logistics Corp" ;
+    rdfs:comment "Strategic commercial client for SkyFreighter fleet deployment." ;
+    aso:organisationalUnit as:Commercial_Division ;
+    aso:classification as:Proprietary ;
+    aso:contractValue "8.2M USD" ;
+    aso:contractStatus "Active" ;
+    aso:product as:SkyFreighter .
+
+as:Client_AgriCo a aso:Client ;
+    rdfs:label "AgriCo Precision Farming" ;
+    rdfs:comment "Volume buyer of AeroScout-v2 units." ;
+    aso:organisationalUnit as:Commercial_Division ;
+    aso:classification as:Proprietary ;
+    aso:contractValue "1.4M USD" ;
+    aso:contractStatus "Active" ;
+    aso:product as:AeroScout_v2 .
+
+# =============================================================
+# DEFENSE IP & CONTRACTS
+# =============================================================
+
+# Project GhostEye-X — military stealth reconnaissance drone
+
+as:GhostEye_X a aso:Product ;
+    rdfs:label "GhostEye-X" ;
+    rdfs:comment "Military stealth reconnaissance drone platform." ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:Secret ;
+    aso:productCategory "Tactical Reconnaissance" ;
+    aso:status "In Development" .
+
+as:GhostEye_X_StealthCoating a aso:Technology ;
+    rdfs:label "GhostEye-X Stealth Coating" ;
+    rdfs:comment "Radar-absorbing material composition and application process." ;
+    aso:technologyFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:Secret .
+
+as:GhostEye_X_BatterySpecs a aso:Specification ;
+    rdfs:label "GhostEye-X Battery Specifications" ;
+    rdfs:comment "Custom solid-state battery for extended stealth operations." ;
+    aso:specFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:ITAR_Controlled ;
+    aso:flightTime "8 hours" ;
+    aso:batteryType "Solid-state lithium ceramic" .
+
+as:Targeting_AI_v4 a aso:SourceCode ;
+    rdfs:label "Autonomous Target Identification AI v4" ;
+    rdfs:comment "Machine learning model for autonomous target classification and tracking." ;
+    aso:codeFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:Secret ;
+    aso:language "Python/C++" ;
+    aso:repository "git://classified/targeting-ai-v4" .
+
+as:GhostEye_X_FlightTests a aso:TestData ;
+    rdfs:label "GhostEye-X Flight Test Results" ;
+    rdfs:comment "Q3 2026 flight test telemetry and performance data." ;
+    aso:testFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:ITAR_Controlled ;
+    aso:testDate "2026-07-15"^^xsd:date .
+
+as:GhostEye_X_Briefing_Q3 a aso:Briefing ;
+    rdfs:label "GhostEye-X Q3 2026 Briefing" ;
+    rdfs:comment "Quarterly project status briefing for cleared personnel." ;
+    aso:briefingFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:ITAR_Controlled ;
+    aso:briefingDate "2026-09-20"^^xsd:date .
+
+# Defense contracts
+
+as:Contract_DoD a aso:Contract ;
+    rdfs:label "DoD Contract DAAB07-26-C-0042" ;
+    rdfs:comment "US Department of Defense procurement contract for GhostEye-X." ;
+    aso:contractFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:Secret ;
+    aso:contractValue "142M USD" ;
+    aso:contractStatus "Active" ;
+    aso:counterparty "US Department of Defense" .
+
+as:Contract_MoD a aso:Contract ;
+    rdfs:label "MoD Contract DEF-2026-REC-118" ;
+    rdfs:comment "UK Ministry of Defence evaluation contract for GhostEye-X variant." ;
+    aso:contractFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:Secret ;
+    aso:contractValue "38M GBP" ;
+    aso:contractStatus "Evaluation" ;
+    aso:counterparty "UK Ministry of Defence" .
+
+# Foreign supplier (relevant for ITAR audit)
+
+as:Supplier_TaiwanOptics a aso:Supplier ;
+    rdfs:label "Taiwan Precision Optics Ltd" ;
+    rdfs:comment "Supplier of infrared sensor arrays for GhostEye-X." ;
+    aso:supplierFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:ITAR_Controlled ;
+    aso:country "Taiwan" ;
+    aso:exportControlStatus "Under Review" .
+
+as:Supplier_DomesticAlloys a aso:Supplier ;
+    rdfs:label "US Advanced Alloys Inc" ;
+    rdfs:comment "Domestic supplier of airframe composites." ;
+    aso:supplierFor as:GhostEye_X ;
+    aso:organisationalUnit as:Defense_Division ;
+    aso:classification as:ITAR_Controlled ;
+    aso:country "United States" ;
+    aso:exportControlStatus "Cleared" .
