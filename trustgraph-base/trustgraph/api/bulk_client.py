@@ -11,23 +11,24 @@ import asyncio
 import websockets
 from typing import Optional, Iterator, Dict, Any, Coroutine
 
-from . types import Triple
+from . types import Triple, Uri, Literal
 from . exceptions import ProtocolException
 
 
-def _string_to_term(
-    value: str, datatype: str = "", language: str = ""
-) -> Dict[str, Any]:
-    """Convert a string value to Term format for the gateway."""
+def _value_to_term(value) -> Dict[str, Any]:
+    """Convert a Uri, Literal, or plain string to wire Term format."""
+    if isinstance(value, Uri):
+        return {"t": "i", "i": str(value)}
+    if isinstance(value, Literal):
+        result: Dict[str, Any] = {"t": "l", "v": str(value)}
+        if value.datatype:
+            result["dt"] = value.datatype
+        if value.language:
+            result["ln"] = value.language
+        return result
     if value.startswith("http://") or value.startswith("https://") or "://" in value:
         return {"t": "i", "i": value}
-    else:
-        result: Dict[str, Any] = {"t": "l", "v": value}
-        if datatype:
-            result["dt"] = datatype
-        if language:
-            result["ln"] = language
-        return result
+    return {"t": "l", "v": value}
 
 
 class BulkClient:
@@ -145,13 +146,9 @@ class BulkClient:
             batch = []
             for triple in triples:
                 t = {
-                    "s": _string_to_term(triple.s),
-                    "p": _string_to_term(triple.p),
-                    "o": _string_to_term(
-                        triple.o,
-                        datatype=triple.o_datatype,
-                        language=triple.o_language,
-                    ),
+                    "s": _value_to_term(triple.s),
+                    "p": _value_to_term(triple.p),
+                    "o": _value_to_term(triple.o),
                 }
                 if triple.g:
                     t["g"] = triple.g

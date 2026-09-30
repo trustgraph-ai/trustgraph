@@ -8,7 +8,23 @@ graph elements, metadata structures, and streaming response chunks.
 import dataclasses
 import datetime
 from typing import List, Optional, Dict, Any
-from .. knowledge import hash, Uri, Literal
+
+class Literal(str):
+    def __new__(cls, value, datatype=None, language=None):
+        return str.__new__(cls, value)
+    def __init__(self, value, datatype=None, language=None):
+        self.datatype = datatype
+        self.language = language
+    def is_uri(self): return False
+    def is_literal(self): return True
+    def is_triple(self): return False
+
+class Uri(str):
+    def __init__(self, value):
+        str(value)
+    def is_uri(self): return True
+    def is_literal(self): return False
+    def is_triple(self): return False
 
 @dataclasses.dataclass
 class Triple:
@@ -19,16 +35,16 @@ class Triple:
         s: Subject (entity URI or value)
         p: Predicate (relationship URI)
         o: Object (entity URI, literal value, or typed value)
-        o_datatype: XSD datatype URI for literal objects (e.g. "xsd:string")
-        o_language: Language tag for literal objects (e.g. "en", "lt")
         g: Named graph URI (e.g. "urn:graph:catalog")
     """
-    s : str
-    p : str
-    o : str
-    o_datatype : str = ""
-    o_language : str = ""
+    s : Uri | str
+    p : Uri | str
+    o : Uri | Literal | str
     g : str = ""
+
+    def is_uri(self): return False
+    def is_literal(self): return False
+    def is_triple(self): return True
 
 @dataclasses.dataclass
 class ConfigKey:

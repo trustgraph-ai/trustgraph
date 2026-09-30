@@ -124,6 +124,8 @@ class TestNquadsRoundTrip:
 
     def test_parse_nquads_preserves_term_types(self):
         """parse_nquads must preserve datatype, language and IRI-vs-literal."""
+        from trustgraph.api.types import Uri, Literal
+
         batches = [[
             {"s": iri("http://example.com/s"), "p": iri("http://example.com/typed"),
              "o": lit("42", d="http://www.w3.org/2001/XMLSchema#integer")},
@@ -142,25 +144,28 @@ class TestNquadsRoundTrip:
 
         typed = by_pred["http://example.com/typed"]
         assert typed.o == "42"
-        assert typed.o_datatype == "http://www.w3.org/2001/XMLSchema#integer"
-        assert typed.o_language == ""
+        assert isinstance(typed.o, Literal)
+        assert typed.o.datatype == "http://www.w3.org/2001/XMLSchema#integer"
+        assert typed.o.language is None
 
         tagged = by_pred["http://example.com/tagged"]
         assert tagged.o == "bonjour"
-        assert tagged.o_language == "fr"
-        assert tagged.o_datatype == ""
+        assert isinstance(tagged.o, Literal)
+        assert tagged.o.language == "fr"
+        assert tagged.o.datatype is None
 
         ref = by_pred["http://example.com/ref"]
         assert ref.o == "http://example.com/o"
-        assert ref.o_datatype == ""
-        assert ref.o_language == ""
+        assert isinstance(ref.o, Uri)
 
         string_lit = by_pred["http://example.com/str"]
         assert string_lit.o == "http://example.com/o"
-        assert string_lit.o_datatype == ""
+        assert isinstance(string_lit.o, Literal)
 
         # IRI and literal with the same lexical form must remain distinguishable
         assert ref.o == string_lit.o
+        assert isinstance(ref.o, Uri)
+        assert isinstance(string_lit.o, Literal)
 
     def test_streaming_shape_one_line_per_triple(self):
         line = triple_to_nquad(

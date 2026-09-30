@@ -4,7 +4,7 @@ import websockets
 from typing import Optional, AsyncIterator, Dict, Any, Iterator
 
 from . types import Triple
-from . bulk_client import _string_to_term
+from . bulk_client import _value_to_term
 
 
 class AsyncBulkClient:
@@ -46,13 +46,9 @@ class AsyncBulkClient:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for triple in triples:
                 t = {
-                    "s": _string_to_term(triple.s),
-                    "p": _string_to_term(triple.p),
-                    "o": _string_to_term(
-                        triple.o,
-                        datatype=triple.o_datatype,
-                        language=triple.o_language,
-                    ),
+                    "s": _value_to_term(triple.s),
+                    "p": _value_to_term(triple.p),
+                    "o": _value_to_term(triple.o),
                 }
                 if triple.g:
                     t["g"] = triple.g

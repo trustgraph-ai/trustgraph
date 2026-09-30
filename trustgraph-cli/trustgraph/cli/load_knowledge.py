@@ -9,6 +9,7 @@ import rdflib
 from typing import Iterator, Tuple
 
 from trustgraph.api import Api, Triple
+from trustgraph.api.types import Uri, Literal
 from trustgraph.log_level import LogLevel
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
@@ -44,24 +45,19 @@ class KnowledgeLoader:
         g.parse(file, format="turtle")
 
         for e in g:
-            s_value = str(e[0])
-            p_value = str(e[1])
-            o_value = str(e[2])
-
-            o_datatype = ""
-            o_language = ""
+            s_value = Uri(str(e[0]))
+            p_value = Uri(str(e[1]))
 
             if isinstance(e[2], rdflib.term.Literal):
-                if e[2].language:
-                    o_language = str(e[2].language)
-                if e[2].datatype:
-                    o_datatype = str(e[2].datatype)
+                o_value = Literal(
+                    str(e[2]),
+                    datatype=str(e[2].datatype) if e[2].datatype else None,
+                    language=str(e[2].language) if e[2].language else None,
+                )
+            else:
+                o_value = Uri(str(e[2]))
 
-            yield Triple(
-                s=s_value, p=p_value, o=o_value,
-                o_datatype=o_datatype, o_language=o_language,
-                g=self.graph,
-            )
+            yield Triple(s=s_value, p=p_value, o=o_value, g=self.graph)
 
     def load_entity_contexts_from_file(self, file) -> Iterator[Tuple[str, str]]:
         """Generator that yields (entity, context) tuples from a Turtle file"""

@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from trustgraph.api.types import ConfigValue, Triple
+from trustgraph.api.types import ConfigValue, Triple, Uri, Literal
 from trustgraph.cli.export_workspace import export_workspace
 from trustgraph.cli.import_workspace import import_workspace
 
@@ -324,10 +324,10 @@ class TestImportKnowledge:
         assert call.args[0] == "default"  # flow id
         triples = sorted(list(call.args[1]), key=lambda t: t.p)
         assert triples == [
-            Triple(s="http://ex.com/s", p="http://ex.com/count", o="42",
-                   o_datatype="http://www.w3.org/2001/XMLSchema#integer"),
-            Triple(s="http://ex.com/s", p="http://ex.com/p",
-                   o="http://ex.com/o"),
+            Triple(s=Uri("http://ex.com/s"), p=Uri("http://ex.com/count"),
+                   o=Literal("42", datatype="http://www.w3.org/2001/XMLSchema#integer")),
+            Triple(s=Uri("http://ex.com/s"), p=Uri("http://ex.com/p"),
+                   o=Uri("http://ex.com/o")),
         ]
         assert call.kwargs["metadata"]["collection"] == "research"
 
