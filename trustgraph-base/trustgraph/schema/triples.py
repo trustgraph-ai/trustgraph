@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from .core.primitives import Term, Triple, Error
 from .core.metadata import Metadata
 from .core.topic import queue
+from .user_context import UserContext
 
 ############################################################################
 
@@ -47,6 +48,7 @@ class TriplesQueryRequest:
     limit: int = 0
     streaming: bool = False  # Enable streaming mode (multiple batched responses)
     batch_size: int = 20     # Triples per batch in streaming mode
+    user_context: UserContext | None = None
 
 @dataclass
 class TriplesQueryResponse:
@@ -72,6 +74,7 @@ class SparqlQueryRequest:
     limit: int = 10000        # Safety limit on results
     streaming: bool = False   # Enable streaming mode
     batch_size: int = 20      # Bindings per batch in streaming mode
+    user_context: UserContext | None = None
 
 @dataclass
 class SparqlQueryResponse:

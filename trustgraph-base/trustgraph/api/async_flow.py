@@ -16,8 +16,8 @@ import base64
 from typing import Optional, Dict, Any, List
 
 from . types import TextCompletionResult, ImageToTextResult
-
 from . exceptions import ProtocolException, ApplicationException
+from .. base.serialization import dataclass_to_dict
 
 
 def check_error(response):
@@ -529,7 +529,8 @@ class AsyncFlowInstance:
 
     async def graph_rag(self, query: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
-                        max_entity_distance: int = 3, **kwargs: Any) -> str:
+                        max_entity_distance: int = 3,
+                        user_context=None, **kwargs: Any) -> str:
         """
         Execute graph-based RAG query (non-streaming).
 
@@ -572,6 +573,8 @@ class AsyncFlowInstance:
             "max-entity-distance": max_entity_distance,
             "streaming": False
         }
+        if user_context is not None:
+            request_data["user-context"] = dataclass_to_dict(user_context)
         request_data.update(kwargs)
 
         result = await self.request("graph-rag", request_data)
@@ -721,7 +724,8 @@ class AsyncFlowInstance:
 
         return await self.request("reranker", request_data)
 
-    async def triples_query(self, s=None, p=None, o=None, collection=None, limit=100, **kwargs: Any):
+    async def triples_query(self, s=None, p=None, o=None, collection=None, limit=100,
+                            user_context=None, **kwargs: Any):
         """
         Query RDF triples using pattern matching.
 
@@ -763,9 +767,42 @@ class AsyncFlowInstance:
             request_data["o"] = str(o)
         if collection is not None:
             request_data["collection"] = collection
+        if user_context is not None:
+            request_data["user-context"] = dataclass_to_dict(user_context)
         request_data.update(kwargs)
 
         return await self.request("triples", request_data)
+
+    async def sparql_query(self, query: str, collection: str = "default",
+                           limit: int = 10000, user_context=None,
+                           **kwargs: Any):
+        """
+        Execute a SPARQL query against the knowledge graph.
+
+        Args:
+            query: SPARQL 1.1 query string
+            collection: Collection identifier (default: "default")
+            limit: Safety limit on results (default: 10000)
+            user_context: Optional UserContext for policy-based filtering
+            **kwargs: Additional service-specific parameters
+
+        Returns:
+            dict: Query results depending on query type (SELECT, ASK,
+                CONSTRUCT, DESCRIBE)
+
+        Raises:
+            ApplicationException: If an error occurs
+        """
+        request_data = {
+            "query": query,
+            "collection": collection,
+            "limit": limit,
+        }
+        if user_context is not None:
+            request_data["user-context"] = dataclass_to_dict(user_context)
+        request_data.update(kwargs)
+
+        return await self.request("sparql", request_data)
 
     async def rows_query(self, query: str, collection: str, variables: Optional[Dict] = None,
                          operation_name: Optional[str] = None, **kwargs: Any):

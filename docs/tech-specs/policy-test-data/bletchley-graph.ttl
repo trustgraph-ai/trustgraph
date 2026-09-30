@@ -1,0 +1,424 @@
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix bp:     <http://bletchleypark.gov.uk/data/> .
+@prefix bpo:    <http://bletchleypark.gov.uk/ontology/> .
+
+# =============================================================
+# Government Code and Cypher School — Bletchley Park
+#
+# WWII signals intelligence establishment. Extreme
+# compartmentalisation between sections (Huts). Personnel in
+# one Hut typically had no knowledge of work in adjacent Huts.
+#
+# Based on the real organisational structure, 1941-1944.
+# =============================================================
+
+# -------------------------------------------------------------
+# Organisation
+# -------------------------------------------------------------
+
+bp:GC_CS a bpo:Organisation ;
+    rdfs:label "Government Code and Cypher School" ;
+    rdfs:comment "British signals intelligence organisation, headquartered at Bletchley Park." ;
+    bpo:covername "Station X" ;
+    bpo:parentOrganisation bp:SIS .
+
+bp:SIS a bpo:Organisation ;
+    rdfs:label "Secret Intelligence Service" ;
+    rdfs:comment "MI6. Parent organisation of GC&CS." .
+
+# -------------------------------------------------------------
+# Classification Levels
+# -------------------------------------------------------------
+
+bp:Restricted a bpo:Classification ;
+    rdfs:label "Restricted" ;
+    rdfs:comment "Low-sensitivity administrative and logistical information." .
+
+bp:Secret a bpo:Classification ;
+    rdfs:label "Secret" ;
+    rdfs:comment "Operational intelligence. Compartmentalised by section." .
+
+bp:MostSecret a bpo:Classification ;
+    rdfs:label "Most Secret" ;
+    rdfs:comment "Highest standard classification. Methods and sources." .
+
+bp:Ultra a bpo:Classification ;
+    rdfs:label "Ultra" ;
+    rdfs:comment "Above Most Secret. Derived from high-grade signals intelligence. Knowledge of Ultra's existence is itself Ultra." .
+
+# -------------------------------------------------------------
+# Sections (Huts)
+# -------------------------------------------------------------
+
+bp:Hut_6 a bpo:Section ;
+    rdfs:label "Hut 6" ;
+    rdfs:comment "Army and Air Force Enigma cryptanalysis." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:sectionHead bp:person_welchman ;
+    bpo:function "Cryptanalysis" ;
+    bpo:target "Wehrmacht and Luftwaffe Enigma traffic" .
+
+bp:Hut_8 a bpo:Section ;
+    rdfs:label "Hut 8" ;
+    rdfs:comment "Naval Enigma cryptanalysis." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:sectionHead bp:person_turing ;
+    bpo:function "Cryptanalysis" ;
+    bpo:target "Kriegsmarine Enigma traffic" .
+
+bp:Hut_3 a bpo:Section ;
+    rdfs:label "Hut 3" ;
+    rdfs:comment "Intelligence analysis and translation of Army/Air Force decrypts from Hut 6." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:function "Intelligence Analysis" ;
+    bpo:receivesFrom bp:Hut_6 .
+
+bp:Hut_4 a bpo:Section ;
+    rdfs:label "Hut 4" ;
+    rdfs:comment "Intelligence analysis and translation of Naval decrypts from Hut 8." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:function "Intelligence Analysis" ;
+    bpo:receivesFrom bp:Hut_8 .
+
+bp:Hut_11 a bpo:Section ;
+    rdfs:label "Hut 11" ;
+    rdfs:comment "Bombe machine operations. Serves cryptanalysis sections." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:function "Machine Operations" ;
+    bpo:servesSection bp:Hut_6 ;
+    bpo:servesSection bp:Hut_8 .
+
+bp:Testery a bpo:Section ;
+    rdfs:label "The Testery" ;
+    rdfs:comment "Lorenz cipher hand-breaking. Named after Major Ralph Tester." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:function "Cryptanalysis" ;
+    bpo:target "Lorenz SZ40/42 (Tunny) traffic" .
+
+bp:Newmanry a bpo:Section ;
+    rdfs:label "The Newmanry" ;
+    rdfs:comment "Machine-based Lorenz cipher attack using Colossus. Named after Max Newman." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:sectionHead bp:person_newman ;
+    bpo:function "Machine Cryptanalysis" ;
+    bpo:target "Lorenz SZ40/42 (Tunny) traffic" .
+
+bp:ISK a bpo:Section ;
+    rdfs:label "ISK — Illicit Signals Knox" ;
+    rdfs:comment "Abwehr Enigma traffic. Named after Dilly Knox." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:function "Cryptanalysis" ;
+    bpo:target "Abwehr (German military intelligence) Enigma traffic" .
+
+bp:Directorate a bpo:Section ;
+    rdfs:label "Directorate" ;
+    rdfs:comment "Overall command and administration of Bletchley Park." ;
+    bpo:partOf bp:GC_CS ;
+    bpo:sectionHead bp:person_travis .
+
+# =============================================================
+# RESTRICTED — Administrative and Logistical
+# =============================================================
+
+bp:StaffRoster_1943 a bpo:AdministrativeRecord ;
+    rdfs:label "Staff Roster — 1943" ;
+    rdfs:comment "Personnel listing by section. Names and roles only." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Restricted ;
+    bpo:date "1943-06-01"^^xsd:date .
+
+bp:BilletingArrangements a bpo:AdministrativeRecord ;
+    rdfs:label "Billeting Arrangements — Buckinghamshire" ;
+    rdfs:comment "Accommodation assignments for civilian staff." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Restricted .
+
+bp:TransportSchedule a bpo:AdministrativeRecord ;
+    rdfs:label "Transport Schedule — Bletchley Station" ;
+    rdfs:comment "Bus and rail connections for shift workers." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Restricted .
+
+# =============================================================
+# SECRET — Operational Intelligence (Compartmentalised)
+# =============================================================
+
+# --- Hut 6 / Hut 3: Army & Air Force ---
+
+bp:Hut6_DailyReport_19430615 a bpo:IntelligenceReport ;
+    rdfs:label "Hut 6 Daily Cryptanalytic Report — 15 Jun 1943" ;
+    rdfs:comment "Daily summary of Wehrmacht Enigma breaks and key recoveries." ;
+    bpo:section bp:Hut_6 ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-06-15"^^xsd:date ;
+    bpo:relatesTo bp:Op_Kursk_Signals .
+
+bp:Hut3_IntelSummary_19430615 a bpo:IntelligenceReport ;
+    rdfs:label "Hut 3 Intelligence Summary — 15 Jun 1943" ;
+    rdfs:comment "Translated and analysed intelligence product from Hut 6 decrypts." ;
+    bpo:section bp:Hut_3 ;
+    bpo:classification bp:Secret ;
+    bpo:derivedFrom bp:Hut6_DailyReport_19430615 ;
+    bpo:date "1943-06-15"^^xsd:date ;
+    bpo:relatesTo bp:Op_Kursk_Signals .
+
+bp:Op_Kursk_Signals a bpo:Operation ;
+    rdfs:label "Operation Citadel — Signals Intelligence" ;
+    rdfs:comment "Intercepts of German preparations for the Kursk offensive." ;
+    bpo:section bp:Hut_6 ;
+    bpo:classification bp:Secret ;
+    bpo:operationName "Citadel signals collection" ;
+    bpo:theatre "Eastern Front" .
+
+bp:Hut6_BombeMenu_Kursk a bpo:CryptanalyticMaterial ;
+    rdfs:label "Bombe Menu — Kursk Army Keys" ;
+    rdfs:comment "Bombe menu (crib-based wiring specification) for Wehrmacht Enigma keys used in Kursk sector." ;
+    bpo:section bp:Hut_6 ;
+    bpo:classification bp:Secret ;
+    bpo:relatesTo bp:Op_Kursk_Signals ;
+    bpo:usedBy bp:Hut_11 .
+
+bp:Luftwaffe_OrderOfBattle a bpo:IntelligenceReport ;
+    rdfs:label "Luftwaffe Order of Battle — Eastern Front" ;
+    rdfs:comment "Compiled from Hut 6 decrypts. Squadron dispositions and strength returns." ;
+    bpo:section bp:Hut_3 ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-06-20"^^xsd:date .
+
+# --- Hut 8 / Hut 4: Naval ---
+
+bp:Hut8_DailyReport_19430615 a bpo:IntelligenceReport ;
+    rdfs:label "Hut 8 Daily Cryptanalytic Report — 15 Jun 1943" ;
+    rdfs:comment "Daily summary of Kriegsmarine Enigma breaks and U-boat key recoveries." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-06-15"^^xsd:date ;
+    bpo:relatesTo bp:Op_Atlantic_Convoy .
+
+bp:Hut4_NavalIntel_19430615 a bpo:IntelligenceReport ;
+    rdfs:label "Hut 4 Naval Intelligence Summary — 15 Jun 1943" ;
+    rdfs:comment "Translated naval intelligence from Hut 8 decrypts. U-boat patrol assignments." ;
+    bpo:section bp:Hut_4 ;
+    bpo:classification bp:Secret ;
+    bpo:derivedFrom bp:Hut8_DailyReport_19430615 ;
+    bpo:date "1943-06-15"^^xsd:date ;
+    bpo:relatesTo bp:Op_Atlantic_Convoy .
+
+bp:Op_Atlantic_Convoy a bpo:Operation ;
+    rdfs:label "Battle of the Atlantic — Convoy Routing" ;
+    rdfs:comment "Signals intelligence supporting convoy routing to avoid U-boat wolf packs." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:Secret ;
+    bpo:operationName "Atlantic convoy protection" ;
+    bpo:theatre "Atlantic" .
+
+bp:Hut8_BombeMenu_Shark a bpo:CryptanalyticMaterial ;
+    rdfs:label "Bombe Menu — Shark (4-rotor Naval Enigma)" ;
+    rdfs:comment "Crib-based attack specification for the four-rotor Naval Enigma variant." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:Secret ;
+    bpo:relatesTo bp:Op_Atlantic_Convoy ;
+    bpo:usedBy bp:Hut_11 .
+
+bp:UBoat_Dispositions_Jun43 a bpo:IntelligenceReport ;
+    rdfs:label "U-Boat Dispositions — June 1943" ;
+    rdfs:comment "Known positions and patrol areas of Atlantic U-boat fleet." ;
+    bpo:section bp:Hut_4 ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-06-18"^^xsd:date ;
+    bpo:relatesTo bp:Op_Atlantic_Convoy .
+
+# --- ISK: Abwehr ---
+
+bp:ISK_DoubleAgent_Garbo a bpo:CounterIntelligence ;
+    rdfs:label "GARBO Network — Abwehr Decrypts" ;
+    rdfs:comment "Decrypted Abwehr communications confirming German trust in double agent GARBO." ;
+    bpo:section bp:ISK ;
+    bpo:classification bp:Secret ;
+    bpo:operationName "GARBO network validation" ;
+    bpo:relatesTo bp:Op_Fortitude .
+
+bp:Op_Fortitude a bpo:Operation ;
+    rdfs:label "Operation Fortitude" ;
+    rdfs:comment "Strategic deception plan for the Normandy invasion. Dependent on Abwehr Enigma intelligence from ISK." ;
+    bpo:section bp:ISK ;
+    bpo:classification bp:Secret ;
+    bpo:theatre "Western Europe" .
+
+# --- Testery / Newmanry: Lorenz ---
+
+bp:Testery_FishBreak_19430801 a bpo:CryptanalyticMaterial ;
+    rdfs:label "Testery Fish Break — 1 Aug 1943" ;
+    rdfs:comment "Hand-break of Lorenz key settings for the Jellyfish link (Berlin-Rome)." ;
+    bpo:section bp:Testery ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-08-01"^^xsd:date ;
+    bpo:relatesTo bp:Op_Lorenz_Strategic .
+
+bp:Colossus_WheelSetting_Report a bpo:CryptanalyticMaterial ;
+    rdfs:label "Colossus Wheel-Setting Report — Jellyfish Link" ;
+    rdfs:comment "Machine-derived Lorenz wheel starting positions from Colossus Mark I." ;
+    bpo:section bp:Newmanry ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-12-15"^^xsd:date ;
+    bpo:relatesTo bp:Op_Lorenz_Strategic .
+
+bp:Op_Lorenz_Strategic a bpo:Operation ;
+    rdfs:label "Lorenz Strategic Intelligence" ;
+    rdfs:comment "Decryption of German high command (OKW) teleprinter traffic. Hitler's personal communications to theatre commanders." ;
+    bpo:section bp:Testery ;
+    bpo:classification bp:Secret ;
+    bpo:operationName "Fish traffic collection" ;
+    bpo:theatre "All theatres" .
+
+bp:Lorenz_Decrypt_Hitler_Mussolini a bpo:IntelligenceReport ;
+    rdfs:label "Decrypt — Hitler-Mussolini Conference Summary" ;
+    rdfs:comment "Decrypted Lorenz message summarising strategic decisions from Hitler-Mussolini meeting." ;
+    bpo:section bp:Testery ;
+    bpo:classification bp:Secret ;
+    bpo:date "1943-07-25"^^xsd:date ;
+    bpo:derivedFrom bp:Testery_FishBreak_19430801 ;
+    bpo:relatesTo bp:Op_Lorenz_Strategic .
+
+# =============================================================
+# MOST SECRET — Methods and Sources
+# =============================================================
+
+bp:Enigma_Wiring_Diagram a bpo:TechnicalDocument ;
+    rdfs:label "Enigma Machine — Rotor Wiring Diagrams" ;
+    rdfs:comment "Complete wiring specifications for all known Enigma rotor variants." ;
+    bpo:section bp:Hut_6 ;
+    bpo:classification bp:MostSecret .
+
+bp:Bombe_Operating_Procedures a bpo:TechnicalDocument ;
+    rdfs:label "Bombe Operating Procedures" ;
+    rdfs:comment "Operating manual for the Turing-Welchman Bombe. Machine specifications and maintenance." ;
+    bpo:section bp:Hut_11 ;
+    bpo:classification bp:MostSecret ;
+    bpo:usedBy bp:Hut_11 .
+
+bp:FourRotor_Bombe_Design a bpo:TechnicalDocument ;
+    rdfs:label "Four-Rotor Bombe — Design Specification" ;
+    rdfs:comment "Engineering drawings for the high-speed four-rotor Bombe to attack Shark." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:MostSecret ;
+    bpo:relatesTo bp:Op_Atlantic_Convoy .
+
+bp:Banburismus_Method a bpo:CryptanalyticMethod ;
+    rdfs:label "Banburismus — Statistical Attack Method" ;
+    rdfs:comment "Turing's sequential statistical technique for eliminating Enigma rotor orders before Bombe runs." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:MostSecret ;
+    bpo:inventor bp:person_turing .
+
+bp:Crib_Methodology_Manual a bpo:CryptanalyticMethod ;
+    rdfs:label "Crib Methodology — Standard Procedures" ;
+    rdfs:comment "Procedures for identifying and exploiting known-plaintext cribs in Enigma traffic." ;
+    bpo:section bp:Hut_6 ;
+    bpo:classification bp:MostSecret .
+
+# =============================================================
+# ULTRA — Existence and Methods of High-Grade SIGINT
+# =============================================================
+
+bp:Colossus_Design_Specs a bpo:TechnicalDocument ;
+    rdfs:label "Colossus Mark I — Design Specifications" ;
+    rdfs:comment "Circuit diagrams and logical design for the world's first programmable electronic computer." ;
+    bpo:section bp:Newmanry ;
+    bpo:classification bp:Ultra ;
+    bpo:designer bp:person_flowers .
+
+bp:Colossus_MarkII_Upgrades a bpo:TechnicalDocument ;
+    rdfs:label "Colossus Mark II — Upgrade Specifications" ;
+    rdfs:comment "Enhancements for D-Day deadline. Five-fold speed improvement over Mark I." ;
+    bpo:section bp:Newmanry ;
+    bpo:classification bp:Ultra ;
+    bpo:designer bp:person_flowers ;
+    bpo:date "1944-06-01"^^xsd:date .
+
+bp:Ultra_Dissemination_Protocol a bpo:PolicyDocument ;
+    rdfs:label "Ultra Dissemination Protocol" ;
+    rdfs:comment "Rules governing the distribution of Ultra-derived intelligence to field commanders. Strict need-to-know with cover stories mandatory." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Ultra .
+
+bp:SLU_Procedures a bpo:PolicyDocument ;
+    rdfs:label "Special Liaison Unit Procedures" ;
+    rdfs:comment "Procedures for SLU officers attached to field commands for delivering Ultra intelligence." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Ultra .
+
+bp:Ultra_Source_Protection_Report a bpo:IntelligenceReport ;
+    rdfs:label "Source Protection Assessment — June 1943" ;
+    rdfs:comment "Assessment of whether German forces suspect their Enigma traffic is being read." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Ultra ;
+    bpo:date "1943-06-25"^^xsd:date .
+
+bp:Y_Station_Network a bpo:TechnicalDocument ;
+    rdfs:label "Y Station Intercept Network — Coverage Map" ;
+    rdfs:comment "Locations and frequency assignments of wireless intercept stations feeding Bletchley Park." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Ultra .
+
+# =============================================================
+# Key Personnel (as graph entities)
+# =============================================================
+
+bp:person_turing a bpo:Person ;
+    rdfs:label "Alan Turing" ;
+    rdfs:comment "Head of Hut 8. Naval Enigma cryptanalysis." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Temporary civil servant" .
+
+bp:person_welchman a bpo:Person ;
+    rdfs:label "Gordon Welchman" ;
+    rdfs:comment "Head of Hut 6. Army/Air Force Enigma. Co-inventor of the diagonal board for the Bombe." ;
+    bpo:section bp:Hut_6 ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Temporary civil servant" .
+
+bp:person_travis a bpo:Person ;
+    rdfs:label "Sir Edward Travis" ;
+    rdfs:comment "Director of GC&CS from February 1942." ;
+    bpo:section bp:Directorate ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Director" .
+
+bp:person_newman a bpo:Person ;
+    rdfs:label "Max Newman" ;
+    rdfs:comment "Head of the Newmanry. Directed machine-based attack on Lorenz cipher." ;
+    bpo:section bp:Newmanry ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Temporary civil servant" .
+
+bp:person_flowers a bpo:Person ;
+    rdfs:label "Tommy Flowers" ;
+    rdfs:comment "Post Office engineer. Designed and built Colossus." ;
+    bpo:section bp:Newmanry ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Engineer, General Post Office" .
+
+bp:person_knox a bpo:Person ;
+    rdfs:label "Dilly Knox" ;
+    rdfs:comment "Chief cryptanalyst, ISK. Broke Abwehr Enigma variant." ;
+    bpo:section bp:ISK ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Senior cryptanalyst" .
+
+bp:person_tester a bpo:Person ;
+    rdfs:label "Major Ralph Tester" ;
+    rdfs:comment "Head of the Testery. Lorenz hand-breaking section." ;
+    bpo:section bp:Testery ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Major" .
+
+bp:person_alexander a bpo:Person ;
+    rdfs:label "Hugh Alexander" ;
+    rdfs:comment "Deputy head, Hut 8. Succeeded Turing as head." ;
+    bpo:section bp:Hut_8 ;
+    bpo:classification bp:Restricted ;
+    bpo:rank "Temporary civil servant" .

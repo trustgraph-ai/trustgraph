@@ -11,6 +11,7 @@ import base64
 
 from .. knowledge import hash, Uri, Literal, QuotedTriple
 from .. schema import IRI, LITERAL, TRIPLE
+from .. base.serialization import dataclass_to_dict
 from . types import Triple, TextCompletionResult, ImageToTextResult
 from . exceptions import ProtocolException
 
@@ -406,6 +407,7 @@ class FlowInstance:
             entity_limit=50, triple_limit=30, max_subgraph_size=150,
             max_path_length=2, edge_score_limit=30, edge_limit=25,
             max_reranker_input=350,
+            user_context=None,
     ):
         """
         Execute graph-based Retrieval-Augmented Generation (RAG) query.
@@ -451,6 +453,9 @@ class FlowInstance:
             "edge-limit": edge_limit,
             "max-reranker-input": max_reranker_input,
         }
+
+        if user_context is not None:
+            input["user-context"] = dataclass_to_dict(user_context)
 
         result = self.request(
             "service/graph-rag",
@@ -772,7 +777,8 @@ class FlowInstance:
 
     def triples_query(
             self, s=None, p=None, o=None, g=None,
-            collection=None, limit=10000
+            collection=None, limit=10000,
+            user_context=None,
     ):
         """
         Query knowledge graph triples using pattern matching.
@@ -847,6 +853,9 @@ class FlowInstance:
 
         if g is not None:
             input["g"] = g
+
+        if user_context is not None:
+            input["user-context"] = dataclass_to_dict(user_context)
 
         object = self.request(
             "service/triples",
@@ -1103,7 +1112,8 @@ class FlowInstance:
 
     def sparql_query(
             self, query,collection="default",
-            limit=10000
+            limit=10000,
+            user_context=None,
     ):
         """
         Execute a SPARQL query against the knowledge graph.
@@ -1128,6 +1138,9 @@ class FlowInstance:
             "collection": collection,
             "limit": limit,
         }
+
+        if user_context is not None:
+            input["user-context"] = dataclass_to_dict(user_context)
 
         response = self.request("service/sparql", input)
 

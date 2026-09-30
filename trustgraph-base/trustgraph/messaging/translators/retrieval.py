@@ -1,5 +1,7 @@
 from typing import Dict, Any, Tuple
 from ...schema import DocumentRagQuery, DocumentRagResponse, GraphRagQuery, GraphRagResponse
+from ...schema import UserContext
+from ...base.serialization import dict_to_dataclass, dataclass_to_dict
 from .base import MessageTranslator
 from .primitives import TripleTranslator
 
@@ -94,6 +96,7 @@ class GraphRagRequestTranslator(MessageTranslator):
     """Translator for GraphRagQuery schema objects"""
 
     def decode(self, data: Dict[str, Any]) -> GraphRagQuery:
+        uc = data.get("user-context")
         return GraphRagQuery(
             query=data["query"],
             collection=data.get("collection", "default"),
@@ -104,11 +107,12 @@ class GraphRagRequestTranslator(MessageTranslator):
             edge_score_limit=int(data.get("edge-score-limit", 30)),
             edge_limit=int(data.get("edge-limit", 25)),
             max_reranker_input=int(data.get("max-reranker-input", 350)),
-            streaming=data.get("streaming", False)
+            streaming=data.get("streaming", False),
+            user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
     def encode(self, obj: GraphRagQuery) -> Dict[str, Any]:
-        return {
+        result = {
             "query": obj.query,
             "collection": obj.collection,
             "entity-limit": obj.entity_limit,
@@ -118,8 +122,11 @@ class GraphRagRequestTranslator(MessageTranslator):
             "edge-score-limit": obj.edge_score_limit,
             "edge-limit": obj.edge_limit,
             "max-reranker-input": obj.max_reranker_input,
-            "streaming": getattr(obj, "streaming", False)
+            "streaming": getattr(obj, "streaming", False),
         }
+        if obj.user_context is not None:
+            result["user-context"] = dataclass_to_dict(obj.user_context)
+        return result
 
 
 class GraphRagResponseTranslator(MessageTranslator):
