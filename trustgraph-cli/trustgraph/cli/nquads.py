@@ -13,7 +13,7 @@ import re
 import rdflib
 
 from trustgraph.schema import IRI, LITERAL
-from trustgraph.api.types import Triple
+from trustgraph.api.types import Triple, Uri, Literal
 
 # RDF-star quoted triples have no standard N-Quads encoding; they are
 # skipped with a count so callers can surface the omission.
@@ -150,22 +150,24 @@ def serialize_nquads(batches, graph_iri, out):
     return written, skipped
 
 
-def _term_to_triple_field(term):
-    """Convert an rdflib term to (str_value, datatype, language)."""
+def _rdflib_to_object(term):
+    """Convert an rdflib term to a Uri or Literal."""
     if isinstance(term, rdflib.Literal):
-        dt = str(term.datatype) if term.datatype else ""
-        lang = str(term.language) if term.language else ""
-        return str(term), dt, lang
-    return str(term), "", ""
+        return Literal(
+            str(term),
+            datatype=str(term.datatype) if term.datatype else None,
+            language=str(term.language) if term.language else None,
+        )
+    return Uri(str(term))
 
 
 def parse_nquads(data):
     """Parse N-Quads bytes back into api Triple values.
 
     Preserves datatype, language tag and IRI-vs-literal distinctions
-    via the Triple.o_datatype and Triple.o_language fields. The whole
-    member is materialized in memory (bundles are bounded by
-    --triples-limit at export); line-streaming is a possible follow-up.
+    via Literal's datatype and language attributes. The whole member is
+    materialized in memory (bundles are bounded by --triples-limit at
+    export); line-streaming is a possible follow-up.
 
     :param data: N-Quads bytes (one bundle member)
     :returns: list of Triple
@@ -174,9 +176,9 @@ def parse_nquads(data):
     ds.parse(data=data.decode("utf-8"), format="nquads")
     result = []
     for s, p, o, _g in ds.quads((None, None, None, None)):
-        o_val, o_dt, o_lang = _term_to_triple_field(o)
         result.append(Triple(
-            s=str(s), p=str(p), o=o_val,
-            o_datatype=o_dt, o_language=o_lang,
+            s=Uri(str(s)),
+            p=Uri(str(p)),
+            o=_rdflib_to_object(o),
         ))
     return result
