@@ -129,7 +129,8 @@ def build_mock_clients():
 
     # 5. Label resolution - return entity as its own label (simplify)
     async def mock_label_query(s=None, p=None, o=None, limit=1,
-                               user=None, collection=None, g=None):
+                               collection=None, g=None,
+                               user_context=None):
         return []  # No labels found, will fall back to URI
     triples_client.query.side_effect = mock_label_query
 
@@ -564,7 +565,8 @@ def build_source_tracing_clients(fail_tracing=False):
         return SUBGRAPH_A if t.s.iri == ENTITY_A else SUBGRAPH_B
 
     async def mock_query(s=None, p=None, o=None, limit=1,
-                         user=None, collection=None, g=None):
+                         collection=None, g=None,
+                         user_context=None):
         if p == TG_CONTAINS and o is not None:
             if fail_tracing:
                 raise RuntimeError("triple store unavailable")
