@@ -295,7 +295,8 @@ class TestQuery:
             o=None,
             limit=1,
             collection="test_collection",
-            g=""
+            g="",
+            user_context=None,
         )
 
         assert result == "Human Readable Label"
@@ -328,7 +329,8 @@ class TestQuery:
             o=None,
             limit=1,
             collection="test_collection",
-            g=""
+            g="",
+            user_context=None,
         )
 
         assert result == "unlabeled_entity"
