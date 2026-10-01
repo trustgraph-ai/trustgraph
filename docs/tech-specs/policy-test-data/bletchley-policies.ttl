@@ -96,16 +96,13 @@ tg-pol:UltraBarrierPolicy a sh:NodeShape ;
         sh:prefixes tg-pol:BletchleyPrefixes ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:UltraBarrierPolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Violation ;
-                    tg-pol:reason "Security barrier: personnel without Ultra clearance attempted access to Ultra material." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:UltraBarrierPolicy ;
+                    sh:resultSeverity tg-pol:Violation ;
+                    sh:resultMessage "Security barrier: personnel without Ultra clearance attempted access to Ultra material." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .
@@ -165,16 +162,13 @@ tg-pol:HutCompartmentalisationPolicy a sh:NodeShape ;
         sh:prefixes tg-pol:BletchleyPrefixes ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:HutCompartmentalisationPolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Filtered ;
-                    tg-pol:reason "Compartmentalisation: data belongs to a section the user is not assigned to." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:HutCompartmentalisationPolicy ;
+                    sh:resultSeverity tg-pol:Filtered ;
+                    sh:resultMessage "Compartmentalisation: data belongs to a section the user is not assigned to." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .
@@ -221,16 +215,13 @@ tg-pol:ClassificationClearancePolicy a sh:NodeShape ;
         sh:prefixes tg-pol:BletchleyPrefixes ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:ClassificationClearancePolicy ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Filtered ;
-                    tg-pol:reason "Clearance insufficient for Most Secret material." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:ClassificationClearancePolicy ;
+                    sh:resultSeverity tg-pol:Filtered ;
+                    sh:resultMessage "Clearance insufficient for Most Secret material." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .
@@ -282,16 +273,13 @@ tg-pol:MethodsSourcesSeparation a sh:NodeShape ;
         sh:prefixes tg-pol:BletchleyPrefixes ;
         sh:construct """
             CONSTRUCT {
-                _:det a tg-pol:PolicyEvaluation ;
-                    tg-pol:evaluatedPolicy tg-pol:MethodsSourcesSeparation ;
-                    tg-pol:evaluatedNode $this ;
-                    tg-pol:determination tg-pol:Filtered ;
-                    tg-pol:reason "Methods/sources separation: cryptanalytic methods and technical documents filtered from intelligence analysts." ;
-                    tg-pol:evaluatedAt ?now .
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:MethodsSourcesSeparation ;
+                    sh:resultSeverity tg-pol:Filtered ;
+                    sh:resultMessage "Methods/sources separation: cryptanalytic methods and technical documents filtered from intelligence analysts." .
             }
-            WHERE {
-                BIND(NOW() AS ?now)
-            }
+            WHERE { }
         """ ;
         sh:order 1
     ] .

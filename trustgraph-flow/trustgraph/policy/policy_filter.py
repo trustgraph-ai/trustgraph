@@ -22,7 +22,8 @@ Policy evaluation flow:
        b. Build a tiny evaluation graph (node props + user context)
        c. Run each policy's SPARQL SELECT in precedence order
        d. First matching policy wins — its determination applies
-    4. Filter out nodes with Filtered or Violation determinations
+    4. Apply determinations: Notify passes through (with event),
+       Filtered and Violation remove the node's triples
 """
 
 import re
@@ -46,8 +47,9 @@ POLICY_GRAPH = "urn:graph:policy"
 
 class PolicyEvaluation:
     """Result of evaluating a node against a policy."""
-    def __init__(self, node_iri, policy_label, determination):
+    def __init__(self, node_iri, policy_uri, policy_label, determination):
         self.node_iri = node_iri
+        self.policy_uri = policy_uri
         self.policy_label = policy_label
         self.determination = determination
 
@@ -75,8 +77,8 @@ class PolicyFilter:
         Args:
             query_fn: async fn(s, p, o, collection, g) -> list[Triple]
             on_evaluation: async fn(PolicyEvaluation) -> None
-                Telemetry callback, called for every Filtered or
-                Violation determination. No-op if None.
+                Called for every determination (Notify, Filtered,
+                or Violation). No-op if None.
         """
         self.query_fn = query_fn
         self.on_evaluation = on_evaluation
@@ -122,9 +124,10 @@ class PolicyFilter:
                 node_iri, collection, context_graph,
             )
             if evaluation:
-                blocked_iris.add(node_iri)
                 if self.on_evaluation:
                     await self.on_evaluation(evaluation)
+                if evaluation.determination != "Notify":
+                    blocked_iris.add(node_iri)
 
         if not blocked_iris:
             return triples
@@ -460,6 +463,7 @@ class PolicyFilter:
             ):
                 return PolicyEvaluation(
                     node_iri=node_iri,
+                    policy_uri=policy.uri,
                     policy_label=policy.label,
                     determination=policy.determination,
                 )
