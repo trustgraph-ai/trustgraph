@@ -155,9 +155,17 @@ A policy expressed as a SHACL-AF shape has four parts:
 2. **Condition** — prerequisites that must hold before the rule
    fires (`sh:condition` referencing other shapes)
 3. **Rule body** — the evaluation logic (`sh:SPARQLRule` with a
-   CONSTRUCT query, or `sh:TripleRule` with node expressions)
-4. **Determination** — the output triples, inferred into the
-   policy evaluation graph
+   CONSTRUCT query producing `sh:ValidationResult` triples)
+4. **Determination** — the `sh:resultSeverity` IRI and
+   `tg-pol:blocks` boolean from the ValidationResult, which
+   control the audit event and filtering action
+
+The policy engine executes both the SELECT target (to identify
+matching nodes) and the CONSTRUCT rule (to produce the
+determination). The CONSTRUCT output is parsed for
+`sh:resultSeverity`, `sh:resultMessage`, and `tg-pol:blocks`
+— these drive the filtering decision and the policy audit
+event payload.
 
 ### Interaction with user context
 
@@ -171,3 +179,16 @@ The user context lives in an ephemeral named graph for the
 duration of the query. Policies live in `urn:graph:policy`. The
 data lives in the default graph (or domain-specific named
 graphs). The SHACL engine evaluates rules across all three.
+
+### Policy enforcement mode
+
+The presence of policies in `urn:graph:policy` determines
+whether user context is required. If policies exist, every
+request to the policy-filtered query service must include a
+`user_context` — requests without one are rejected as
+validation errors. If no policies are loaded, `user_context`
+is optional and the service operates in open mode.
+
+This means existing deployments without policies continue to
+work unchanged. Loading policies into the policy graph is the
+explicit opt-in to enforcement.

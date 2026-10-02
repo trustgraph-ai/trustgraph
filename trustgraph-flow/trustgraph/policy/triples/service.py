@@ -11,6 +11,7 @@ service.
 """
 
 import logging
+from uuid import uuid4
 
 from ... schema import (
     TriplesQueryRequest, TriplesQueryResponse,
@@ -113,10 +114,25 @@ class Processor(FlowProcessor):
 
             triples = resp.triples or []
 
-            if request.user_context:
-                triples = await self._apply_policy(
-                    triples, request, workspace, triples_client,
+            triples = await self._apply_policy(
+                triples, request, workspace, triples_client,
+            )
+
+            if triples is None:
+                await flow("response").send(
+                    TriplesQueryResponse(
+                        error=Error(
+                            type="policy-enforcement-error",
+                            message=(
+                                "Policies are active but no "
+                                "user_context was provided."
+                            ),
+                        ),
+                        triples=None,
+                    ),
+                    properties={"id": id},
                 )
+                return
 
             r = TriplesQueryResponse(triples=triples, error=None)
             await flow("response").send(r, properties={"id": id})
@@ -144,6 +160,10 @@ class Processor(FlowProcessor):
 
     async def _apply_policy(self, triples, request, workspace,
                             triples_client):
+        """Apply policy filtering. Returns filtered triples, or None
+        if enforcement mode rejects the request (policies exist but
+        no user_context).
+        """
 
         evaluations = []
 
@@ -167,6 +187,14 @@ class Processor(FlowProcessor):
             on_evaluation=on_evaluation,
         )
 
+        await policy_filter.load_policies(request.collection)
+
+        if policy_filter.has_policies() and not request.user_context:
+            return None
+
+        if not request.user_context:
+            return triples
+
         filtered = await policy_filter.apply(
             triples, request.collection, request.user_context,
         )
@@ -175,6 +203,7 @@ class Processor(FlowProcessor):
             await self.policy_event_publisher.emit_evaluations(
                 evaluations=evaluations,
                 user_context=request.user_context,
+                request_id=str(uuid4()),
                 query_s=self._term_str(request.s),
                 query_p=self._term_str(request.p),
                 query_o=self._term_str(request.o),

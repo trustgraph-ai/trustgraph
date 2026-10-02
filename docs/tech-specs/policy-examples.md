@@ -8,8 +8,9 @@ parent: "Tech Specs"
 
 Worked examples of SHACL-AF policy shapes demonstrating different
 access control patterns. Each example includes the SPARQL target
-(which nodes match) and a CONSTRUCT rule (which produces the
-policy evaluation record).
+(which nodes match) and a CONSTRUCT rule (which produces an
+`sh:ValidationResult` with the determination, reason, and
+blocking behaviour).
 
 See also:
 - [Policy Filtering Overview](policy-filtering.md) — problem
@@ -26,8 +27,8 @@ See also:
 A policy that restricts query results to triples whose subject
 matches a resource assigned to the requesting user. This is the
 generalised form of the hard-coded demo policy currently in the
-codebase. The determination is `Filtered` — this is routine
-over-retrieval trimming, not a security event.
+codebase. The determination is `tg-pol:Filtered` — this is
+routine over-retrieval trimming, not a security event.
 
 ```turtle
 @prefix tg-pol: <https://trustgraph.ai/ontology/policy/> .
@@ -39,7 +40,6 @@ over-retrieval trimming, not a security event.
 tg-pol:AssignmentSubjectAllowlist a sh:NodeShape ;
     rdfs:label "Assignment-based subject allowlist" ;
     rdfs:comment "When the user has resource assignments, only triples whose subject IRI matches an assigned resource are returned. Non-matching triples are filtered as routine over-retrieval." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 1 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -70,7 +70,8 @@ tg-pol:AssignmentSubjectAllowlist a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:AssignmentSubjectAllowlist ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Subject not in user's assigned resources." .
+                    sh:resultMessage "Subject not in user's assigned resources." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -83,8 +84,8 @@ tg-pol:AssignmentSubjectAllowlist a sh:NodeShape ;
 A policy that blocks access to information associated with the
 opposing side of a deal the user is assigned to. Demonstrates
 multi-hop graph traversal and negation. The determination is
-`Violation` — crossing a Chinese Wall is a security event, not
-routine over-retrieval.
+`tg-pol:Violation` — crossing a Chinese Wall is a security
+event, not routine over-retrieval.
 
 ```turtle
 @prefix tg-pol: <https://trustgraph.ai/ontology/policy/> .
@@ -97,7 +98,6 @@ routine over-retrieval.
 tg-pol:ChineseWallPolicy a sh:NodeShape ;
     rdfs:label "Chinese wall information barrier" ;
     rdfs:comment "Blocks access to deal information when the user is assigned to the opposing side of the same deal. Does not fire if the user has clean team status. Produces a Violation determination — this is a security event." ;
-    tg-pol:producesDetermination tg-pol:Violation ;
     sh:order 0 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -131,7 +131,8 @@ tg-pol:ChineseWallPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:ChineseWallPolicy ;
                     sh:resultSeverity tg-pol:Violation ;
-                    sh:resultMessage "Chinese wall: user is on the opposing side of this deal." .
+                    sh:resultMessage "Chinese wall: user is on the opposing side of this deal." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -143,7 +144,7 @@ tg-pol:ChineseWallPolicy a sh:NodeShape ;
 
 A policy that restricts visibility to triples within the user's
 organisational unit. Demonstrates role-scoped activation using
-`tg-pol:appliesTo`. The determination is `Filtered` — an
+`tg-pol:appliesTo`. The determination is `tg-pol:Filtered` — an
 advisor querying broadly and catching another division's data
 is routine over-retrieval, not a security breach.
 
@@ -158,7 +159,6 @@ is routine over-retrieval, not a security breach.
 tg-pol:DivisionIsolationPolicy a sh:NodeShape ;
     rdfs:label "Division isolation" ;
     rdfs:comment "Filters triples tagged with an organisational unit that does not match the user's. Only activates for users with the Advisor role." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     tg-pol:appliesTo ex:Advisor ;
     sh:order 2 ;
     sh:target [
@@ -186,7 +186,53 @@ tg-pol:DivisionIsolationPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:DivisionIsolationPolicy ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Triple belongs to a different organisational unit." .
+                    sh:resultMessage "Triple belongs to a different organisational unit." ;
+                    tg-pol:blocks true .
+            }
+            WHERE { }
+        """ ;
+        sh:order 1
+    ] .
+```
+
+## Non-Blocking Access Logging
+
+A policy that logs access to sensitive-but-permitted data
+without restricting it. Demonstrates `tg-pol:blocks false` —
+the data passes through, but a policy event is emitted for
+audit purposes.
+
+```turtle
+@prefix tg-pol: <https://trustgraph.ai/ontology/policy/> .
+@prefix tg-uc:  <https://trustgraph.ai/ontology/user-context/> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex:     <http://example.org/> .
+
+tg-pol:SensitiveAccessLog a sh:NodeShape ;
+    rdfs:label "Sensitive data access log" ;
+    rdfs:comment "Logs access to data marked as sensitive. Does not block — the user is authorised, but the access is recorded." ;
+    sh:order 10 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                ?this ex:sensitivity ex:High .
+            }
+        """
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct """
+            CONSTRUCT {
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape tg-pol:SensitiveAccessLog ;
+                    sh:resultSeverity tg-pol:SensitiveAccess ;
+                    sh:resultMessage "Access to high-sensitivity data recorded." ;
+                    tg-pol:blocks false .
             }
             WHERE { }
         """ ;
