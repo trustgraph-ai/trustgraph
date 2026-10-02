@@ -18,9 +18,9 @@
 
 ---
 
-Bring your own ontology, build one, or use a domain standard in OWL. [TrustGraph](https://trustgraph.ai) turns raw data into governed, traceable, ontology-enhanced knowledge that agents can retrieve through native natural-language search.
+[TrustGraph](https://trustgraph.ai) is an open-source, ontology-native semantic intelligence platform that turns source data into governed, traceable knowledge for natural-language analytics and AI agents. It combines semantic modeling and retrieval, structured-data querying, knowledge lifecycle operations, reusable [Knowledge Cores](https://docs.trustgraph.ai/guides/context-cores/#what-are-cores), provenance, and modular agent services in a containerized, API-first architecture.
 
-AI applications need shared, unambiguous semantics. Vector search over isolated text chunks can leave agents without the structure or provenance to produce consistent outcomes. TrustGraph provides that foundation: typed facts, defined relationships, and agent actions traceable to source knowledge in interoperable, standards-compliant formats.
+AI applications need shared, unambiguous semantics. Vector search over isolated text chunks can leave agents without the structure or provenance to produce consistent outcomes. TrustGraph provides that foundation: typed facts, defined relationships, and agent actions traceable to source knowledge in interoperable, [W3C standards](https://www.w3.org/) compliant formats.
 
 ## The Problem: "Common Semantic Understanding"
 To understand why AI struggles in complex use cases, consider Abbott and Costello’s classic ["Who's on First?"](https://www.youtube.com/watch?v=sYOUFGfK4bU) routine.
