@@ -11,12 +11,6 @@ logger = logging.getLogger(__name__)
 
 NODE_IRI_CAP = 100
 
-EVENT_TYPE_MAP = {
-    "Notify": "policy.notify",
-    "Filtered": "policy.filtered",
-    "Violation": "policy.violation",
-}
-
 
 class PolicyEventPublisher:
 
@@ -72,6 +66,7 @@ class PolicyEventPublisher:
         self,
         evaluations,
         user_context,
+        request_id="",
         query_s=None,
         query_p=None,
         query_o=None,
@@ -81,30 +76,31 @@ class PolicyEventPublisher:
     ):
         """Batch evaluations by policy and emit one event per policy.
 
-        Evaluations with the same policy_uri are grouped into a single
-        event. The node_iris list is capped at NODE_IRI_CAP per event;
-        node_count always reflects the true total.
+        Evaluations with the same (policy_uri, determination, blocks)
+        are grouped into a single event. The node_iris list is capped
+        at NODE_IRI_CAP per event; node_count reflects the true total.
         """
 
         by_policy = defaultdict(list)
         for ev in evaluations:
             by_policy[(ev.policy_uri, ev.policy_label,
-                       ev.determination)].append(ev)
+                       ev.determination, ev.blocks)].append(ev)
 
-        for (policy_uri, policy_label, determination), group in (
+        for (policy_uri, policy_label, determination, blocks), group in (
             by_policy.items()
         ):
             node_iris = [ev.node_iri for ev in group]
             node_count = len(node_iris)
 
-            event_type = EVENT_TYPE_MAP.get(
-                determination, "policy.notify",
-            )
+            reason = group[0].reason if group else ""
 
             payload = {
+                "request_id": request_id,
                 "policy_uri": policy_uri,
                 "policy_label": policy_label,
                 "determination": determination,
+                "blocks": blocks,
+                "reason": reason,
                 "user_context": self._serialise_user_context(
                     user_context
                 ),
@@ -118,7 +114,7 @@ class PolicyEventPublisher:
                 "workspace": workspace,
             }
 
-            await self.emit(event_type, payload)
+            await self.emit("policy.evaluation", payload)
 
     def _serialise_user_context(self, user_context):
         if user_context is None:

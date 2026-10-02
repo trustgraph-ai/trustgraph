@@ -30,7 +30,6 @@
 tg-pol:DefenseBarrierPolicy a sh:NodeShape ;
     rdfs:label "Defense division information barrier" ;
     rdfs:comment "Blocks non-defense users from accessing ITAR-controlled or Secret defense data. Produces a Violation — this is a security event, not routine over-retrieval." ;
-    tg-pol:producesDetermination tg-pol:Violation ;
     sh:order 0 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -76,7 +75,8 @@ tg-pol:DefenseBarrierPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:DefenseBarrierPolicy ;
                     sh:resultSeverity tg-pol:Violation ;
-                    sh:resultMessage "Security barrier: non-defense user attempted access to ITAR/Secret defense data." .
+                    sh:resultMessage "Security barrier: non-defense user attempted access to ITAR/Secret defense data." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -95,7 +95,6 @@ tg-pol:DefenseBarrierPolicy a sh:NodeShape ;
 tg-pol:CommercialIsolationPolicy a sh:NodeShape ;
     rdfs:label "Commercial division isolation" ;
     rdfs:comment "Filters proprietary commercial data from users outside the Commercial Division. Routine over-retrieval." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 1 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -123,7 +122,8 @@ tg-pol:CommercialIsolationPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:CommercialIsolationPolicy ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Proprietary commercial data filtered from non-commercial user." .
+                    sh:resultMessage "Proprietary commercial data filtered from non-commercial user." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -144,7 +144,6 @@ tg-pol:CommercialIsolationPolicy a sh:NodeShape ;
 tg-pol:AssignmentScopePolicy a sh:NodeShape ;
     rdfs:label "Assignment-based scope filter" ;
     rdfs:comment "When a user has assignments, filters proprietary data not related to their assigned resources. Public data is always visible." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 2 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -197,7 +196,8 @@ tg-pol:AssignmentScopePolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:AssignmentScopePolicy ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Data not related to user's assigned resources." .
+                    sh:resultMessage "Data not related to user's assigned resources." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -216,7 +216,6 @@ tg-pol:AssignmentScopePolicy a sh:NodeShape ;
 tg-pol:PublicOnlyPolicy a sh:NodeShape ;
     rdfs:label "Public catalog entitlement filter" ;
     rdfs:comment "Users entitled only to the public catalog see nothing beyond Public-classified data." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 1 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -247,7 +246,8 @@ tg-pol:PublicOnlyPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:PublicOnlyPolicy ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "User entitlement restricted to public catalog." .
+                    sh:resultMessage "User entitlement restricted to public catalog." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;

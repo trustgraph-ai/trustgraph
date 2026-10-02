@@ -15,23 +15,28 @@ query_fn signature:
 
 Policy evaluation flow:
     1. Load SHACL-AF NodeShape policies from urn:graph:policy
-    2. Parse each policy's sh:SPARQLTarget to discover what
-       predicates are used against ?this (the candidate node)
+    2. Parse each policy's sh:SPARQLTarget and sh:SPARQLRule
     3. For each candidate node in the retrieved triples:
        a. Hydrate: fetch the required predicates from the graph
        b. Build a tiny evaluation graph (node props + user context)
-       c. Run each policy's SPARQL SELECT in precedence order
-       d. First matching policy wins — its determination applies
-    4. Apply determinations: Notify passes through (with event),
-       Filtered and Violation remove the node's triples
+       c. Run each policy's SPARQL SELECT target in precedence order
+       d. If the target matches, run the CONSTRUCT rule
+       e. Parse sh:ValidationResult from CONSTRUCT output:
+          sh:resultSeverity (determination IRI),
+          sh:resultMessage (reason), tg-pol:blocks (default true)
+       f. First matching policy wins — its determination applies
+    4. Apply determinations: nodes with blocks=true are removed
 """
 
 import re
+import time
 import logging
 from typing import Callable, Awaitable
+from collections import OrderedDict
 
 from rdflib import Graph, URIRef, Literal, BNode, Namespace
 from rdflib.namespace import RDF, RDFS, XSD
+from rdflib.plugins.sparql import prepareQuery
 
 from .. schema import Triple, Term, IRI, LITERAL, UserContext
 
@@ -44,26 +49,91 @@ TG_UC = Namespace("https://trustgraph.ai/ontology/user-context/")
 
 POLICY_GRAPH = "urn:graph:policy"
 
+QUERY_CACHE_TTL = 30
+QUERY_CACHE_MAX = 256
+SPARQL_CACHE_MAX = 64
+
+
+class QueryCache:
+    """LRU + TTL cache for triple query results."""
+
+    def __init__(self, query_fn, ttl=QUERY_CACHE_TTL,
+                 max_size=QUERY_CACHE_MAX):
+        self._query_fn = query_fn
+        self._ttl = ttl
+        self._max_size = max_size
+        self._cache = OrderedDict()
+
+    def _make_key(self, s, p, o, collection, g):
+        s_key = (s.type, s.iri, s.value) if s else None
+        p_key = (p.type, p.iri, p.value) if p else None
+        o_key = (o.type, o.iri, o.value) if o else None
+        return (s_key, p_key, o_key, collection, g)
+
+    async def query(self, s, p, o, collection, g=""):
+        key = self._make_key(s, p, o, collection, g)
+        now = time.monotonic()
+
+        if key in self._cache:
+            result, ts = self._cache[key]
+            if now - ts < self._ttl:
+                self._cache.move_to_end(key)
+                return result
+            del self._cache[key]
+
+        result = await self._query_fn(s, p, o, collection, g)
+
+        self._cache[key] = (result, now)
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
+
+        return result
+
+
+class SparqlCache:
+    """Cache for compiled SPARQL queries."""
+
+    def __init__(self, max_size=SPARQL_CACHE_MAX):
+        self._max_size = max_size
+        self._cache = OrderedDict()
+
+    def prepare(self, query_string, initNs=None):
+        key = query_string
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+
+        compiled = prepareQuery(query_string, initNs=initNs or {})
+        self._cache[key] = compiled
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
+
+        return compiled
+
 
 class PolicyEvaluation:
     """Result of evaluating a node against a policy."""
-    def __init__(self, node_iri, policy_uri, policy_label, determination):
+    def __init__(self, node_iri, policy_uri, policy_label,
+                 determination, blocks=True, reason=""):
         self.node_iri = node_iri
         self.policy_uri = policy_uri
         self.policy_label = policy_label
         self.determination = determination
+        self.blocks = blocks
+        self.reason = reason
 
 
 class LoadedPolicy:
     """A policy loaded from the policy graph."""
-    def __init__(self, uri, label, determination, order, sparql_select,
-                 prefixes):
+    def __init__(self, uri, label, order, sparql_select,
+                 target_prefixes, sparql_construct, construct_prefixes):
         self.uri = uri
         self.label = label
-        self.determination = determination
         self.order = order
         self.sparql_select = sparql_select
-        self.prefixes = prefixes
+        self.target_prefixes = target_prefixes
+        self.sparql_construct = sparql_construct
+        self.construct_prefixes = construct_prefixes
 
 
 class PolicyFilter:
@@ -77,13 +147,27 @@ class PolicyFilter:
         Args:
             query_fn: async fn(s, p, o, collection, g) -> list[Triple]
             on_evaluation: async fn(PolicyEvaluation) -> None
-                Called for every determination (Notify, Filtered,
-                or Violation). No-op if None.
+                Called for every determination. No-op if None.
         """
-        self.query_fn = query_fn
+        self._query_cache = QueryCache(query_fn)
+        self.query_fn = self._query_cache.query
         self.on_evaluation = on_evaluation
         self._policies = None
         self._required_predicates = None
+        self._sparql_cache = SparqlCache()
+
+    async def load_policies(self, collection: str) -> None:
+        """Load policies from the policy graph if not already loaded."""
+        if self._policies is None:
+            self._policies = await self._load_policies(collection)
+            if self._policies:
+                self._required_predicates = self._discover_predicates(
+                    self._policies
+                )
+
+    def has_policies(self) -> bool:
+        """True if policies have been loaded and at least one exists."""
+        return bool(self._policies)
 
     async def apply(
         self,
@@ -98,13 +182,7 @@ class PolicyFilter:
         to see.
         """
 
-        if self._policies is None:
-            self._policies = await self._load_policies(collection)
-            if not self._policies:
-                return triples
-            self._required_predicates = self._discover_predicates(
-                self._policies
-            )
+        await self.load_policies(collection)
 
         if not self._policies:
             return triples
@@ -126,7 +204,7 @@ class PolicyFilter:
             if evaluation:
                 if self.on_evaluation:
                     await self.on_evaluation(evaluation)
-                if evaluation.determination != "Notify":
+                if evaluation.blocks:
                     blocked_iris.add(node_iri)
 
         if not blocked_iris:
@@ -187,16 +265,6 @@ class PolicyFilter:
             label_results[0].o.value if label_results else shape_iri
         )
 
-        # Determination
-        det_results = await self.query_fn(
-            s, Term(type=IRI, iri=str(TG_POL.producesDetermination)), None,
-            collection, POLICY_GRAPH,
-        )
-        determination = "Unknown"
-        if det_results:
-            det_iri = det_results[0].o.iri if det_results[0].o.type == IRI else ""
-            determination = det_iri.split("/")[-1]
-
         # Order
         order_results = await self.query_fn(
             s, Term(type=IRI, iri=str(SH.order)), None,
@@ -216,12 +284,11 @@ class PolicyFilter:
         )
 
         sparql_select = None
-        prefixes = {}
+        target_prefixes = {}
         for target_triple in target_results:
             target_term = target_triple.o
 
-            # Resolve sh:prefixes -> sh:declare chain
-            prefixes = await self._resolve_prefixes(
+            target_prefixes = await self._resolve_prefixes(
                 target_term, collection,
             )
 
@@ -239,9 +306,41 @@ class PolicyFilter:
             )
             return None
 
+        # Rule -> SPARQL CONSTRUCT
+        rule_results = await self.query_fn(
+            s, Term(type=IRI, iri=str(SH.rule)), None,
+            collection, POLICY_GRAPH,
+        )
+
+        sparql_construct = None
+        construct_prefixes = {}
+        for rule_triple in rule_results:
+            rule_term = rule_triple.o
+
+            construct_prefixes = await self._resolve_prefixes(
+                rule_term, collection,
+            )
+
+            construct_results = await self.query_fn(
+                rule_term, Term(type=IRI, iri=str(SH.construct)), None,
+                collection, POLICY_GRAPH,
+            )
+            if construct_results:
+                sparql_construct = construct_results[0].o.value
+                break
+
+        if not sparql_construct:
+            logger.warning(
+                f"Policy {label} has no sh:SPARQLRule, skipping"
+            )
+            return None
+
         return LoadedPolicy(
-            uri=shape_iri, label=label, determination=determination,
-            order=order, sparql_select=sparql_select, prefixes=prefixes,
+            uri=shape_iri, label=label, order=order,
+            sparql_select=sparql_select,
+            target_prefixes=target_prefixes,
+            sparql_construct=sparql_construct,
+            construct_prefixes=construct_prefixes,
         )
 
     # -----------------------------------------------------------------
@@ -344,8 +443,8 @@ class PolicyFilter:
             colon = prefixed.index(":")
             prefix = prefixed[:colon]
             local = prefixed[colon + 1:]
-            if prefix in policy.prefixes:
-                predicates.add(policy.prefixes[prefix] + local)
+            if prefix in policy.target_prefixes:
+                predicates.add(policy.target_prefixes[prefix] + local)
 
         if re.search(r'\?this\s+a\s+', sparql_select):
             predicates.add(str(RDF.type))
@@ -453,43 +552,96 @@ class PolicyFilter:
         for s, p, o in context_graph:
             eval_graph.add((s, p, o))
 
+        node_uri = URIRef(node_iri)
+
         for policy in self._policies:
-            # Bind this policy's resolved prefixes
-            for prefix, ns in policy.prefixes.items():
+            for prefix, ns in policy.target_prefixes.items():
                 eval_graph.bind(prefix, Namespace(ns))
 
-            if self._run_sparql_target(
-                policy, URIRef(node_iri), eval_graph,
-            ):
+            if not self._run_sparql_target(policy, node_uri, eval_graph):
+                continue
+
+            result = self._run_sparql_rule(
+                policy, node_uri, eval_graph,
+            )
+            if result:
                 return PolicyEvaluation(
                     node_iri=node_iri,
                     policy_uri=policy.uri,
                     policy_label=policy.label,
-                    determination=policy.determination,
+                    determination=result["determination"],
+                    blocks=result["blocks"],
+                    reason=result["reason"],
                 )
 
         return None
 
     def _run_sparql_target(self, policy, node_uri, eval_graph):
-        """Run a policy's SPARQL SELECT and check if the node matches.
-
-        Prepends PREFIX declarations resolved from sh:prefixes/sh:declare
-        so the SPARQL engine can resolve prefixed names.
-        """
-        prefix_header = self._build_prefix_header(policy.prefixes)
+        """Run a policy's SPARQL SELECT and check if the node matches."""
+        prefix_header = self._build_prefix_header(policy.target_prefixes)
         full_query = f"{prefix_header}\n{policy.sparql_select}"
 
         try:
-            results = list(eval_graph.query(full_query))
+            compiled = self._sparql_cache.prepare(full_query)
+            results = list(eval_graph.query(compiled))
             for row in results:
                 if row[0] == node_uri:
                     return True
         except Exception as e:
             logger.error(
-                f"SPARQL error in policy '{policy.label}': {e}",
+                f"SPARQL target error in policy '{policy.label}': {e}",
                 exc_info=True,
             )
         return False
+
+    def _run_sparql_rule(self, policy, node_uri, eval_graph):
+        """Run a policy's CONSTRUCT rule and parse the ValidationResult.
+
+        Returns a dict with determination (IRI), blocks (bool),
+        and reason (str), or None if the CONSTRUCT produced no result.
+        """
+        all_prefixes = {**policy.target_prefixes, **policy.construct_prefixes}
+        prefix_header = self._build_prefix_header(all_prefixes)
+
+        for prefix, ns in all_prefixes.items():
+            eval_graph.bind(prefix, Namespace(ns))
+
+        construct_query = policy.sparql_construct.replace("$this", f"<{node_uri}>")
+        full_query = f"{prefix_header}\n{construct_query}"
+
+        try:
+            result_graph = eval_graph.query(full_query).graph
+        except Exception as e:
+            logger.error(
+                f"SPARQL rule error in policy '{policy.label}': {e}",
+                exc_info=True,
+            )
+            return None
+
+        for result_node in result_graph.subjects(RDF.type, SH.ValidationResult):
+            determination = str(policy.uri)
+            blocks = True
+            reason = ""
+
+            for sev in result_graph.objects(result_node, SH.resultSeverity):
+                determination = str(sev)
+
+            for msg in result_graph.objects(result_node, SH.resultMessage):
+                reason = str(msg)
+
+            for b in result_graph.objects(result_node, TG_POL.blocks):
+                if hasattr(b, 'toPython'):
+                    blocks = b.toPython()
+                else:
+                    blocks = str(b).lower() not in ("false", "0")
+
+            return {
+                "determination": determination,
+                "blocks": blocks,
+                "reason": reason,
+            }
+
+        return None
 
     def _schema_triple_to_rdflib(self, t):
         """Convert a schema Triple to an rdflib (s, p, o) tuple."""

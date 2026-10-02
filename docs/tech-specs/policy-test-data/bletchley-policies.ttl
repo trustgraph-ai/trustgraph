@@ -64,7 +64,6 @@ tg-pol:BletchleyPrefixes
 tg-pol:UltraBarrierPolicy a sh:NodeShape ;
     rdfs:label "Ultra security barrier" ;
     rdfs:comment "Blocks access to Ultra-classified material by personnel without explicit Ultra clearance. This is a Violation — the existence of Ultra is itself the most closely guarded secret of the war." ;
-    tg-pol:producesDetermination tg-pol:Violation ;
     sh:order 0 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -100,7 +99,8 @@ tg-pol:UltraBarrierPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:UltraBarrierPolicy ;
                     sh:resultSeverity tg-pol:Violation ;
-                    sh:resultMessage "Security barrier: personnel without Ultra clearance attempted access to Ultra material." .
+                    sh:resultMessage "Security barrier: personnel without Ultra clearance attempted access to Ultra material." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -123,7 +123,6 @@ tg-pol:UltraBarrierPolicy a sh:NodeShape ;
 tg-pol:HutCompartmentalisationPolicy a sh:NodeShape ;
     rdfs:label "Hut compartmentalisation" ;
     rdfs:comment "Filters Secret and Most Secret material from personnel not assigned to the owning section. The fundamental need-to-know boundary at Bletchley Park." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 1 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -166,7 +165,8 @@ tg-pol:HutCompartmentalisationPolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:HutCompartmentalisationPolicy ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Compartmentalisation: data belongs to a section the user is not assigned to." .
+                    sh:resultMessage "Compartmentalisation: data belongs to a section the user is not assigned to." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -188,7 +188,6 @@ tg-pol:HutCompartmentalisationPolicy a sh:NodeShape ;
 tg-pol:ClassificationClearancePolicy a sh:NodeShape ;
     rdfs:label "Classification clearance filter" ;
     rdfs:comment "Filters material above the user's clearance level. Most Secret material requires explicit Most Secret or Ultra clearance." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 2 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -219,7 +218,8 @@ tg-pol:ClassificationClearancePolicy a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:ClassificationClearancePolicy ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Clearance insufficient for Most Secret material." .
+                    sh:resultMessage "Clearance insufficient for Most Secret material." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
@@ -243,7 +243,6 @@ tg-pol:ClassificationClearancePolicy a sh:NodeShape ;
 tg-pol:MethodsSourcesSeparation a sh:NodeShape ;
     rdfs:label "Methods/sources separation" ;
     rdfs:comment "Intelligence analysts see the product but not the cryptanalytic methods or working materials. Bombe menus, crib procedures, and machine designs are invisible to translation and analysis sections." ;
-    tg-pol:producesDetermination tg-pol:Filtered ;
     sh:order 3 ;
     sh:target [
         a sh:SPARQLTarget ;
@@ -277,7 +276,8 @@ tg-pol:MethodsSourcesSeparation a sh:NodeShape ;
                     sh:focusNode $this ;
                     sh:sourceShape tg-pol:MethodsSourcesSeparation ;
                     sh:resultSeverity tg-pol:Filtered ;
-                    sh:resultMessage "Methods/sources separation: cryptanalytic methods and technical documents filtered from intelligence analysts." .
+                    sh:resultMessage "Methods/sources separation: cryptanalytic methods and technical documents filtered from intelligence analysts." ;
+                    tg-pol:blocks true .
             }
             WHERE { }
         """ ;
