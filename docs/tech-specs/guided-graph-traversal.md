@@ -74,6 +74,57 @@ GraphRAG query interface:
    This would start at `http://example.org/Person` nodes, then follow only
    `http://example.org/worksFor` edges to reach `http://example.org/Organisation` nodes.
 
+## Changes Required
+
+### API Schema (`specs/api/components/schemas/rag/GraphRagRequest.yaml`)
+
+Add optional fields: `grounding_seeds`, `graph_seeds`, `languages`,
+and `traversal_instructions`.
+
+### Data Model (`trustgraph-base/trustgraph/schema/retrieval.py`)
+
+Add corresponding fields to the `GraphRagQuery` dataclass. Validate
+that `grounding_seeds` and `graph_seeds` are not both provided.
+
+### Gateway Dispatch (`trustgraph-flow/trustgraph/gateway/dispatch/graph_rag.py`)
+
+Pass the new fields through from the API request to `GraphRagQuery`.
+
+### GraphRAG Core (`trustgraph-flow/trustgraph/retrieval/graph_rag/graph_rag.py`)
+
+- **Grounding seeds**: When provided, skip the LLM concept extraction
+  call and use the supplied concepts directly for entity embedding
+  lookup.
+
+- **Graph seeds**: When provided, skip both grounding and entity
+  lookup. Set the traversal frontier directly to the specified IRIs.
+
+- **Language filtering**: Filter candidate triples by language tag
+  before reranking. Only triples whose literal values match one of
+  the specified language tags (or have no language tag, if `""` is
+  in the list) are retained.
+
+- **Traversal instructions**: Make `hop_and_filter()` hop-aware so
+  that each iteration applies the restrictions from the
+  corresponding item in the traversal instructions list:
+
+  - **Relationship restrictions**: Filter candidate edges by
+    predicate IRI before passing to the reranker.
+
+  - **Type restrictions**: Look up `rdf:type` for candidate nodes
+    and discard nodes that do not match. This requires additional
+    triple queries per hop that do not exist today.
+
+  All traversal restrictions are applied before reranking so that
+  the reranker only scores edges that are eligible for selection.
+
+### Tests
+
+Cover the new code paths: grounding seeds, graph seeds, language
+filtering, traversal instructions (type and relationship
+restrictions), and the validation that both seed types cannot be
+specified together.
+
 ## Open Questions
 
 - **Interaction between seeds**: Specifying both grounding seeds and
