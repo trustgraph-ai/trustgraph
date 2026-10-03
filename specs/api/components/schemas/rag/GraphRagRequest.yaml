@@ -54,3 +54,54 @@ properties:
     description: Enable streaming response delivery
     default: false
     example: true
+  grounding-seeds:
+    type: array
+    description: |
+      Optional list of text concepts to use as grounding seeds,
+      bypassing the LLM concept extraction phase. Mutually exclusive
+      with graph-seeds.
+    items:
+      type: string
+    example: ["graphrag", "information retrieval"]
+  graph-seeds:
+    type: array
+    description: |
+      Optional list of entity IRIs to use as initial traversal entry
+      points, bypassing both grounding and entity lookup. Mutually
+      exclusive with grounding-seeds.
+    items:
+      type: string
+    example: ["http://example.org/Person/JaneDoe"]
+  languages:
+    type: array
+    description: |
+      Optional list of language tags to restrict retrieval to. An
+      empty string matches literals with no language tag.
+    items:
+      type: string
+    example: ["en", ""]
+  traversal-instructions:
+    type: array
+    description: |
+      Optional ordered list of traversal steps. Each item corresponds
+      to a hop and may specify type restrictions, relationship
+      restrictions, and/or named graph restrictions. The first item
+      can only specify types (no preceding edge to constrain).
+    items:
+      type: object
+      properties:
+        types:
+          type: array
+          description: RDF type IRIs — only nodes of these types are eligible
+          items:
+            type: string
+        relationships:
+          type: array
+          description: Predicate IRIs — only these edges are followed
+          items:
+            type: string
+        graphs:
+          type: array
+          description: Named graph URIs — only triples from these graphs are retrieved
+          items:
+            type: string

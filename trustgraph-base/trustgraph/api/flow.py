@@ -403,11 +403,15 @@ class FlowInstance:
         )["answer"]
 
     def graph_rag(
-            self, query,collection="default",
+            self, query, collection="default",
             entity_limit=50, triple_limit=30, max_subgraph_size=150,
             max_path_length=2, edge_score_limit=30, edge_limit=25,
             max_reranker_input=350,
             user_context=None,
+            grounding_seeds=None,
+            graph_seeds=None,
+            languages=None,
+            traversal_instructions=None,
     ):
         """
         Execute graph-based Retrieval-Augmented Generation (RAG) query.
@@ -425,6 +429,10 @@ class FlowInstance:
             edge_score_limit: Max edges for semantic pre-filter (default: 50)
             edge_limit: Max edges after LLM scoring (default: 25)
             max_reranker_input: Max candidate edges sent to reranker per hop (default: 350)
+            grounding_seeds: Optional list of concept strings to bypass LLM extraction
+            graph_seeds: Optional list of entity IRIs as traversal starting points
+            languages: Optional list of language tags to filter by
+            traversal_instructions: Optional list of dicts with per-hop restrictions
 
         Returns:
             str: Generated response incorporating graph context
@@ -433,7 +441,8 @@ class FlowInstance:
             ```python
             flow = api.flow().id("default")
             response = flow.graph_rag(
-                query="Tell me about Marie Curie's discoveries",collection="scientists",
+                query="Tell me about Marie Curie's discoveries",
+                collection="scientists",
                 entity_limit=20,
                 max_path_length=3
             )
@@ -456,6 +465,14 @@ class FlowInstance:
 
         if user_context is not None:
             input["user-context"] = dataclass_to_dict(user_context)
+        if grounding_seeds:
+            input["grounding-seeds"] = grounding_seeds
+        if graph_seeds:
+            input["graph-seeds"] = graph_seeds
+        if languages:
+            input["languages"] = languages
+        if traversal_instructions:
+            input["traversal-instructions"] = traversal_instructions
 
         result = self.request(
             "service/graph-rag",

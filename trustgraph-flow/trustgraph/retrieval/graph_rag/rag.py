@@ -213,6 +213,16 @@ class Processor(FlowProcessor):
             else:
                 max_reranker_input = self.default_max_reranker_input
 
+            grounding_seeds = v.grounding_seeds or []
+            graph_seeds = v.graph_seeds or []
+            languages = v.languages or []
+            traversal_instructions = v.traversal_instructions or []
+
+            if grounding_seeds and graph_seeds:
+                raise ValueError(
+                    "grounding_seeds and graph_seeds are mutually exclusive"
+                )
+
             async def save_answer(doc_id, answer_text):
                 await flow.librarian.save_document(
                     doc_id=doc_id,
@@ -251,6 +261,10 @@ class Processor(FlowProcessor):
                     save_answer_callback = save_answer,
                     parent_uri = v.parent_uri,
                     user_context = v.user_context,
+                    grounding_seeds = grounding_seeds,
+                    graph_seeds = graph_seeds,
+                    languages = languages,
+                    traversal_instructions = traversal_instructions,
                 )
 
             else:
@@ -267,6 +281,10 @@ class Processor(FlowProcessor):
                     save_answer_callback = save_answer,
                     parent_uri = v.parent_uri,
                     user_context = v.user_context,
+                    grounding_seeds = grounding_seeds,
+                    graph_seeds = graph_seeds,
+                    languages = languages,
+                    traversal_instructions = traversal_instructions,
                 )
 
                 # Send single response with answer and token usage

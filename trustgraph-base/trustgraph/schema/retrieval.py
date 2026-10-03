@@ -1,5 +1,6 @@
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 from .core.primitives import Error, Term, Triple
 from .user_context import UserContext
@@ -7,6 +8,12 @@ from .user_context import UserContext
 ############################################################################
 
 # Graph RAG text retrieval
+
+@dataclass
+class TraversalStep:
+    types: list[str] = field(default_factory=list)
+    relationships: list[str] = field(default_factory=list)
+    graphs: list[str] = field(default_factory=list)
 
 @dataclass
 class GraphRagQuery:
@@ -22,6 +29,10 @@ class GraphRagQuery:
     streaming: bool = False
     parent_uri: str = ""
     user_context: UserContext | None = None
+    grounding_seeds: list[str] = field(default_factory=list)
+    graph_seeds: list[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    traversal_instructions: list[TraversalStep] = field(default_factory=list)
 
 @dataclass
 class Source:

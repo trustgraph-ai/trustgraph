@@ -6,6 +6,10 @@ class GraphRagClient:
     async def rag(self, query, collection="default",
                   chunk_callback=None, explain_callback=None,
                   parent_uri="",
+                  grounding_seeds=None,
+                  graph_seeds=None,
+                  languages=None,
+                  traversal_instructions=None,
                   timeout=600):
         """
         Execute a graph RAG query with optional streaming callbacks.
@@ -50,6 +54,10 @@ class GraphRagClient:
                 query = query,
                 collection = collection,
                 parent_uri = parent_uri,
+                grounding_seeds = grounding_seeds or [],
+                graph_seeds = graph_seeds or [],
+                languages = languages or [],
+                traversal_instructions = traversal_instructions or [],
             ),
             timeout=timeout,
             recipient=recipient,
