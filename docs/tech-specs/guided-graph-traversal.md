@@ -118,6 +118,16 @@ Pass the new fields through from the API request to `GraphRagQuery`.
   All traversal restrictions are applied before reranking so that
   the reranker only scores edges that are eligible for selection.
 
+### Python API Client (`trustgraph-base/trustgraph/base/graph_rag_client.py`)
+
+Add the new optional parameters to `GraphRagClient.rag()` so that
+callers can pass grounding seeds, graph seeds, language restrictions,
+and traversal instructions programmatically.
+
+### CLI (`trustgraph-cli/trustgraph/cli/invoke_graph_rag.py`)
+
+Add command-line arguments for the new fields to `tg-invoke-graph-rag`.
+
 ### Tests
 
 Cover the new code paths: grounding seeds, graph seeds, language
@@ -125,15 +135,21 @@ filtering, traversal instructions (type and relationship
 restrictions), and the validation that both seed types cannot be
 specified together.
 
-## Open Questions
+## Design Decisions
 
-- **Interaction between seeds**: Specifying both grounding seeds and
-  graph seeds is invalid. Grounding seeds bypass the LLM concept
-  extraction phase but still go through entity embedding lookup.
-  Graph seeds bypass both grounding and entity lookup entirely,
-  placing the traversal frontier directly at the specified nodes.
-- **Interaction with existing parameters**: Existing parameters such
-  as `max_path_length`, `edge_limit`, and reranker scoring still
-  apply. Traversal restrictions are applied first to narrow the
+- **Grounding seeds and graph seeds are mutually exclusive**.
+  Grounding seeds bypass the LLM concept extraction phase but still
+  go through entity embedding lookup. Graph seeds bypass both
+  grounding and entity lookup entirely, placing the traversal
+  frontier directly at the specified nodes. Specifying both is
+  invalid.
+
+- **Existing parameters still apply**. Parameters such as
+  `max_path_length`, `edge_limit`, and reranker scoring are
+  unchanged. Traversal restrictions are applied first to narrow the
   candidate set, then existing limits and scoring operate on the
   filtered results.
+
+- **Restrictions are applied before reranking**. The reranker only
+  scores edges that are eligible for selection, avoiding wasted
+  computation on candidates that would be discarded.
