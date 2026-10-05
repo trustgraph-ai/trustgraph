@@ -123,6 +123,12 @@ class RegistryRoutedVariableEndpoint:
             ):
                 raise workspace_not_found()
 
+        if (
+            identity is not None
+            and identity.user_context is not None
+        ):
+            body["user-context"] = identity.user_context
+
         async def responder(x, fin):
             pass
 

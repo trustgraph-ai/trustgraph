@@ -122,6 +122,7 @@ class IamRequestTranslator(MessageTranslator):
                 data.get("workspace_record")
             ),
             key=_api_key_input_from_dict(data.get("key")),
+            user_context_json=data.get("user_context_json", ""),
             group_id=data.get("group_id", ""),
             member_type=data.get("member_type", ""),
             member_id=data.get("member_id", ""),
@@ -138,6 +139,7 @@ class IamRequestTranslator(MessageTranslator):
         for fname in (
                 "workspace", "actor", "user_id", "username", "key_id",
                 "api_key", "password", "new_password",
+                "user_context_json",
                 "group_id", "member_type", "member_id",
                 "capability", "resource_json", "parameters_json",
                 "authorise_checks",
