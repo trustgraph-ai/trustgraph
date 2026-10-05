@@ -1034,6 +1034,9 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         for response in self.client._send_request_sync("triples", self.flow_id, request, streaming_raw=True):
+            if isinstance(response, dict) and "error" in response:
+                err = response["error"]
+                raise_from_error_dict(err)
             if isinstance(response, dict) and "response" in response:
                 yield response["response"]
             else:

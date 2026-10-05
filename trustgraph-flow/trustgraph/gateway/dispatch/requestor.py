@@ -90,25 +90,15 @@ class ServiceRequestor:
                     timeout=self.timeout,
                 )
 
-                if resp.error:
-                    __class__.gateway_request_metric.labels(
-                        service=svc, status="error",
-                    ).inc()
-                    __class__.gateway_request_duration_metric.labels(
-                        service=svc,
-                    ).observe(time.monotonic() - t0)
-                    return { "error": {
-                        "type": resp.error.type,
-                        "message": resp.error.message,
-                    } }
-
-                result, fin = self.from_response(resp)
+                status = "error" if resp.error else "ok"
                 __class__.gateway_request_metric.labels(
-                    service=svc, status="ok",
+                    service=svc, status=status,
                 ).inc()
                 __class__.gateway_request_duration_metric.labels(
                     service=svc,
                 ).observe(time.monotonic() - t0)
+
+                result, fin = self.from_response(resp)
                 return result
 
             async for resp in self.client.request_stream(
@@ -116,26 +106,13 @@ class ServiceRequestor:
                 timeout=self.timeout,
             ):
 
-                if resp.error:
-                    err = { "error": {
-                        "type": resp.error.type,
-                        "message": resp.error.message,
-                    } }
-                    await responder(err, True)
-                    __class__.gateway_request_metric.labels(
-                        service=svc, status="error",
-                    ).inc()
-                    __class__.gateway_request_duration_metric.labels(
-                        service=svc,
-                    ).observe(time.monotonic() - t0)
-                    return err
-
                 result, fin = self.from_response(resp)
                 await responder(result, fin)
 
-                if fin:
+                if resp.error or fin:
+                    status = "error" if resp.error else "ok"
                     __class__.gateway_request_metric.labels(
-                        service=svc, status="ok",
+                        service=svc, status=status,
                     ).inc()
                     __class__.gateway_request_duration_metric.labels(
                         service=svc,

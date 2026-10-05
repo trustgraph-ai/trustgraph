@@ -218,7 +218,8 @@ class TestCLIArgumentParsing:
             files=['file1.ttl', 'file2.ttl'],
             collection='my-collection',
             workspace='my-user',
-            graph=''
+            graph='',
+            format='turtle',
         )
 
         # Verify run was called
