@@ -90,7 +90,7 @@ passes that JWT to TrustGraph on behalf of the user.
 
 ## Phase 1: Changes Required
 
-- **New API endpoint** (e.g. `POST /api/v1/auth/mint-token`) —
+- **New IAM operation** (`mint-token` via `POST /api/v1/iam`) —
   accepts a valid admin auth token (JWT or API key) plus a
   `UserContext` payload; returns a new signed JWT with the context
   embedded in its claims

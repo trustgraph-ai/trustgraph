@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 
-from ._iam import DEFAULT_URL, DEFAULT_TOKEN, call_auth, run_main
+from ._iam import DEFAULT_URL, DEFAULT_TOKEN, call_iam, run_main
 
 
 def do_mint_token(args):
@@ -21,15 +21,19 @@ def do_mint_token(args):
         print("--user-context must be a JSON object", file=sys.stderr)
         sys.exit(1)
 
-    body = {
-        "user_id": args.user_id,
+    req = {
+        "operation": "mint-token",
         "workspace": args.workspace,
-        "user_context": user_context,
+        "user_context_json": json.dumps(user_context),
     }
 
-    resp = call_auth(
-        args.api_url, "/api/v1/auth/mint-token", args.token, body,
-    )
+    if args.user_id:
+        req["user_id"] = args.user_id
+    elif args.username:
+        req["username"] = args.username
+    # --self: leave both empty; the gateway populates actor
+
+    resp = call_iam(args.api_url, args.token, req)
 
     jwt = resp.get("jwt", "")
     expires = resp.get("jwt_expires", "")
@@ -52,10 +56,6 @@ def main():
         help="Admin auth token (JWT or API key)",
     )
     parser.add_argument(
-        "--user-id", required=True,
-        help="User ID for the minted token's subject",
-    )
-    parser.add_argument(
         "-w", "--workspace", required=True,
         help="Target workspace for the minted token",
     )
@@ -63,6 +63,21 @@ def main():
         "--user-context", required=True,
         help="UserContext as a JSON string",
     )
+
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument(
+        "--user-id",
+        help="User ID (UUID) for the minted token's subject",
+    )
+    target.add_argument(
+        "--username",
+        help="Username to resolve to a user ID",
+    )
+    target.add_argument(
+        "--self", dest="use_self", action="store_true",
+        help="Mint token for the caller's own user ID",
+    )
+
     run_main(do_mint_token, parser)
 
 

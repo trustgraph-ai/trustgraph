@@ -661,12 +661,39 @@ class IamService:
     # ------------------------------------------------------------------
 
     async def handle_mint_token(self, v):
-        if not v.user_id:
-            return _err("invalid-argument", "user_id required")
         if not v.workspace:
             return _err("invalid-argument", "workspace required")
         if not v.user_context_json:
             return _err("invalid-argument", "user_context required")
+
+        # Resolve the target user: user_id (UUID), username, or
+        # actor (--self).  Exactly one must be supplied.
+        user_id = v.user_id
+        if v.username and user_id:
+            return _err(
+                "invalid-argument",
+                "supply user_id or username, not both",
+            )
+
+        if v.username:
+            user_id = await self.table_store.get_user_id_by_username(
+                v.username,
+            )
+            if not user_id:
+                return _err("not-found", "username not found")
+        elif not user_id:
+            if not v.actor:
+                return _err(
+                    "invalid-argument",
+                    "user_id, username, or actor (self) required",
+                )
+            user_id = v.actor
+
+        user_row = await self.table_store.get_user(user_id)
+        if user_row is None:
+            return _err("not-found", "user not found")
+        if not user_row[7]:
+            return _err("operation-not-permitted", "user is disabled")
 
         try:
             user_context = json.loads(v.user_context_json)
@@ -683,7 +710,7 @@ class IamService:
         exp_ts = now_ts + JWT_TTL_SECONDS
         claims = {
             "iss": JWT_ISSUER,
-            "sub": v.user_id,
+            "sub": user_id,
             "default_workspace": v.workspace,
             "user_context": user_context,
             "iat": now_ts,
