@@ -252,7 +252,7 @@ class Mux:
                 and self.identity.user_context is not None
                 and isinstance(data.get("request"), dict)
             ):
-                data["request"]["user_context"] = (
+                data["request"]["user-context"] = (
                     self.identity.user_context
                 )
 

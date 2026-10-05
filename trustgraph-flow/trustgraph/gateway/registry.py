@@ -372,6 +372,15 @@ register(Operation(
     extract_parameters=_no_parameters,
 ))
 
+# Token minting: admin mints a JWT with a caller-supplied UserContext.
+register(Operation(
+    name="mint-token",
+    capability="mint-token",
+    resource_level=ResourceLevel.SYSTEM,
+    extract_resource=_empty_resource,
+    extract_parameters=_workspace_param_only,
+))
+
 
 # ---------------------------------------------------------------------------
 # Auth-surface entries.

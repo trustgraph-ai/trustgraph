@@ -1,18 +1,16 @@
 """
 Gateway auth endpoints.
 
-Dedicated paths:
+Three dedicated paths:
   POST /api/v1/auth/login            — unauthenticated; username/password → JWT
   POST /api/v1/auth/bootstrap         — unauthenticated; IAM bootstrap op
   POST /api/v1/auth/change-password   — authenticated; any role
-  POST /api/v1/auth/mint-token        — admin; mint JWT with user context
 
 These are the only IAM-surface operations that can be reached from
 outside.  Everything else routes through ``/api/v1/iam`` gated by
 ``users:admin``.
 """
 
-import json
 import logging
 
 from aiohttp import web
@@ -45,10 +43,6 @@ class AuthEndpoints:
             web.post(
                 "/api/v1/auth/change-password",
                 self.change_password,
-            ),
-            web.post(
-                "/api/v1/auth/mint-token",
-                self.mint_token,
             ),
         ])
 
@@ -129,44 +123,6 @@ class AuthEndpoints:
             if err_type == "auth-failed":
                 return web.json_response(
                     {"error": "auth failure"}, status=401,
-                )
-            return web.json_response(
-                {"error": resp.get("error", {}).get("message", "error")},
-                status=400,
-            )
-        return web.json_response(resp)
-
-    async def mint_token(self, request):
-        """Admin-only.  Accepts {user_id, workspace, user_context}.
-        Mints a signed JWT containing the supplied UserContext in its
-        claims.  The caller must hold the ``mint-token`` capability."""
-        identity = await enforce(request, self.auth, "mint-token")
-        try:
-            body = await request.json()
-        except Exception:
-            return web.json_response(
-                {"error": "invalid json"}, status=400,
-            )
-
-        user_context = body.get("user_context")
-        if not isinstance(user_context, dict):
-            return web.json_response(
-                {"error": "user_context must be a JSON object"},
-                status=400,
-            )
-
-        req = {
-            "operation": "mint-token",
-            "user_id": body.get("user_id", ""),
-            "workspace": body.get("workspace", ""),
-            "user_context_json": json.dumps(user_context),
-        }
-        resp = await self._forward(req)
-        if "error" in resp:
-            err_type = resp.get("error", {}).get("type", "")
-            if err_type == "auth-failed":
-                return web.json_response(
-                    {"error": "access denied"}, status=403,
                 )
             return web.json_response(
                 {"error": resp.get("error", {}).get("message", "error")},
