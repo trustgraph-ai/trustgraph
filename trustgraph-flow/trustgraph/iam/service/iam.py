@@ -102,6 +102,7 @@ _ADMIN_CAPS = _WRITER_CAPS | {
     "workspaces:admin",
     "iam:admin",
     "metrics:read",
+    "mint-token",
 }
 
 ROLE_DEFINITIONS = {
@@ -356,6 +357,8 @@ class IamService:
                 return await self.handle_disable_workspace(v)
             if op == "rotate-signing-key":
                 return await self.handle_rotate_signing_key(v)
+            if op == "mint-token":
+                return await self.handle_mint_token(v)
             if op == "authorise":
                 return await self.handle_authorise(v)
             if op == "authorise-many":
@@ -652,6 +655,47 @@ class IamService:
     async def handle_get_signing_key_public(self, v):
         _, _, public_pem = await self._get_active_signing_key()
         return IamResponse(signing_key_public=public_pem)
+
+    # ------------------------------------------------------------------
+    # mint-token
+    # ------------------------------------------------------------------
+
+    async def handle_mint_token(self, v):
+        if not v.user_id:
+            return _err("invalid-argument", "user_id required")
+        if not v.workspace:
+            return _err("invalid-argument", "workspace required")
+        if not v.user_context_json:
+            return _err("invalid-argument", "user_context required")
+
+        try:
+            user_context = json.loads(v.user_context_json)
+        except json.JSONDecodeError as e:
+            return _err("invalid-argument", f"bad user_context json: {e}")
+
+        ws_row = await self.table_store.get_workspace(v.workspace)
+        if ws_row is None or not ws_row[2]:
+            return _err("not-found", "workspace not found or disabled")
+
+        kid, private_pem, _ = await self._get_active_signing_key()
+
+        now_ts = int(_now_dt().timestamp())
+        exp_ts = now_ts + JWT_TTL_SECONDS
+        claims = {
+            "iss": JWT_ISSUER,
+            "sub": v.user_id,
+            "default_workspace": v.workspace,
+            "user_context": user_context,
+            "iat": now_ts,
+            "exp": exp_ts,
+        }
+        token = _sign_jwt(kid, private_pem, claims)
+
+        expires_iso = datetime.datetime.fromtimestamp(
+            exp_ts, tz=datetime.timezone.utc,
+        ).isoformat()
+
+        return IamResponse(jwt=token, jwt_expires=expires_iso)
 
     # ------------------------------------------------------------------
     # Record-conversion helper for workspaces

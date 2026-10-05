@@ -111,6 +111,9 @@ class IamRequest:
     request_id: str = ""
     client_ip: str = ""
 
+    # ---- mint-token input ----
+    user_context_json: str = ""
+
     # ---- authorise / authorise-many inputs ----
     capability: str = ""
     resource_json: str = ""

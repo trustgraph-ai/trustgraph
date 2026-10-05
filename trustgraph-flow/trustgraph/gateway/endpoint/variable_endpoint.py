@@ -37,6 +37,8 @@ class VariableEndpoint:
 
             if identity is not None:
                 await enforce_workspace(data, identity, self.auth)
+                if identity.user_context is not None:
+                    data["user-context"] = identity.user_context
 
             async def responder(x, fin):
                 pass

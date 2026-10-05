@@ -56,21 +56,14 @@ class Identity:
     the regime's ``authorise`` operation.  The gateway itself never
     reads policy from this object.
     """
-    # Opaque handle, quoted back when calling ``authorise``.  For
-    # the OSS regime this is the user record's id; the gateway
-    # treats it as a string with no semantic content.
     handle: str
-    # The user's default workspace.  Used by the gateway as the
-    # default-fill-in for operations that omit a workspace.  Not a
-    # permission boundary — workspace access is controlled by the
-    # IAM regime's authorise() decision, not by this field.
     default_workspace: str
-    # Stable identifier for audit logs.  In OSS this is the same
-    # value as ``handle``; not assumed equal in the contract.
     principal_id: str
-    # How the credential was presented.  Non-policy; useful for
-    # logs / metrics only.
     source: str   # "api-key" | "jwt" | "anonymous"
+    # When present, the UserContext extracted from a minted JWT.
+    # The gateway attaches this to downstream requests so that
+    # policy-aware services can make access-control decisions.
+    user_context: dict | None = None
 
 
 def _auth_failure():
@@ -333,9 +326,12 @@ class IamAuth:
             ).inc()
             raise _auth_failure()
 
+        uc = claims.get("user_context")
+
         return Identity(
             handle=sub, default_workspace=ws,
             principal_id=sub, source="jwt",
+            user_context=uc if isinstance(uc, dict) else None,
         )
 
     async def _authenticate_anonymous(self, request_id="", client_ip=""):

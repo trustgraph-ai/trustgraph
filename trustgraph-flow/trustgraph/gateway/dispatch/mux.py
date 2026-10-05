@@ -247,6 +247,15 @@ class Mux:
             ):
                 data["request"]["actor"] = self.identity.handle
 
+            if (
+                self.identity is not None
+                and self.identity.user_context is not None
+                and isinstance(data.get("request"), dict)
+            ):
+                data["request"]["user_context"] = (
+                    self.identity.user_context
+                )
+
             await self.q.put((
                     data["id"],
                     workspace,
