@@ -143,6 +143,7 @@ class GraphRagRequestTranslator(MessageTranslator):
             graph_seeds=data.get("graph-seeds", []),
             languages=data.get("languages", []),
             traversal_instructions=self._decode_traversal_instructions(raw_ti),
+            graph=data.get("graph", None),
         )
 
     def encode(self, obj: GraphRagQuery) -> Dict[str, Any]:
@@ -168,6 +169,8 @@ class GraphRagRequestTranslator(MessageTranslator):
             result["languages"] = obj.languages
         if obj.traversal_instructions:
             result["traversal-instructions"] = self._encode_traversal_instructions(obj.traversal_instructions)
+        if obj.graph is not None:
+            result["graph"] = obj.graph
         return result
 
 

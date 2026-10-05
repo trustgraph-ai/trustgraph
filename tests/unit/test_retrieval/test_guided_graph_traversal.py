@@ -430,7 +430,7 @@ class TestTraversalInstructionsGraph:
         await query.hop_and_filter(["entity1"], ["concept"])
 
         for call in mock_triples_client.query_stream.call_args_list:
-            assert call.kwargs["g"] == ""
+            assert call.kwargs["g"] is None
 
 
 class TestTranslatorRoundTrip:

@@ -145,6 +145,7 @@ class Query:
             graph_seeds=None,
             languages=None,
             traversal_instructions=None,
+            graph=None,
     ):
         self.rag = rag
         self.collection = collection
@@ -162,6 +163,7 @@ class Query:
         self.graph_seeds = graph_seeds or []
         self.languages = languages or []
         self.traversal_instructions = traversal_instructions or []
+        self.graph = graph
 
     async def extract_concepts(self, query):
         """Extract key concepts from query for independent embedding."""
@@ -215,28 +217,27 @@ class Query:
         """
 
         if self.graph_seeds:
-            if self.verbose:
-                logger.debug(
-                    f"Using {len(self.graph_seeds)} graph seeds, "
-                    "skipping grounding and entity lookup"
-                )
+            logger.info(
+                f"Using {len(self.graph_seeds)} graph seeds, "
+                "skipping grounding and entity lookup"
+            )
             return list(self.graph_seeds), [query]
 
         if self.grounding_seeds:
-            if self.verbose:
-                logger.debug(
-                    f"Using {len(self.grounding_seeds)} grounding seeds, "
-                    "skipping LLM concept extraction"
-                )
+            logger.info(
+                f"Using {len(self.grounding_seeds)} grounding seeds, "
+                "skipping LLM concept extraction"
+            )
             concepts = list(self.grounding_seeds)
             self.concepts_usage = None
         else:
             concepts = await self.extract_concepts(query)
 
+        logger.info(f"Concepts: {concepts}")
+
         vectors = await self.get_vectors(concepts)
 
-        if self.verbose:
-            logger.debug("Getting entities...")
+        logger.info(f"Got {len(vectors)} embedding vectors")
 
         # Query entity matches for each concept concurrently
         per_concept_limit = max(
@@ -256,8 +257,13 @@ class Query:
         # Deduplicate while preserving order
         seen = set()
         entities = []
+        embed_errors = 0
         for result in results:
-            if isinstance(result, Exception) or not result:
+            if isinstance(result, Exception):
+                embed_errors += 1
+                logger.warning(f"Embedding query error: {result}")
+                continue
+            if not result:
                 continue
             for e in result:
                 entity = term_to_string(e.entity)
@@ -265,10 +271,15 @@ class Query:
                     seen.add(entity)
                     entities.append(entity)
 
-        if self.verbose:
-            logger.debug("Entities:")
-            for ent in entities:
-                logger.debug(f"  {ent}")
+        logger.info(
+            f"Seed entities: {len(entities)} "
+            f"(from {len(results)} embedding queries, "
+            f"{embed_errors} errors)"
+        )
+        for ent in entities[:10]:
+            logger.info(f"  seed: {ent}")
+        if len(entities) > 10:
+            logger.info(f"  ... and {len(entities) - 10} more")
 
         return entities, concepts
 
@@ -283,17 +294,27 @@ class Query:
         res = await self.rag.triples_client.query(
             s=e, p=LABEL, o=None, limit=1,
             collection=self.collection,
-            g="",
+            g=self.graph if self.graph is not None else "",
             user_context=self.user_context,
         )
 
         if len(res) == 0:
-            self.rag.label_cache.put(cache_key, e)
-            return e
+            fallback = self._local_name(e)
+            self.rag.label_cache.put(cache_key, fallback)
+            return fallback
 
         label = str(res[0].o)
         self.rag.label_cache.put(cache_key, label)
         return label
+
+    @staticmethod
+    def _local_name(iri):
+        pos = iri.rfind('#')
+        if pos < 0:
+            pos = iri.rfind('/')
+        if pos >= 0 and pos < len(iri) - 1:
+            return iri[pos + 1:]
+        return iri
 
     FROM_S = "from_s"
     FROM_P = "from_p"
@@ -314,7 +335,12 @@ class Query:
         Returns a list of (triple, direction) tuples where direction
         indicates which position the frontier entity occupied.
         """
-        graph_list = graphs if graphs else [""]
+        if graphs:
+            graph_list = graphs
+        elif self.graph is not None:
+            graph_list = [self.graph]
+        else:
+            graph_list = [None]
 
         tasks = []
         directions = []
@@ -358,17 +384,27 @@ class Query:
 
         all_triples = []
         errors = []
+        empty_count = 0
         for direction, result in zip(directions, results):
             if isinstance(result, Exception):
                 errors.append(result)
-            elif result is not None:
+            elif result is not None and len(result) > 0:
                 all_triples.extend((triple, direction) for triple in result)
+            else:
+                empty_count += 1
 
         if errors:
             logger.error(
                 f"Triples query errors: {len(errors)} of "
                 f"{len(results)} queries failed: {errors[0]}"
             )
+
+        logger.info(
+            f"Batch queries: {len(results)} total, "
+            f"{len(results) - errors.__len__() - empty_count} returned triples, "
+            f"{empty_count} empty, {len(errors)} errors, "
+            f"{len(all_triples)} triples total"
+        )
 
         return all_triples
 
@@ -413,7 +449,7 @@ class Query:
             self.rag.triples_client.query(
                 s=e, p=RDF_TYPE, o=None, limit=20,
                 collection=self.collection,
-                g="",
+                g=self.graph if self.graph is not None else "",
                 user_context=self.user_context,
             )
             for e in entities
@@ -455,11 +491,18 @@ class Query:
         visited_entities = set()
         seen_edges = set()
 
+        logger.info(
+            f"hop_and_filter: {len(seed_entities)} seed entities, "
+            f"{len(concepts)} concepts, "
+            f"max_path_length={self.max_path_length}"
+        )
+
         # Apply initial type restriction from traversal instructions
         # (first step can only be a type restriction)
         if self.traversal_instructions:
             step0 = self.traversal_instructions[0]
             if step0.types:
+                before = len(frontier)
                 type_map = await self._get_types_for_entities(
                     list(frontier)
                 )
@@ -468,11 +511,10 @@ class Query:
                     e for e in frontier
                     if type_map.get(e, set()) & allowed
                 }
-                if self.verbose:
-                    logger.debug(
-                        f"Type filter on seeds: {len(frontier)} entities "
-                        f"remain after restricting to {step0.types}"
-                    )
+                logger.info(
+                    f"Type filter on seeds: {before} -> {len(frontier)} "
+                    f"(restricted to {step0.types})"
+                )
 
         for hop in range(self.max_path_length):
             if not frontier:
@@ -480,12 +522,13 @@ class Query:
 
             unvisited = [e for e in frontier if e not in visited_entities]
             if not unvisited:
+                logger.info(f"Hop {hop + 1}: no unvisited frontier, stopping")
                 break
 
-            if self.verbose:
-                logger.debug(
-                    f"Hop {hop + 1}: {len(unvisited)} frontier entities"
-                )
+            logger.info(
+                f"Hop {hop + 1}: {len(unvisited)} unvisited frontier entities "
+                f"(of {len(frontier)} total, {len(visited_entities)} visited)"
+            )
 
             # Get traversal instruction for this hop (offset by 1 since
             # step 0 was the seed type filter)
@@ -507,24 +550,37 @@ class Query:
                 unvisited, self.triple_limit, graphs=hop_graphs,
             )
 
+            logger.info(
+                f"Hop {hop + 1}: {len(triples)} raw triples from "
+                f"{len(unvisited)} frontier entities"
+            )
+
             # Deduplicate and filter already-seen edges
             hop_triples = []
             hop_term_map = {}
             hop_directions = {}
+            skip_lang = 0
+            skip_schema = 0
+            skip_seen = 0
+            skip_rel = 0
             for triple, direction in triples:
                 # Language filter
                 if not self._matches_language(triple):
+                    skip_lang += 1
                     continue
 
                 triple_tuple = (str(triple.s), str(triple.p), str(triple.o))
                 if is_schema_predicate(triple_tuple[1]):
+                    skip_schema += 1
                     continue
                 if triple_tuple in seen_edges:
+                    skip_seen += 1
                     continue
 
                 # Relationship restriction
                 if hop_instruction and hop_instruction.relationships:
                     if triple_tuple[1] not in hop_instruction.relationships:
+                        skip_rel += 1
                         continue
 
                 seen_edges.add(triple_tuple)
@@ -534,14 +590,21 @@ class Query:
                 )
                 hop_directions[triple_tuple] = direction
 
+            logger.info(
+                f"Hop {hop + 1}: {len(hop_triples)} edges after filtering "
+                f"(from {len(triples)} raw, skipped: "
+                f"lang={skip_lang} schema={skip_schema} "
+                f"seen={skip_seen} rel={skip_rel})"
+            )
+            if hop_triples:
+                for t in hop_triples[:5]:
+                    logger.info(f"  edge: {t[0][:60]} | {t[1][:60]} | {t[2][:60]}")
+                if len(hop_triples) > 5:
+                    logger.info(f"  ... and {len(hop_triples) - 5} more")
+
             if not hop_triples:
                 visited_entities.update(frontier)
                 break
-
-            if self.verbose:
-                logger.debug(
-                    f"Hop {hop + 1}: {len(hop_triples)} candidate edges"
-                )
 
             # Resolve labels for all entities in hop edges
             entities_to_resolve = set()
@@ -552,21 +615,23 @@ class Query:
             resolved = await self.resolve_labels_batch(entity_list)
 
             label_map = {}
+            label_errors = 0
             for entity, label in zip(entity_list, resolved):
                 if not isinstance(label, Exception):
                     label_map[entity] = label
                 else:
+                    label_errors += 1
                     label_map[entity] = entity
+
+            logger.info(
+                f"Hop {hop + 1}: resolved {len(entity_list)} labels "
+                f"({label_errors} errors)"
+            )
 
             # Build labeled edges and documents for cross-encoder.
             # The reranker text highlights the NEW information relative
             # to the traversal direction: arriving from S means p,o are
             # new; from O means s,p are new; from P means s,o are new.
-            # Edges where the reranker-visible components are unlabeled
-            # IRIs are skipped — the cross-encoder can't score them.
-            def is_iri(val):
-                return val.startswith(("http://", "https://", "urn:"))
-
             filtered_triples = []
             labeled_hop = []
             documents = []
@@ -577,16 +642,10 @@ class Query:
 
                 direction = hop_directions[(s, p, o)]
                 if direction == self.FROM_S:
-                    if is_iri(lp) or is_iri(lo):
-                        continue
                     text = f"{lp} {lo}"
                 elif direction == self.FROM_O:
-                    if is_iri(ls) or is_iri(lp):
-                        continue
                     text = f"{ls} {lp}"
                 else:
-                    if is_iri(ls) or is_iri(lo):
-                        continue
                     text = f"{ls} {lo}"
 
                 if len(text) > self.max_reranker_text_length:
@@ -599,13 +658,20 @@ class Query:
 
             hop_triples = filtered_triples
 
+            logger.info(
+                f"Hop {hop + 1}: {len(documents)} documents for reranker"
+            )
+            for doc in documents[:5]:
+                logger.info(f"  doc: {doc['text'][:80]}")
+            if len(documents) > 5:
+                logger.info(f"  ... and {len(documents) - 5} more")
+
             # Cap the number of candidates sent to the reranker
             if len(hop_triples) > self.max_reranker_input:
-                if self.verbose:
-                    logger.debug(
-                        f"Hop {hop + 1}: truncating {len(hop_triples)} "
-                        f"candidates to {self.max_reranker_input}"
-                    )
+                logger.info(
+                    f"Hop {hop + 1}: truncating {len(hop_triples)} "
+                    f"candidates to {self.max_reranker_input}"
+                )
                 hop_triples = hop_triples[:self.max_reranker_input]
                 labeled_hop = labeled_hop[:self.max_reranker_input]
                 documents = documents[:self.max_reranker_input]
@@ -620,6 +686,10 @@ class Query:
                 queries=queries,
                 documents=documents,
                 limit=self.edge_limit,
+            )
+
+            logger.info(
+                f"Hop {hop + 1}: reranker returned {len(results)} edges"
             )
 
             # Collect selected edges and metadata
@@ -641,16 +711,24 @@ class Query:
                 next_frontier.add(s)
                 next_frontier.add(o)
 
-            if self.verbose:
-                logger.debug(
-                    f"Hop {hop + 1}: selected {len(results)} edges"
+            for r in results[:5]:
+                idx = int(r.document_id)
+                ls, lp, lo = labeled_hop[idx]
+                logger.info(
+                    f"  selected: {r.score:.4f} "
+                    f"{ls[:40]} | {lp[:40]} | {lo[:40]}"
                 )
 
             visited_entities.update(frontier)
             frontier = next_frontier - visited_entities
 
+            logger.info(
+                f"Hop {hop + 1}: next frontier {len(frontier)} entities"
+            )
+
             # Apply type restriction for the next hop's frontier
             if hop_instruction and hop_instruction.types:
+                before = len(frontier)
                 type_map = await self._get_types_for_entities(
                     list(frontier)
                 )
@@ -659,11 +737,13 @@ class Query:
                     e for e in frontier
                     if type_map.get(e, set()) & allowed
                 }
-                if self.verbose:
-                    logger.debug(
-                        f"Hop {hop + 1}: type filter reduced frontier "
-                        f"to {len(frontier)} entities"
-                    )
+                logger.info(
+                    f"Hop {hop + 1}: type filter {before} -> {len(frontier)}"
+                )
+
+        logger.info(
+            f"hop_and_filter complete: {len(all_selected_edges)} total edges"
+        )
 
         return all_selected_edges, uri_map, edge_metadata
 
@@ -831,6 +911,7 @@ class GraphRag:
             graph_seeds = None,
             languages = None,
             traversal_instructions = None,
+            graph = None,
     ):
         # Accumulate token usage across all prompt calls
         total_in = 0
@@ -888,6 +969,7 @@ class GraphRag:
             graph_seeds = graph_seeds,
             languages = languages,
             traversal_instructions = traversal_instructions,
+            graph = graph,
         )
 
         # Step 1: Extract concepts and find seed entities
@@ -923,16 +1005,15 @@ class GraphRag:
             )
             await explain_callback(exp_triples, exp_uri)
 
-        if self.verbose:
-            logger.debug(f"Selected {len(selected_edges)} edges")
-            for s, p, o in selected_edges:
-                eid = edge_id(s, p, o)
-                meta = edge_metadata.get(eid, {})
-                logger.debug(
-                    f"  {meta.get('score', 0):.4f} "
-                    f"[{meta.get('concept', '')}] "
-                    f"{s} | {p} | {o}"
-                )
+        logger.info(f"Final: {len(selected_edges)} selected edges")
+        for s, p, o in selected_edges[:10]:
+            eid = edge_id(s, p, o)
+            meta = edge_metadata.get(eid, {})
+            logger.info(
+                f"  {meta.get('score', 0):.4f} "
+                f"[{meta.get('concept', '')}] "
+                f"{s} | {p} | {o}"
+            )
 
         # Step 3: Document tracing
         selected_edge_uris = [

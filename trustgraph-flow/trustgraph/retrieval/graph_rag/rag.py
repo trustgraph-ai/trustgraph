@@ -217,6 +217,7 @@ class Processor(FlowProcessor):
             graph_seeds = v.graph_seeds or []
             languages = v.languages or []
             traversal_instructions = v.traversal_instructions or []
+            graph = v.graph
 
             if grounding_seeds and graph_seeds:
                 raise ValueError(
@@ -265,6 +266,7 @@ class Processor(FlowProcessor):
                     graph_seeds = graph_seeds,
                     languages = languages,
                     traversal_instructions = traversal_instructions,
+                    graph = graph,
                 )
 
             else:
@@ -285,6 +287,7 @@ class Processor(FlowProcessor):
                     graph_seeds = graph_seeds,
                     languages = languages,
                     traversal_instructions = traversal_instructions,
+                    graph = graph,
                 )
 
                 # Send single response with answer and token usage
