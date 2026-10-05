@@ -1,6 +1,6 @@
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, List, Tuple
 from ...schema import DocumentRagQuery, DocumentRagResponse, GraphRagQuery, GraphRagResponse
-from ...schema import UserContext
+from ...schema import TraversalStep, UserContext
 from ...base.serialization import dict_to_dataclass, dataclass_to_dict
 from .base import MessageTranslator
 from .primitives import TripleTranslator
@@ -95,8 +95,38 @@ class DocumentRagResponseTranslator(MessageTranslator):
 class GraphRagRequestTranslator(MessageTranslator):
     """Translator for GraphRagQuery schema objects"""
 
+    @staticmethod
+    def _decode_traversal_instructions(
+        data: List[Dict[str, Any]],
+    ) -> list[TraversalStep]:
+        steps = []
+        for item in data:
+            steps.append(TraversalStep(
+                types=item.get("types", []),
+                relationships=item.get("relationships", []),
+                graphs=item.get("graphs", []),
+            ))
+        return steps
+
+    @staticmethod
+    def _encode_traversal_instructions(
+        steps: list[TraversalStep],
+    ) -> List[Dict[str, Any]]:
+        result = []
+        for step in steps:
+            item: Dict[str, Any] = {}
+            if step.types:
+                item["types"] = step.types
+            if step.relationships:
+                item["relationships"] = step.relationships
+            if step.graphs:
+                item["graphs"] = step.graphs
+            result.append(item)
+        return result
+
     def decode(self, data: Dict[str, Any]) -> GraphRagQuery:
         uc = data.get("user-context")
+        raw_ti = data.get("traversal-instructions", [])
         return GraphRagQuery(
             query=data["query"],
             collection=data.get("collection", "default"),
@@ -109,6 +139,10 @@ class GraphRagRequestTranslator(MessageTranslator):
             max_reranker_input=int(data.get("max-reranker-input", 350)),
             streaming=data.get("streaming", False),
             user_context=dict_to_dataclass(uc, UserContext) if uc else None,
+            grounding_seeds=data.get("grounding-seeds", []),
+            graph_seeds=data.get("graph-seeds", []),
+            languages=data.get("languages", []),
+            traversal_instructions=self._decode_traversal_instructions(raw_ti),
         )
 
     def encode(self, obj: GraphRagQuery) -> Dict[str, Any]:
@@ -126,6 +160,14 @@ class GraphRagRequestTranslator(MessageTranslator):
         }
         if obj.user_context is not None:
             result["user-context"] = dataclass_to_dict(obj.user_context)
+        if obj.grounding_seeds:
+            result["grounding-seeds"] = obj.grounding_seeds
+        if obj.graph_seeds:
+            result["graph-seeds"] = obj.graph_seeds
+        if obj.languages:
+            result["languages"] = obj.languages
+        if obj.traversal_instructions:
+            result["traversal-instructions"] = self._encode_traversal_instructions(obj.traversal_instructions)
         return result
 
 

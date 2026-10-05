@@ -141,6 +141,10 @@ class Query:
             max_reranker_text_length=240,
             track_usage=None,
             user_context=None,
+            grounding_seeds=None,
+            graph_seeds=None,
+            languages=None,
+            traversal_instructions=None,
     ):
         self.rag = rag
         self.collection = collection
@@ -154,6 +158,10 @@ class Query:
         self.max_reranker_text_length = max_reranker_text_length
         self.track_usage = track_usage
         self.user_context = user_context
+        self.grounding_seeds = grounding_seeds or []
+        self.graph_seeds = graph_seeds or []
+        self.languages = languages or []
+        self.traversal_instructions = traversal_instructions or []
 
     async def extract_concepts(self, query):
         """Extract key concepts from query for independent embedding."""
@@ -195,13 +203,35 @@ class Query:
         """
         Extract concepts from query, embed them, and retrieve matching entities.
 
+        When graph_seeds are provided, bypasses both grounding and entity
+        lookup — returns the seeds directly with an empty concepts list.
+        When grounding_seeds are provided, bypasses LLM concept extraction
+        but still performs entity embedding lookup.
+
         Returns:
             tuple: (entities, concepts) where entities is a list of entity URI
                 strings and concepts is the list of concept strings extracted
                 from the query.
         """
 
-        concepts = await self.extract_concepts(query)
+        if self.graph_seeds:
+            if self.verbose:
+                logger.debug(
+                    f"Using {len(self.graph_seeds)} graph seeds, "
+                    "skipping grounding and entity lookup"
+                )
+            return list(self.graph_seeds), [query]
+
+        if self.grounding_seeds:
+            if self.verbose:
+                logger.debug(
+                    f"Using {len(self.grounding_seeds)} grounding seeds, "
+                    "skipping LLM concept extraction"
+                )
+            concepts = list(self.grounding_seeds)
+            self.concepts_usage = None
+        else:
+            concepts = await self.extract_concepts(query)
 
         vectors = await self.get_vectors(concepts)
 
@@ -269,48 +299,60 @@ class Query:
     FROM_P = "from_p"
     FROM_O = "from_o"
 
-    async def execute_batch_triple_queries(self, entities, limit_per_entity):
+    async def execute_batch_triple_queries(
+        self, entities, limit_per_entity, graphs=None,
+    ):
         """Execute triple queries for multiple entities concurrently.
+
+        Args:
+            entities: Entity URIs to query from.
+            limit_per_entity: Max triples per query.
+            graphs: Optional list of named graph URIs. When provided,
+                queries are issued once per graph; otherwise a single
+                query with g="" is used.
 
         Returns a list of (triple, direction) tuples where direction
         indicates which position the frontier entity occupied.
         """
+        graph_list = graphs if graphs else [""]
+
         tasks = []
         directions = []
 
-        for entity in entities:
-            tasks.append(
-                self.rag.triples_client.query_stream(
-                    s=entity, p=None, o=None,
-                    limit=limit_per_entity,
-                    collection=self.collection,
-                    batch_size=20, g="",
-                    user_context=self.user_context,
-                ),
-            )
-            directions.append(self.FROM_S)
+        for g in graph_list:
+            for entity in entities:
+                tasks.append(
+                    self.rag.triples_client.query_stream(
+                        s=entity, p=None, o=None,
+                        limit=limit_per_entity,
+                        collection=self.collection,
+                        batch_size=20, g=g,
+                        user_context=self.user_context,
+                    ),
+                )
+                directions.append(self.FROM_S)
 
-            tasks.append(
-                self.rag.triples_client.query_stream(
-                    s=None, p=entity, o=None,
-                    limit=limit_per_entity,
-                    collection=self.collection,
-                    batch_size=20, g="",
-                    user_context=self.user_context,
-                ),
-            )
-            directions.append(self.FROM_P)
+                tasks.append(
+                    self.rag.triples_client.query_stream(
+                        s=None, p=entity, o=None,
+                        limit=limit_per_entity,
+                        collection=self.collection,
+                        batch_size=20, g=g,
+                        user_context=self.user_context,
+                    ),
+                )
+                directions.append(self.FROM_P)
 
-            tasks.append(
-                self.rag.triples_client.query_stream(
-                    s=None, p=None, o=entity,
-                    limit=limit_per_entity,
-                    collection=self.collection,
-                    batch_size=20, g="",
-                    user_context=self.user_context,
-                ),
-            )
-            directions.append(self.FROM_O)
+                tasks.append(
+                    self.rag.triples_client.query_stream(
+                        s=None, p=None, o=entity,
+                        limit=limit_per_entity,
+                        collection=self.collection,
+                        batch_size=20, g=g,
+                        user_context=self.user_context,
+                    ),
+                )
+                directions.append(self.FROM_O)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -326,14 +368,69 @@ class Query:
         tasks = [self.maybe_label(entity) for entity in entities]
         return await asyncio.gather(*tasks, return_exceptions=True)
 
+    def _matches_language(self, triple):
+        """Check if a triple's literal values match the language filter.
+
+        Returns True if no language filter is set, if the triple has no
+        literal components, or if at least one literal component matches
+        a specified language tag.
+        """
+        if not self.languages:
+            return True
+
+        lang_set = set(self.languages)
+        has_literal = False
+
+        for val in (triple.s, triple.o):
+            if hasattr(val, 'language'):
+                has_literal = True
+                lang = val.language if val.language is not None else ""
+                if lang in lang_set:
+                    return True
+            elif hasattr(val, 'value'):
+                has_literal = True
+                if "" in lang_set:
+                    return True
+
+        # No literals in this triple — let it through
+        return not has_literal
+
+    async def _get_types_for_entities(self, entities):
+        """Look up rdf:type for a batch of entities.
+
+        Returns a dict mapping entity URI -> set of type IRIs.
+        """
+        tasks = [
+            self.rag.triples_client.query(
+                s=e, p=RDF_TYPE, o=None, limit=20,
+                collection=self.collection,
+                g="",
+                user_context=self.user_context,
+            )
+            for e in entities
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        type_map = {}
+        for entity, result in zip(entities, results):
+            types = set()
+            if not isinstance(result, Exception) and result:
+                for triple in result:
+                    types.add(str(triple.o))
+            type_map[entity] = types
+
+        return type_map
+
     async def hop_and_filter(self, seed_entities, concepts):
         """Iterative hop-and-filter graph traversal with cross-encoder.
 
         At each hop:
         1. Retrieve all edges one hop from the frontier.
-        2. Resolve labels and represent each edge as "{p} {o}".
-        3. Score edges against concepts using the cross-encoder.
-        4. Select the top edges; their target nodes become the next
+        2. Apply traversal instruction filters (relationship, type, graph).
+        3. Apply language filters.
+        4. Resolve labels and represent each edge as "{p} {o}".
+        5. Score edges against concepts using the cross-encoder.
+        6. Select the top edges; their target nodes become the next
            frontier.
 
         Returns:
@@ -349,6 +446,25 @@ class Query:
         visited_entities = set()
         seen_edges = set()
 
+        # Apply initial type restriction from traversal instructions
+        # (first step can only be a type restriction)
+        if self.traversal_instructions:
+            step0 = self.traversal_instructions[0]
+            if step0.types:
+                type_map = await self._get_types_for_entities(
+                    list(frontier)
+                )
+                allowed = set(step0.types)
+                frontier = {
+                    e for e in frontier
+                    if type_map.get(e, set()) & allowed
+                }
+                if self.verbose:
+                    logger.debug(
+                        f"Type filter on seeds: {len(frontier)} entities "
+                        f"remain after restricting to {step0.types}"
+                    )
+
         for hop in range(self.max_path_length):
             if not frontier:
                 break
@@ -362,9 +478,24 @@ class Query:
                     f"Hop {hop + 1}: {len(unvisited)} frontier entities"
                 )
 
+            # Get traversal instruction for this hop (offset by 1 since
+            # step 0 was the seed type filter)
+            ti_index = hop + 1
+            hop_instruction = None
+            if (
+                self.traversal_instructions
+                and ti_index < len(self.traversal_instructions)
+            ):
+                hop_instruction = self.traversal_instructions[ti_index]
+
             # Retrieve edges one hop from frontier
+            hop_graphs = (
+                hop_instruction.graphs
+                if hop_instruction and hop_instruction.graphs
+                else None
+            )
             triples = await self.execute_batch_triple_queries(
-                unvisited, self.triple_limit,
+                unvisited, self.triple_limit, graphs=hop_graphs,
             )
 
             # Deduplicate and filter already-seen edges
@@ -372,11 +503,21 @@ class Query:
             hop_term_map = {}
             hop_directions = {}
             for triple, direction in triples:
+                # Language filter
+                if not self._matches_language(triple):
+                    continue
+
                 triple_tuple = (str(triple.s), str(triple.p), str(triple.o))
                 if is_schema_predicate(triple_tuple[1]):
                     continue
                 if triple_tuple in seen_edges:
                     continue
+
+                # Relationship restriction
+                if hop_instruction and hop_instruction.relationships:
+                    if triple_tuple[1] not in hop_instruction.relationships:
+                        continue
+
                 seen_edges.add(triple_tuple)
                 hop_triples.append(triple_tuple)
                 hop_term_map[triple_tuple] = (
@@ -498,6 +639,22 @@ class Query:
 
             visited_entities.update(frontier)
             frontier = next_frontier - visited_entities
+
+            # Apply type restriction for the next hop's frontier
+            if hop_instruction and hop_instruction.types:
+                type_map = await self._get_types_for_entities(
+                    list(frontier)
+                )
+                allowed = set(hop_instruction.types)
+                frontier = {
+                    e for e in frontier
+                    if type_map.get(e, set()) & allowed
+                }
+                if self.verbose:
+                    logger.debug(
+                        f"Hop {hop + 1}: type filter reduced frontier "
+                        f"to {len(frontier)} entities"
+                    )
 
         return all_selected_edges, uri_map, edge_metadata
 
@@ -661,6 +818,10 @@ class GraphRag:
             explain_callback = None, save_answer_callback = None,
             parent_uri = "",
             user_context = None,
+            grounding_seeds = None,
+            graph_seeds = None,
+            languages = None,
+            traversal_instructions = None,
     ):
         # Accumulate token usage across all prompt calls
         total_in = 0
@@ -714,6 +875,10 @@ class GraphRag:
             max_reranker_text_length = max_reranker_text_length,
             track_usage = track_usage,
             user_context = user_context,
+            grounding_seeds = grounding_seeds,
+            graph_seeds = graph_seeds,
+            languages = languages,
+            traversal_instructions = traversal_instructions,
         )
 
         # Step 1: Extract concepts and find seed entities

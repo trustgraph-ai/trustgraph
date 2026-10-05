@@ -3,6 +3,7 @@ Uses the GraphRAG service to answer a question
 """
 
 import argparse
+import json
 import os
 import sys
 from trustgraph.api import (
@@ -48,6 +49,8 @@ def _question_explainable_api(
         max_subgraph_size, max_path_length, edge_score_limit=30,
         edge_limit=25, max_reranker_input=350, token=None, debug=False,
         workspace="default",
+        grounding_seeds=None, graph_seeds=None, languages=None,
+        traversal_instructions=None,
 ):
     """Execute graph RAG with explainability using the new API classes."""
     api = Api(url=url, token=token, workspace=workspace)
@@ -61,7 +64,7 @@ def _question_explainable_api(
         # Stream GraphRAG with explainability - process events as they arrive
         for item in flow.graph_rag_explain(
             query=question_text,
-                        collection=collection,
+            collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
@@ -69,6 +72,10 @@ def _question_explainable_api(
             edge_score_limit=edge_score_limit,
             edge_limit=edge_limit,
             max_reranker_input=max_reranker_input,
+            grounding_seeds=grounding_seeds,
+            graph_seeds=graph_seeds,
+            languages=languages,
+            traversal_instructions=traversal_instructions,
         ):
             if isinstance(item, RAGChunk):
                 # Print response content
@@ -164,6 +171,8 @@ def question(
         edge_limit=25, max_reranker_input=350, streaming=True, token=None,
         explainable=False, debug=False, show_usage=False,
         workspace="default",
+        grounding_seeds=None, graph_seeds=None, languages=None,
+        traversal_instructions=None,
 ):
 
     # Explainable mode uses the API to capture and process provenance events
@@ -172,7 +181,7 @@ def question(
             url=url,
             flow_id=flow_id,
             question_text=question,
-                        collection=collection,
+            collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
@@ -183,6 +192,10 @@ def question(
             token=token,
             debug=debug,
             workspace=workspace,
+            grounding_seeds=grounding_seeds,
+            graph_seeds=graph_seeds,
+            languages=languages,
+            traversal_instructions=traversal_instructions,
         )
         return
 
@@ -197,7 +210,7 @@ def question(
         try:
             response = flow.graph_rag(
                 query=question,
-                                collection=collection,
+                collection=collection,
                 entity_limit=entity_limit,
                 triple_limit=triple_limit,
                 max_subgraph_size=max_subgraph_size,
@@ -205,7 +218,11 @@ def question(
                 edge_score_limit=edge_score_limit,
                 edge_limit=edge_limit,
                 max_reranker_input=max_reranker_input,
-                streaming=True
+                streaming=True,
+                grounding_seeds=grounding_seeds,
+                graph_seeds=graph_seeds,
+                languages=languages,
+                traversal_instructions=traversal_instructions,
             )
 
             # Stream output
@@ -233,7 +250,7 @@ def question(
         flow = api.flow().id(flow_id)
         result = flow.graph_rag(
             query=question,
-                        collection=collection,
+            collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
@@ -241,6 +258,10 @@ def question(
             edge_score_limit=edge_score_limit,
             edge_limit=edge_limit,
             max_reranker_input=max_reranker_input,
+            grounding_seeds=grounding_seeds,
+            graph_seeds=graph_seeds,
+            languages=languages,
+            traversal_instructions=traversal_instructions,
         )
         print(result.text)
 
@@ -370,9 +391,54 @@ def main():
         help='Show token usage and model on stderr'
     )
 
+    parser.add_argument(
+        '--grounding-seeds',
+        type=str,
+        default=None,
+        help='JSON list of concept strings to bypass LLM grounding (e.g. \'["graphrag", "retrieval"]\')'
+    )
+
+    parser.add_argument(
+        '--graph-seeds',
+        type=str,
+        default=None,
+        help='JSON list of entity IRIs as traversal starting points (e.g. \'["http://example.org/Person/Jane"]\')'
+    )
+
+    parser.add_argument(
+        '--languages',
+        type=str,
+        default=None,
+        help='JSON list of language tags to filter by (e.g. \'["en", ""]\')'
+    )
+
+    parser.add_argument(
+        '--traversal-instructions',
+        type=str,
+        default=None,
+        help='JSON list of per-hop traversal restrictions (e.g. \'[{"types": ["http://example.org/Person"]}, {"relationships": ["http://example.org/worksFor"]}]\')'
+    )
+
     args = parser.parse_args()
 
     try:
+
+        grounding_seeds = (
+            json.loads(args.grounding_seeds)
+            if args.grounding_seeds else None
+        )
+        graph_seeds = (
+            json.loads(args.graph_seeds)
+            if args.graph_seeds else None
+        )
+        languages = (
+            json.loads(args.languages)
+            if args.languages else None
+        )
+        traversal_instructions = (
+            json.loads(args.traversal_instructions)
+            if args.traversal_instructions else None
+        )
 
         question(
             url=args.url,
@@ -392,6 +458,10 @@ def main():
             debug=args.debug,
             show_usage=args.show_usage,
             workspace=args.workspace,
+            grounding_seeds=grounding_seeds,
+            graph_seeds=graph_seeds,
+            languages=languages,
+            traversal_instructions=traversal_instructions,
         )
 
     except Exception as e:

@@ -718,6 +718,10 @@ class SocketFlowInstance:
         edge_limit: int = 25,
         max_reranker_input: int = 350,
         streaming: bool = False,
+        grounding_seeds: Optional[List[str]] = None,
+        graph_seeds: Optional[List[str]] = None,
+        languages: Optional[List[str]] = None,
+        traversal_instructions: Optional[List[dict]] = None,
         **kwargs: Any
     ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
         """Execute graph-based RAG query with optional streaming.
@@ -737,6 +741,14 @@ class SocketFlowInstance:
             "max-reranker-input": max_reranker_input,
             "streaming": streaming
         }
+        if grounding_seeds:
+            request["grounding-seeds"] = grounding_seeds
+        if graph_seeds:
+            request["graph-seeds"] = graph_seeds
+        if languages:
+            request["languages"] = languages
+        if traversal_instructions:
+            request["traversal-instructions"] = traversal_instructions
         request.update(kwargs)
 
         result = self.client._send_request_sync("graph-rag", self.flow_id, request, streaming)
@@ -763,6 +775,10 @@ class SocketFlowInstance:
         edge_score_limit: int = 30,
         edge_limit: int = 25,
         max_reranker_input: int = 350,
+        grounding_seeds: Optional[List[str]] = None,
+        graph_seeds: Optional[List[str]] = None,
+        languages: Optional[List[str]] = None,
+        traversal_instructions: Optional[List[dict]] = None,
         **kwargs: Any
     ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
         """Execute graph-based RAG query with explainability support."""
@@ -779,6 +795,14 @@ class SocketFlowInstance:
             "streaming": True,
             "explainable": True,
         }
+        if grounding_seeds:
+            request["grounding-seeds"] = grounding_seeds
+        if graph_seeds:
+            request["graph-seeds"] = graph_seeds
+        if languages:
+            request["languages"] = languages
+        if traversal_instructions:
+            request["traversal-instructions"] = traversal_instructions
         request.update(kwargs)
 
         return self.client._send_request_sync(
