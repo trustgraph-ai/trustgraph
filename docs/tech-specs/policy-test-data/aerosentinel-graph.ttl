@@ -11,6 +11,206 @@
 # IP and client relationships, and classified defense systems.
 # =============================================================
 
+# =============================================================
+# Ontology — Classes
+# =============================================================
+
+aso:Company a rdfs:Class ;
+    rdfs:label "Company" ;
+    rdfs:comment "A corporate entity." .
+
+aso:OrganisationalUnit a rdfs:Class ;
+    rdfs:label "Organisational Unit" ;
+    rdfs:comment "A division or department within a company." .
+
+aso:Classification a rdfs:Class ;
+    rdfs:label "Classification" ;
+    rdfs:comment "A security classification level for information." .
+
+aso:Product a rdfs:Class ;
+    rdfs:label "Product" ;
+    rdfs:comment "A product manufactured or developed by the company." .
+
+aso:Specification a rdfs:Class ;
+    rdfs:label "Specification" ;
+    rdfs:comment "Technical specifications for a product." .
+
+aso:Office a rdfs:Class ;
+    rdfs:label "Office" ;
+    rdfs:comment "A physical office or facility." .
+
+aso:SourceCode a rdfs:Class ;
+    rdfs:label "Source Code" ;
+    rdfs:comment "A software source code repository or module." .
+
+aso:Schematic a rdfs:Class ;
+    rdfs:label "Schematic" ;
+    rdfs:comment "An engineering schematic or design diagram." .
+
+aso:Client a rdfs:Class ;
+    rdfs:label "Client" ;
+    rdfs:comment "A customer or client of the company." .
+
+aso:Technology a rdfs:Class ;
+    rdfs:label "Technology" ;
+    rdfs:comment "A proprietary technology or material." .
+
+aso:TestData a rdfs:Class ;
+    rdfs:label "Test Data" ;
+    rdfs:comment "Test results and telemetry data." .
+
+aso:Briefing a rdfs:Class ;
+    rdfs:label "Briefing" ;
+    rdfs:comment "A project status briefing document." .
+
+aso:Contract a rdfs:Class ;
+    rdfs:label "Contract" ;
+    rdfs:comment "A procurement or evaluation contract." .
+
+aso:Supplier a rdfs:Class ;
+    rdfs:label "Supplier" ;
+    rdfs:comment "An external supplier of components or materials." .
+
+# =============================================================
+# Ontology — Properties
+# =============================================================
+
+aso:founded a rdf:Property ;
+    rdfs:label "founded" ;
+    rdfs:comment "The year the company was founded." .
+
+aso:headquarters a rdf:Property ;
+    rdfs:label "headquarters" ;
+    rdfs:comment "The location of the company headquarters." .
+
+aso:partOf a rdf:Property ;
+    rdfs:label "part of" ;
+    rdfs:comment "Indicates that an organisational unit belongs to a parent entity." .
+
+aso:classification a rdf:Property ;
+    rdfs:label "classification" ;
+    rdfs:comment "The security classification level assigned to a resource." .
+
+aso:organisationalUnit a rdf:Property ;
+    rdfs:label "organisational unit" ;
+    rdfs:comment "The organisational unit responsible for a resource." .
+
+aso:productCategory a rdf:Property ;
+    rdfs:label "product category" ;
+    rdfs:comment "The market category of a product." .
+
+aso:status a rdf:Property ;
+    rdfs:label "status" ;
+    rdfs:comment "The current production or development status." .
+
+aso:specFor a rdf:Property ;
+    rdfs:label "specification for" ;
+    rdfs:comment "The product that a specification describes." .
+
+aso:flightTime a rdf:Property ;
+    rdfs:label "flight time" ;
+    rdfs:comment "The maximum flight duration." .
+
+aso:maxPayload a rdf:Property ;
+    rdfs:label "max payload" ;
+    rdfs:comment "The maximum payload capacity." .
+
+aso:cameraResolution a rdf:Property ;
+    rdfs:label "camera resolution" ;
+    rdfs:comment "The resolution of the onboard camera." .
+
+aso:batteryType a rdf:Property ;
+    rdfs:label "battery type" ;
+    rdfs:comment "The type of battery used." .
+
+aso:wingspan a rdf:Property ;
+    rdfs:label "wingspan" ;
+    rdfs:comment "The wingspan of the aircraft." .
+
+aso:address a rdf:Property ;
+    rdfs:label "address" ;
+    rdfs:comment "The physical address of a location." .
+
+aso:range a rdf:Property ;
+    rdfs:label "range" ;
+    rdfs:comment "The maximum operational range." .
+
+aso:navigationSystem a rdf:Property ;
+    rdfs:label "navigation system" ;
+    rdfs:comment "The navigation system used by the aircraft." .
+
+aso:codeFor a rdf:Property ;
+    rdfs:label "code for" ;
+    rdfs:comment "The product that a source code module belongs to." .
+
+aso:language a rdf:Property ;
+    rdfs:label "language" ;
+    rdfs:comment "The programming language used." .
+
+aso:repository a rdf:Property ;
+    rdfs:label "repository" ;
+    rdfs:comment "The source code repository location." .
+
+aso:schematicFor a rdf:Property ;
+    rdfs:label "schematic for" ;
+    rdfs:comment "The product that a schematic describes." .
+
+aso:contractValue a rdf:Property ;
+    rdfs:label "contract value" ;
+    rdfs:comment "The monetary value of a contract." .
+
+aso:contractStatus a rdf:Property ;
+    rdfs:label "contract status" ;
+    rdfs:comment "The current status of a contract." .
+
+aso:product a rdf:Property ;
+    rdfs:label "product" ;
+    rdfs:comment "The product associated with a client relationship." .
+
+aso:technologyFor a rdf:Property ;
+    rdfs:label "technology for" ;
+    rdfs:comment "The product that a technology is developed for." .
+
+aso:testFor a rdf:Property ;
+    rdfs:label "test for" ;
+    rdfs:comment "The product that test data relates to." .
+
+aso:testDate a rdf:Property ;
+    rdfs:label "test date" ;
+    rdfs:comment "The date a test was conducted." .
+
+aso:briefingFor a rdf:Property ;
+    rdfs:label "briefing for" ;
+    rdfs:comment "The product that a briefing covers." .
+
+aso:briefingDate a rdf:Property ;
+    rdfs:label "briefing date" ;
+    rdfs:comment "The date of a briefing." .
+
+aso:contractFor a rdf:Property ;
+    rdfs:label "contract for" ;
+    rdfs:comment "The product that a contract covers." .
+
+aso:counterparty a rdf:Property ;
+    rdfs:label "counterparty" ;
+    rdfs:comment "The external party to a contract." .
+
+aso:supplierFor a rdf:Property ;
+    rdfs:label "supplier for" ;
+    rdfs:comment "The product that a supplier provides components for." .
+
+aso:country a rdf:Property ;
+    rdfs:label "country" ;
+    rdfs:comment "The country where a supplier is based." .
+
+aso:exportControlStatus a rdf:Property ;
+    rdfs:label "export control status" ;
+    rdfs:comment "The export control clearance status of a supplier." .
+
+# =============================================================
+# Data
+# =============================================================
+
 # -------------------------------------------------------------
 # Company
 # -------------------------------------------------------------
