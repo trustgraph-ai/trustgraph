@@ -124,6 +124,7 @@ class Processor(FlowProcessor):
                 triples_client,
                 collection=request.collection or "default",
                 limit=request.limit or 10000,
+                user_context=request.user_context,
             ):
                 values = [sol.get(v) for v in variables]
                 batch.append(SparqlBinding(values=values))
@@ -180,6 +181,7 @@ class Processor(FlowProcessor):
                     triples_client,
                     collection=request.collection or "default",
                     limit=request.limit or 10000,
+                    user_context=request.user_context,
                 )
             except EvaluationError as e:
                 return SparqlQueryResponse(
@@ -201,6 +203,7 @@ class Processor(FlowProcessor):
                 triples_client,
                 collection=request.collection or "default",
                 limit=request.limit or 10000,
+                user_context=request.user_context,
             )
         except EvaluationError as e:
             return SparqlQueryResponse(
