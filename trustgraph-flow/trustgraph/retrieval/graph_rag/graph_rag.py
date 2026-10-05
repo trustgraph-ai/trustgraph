@@ -357,9 +357,18 @@ class Query:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_triples = []
+        errors = []
         for direction, result in zip(directions, results):
-            if not isinstance(result, Exception) and result is not None:
+            if isinstance(result, Exception):
+                errors.append(result)
+            elif result is not None:
                 all_triples.extend((triple, direction) for triple in result)
+
+        if errors:
+            logger.error(
+                f"Triples query errors: {len(errors)} of "
+                f"{len(results)} queries failed: {errors[0]}"
+            )
 
         return all_triples
 

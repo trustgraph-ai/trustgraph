@@ -142,19 +142,31 @@ class PolicyFilter:
         self,
         query_fn: Callable[..., Awaitable[list[Triple]]],
         on_evaluation: Callable[..., Awaitable[None]] | None = None,
+        query_cache: QueryCache | None = None,
+        sparql_cache: SparqlCache | None = None,
+        policies: list | None = None,
+        required_predicates: set | None = None,
     ):
         """
         Args:
             query_fn: async fn(s, p, o, collection, g) -> list[Triple]
             on_evaluation: async fn(PolicyEvaluation) -> None
                 Called for every determination. No-op if None.
+            query_cache: Shared QueryCache instance (created if None)
+            sparql_cache: Shared SparqlCache instance (created if None)
+            policies: Pre-loaded policies (loads from graph if None)
+            required_predicates: Pre-computed predicates for policies
         """
-        self._query_cache = QueryCache(query_fn)
+        if query_cache is not None:
+            self._query_cache = query_cache
+            self._query_cache._query_fn = query_fn
+        else:
+            self._query_cache = QueryCache(query_fn)
         self.query_fn = self._query_cache.query
         self.on_evaluation = on_evaluation
-        self._policies = None
-        self._required_predicates = None
-        self._sparql_cache = SparqlCache()
+        self._policies = policies
+        self._required_predicates = required_predicates
+        self._sparql_cache = sparql_cache or SparqlCache()
 
     async def load_policies(self, collection: str) -> None:
         """Load policies from the policy graph if not already loaded."""

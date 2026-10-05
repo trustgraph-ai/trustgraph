@@ -62,10 +62,16 @@ class TriplesQueryResponseTranslator(MessageTranslator):
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
     def encode(self, obj: TriplesQueryResponse) -> Dict[str, Any]:
-        return {
-            "response": self.subgraph_translator.encode(obj.triples)
+        result = {
+            "response": self.subgraph_translator.encode(obj.triples or [])
         }
-    
+        if obj.error:
+            result["error"] = {
+                "type": obj.error.type,
+                "message": obj.error.message,
+            }
+        return result
+
     def encode_with_completion(self, obj: TriplesQueryResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
         return self.encode(obj), obj.is_final

@@ -21,7 +21,7 @@ from ... base import (
     FlowProcessor, ConsumerSpec, ProducerSpec,
     TriplesClientSpec, PolicyEventPublisher,
 )
-from .. policy_filter import PolicyFilter
+from .. policy_filter import PolicyFilter, QueryCache, SparqlCache
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,10 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {"id": id}
         )
+
+        self._query_caches = {}
+        self._sparql_cache = SparqlCache()
+        self._policy_cache = {}
 
         self.register_specification(
             ConsumerSpec(
@@ -182,12 +186,32 @@ class Processor(FlowProcessor):
                 raise RuntimeError(resp.error.message)
             return resp.triples or []
 
+        if workspace not in self._query_caches:
+            self._query_caches[workspace] = QueryCache(query_fn)
+        query_cache = self._query_caches[workspace]
+
+        collection = request.collection or "default"
+        policy_key = (workspace, collection)
+        cached = self._policy_cache.get(policy_key)
+        policies = cached[0] if cached else None
+        required_predicates = cached[1] if cached else None
+
         policy_filter = PolicyFilter(
             query_fn=query_fn,
             on_evaluation=on_evaluation,
+            query_cache=query_cache,
+            sparql_cache=self._sparql_cache,
+            policies=policies,
+            required_predicates=required_predicates,
         )
 
-        await policy_filter.load_policies(request.collection)
+        await policy_filter.load_policies(collection)
+
+        if policy_key not in self._policy_cache and policy_filter._policies:
+            self._policy_cache[policy_key] = (
+                policy_filter._policies,
+                policy_filter._required_predicates,
+            )
 
         if policy_filter.has_policies() and not request.user_context:
             return None

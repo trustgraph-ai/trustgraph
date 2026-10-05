@@ -147,6 +147,7 @@ class TestQueryPattern:
             o=None,
             limit=100,
             collection="my-collection",
+            user_context=None,
         )
 
     @pytest.mark.asyncio
