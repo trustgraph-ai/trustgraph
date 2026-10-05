@@ -14,6 +14,138 @@
 # Based on the real organisational structure, 1941-1944.
 # =============================================================
 
+# =============================================================
+# Ontology — Types
+# =============================================================
+
+bpo:Organisation a rdfs:Class ;
+    rdfs:label "Organisation" ;
+    rdfs:comment "An organisational body or institution." .
+
+bpo:Section a rdfs:Class ;
+    rdfs:label "Section" ;
+    rdfs:comment "An operational section or Hut within the organisation." .
+
+bpo:Classification a rdfs:Class ;
+    rdfs:label "Classification" ;
+    rdfs:comment "A security classification level." .
+
+bpo:Person a rdfs:Class ;
+    rdfs:label "Person" ;
+    rdfs:comment "A member of personnel." .
+
+bpo:Operation a rdfs:Class ;
+    rdfs:label "Operation" ;
+    rdfs:comment "A signals intelligence operation or campaign." .
+
+bpo:IntelligenceReport a rdfs:Class ;
+    rdfs:label "Intelligence Report" ;
+    rdfs:comment "A translated or analysed intelligence product." .
+
+bpo:CryptanalyticMethod a rdfs:Class ;
+    rdfs:label "Cryptanalytic Method" ;
+    rdfs:comment "A technique or procedure used to break a cipher system." .
+
+bpo:CryptanalyticMaterial a rdfs:Class ;
+    rdfs:label "Cryptanalytic Material" ;
+    rdfs:comment "Working material produced during cryptanalysis, such as Bombe menus or key recoveries." .
+
+bpo:TechnicalDocument a rdfs:Class ;
+    rdfs:label "Technical Document" ;
+    rdfs:comment "An engineering or technical specification document." .
+
+bpo:AdministrativeRecord a rdfs:Class ;
+    rdfs:label "Administrative Record" ;
+    rdfs:comment "Administrative or logistical documentation." .
+
+bpo:PolicyDocument a rdfs:Class ;
+    rdfs:label "Policy Document" ;
+    rdfs:comment "A document defining rules, procedures, or dissemination protocols." .
+
+bpo:CounterIntelligence a rdfs:Class ;
+    rdfs:label "Counter-Intelligence" ;
+    rdfs:comment "Decrypted material relating to enemy intelligence services." .
+
+# =============================================================
+# Ontology — Properties
+# =============================================================
+
+bpo:section a rdf:Property ;
+    rdfs:label "section" ;
+    rdfs:comment "The section or Hut responsible for this item." .
+
+bpo:classification a rdf:Property ;
+    rdfs:label "classification" ;
+    rdfs:comment "The security classification level of this item." .
+
+bpo:partOf a rdf:Property ;
+    rdfs:label "part of" ;
+    rdfs:comment "The parent organisation this section belongs to." .
+
+bpo:parentOrganisation a rdf:Property ;
+    rdfs:label "parent organisation" ;
+    rdfs:comment "The parent body of this organisation." .
+
+bpo:sectionHead a rdf:Property ;
+    rdfs:label "section head" ;
+    rdfs:comment "The person leading this section." .
+
+bpo:function a rdf:Property ;
+    rdfs:label "function" ;
+    rdfs:comment "The operational role of this section." .
+
+bpo:target a rdf:Property ;
+    rdfs:label "target" ;
+    rdfs:comment "The signals intelligence target of this section." .
+
+bpo:receivesFrom a rdf:Property ;
+    rdfs:label "receives from" ;
+    rdfs:comment "The section from which this section receives decrypted material." .
+
+bpo:servesSection a rdf:Property ;
+    rdfs:label "serves section" ;
+    rdfs:comment "A section that this section provides operational support to." .
+
+bpo:covername a rdf:Property ;
+    rdfs:label "cover name" ;
+    rdfs:comment "An official cover name or code name." .
+
+bpo:date a rdf:Property ;
+    rdfs:label "date" ;
+    rdfs:comment "The date associated with this item." .
+
+bpo:derivedFrom a rdf:Property ;
+    rdfs:label "derived from" ;
+    rdfs:comment "The source material from which this item was produced." .
+
+bpo:relatesTo a rdf:Property ;
+    rdfs:label "relates to" ;
+    rdfs:comment "An operation or topic this item is connected to." .
+
+bpo:usedBy a rdf:Property ;
+    rdfs:label "used by" ;
+    rdfs:comment "The section that uses this material operationally." .
+
+bpo:operationName a rdf:Property ;
+    rdfs:label "operation name" ;
+    rdfs:comment "The name of the operation." .
+
+bpo:theatre a rdf:Property ;
+    rdfs:label "theatre" ;
+    rdfs:comment "The theatre of operations." .
+
+bpo:inventor a rdf:Property ;
+    rdfs:label "inventor" ;
+    rdfs:comment "The person who invented or devised this method." .
+
+bpo:designer a rdf:Property ;
+    rdfs:label "designer" ;
+    rdfs:comment "The person who designed this system." .
+
+bpo:rank a rdf:Property ;
+    rdfs:label "rank" ;
+    rdfs:comment "The military or civil rank of this person." .
+
 # -------------------------------------------------------------
 # Organisation
 # -------------------------------------------------------------
