@@ -28,6 +28,7 @@ class KnowledgeLoader:
             url=default_url,
             token=None, workspace="default",
             graph="",
+            format="turtle",
     ):
         self.files = files
         self.flow = flow
@@ -37,42 +38,57 @@ class KnowledgeLoader:
         self.token = token
         self.workspace = workspace
         self.graph = graph
+        self.format = format
+
+    def _make_triple(self, s, p, o, graph=""):
+        s_value = Uri(str(s))
+        p_value = Uri(str(p))
+
+        if isinstance(o, rdflib.term.Literal):
+            o_value = Literal(
+                str(o),
+                datatype=str(o.datatype) if o.datatype else None,
+                language=str(o.language) if o.language else None,
+            )
+        else:
+            o_value = Uri(str(o))
+
+        return Triple(s=s_value, p=p_value, o=o_value, g=graph)
 
     def load_triples_from_file(self, file) -> Iterator[Triple]:
-        """Generator that yields Triple objects from a Turtle file"""
+        """Generator that yields Triple objects from a data file."""
 
-        g = rdflib.Graph()
-        g.parse(file, format="turtle")
-
-        for e in g:
-            s_value = Uri(str(e[0]))
-            p_value = Uri(str(e[1]))
-
-            if isinstance(e[2], rdflib.term.Literal):
-                o_value = Literal(
-                    str(e[2]),
-                    datatype=str(e[2].datatype) if e[2].datatype else None,
-                    language=str(e[2].language) if e[2].language else None,
-                )
-            else:
-                o_value = Uri(str(e[2]))
-
-            yield Triple(s=s_value, p=p_value, o=o_value, g=self.graph)
+        if self.format == "trig":
+            ds = rdflib.Dataset()
+            ds.parse(file, format="trig")
+            for s, p, o, g in ds.quads((None, None, None, None)):
+                graph = str(g.identifier) if g.identifier else ""
+                if graph == "urn:x-rdflib:default":
+                    graph = ""
+                yield self._make_triple(s, p, o, graph)
+        else:
+            g = rdflib.Graph()
+            g.parse(file, format="turtle")
+            for s, p, o in g:
+                yield self._make_triple(s, p, o, self.graph)
 
     def load_entity_contexts_from_file(self, file) -> Iterator[Tuple[str, str]]:
-        """Generator that yields (entity, context) tuples from a Turtle file"""
+        """Generator that yields (entity, context) tuples from a data file."""
 
-        g = rdflib.Graph()
-        g.parse(file, format="turtle")
-
-        for s, p, o in g:
-            if isinstance(o, rdflib.term.URIRef):
-                continue
-
-            s_str = str(s)
-            o_str = str(o)
-
-            yield (s_str, o_str)
+        if self.format == "trig":
+            ds = rdflib.Dataset()
+            ds.parse(file, format="trig")
+            for s, p, o, _g in ds.quads((None, None, None, None)):
+                if isinstance(o, rdflib.term.URIRef):
+                    continue
+                yield (str(s), str(o))
+        else:
+            g = rdflib.Graph()
+            g.parse(file, format="turtle")
+            for s, p, o in g:
+                if isinstance(o, rdflib.term.URIRef):
+                    continue
+                yield (str(s), str(o))
 
     def run(self):
         """Load triples and entity contexts using Python API"""
@@ -190,11 +206,22 @@ def main():
     )
 
     parser.add_argument(
+        '-F', '--format',
+        choices=["turtle", "trig"],
+        default="turtle",
+        help='Input format (default: turtle)'
+    )
+
+    parser.add_argument(
         'files', nargs='+',
-        help=f'Turtle files to load'
+        help=f'Data files to load'
     )
 
     args = parser.parse_args()
+
+    if args.format == "trig" and args.graph:
+        parser.error("--format trig and --graph are incompatible: "
+                      "named graphs come from the TriG data")
 
     while True:
 
@@ -208,6 +235,7 @@ def main():
                 collection=args.collection,
                 workspace=args.workspace,
                 graph=args.graph,
+                format=args.format,
             )
 
             loader.run()
