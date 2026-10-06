@@ -62,7 +62,8 @@ class KnowledgeLoader:
             ds = rdflib.Dataset()
             ds.parse(file, format="trig")
             for s, p, o, g in ds.quads((None, None, None, None)):
-                graph = str(g.identifier) if g.identifier else ""
+                graph_id = g.identifier if hasattr(g, 'identifier') else g
+                graph = str(graph_id) if graph_id else ""
                 if graph == "urn:x-rdflib:default":
                     graph = ""
                 yield self._make_triple(s, p, o, graph)
