@@ -33,6 +33,7 @@ class GraphRagQuery:
     graph_seeds: list[str] = field(default_factory=list)
     languages: list[str] = field(default_factory=list)
     traversal_instructions: list[TraversalStep] = field(default_factory=list)
+    graph: str | None = None
 
 @dataclass
 class Source:

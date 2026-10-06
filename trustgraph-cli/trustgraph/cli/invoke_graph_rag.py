@@ -50,7 +50,7 @@ def _question_explainable_api(
         edge_limit=25, max_reranker_input=350, token=None, debug=False,
         workspace="default",
         grounding_seeds=None, graph_seeds=None, languages=None,
-        traversal_instructions=None,
+        traversal_instructions=None, graph=None,
 ):
     """Execute graph RAG with explainability using the new API classes."""
     api = Api(url=url, token=token, workspace=workspace)
@@ -76,6 +76,7 @@ def _question_explainable_api(
             graph_seeds=graph_seeds,
             languages=languages,
             traversal_instructions=traversal_instructions,
+            graph=graph,
         ):
             if isinstance(item, RAGChunk):
                 # Print response content
@@ -172,7 +173,7 @@ def question(
         explainable=False, debug=False, show_usage=False,
         workspace="default",
         grounding_seeds=None, graph_seeds=None, languages=None,
-        traversal_instructions=None,
+        traversal_instructions=None, graph=None,
 ):
 
     # Explainable mode uses the API to capture and process provenance events
@@ -196,6 +197,7 @@ def question(
             graph_seeds=graph_seeds,
             languages=languages,
             traversal_instructions=traversal_instructions,
+            graph=graph,
         )
         return
 
@@ -223,6 +225,7 @@ def question(
                 graph_seeds=graph_seeds,
                 languages=languages,
                 traversal_instructions=traversal_instructions,
+                graph=graph,
             )
 
             # Stream output
@@ -262,6 +265,7 @@ def question(
             graph_seeds=graph_seeds,
             languages=languages,
             traversal_instructions=traversal_instructions,
+            graph=graph,
         )
         print(result.text)
 
@@ -419,6 +423,13 @@ def main():
         help='JSON list of per-hop traversal restrictions (e.g. \'[{"types": ["http://example.org/Person"]}, {"relationships": ["http://example.org/worksFor"]}]\')'
     )
 
+    parser.add_argument(
+        '-g', '--graph',
+        type=str,
+        default=None,
+        help='Named graph IRI to query (default: all graphs)'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -462,6 +473,7 @@ def main():
             graph_seeds=graph_seeds,
             languages=languages,
             traversal_instructions=traversal_instructions,
+            graph=args.graph,
         )
 
     except Exception as e:

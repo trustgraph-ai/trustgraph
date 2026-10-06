@@ -722,6 +722,7 @@ class SocketFlowInstance:
         graph_seeds: Optional[List[str]] = None,
         languages: Optional[List[str]] = None,
         traversal_instructions: Optional[List[dict]] = None,
+        graph: Optional[str] = None,
         **kwargs: Any
     ) -> Union[TextCompletionResult, Iterator[RAGChunk]]:
         """Execute graph-based RAG query with optional streaming.
@@ -749,6 +750,8 @@ class SocketFlowInstance:
             request["languages"] = languages
         if traversal_instructions:
             request["traversal-instructions"] = traversal_instructions
+        if graph is not None:
+            request["graph"] = graph
         request.update(kwargs)
 
         result = self.client._send_request_sync("graph-rag", self.flow_id, request, streaming)
@@ -779,6 +782,7 @@ class SocketFlowInstance:
         graph_seeds: Optional[List[str]] = None,
         languages: Optional[List[str]] = None,
         traversal_instructions: Optional[List[dict]] = None,
+        graph: Optional[str] = None,
         **kwargs: Any
     ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
         """Execute graph-based RAG query with explainability support."""
@@ -803,6 +807,8 @@ class SocketFlowInstance:
             request["languages"] = languages
         if traversal_instructions:
             request["traversal-instructions"] = traversal_instructions
+        if graph is not None:
+            request["graph"] = graph
         request.update(kwargs)
 
         return self.client._send_request_sync(
