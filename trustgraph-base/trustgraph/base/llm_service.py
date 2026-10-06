@@ -106,6 +106,10 @@ class LlmService(FlowProcessor):
                 ["processor"]
             )
 
+    async def list_models(self):
+        """Return available models. Override in backends that support it."""
+        raise NotImplementedError("list-models")
+
     async def on_request(self, msg, consumer, flow):
 
         try:
@@ -115,6 +119,10 @@ class LlmService(FlowProcessor):
             # Sender-produced ID
 
             id = msg.properties()["id"]
+
+            if getattr(request, 'operation', 'completion') == 'list-models':
+                await self._handle_list_models(flow, id)
+                return
 
             model = flow("model")
             temperature = flow("temperature")
@@ -202,6 +210,28 @@ class LlmService(FlowProcessor):
                     end_of_stream=True
                 ),
                 properties={"id": id}
+            )
+
+    async def _handle_list_models(self, flow, id):
+        try:
+            models = await self.list_models()
+            await flow("response").send(
+                TextCompletionResponse(
+                    models=models,
+                    end_of_stream=True,
+                ),
+                properties={"id": id},
+            )
+        except NotImplementedError:
+            await flow("response").send(
+                TextCompletionResponse(
+                    error=Error(
+                        type="not-implemented",
+                        message="This backend does not support model listing",
+                    ),
+                    end_of_stream=True,
+                ),
+                properties={"id": id},
             )
 
     def supports_streaming(self) -> bool:

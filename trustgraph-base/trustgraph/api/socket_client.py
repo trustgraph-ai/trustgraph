@@ -669,6 +669,14 @@ class SocketFlowInstance:
                 model=result.get("model"),
             )
 
+    def list_models(self):
+        """List available models from the text-completion backend."""
+        request = {"operation": "list-models"}
+        result = self.client._send_request_sync(
+            "text-completion", self.flow_id, request, False,
+        )
+        return result.get("models", [])
+
     def _text_completion_generator(self, result: Iterator[StreamingChunk]) -> Iterator[RAGChunk]:
         for chunk in result:
             if isinstance(chunk, RAGChunk):

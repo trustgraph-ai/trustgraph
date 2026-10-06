@@ -26,6 +26,7 @@ from google.api_core.exceptions import ResourceExhausted
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 default_ident = "text-completion"
 
@@ -180,6 +181,18 @@ class Processor(LlmService):
 
             logger.error(f"GoogleAIStudio LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        models = []
+        for m in self.client.models.list():
+            models.append(ModelInfo(
+                id=m.name,
+                name=getattr(m, 'display_name', None),
+                description=getattr(m, 'description', None),
+                context_length=getattr(m, 'input_token_limit', None),
+                max_output_length=getattr(m, 'output_token_limit', None),
+            ))
+        return models
 
     def supports_streaming(self):
         """Google AI Studio supports streaming"""

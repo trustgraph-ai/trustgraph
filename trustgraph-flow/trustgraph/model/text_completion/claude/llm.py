@@ -10,6 +10,7 @@ import logging
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -136,6 +137,16 @@ class Processor(LlmService):
 
             logger.error(f"Claude LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        models = []
+        for m in self.claude.models.list():
+            models.append(ModelInfo(
+                id=m.id,
+                name=getattr(m, 'display_name', None),
+                created=int(m.created_at.timestamp()) if getattr(m, 'created_at', None) else None,
+            ))
+        return models
 
     def supports_streaming(self):
         """Claude/Anthropic supports streaming"""

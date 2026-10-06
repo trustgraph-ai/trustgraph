@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests, LlmError
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 default_ident = "text-completion"
 
@@ -135,6 +136,20 @@ class Processor(LlmService):
 
             logger.error(f"vLLM LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        url = self.base_url.rstrip('/') + '/models'
+        async with self.session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+        models = []
+        for m in data.get('data', []):
+            models.append(ModelInfo(
+                id=m.get('id', ''),
+                owned_by=m.get('owned_by', None),
+                created=m.get('created', None),
+            ))
+        return models
 
     def supports_streaming(self):
         """vLLM supports streaming"""

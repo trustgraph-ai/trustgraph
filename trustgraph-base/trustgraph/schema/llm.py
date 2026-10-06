@@ -9,11 +9,31 @@ from .core.primitives import Error
 
 @dataclass
 class TextCompletionRequest:
+    operation: str = "completion"  # "completion" or "list-models"
     system: str = ""
     prompt: str = ""
     streaming: bool = False
     response_format: str | None = None
     schema: dict | None = None
+
+@dataclass
+class ModelInfo:
+    id: str = ""
+    name: str | None = None
+    owned_by: str | None = None
+    created: int | None = None
+    description: str | None = None
+    context_length: int | None = None
+    max_output_length: int | None = None
+    input_modalities: list[str] = field(default_factory=list)
+    output_modalities: list[str] = field(default_factory=list)
+    supported_features: list[str] = field(default_factory=list)
+    input_price: float | None = None
+    output_price: float | None = None
+    family: str | None = None
+    parameter_size: str | None = None
+    quantization: str | None = None
+    format: str | None = None
 
 @dataclass
 class TextCompletionResponse:
@@ -23,6 +43,7 @@ class TextCompletionResponse:
     out_token: int | None = None
     model: str | None = None
     end_of_stream: bool = False  # Indicates final message in stream
+    models: list[ModelInfo] = field(default_factory=list)
 
 ############################################################################
 
