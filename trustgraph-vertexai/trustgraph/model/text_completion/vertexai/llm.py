@@ -25,6 +25,7 @@ from anthropic import AnthropicVertex, RateLimitError
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -288,6 +289,18 @@ class Processor(LlmService):
             # Apart from rate limits, treat all exceptions as unrecoverable
             logger.error(f"VertexAI LLM exception: {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        models = []
+        for m in self.client.models.list():
+            models.append(ModelInfo(
+                id=m.name,
+                name=getattr(m, 'display_name', None),
+                description=getattr(m, 'description', None),
+                context_length=getattr(m, 'input_token_limit', None),
+                max_output_length=getattr(m, 'output_token_limit', None),
+            ))
+        return models
 
     def supports_streaming(self):
         """VertexAI supports streaming for both Gemini and Claude models"""

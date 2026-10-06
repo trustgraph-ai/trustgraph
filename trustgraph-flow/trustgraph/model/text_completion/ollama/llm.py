@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 default_ident = "text-completion"
 
@@ -111,6 +112,21 @@ class Processor(LlmService):
 
             logger.error(f"Ollama LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        response = await self.llm.list()
+        models = []
+        for m in response.get('models', []):
+            details = m.get('details', {})
+            modified = m.get('modified_at', None)
+            models.append(ModelInfo(
+                id=m.get('name', m.get('model', '')),
+                family=details.get('family', None),
+                parameter_size=details.get('parameter_size', None),
+                quantization=details.get('quantization_level', None),
+                format=details.get('format', None),
+            ))
+        return models
 
     def supports_streaming(self):
         """Ollama supports streaming"""

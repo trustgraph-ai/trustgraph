@@ -12,6 +12,7 @@ import logging
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -309,6 +310,21 @@ class Processor(LlmService):
 
             logger.error(f"Bedrock LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        bedrock_mgmt = self.session.client(service_name='bedrock')
+        response = bedrock_mgmt.list_foundation_models()
+        models = []
+        for m in response.get('modelSummaries', []):
+            models.append(ModelInfo(
+                id=m.get('modelId', ''),
+                name=m.get('modelName', None),
+                owned_by=m.get('providerName', None),
+                description=m.get('modelArn', None),
+                input_modalities=m.get('inputModalities', []),
+                output_modalities=m.get('outputModalities', []),
+            ))
+        return models
 
     def supports_streaming(self):
         """Bedrock supports streaming"""

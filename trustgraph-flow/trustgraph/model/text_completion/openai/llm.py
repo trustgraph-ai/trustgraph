@@ -10,6 +10,7 @@ import logging
 
 from .... exceptions import TooManyRequests, LlmError
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 from . variants import get_variant, DEFAULT_VARIANT, VARIANTS
 
 # Module logger
@@ -177,6 +178,31 @@ class Processor(LlmService):
 
             logger.error(f"OpenAI LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        models = []
+        for m in self.openai.models.list():
+            models.append(ModelInfo(
+                id=m.id,
+                owned_by=getattr(m, 'owned_by', None),
+                created=getattr(m, 'created', None),
+                name=getattr(m, 'name', None),
+                description=getattr(m, 'description', None),
+                context_length=getattr(m, 'context_length', None),
+                max_output_length=getattr(m, 'max_output_length', None),
+                input_modalities=getattr(m, 'input_modalities', None) or [],
+                output_modalities=getattr(m, 'output_modalities', None) or [],
+                supported_features=getattr(m, 'supported_features', None) or [],
+                input_price=(
+                    float(p["prompt"]) if (p := getattr(m, 'pricing', None))
+                    and "prompt" in p else None
+                ),
+                output_price=(
+                    float(p["completion"]) if (p := getattr(m, 'pricing', None))
+                    and "completion" in p else None
+                ),
+            ))
+        return models
 
     def supports_streaming(self):
         """OpenAI supports streaming"""

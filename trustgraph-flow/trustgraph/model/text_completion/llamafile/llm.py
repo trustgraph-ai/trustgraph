@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult, LlmChunk
+from .... schema import ModelInfo
 
 default_ident = "text-completion"
 
@@ -114,6 +115,16 @@ class Processor(LlmService):
 
             logger.error(f"Llamafile LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
+
+    async def list_models(self):
+        models = []
+        for m in self.openai.models.list():
+            models.append(ModelInfo(
+                id=m.id,
+                owned_by=getattr(m, 'owned_by', None),
+                created=getattr(m, 'created', None),
+            ))
+        return models
 
     def supports_streaming(self):
         """LlamaFile supports streaming"""
