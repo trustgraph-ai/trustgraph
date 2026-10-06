@@ -95,34 +95,11 @@ class Processor(FlowProcessor):
 
             triples_client = flow("triples-request")
 
-            resp = await triples_client.request(
-                TriplesQueryRequest(
-                    s=request.s,
-                    p=request.p,
-                    o=request.o,
-                    limit=request.limit,
-                    collection=request.collection,
-                    g=request.g,
-                ),
+            needs_policy = await self._needs_policy(
+                request, workspace, triples_client,
             )
 
-            if resp.error:
-                await flow("response").send(
-                    TriplesQueryResponse(
-                        error=resp.error,
-                        triples=None,
-                    ),
-                    properties={"id": id},
-                )
-                return
-
-            triples = resp.triples or []
-
-            triples = await self._apply_policy(
-                triples, request, workspace, triples_client,
-            )
-
-            if triples is None:
+            if needs_policy is None:
                 await flow("response").send(
                     TriplesQueryResponse(
                         error=Error(
@@ -138,11 +115,14 @@ class Processor(FlowProcessor):
                 )
                 return
 
-            r = TriplesQueryResponse(triples=triples, error=None)
-            await flow("response").send(r, properties={"id": id})
+            if not needs_policy:
+                await self._passthrough(
+                    request, triples_client, flow, id,
+                )
+                return
 
-            logger.debug(
-                "Policy-filtered triples query completed"
+            await self._filtered_query(
+                request, workspace, triples_client, flow, id,
             )
 
         except Exception as e:
@@ -162,12 +142,74 @@ class Processor(FlowProcessor):
 
             await flow("response").send(r, properties={"id": id})
 
-    async def _apply_policy(self, triples, request, workspace,
-                            triples_client):
-        """Apply policy filtering. Returns filtered triples, or None
-        if enforcement mode rejects the request (policies exist but
-        no user_context).
+    async def _needs_policy(self, request, workspace, triples_client):
+        """Check whether policy filtering is needed.
+
+        Returns:
+            True  — policies exist and user_context is provided, filter
+            False — no filtering needed, pass through
+            None  — policies exist but no user_context (reject)
         """
+        async def query_fn(s, p, o, collection, g=""):
+            results = []
+            async def collect(resp):
+                if resp.error:
+                    raise RuntimeError(resp.error.message)
+                if resp.triples:
+                    results.extend(resp.triples)
+                return resp.is_final
+            await triples_client.request(
+                TriplesQueryRequest(
+                    s=s, p=p, o=o,
+                    collection=collection, g=g,
+                    limit=10000, streaming=True,
+                ),
+                recipient=collect,
+            )
+            return results
+
+        if workspace not in self._query_caches:
+            self._query_caches[workspace] = QueryCache(query_fn)
+
+        collection = request.collection or "default"
+        policy_key = (workspace, collection)
+        cached = self._policy_cache.get(policy_key)
+
+        if cached is None:
+            policy_filter = PolicyFilter(
+                query_fn=query_fn,
+                query_cache=self._query_caches[workspace],
+                sparql_cache=self._sparql_cache,
+            )
+            await policy_filter.load_policies(collection)
+            self._policy_cache[policy_key] = (
+                policy_filter._policies or [],
+                policy_filter._required_predicates,
+            )
+            cached = self._policy_cache[policy_key]
+
+        has_policies = bool(cached[0])
+
+        if has_policies and not request.user_context:
+            return None
+
+        if not request.user_context:
+            return False
+
+        return has_policies
+
+    async def _passthrough(self, request, triples_client, flow, id):
+        """Forward request to backend as-is, preserving streaming."""
+
+        async def relay(resp):
+            await flow("response").send(resp, properties={"id": id})
+            return resp.is_final
+
+        await triples_client.request(request, recipient=relay)
+
+    async def _filtered_query(self, request, workspace, triples_client,
+                              flow, id):
+        """Stream triples from backend, filter each batch, relay."""
 
         evaluations = []
 
@@ -175,16 +217,22 @@ class Processor(FlowProcessor):
             evaluations.append(ev)
 
         async def query_fn(s, p, o, collection, g=""):
-            resp = await triples_client.request(
+            results = []
+            async def collect(resp):
+                if resp.error:
+                    raise RuntimeError(resp.error.message)
+                if resp.triples:
+                    results.extend(resp.triples)
+                return resp.is_final
+            await triples_client.request(
                 TriplesQueryRequest(
                     s=s, p=p, o=o,
                     collection=collection, g=g,
-                    limit=10000,
+                    limit=10000, streaming=True,
                 ),
+                recipient=collect,
             )
-            if resp.error:
-                raise RuntimeError(resp.error.message)
-            return resp.triples or []
+            return results
 
         if workspace not in self._query_caches:
             self._query_caches[workspace] = QueryCache(query_fn)
@@ -213,15 +261,46 @@ class Processor(FlowProcessor):
                 policy_filter._required_predicates,
             )
 
-        if policy_filter.has_policies() and not request.user_context:
-            return None
+        sent_any = False
 
-        if not request.user_context:
-            return triples
+        async def relay(resp):
+            nonlocal sent_any
 
-        filtered = await policy_filter.apply(
-            triples, request.collection, request.user_context,
-        )
+            if resp.error:
+                await flow("response").send(
+                    TriplesQueryResponse(error=resp.error, triples=None),
+                    properties={"id": id},
+                )
+                return resp.is_final
+
+            triples = resp.triples or []
+
+            filtered = await policy_filter.apply(
+                triples, collection, request.user_context,
+            )
+
+            if filtered:
+                sent_any = True
+                r = TriplesQueryResponse(
+                    triples=filtered, error=None,
+                    is_final=resp.is_final,
+                )
+                await flow("response").send(r, properties={"id": id})
+            elif resp.is_final:
+                r = TriplesQueryResponse(
+                    triples=[], error=None, is_final=True,
+                )
+                await flow("response").send(r, properties={"id": id})
+
+            return resp.is_final
+
+        await triples_client.request(request, recipient=relay)
+
+        if not sent_any:
+            r = TriplesQueryResponse(
+                triples=[], error=None, is_final=True,
+            )
+            await flow("response").send(r, properties={"id": id})
 
         if evaluations:
             await self.policy_event_publisher.emit_evaluations(
@@ -231,12 +310,12 @@ class Processor(FlowProcessor):
                 query_s=self._term_str(request.s),
                 query_p=self._term_str(request.p),
                 query_o=self._term_str(request.o),
-                collection=request.collection or "",
+                collection=collection,
                 graph=request.g or "",
                 workspace=workspace or "",
             )
 
-        return filtered
+        logger.debug("Policy-filtered triples query completed")
 
     @staticmethod
     def _term_str(term):
