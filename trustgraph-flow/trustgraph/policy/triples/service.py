@@ -10,6 +10,7 @@ Flow config selects between triples-query (no policy) and this
 service.
 """
 
+import time
 import logging
 from uuid import uuid4
 
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 default_ident = "triples-policy"
 default_concurrency = 10
+POLICY_CACHE_TTL = 60
 
 
 class Processor(FlowProcessor):
@@ -174,6 +176,11 @@ class Processor(FlowProcessor):
         collection = request.collection or "default"
         policy_key = (workspace, collection)
         cached = self._policy_cache.get(policy_key)
+        now = time.monotonic()
+
+        if cached is not None and now - cached[2] >= POLICY_CACHE_TTL:
+            del self._policy_cache[policy_key]
+            cached = None
 
         if cached is None:
             policy_filter = PolicyFilter(
@@ -185,6 +192,7 @@ class Processor(FlowProcessor):
             self._policy_cache[policy_key] = (
                 policy_filter._policies or [],
                 policy_filter._required_predicates,
+                now,
             )
             cached = self._policy_cache[policy_key]
 
@@ -259,6 +267,7 @@ class Processor(FlowProcessor):
             self._policy_cache[policy_key] = (
                 policy_filter._policies,
                 policy_filter._required_predicates,
+                time.monotonic(),
             )
 
         sent_any = False
@@ -277,6 +286,7 @@ class Processor(FlowProcessor):
 
             filtered = await policy_filter.apply(
                 triples, collection, request.user_context,
+                graph=request.g,
             )
 
             if filtered:

@@ -28,15 +28,16 @@ Policy evaluation flow:
     4. Apply determinations: nodes with blocks=true are removed
 """
 
-import re
 import time
 import logging
 from typing import Callable, Awaitable
 from collections import OrderedDict
 
-from rdflib import Graph, URIRef, Literal, BNode, Namespace
+from rdflib import Graph, URIRef, Literal, BNode, Namespace, Variable
 from rdflib.namespace import RDF, RDFS, XSD
 from rdflib.plugins.sparql import prepareQuery
+from rdflib.plugins.sparql.algebra import traverse
+from rdflib.plugins.sparql.parserutils import CompValue
 
 from .. schema import Triple, Term, IRI, LITERAL, UserContext
 
@@ -186,6 +187,7 @@ class PolicyFilter:
         triples: list[Triple],
         collection: str,
         user_context: UserContext,
+        graph=None,
     ) -> list[Triple]:
         """
         Apply policy filtering to a set of triples.
@@ -211,7 +213,7 @@ class PolicyFilter:
         blocked_iris = set()
         for node_iri in candidate_iris:
             evaluation = await self._evaluate_node(
-                node_iri, collection, context_graph,
+                node_iri, collection, context_graph, graph,
             )
             if evaluation:
                 if self.on_evaluation:
@@ -436,30 +438,86 @@ class PolicyFilter:
     # -----------------------------------------------------------------
 
     def _discover_predicates(self, policies):
-        """Discover the union of predicates all policies need from ?this."""
+        """Discover all predicates that policies need for evaluation.
+
+        Walks the SPARQL algebra of each policy's SELECT query to find
+        every predicate reachable from ?this through chains of triple
+        patterns. This ensures hydration fetches enough data for
+        arbitrarily deep property traversals.
+
+        Returns a set of (predicate_iri, position) tuples where position
+        is "s" (fetch triples where the node is subject) or "o" (fetch
+        triples where the node is object). This distinction matters
+        because hydration must query the graph in the right direction.
+        """
         all_preds = set()
         for p in policies:
             all_preds |= self._extract_node_predicates(p)
         return all_preds
 
     def _extract_node_predicates(self, policy):
-        """Parse SPARQL to find predicates used on ?this."""
+        """Walk the SPARQL algebra to find predicates reachable from ?this.
+
+        Uses rdflib's algebra tree (produced by prepareQuery) rather than
+        regex, so it correctly handles OPTIONAL, UNION, FILTER NOT EXISTS,
+        prefixed names, and the 'a' shorthand for rdf:type.
+
+        The algorithm traces variable dependencies starting from ?this:
+          1. Seed the "known" set with Variable('this')
+          2. Scan all BGP triple patterns for any pattern where a known
+             variable appears as subject or object
+          3. Record the predicate and which position the known variable
+             occupies ("s" if subject, "o" if object)
+          4. Add any newly discovered variables to the known set
+          5. Repeat until no new variables are found
+
+        This captures multi-hop patterns like:
+            ?this bpo:section ?section .
+            ?section bpo:classification ?class .
+        where both bpo:section and bpo:classification need hydrating.
+        """
+        prefix_header = self._build_prefix_header(policy.target_prefixes)
+        full_query = f"{prefix_header}\n{policy.sparql_select}"
+
+        compiled = self._sparql_cache.prepare(full_query)
+
+        # Collect all BGP triple patterns from the algebra
+        all_triples = []
+
+        def collect_bgp(node):
+            if isinstance(node, CompValue) and node.name == 'BGP':
+                all_triples.extend(node.triples)
+
+        traverse(compiled.algebra, visitPre=collect_bgp)
+
+        # Trace variable dependencies outward from ?this
+        known_vars = {Variable('this')}
         predicates = set()
-        sparql_select = policy.sparql_select
 
-        for m in re.finditer(r'\?this\s+<([^>]+)>', sparql_select):
-            predicates.add(m.group(1))
+        changed = True
+        while changed:
+            changed = False
+            for s, p, o in all_triples:
+                if not isinstance(p, URIRef):
+                    continue
 
-        for m in re.finditer(r'\?this\s+([\w-]+:\w+)', sparql_select):
-            prefixed = m.group(1)
-            colon = prefixed.index(":")
-            prefix = prefixed[:colon]
-            local = prefixed[colon + 1:]
-            if prefix in policy.target_prefixes:
-                predicates.add(policy.target_prefixes[prefix] + local)
+                if s in known_vars:
+                    pred_key = (str(p), "s")
+                    if pred_key not in predicates:
+                        predicates.add(pred_key)
+                        changed = True
+                    if isinstance(o, Variable) and o not in known_vars:
+                        known_vars.add(o)
+                        changed = True
 
-        if re.search(r'\?this\s+a\s+', sparql_select):
-            predicates.add(str(RDF.type))
+                if o in known_vars:
+                    pred_key = (str(p), "o")
+                    if pred_key not in predicates:
+                        predicates.add(pred_key)
+                        changed = True
+                    if isinstance(s, Variable) and s not in known_vars:
+                        known_vars.add(s)
+                        changed = True
 
         return predicates
 
@@ -467,13 +525,26 @@ class PolicyFilter:
     # Node hydration
     # -----------------------------------------------------------------
 
-    async def _hydrate_node(self, node_iri, collection):
-        """Fetch policy-required properties for a node."""
+    async def _hydrate_node(self, node_iri, collection, graph=None):
+        """Fetch policy-required properties for a node.
+
+        Each entry in _required_predicates is a (predicate_iri, position)
+        tuple. Position "s" means the candidate node is the subject, so
+        we query (node, pred, ?). Position "o" means the candidate node
+        is the object, so we query (?, pred, node).
+        """
         hydrated = []
-        s = Term(type=IRI, iri=node_iri)
-        for pred_iri in self._required_predicates:
+        node = Term(type=IRI, iri=node_iri)
+        for pred_iri, position in self._required_predicates:
             p = Term(type=IRI, iri=pred_iri)
-            results = await self.query_fn(s, p, None, collection, "")
+            if position == "s":
+                results = await self.query_fn(
+                    node, p, None, collection, graph,
+                )
+            else:
+                results = await self.query_fn(
+                    None, p, node, collection, graph,
+                )
             hydrated.extend(results)
         return hydrated
 
@@ -548,13 +619,14 @@ class PolicyFilter:
     # Policy evaluation
     # -----------------------------------------------------------------
 
-    async def _evaluate_node(self, node_iri, collection, context_graph):
+    async def _evaluate_node(self, node_iri, collection, context_graph,
+                             graph=None):
         """Evaluate a node against all policies in precedence order.
 
         Returns a PolicyEvaluation if a policy triggers, or None if
         the node is allowed.
         """
-        hydrated = await self._hydrate_node(node_iri, collection)
+        hydrated = await self._hydrate_node(node_iri, collection, graph)
 
         eval_graph = Graph()
 
@@ -595,10 +667,11 @@ class PolicyFilter:
 
         try:
             compiled = self._sparql_cache.prepare(full_query)
-            results = list(eval_graph.query(compiled))
-            for row in results:
-                if row[0] == node_uri:
-                    return True
+            results = list(eval_graph.query(
+                compiled,
+                initBindings={Variable('this'): node_uri},
+            ))
+            return len(results) > 0
         except Exception as e:
             logger.error(
                 f"SPARQL target error in policy '{policy.label}': {e}",
@@ -618,11 +691,14 @@ class PolicyFilter:
         for prefix, ns in all_prefixes.items():
             eval_graph.bind(prefix, Namespace(ns))
 
-        construct_query = policy.sparql_construct.replace("$this", f"<{node_uri}>")
-        full_query = f"{prefix_header}\n{construct_query}"
+        full_query = f"{prefix_header}\n{policy.sparql_construct}"
 
         try:
-            result_graph = eval_graph.query(full_query).graph
+            compiled = self._sparql_cache.prepare(full_query)
+            result_graph = eval_graph.query(
+                compiled,
+                initBindings={Variable('this'): node_uri},
+            ).graph
         except Exception as e:
             logger.error(
                 f"SPARQL rule error in policy '{policy.label}': {e}",
