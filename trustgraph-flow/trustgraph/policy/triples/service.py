@@ -22,12 +22,14 @@ from ... base import (
     FlowProcessor, ConsumerSpec, ProducerSpec,
     TriplesClientSpec, PolicyEventPublisher,
 )
-from .. policy_filter import PolicyFilter, QueryCache, SparqlCache
+from .. policy_filter import (
+    PolicyFilter, QueryCache, SparqlCache, NodeDeterminationCache,
+)
 
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-policy"
-default_concurrency = 10
+default_concurrency = 20
 POLICY_CACHE_TTL = 60
 
 
@@ -44,6 +46,7 @@ class Processor(FlowProcessor):
 
         self._query_caches = {}
         self._sparql_cache = SparqlCache()
+        self._node_cache = NodeDeterminationCache()
         self._policy_cache = {}
 
         self.register_specification(
@@ -257,6 +260,7 @@ class Processor(FlowProcessor):
             on_evaluation=on_evaluation,
             query_cache=query_cache,
             sparql_cache=self._sparql_cache,
+            node_cache=self._node_cache,
             policies=policies,
             required_predicates=required_predicates,
         )

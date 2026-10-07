@@ -22,7 +22,7 @@ from . producer_spec import ProducerSpec
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
-default_concurrency = 10
+default_concurrency = 20
 
 class TriplesQueryService(FlowProcessor):
 
