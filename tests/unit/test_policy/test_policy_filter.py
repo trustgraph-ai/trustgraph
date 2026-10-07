@@ -105,7 +105,7 @@ class TestDeterminationHandling:
         pf._policies = [policy]
         pf._required_predicates = set()
 
-        async def mock_evaluate(node_iri, collection, context_graph):
+        async def mock_evaluate(node_iri, collection, context_graph, graph=None):
             if node_iri in evaluation_map:
                 det, blocks, reason = evaluation_map[node_iri]
                 return PolicyEvaluation(
