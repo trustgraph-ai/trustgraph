@@ -28,8 +28,12 @@ Policy evaluation flow:
     4. Apply determinations: nodes with blocks=true are removed
 """
 
+import json
 import time
+import asyncio
+import hashlib
 import logging
+from dataclasses import asdict
 from typing import Callable, Awaitable
 from collections import OrderedDict
 
@@ -53,6 +57,8 @@ POLICY_GRAPH = "urn:graph:policy"
 QUERY_CACHE_TTL = 30
 QUERY_CACHE_MAX = 256
 SPARQL_CACHE_MAX = 64
+NODE_CACHE_TTL = 60
+NODE_CACHE_MAX = 1024
 
 
 class QueryCache:
@@ -112,6 +118,47 @@ class SparqlCache:
         return compiled
 
 
+def _context_cache_key(user_context):
+    """Produce a hashable key from a UserContext for cache lookups."""
+    raw = json.dumps(asdict(user_context), sort_keys=True)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+_NO_EVALUATION = object()
+
+
+class NodeDeterminationCache:
+    """LRU + TTL cache for per-node policy evaluation results.
+
+    Keyed on (node_iri, context_key, collection, graph) so that
+    different users never share cached determinations.  The sentinel
+    _NO_EVALUATION distinguishes "evaluated, no policy triggered"
+    from "not yet cached".
+    """
+
+    def __init__(self, ttl=NODE_CACHE_TTL, max_size=NODE_CACHE_MAX):
+        self._ttl = ttl
+        self._max_size = max_size
+        self._cache = OrderedDict()
+
+    def get(self, node_iri, context_key, collection, graph):
+        key = (node_iri, context_key, collection, graph or "")
+        now = time.monotonic()
+        if key in self._cache:
+            result, ts = self._cache[key]
+            if now - ts < self._ttl:
+                self._cache.move_to_end(key)
+                return result
+            del self._cache[key]
+        return _NO_EVALUATION
+
+    def put(self, node_iri, context_key, collection, graph, evaluation):
+        key = (node_iri, context_key, collection, graph or "")
+        self._cache[key] = (evaluation, time.monotonic())
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
+
+
 class PolicyEvaluation:
     """Result of evaluating a node against a policy."""
     def __init__(self, node_iri, policy_uri, policy_label,
@@ -145,6 +192,7 @@ class PolicyFilter:
         on_evaluation: Callable[..., Awaitable[None]] | None = None,
         query_cache: QueryCache | None = None,
         sparql_cache: SparqlCache | None = None,
+        node_cache: NodeDeterminationCache | None = None,
         policies: list | None = None,
         required_predicates: set | None = None,
     ):
@@ -155,6 +203,7 @@ class PolicyFilter:
                 Called for every determination. No-op if None.
             query_cache: Shared QueryCache instance (created if None)
             sparql_cache: Shared SparqlCache instance (created if None)
+            node_cache: Shared NodeDeterminationCache (created if None)
             policies: Pre-loaded policies (loads from graph if None)
             required_predicates: Pre-computed predicates for policies
         """
@@ -168,6 +217,7 @@ class PolicyFilter:
         self._policies = policies
         self._required_predicates = required_predicates
         self._sparql_cache = sparql_cache or SparqlCache()
+        self._node_cache = node_cache or NodeDeterminationCache()
 
     async def load_policies(self, collection: str) -> None:
         """Load policies from the policy graph if not already loaded."""
@@ -196,12 +246,15 @@ class PolicyFilter:
         to see.
         """
 
+        t_start = time.monotonic()
+
         await self.load_policies(collection)
 
         if not self._policies:
             return triples
 
         context_graph = self._build_context_graph(user_context)
+        context_key = _context_cache_key(user_context)
 
         candidate_iris = set()
         for t in triples:
@@ -211,15 +264,49 @@ class PolicyFilter:
                 candidate_iris.add(t.o.iri)
 
         blocked_iris = set()
+        cache_hits = 0
+        evaluations = []
+
+        # Separate cache hits from misses
+        uncached_iris = []
         for node_iri in candidate_iris:
-            evaluation = await self._evaluate_node(
-                node_iri, collection, context_graph, graph,
+            cached = self._node_cache.get(
+                node_iri, context_key, collection, graph,
             )
+            if cached is not _NO_EVALUATION:
+                cache_hits += 1
+                evaluations.append((node_iri, cached))
+            else:
+                uncached_iris.append(node_iri)
+
+        # Evaluate all cache misses in parallel
+        if uncached_iris:
+            results = await asyncio.gather(*(
+                self._evaluate_node(
+                    node_iri, collection, context_graph, graph,
+                )
+                for node_iri in uncached_iris
+            ))
+            for node_iri, evaluation in zip(uncached_iris, results):
+                self._node_cache.put(
+                    node_iri, context_key, collection, graph,
+                    evaluation,
+                )
+                evaluations.append((node_iri, evaluation))
+
+        for node_iri, evaluation in evaluations:
             if evaluation:
                 if self.on_evaluation:
                     await self.on_evaluation(evaluation)
                 if evaluation.blocks:
                     blocked_iris.add(node_iri)
+
+        elapsed = time.monotonic() - t_start
+        logger.info(
+            f"Policy apply: {len(candidate_iris)} candidates, "
+            f"{len(blocked_iris)} blocked, "
+            f"{cache_hits} node-cache hits, {elapsed:.3f}s"
+        )
 
         if not blocked_iris:
             return triples
@@ -532,20 +619,31 @@ class PolicyFilter:
         tuple. Position "s" means the candidate node is the subject, so
         we query (node, pred, ?). Position "o" means the candidate node
         is the object, so we query (?, pred, node).
+
+        All predicate queries run in parallel to minimise round-trip
+        latency.
         """
-        hydrated = []
         node = Term(type=IRI, iri=node_iri)
-        for pred_iri, position in self._required_predicates:
+
+        async def fetch_predicate(pred_iri, position):
             p = Term(type=IRI, iri=pred_iri)
             if position == "s":
-                results = await self.query_fn(
+                return await self.query_fn(
                     node, p, None, collection, graph,
                 )
             else:
-                results = await self.query_fn(
+                return await self.query_fn(
                     None, p, node, collection, graph,
                 )
-            hydrated.extend(results)
+
+        results = await asyncio.gather(*(
+            fetch_predicate(pred_iri, position)
+            for pred_iri, position in self._required_predicates
+        ))
+
+        hydrated = []
+        for result in results:
+            hydrated.extend(result)
         return hydrated
 
     # -----------------------------------------------------------------
@@ -626,7 +724,11 @@ class PolicyFilter:
         Returns a PolicyEvaluation if a policy triggers, or None if
         the node is allowed.
         """
+        t_start = time.monotonic()
+
+        t_hydrate = time.monotonic()
         hydrated = await self._hydrate_node(node_iri, collection, graph)
+        t_hydrate = time.monotonic() - t_hydrate
 
         eval_graph = Graph()
 
@@ -637,6 +739,9 @@ class PolicyFilter:
             eval_graph.add((s, p, o))
 
         node_uri = URIRef(node_iri)
+
+        t_sparql = time.monotonic()
+        result_eval = None
 
         for policy in self._policies:
             for prefix, ns in policy.target_prefixes.items():
@@ -649,7 +754,7 @@ class PolicyFilter:
                 policy, node_uri, eval_graph,
             )
             if result:
-                return PolicyEvaluation(
+                result_eval = PolicyEvaluation(
                     node_iri=node_iri,
                     policy_uri=policy.uri,
                     policy_label=policy.label,
@@ -657,8 +762,19 @@ class PolicyFilter:
                     blocks=result["blocks"],
                     reason=result["reason"],
                 )
+                break
 
-        return None
+        t_sparql = time.monotonic() - t_sparql
+        elapsed = time.monotonic() - t_start
+
+        logger.info(
+            f"Evaluate node: hydrate={t_hydrate:.3f}s "
+            f"sparql={t_sparql:.3f}s total={elapsed:.3f}s "
+            f"triples={len(hydrated)} "
+            f"result={'blocked' if result_eval and result_eval.blocks else 'allowed'}"
+        )
+
+        return result_eval
 
     def _run_sparql_target(self, policy, node_uri, eval_graph):
         """Run a policy's SPARQL SELECT and check if the node matches."""

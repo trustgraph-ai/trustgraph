@@ -12,7 +12,8 @@ from unittest.mock import AsyncMock
 
 from trustgraph.policy.policy_filter import (
     PolicyFilter, PolicyEvaluation, LoadedPolicy,
-    QueryCache, SparqlCache,
+    QueryCache, SparqlCache, NodeDeterminationCache,
+    _context_cache_key, _NO_EVALUATION,
 )
 from trustgraph.schema import Triple, Term, IRI, LITERAL, UserContext
 
@@ -420,3 +421,159 @@ class TestSparqlCache:
         cache.prepare("SELECT ?g WHERE { ?g ?h ?i }")
 
         assert len(cache._cache) == 2
+
+
+class TestContextCacheKey:
+
+    def test_same_context_same_key(self):
+        uc1 = UserContext(user_id="user:alice", roles=["analyst"])
+        uc2 = UserContext(user_id="user:alice", roles=["analyst"])
+        assert _context_cache_key(uc1) == _context_cache_key(uc2)
+
+    def test_different_user_different_key(self):
+        uc1 = UserContext(user_id="user:alice", roles=["analyst"])
+        uc2 = UserContext(user_id="user:bob", roles=["analyst"])
+        assert _context_cache_key(uc1) != _context_cache_key(uc2)
+
+    def test_different_roles_different_key(self):
+        uc1 = UserContext(user_id="user:alice", roles=["analyst"])
+        uc2 = UserContext(user_id="user:alice", roles=["admin"])
+        assert _context_cache_key(uc1) != _context_cache_key(uc2)
+
+
+class TestNodeDeterminationCache:
+
+    def test_miss_returns_sentinel(self):
+        cache = NodeDeterminationCache()
+        result = cache.get("http://ex.org/a", "key1", "col", "")
+        assert result is _NO_EVALUATION
+
+    def test_hit_returns_evaluation(self):
+        cache = NodeDeterminationCache()
+        ev = PolicyEvaluation(
+            node_iri="http://ex.org/a",
+            policy_uri="http://ex.org/pol1",
+            policy_label="Test",
+            determination="http://ex.org/Filtered",
+            blocks=True,
+        )
+        cache.put("http://ex.org/a", "key1", "col", "", ev)
+        result = cache.get("http://ex.org/a", "key1", "col", "")
+        assert result is ev
+
+    def test_caches_none_evaluation(self):
+        cache = NodeDeterminationCache()
+        cache.put("http://ex.org/a", "key1", "col", "", None)
+        result = cache.get("http://ex.org/a", "key1", "col", "")
+        assert result is None
+
+    def test_different_context_key_misses(self):
+        cache = NodeDeterminationCache()
+        cache.put("http://ex.org/a", "key1", "col", "", None)
+        result = cache.get("http://ex.org/a", "key2", "col", "")
+        assert result is _NO_EVALUATION
+
+    def test_eviction_by_size(self):
+        cache = NodeDeterminationCache(max_size=2)
+        cache.put("http://ex.org/a", "k", "col", "", None)
+        cache.put("http://ex.org/b", "k", "col", "", None)
+        cache.put("http://ex.org/c", "k", "col", "", None)
+        assert len(cache._cache) == 2
+
+    def test_ttl_expiry(self):
+        cache = NodeDeterminationCache(ttl=0)
+        cache.put("http://ex.org/a", "k", "col", "", None)
+        result = cache.get("http://ex.org/a", "k", "col", "")
+        assert result is _NO_EVALUATION
+
+
+class TestNodeCacheIntegration:
+
+    @pytest.fixture
+    def user_context(self):
+        return UserContext(user_id="user:test", roles=["analyst"])
+
+    @pytest.fixture
+    def triples(self):
+        return [
+            make_triple("http://ex.org/a", "http://ex.org/name", "Alice"),
+            make_triple("http://ex.org/b", "http://ex.org/name", "Bob"),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_second_apply_uses_cache(self, triples, user_context):
+        eval_count = 0
+
+        async def query_fn(s, p, o, collection, g=""):
+            return []
+
+        pf = PolicyFilter(query_fn=query_fn)
+
+        policy = LoadedPolicy(
+            uri="http://ex.org/test-policy",
+            label="Test Policy",
+            order=0,
+            sparql_select="SELECT ?this WHERE { ?this ?p ?o }",
+            target_prefixes={},
+            sparql_construct="CONSTRUCT { } WHERE { }",
+            construct_prefixes={},
+        )
+        pf._policies = [policy]
+        pf._required_predicates = set()
+
+        async def mock_evaluate(node_iri, collection, context_graph,
+                                graph=None):
+            nonlocal eval_count
+            eval_count += 1
+            return None
+
+        pf._evaluate_node = mock_evaluate
+
+        await pf.apply(triples, "default", user_context)
+        first_count = eval_count
+
+        await pf.apply(triples, "default", user_context)
+
+        assert eval_count == first_count
+
+    @pytest.mark.asyncio
+    async def test_parallel_evaluation(self, triples, user_context):
+        """Verify all uncached nodes are evaluated concurrently."""
+        import asyncio
+        eval_order = []
+
+        async def query_fn(s, p, o, collection, g=""):
+            return []
+
+        pf = PolicyFilter(query_fn=query_fn)
+
+        policy = LoadedPolicy(
+            uri="http://ex.org/test-policy",
+            label="Test Policy",
+            order=0,
+            sparql_select="SELECT ?this WHERE { ?this ?p ?o }",
+            target_prefixes={},
+            sparql_construct="CONSTRUCT { } WHERE { }",
+            construct_prefixes={},
+        )
+        pf._policies = [policy]
+        pf._required_predicates = set()
+
+        async def mock_evaluate(node_iri, collection, context_graph,
+                                graph=None):
+            eval_order.append(("start", node_iri))
+            await asyncio.sleep(0)
+            eval_order.append(("end", node_iri))
+            return None
+
+        pf._evaluate_node = mock_evaluate
+
+        await pf.apply(triples, "default", user_context)
+
+        starts = [e for e in eval_order if e[0] == "start"]
+        ends = [e for e in eval_order if e[0] == "end"]
+        assert len(starts) == 2
+        assert len(ends) == 2
+        # With gather, all starts happen before any end
+        assert eval_order[0][0] == "start"
+        assert eval_order[1][0] == "start"
