@@ -290,12 +290,28 @@ class Processor(LlmService):
             logger.error(f"VertexAI LLM exception: {e}", exc_info=True)
             raise e
 
+    @staticmethod
+    def _parse_model_id(name):
+        """Extract display name and publisher from a model resource path.
+
+        e.g. "publishers/google/models/gemini-2.5-pro"
+          -> name="gemini-2.5-pro", owned_by="google"
+        """
+        parts = name.split("/")
+        display_name = parts[-1] if parts else name
+        owned_by = None
+        if len(parts) >= 4 and parts[-4] == "publishers":
+            owned_by = parts[-3]
+        return display_name, owned_by
+
     async def list_models(self):
         models = []
-        for m in self.client.models.list():
+        async for m in await self.client.aio.models.list():
+            display_name, owned_by = self._parse_model_id(m.name)
             models.append(ModelInfo(
                 id=m.name,
-                name=getattr(m, 'display_name', None),
+                name=getattr(m, 'display_name', None) or display_name,
+                owned_by=owned_by,
                 description=getattr(m, 'description', None),
                 context_length=getattr(m, 'input_token_limit', None),
                 max_output_length=getattr(m, 'output_token_limit', None),
