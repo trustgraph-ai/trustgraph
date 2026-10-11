@@ -182,12 +182,23 @@ class Processor(LlmService):
             logger.error(f"GoogleAIStudio LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
+    @staticmethod
+    def _parse_model_id(name):
+        """Extract display name from a model resource path.
+
+        e.g. "models/gemini-2.5-pro" -> "gemini-2.5-pro"
+        """
+        parts = name.split("/")
+        return parts[-1] if parts else name
+
     async def list_models(self):
         models = []
-        for m in self.client.models.list():
+        async for m in await self.client.aio.models.list():
+            display_name = self._parse_model_id(m.name)
             models.append(ModelInfo(
                 id=m.name,
-                name=getattr(m, 'display_name', None),
+                name=getattr(m, 'display_name', None) or display_name,
+                owned_by="google",
                 description=getattr(m, 'description', None),
                 context_length=getattr(m, 'input_token_limit', None),
                 max_output_length=getattr(m, 'output_token_limit', None),
