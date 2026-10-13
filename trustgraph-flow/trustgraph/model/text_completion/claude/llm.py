@@ -82,7 +82,6 @@ class Processor(LlmService):
             response = message = self.claude.messages.create(
                 model=model_name,
                 max_tokens=self.max_output,
-                temperature=effective_temperature,
                 system=system,
                 messages=[
                     {
@@ -95,6 +94,7 @@ class Processor(LlmService):
                         ]
                     }
                 ],
+                extra_body={"temperature": effective_temperature},
                 **kwargs,
             )
 
@@ -153,10 +153,9 @@ class Processor(LlmService):
         logger.debug(f"Using temperature: {effective_temperature}")
 
         try:
-            with self.claude.messages.stream(
+            with self.claude.messages.create(
                 model=model_name,
                 max_tokens=self.max_output,
-                temperature=effective_temperature,
                 system=system,
                 messages=[
                     {
@@ -168,25 +167,33 @@ class Processor(LlmService):
                             }
                         ]
                     }
-                ]
+                ],
+                extra_body={"temperature": effective_temperature},
+                stream=True,
             ) as stream:
-                for text in stream.text_stream:
-                    yield LlmChunk(
-                        text=text,
-                        in_token=None,
-                        out_token=None,
-                        model=model_name,
-                        is_final=False
-                    )
+                input_tokens = 0
+                output_tokens = 0
+                for event in stream:
+                    if event.type == "message_start":
+                        input_tokens = event.message.usage.input_tokens
+                    elif event.type == "content_block_delta":
+                        if event.delta.type == "text_delta":
+                            yield LlmChunk(
+                                text=event.delta.text,
+                                in_token=None,
+                                out_token=None,
+                                model=model_name,
+                                is_final=False,
+                            )
+                    elif event.type == "message_delta":
+                        output_tokens = event.usage.output_tokens
 
-                # Get final message for token counts
-                final_message = stream.get_final_message()
                 yield LlmChunk(
                     text="",
-                    in_token=final_message.usage.input_tokens,
-                    out_token=final_message.usage.output_tokens,
+                    in_token=input_tokens,
+                    out_token=output_tokens,
                     model=model_name,
-                    is_final=True
+                    is_final=True,
                 )
 
             logger.debug("Streaming complete")
