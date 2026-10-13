@@ -83,7 +83,6 @@ class Processor(LlmService):
             response = message = self.claude.messages.create(
                 model=model_name,
                 max_tokens=self.max_output,
-                temperature=effective_temperature,
                 system=system,
                 messages=[
                     {
@@ -96,6 +95,7 @@ class Processor(LlmService):
                         ]
                     }
                 ],
+                extra_body={"temperature": effective_temperature},
                 **kwargs,
             )
 
@@ -167,7 +167,6 @@ class Processor(LlmService):
             with self.claude.messages.create(
                 model=model_name,
                 max_tokens=self.max_output,
-                temperature=effective_temperature,
                 system=system,
                 messages=[
                     {
@@ -180,6 +179,7 @@ class Processor(LlmService):
                         ]
                     }
                 ],
+                extra_body={"temperature": effective_temperature},
                 stream=True,
             ) as stream:
                 input_tokens = 0
