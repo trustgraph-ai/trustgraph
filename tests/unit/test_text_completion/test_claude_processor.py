@@ -93,7 +93,6 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         mock_claude_client.messages.create.assert_called_once_with(
             model='claude-3-5-sonnet-20240620',
             max_tokens=8192,
-            temperature=0.0,
             system="System prompt",
             messages=[{
                 "role": "user",
@@ -101,7 +100,8 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
                     "type": "text",
                     "text": "User prompt"
                 }]
-            }]
+            }],
+            extra_body={"temperature": 0.0},
         )
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
@@ -351,7 +351,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         
         # Verify other parameters
         assert call_args[1]['model'] == 'claude-3-5-sonnet-20240620'
-        assert call_args[1]['temperature'] == 0.5
+        assert call_args[1]['extra_body']['temperature'] == 0.5
         assert call_args[1]['max_tokens'] == 1024
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
@@ -482,7 +482,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         mock_claude_client.messages.create.assert_called_once()
         call_kwargs = mock_claude_client.messages.create.call_args.kwargs
 
-        assert call_kwargs['temperature'] == 0.9                        # Should use runtime override
+        assert call_kwargs['extra_body']['temperature'] == 0.9             # Should use runtime override
         assert call_kwargs['model'] == 'claude-3-5-sonnet-20240620'     # Should use processor default
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
@@ -533,7 +533,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         call_kwargs = mock_claude_client.messages.create.call_args.kwargs
 
         assert call_kwargs['model'] == 'claude-3-haiku-20240307'  # Should use runtime override
-        assert call_kwargs['temperature'] == 0.2                 # Should use processor default
+        assert call_kwargs['extra_body']['temperature'] == 0.2   # Should use processor default
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -583,7 +583,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         call_kwargs = mock_claude_client.messages.create.call_args.kwargs
 
         assert call_kwargs['model'] == 'claude-3-opus-20240229'  # Should use runtime override
-        assert call_kwargs['temperature'] == 0.8                # Should use runtime override
+        assert call_kwargs['extra_body']['temperature'] == 0.8  # Should use runtime override
 
 
 if __name__ == '__main__':
