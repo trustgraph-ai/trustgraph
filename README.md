@@ -190,11 +190,15 @@ The UI provides tools for all major features of TrustGraph. The UI deploys on po
 
 ## TypeScript Library for UIs
 
-There are 3 libraries for quick UI integration of TrustGraph services.
+There are TS libraries for quick UI integration of TrustGraph services.
 
-- [@trustgraph/client](https://www.npmjs.com/package/@trustgraph/client)
-- [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
-- [@trustgraph/react-provider](https://www.npmjs.com/package/@trustgraph/react-provider)
+| Package | Description |
+|---|---|
+| `@trustgraph/trustkit` | Shared component library and design system |
+| `@trustgraph/client` | TypeScript client for TrustGraph APIs |
+| `@trustgraph/react-provider` | React provider for TrustGraph WebSocket connections |
+| `@trustgraph/react-state` | React state management hooks |
+| `@trustgraph/portal` | Portal application showcasing all workflows |
 
 ## Contributing
 
