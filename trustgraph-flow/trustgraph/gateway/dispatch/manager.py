@@ -40,6 +40,7 @@ from . row_embeddings_query import RowEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
 from . reranker import RerankerRequestor
 from . cloze import ClozeRequestor
+from . decision_scoring import DecisionScoringRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -81,6 +82,7 @@ request_response_dispatchers = {
     "reranker": RerankerRequestor,
     "image-to-text": ImageToTextRequestor,
     "cloze": ClozeRequestor,
+    "decision-scoring": DecisionScoringRequestor,
 }
 
 system_dispatchers = {
