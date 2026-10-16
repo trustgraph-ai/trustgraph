@@ -28,7 +28,7 @@ classifiers = [
 Homepage = "https://github.com/trustgraph-ai/trustgraph"
 
 [project.scripts]
-cloze = "trustgraph.cloze:run"
+cloze-hf = "trustgraph.model.cloze.hf:run"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]
