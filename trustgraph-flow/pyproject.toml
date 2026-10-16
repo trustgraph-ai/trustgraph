@@ -42,6 +42,7 @@ dependencies = [
     "tabulate",
     "tiktoken",
     "urllib3",
+    "laya",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -128,6 +129,7 @@ triples-write-falkordb = "trustgraph.storage.triples.falkordb:run"
 triples-write-memgraph = "trustgraph.storage.triples.memgraph:run"
 triples-write-neo4j = "trustgraph.storage.triples.neo4j:run"
 wikipedia-lookup = "trustgraph.external.wikipedia:run"
+decision-scoring-laya = "trustgraph.model.decision_scoring.laya:run"
 joke-service = "trustgraph.tool_service.joke:run"
 
 [tool.setuptools.packages.find]

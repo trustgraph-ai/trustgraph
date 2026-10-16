@@ -22,3 +22,4 @@ from .rows_query import RowsQueryRequestTranslator, RowsQueryResponseTranslator
 from .diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
 from .reranker import RerankerRequestTranslator, RerankerResponseTranslator
 from .cloze import ClozeRequestTranslator, ClozeResponseTranslator
+from .decision_scoring import DecisionScoringRequestTranslator, DecisionScoringResponseTranslator

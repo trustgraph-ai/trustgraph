@@ -30,6 +30,7 @@ from .translators.structured_query import StructuredQueryRequestTranslator, Stru
 from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
 from .translators.reranker import RerankerRequestTranslator, RerankerResponseTranslator
 from .translators.cloze import ClozeRequestTranslator, ClozeResponseTranslator
+from .translators.decision_scoring import DecisionScoringRequestTranslator, DecisionScoringResponseTranslator
 from .translators.collection import CollectionManagementRequestTranslator, CollectionManagementResponseTranslator
 from .translators.sparql_query import SparqlQueryRequestTranslator, SparqlQueryResponseTranslator
 
@@ -182,6 +183,12 @@ TranslatorRegistry.register_service(
     "cloze",
     ClozeRequestTranslator(),
     ClozeResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "decision-scoring",
+    DecisionScoringRequestTranslator(),
+    DecisionScoringResponseTranslator()
 )
 
 # Register single-direction translators for document loading
