@@ -15,3 +15,4 @@ from .iam import *
 from .audit import *
 from .policy_event import *
 from .user_context import *
+from .cloze import *

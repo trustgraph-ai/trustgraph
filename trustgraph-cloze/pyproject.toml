@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-cloze"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "Cloze model classification service for TrustGraph."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "trustgraph-base>=2.10,<2.11",
+    "trustgraph-flow>=2.10,<2.11",
+    "torch",
+    "transformers",
+    "scikit-learn",
+    "pulsar-client",
+    "pyyaml",
+    "prometheus-client",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+cloze = "trustgraph.cloze:run"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.cloze_version.__version__"}

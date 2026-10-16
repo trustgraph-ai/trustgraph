@@ -39,6 +39,7 @@ from . document_embeddings_query import DocumentEmbeddingsQueryRequestor
 from . row_embeddings_query import RowEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
 from . reranker import RerankerRequestor
+from . cloze import ClozeRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -79,6 +80,7 @@ request_response_dispatchers = {
     "sparql": SparqlQueryRequestor,
     "reranker": RerankerRequestor,
     "image-to-text": ImageToTextRequestor,
+    "cloze": ClozeRequestor,
 }
 
 system_dispatchers = {
