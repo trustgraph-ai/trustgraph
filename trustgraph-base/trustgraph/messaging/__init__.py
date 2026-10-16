@@ -29,6 +29,7 @@ from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, Q
 from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
 from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
 from .translators.reranker import RerankerRequestTranslator, RerankerResponseTranslator
+from .translators.cloze import ClozeRequestTranslator, ClozeResponseTranslator
 from .translators.collection import CollectionManagementRequestTranslator, CollectionManagementResponseTranslator
 from .translators.sparql_query import SparqlQueryRequestTranslator, SparqlQueryResponseTranslator
 
@@ -175,6 +176,12 @@ TranslatorRegistry.register_service(
     "reranker",
     RerankerRequestTranslator(),
     RerankerResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "cloze",
+    ClozeRequestTranslator(),
+    ClozeResponseTranslator()
 )
 
 # Register single-direction translators for document loading

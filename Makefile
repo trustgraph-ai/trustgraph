@@ -15,6 +15,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-vertexai/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-bedrock/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-cloze/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-docling/
@@ -28,6 +29,7 @@ packages: update-package-versions
 	cd trustgraph-vertexai && python -m build --sdist --outdir ../dist/
 	cd trustgraph-bedrock && python -m build --sdist --outdir ../dist/
 	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
+	cd trustgraph-cloze && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
 	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
 	cd trustgraph-docling && python -m build --sdist --outdir ../dist/
@@ -46,6 +48,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-vertexai/trustgraph/vertexai_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-cloze/trustgraph/cloze_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-docling/trustgraph/docling_version.py
