@@ -8,6 +8,7 @@ templates/values/version.jsonnet
 trustgraph-base/trustgraph/base_version.py
 trustgraph-cli/trustgraph/cli_version.py
 trustgraph-bedrock/trustgraph/bedrock_version.py
+trustgraph-cloze/trustgraph/cloze_version.py
 trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 trustgraph-flow/trustgraph/flow_version.py
 trustgraph-ocr/trustgraph/ocr_version.py

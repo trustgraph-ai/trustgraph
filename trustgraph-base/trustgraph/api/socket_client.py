@@ -1139,3 +1139,34 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         return self.client._send_request_sync("row-embeddings", self.flow_id, request, False)
+
+    def cloze(self, model: str, query: str, **kwargs: Any) -> Dict[str, Any]:
+        """Classify a query using a trained cloze model instance."""
+        request = {
+            "operation": "predict",
+            "model": model,
+            "query": query,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("cloze", self.flow_id, request, False)
+
+    def cloze_list_models(self, **kwargs: Any) -> Dict[str, Any]:
+        """List cloze model instances in the current workspace."""
+        request = {
+            "operation": "list-models",
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("cloze", self.flow_id, request, False)
+
+    def decision_scoring(self, state: Dict[str, Any], questions: Dict[str, Any],
+                         **kwargs: Any) -> Dict[str, Any]:
+        """Score decisions using a System 1 decision model."""
+        request = {
+            "state": state,
+            "questions": questions,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("decision-scoring", self.flow_id, request, False)

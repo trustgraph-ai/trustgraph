@@ -1439,3 +1439,112 @@ class FlowInstance:
 
         return response
 
+    def cloze(self, model, query):
+        """
+        Classify a query using a trained cloze model instance.
+
+        Args:
+            model: Name of the trained model instance
+            query: Text to classify
+
+        Returns:
+            dict: Response with 'label' and 'confidence' keys
+
+        Example:
+            ```python
+            flow = api.flow().id("default")
+            result = flow.cloze(
+                model="tool-router",
+                query="What is the weather in Paris?"
+            )
+            print(f"{result['label']} ({result['confidence']:.1%})")
+            ```
+        """
+
+        input = {
+            "operation": "predict",
+            "model": model,
+            "query": query,
+        }
+
+        response = self.request(
+            "service/cloze",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    def cloze_list_models(self):
+        """
+        List cloze model instances in the current workspace.
+
+        Returns:
+            list[dict]: List of model info dicts with name, state,
+                labels, accuracy, train_size, test_size
+        """
+
+        input = {
+            "operation": "list-models",
+        }
+
+        response = self.request(
+            "service/cloze",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response.get("models", [])
+
+    def decision_scoring(self, state, questions):
+        """
+        Score decisions using a System 1 decision model.
+
+        Args:
+            state: Dict of state variables describing the current context
+            questions: Dict of question specifications (choice/score/noul)
+
+        Returns:
+            dict: Response with 'answers' and 'model' keys
+
+        Example:
+            ```python
+            flow = api.flow().id("default")
+            result = flow.decision_scoring(
+                state={"category": "billing", "message": "I was overcharged"},
+                questions={
+                    "department": {
+                        "type": "choice",
+                        "options": ["sales", "support", "billing"]
+                    }
+                }
+            )
+            print(result["answers"])
+            ```
+        """
+
+        input = {
+            "state": state,
+            "questions": questions,
+        }
+
+        response = self.request(
+            "service/decision-scoring",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+

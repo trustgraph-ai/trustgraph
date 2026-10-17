@@ -918,3 +918,57 @@ class AsyncFlowInstance:
         request_data.update(kwargs)
 
         return await self.request("row-embeddings", request_data)
+
+    async def cloze(self, model, query, **kwargs):
+        """Classify a query using a trained cloze model instance."""
+
+        input = {
+            "operation": "predict",
+            "model": model,
+            "query": query,
+        }
+        input.update(kwargs)
+
+        response = await self.request("cloze", input)
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    async def cloze_list_models(self, **kwargs):
+        """List cloze model instances in the current workspace."""
+
+        input = {
+            "operation": "list-models",
+        }
+        input.update(kwargs)
+
+        response = await self.request("cloze", input)
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response.get("models", [])
+
+    async def decision_scoring(self, state, questions, **kwargs):
+        """Score decisions using a System 1 decision model."""
+
+        input = {
+            "state": state,
+            "questions": questions,
+        }
+        input.update(kwargs)
+
+        response = await self.request("decision-scoring", input)
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response

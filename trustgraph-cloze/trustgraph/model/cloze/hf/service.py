@@ -5,13 +5,15 @@ examples in config, and serves single-label classification with
 confidence scores.
 """
 
+import asyncio
 import json
 import logging
 import torch
+from functools import partial
 from sklearn.model_selection import train_test_split
 from dataclasses import dataclass, field
 
-from trustgraph.schema import ClozeRequest, ClozeResponse, Error
+from trustgraph.schema import ClozeRequest, ClozeResponse, ClozeModelInfo, Error
 from trustgraph.base import FlowProcessor, ConsumerSpec, ProducerSpec
 from trustgraph.base import ParameterSpec
 
@@ -36,6 +38,9 @@ class TrainedModel:
     tool_tokens: list = field(default_factory=list)
     tool_token_ids: list = field(default_factory=list)
     device: object = None
+    accuracy: float | None = None
+    train_size: int = 0
+    test_size: int = 0
 
 
 class Processor(FlowProcessor):
@@ -43,9 +48,13 @@ class Processor(FlowProcessor):
     def __init__(self, **params):
 
         model = params.get("model", default_model)
+        concurrency = params.get("concurrency", 2)
 
         super(Processor, self).__init__(
-            **params | {"model": model}
+            **params | {
+                "model": model,
+                "concurrency": concurrency,
+            }
         )
 
         self.base_model_name = model
@@ -63,6 +72,7 @@ class Processor(FlowProcessor):
                 name="request",
                 schema=ClozeRequest,
                 handler=self.on_request,
+                concurrency=concurrency,
             )
         )
 
@@ -75,6 +85,9 @@ class Processor(FlowProcessor):
 
         # Keyed by model instance name
         self.models = {}
+
+        # Tracks models currently being trained: {(workspace, instance_name)}
+        self.training = set()
 
     async def on_training_config(self, workspace, config, version):
 
@@ -98,7 +111,19 @@ class Processor(FlowProcessor):
 
             try:
                 training_data = json.loads(raw_value)
-                trained = self._train_model(instance_name, training_data)
+                training_key = (workspace, instance_name)
+                self.training.add(training_key)
+
+                try:
+                    loop = asyncio.get_event_loop()
+                    trained = await loop.run_in_executor(
+                        None,
+                        partial(
+                            self._train_model, instance_name, training_data,
+                        ),
+                    )
+                finally:
+                    self.training.discard(training_key)
 
                 if trained is not None:
                     self.models[workspace][instance_name] = trained
@@ -138,6 +163,7 @@ class Processor(FlowProcessor):
 
         min_accuracy = training_data.get("min-accuracy")
         test_split = training_data.get("test-split", DEFAULT_TEST_SPLIT)
+        epochs = training_data.get("epochs", DEFAULT_EPOCHS)
 
         # Collect all examples and tool tokens
         tool_tokens = []
@@ -293,7 +319,7 @@ class Processor(FlowProcessor):
 
         # Training loop
         model.train()
-        for epoch in range(1, DEFAULT_EPOCHS + 1):
+        for epoch in range(1, epochs + 1):
             total_loss = 0.0
             for batch in train_loader:
                 optimizer.zero_grad()
@@ -317,13 +343,15 @@ class Processor(FlowProcessor):
             if epoch % 10 == 0 or epoch == 1:
                 logger.info(
                     f"  [{instance_name}] Epoch {epoch:02d}/"
-                    f"{DEFAULT_EPOCHS:02d} - Loss: {avg_loss:.4f}"
+                    f"{epochs:02d} - Loss: {avg_loss:.4f}"
                 )
 
         # Evaluate if we have test data
         tool_token_ids = [
             tokenizer.convert_tokens_to_ids(t) for t in tool_tokens
         ]
+
+        accuracy = None
 
         if all_test_examples:
             model.eval()
@@ -374,6 +402,9 @@ class Processor(FlowProcessor):
             tool_tokens=tool_tokens,
             tool_token_ids=tool_token_ids,
             device=device,
+            accuracy=accuracy,
+            train_size=len(all_train_examples),
+            test_size=len(all_test_examples),
         )
 
     async def on_request(self, msg, consumer, flow):
@@ -383,6 +414,12 @@ class Processor(FlowProcessor):
         producer = flow("response")
 
         workspace = flow.workspace
+        operation = request.operation or "predict"
+
+        if operation == "list-models":
+            response = self._list_models(workspace)
+            await producer.send(response, properties={"id": id})
+            return
 
         instance_name = request.model
         query = request.query
@@ -391,16 +428,26 @@ class Processor(FlowProcessor):
         trained = ws_models.get(instance_name)
 
         if trained is None:
+            if (workspace, instance_name) in self.training:
+                error_type = "model-training"
+                error_message = (
+                    f"Model instance '{instance_name}' is currently "
+                    f"training in workspace '{workspace}'"
+                )
+            else:
+                error_type = "model-not-found"
+                error_message = (
+                    f"No trained model instance '{instance_name}' "
+                    f"in workspace '{workspace}'"
+                )
+
             response = ClozeResponse(
                 error=Error(
-                    type="model-not-found",
-                    message=(
-                        f"No trained model instance '{instance_name}' "
-                        f"in workspace '{workspace}'"
-                    ),
+                    type=error_type,
+                    message=error_message,
                 ),
             )
-            await producer.send(response, send_properties={"id": id})
+            await producer.send(response, properties={"id": id})
             return
 
         try:
@@ -419,7 +466,31 @@ class Processor(FlowProcessor):
                 ),
             )
 
-        await producer.send(response, send_properties={"id": id})
+        await producer.send(response, properties={"id": id})
+
+    def _list_models(self, workspace):
+
+        models = []
+
+        ws_models = self.models.get(workspace, {})
+        for name, trained in ws_models.items():
+            models.append(ClozeModelInfo(
+                name=name,
+                state="ready",
+                labels=list(trained.tool_tokens),
+                accuracy=trained.accuracy,
+                train_size=trained.train_size,
+                test_size=trained.test_size,
+            ))
+
+        for ws, instance_name in self.training:
+            if ws == workspace and instance_name not in ws_models:
+                models.append(ClozeModelInfo(
+                    name=instance_name,
+                    state="training",
+                ))
+
+        return ClozeResponse(models=models)
 
     def _predict(self, trained, query):
 

@@ -1,5 +1,5 @@
 from typing import Dict, Any, Tuple
-from ...schema import ClozeRequest, ClozeResponse
+from ...schema import ClozeRequest, ClozeResponse, ClozeModelInfo
 from .base import MessageTranslator
 
 
@@ -7,12 +7,14 @@ class ClozeRequestTranslator(MessageTranslator):
 
     def decode(self, data: Dict[str, Any]) -> ClozeRequest:
         return ClozeRequest(
+            operation=data.get("operation", "predict"),
             model=data.get("model", ""),
             query=data.get("query", ""),
         )
 
     def encode(self, obj: ClozeRequest) -> Dict[str, Any]:
         return {
+            "operation": obj.operation,
             "model": obj.model,
             "query": obj.query,
         }
@@ -36,6 +38,19 @@ class ClozeResponseTranslator(MessageTranslator):
                 "type": obj.error.type,
                 "message": obj.error.message,
             }
+
+        if obj.models:
+            result["models"] = [
+                {
+                    "name": m.name,
+                    "state": m.state,
+                    "labels": m.labels,
+                    "accuracy": m.accuracy,
+                    "train_size": m.train_size,
+                    "test_size": m.test_size,
+                }
+                for m in obj.models
+            ]
 
         return result
 
