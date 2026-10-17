@@ -546,6 +546,8 @@ _FLOW_SERVICES = {
     "sparql": "sparql:read",
     "reranker": "reranker",
     "image-to-text": "image-to-text",
+    "cloze": "cloze",
+    "decision-scoring": "decision-scoring",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap)

@@ -1,0 +1,103 @@
+{
+  "min-accuracy": 0.80,
+  "epochs": 15,
+  "test-split": 0.2,
+  "labels": [
+    {
+      "token": "[TOOL_BANK]",
+      "seed": "bank",
+      "examples": [
+        "What is my checking account balance?",
+        "Transfer $150 to my savings account.",
+        "Did my direct deposit clear this morning?",
+        "Show me my recent transactions from last week.",
+        "Pay my credit card bill from my checking account.",
+        "What is the interest rate on my savings account?",
+        "I need to dispute a charge on my debit card.",
+        "Set up a recurring monthly transfer of $500.",
+        "Has the wire transfer from my employer arrived yet?",
+        "How much did I spend on groceries this month?"
+      ]
+    },
+    {
+      "token": "[TOOL_CALCULATOR]",
+      "seed": "math",
+      "examples": [
+        "What is the square root of 289?",
+        "Compute 15% tip on a bill of $84.20.",
+        "Convert 105 kilometers per hour to miles per hour.",
+        "What is 37 divided by 8?",
+        "Calculate the compound interest on $10,000 at 5% for 3 years.",
+        "How many ounces are in 2.5 liters?",
+        "What is 18 raised to the power of 3?",
+        "Figure out 20% off a price of $249.99.",
+        "Add up 134, 278, 56, and 912.",
+        "Convert 72 degrees Fahrenheit to Celsius."
+      ]
+    },
+    {
+      "token": "[TOOL_WEATHER]",
+      "seed": "weather",
+      "examples": [
+        "Is it going to rain in Manchester today?",
+        "What's the temperature outside right now?",
+        "Give me the 7-day forecast for Tokyo.",
+        "Will it snow in Denver this weekend?",
+        "What is the humidity level in Miami right now?",
+        "Do I need an umbrella for my commute tomorrow?",
+        "How windy is it going to be this afternoon?",
+        "What is the UV index in Los Angeles today?",
+        "Check if there are any storm warnings in my area.",
+        "What will the high and low temperatures be on Saturday?"
+      ]
+    },
+    {
+      "token": "[TOOL_SEARCH]",
+      "seed": "search",
+      "examples": [
+        "Who is the current prime minister of Australia?",
+        "What are the latest updates on the Mars rover mission?",
+        "When was the Eiffel Tower constructed?",
+        "Find me the nutritional information for avocados.",
+        "What year did the Berlin Wall fall?",
+        "Who won the Nobel Prize in Physics last year?",
+        "Look up the population of Brazil.",
+        "What programming language is TensorFlow written in?",
+        "How tall is Mount Kilimanjaro?",
+        "What are the symptoms of vitamin D deficiency?"
+      ]
+    },
+    {
+      "token": "[TOOL_CALENDAR]",
+      "seed": "calendar",
+      "examples": [
+        "Do I have any meetings scheduled after 3 PM?",
+        "Create an event called Dentist Appointment for Friday at 9 AM.",
+        "What is on my agenda for tomorrow morning?",
+        "Block off 2 PM to 4 PM on Wednesday for deep work.",
+        "Cancel my lunch meeting with David on Thursday.",
+        "Am I free next Tuesday at 11 AM?",
+        "Remind me about the team standup every weekday at 9:30 AM.",
+        "Move my one-on-one with Lisa from Monday to Wednesday.",
+        "How many meetings do I have this week?",
+        "Add a birthday reminder for Mom on March 15th."
+      ]
+    },
+    {
+      "token": "[TOOL_EMAIL]",
+      "seed": "email",
+      "examples": [
+        "Send the weekly status report to the engineering team.",
+        "Search my inbox for messages from Sarah regarding the contract.",
+        "Draft a reply to the customer feedback thread.",
+        "Mark all newsletters as read.",
+        "Forward the invoice from Acme Corp to the finance department.",
+        "Do I have any unread messages from my manager?",
+        "Compose a follow-up email to the client about the proposal.",
+        "Delete all the spam in my junk folder.",
+        "Archive the old project discussion thread.",
+        "Attach the quarterly report and send it to the board."
+      ]
+    }
+  ]
+}

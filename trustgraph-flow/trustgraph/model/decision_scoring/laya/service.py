@@ -6,6 +6,7 @@ Input is state + questions specification, output is answers with
 confidence scores.
 """
 
+import asyncio
 import logging
 
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
@@ -51,10 +52,20 @@ class Processor(FlowProcessor):
             )
         )
 
+        self.router = None
+
+    async def start(self):
+
         from laya import Router
+
         logger.info("Loading Laya router with preloaded checkpoints...")
-        self.router = Router(preload=True)
+        loop = asyncio.get_event_loop()
+        self.router = await loop.run_in_executor(
+            None, lambda: Router(preload=True)
+        )
         logger.info("Laya router loaded successfully")
+
+        await super().start()
 
     async def on_request(self, msg, consumer, flow):
 
@@ -63,6 +74,16 @@ class Processor(FlowProcessor):
         producer = flow("response")
 
         model = flow("model") or self.model_override
+
+        if self.router is None:
+            response = DecisionScoringResponse(
+                error=Error(
+                    type="not-ready",
+                    message="Laya router is still loading",
+                ),
+            )
+            await producer.send(response, properties={"id": id})
+            return
 
         try:
 
@@ -92,7 +113,7 @@ class Processor(FlowProcessor):
                 ),
             )
 
-        await producer.send(response, send_properties={"id": id})
+        await producer.send(response, properties={"id": id})
 
     @staticmethod
     def add_args(parser):

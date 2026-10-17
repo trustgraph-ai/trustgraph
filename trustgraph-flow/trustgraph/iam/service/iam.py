@@ -74,6 +74,8 @@ _READER_CAPS = {
     "embeddings",
     "reranker",
     "image-to-text",
+    "cloze",
+    "decision-scoring",
     "mcp",
     "config:read",
     "flows:read",
