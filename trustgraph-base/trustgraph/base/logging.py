@@ -11,58 +11,152 @@ Supports dual output to console and Loki for centralized log aggregation.
 import contextvars
 import logging
 import logging.handlers
+import sys
+import time
 import uuid
 from argparse import ArgumentParser
 from queue import Queue
 from typing import Any
 import os
 
+import requests
 
-# The current processor id for this task context.  Read by
-# _ProcessorIdFilter to stamp every LogRecord with its owning
-# processor, and read by logging_loki's emitter via record.tags
-# to label log lines in Loki.  ContextVar so asyncio subtasks
-# inherit their parent supervisor's processor id automatically.
+
 current_processor_id = contextvars.ContextVar(
     "current_processor_id", default="unknown"
 )
 
 
 def set_processor_id(pid):
-    """Set the processor id for the current task context.
-
-    All subsequent log records emitted from this task — and any
-    asyncio tasks spawned from it — will be tagged with this id
-    in the console format and in Loki labels.
-    """
     current_processor_id.set(pid)
 
 
 class _ProcessorIdFilter(logging.Filter):
-    """Stamps every LogRecord with processor_id from the contextvar.
-
-    Attaches two fields to each record:
-        record.processor_id — used by the console format string
-        record.tags         — merged into Loki labels by logging_loki's
-                              emitter (it reads record.tags and combines
-                              with the handler's static tags)
-    """
 
     def filter(self, record):
         pid = current_processor_id.get()
         record.processor_id = pid
-        existing = getattr(record, "tags", None) or {}
-        record.tags = {**existing, "processor": pid}
         return True
 
 
-def add_logging_args(parser: ArgumentParser) -> None:
-    """
-    Add standard logging arguments to an argument parser.
+LEVEL_TO_SEVERITY = {
+    "CRITICAL": "critical",
+    "ERROR": "error",
+    "WARNING": "warning",
+    "INFO": "info",
+    "DEBUG": "debug",
+}
 
-    Args:
-        parser: argparse.ArgumentParser instance to add arguments to
-    """
+
+class _LokiHandler(logging.Handler):
+
+    INITIAL_BACKOFF = 60
+    MAX_BACKOFF = 300
+    STATUS_INTERVAL = 300
+
+    def __init__(self, url, tags=None, auth=None):
+        super().__init__()
+        self.url = url
+        self.tags = tags or {}
+        self.auth = auth
+        self.session = requests.Session()
+        if auth:
+            self.session.auth = auth
+
+        self.degraded = False
+        self.backoff = self.INITIAL_BACKOFF
+        self.retry_at = 0
+        self.dropped = 0
+        self.degraded_since = 0
+        self.last_status = 0
+
+    def _push(self, record):
+
+        labels = {
+            **self.tags,
+            "severity": LEVEL_TO_SEVERITY.get(
+                record.levelname, "info"
+            ),
+            "processor": getattr(record, "processor_id", "unknown"),
+        }
+
+        ts = str(int(record.created * 1e9))
+        line = self.format(record)
+
+        payload = {
+            "streams": [
+                {
+                    "stream": labels,
+                    "values": [[ts, line]],
+                }
+            ]
+        }
+
+        resp = self.session.post(
+            self.url,
+            json=payload,
+            timeout=5,
+        )
+        resp.raise_for_status()
+
+    def _enter_degraded(self, now):
+        self.degraded = True
+        self.degraded_since = now
+        self.last_status = now
+        self.retry_at = now + self.backoff
+        self.dropped = 1
+        sys.stderr.write(
+            f"Loki logging degraded, retrying in "
+            f"{int(self.backoff)}s\n"
+        )
+
+    def emit(self, record):
+
+        now = time.monotonic()
+
+        if self.degraded:
+            if now < self.retry_at:
+                self.dropped += 1
+                if now - self.last_status >= self.STATUS_INTERVAL:
+                    self.last_status = now
+                    elapsed = now - self.degraded_since
+                    m, s = divmod(int(elapsed), 60)
+                    sys.stderr.write(
+                        f"Loki logging degraded: {self.dropped} messages "
+                        f"dropped ({m}m{s:02d}s, backoff: "
+                        f"{int(self.backoff)}s)\n"
+                    )
+                return
+
+            try:
+                self._push(record)
+            except Exception:
+                self.dropped += 1
+                self.backoff = min(self.backoff * 2, self.MAX_BACKOFF)
+                self.retry_at = now + self.backoff
+                return
+
+            elapsed = now - self.degraded_since
+            m, s = divmod(int(elapsed), 60)
+            sys.stderr.write(
+                f"Loki logging restored (dropped {self.dropped} "
+                f"messages over {m}m{s:02d}s)\n"
+            )
+            self.degraded = False
+            self.backoff = self.INITIAL_BACKOFF
+            self.dropped = 0
+            self.degraded_since = 0
+            self.last_status = 0
+            return
+
+        try:
+            self._push(record)
+        except Exception:
+            self._enter_degraded(now)
+
+
+def add_logging_args(parser: ArgumentParser) -> None:
+
     parser.add_argument(
         '-l', '--log-level',
         default='INFO',
@@ -104,26 +198,12 @@ def add_logging_args(parser: ArgumentParser) -> None:
 
 
 def setup_logging(args: dict[str, Any]) -> None:
-    """
-    Configure logging from parsed command-line arguments.
 
-    Sets up logging with a standardized format and output to stdout.
-    Optionally enables Loki integration for centralized log aggregation.
-
-    This should be called early in application startup, before any
-    logging calls are made.
-
-    Args:
-        args: Dictionary of parsed arguments (typically from vars(args))
-              Must contain 'log_level' key, optional Loki configuration
-    """
     log_level = args.get('log_level', 'INFO')
     loki_enabled = args.get('loki_enabled', True)
 
-    # Build list of handlers starting with console
     handlers = [logging.StreamHandler()]
 
-    # Add Loki handler if enabled
     queue_listener = None
     if loki_enabled:
         loki_url = args.get('loki_url', 'http://loki:3100/loki/api/v1/push')
@@ -131,78 +211,49 @@ def setup_logging(args: dict[str, Any]) -> None:
         loki_password = args.get('loki_password')
 
         try:
-            from logging_loki import LokiHandler
-
             instance_id = str(uuid.uuid4())[:8]
 
-            loki_handler_kwargs = {
-                'url': loki_url,
-                'version': "1",
-                'tags': {'instance': instance_id},
-            }
-
+            auth = None
             if loki_username and loki_password:
-                loki_handler_kwargs['auth'] = (loki_username, loki_password)
+                auth = (loki_username, loki_password)
 
-            loki_handler = LokiHandler(**loki_handler_kwargs)
+            loki_handler = _LokiHandler(
+                url=loki_url,
+                tags={"instance": instance_id},
+                auth=auth,
+            )
 
-            # Wrap in QueueHandler for non-blocking operation
             log_queue = Queue(maxsize=500)
             queue_handler = logging.handlers.QueueHandler(log_queue)
             handlers.append(queue_handler)
 
-            # Start QueueListener in background thread
             queue_listener = logging.handlers.QueueListener(
                 log_queue,
                 loki_handler,
-                respect_handler_level=True
+                respect_handler_level=True,
             )
             queue_listener.start()
 
-            # Store listener reference for potential cleanup
-            # (attached to root logger for access if needed)
             logging.getLogger().loki_queue_listener = queue_listener
 
-        except ImportError:
-            # Graceful degradation if python-logging-loki not installed
-            print("WARNING: python-logging-loki not installed, Loki logging disabled")
-            print("Install with: pip install python-logging-loki")
         except Exception as e:
-            # Graceful degradation if Loki connection fails
-            print(f"WARNING: Failed to setup Loki logging: {e}")
-            print("Continuing with console-only logging")
+            sys.stderr.write(f"WARNING: Failed to setup Loki logging: {e}\n")
+            sys.stderr.write("Continuing with console-only logging\n")
 
-    # Configure logging with all handlers.  The processor id comes
-    # from _ProcessorIdFilter (via contextvar) and is injected into
-    # each record as record.processor_id.  The format string reads
-    # that attribute on every emit.
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format='%(asctime)s - %(processor_id)s - %(levelname)s - %(message)s',
         handlers=handlers,
-        force=True  # Force reconfiguration if already configured
+        force=True,
     )
 
-    # Attach the processor-id filter to every handler so all records
-    # passing through any sink get stamped (console, queue→loki,
-    # future handlers).  Filters on handlers run regardless of which
-    # logger originated the record, so logs from pika, cassandra,
-    # processor code, etc. all pass through it.
     processor_filter = _ProcessorIdFilter()
     for h in handlers:
         h.addFilter(processor_filter)
 
-    # Seed the contextvar from --id if one was supplied.  In group
-    # mode --id isn't present; the processor_group supervisor sets
-    # it per task.  In standalone mode AsyncProcessor.launch provides
-    # it via argparse default.
     if args.get('id'):
         set_processor_id(args['id'])
 
-    # Silence noisy third-party library loggers.  These emit INFO-level
-    # chatter (connection churn, channel open/close, driver warnings) that
-    # drowns the useful signal and can't be attributed to a specific
-    # processor anyway.  WARNING and above still propagate.
     for noisy in (
         'pika',
         'cassandra',

@@ -1,8 +1,7 @@
 import argparse
 import logging
 import sys
-from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from trustgraph.base.logging import add_logging_args, setup_logging
 
@@ -58,7 +57,6 @@ def test_setup_logging_with_loki_enables_queue_listener(monkeypatch):
     connectionpool_logger = MagicMock()
     queue_handler = MagicMock()
     queue_listener = MagicMock()
-    loki_handler = MagicMock()
 
     noisy_logger = MagicMock()
     logger_map = {
@@ -82,11 +80,6 @@ def test_setup_logging_with_loki_enables_queue_listener(monkeypatch):
         "QueueListener",
         MagicMock(return_value=queue_listener),
     )
-    monkeypatch.setitem(
-        sys.modules,
-        "logging_loki",
-        SimpleNamespace(LokiHandler=MagicMock(return_value=loki_handler)),
-    )
 
     setup_logging(
         {
@@ -107,24 +100,50 @@ def test_setup_logging_with_loki_enables_queue_listener(monkeypatch):
     module_logger.info.assert_any_call("Loki logging enabled: http://loki.test/push")
 
 
-def test_setup_logging_falls_back_when_loki_module_missing(monkeypatch, capsys):
-    basic_config = MagicMock()
-    logger = MagicMock()
+def test_loki_handler_degrades_on_failure(capsys):
+    from trustgraph.base.logging import _LokiHandler
 
-    monkeypatch.setattr(logging, "basicConfig", basic_config)
-    monkeypatch.setattr(logging, "getLogger", lambda name=None: logger)
-    monkeypatch.delitem(sys.modules, "logging_loki", raising=False)
-    real_import = __import__
+    handler = _LokiHandler(url="http://localhost:0/loki/api/v1/push")
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    handler.session.post.side_effect = ConnectionError("test")
 
-    def fake_import(name, *args, **kwargs):
-        if name == "logging_loki":
-            raise ImportError("missing")
-        return real_import(name, *args, **kwargs)
+    record = logging.LogRecord(
+        name="test", level=logging.INFO, pathname="", lineno=0,
+        msg="test message", args=(), exc_info=None,
+    )
 
-    monkeypatch.setattr("builtins.__import__", fake_import)
+    handler.emit(record)
 
-    setup_logging({"log_level": "INFO", "loki_enabled": True, "id": "processor-1"})
+    output = capsys.readouterr().err
+    assert "Loki logging degraded" in output
+    assert handler.degraded is True
+    assert handler.dropped == 1
 
-    output = capsys.readouterr().out
-    assert "python-logging-loki not installed" in output
-    logger.warning.assert_called_once_with("Loki logging requested but not available")
+
+def test_loki_handler_recovers_on_success(capsys):
+    from trustgraph.base.logging import _LokiHandler
+
+    handler = _LokiHandler(url="http://localhost:0/loki/api/v1/push")
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    handler.session.post.side_effect = ConnectionError("test")
+
+    record = logging.LogRecord(
+        name="test", level=logging.INFO, pathname="", lineno=0,
+        msg="test message", args=(), exc_info=None,
+    )
+
+    handler.emit(record)
+    assert handler.degraded is True
+
+    handler.retry_at = 0
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    handler.session.post.side_effect = None
+    handler.session.post.return_value = mock_response
+
+    handler.emit(record)
+
+    output = capsys.readouterr().err
+    assert "Loki logging restored" in output
+    assert handler.degraded is False
+    assert handler.dropped == 0
