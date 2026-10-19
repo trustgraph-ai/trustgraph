@@ -13,7 +13,6 @@ dependencies = [
     "pulsar-client",
     "prometheus-client",
     "requests",
-    "python-logging-loki",
     "pika",
     "aio-pika",
     "confluent-kafka",

@@ -169,7 +169,7 @@ class Api:
         return self.app
 
     def run(self):
-        web.run_app(self.app_factory(), port=self.port)
+        web.run_app(self.app_factory(), port=self.port, print=logger.info)
 
 def run():
 
