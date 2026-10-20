@@ -73,23 +73,30 @@ class KnowledgeLoader:
             for s, p, o in g:
                 yield self._make_triple(s, p, o, self.graph)
 
-    def load_entity_contexts_from_file(self, file) -> Iterator[Tuple[str, str]]:
-        """Generator that yields (entity, context) tuples from a data file."""
+    def load_entity_contexts_from_file(self, file):
+        """Generator that yields (entity, context, rdf_types) tuples from a data file."""
+
+        RDF_TYPE = rdflib.RDF.type
 
         if self.format == "trig":
             ds = rdflib.Dataset()
             ds.parse(file, format="trig")
-            for s, p, o, _g in ds.quads((None, None, None, None)):
-                if isinstance(o, rdflib.term.URIRef):
-                    continue
-                yield (str(s), str(o))
+            triples = [(s, p, o) for s, p, o, _g in ds.quads((None, None, None, None))]
         else:
             g = rdflib.Graph()
             g.parse(file, format="turtle")
-            for s, p, o in g:
-                if isinstance(o, rdflib.term.URIRef):
-                    continue
-                yield (str(s), str(o))
+            triples = list(g)
+
+        type_map = {}
+        for s, p, o in triples:
+            if p == RDF_TYPE and isinstance(o, rdflib.term.URIRef):
+                type_map.setdefault(str(s), []).append(str(o))
+
+        for s, p, o in triples:
+            if isinstance(o, rdflib.term.URIRef):
+                continue
+            entity = str(s)
+            yield (entity, str(o), type_map.get(entity, []))
 
     def run(self):
         """Load triples and entity contexts using Python API"""
@@ -132,12 +139,15 @@ class KnowledgeLoader:
 
                 def entity_context_generator():
                     nonlocal count
-                    for entity, context in self.load_entity_contexts_from_file(file):
+                    for entity, context, rdf_types in self.load_entity_contexts_from_file(file):
                         count += 1
-                        yield {
+                        ent = {
                             "entity": {"t": "i", "i": entity},
-                            "context": context
+                            "context": context,
                         }
+                        if rdf_types:
+                            ent["rdf_type"] = rdf_types
+                        yield ent
 
                 bulk.import_entity_contexts(
                     flow=self.flow,

@@ -103,10 +103,11 @@ class TestKnowledgeLoader:
         # Should have contexts for literal objects (foaf:name, foaf:age, foaf:email)
         assert len(contexts) > 0
 
-        # Verify format: (entity, context) tuples
-        for entity, context in contexts:
+        # Verify format: (entity, context, rdf_types) tuples
+        for entity, context, rdf_types in contexts:
             assert isinstance(entity, str)
             assert isinstance(context, str)
+            assert isinstance(rdf_types, list)
             # Entity should be a URI (subject)
             assert entity.startswith("http://")
 
@@ -138,6 +139,54 @@ ex:mary ex:knows ex:bob .
 
         # Should have no contexts since there are no literals
         assert len(contexts) == 0
+
+    def test_load_entity_contexts_includes_rdf_types(self):
+        """Test that rdf:type triples are extracted and included."""
+        turtle_content = """
+@prefix ex: <http://example.org/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+ex:john rdf:type ex:Person ;
+        rdf:type ex:Employee ;
+        ex:name "John Smith" .
+
+ex:acme rdf:type ex:Company ;
+        ex:name "Acme Corp" .
+
+ex:thing ex:label "No type here" .
+"""
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.ttl', delete=False) as f:
+            f.write(turtle_content)
+            f.flush()
+
+            loader = KnowledgeLoader(
+                files=[f.name],
+                flow="test-flow",
+                workspace="test-user",
+                collection="test-collection",
+                document_id="test-doc",
+                url="http://test.example.com/"
+            )
+
+            contexts = list(loader.load_entity_contexts_from_file(f.name))
+
+        Path(f.name).unlink(missing_ok=True)
+
+        by_entity = {}
+        for entity, context, rdf_types in contexts:
+            by_entity[entity] = rdf_types
+
+        john = "http://example.org/john"
+        acme = "http://example.org/acme"
+        thing = "http://example.org/thing"
+
+        assert set(by_entity[john]) == {
+            "http://example.org/Person",
+            "http://example.org/Employee",
+        }
+        assert by_entity[acme] == ["http://example.org/Company"]
+        assert by_entity[thing] == []
 
     @patch('trustgraph.cli.load_knowledge.Api')
     def test_run_calls_bulk_api(self, mock_api_class, temp_turtle_file):
@@ -364,7 +413,7 @@ ex:mary ex:name "Mary Johnson" .
             assert len(contexts) == 4
 
             # Verify all contexts are for literals (subjects should be URIs)
-            context_values = [context for entity, context in contexts]
+            context_values = [context for entity, context, rdf_types in contexts]
 
             assert "John Smith" in context_values
             assert "25" in context_values
