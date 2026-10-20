@@ -83,12 +83,36 @@ async def _eval_project(node, tc, collection, limit, user_context):
         yield {v: sol[v] for v in variables if v in sol}
 
 
+def _query_cache_key(s_val, p_val, o_val):
+    return (_term_key(s_val), _term_key(p_val), _term_key(o_val))
+
+
+async def _cached_query(cache, tc, s_val, p_val, o_val, limit, collection,
+                        user_context):
+    key = _query_cache_key(s_val, p_val, o_val)
+    if key in cache:
+        return cache[key]
+
+    results = []
+    async for triple in tc.query_gen(
+        s=s_val, p=p_val, o=o_val,
+        limit=limit, collection=collection,
+        user_context=user_context,
+    ):
+        results.append(triple)
+    cache[key] = results
+    return results
+
+
 async def _eval_bgp(node, tc, collection, limit, user_context):
     """
     Evaluate a Basic Graph Pattern.
 
     Patterns are ordered by selectivity and evaluated sequentially.
     For the final pattern, results stream directly from the triple store.
+
+    A per-BGP query cache deduplicates triple-store round trips when
+    multiple intermediate solutions resolve to the same (s, p, o) query.
     """
     triples = node.triples
     if not triples:
@@ -102,27 +126,23 @@ async def _eval_bgp(node, tc, collection, limit, user_context):
         enumerate(triples), key=lambda x: -selectivity(x[1])
     )
 
-    # For all patterns except the last, we must materialise intermediate
-    # solutions because each pattern depends on bindings from prior ones.
-    # The last pattern streams directly.
     solutions = [{}]
+    cache = {}
 
     for pattern_idx, (_, pattern) in enumerate(sorted_patterns):
         s_tmpl, p_tmpl, o_tmpl = pattern
         is_last = (pattern_idx == len(sorted_patterns) - 1)
 
         if is_last:
-            # Stream the final pattern — yield as triples arrive
             count = 0
             for sol in solutions:
                 s_val = _resolve_term(s_tmpl, sol)
                 p_val = _resolve_term(p_tmpl, sol)
                 o_val = _resolve_term(o_tmpl, sol)
 
-                async for triple in tc.query_gen(
-                    s=s_val, p=p_val, o=o_val,
-                    limit=limit, collection=collection,
-                    user_context=user_context,
+                for triple in await _cached_query(
+                    cache, tc, s_val, p_val, o_val,
+                    limit, collection, user_context,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -136,17 +156,15 @@ async def _eval_bgp(node, tc, collection, limit, user_context):
                     if count >= limit:
                         return
         else:
-            # Materialise intermediate patterns
             new_solutions = []
             for sol in solutions:
                 s_val = _resolve_term(s_tmpl, sol)
                 p_val = _resolve_term(p_tmpl, sol)
                 o_val = _resolve_term(o_tmpl, sol)
 
-                async for triple in tc.query_gen(
-                    s=s_val, p=p_val, o=o_val,
-                    limit=limit, collection=collection,
-                    user_context=user_context,
+                for triple in await _cached_query(
+                    cache, tc, s_val, p_val, o_val,
+                    limit, collection, user_context,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -273,6 +291,7 @@ async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
     )
 
     solutions = [dict(bindings)]
+    cache = {}
 
     for pattern_idx, (_, pattern) in enumerate(sorted_patterns):
         s_tmpl, p_tmpl, o_tmpl = pattern
@@ -285,10 +304,9 @@ async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
                 p_val = _resolve_term(p_tmpl, sol)
                 o_val = _resolve_term(o_tmpl, sol)
 
-                async for triple in tc.query_gen(
-                    s=s_val, p=p_val, o=o_val,
-                    limit=limit, collection=collection,
-                    user_context=user_context,
+                for triple in await _cached_query(
+                    cache, tc, s_val, p_val, o_val,
+                    limit, collection, user_context,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -308,10 +326,9 @@ async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
                 p_val = _resolve_term(p_tmpl, sol)
                 o_val = _resolve_term(o_tmpl, sol)
 
-                async for triple in tc.query_gen(
-                    s=s_val, p=p_val, o=o_val,
-                    limit=limit, collection=collection,
-                    user_context=user_context,
+                for triple in await _cached_query(
+                    cache, tc, s_val, p_val, o_val,
+                    limit, collection, user_context,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
