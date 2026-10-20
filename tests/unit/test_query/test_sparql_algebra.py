@@ -227,6 +227,53 @@ class TestEvalBgp:
 
         assert solutions == []
 
+    @pytest.mark.asyncio
+    async def test_query_cache_deduplicates_repeated_lookups(self):
+        """When multiple intermediate solutions resolve to the same
+        (s, p, o) query, only one round trip should be made."""
+        rdf_type = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
+        rdfs_label = URIRef("http://www.w3.org/2000/01/rdf-schema#label")
+
+        person_cls = iri("http://example.com/Person")
+        label_pred = iri("http://www.w3.org/2000/01/rdf-schema#label")
+
+        queries_issued = []
+
+        async def mock_query(**kwargs):
+            queries_issued.append(dict(kwargs))
+            p = kwargs.get("p")
+            if p and p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type":
+                return [
+                    make_triple(iri("http://example.com/alice"), iri(p.iri), person_cls),
+                    make_triple(iri("http://example.com/bob"), iri(p.iri), person_cls),
+                    make_triple(iri("http://example.com/charlie"), iri(p.iri), person_cls),
+                ]
+            elif p and p.iri == "http://www.w3.org/2000/01/rdf-schema#label":
+                s = kwargs.get("s")
+                if s and s.iri == "http://example.com/Person":
+                    return [make_triple(person_cls, label_pred, lit("Person"))]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        bgp = make_bgp(
+            (Variable("s"), rdf_type, Variable("type")),
+            (Variable("type"), rdfs_label, Variable("label")),
+        )
+
+        solutions = await materialise(bgp, tc, collection="default")
+
+        assert len(solutions) == 3
+        for sol in solutions:
+            assert sol["type"].iri == "http://example.com/Person"
+            assert sol["label"].value == "Person"
+
+        label_queries = [
+            q for q in queries_issued
+            if q.get("p") and q["p"].iri == "http://www.w3.org/2000/01/rdf-schema#label"
+        ]
+        assert len(label_queries) == 1
+
 
 class TestEvaluate:
     """Tests for the top-level evaluate() dispatcher."""
