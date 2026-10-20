@@ -43,6 +43,7 @@ class EntityContextsImport:
                 EntityContext(
                     entity=to_value(ent["entity"]),
                     context=ent["context"],
+                    rdf_type=ent.get("rdf_type", []),
                 )
                 for ent in data["entities"]
             ]
