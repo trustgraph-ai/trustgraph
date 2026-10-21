@@ -94,12 +94,12 @@ jobs:
     secrets:
       DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
 
-  container-hf:
-    name: hf
+  container-torch:
+    name: torch
     needs: get-version
     uses: ./.github/workflows/build-container.yaml
     with:
-      container: hf
+      container: torch
       version: ${{ needs.get-version.outputs.version }}
     secrets:
       DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}

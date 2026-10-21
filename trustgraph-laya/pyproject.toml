@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-laya"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "Laya decision-scoring service for TrustGraph."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "trustgraph-base>=2.10,<2.11",
+    "trustgraph-flow>=2.10,<2.11",
+    "laya",
+    "pulsar-client",
+    "pyyaml",
+    "prometheus-client",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+decision-scoring-laya = "trustgraph.model.decision_scoring.laya:run"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.laya_version.__version__"}
