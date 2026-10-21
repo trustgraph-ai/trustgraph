@@ -16,6 +16,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-bedrock/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cloze/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-laya/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-docling/
@@ -30,6 +31,7 @@ packages: update-package-versions
 	cd trustgraph-bedrock && python -m build --sdist --outdir ../dist/
 	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cloze && python -m build --sdist --outdir ../dist/
+	cd trustgraph-laya && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
 	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
 	cd trustgraph-docling && python -m build --sdist --outdir ../dist/
@@ -49,6 +51,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cloze/trustgraph/cloze_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-laya/trustgraph/laya_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-docling/trustgraph/docling_version.py
@@ -57,7 +60,7 @@ update-package-versions:
 
 containers: container-base container-flow \
 container-bedrock container-vertexai \
-container-hf container-ocr \
+container-torch container-ocr \
 container-docling container-mcp
 
 some-containers: container-base container-flow container-docling
@@ -67,7 +70,7 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-flow:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
-	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-torch:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-docling:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
