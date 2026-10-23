@@ -1,8 +1,8 @@
 
 """
-Decision scoring service using Laya. Provides fast, structured
-decision-making with three output types: choice, score, and noul.
-Input is state + questions specification, output is answers with
+Decision scoring service using Laya via ONNX Runtime. Provides fast,
+structured decision-making with three output types: choice, score, and
+noul. Input is state + questions specification, output is answers with
 confidence scores.
 """
 
@@ -10,9 +10,10 @@ import asyncio
 import logging
 
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from .... base import ParameterSpec
 from .... schema import DecisionScoringRequest, DecisionScoringResponse
 from .... schema import Error
+
+from . engine import OnnxEngine, DEFAULT_REPO
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +24,10 @@ class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        model = params.get("model")
+        super(Processor, self).__init__(**params)
 
-        init_params = params
-        if model:
-            init_params = params | {"model": model}
-
-        super(Processor, self).__init__(**init_params)
-
-        self.model_override = model
-
-        self.register_specification(
-            ParameterSpec(name="model")
-        )
+        self.repo_id = params.get("model_repo") or DEFAULT_REPO
+        self.variant = params.get("model_variant") or "fp32"
 
         self.register_specification(
             ConsumerSpec(
@@ -52,18 +44,19 @@ class Processor(FlowProcessor):
             )
         )
 
-        self.router = None
+        self.engine = None
 
     async def start(self):
 
-        from laya import Router
-
-        logger.info("Loading Laya router with preloaded checkpoints...")
+        logger.info("Loading Laya ONNX engine...")
         loop = asyncio.get_event_loop()
-        self.router = await loop.run_in_executor(
-            None, lambda: Router(preload=True)
+        self.engine = await loop.run_in_executor(
+            None,
+            lambda: OnnxEngine(
+                repo_id=self.repo_id, variant=self.variant,
+            ),
         )
-        logger.info("Laya router loaded successfully")
+        logger.info("Laya ONNX engine loaded successfully")
 
         await super().start()
 
@@ -73,13 +66,11 @@ class Processor(FlowProcessor):
         id = msg.properties()["id"]
         producer = flow("response")
 
-        model = flow("model") or self.model_override
-
-        if self.router is None:
+        if self.engine is None:
             response = DecisionScoringResponse(
                 error=Error(
                     type="not-ready",
-                    message="Laya router is still loading",
+                    message="Laya ONNX engine is still loading",
                 ),
             )
             await producer.send(response, properties={"id": id})
@@ -87,12 +78,8 @@ class Processor(FlowProcessor):
 
         try:
 
-            kwargs = {}
-            if model:
-                kwargs["model"] = model
-
-            result = self.router.predict(
-                request.state, request.questions, **kwargs
+            result = self.engine.predict(
+                request.state, request.questions,
             )
 
             answers = result.get("answers", {})
@@ -121,9 +108,17 @@ class Processor(FlowProcessor):
         FlowProcessor.add_args(parser)
 
         parser.add_argument(
-            '-m', '--model',
+            '--model-repo',
             default=None,
-            help='Laya model override (default: auto-route by language)'
+            help='HuggingFace repo for ONNX model (default: %s)'
+            % DEFAULT_REPO,
+        )
+
+        parser.add_argument(
+            '--model-variant',
+            default="fp32",
+            choices=["fp32", "fp16"],
+            help='Model precision variant (default: fp32)',
         )
 
 
