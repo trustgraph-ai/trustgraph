@@ -10,7 +10,7 @@ description = "TrustGraph document decoder powered by Docling — lightweight al
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "trustgraph-base>=2.10,<2.11",
+    "trustgraph-base>=2.11,<2.12",
     "pulsar-client",
     "prometheus-client",
     "docling",
