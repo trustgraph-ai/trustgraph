@@ -12,7 +12,10 @@ requires-python = ">=3.10"
 dependencies = [
     "trustgraph-base>=2.10,<2.11",
     "trustgraph-flow>=2.10,<2.11",
-    "laya",
+    "onnxruntime",
+    "tokenizers",
+    "huggingface-hub",
+    "numpy",
     "pulsar-client",
     "pyyaml",
     "prometheus-client",

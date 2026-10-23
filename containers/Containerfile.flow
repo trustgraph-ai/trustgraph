@@ -34,12 +34,14 @@ FROM base AS build
 
 COPY trustgraph-base/ /root/build/trustgraph-base/
 COPY trustgraph-flow/ /root/build/trustgraph-flow/
+COPY trustgraph-laya/ /root/build/trustgraph-laya/
 COPY trustgraph-cli/ /root/build/trustgraph-cli/
 
 WORKDIR /root/build/
 
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-flow/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-laya/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-cli/
 
 RUN ls /root/wheels
@@ -55,6 +57,7 @@ COPY --from=build /root/wheels /root/wheels
 RUN \
     pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
     pip3 install --no-cache-dir /root/wheels/trustgraph_flow-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_laya-* && \
     pip3 install --no-cache-dir /root/wheels/trustgraph_cli-* && \
     rm -rf /root/wheels
 
