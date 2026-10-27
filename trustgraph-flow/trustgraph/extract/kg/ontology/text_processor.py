@@ -64,7 +64,7 @@ class SentenceSplitter:
             # Try newer punkt_tab first
             self.sent_detector = nltk.data.load('tokenizers/punkt_tab/english/')
             logger.info("Using NLTK sentence tokenizer (punkt_tab)")
-        except:
+        except LookupError:
             # Fallback to older punkt
             self.sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
             logger.info("Using NLTK sentence tokenizer (punkt)")
