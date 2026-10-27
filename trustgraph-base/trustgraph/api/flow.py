@@ -1548,3 +1548,32 @@ class FlowInstance:
 
         return response
 
+    def field_extraction(self, state, fields):
+        """
+        Extract fields from text using a span-extraction model.
+
+        Args:
+            state: Input text or dict of state data to extract from
+            fields: Dict mapping field names to instruction strings
+
+        Returns:
+            dict: Response with 'answers' and 'model' keys
+        """
+
+        input = {
+            "state": state,
+            "fields": fields,
+        }
+
+        response = self.request(
+            "service/field-extraction",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+

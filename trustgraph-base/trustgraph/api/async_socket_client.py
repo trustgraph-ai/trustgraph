@@ -583,3 +583,14 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         return await self.client._send_request("decision-scoring", self.flow_id, request)
+
+    async def field_extraction(self, state: Dict[str, Any],
+                               fields: Dict[str, Any], **kwargs) -> Dict[str, Any]:
+        """Extract fields from text using a span-extraction model."""
+        request = {
+            "state": state,
+            "fields": fields,
+        }
+        request.update(kwargs)
+
+        return await self.client._send_request("field-extraction", self.flow_id, request)

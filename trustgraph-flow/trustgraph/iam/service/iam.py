@@ -76,6 +76,7 @@ _READER_CAPS = {
     "image-to-text",
     "cloze",
     "decision-scoring",
+    "field-extraction",
     "mcp",
     "config:read",
     "flows:read",

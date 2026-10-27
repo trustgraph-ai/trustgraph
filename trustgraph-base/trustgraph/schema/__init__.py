@@ -17,3 +17,4 @@ from .policy_event import *
 from .user_context import *
 from .cloze import *
 from .decision_scoring import *
+from .field_extraction import *

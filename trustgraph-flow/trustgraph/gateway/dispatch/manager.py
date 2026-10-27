@@ -41,6 +41,7 @@ from . mcp_tool import McpToolRequestor
 from . reranker import RerankerRequestor
 from . cloze import ClozeRequestor
 from . decision_scoring import DecisionScoringRequestor
+from . field_extraction import FieldExtractionRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -83,6 +84,7 @@ request_response_dispatchers = {
     "image-to-text": ImageToTextRequestor,
     "cloze": ClozeRequestor,
     "decision-scoring": DecisionScoringRequestor,
+    "field-extraction": FieldExtractionRequestor,
 }
 
 system_dispatchers = {

@@ -17,6 +17,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cloze/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-laya/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-span/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-docling/
@@ -32,6 +33,7 @@ packages: update-package-versions
 	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cloze && python -m build --sdist --outdir ../dist/
 	cd trustgraph-laya && python -m build --sdist --outdir ../dist/
+	cd trustgraph-span && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
 	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
 	cd trustgraph-docling && python -m build --sdist --outdir ../dist/
@@ -52,6 +54,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cloze/trustgraph/cloze_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-laya/trustgraph/laya_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-span/trustgraph/span_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-docling/trustgraph/docling_version.py
