@@ -2,13 +2,13 @@
 
 <img src="TG-fullname-logo.svg" width=100% />
 
-[![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
+[![Docker Pulls](https://github.com/trustgraph-ai/badges/blob/master/docker-pulls.svg)](https://hub.docker.com/u/trustgraph) [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
 [![Discord](https://img.shields.io/discord/1251652173201149994
-)](https://discord.gg/kT5dAsaj8v) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/trustgraph-ai/trustgraph)
+)](https://discord.gg/kT5dAsaj8v)
 
 [**Playground**](https://docs.google.com/forms/d/e/1FAIpQLSeTnF22ZjUP20FWV--VvS5606x-5cOvnKty6AqcPdtlnPuqbQ/viewform) | [**Self-Host**](https://config-ui.demo.trustgraph.ai/) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Website**](https://trustgraph.ai) 
 
-### The Semantic Intelligence Layer
+### The Semantic Agent Governance Platform
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
@@ -18,9 +18,16 @@
 
 ---
 
-[TrustGraph](https://trustgraph.ai) is an open-source Semantic Intelligence Layer. It transforms raw, unstructured data into formally defined, ontology-grounded knowledge making that knowledge retrieval-ready with natural language, fully traceable, and portable across any standards-compliant system.
+[TrustGraph](https://trustgraph.ai) turns enterprise knowledge, systems, and business logic into an ontology-grounded operating graph connected to a policy runtime that governs what AI agents can do.
 
-AI applications fail without shared, unambiguous semantics. LLMs and agents operating on vector proximity across isolated text chunks can hallucinate, lose provenance, and produce non-deterministic outcomes. TrustGraph is the missing layer, a semantic substrate where every fact is typed, every relationship is defined, every agent action is traced back to its source knowledge stored in standards-compliant interoperable formats.
+Agents propose actions. TrustGraph checks them against business meaning, authority, and evidence before execution. Each decision preserves the evidence and policy version behind it as queryable W3C PROV-O provenance.
+
+### Understand. Govern. Verify.
+- **Understand your business**: Build a connected operating graph of entities, relationships, policies, and evidence from documents and systems, using your own or domain-standard ontologies.
+- **Govern agent actions**: Enforce explicit rules for authority, scope, risk, uncertainty, time, and value at the point of action.
+- **Verify decisions**: Retain the evidence and policy versions needed to explain and reproduce each outcome.
+
+Built on [W3C](https://www.w3.org) [RDF 1.2](https://www.w3.org/TR/rdf12-concepts/), [OWL](https://www.w3.org/OWL/), [SHACL](https://www.w3.org/TR/shacl/), and [PROV-O](https://www.w3.org/TR/prov-o/), TrustGraph keeps your business knowledge portable. Deploy with Docker or Kubernetes, in the cloud or on-prem, using hosted LLMs or open-weight models with the native TrustGraph inference stack.
 
 ## The Problem: "Common Semantic Understanding"
 To understand why AI struggles in complex use cases, consider Abbott and Costello’s classic ["Who's on First?"](https://www.youtube.com/watch?v=sYOUFGfK4bU) routine.
@@ -41,7 +48,12 @@ If a user asks: "*Who is playing on first base?*"
 
 Cosine similarity operates on fuzzy, statistical probability. It cannot distinguish between the linguistic usage of a word as a pronoun and its usage as a proper noun within a specific, localized context.
 
-## The Semantic Intelligence Layer
+## Put Ontologies in Action
+An ontology defines the concepts, unique definitions, and relationships that matter in a domain. In the “Who’s on First?” example, it distinguishes a player’s name from their position, so “Who” can be the name of the player at first base without being mistaken for a question. It gives knowledge extraction and retrieval a shared understanding instead of leaving a LLM to infer entity types, definitions, and relationships from each text chunk.
+
+TrustGraph puts that shared understanding to work. Bring an OWL ontology, build your own, or start with a domain standard. For each chunk of source text, TrustGraph retrieves the relevant part of the ontology to guide extraction, turning raw data into more consistent, ontology-enhanced knowledge. Native natural-language retrieval then makes that knowledge available to agents, with its provenance intact.
+
+## The Operating Graph
 A semantic intelligence layer built using standards like RDF and OWL, establishes explicit, unambiguous semantics. It doesn't rely on "guessing" based on word proximity; it relies on defined relationships.
 
 Here is the "Who's on First" routine modeled in RDF with an OWL ontology. By structuring data this way, the LLM knows exactly what "Who" means in this context:
@@ -88,21 +100,21 @@ Here is the "Who's on First" routine modeled in RDF with an OWL ontology. By str
 :IDontKnow :playsPosition :ThirdBase .
 ```
 
-When an agent queries the TrustGraph semantic intelligence layer, it uses SPARQL or GraphRAG to traverse these explicit paths. The agent knows that `:Who` is a `:Player` whose `:playsPosition` is `:FirstBase`. Hallucination is eliminated because context is structured, not inferred via probability.
+When an agent queries the TrustGraph operating graph, it uses SPARQL or GraphRAG to traverse these explicit paths. The agent knows that `:Who` is a `:Player` whose `:playsPosition` is `:FirstBase`. Hallucination is eliminated because context is structured, not inferred via probability.
 
 ## Core Components
-- **Semantic Intelligence Layer** — An RDF 1.2‑compliant named graph system with automated natural language retrieval, semantic filtering, and reranking, so queries return grounded, contextually relevant answers rather than raw search hits.
-- **Semantic Compliance** — Native support for OWL ontologies, enabling formal class hierarchies, property constraints, and logical inference over your knowledge graph.
+- **Operating Graph** — An RDF 1.2‑compliant named graph system with automated natural language retrieval, semantic filtering, and reranking, so queries return grounded, contextually relevant answers rather than raw search hits.
+- **Policy Enforcement** — Native support for OWL ontologies, enabling formal class hierarchies, property constraints, and logical inference over your knowledge graph.
 - **Agent Runtime** — Bring your own agent framework and integrate via the TrustGraph API Gateway, or use the native TrustGraph Agent Runtime, which traces all agent behavior and links every decision back to its source semantic intelligence with full provenance.
-- **Semantic Intelligence Management** — Workspaces, Collections, Flows, and Knowledge Cores give you multiple independent degrees of freedom for isolating, accessing, and versioning semantic knowledge over time.
-- **Semantic Interoperability** — Built on open standards (RDF 1.2, OWL, PROV-O), TrustGraph stores intelligence in interoperable serializations like Turtle that can be exported or migrated to any RDF-compliant system.
+- **Knowledge Lifecycle Management** — Workspaces, Collections, Flows, and Knowledge Cores give you multiple independent degrees of freedom for isolating, accessing, and versioning semantic knowledge over time.
+- **Knowledge Interoperability** — Built on open standards (RDF 1.2, OWL, PROV-O), TrustGraph stores intelligence in interoperable serializations like Turtle that can be exported or migrated to any RDF-compliant system.
 - **Unstructured Data Ingest** — Converts PDF, DOCX, XLSX, PPTX, HTML, Markdown, CSVs, and images into structured semantic intelligence.
 - **Full LLM Inference Stack** — Connect to all major LLM provider APIs, or self-host open-weight models on Nvidia, AMD, or Intel hardware.
 
 ## TrustGraph vs. Conventional Graph Systems
 | Dimension                      | TrustGraph                                                                                                                       | Conventional Graph Databases (e.g., Neo4j)                                                             |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Primary purpose                | Semantic Intelligence Layer purpose-built for AI: make knowledge unambiguous, traceable, and retrieval-ready for LLMs and agents | General-purpose property graph database for transactional workloads and graph analytics                |
+| Primary purpose                | Operating graph purpose-built for AI: make knowledge unambiguous, traceable, and retrieval-ready for LLMs and agents | General-purpose property graph database for transactional workloads and graph analytics                |
 | Data model                     | RDF 1.2 named graphs (quads) with reification — statements are first-class, addressable resources enabling n-ary relationships   | Labeled property graph — nodes and edges with key-value properties; no native statement reification    |
 | Semantic rigor                 | OWL ontology enforcement: typed entities and properties with formally defined meaning                                            | Schema-optional; semantics live in application code or conventions, not the data model                 |
 | Provenance                     | Built-in, standards-based (W3C PROV-O); extraction lineage, query traces, and agent behavior stored as queryable graph triples   | Not native; provenance must be hand-modeled as ordinary nodes/edges with no standard vocabulary        |
@@ -141,14 +153,9 @@ The config process will generate an app config that can be run locally with Dock
 - `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman or `resources.yaml` for Kubernetes
 - Deployment instructions as `INSTALLATION.md`
 
-<p align="center">
-  <video src="https://github.com/user-attachments/assets/33434c3c-f586-4610-8bb2-d7b7b586a672"
-width="80%" controls></video>
-</p>
-
 For a browser based configuration, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
 
-## Watch What is Semantic Intelligence?
+## Watch What is an Operating Graph?
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
@@ -178,11 +185,15 @@ The UI provides tools for all major features of TrustGraph. The UI deploys on po
 
 ## TypeScript Library for UIs
 
-There are 3 libraries for quick UI integration of TrustGraph services.
+There are TS libraries for quick UI integration of TrustGraph services.
 
-- [@trustgraph/client](https://www.npmjs.com/package/@trustgraph/client)
-- [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
-- [@trustgraph/react-provider](https://www.npmjs.com/package/@trustgraph/react-provider)
+| Package | Description |
+|---|---|
+| `@trustgraph/trustkit` | Shared component library and design system |
+| `@trustgraph/client` | TypeScript client for TrustGraph APIs |
+| `@trustgraph/react-provider` | React provider for TrustGraph WebSocket connections |
+| `@trustgraph/react-state` | React state management hooks |
+| `@trustgraph/portal` | Portal application showcasing all workflows |
 
 ## Contributing
 
