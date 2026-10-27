@@ -972,3 +972,21 @@ class AsyncFlowInstance:
             raise ProtocolException(f"{error_type}: {error_message}")
 
         return response
+
+    async def field_extraction(self, state, fields, **kwargs):
+        """Extract fields from text using a span-extraction model."""
+
+        input = {
+            "state": state,
+            "fields": fields,
+        }
+        input.update(kwargs)
+
+        response = await self.request("field-extraction", input)
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response

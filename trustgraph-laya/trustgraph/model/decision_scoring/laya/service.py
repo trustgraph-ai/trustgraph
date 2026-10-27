@@ -9,7 +9,7 @@ confidence scores.
 import asyncio
 import logging
 
-from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .... base import FlowProcessor, ConsumerSpec, ProducerSpec, ParameterSpec
 from .... schema import DecisionScoringRequest, DecisionScoringResponse
 from .... schema import Error
 
@@ -26,8 +26,12 @@ class Processor(FlowProcessor):
 
         super(Processor, self).__init__(**params)
 
-        self.repo_id = params.get("model_repo") or DEFAULT_REPO
+        self.repo_id = params.get("model") or DEFAULT_REPO
         self.variant = params.get("model_variant") or "fp32"
+
+        self.register_specification(
+            ParameterSpec(name="model")
+        )
 
         self.register_specification(
             ConsumerSpec(
@@ -108,7 +112,7 @@ class Processor(FlowProcessor):
         FlowProcessor.add_args(parser)
 
         parser.add_argument(
-            '--model-repo',
+            '--model',
             default=None,
             help='HuggingFace repo for ONNX model (default: %s)'
             % DEFAULT_REPO,

@@ -83,6 +83,7 @@ multi-word subsystems.
 | `embeddings` | Raw text-embedding service (stateless compute; typed-data embedding stores live under their data-subject capability) |
 | `cloze` | cloze classification |
 | `decision-scoring` | decision-scoring |
+| `field-extraction` | field-extraction (span-based) |
 | `mcp` | mcp-tool |
 | `collections:read` | List / describe collections |
 | `collections:write` | Create / delete collections |
@@ -112,7 +113,7 @@ The open-source edition ships three roles:
 
 | Role | Capabilities |
 |---|---|
-| `reader` | `agent`, `graph:read`, `documents:read`, `rows:read`, `llm`, `embeddings`, `cloze`, `decision-scoring`, `mcp`, `collections:read`, `knowledge:read`, `flows:read`, `config:read`, `keys:self` |
+| `reader` | `agent`, `graph:read`, `documents:read`, `rows:read`, `llm`, `embeddings`, `cloze`, `decision-scoring`, `field-extraction`, `mcp`, `collections:read`, `knowledge:read`, `flows:read`, `config:read`, `keys:self` |
 | `writer` | everything in `reader` **+** `graph:write`, `documents:write`, `rows:write`, `collections:write`, `knowledge:write` |
 | `admin` | everything in `writer` **+** `config:write`, `flows:write`, `users:read`, `users:write`, `users:admin`, `keys:admin`, `workspaces:admin`, `iam:admin`, `metrics:read` |
 

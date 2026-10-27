@@ -1170,3 +1170,14 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         return self.client._send_request_sync("decision-scoring", self.flow_id, request, False)
+
+    def field_extraction(self, state: Dict[str, Any], fields: Dict[str, Any],
+                         **kwargs: Any) -> Dict[str, Any]:
+        """Extract fields from text using a span-extraction model."""
+        request = {
+            "state": state,
+            "fields": fields,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("field-extraction", self.flow_id, request, False)

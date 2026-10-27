@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-span"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "Span-extraction field extraction service for TrustGraph."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "trustgraph-base>=2.11,<2.12",
+    "trustgraph-flow>=2.11,<2.12",
+    "onnxruntime",
+    "tokenizers",
+    "huggingface-hub",
+    "numpy",
+    "pulsar-client",
+    "pyyaml",
+    "prometheus-client",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+field-extraction-span = "trustgraph.model.field_extraction.span:run"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.span_version.__version__"}
