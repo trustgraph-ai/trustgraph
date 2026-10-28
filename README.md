@@ -90,7 +90,8 @@ For a browser based configuration, try the [Configuration Terminal](https://conf
 
 ## Getting Started with TrustGraph
 
-- [**Getting Started Guides**](https://docs.trustgraph.ai/getting-started)
+- [**Getting Started Guides**](https://docs.trustgraph.ai/)
+- [**Build an App**](https://docs.trustgraph.ai/build-an-app/)
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
 - [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
 
