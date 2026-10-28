@@ -53,6 +53,10 @@ An ontology defines the concepts, unique definitions, and relationships that mat
 
 TrustGraph puts that shared understanding to work. Bring an OWL ontology, build your own, or start with a domain standard. For each chunk of source text, TrustGraph retrieves the relevant part of the ontology to guide extraction, turning raw data into more consistent, ontology-enhanced knowledge. Native natural-language retrieval then makes that knowledge available to agents, with its provenance intact.
 
+<img src="diagrams/ontology.svg" width=100% />
+
+<img src="diagrams/ontology-json.svg" width=100% />
+
 ## The Operating Graph
 A semantic intelligence layer built using standards like RDF and OWL, establishes explicit, unambiguous semantics. It doesn't rely on "guessing" based on word proximity; it relies on defined relationships.
 
@@ -102,6 +106,10 @@ Here is the "Who's on First" routine modeled in RDF with an OWL ontology. By str
 
 When an agent queries the TrustGraph operating graph, it uses SPARQL or GraphRAG to traverse these explicit paths. The agent knows that `:Who` is a `:Player` whose `:playsPosition` is `:FirstBase`. Hallucination is eliminated because context is structured, not inferred via probability.
 
+<img src="diagrams/rag-types.svg" width=100% />
+
+<img src="diagrams/graphrag.svg" width=100% />
+
 ## Core Components
 - **Operating Graph** — An RDF 1.2‑compliant named graph system with automated natural language retrieval, semantic filtering, and reranking, so queries return grounded, contextually relevant answers rather than raw search hits.
 - **Policy Enforcement** — Native support for OWL ontologies, enabling formal class hierarchies, property constraints, and logical inference over your knowledge graph.
@@ -110,6 +118,18 @@ When an agent queries the TrustGraph operating graph, it uses SPARQL or GraphRAG
 - **Knowledge Interoperability** — Built on open standards (RDF 1.2, OWL, PROV-O), TrustGraph stores intelligence in interoperable serializations like Turtle that can be exported or migrated to any RDF-compliant system.
 - **Unstructured Data Ingest** — Converts PDF, DOCX, XLSX, PPTX, HTML, Markdown, CSVs, and images into structured semantic intelligence.
 - **Full LLM Inference Stack** — Connect to all major LLM provider APIs, or self-host open-weight models on Nvidia, AMD, or Intel hardware.
+
+<img src="diagrams/platform.svg" width=100% />
+
+<img src="diagrams/formats.svg" width=100% />
+
+<img src="diagrams/policy.svg" width=100% />
+
+<img src="diagrams/provenance.svg" width=100% />
+
+<img src="diagrams/agent.svg" width=100% />
+
+<img src="diagrams/decisions.svg" width=100% />
 
 ## TrustGraph vs. Conventional Graph Systems
 | Dimension                      | TrustGraph                                                                                                                       | Conventional Graph Databases (e.g., Neo4j)                                                             |
