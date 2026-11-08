@@ -1320,10 +1320,9 @@ class IamService:
         # We do this only when a target workspace is involved, to
         # avoid an extra read for system-level operations that
         # bypass workspace altogether.
-        target_workspace = (
-            (resource or {}).get("workspace")
-            or (parameters or {}).get("workspace")
-        )
+        target_workspace = (resource or {}).get("workspace")
+        if target_workspace is None:
+            target_workspace = (parameters or {}).get("workspace")
 
         roles = user_row[6] or set()
         assigned_workspace = user_row[1]

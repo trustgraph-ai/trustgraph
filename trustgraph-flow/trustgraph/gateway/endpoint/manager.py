@@ -81,17 +81,20 @@ class _RoutedVariableEndpoint:
             )
             request[audit_capability_key] = op.capability
 
-            ws = resource.get("workspace", "")
-            if ws:
-                request[audit_workspace_key] = ws
-            if ws and ws not in self.auth.known_workspaces:
+            workspace = resource.get("workspace")
+            assert workspace is not None, \
+                "workspace must be resolved before authorisation"
+            request[audit_workspace_key] = workspace
+            if workspace not in self.auth.known_workspaces:
                 raise workspace_not_found()
+
+            flow = resource.get("flow", "")
 
             async def responder(x, fin):
                 pass
 
             resp = await self.dispatcher.process(
-                data, responder, request.match_info,
+                data, responder, workspace, flow, kind,
             )
             return web.json_response(resp)
 
@@ -141,6 +144,7 @@ class _RoutedSocketEndpoint:
 
         ctx = RequestContext(
             body={},
+            query=dict(request.query),
             match_info=dict(request.match_info),
             identity=identity,
         )
@@ -154,23 +158,31 @@ class _RoutedSocketEndpoint:
             )
             request[audit_capability_key] = op.capability
 
-            ws = resource.get("workspace", "")
-            if ws:
-                request[audit_workspace_key] = ws
-            if ws and ws not in self.auth.known_workspaces:
+            workspace = resource.get("workspace")
+            assert workspace is not None, \
+                "workspace must be resolved before authorisation"
+            request[audit_workspace_key] = workspace
+            if workspace not in self.auth.known_workspaces:
                 raise workspace_not_found()
+
+            flow = resource.get("flow", "")
 
         except web.HTTPException as e:
             return e
 
-        # Delegate the websocket handling to a standalone SocketEndpoint
-        # with the resolved capability, bypassing the per-request mutation
-        # concern by instantiating fresh state.
+        original_dispatcher = self.dispatcher
+
+        async def resolved_dispatcher(websocket, running, _params):
+            return await original_dispatcher(
+                websocket, running, workspace, flow, kind,
+            )
+
         ws_ep = SocketEndpoint(
             endpoint_path=self.path,
             auth=self.auth,
-            dispatcher=self.dispatcher,
+            dispatcher=resolved_dispatcher,
             capability=op.capability,
+            in_band_auth=True,
         )
         return await ws_ep.handle(request)
 

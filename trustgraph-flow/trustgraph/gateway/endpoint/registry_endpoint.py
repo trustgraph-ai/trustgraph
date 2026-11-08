@@ -103,8 +103,8 @@ class RegistryRoutedVariableEndpoint:
                 client_ip=self.auth._extract_client_ip(request),
             )
             request[audit_capability_key] = op.capability
-            ws = resource.get('workspace', '')
-            if ws:
+            ws = resource.get('workspace')
+            if ws is not None:
                 request[audit_workspace_key] = ws
 
             # Default-fill workspace into the body so downstream
@@ -118,8 +118,8 @@ class RegistryRoutedVariableEndpoint:
                 op.resource_level in (
                     ResourceLevel.WORKSPACE, ResourceLevel.FLOW,
                 )
-                and resource.get("workspace")
-                    not in self.auth.known_workspaces
+                and ws is not None
+                and ws not in self.auth.known_workspaces
             ):
                 raise workspace_not_found()
 
