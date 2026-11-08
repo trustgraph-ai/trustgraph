@@ -63,6 +63,9 @@ class RequestContext:
     # fields (id, service, workspace, flow).
     match_info: dict = field(default_factory=dict)
 
+    # URL query string parameters (WebSocket endpoints).
+    query: dict = field(default_factory=dict)
+
     # Authenticated identity for default-fill-in.  Always present
     # by the time extractors run, except for PUBLIC operations
     # where it is None.
@@ -132,7 +135,7 @@ def lookup(name: str) -> Operation | None:
             name=name,
             capability=AUTHENTICATED,
             resource_level=ResourceLevel.FLOW,
-            extract_resource=_flow_from_match_info,
+            extract_resource=_flow_from_body,
             extract_parameters=_no_parameters,
         )
 
@@ -156,18 +159,44 @@ def _empty_resource(_ctx: RequestContext) -> dict:
 def _workspace_from_body(ctx: RequestContext) -> dict:
     """Workspace-level resource sourced from the request body's
     workspace field, defaulting to the caller's bound workspace."""
-    ws = (ctx.body.get("workspace") if isinstance(ctx.body, dict) else "")
-    if not ws and ctx.identity is not None:
-        ws = ctx.identity.default_workspace
-    return {"workspace": ws}
+    raw = ctx.body.get("workspace") if isinstance(ctx.body, dict) else None
+    return {"workspace": _normalise_workspace(raw, ctx.identity)}
 
 
-def _flow_from_match_info(ctx: RequestContext) -> dict:
-    """Flow-level resource sourced from URL path components or WS
-    envelope fields.  Both ``workspace`` and ``flow`` are required;
-    no default-fill-in (the address is the operation's identity)."""
+def _normalise_workspace(raw, identity):
+    """Return a non-empty workspace string, or None.
+
+    Empty string is treated as "not specified" and falls back to the
+    caller's default workspace.  None means no workspace could be
+    determined (identity is absent or has no default).
+    """
+    if raw is not None and raw != "":
+        return raw
+    if identity is not None:
+        dw = identity.default_workspace
+        if dw is not None and dw != "":
+            return dw
+    return None
+
+
+def _flow_from_body(ctx: RequestContext) -> dict:
+    """Flow-level resource for HTTP service routes.  Reads workspace
+    from the request body, falling back to the caller's default
+    workspace."""
+    raw = ctx.body.get("workspace") if isinstance(ctx.body, dict) else None
     return {
-        "workspace": ctx.match_info.get("workspace", ""),
+        "workspace": _normalise_workspace(raw, ctx.identity),
+        "flow": ctx.match_info.get("flow", ""),
+    }
+
+
+def _flow_from_query(ctx: RequestContext) -> dict:
+    """Flow-level resource for WebSocket import/export routes.  Reads
+    workspace from the query string, falling back to the caller's
+    default workspace."""
+    raw = ctx.query.get("workspace") if ctx.query else None
+    return {
+        "workspace": _normalise_workspace(raw, ctx.identity),
         "flow": ctx.match_info.get("flow", ""),
     }
 
@@ -516,12 +545,15 @@ for _op in ("update-collection", "delete-collection"):
 # ---------------------------------------------------------------------------
 
 
-def _register_flow_kind(prefix: str, kind: str, capability: str) -> None:
+def _register_flow_kind(
+    prefix: str, kind: str, capability: str,
+    extract_resource: Callable[[RequestContext], dict] = _flow_from_body,
+) -> None:
     register(Operation(
         name=f"{prefix}:{kind}",
         capability=capability,
         resource_level=ResourceLevel.FLOW,
-        extract_resource=_flow_from_match_info,
+        extract_resource=extract_resource,
         extract_parameters=_no_parameters,
     ))
 
@@ -550,7 +582,7 @@ _FLOW_SERVICES = {
     "decision-scoring": "decision-scoring",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
-    _register_flow_kind("flow-service", _kind, _cap)
+    _register_flow_kind("flow-service", _kind, _cap, _flow_from_body)
 
 
 # Streaming import socket endpoints.
@@ -562,7 +594,7 @@ _FLOW_IMPORTS = {
     "rows": "rows:write",
 }
 for _kind, _cap in _FLOW_IMPORTS.items():
-    _register_flow_kind("flow-import", _kind, _cap)
+    _register_flow_kind("flow-import", _kind, _cap, _flow_from_query)
 
 
 # Streaming export socket endpoints.
@@ -573,7 +605,7 @@ _FLOW_EXPORTS = {
     "entity-contexts": "entity-contexts:read",
 }
 for _kind, _cap in _FLOW_EXPORTS.items():
-    _register_flow_kind("flow-export", _kind, _cap)
+    _register_flow_kind("flow-export", _kind, _cap, _flow_from_query)
 
 
 # ---------------------------------------------------------------------------
