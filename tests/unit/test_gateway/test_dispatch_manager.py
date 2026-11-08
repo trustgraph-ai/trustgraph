@@ -320,9 +320,10 @@ class TestDispatcherManager:
             mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
             mock_dispatchers.__contains__.return_value = True
 
-            params = {"flow": "test_flow", "kind": "triples"}
-            result = await manager.process_flow_import("ws", "running", params)
-            
+            result = await manager.process_flow_import(
+                "ws", "running", "default", "test_flow", "triples",
+            )
+
             mock_dispatcher_class.assert_called_once_with(
                 backend=mock_backend,
                 ws="ws",
@@ -338,11 +339,11 @@ class TestDispatcherManager:
         mock_backend = Mock()
         mock_config_receiver = Mock()
         manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
-        
-        params = {"flow": "invalid_flow", "kind": "triples"}
-        
+
         with pytest.raises(RuntimeError, match="Invalid flow"):
-            await manager.process_flow_import("ws", "running", params)
+            await manager.process_flow_import(
+                "ws", "running", "default", "invalid_flow", "triples",
+            )
 
     @pytest.mark.asyncio
     async def test_process_flow_import_with_invalid_kind(self):
@@ -353,7 +354,7 @@ class TestDispatcherManager:
             mock_backend = Mock()
             mock_config_receiver = Mock()
             manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
-        
+
         # Setup test flow
         manager.flows[("default", "test_flow")] = {
             "interfaces": {
@@ -363,11 +364,11 @@ class TestDispatcherManager:
 
         with patch('trustgraph.gateway.dispatch.manager.import_dispatchers') as mock_dispatchers:
             mock_dispatchers.__contains__.return_value = False
-            
-            params = {"flow": "test_flow", "kind": "invalid_kind"}
-            
+
             with pytest.raises(RuntimeError, match="Invalid kind"):
-                await manager.process_flow_import("ws", "running", params)
+                await manager.process_flow_import(
+                    "ws", "running", "default", "test_flow", "invalid_kind",
+                )
 
     @pytest.mark.asyncio
     async def test_process_flow_export_with_valid_flow_and_kind(self):
@@ -392,9 +393,10 @@ class TestDispatcherManager:
             mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
             mock_dispatchers.__contains__.return_value = True
             
-            params = {"flow": "test_flow", "kind": "triples"}
-            result = await manager.process_flow_export("ws", "running", params)
-            
+            result = await manager.process_flow_export(
+                "ws", "running", "default", "test_flow", "triples",
+            )
+
             mock_dispatcher_class.assert_called_once_with(
                 backend=mock_backend,
                 ws="ws",
@@ -450,11 +452,14 @@ class TestDispatcherManager:
         manager = DispatcherManager(mock_backend, mock_config_receiver, auth=Mock())
         
         manager.invoke_flow_service = AsyncMock(return_value="flow_result")
-        
-        params = {"flow": "test_flow", "kind": "agent"}
-        result = await manager.process_flow_service("data", "responder", params)
-        
-        manager.invoke_flow_service.assert_called_once_with("data", "responder", "default", "test_flow", "agent")
+
+        result = await manager.process_flow_service(
+            "data", "responder", "workspace-a", "test_flow", "agent",
+        )
+
+        manager.invoke_flow_service.assert_called_once_with(
+            "data", "responder", "workspace-a", "test_flow", "agent",
+        )
         assert result == "flow_result"
 
     @pytest.mark.asyncio

@@ -335,11 +335,7 @@ class DispatcherManager:
     def dispatch_flow_service(self):
         return DispatcherWrapper(self.process_flow_service)
 
-    async def process_flow_import(self, ws, running, params):
-
-        workspace = params.get("workspace", "default")
-        flow = params.get("flow")
-        kind = params.get("kind")
+    async def process_flow_import(self, ws, running, workspace, flow, kind):
 
         flow_key = (workspace, flow)
         if flow_key not in self.flows:
@@ -376,11 +372,7 @@ class DispatcherManager:
 
         return dispatcher
 
-    async def process_flow_export(self, ws, running, params):
-
-        workspace = params.get("workspace", "default")
-        flow = params.get("flow")
-        kind = params.get("kind")
+    async def process_flow_export(self, ws, running, workspace, flow, kind):
 
         flow_key = (workspace, flow)
         if flow_key not in self.flows:
@@ -425,19 +417,8 @@ class DispatcherManager:
 
         return dispatcher
 
-    async def process_flow_service(self, data, responder, params):
-
-        # Workspace can come from URL or from request body, defaulting
-        # to "default". Having it in the URL allows gateway routing to
-        # be workspace-aware without touching the body.
-        workspace = params.get("workspace")
-        if not workspace and isinstance(data, dict):
-            workspace = data.get("workspace")
-        if not workspace:
-            workspace = "default"
-
-        flow = params.get("flow")
-        kind = params.get("kind")
+    async def process_flow_service(self, data, responder, workspace, flow,
+                                   kind):
 
         return await self.invoke_flow_service(
             data, responder, workspace, flow, kind,
