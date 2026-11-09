@@ -1,7 +1,7 @@
 
 # Torch is stable and compiles for ARM64 and AMD64 on Python 3.12
 
-FROM docker.io/fedora:42 AS ai
+FROM docker.io/fedora:45 AS ai
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
@@ -10,7 +10,7 @@ RUN dnf install -y python3.12 && \
   python -m ensurepip --upgrade && \
   pip3 install --no-cache-dir --upgrade 'pip>=26.0' 'setuptools>=78.1.1' && \
   pip3 install --no-cache-dir build wheel aiohttp && \
-  pip3 install --no-cache-dir pulsar-client==3.11.0 && \
+  pip3 install --no-cache-dir pulsar-client==3.13.0 && \
   dnf clean all
 
 # This won't work on ARM
@@ -22,7 +22,7 @@ RUN pip3 install torch
 RUN pip3 install --no-cache-dir \
     sentence-transformers==5.4.1 transformers==5.7.0 \
     huggingface-hub==1.13.0 click \
-    pulsar-client==3.11.0
+    pulsar-client==3.13.0
 
 # Most commonly used embeddings model, just build it into the container
 # image

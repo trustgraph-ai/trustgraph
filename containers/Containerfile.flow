@@ -4,23 +4,23 @@
 # like to avoid re-doing this.
 # ----------------------------------------------------------------------------
 
-FROM docker.io/fedora:42 AS base
+FROM docker.io/fedora:45 AS base
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN dnf install -y python3.13 && \
-  alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
+RUN dnf install -y python3.14 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.14 1 && \
   python -m ensurepip --upgrade && \
   pip3 install --no-cache-dir --upgrade 'pip>=26.0' 'setuptools>=78.1.1' && \
   pip3 install --no-cache-dir build wheel aiohttp rdflib && \
-  pip3 install --no-cache-dir pulsar-client==3.11.0 && \
+  pip3 install --no-cache-dir pulsar-client==3.13.0 && \
   dnf clean all
 
 RUN pip3 install --no-cache-dir \
     anthropic cohere mistralai openai \
     ollama \
     pymilvus \
-    pulsar-client==3.11.0 scylla-driver pyyaml \
+    pulsar-client==3.13.0 scylla-driver pyyaml \
     neo4j tiktoken falkordb && \
     pip3 cache purge
 
