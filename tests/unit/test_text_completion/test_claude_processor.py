@@ -89,7 +89,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         assert result.out_token == 15
         assert result.model == 'claude-3-5-sonnet-20240620'
         
-        # Verify the Claude API call
+        # Verify the Claude API call (temperature not sent - removed from Anthropic API)
         mock_claude_client.messages.create.assert_called_once_with(
             model='claude-3-5-sonnet-20240620',
             max_tokens=8192,
@@ -101,7 +101,6 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
                     "text": "User prompt"
                 }]
             }],
-            extra_body={"temperature": 0.0},
         )
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
@@ -349,10 +348,10 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         assert messages[0]['content'][0]['type'] == 'text'
         assert messages[0]['content'][0]['text'] == "What is AI?"
         
-        # Verify other parameters
+        # Verify other parameters (temperature not sent - removed from Anthropic API)
         assert call_args[1]['model'] == 'claude-3-5-sonnet-20240620'
-        assert call_args[1]['extra_body']['temperature'] == 0.5
         assert call_args[1]['max_tokens'] == 1024
+        assert 'extra_body' not in call_args[1]
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -482,7 +481,8 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         mock_claude_client.messages.create.assert_called_once()
         call_kwargs = mock_claude_client.messages.create.call_args.kwargs
 
-        assert call_kwargs['extra_body']['temperature'] == 0.9             # Should use runtime override
+        # Temperature not sent to API (removed from Anthropic API)
+        assert 'extra_body' not in call_kwargs
         assert call_kwargs['model'] == 'claude-3-5-sonnet-20240620'     # Should use processor default
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
@@ -533,7 +533,8 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         call_kwargs = mock_claude_client.messages.create.call_args.kwargs
 
         assert call_kwargs['model'] == 'claude-3-haiku-20240307'  # Should use runtime override
-        assert call_kwargs['extra_body']['temperature'] == 0.2   # Should use processor default
+        # Temperature not sent to API (removed from Anthropic API)
+        assert 'extra_body' not in call_kwargs
 
     @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -583,7 +584,8 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         call_kwargs = mock_claude_client.messages.create.call_args.kwargs
 
         assert call_kwargs['model'] == 'claude-3-opus-20240229'  # Should use runtime override
-        assert call_kwargs['extra_body']['temperature'] == 0.8  # Should use runtime override
+        # Temperature not sent to API (removed from Anthropic API)
+        assert 'extra_body' not in call_kwargs
 
 
 if __name__ == '__main__':

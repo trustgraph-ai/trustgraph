@@ -95,7 +95,6 @@ class Processor(LlmService):
                         ]
                     }
                 ],
-                extra_body={"temperature": effective_temperature},
                 **kwargs,
             )
 
@@ -179,7 +178,6 @@ class Processor(LlmService):
                         ]
                     }
                 ],
-                extra_body={"temperature": effective_temperature},
                 stream=True,
             ) as stream:
                 input_tokens = 0
