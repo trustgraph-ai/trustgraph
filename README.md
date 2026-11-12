@@ -8,71 +8,94 @@
 
 [**Playground**](https://docs.google.com/forms/d/e/1FAIpQLSeTnF22ZjUP20FWV--VvS5606x-5cOvnKty6AqcPdtlnPuqbQ/viewform) | [**Self-Host**](https://config-ui.demo.trustgraph.ai/) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Website**](https://trustgraph.ai) 
 
-### The AI Governance Platform for Agents, Knowledge, and Context
+### The open-source ontology runtime for AI agents
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
+**Your ontology. Your agents. Your rules.**
 
 </div>
 
 ---
 
-[TrustGraph](https://trustgraph.ai) turns enterprise knowledge, systems, and business logic into a unified ontology-grounded context graph and policy runtime that governs what AI agents can do.
+Every platform now sells you an ontology. [TrustGraph](https://trustgraph.ai) is the one you own.
+ 
+For enterprises deploying AI agents where decisions carry real risk, TrustGraph is the **open-source ontology runtime** that turns your documents and data into ontology-grounded knowledge, and governs what every agent and user can see from it.
+ 
+Unlike other platform ontologies, TrustGraph is built on W3C standards (RDF, OWL, SHACL, PROV-O) for total ownership and portability of your knowledge and business logic. Your ontology, your knowledge, and your audit trail stay yours, portable across any cloud, model or deployment.
 
-### Understand. Govern. Verify.
-- **Understand your business**: Build a connected graph of entities, relationships, policies, and evidence from documents and systems, using your own or domain-standard ontologies.
-- **Govern agent actions**: Enforce explicit rules for authority, scope, risk, uncertainty, time, and value at the point of action.
-- **Verify decisions**: Retain the evidence and policy versions needed to explain and reproduce each outcome.
+## How it works
 
-## The Platform
-
-<img src="diagrams/platform.svg" width=100% />
-
-## Ontologies Made Easy
-
-<img src="diagrams/ontology-json.svg" width=100% />
-
-<img src="diagrams/ontology.svg" width=100% />
-
-## Understand Your Knowledge
-
-<img src="diagrams/formats.svg" width=100% />
-
-## 3 RAG Techniques in a Single Platform
-
-<img src="diagrams/rag-types.svg" width=100% />
-
-## Advanced Agentic Graph Traversal
-
-<img src="diagrams/graphrag.svg" width=100% />
-
-## Semantic Policy Enforcement
-
-<img src="diagrams/policy.svg" width=100% />
-
-## Provenance for Knowledge and Agent Actions
-
-<img src="diagrams/provenance.svg" width=100% />
-
-<img src="diagrams/agent.svg" width=100% />
-
-## Decisions without LLMs
-
-<img src="diagrams/decisions.svg" width=100% />
-
-## No API Keys Required
-
-How many times have you cloned a repo and opened the `.env.example` to see the dozens of API keys for 3rd party dependencies needed to make the services work? There are only 3 things in TrustGraph that might need an API key:
-
-- 3rd party LLM services like Anthropic, Cohere, Gemini, Mistral, OpenAI, etc.
-- 3rd party OCR like Mistral OCR
-- The API key *you set* for the TrustGraph API gateway
-
-Everything else is included.
-- [x] Managed Multi-model storage in [Cassandra](https://cassandra.apache.org/_/index.html)
-- [x] Managed Vector embedding storage in [Qdrant](https://github.com/qdrant/qdrant)
-- [x] Managed File and Object storage in [Garage](https://github.com/deuxfleurs-org/garage) (S3 compatible)
-- [x] Managed High-speed Pub/Sub messaging fabric with [Pulsar](https://github.com/apache/pulsar) or [RabbitMQ](https://www.rabbitmq.com/)
-- [x] Complete LLM inferencing stack for open LLMs with [vLLM](https://github.com/vllm-project/vllm), [TGI](https://github.com/huggingface/text-generation-inference), [Ollama](https://github.com/ollama/ollama), [LM Studio](https://github.com/lmstudio-ai), and [llama.cpp](https://github.com/ggml-org/llama.cpp) 
+```
+   Your ontology                       Your documents & data
+        │                                       │
+        └──────────────────┬────────────────────┘
+                           ▼
+                ┌──────────────────────┐
+     1. EXTRACT │     OntologyRAG      │  Triples that match your classes and properties,
+                │                      │  checked against domain/range constraints
+                └──────────┬───────────┘
+                           ▼
+                ┌──────────────────────┐
+     2. GROUND  │    Context Graph     │  RDF knowledge in named graphs,
+                │                      │  with PROV-O lineage to every source chunk
+                └──────────┬───────────┘
+                           ▼
+                ┌──────────────────────┐
+     3. GOVERN  │  SHACL-AF Policies   │  Every query evaluated per node:
+                │                      │  Allowed · Filtered · Violation
+                └──────────┬───────────┘
+                           ▼
+              GraphRAG · SPARQL · Agents · MCP
+              + a queryable trace of how each answer was produced
+```
+ 
+## What makes it different
+ 
+| | TrustGraph | Platform ontologies |
+|---|---|---|
+| **Data model** | W3C RDF, OWL, JSON-LD | Vendor object model |
+| **Where it runs** | Docker, Podman, Kubernetes, any cloud, on-prem or self-hosted models | Inside one vendor's data estate |
+| **Knowledge source** | Documents (PDF, DOCX, XLSX, PPTX, HTML, Markdown, CSV), images, and structured data | Mostly warehouse tables and metadata |
+| **Access control** | SHACL-AF policies evaluated on every query | Platform permissions |
+| **Audit trail** | PROV-O in queryable named graphs | Platform logs |
+| **Models** | All major LLM APIs, hosted or self-hosted open weight models | Platform's choice |
+| **License** | Apache 2.0 | Commercial |
+ 
+## Core capabilities
+ 
+### 1. Own it: open standards, portable knowledge
+- Knowledge is stored as RDF, including language tags, XSD datatypes and RDF-star quoted triples.
+- Load knowledge as Turtle or TriG (named graphs preserved); export the graph as Turtle.
+- Package knowledge into **Context Cores** that carry triples, embeddings, provenance and source documents between deployments.
+- Move whole workspaces between deployments with portable `.tgx` bundles (`tg-export-workspace` / `tg-import-workspace`).
+### 2. Use it: ontology to knowledge
+- **OntologyRAG** uses your ontology to guide extraction. A similarity-based selector picks the relevant part of the ontology for each chunk, with a bypass mode for small ontologies.
+- Extracted triples are validated against ontology **domain and range constraints, including the subclass hierarchy**. Triples that break the rules are rejected.
+- `rdf:type` attributes are stored with graph embeddings, so you can filter vector searches by entity type.
+- Schema-free **GraphRAG** and hybrid (BM25 + vector) **DocumentRAG** are also available, both with cross-encoder reranking.
+### 3. Govern it: policy-based query filtering (new in 2.10)
+- Write access policies as **SHACL-AF** shapes, stored in the `urn:graph:policy` named graph.
+- Every graph query is evaluated node by node with a tri-state result: **Allowed**, **Filtered** or **Violation**.
+- Policies apply across the REST API, SPARQL and GraphRAG, using a per-request user context.
+- Each evaluation publishes a structured `policy.evaluation` audit event.
+- With no policies loaded, the system runs in open mode.
+### 4. Steer it: guided graph traversal (new in 2.10)
+- Supply grounding seeds or graph seeds to skip LLM concept extraction.
+- Restrict each hop by type, relationship or named graph, and filter edges by language tag.
+### 5. Prove it: explainability
+- Extraction emits **PROV-O** lineage from document to page, chunk and edge (`urn:graph:source`).
+- GraphRAG, DocumentRAG and agent queries record full reasoning traces (`urn:graph:retrieval`).
+- Inspect them with `tg-show-explain-trace` and `tg-show-extraction-provenance`, or query them with SPARQL.
+### 6. Decide fast (new in 2.10)
+- **Decision Scoring** (Laya, ONNX Runtime, ~35 ms per call): pick an option, score on an ordered scale, or get a yes/no confidence.
+- **Cloze Classification**: auto-train a DistilBERT classifier from labeled examples and serve it with confidence scores.
+## Agents and APIs
+ 
+- **Agent orchestrator** with ReAct, Plan-then-Execute and Supervisor patterns.
+- **MCP server** with tools for graph queries, SPARQL, GraphQL over structured data and embeddings, with bearer-token authentication.
+- **SPARQL 1.1** query service with 30+ built-in functions and streaming results.
+- REST, WebSocket, Python SDK, TypeScript libraries and a full `tg-*` CLI.
 
 ## Quickstart
 
@@ -87,6 +110,29 @@ The config process will generate an app config that can be run locally with Dock
 - Deployment instructions as `INSTALLATION.md`
 
 For a browser based configuration, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
+
+## Standards support
+ 
+| Standard | Use in TrustGraph |
+|---|---|
+| RDF (incl. RDF-star) | Graph data model, with language tags and datatypes |
+| OWL / RDFS | Ontology classes and properties; domain, range and subclass checks during extraction |
+| SHACL-AF | Policy-based query filtering |
+| PROV-O | Extraction lineage and query-time reasoning traces |
+| SPARQL 1.1 | Querying knowledge, provenance and policies |
+| Turtle / TriG / N-Quads | Import and export |
+| MCP | Agent integration |
+ 
+> **Note on scope:** TrustGraph uses OWL ontologies to guide extraction and to check domain, range and subclass constraints. It is not a full OWL reasoner. See the [Ontologies](https://docs.trustgraph.ai/learn/ontologies.html) docs for details.
+ 
+## Integrations
+ 
+- **LLMs:** All major LLM APIs, including OpenAI and compatible providers, Claude, Gemini (GCP and AI Studio), Near AI, AWS Bedrock, Azure, Mistral, Cohere, Ollama, vLLM, LM Studio, TGI and llama.cpp
+- **Messaging:** Apache Pulsar or RabbitMQ (Kafka experimental)
+- **Storage:** Cassandra (graph), Qdrant (vectors), S3-compatible object storage
+- **Documents:** Docling decoder for PDF, DOCX, XLSX, PPTX, HTML, Markdown and CSV
+- **Deployment:** Docker / Podman Compose, Minikube, Azure AKS, GCP, AWS, Scaleway, OVHcloud; amd64 and arm64 images; Nvidia, AMD, and Intel GPU support
+- **Security:** IAM with JWT and API keys, workspace multi-tenancy, fine-grained capabilities
 
 ## Getting Started with TrustGraph
 
