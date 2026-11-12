@@ -9,6 +9,29 @@ from . types import Action, Final
 
 logger = logging.getLogger(__name__)
 
+def scan_braces(text, depth, in_string, escaped):
+    """Track JSON brace depth, ignoring braces inside string values.
+
+    Returns (depth, in_string, escaped, started).
+    """
+    started = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == '\\':
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char == '{':
+            depth += 1
+            started = True
+        elif char == '}':
+            depth -= 1
+    return depth, in_string, escaped, started
+
 class AgentManager:
 
     def __init__(self, tools, additional_context=None):
@@ -118,28 +141,23 @@ class AgentManager:
             if line.startswith("Args:"):
                 # Check if JSON starts on the same line
                 args_on_same_line = line[5:].strip()
-                if args_on_same_line:
-                    args_text = args_on_same_line
-                    brace_count = args_on_same_line.count('{') - args_on_same_line.count('}')
-                else:
-                    args_text = ""
-                    brace_count = 0
+                args_text = args_on_same_line
+                brace_count, in_string, escaped, started = scan_braces(
+                    args_on_same_line, 0, False, False
+                )
 
                 # Collect all lines that form the JSON arguments
                 i += 1
-                started = bool(args_on_same_line and '{' in args_on_same_line)
 
                 while i < len(lines) and (not started or brace_count > 0):
                     current_line = lines[i]
                     args_text += ("\n" if args_text else "") + current_line
 
-                    # Count braces to determine when JSON is complete
-                    for char in current_line:
-                        if char == '{':
-                            brace_count += 1
-                            started = True
-                        elif char == '}':
-                            brace_count -= 1
+                    # Count braces outside strings to find the end of the JSON
+                    brace_count, in_string, escaped, line_started = scan_braces(
+                        current_line + "\n", brace_count, in_string, escaped
+                    )
+                    started = started or line_started
 
                     # If we've started and braces are balanced, we're done
                     if started and brace_count == 0:
