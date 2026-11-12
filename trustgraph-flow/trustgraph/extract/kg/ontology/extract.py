@@ -5,10 +5,9 @@ Extracts ontology-conformant triples from text chunks.
 
 import json
 import logging
-import asyncio
 import time
 from typing import List, Dict, Any, Optional
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram
 
 from .. extract_metrics import (
     extraction_duration_metric, extraction_triple_metric,
@@ -17,16 +16,13 @@ from .. extract_metrics import (
 
 from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from .... schema import EntityContext, EntityContexts
-from .... schema import PromptRequest, PromptResponse
+from .... schema import OntologyRequest, OntologyResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, RDF_TYPE, RDF_LABEL, DEFINITION
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from .... base import PromptClientSpec, EmbeddingsClientSpec
+from .... base import PromptClientSpec, RequestResponseSpec
 
-from .ontology_loader import OntologyLoader
-from .ontology_embedder import OntologyEmbedder
-from .vector_store import InMemoryVectorStore
+from .ontology_selector import OntologySubset
 from .text_processor import TextProcessor
-from .ontology_selector import OntologySelector, OntologySubset
 from .simplified_parser import parse_extraction_response
 from .triple_converter import TripleConverter
 
@@ -75,18 +71,8 @@ class Processor(FlowProcessor):
             }
         )
 
-        if not hasattr(__class__, "ontology_loaded_metric"):
+        if not hasattr(__class__, "ontology_selection_count_metric"):
             from trustgraph.base.metrics import BUCKETS_STANDARD
-            __class__.ontology_loaded_metric = Gauge(
-                'tg_ontology_loaded_count',
-                'Number of ontology definitions loaded from config',
-                ["processor", "workspace"],
-            )
-            __class__.ontology_element_metric = Gauge(
-                'tg_ontology_element_count',
-                'Number of embedded ontology elements',
-                ["processor"],
-            )
             __class__.ontology_selection_count_metric = Histogram(
                 'tg_ontology_selection_count',
                 'Ontology elements selected per chunk',
@@ -95,7 +81,7 @@ class Processor(FlowProcessor):
             )
             __class__.ontology_selection_duration_metric = Histogram(
                 'tg_ontology_selection_duration_seconds',
-                'Similarity selection time per chunk',
+                'Ontology service request time per chunk',
                 ["processor"],
                 buckets=BUCKETS_STANDARD,
             )
@@ -123,9 +109,11 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            EmbeddingsClientSpec(
-                request_name="embeddings-request",
-                response_name="embeddings-response"
+            RequestResponseSpec(
+                request_name="ontology-request",
+                response_name="ontology-response",
+                request_schema=OntologyRequest,
+                response_schema=OntologyResponse,
             )
         )
 
@@ -143,217 +131,69 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Register config handler for ontology updates
-        self.register_config_handler(self.on_ontology_config, types=["ontology"])
-
-        # Per-workspace ontology loaders
-        self.ontology_loaders = {}  # workspace -> OntologyLoader
         self.text_processor = TextProcessor()
-
-        # Per-flow components (each flow gets its own embedder/vector
-        # store/selector). Keyed by id(flow) — Flow objects are unique
-        # per (workspace, flow), so this is implicitly workspace-scoped.
-        self.flow_components = {}
-
-        # Configuration
         self.top_k = params.get("top_k", 10)
         self.similarity_threshold = params.get("similarity_threshold", 0.3)
-        self.bypass_selector_below = params.get("bypass_selector_below", 5)
 
-        # Per-workspace ontology version tracking
-        self.current_ontology_versions = {}  # workspace -> version
-        self.loaded_ontology_ids = {}  # workspace -> set of ids
+    async def _select_ontology_subset(self, flow, chunk):
+        """Split chunk into segments, query ontology service per segment,
+        and merge results into a single OntologySubset."""
 
-    async def initialize_flow_components(self, flow):
-        """Initialize per-flow OntoRAG components.
+        segments = self.text_processor.process_chunk(
+            chunk, extract_phrases=True
+        )
+        logger.debug(f"Split chunk into {len(segments)} segments")
 
-        Each flow gets its own vector store and embedder to support
-        different embedding models across flows. The vector store dimension
-        is auto-detected from the embeddings service.
+        merged_classes = {}
+        merged_obj_props = {}
+        merged_dt_props = {}
+        ontology_id = ""
 
-        Args:
-            flow: Flow object for this processing context
-
-        Returns:
-            flow_id: Identifier for this flow's components
-        """
-        # Use flow object as identifier
-        flow_id = id(flow)
-
-        if flow_id in self.flow_components:
-            return flow_id  # Already initialized for this flow
-
-        try:
-            logger.info(f"Initializing components for flow {flow_id}")
-
-            # Use embeddings client directly (no wrapper needed)
-            embeddings_client = flow("embeddings-request")
-
-            # Detect embedding dimension by embedding a test string
-            logger.info("Detecting embedding dimension from embeddings service...")
-            test_embedding_response = await embeddings_client.embed(["test"])
-            test_embedding = test_embedding_response[0]  # Extract first vector
-            dimension = len(test_embedding)
-            logger.info(f"Detected embedding dimension: {dimension}")
-
-            # Initialize vector store with detected dimension
-            vector_store = InMemoryVectorStore(
-                dimension=dimension,
-                index_type='flat'
-            )
-
-            ontology_embedder = OntologyEmbedder(
-                embedding_service=embeddings_client,
-                vector_store=vector_store
-            )
-
-            workspace = flow.workspace
-
-            # Embed all loaded ontologies for this workspace
-            loader = self.ontology_loaders.get(workspace)
-            if loader is not None and loader.get_all_ontologies():
-                logger.info(
-                    f"Embedding ontologies for flow {flow_id} "
-                    f"(workspace {workspace})"
+        for segment in segments:
+            response = await flow("ontology-request").request(
+                OntologyRequest(
+                    operation="subset",
+                    text=segment.text,
+                    top_k=self.top_k,
+                    similarity_threshold=self.similarity_threshold,
                 )
-                for ont_id, ontology in loader.get_all_ontologies().items():
-                    await ontology_embedder.embed_ontology(ontology)
-                embedded_count = ontology_embedder.get_embedded_count()
-                logger.info(f"Embedded {embedded_count} ontology elements for flow {flow_id}")
-                __class__.ontology_element_metric.labels(
-                    processor=self.id,
-                ).set(embedded_count)
-
-            # Initialize ontology selector
-            ontology_selector = OntologySelector(
-                ontology_embedder=ontology_embedder,
-                ontology_loader=loader,
-                top_k=self.top_k,
-                similarity_threshold=self.similarity_threshold,
-                bypass_selector_below=self.bypass_selector_below,
             )
 
-            # Store flow-specific components
-            self.flow_components[flow_id] = {
-                'embedder': ontology_embedder,
-                'vector_store': vector_store,
-                'selector': ontology_selector,
-                'dimension': dimension,
-                'workspace': workspace,
-            }
-
-            logger.info(f"Flow {flow_id} components initialized successfully (dimension={dimension})")
-            return flow_id
-
-        except Exception as e:
-            logger.error(f"Failed to initialize flow {flow_id} components: {e}", exc_info=True)
-            raise
-
-    async def on_ontology_config(self, workspace, config, version):
-        """Handle ontology configuration updates for a workspace."""
-        try:
-            logger.info(
-                f"Received ontology config update, "
-                f"version={version} workspace={workspace}"
-            )
-
-            # Skip if we've already processed this version for this workspace
-            if version == self.current_ontology_versions.get(workspace):
-                logger.debug(
-                    f"Already at version {version} for {workspace}, "
-                    f"skipping"
-                )
-                return
-
-            # Extract ontology configurations
-            if "ontology" not in config:
+            if response.error:
                 logger.warning(
-                    f"No 'ontology' section in config for {workspace}"
+                    f"Ontology service error for segment "
+                    f"'{segment.text[:60]}': {response.error.message}"
                 )
-                return
+                continue
 
-            ontology_configs = config["ontology"]
+            if not ontology_id and response.ontology_id:
+                ontology_id = response.ontology_id
 
-            # Parse ontology definitions
-            ontologies = {}
-            for ont_id, ont_json in ontology_configs.items():
-                try:
-                    ontologies[ont_id] = json.loads(ont_json)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse ontology '{ont_id}': {e}")
-                    continue
+            for k, v in response.classes.items():
+                if k not in merged_classes:
+                    merged_classes[k] = json.loads(v) if isinstance(v, str) else v
 
-            logger.info(
-                f"Loaded {len(ontologies)} ontology definitions "
-                f"for {workspace}"
-            )
+            for k, v in response.object_properties.items():
+                if k not in merged_obj_props:
+                    merged_obj_props[k] = json.loads(v) if isinstance(v, str) else v
 
-            __class__.ontology_loaded_metric.labels(
-                processor=self.id, workspace=workspace,
-            ).set(len(ontologies))
+            for k, v in response.datatype_properties.items():
+                if k not in merged_dt_props:
+                    merged_dt_props[k] = json.loads(v) if isinstance(v, str) else v
 
-            # Determine what changed for this workspace
-            ws_loaded_ids = self.loaded_ontology_ids.get(workspace, set())
-            new_ids = set(ontologies.keys())
-            added_ids = new_ids - ws_loaded_ids
-            removed_ids = ws_loaded_ids - new_ids
-            updated_ids = new_ids & ws_loaded_ids  # May have changed content
-
-            if added_ids:
-                logger.info(f"New ontologies in {workspace}: {added_ids}")
-            if removed_ids:
-                logger.info(f"Removed ontologies in {workspace}: {removed_ids}")
-            if updated_ids:
-                logger.info(f"Updated ontologies in {workspace}: {updated_ids}")
-
-            # Get or create per-workspace loader
-            loader = self.ontology_loaders.get(workspace)
-            if loader is None:
-                loader = OntologyLoader()
-                self.ontology_loaders[workspace] = loader
-            loader.update_ontologies(ontologies)
-
-            # Clear flow components for this workspace to force
-            # re-embedding with new ontologies.
-            if added_ids or removed_ids or updated_ids:
-                self._clear_workspace_flow_components(workspace)
-
-            # Update tracking
-            self.current_ontology_versions[workspace] = version
-            self.loaded_ontology_ids[workspace] = new_ids
-
-            logger.info(
-                f"Ontology config update complete for {workspace}, "
-                f"version={version}"
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to process ontology config: {e}", exc_info=True)
-
-    def _clear_workspace_flow_components(self, workspace):
-        """Drop cached flow components belonging to the given workspace
-        so they're re-initialised on next message with fresh ontology
-        embeddings."""
-        to_remove = [
-            fid for fid, comp in self.flow_components.items()
-            if comp.get("workspace") == workspace
-        ]
-        if to_remove:
-            logger.info(
-                f"Clearing {len(to_remove)} flow components for "
-                f"workspace {workspace}"
-            )
-        for fid in to_remove:
-            del self.flow_components[fid]
+        return OntologySubset(
+            ontology_id=ontology_id,
+            classes=merged_classes,
+            object_properties=merged_obj_props,
+            datatype_properties=merged_dt_props,
+            metadata={},
+            relevance_score=1.0,
+        )
 
     async def on_message(self, msg, consumer, flow):
         """Process incoming chunk message."""
         v = msg.value()
         logger.info(f"Extracting ontology-based triples from {v.metadata.id}...")
-
-        # Initialize flow-specific components if needed
-        flow_id = await self.initialize_flow_components(flow)
-        components = self.flow_components[flow_id]
 
         chunk = v.chunk.decode("utf-8")
         logger.debug(f"Processing chunk: {chunk[:200]}...")
@@ -362,18 +202,20 @@ class Processor(FlowProcessor):
         extractor_label = "ontology"
 
         try:
-            # Process text into segments
-            segments = self.text_processor.process_chunk(chunk, extract_phrases=True)
-            logger.debug(f"Split chunk into {len(segments)} segments")
-
-            # Select relevant ontology subset (using flow-specific selector)
+            # Select ontology subset via per-segment requests
             t_sel = time.monotonic()
-            ontology_subsets = await components['selector'].select_ontology_subset(segments)
+            ontology_subset = await self._select_ontology_subset(
+                flow, chunk
+            )
             __class__.ontology_selection_duration_metric.labels(
                 processor=self.id,
             ).observe(time.monotonic() - t_sel)
 
-            if not ontology_subsets:
+            if (
+                not ontology_subset.classes
+                and not ontology_subset.object_properties
+                and not ontology_subset.datatype_properties
+            ):
                 logger.warning("No relevant ontology elements found for chunk")
                 __class__.ontology_no_match_metric.labels(
                     processor=self.id,
@@ -384,12 +226,6 @@ class Processor(FlowProcessor):
                 )
                 extraction_empty_metric.labels(**labels).inc()
                 return
-
-            # Merge subsets if multiple ontologies matched
-            if len(ontology_subsets) > 1:
-                ontology_subset = components['selector'].merge_subsets(ontology_subsets)
-            else:
-                ontology_subset = ontology_subsets[0]
 
             selected_count = (
                 len(ontology_subset.classes)
@@ -717,7 +553,6 @@ class Processor(FlowProcessor):
         # Check if it's an ontology class
         if value in ontology_subset.classes:
             class_def = ontology_subset.classes[value]
-            # class_def is a dict (from cls.__dict__ in ontology_selector)
             if isinstance(class_def, dict) and 'uri' in class_def and class_def['uri']:
                 return class_def['uri']
             # Fallback: construct URI
@@ -726,14 +561,12 @@ class Processor(FlowProcessor):
         # Check if it's an ontology property
         if value in ontology_subset.object_properties:
             prop_def = ontology_subset.object_properties[value]
-            # prop_def is a dict (from prop.__dict__ in ontology_selector)
             if isinstance(prop_def, dict) and 'uri' in prop_def and prop_def['uri']:
                 return prop_def['uri']
             return f"https://trustgraph.ai/ontology/{ontology_id}#{value}"
 
         if value in ontology_subset.datatype_properties:
             prop_def = ontology_subset.datatype_properties[value]
-            # prop_def is a dict (from prop.__dict__ in ontology_selector)
             if isinstance(prop_def, dict) and 'uri' in prop_def and prop_def['uri']:
                 return prop_def['uri']
             return f"https://trustgraph.ai/ontology/{ontology_id}#{value}"
@@ -800,7 +633,7 @@ class Processor(FlowProcessor):
                 o=make_term("http://www.w3.org/2002/07/owl#Class", is_uri=True)
             ))
 
-            # rdfs:label (stored as 'labels' in OntologyClass.__dict__)
+            # rdfs:label
             if isinstance(class_def, dict) and 'labels' in class_def:
                 labels = class_def['labels']
                 if isinstance(labels, list) and labels:
@@ -811,7 +644,7 @@ class Processor(FlowProcessor):
                         o=make_term(label_val, is_uri=False)
                     ))
 
-            # rdfs:comment (stored as 'comment' in OntologyClass.__dict__)
+            # rdfs:comment
             if isinstance(class_def, dict) and 'comment' in class_def and class_def['comment']:
                 comment = class_def['comment']
                 ontology_triples.append(Triple(
@@ -820,7 +653,7 @@ class Processor(FlowProcessor):
                     o=make_term(comment, is_uri=False)
                 ))
 
-            # rdfs:subClassOf (stored as 'subclass_of' in OntologyClass.__dict__)
+            # rdfs:subClassOf
             if isinstance(class_def, dict) and 'subclass_of' in class_def and class_def['subclass_of']:
                 parent = class_def['subclass_of']
                 # Get parent URI
@@ -854,7 +687,7 @@ class Processor(FlowProcessor):
                 o=make_term("http://www.w3.org/2002/07/owl#ObjectProperty", is_uri=True)
             ))
 
-            # rdfs:label (stored as 'labels' in OntologyProperty.__dict__)
+            # rdfs:label
             if isinstance(prop_def, dict) and 'labels' in prop_def:
                 labels = prop_def['labels']
                 if isinstance(labels, list) and labels:
@@ -865,7 +698,7 @@ class Processor(FlowProcessor):
                         o=make_term(label_val, is_uri=False)
                     ))
 
-            # rdfs:comment (stored as 'comment' in OntologyProperty.__dict__)
+            # rdfs:comment
             if isinstance(prop_def, dict) and 'comment' in prop_def and prop_def['comment']:
                 comment = prop_def['comment']
                 ontology_triples.append(Triple(
@@ -874,7 +707,7 @@ class Processor(FlowProcessor):
                     o=make_term(comment, is_uri=False)
                 ))
 
-            # rdfs:domain (stored as 'domain' in OntologyProperty.__dict__)
+            # rdfs:domain
             if isinstance(prop_def, dict) and 'domain' in prop_def and prop_def['domain']:
                 domain = prop_def['domain']
                 # Get domain class URI
@@ -893,7 +726,7 @@ class Processor(FlowProcessor):
                     o=make_term(domain_uri, is_uri=True)
                 ))
 
-            # rdfs:range (stored as 'range' in OntologyProperty.__dict__)
+            # rdfs:range
             if isinstance(prop_def, dict) and 'range' in prop_def and prop_def['range']:
                 range_val = prop_def['range']
                 # Get range class URI
@@ -927,7 +760,7 @@ class Processor(FlowProcessor):
                 o=make_term("http://www.w3.org/2002/07/owl#DatatypeProperty", is_uri=True)
             ))
 
-            # rdfs:label (stored as 'labels' in OntologyProperty.__dict__)
+            # rdfs:label
             if isinstance(prop_def, dict) and 'labels' in prop_def:
                 labels = prop_def['labels']
                 if isinstance(labels, list) and labels:
@@ -938,7 +771,7 @@ class Processor(FlowProcessor):
                         o=make_term(label_val, is_uri=False)
                     ))
 
-            # rdfs:comment (stored as 'comment' in OntologyProperty.__dict__)
+            # rdfs:comment
             if isinstance(prop_def, dict) and 'comment' in prop_def and prop_def['comment']:
                 comment = prop_def['comment']
                 ontology_triples.append(Triple(
@@ -947,7 +780,7 @@ class Processor(FlowProcessor):
                     o=make_term(comment, is_uri=False)
                 ))
 
-            # rdfs:domain (stored as 'domain' in OntologyProperty.__dict__)
+            # rdfs:domain
             if isinstance(prop_def, dict) and 'domain' in prop_def and prop_def['domain']:
                 domain = prop_def['domain']
                 # Get domain class URI
@@ -967,8 +800,8 @@ class Processor(FlowProcessor):
                 ))
 
             # rdfs:range (datatype)
-            if isinstance(prop_def, dict) and 'rdfs:range' in prop_def and prop_def['rdfs:range']:
-                range_val = prop_def['rdfs:range']
+            if isinstance(prop_def, dict) and 'range' in prop_def and prop_def['range']:
+                range_val = prop_def['range']
                 # Range for datatype properties is usually xsd:string, xsd:int, etc.
                 if range_val.startswith('xsd:'):
                     range_uri = f"http://www.w3.org/2001/XMLSchema#{range_val[4:]}"
@@ -1063,13 +896,6 @@ class Processor(FlowProcessor):
             type=float,
             default=0.3,
             help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
-        )
-        parser.add_argument(
-            '--bypass-selector-below',
-            type=int,
-            default=5,
-            help='Bypass ontology selector when total ontology elements '
-                 '(classes + properties) is below this value (default: 5)'
         )
         parser.add_argument(
             '--triples-batch-size',

@@ -1181,3 +1181,50 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         return self.client._send_request_sync("field-extraction", self.flow_id, request, False)
+
+    def ontology_subset(self, text: str, top_k: int = 10,
+                        similarity_threshold: float = 0.3,
+                        **kwargs: Any) -> Dict[str, Any]:
+        """Select relevant ontology subset for the given text."""
+        request = {
+            "operation": "subset",
+            "text": text,
+            "top-k": top_k,
+            "similarity-threshold": similarity_threshold,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("ontology", self.flow_id, request, False)
+
+    def ontology_list(self, **kwargs: Any) -> Dict[str, Any]:
+        """List loaded ontologies and their status."""
+        request = {
+            "operation": "list",
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("ontology", self.flow_id, request, False)
+
+    def nl_to_sparql(self, question: str, collection: str = "default",
+                     limit: int = 10, **kwargs: Any) -> Dict[str, Any]:
+        """Translate a natural language question to SPARQL."""
+        request = {
+            "question": question,
+            "collection": collection,
+            "limit": limit,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("nl-sparql", self.flow_id, request, False)
+
+    def sparql_nl_query(self, question: str, collection: str = "default",
+                        limit: int = 10, **kwargs: Any) -> Dict[str, Any]:
+        """Answer a natural language question via SPARQL."""
+        request = {
+            "question": question,
+            "collection": collection,
+            "limit": limit,
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("sparql-nl-query", self.flow_id, request, False)

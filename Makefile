@@ -66,7 +66,8 @@ container-bedrock container-vertexai \
 container-torch container-ocr \
 container-docling container-mcp
 
-some-containers: container-base container-flow container-docling
+some-containers: container-flow
+#container-base container-docling
 
 push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
