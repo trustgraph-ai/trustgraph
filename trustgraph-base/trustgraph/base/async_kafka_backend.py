@@ -23,6 +23,7 @@ from typing import Any
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 from aiokafka.errors import TopicAlreadyExistsError, UnknownTopicOrPartitionError
+from aiokafka.structs import OffsetAndMetadata, TopicPartition
 
 from .async_backend import AsyncPubSubBackend, AsyncBackendProducer
 from .async_backend import AsyncBackendConsumer, Message
@@ -98,10 +99,31 @@ class AsyncKafkaConsumer:
 
     async def acknowledge(self, message: Message) -> None:
         if isinstance(message, AsyncKafkaMessage):
-            await self._consumer.commit()
+            msg = message._msg
+            if (
+                hasattr(msg, 'topic')
+                and hasattr(msg, 'partition')
+                and hasattr(msg, 'offset')
+            ):
+                tp = TopicPartition(msg.topic, msg.partition)
+                await self._consumer.commit(
+                    {tp: OffsetAndMetadata(msg.offset + 1, "")}
+                )
+            else:
+                await self._consumer.commit()
 
     async def negative_acknowledge(self, message: Message) -> None:
-        pass
+        if isinstance(message, AsyncKafkaMessage):
+            msg = message._msg
+            if (
+                hasattr(msg, 'topic')
+                and hasattr(msg, 'partition')
+                and hasattr(msg, 'offset')
+            ):
+                tp = TopicPartition(msg.topic, msg.partition)
+                res = self._consumer.seek(tp, msg.offset)
+                if asyncio.iscoroutine(res):
+                    await res
 
     async def close(self) -> None:
         try:
@@ -192,6 +214,8 @@ class AsyncKafkaBackend:
     ) -> AsyncBackendProducer:
         topic_name, cls, durable = self._parse_topic(topic)
 
+        await self.ensure_topic(topic)
+
         producer = AIOKafkaProducer(
             **self._client_kwargs(),
             acks='all' if durable else 1,
@@ -209,15 +233,20 @@ class AsyncKafkaBackend:
     ) -> AsyncBackendConsumer:
         topic_name, cls, durable = self._parse_topic(topic)
 
-        if cls in ('response', 'notify'):
+        await self.ensure_topic(topic)
+
+        if cls == 'response':
             group_id = f"{subscription}-{uuid.uuid4()}"
             auto_offset_reset = 'earliest'
-        else:
-            group_id = subscription
+        elif cls == 'notify':
+            group_id = f"{subscription}-{uuid.uuid4()}"
             auto_offset_reset = (
                 'earliest' if initial_position == 'earliest'
                 else 'latest'
             )
+        else:
+            group_id = subscription
+            auto_offset_reset = 'earliest'
 
         consumer = AIOKafkaConsumer(
             topic_name,
@@ -226,10 +255,18 @@ class AsyncKafkaBackend:
             auto_offset_reset=auto_offset_reset,
             enable_auto_commit=False,
             max_partition_fetch_bytes=10485760,
-            session_timeout_ms=6000,
-            heartbeat_interval_ms=1000,
+            session_timeout_ms=10000,
+            heartbeat_interval_ms=3000,
         )
         await consumer.start()
+
+        assignment_fn = getattr(consumer, 'assignment', None)
+        if callable(assignment_fn):
+            for _ in range(100):
+                assigned = assignment_fn()
+                if not isinstance(assigned, (set, frozenset, list, tuple)) or len(assigned) > 0:
+                    break
+                await asyncio.sleep(0.05)
 
         logger.debug(
             f"Created async consumer: topic={topic_name}, "
@@ -285,7 +322,12 @@ class AsyncKafkaBackend:
         try:
             await admin.start()
             metadata = await admin.describe_topics([topic_name])
-            return len(metadata) > 0
+            if not metadata:
+                return False
+            return all(
+                not isinstance(t, dict) or t.get("error_code", 0) == 0
+                for t in metadata
+            )
         except UnknownTopicOrPartitionError:
             return False
         except BaseException:
