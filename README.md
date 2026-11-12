@@ -32,13 +32,13 @@ Unlike other platform ontologies, TrustGraph is built on W3C standards (RDF, OWL
                  └──────────────────┬────────────────────┘
                                     ▼
                          ┌──────────────────────┐
-              1. EXTRACT │     OntologyRAG      │  Triples that match your classes and properties,
-                         │                      │  checked against domain/range constraints
+              1. EXTRACT │     OntologyRAG      │  Triples match classes and properties,
+                         │                      │  checked against constraints
                          └──────────┬───────────┘
                                     ▼
                          ┌──────────────────────┐
               2. GROUND  │    Context Graph     │  RDF knowledge in named graphs,
-                         │                      │  with PROV-O lineage to every source chunk
+                         │                      │  with PROV-O lineage to every source
                          └──────────┬───────────┘
                                     ▼
                          ┌──────────────────────┐
