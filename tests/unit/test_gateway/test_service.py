@@ -113,10 +113,14 @@ class TestApiConstruction:
             a = Api(
                 config_request_queue="alt-config-req",
                 config_response_queue="alt-config-resp",
+                config_push_queue="alt-config-push",
             )
         overrides = a.dispatcher_manager.queue_overrides
         assert overrides.get("config", {}).get("request") == "alt-config-req"
         assert overrides.get("config", {}).get("response") == "alt-config-resp"
+        assert a.config_receiver.config_request_queue == "alt-config-req"
+        assert a.config_receiver.config_response_queue == "alt-config-resp"
+        assert a.config_receiver.config_push_queue == "alt-config-push"
 
 
 # -- app_factory -----------------------------------------------------------

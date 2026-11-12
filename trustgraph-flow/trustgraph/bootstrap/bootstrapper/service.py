@@ -166,8 +166,8 @@ class Processor(AsyncProcessor):
     async def _make_config_client(self):
         return await AsyncConfigClient.create(
             backend=self.async_backend,
-            request_topic=config_request_queue,
-            response_topic=config_response_queue,
+            request_topic=self.config_request_queue,
+            response_topic=self.config_response_queue,
             subscription=f"{self.id}--config--{uuid.uuid4()}",
             timeout=self.config_timeout,
         )

@@ -72,7 +72,7 @@ def sample_ontology_subset():
                 "labels": [{"value": "serves", "lang": "en-gb"}],
                 "comment": "The serves property indicates serving size.",
                 "domain": "Recipe",
-                "rdfs:range": "xsd:string"
+                "range": "xsd:string"
             }
         },
         metadata={

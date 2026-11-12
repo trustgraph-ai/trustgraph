@@ -96,6 +96,8 @@ class StreamingReActParser:
         # JSON parsing state for Args
         self.brace_count = 0
         self.args_started = False
+        self.args_in_string = False
+        self.args_escaped = False
 
         # Result object (Action or Final)
         self.result = None
@@ -236,7 +238,17 @@ class StreamingReActParser:
             char = self.line_buffer[i]
             self.args_buffer += char
 
-            if char == '{':
+            # Braces inside string values do not count
+            if self.args_in_string:
+                if self.args_escaped:
+                    self.args_escaped = False
+                elif char == '\\':
+                    self.args_escaped = True
+                elif char == '"':
+                    self.args_in_string = False
+            elif char == '"':
+                self.args_in_string = True
+            elif char == '{':
                 self.brace_count += 1
                 self.args_started = True
             elif char == '}':
