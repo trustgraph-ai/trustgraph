@@ -39,9 +39,9 @@ class ConfigReceiver:
 
         self.backend = backend
         self.auth = auth
-        self.config_request_queue = config_request_queue or globals()["config_request_queue"]
-        self.config_response_queue = config_response_queue or globals()["config_response_queue"]
-        self.config_push_queue = config_push_queue or globals()["config_push_queue"]
+        self.config_request_queue = config_request_queue
+        self.config_response_queue = config_response_queue
+        self.config_push_queue = config_push_queue
 
         self.flow_handlers = []
 

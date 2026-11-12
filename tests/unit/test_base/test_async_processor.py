@@ -39,23 +39,29 @@ class TestAsyncProcessorSimple(IsolatedAsyncioTestCase):
     async def test_async_processor_config_queue_overrides(
         self, mock_get_pubsub,
     ):
-        """Test --config-queue and config request/response queue overrides (#582)"""
+        """Test --config-push-queue, --config-request-queue, and --config-response-queue overrides"""
         import argparse
         mock_get_pubsub.return_value = MagicMock()
 
         parser = argparse.ArgumentParser()
         AsyncProcessor.add_args(parser)
-        args = parser.parse_args(['--config-queue', 'persistent://tg-dev/config/config'])
-        assert args.config_push_queue == 'persistent://tg-dev/config/config'
+        args = parser.parse_args([
+            '--config-push-queue', 'persistent://tg-dev/config/push',
+            '--config-request-queue', 'persistent://tg-dev/config/req',
+            '--config-response-queue', 'persistent://tg-dev/config/resp',
+        ])
+        assert args.config_push_queue == 'persistent://tg-dev/config/push'
+        assert args.config_request_queue == 'persistent://tg-dev/config/req'
+        assert args.config_response_queue == 'persistent://tg-dev/config/resp'
 
         processor = AsyncProcessor(
             id='test-proc',
             taskgroup=AsyncMock(),
-            config_queue='persistent://tg-dev/config/config',
+            config_push_queue='persistent://tg-dev/config/push',
             config_request_queue='persistent://tg-dev/config/req',
             config_response_queue='persistent://tg-dev/config/resp',
         )
-        assert processor.config_push_queue == 'persistent://tg-dev/config/config'
+        assert processor.config_push_queue == 'persistent://tg-dev/config/push'
         assert processor.config_request_queue == 'persistent://tg-dev/config/req'
         assert processor.config_response_queue == 'persistent://tg-dev/config/resp'
 
