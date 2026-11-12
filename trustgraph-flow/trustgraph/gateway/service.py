@@ -24,7 +24,7 @@ from prometheus_client import start_http_server
 
 # Import default queue names
 from .. schema import (
-    config_request_queue, config_response_queue,
+    config_request_queue, config_response_queue, config_push_queue,
     flow_request_queue, flow_response_queue,
     knowledge_request_queue, knowledge_response_queue,
     librarian_request_queue, librarian_response_queue,
@@ -70,14 +70,26 @@ class Api:
             id=config.get("id", "api-gateway"),
         )
 
-        self.config_receiver = ConfigReceiver(self.pubsub_backend, auth=self.auth)
+        # Config service
+        config_req = config.get("config_request_queue")
+        config_resp = config.get("config_response_queue")
+        config_push = config.get("config_push_queue")
+
+        receiver_kwargs = {"auth": self.auth}
+        if config_req:
+            receiver_kwargs["config_request_queue"] = config_req
+        if config_resp:
+            receiver_kwargs["config_response_queue"] = config_resp
+        if config_push:
+            receiver_kwargs["config_push_queue"] = config_push
+
+        self.config_receiver = ConfigReceiver(
+            self.pubsub_backend, **receiver_kwargs
+        )
 
         # Build queue overrides dictionary from CLI arguments
         queue_overrides = {}
 
-        # Config service
-        config_req = config.get("config_request_queue")
-        config_resp = config.get("config_response_queue")
         if config_req or config_resp:
             queue_overrides["config"] = {}
             if config_req:
@@ -233,6 +245,12 @@ def run():
         '--config-response-queue',
         default=None,
         help=f'Config service response queue (default: {config_response_queue})',
+    )
+
+    parser.add_argument(
+        '--config-push-queue',
+        default=None,
+        help=f'Config service push queue (default: {config_push_queue})',
     )
 
     parser.add_argument(

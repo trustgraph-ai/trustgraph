@@ -374,19 +374,8 @@ class Processor(AsyncProcessor):
 
         AsyncProcessor.add_args(parser)
 
-        parser.add_argument(
-            '--config-request-queue',
-            default=default_config_request_queue,
-            help=f'Config request queue (default: {default_config_request_queue})'
-        )
-
-        parser.add_argument(
-            '--config-response-queue',
-            default=default_config_response_queue,
-            help=f'Config response queue {default_config_response_queue}',
-        )
-
-        # Note: --config-push-queue is already added by AsyncProcessor.add_args()
+        # Note: --config-push-queue, --config-request-queue, and
+        # --config-response-queue are added by AsyncProcessor.add_args()
 
         add_cassandra_args(parser)
 

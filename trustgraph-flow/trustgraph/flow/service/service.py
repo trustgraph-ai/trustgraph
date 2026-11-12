@@ -160,8 +160,8 @@ class Processor(WorkspaceProcessor):
 
         rr_client = await RequestResponseClient.create(
             backend=self.async_backend,
-            request_topic=config_request_queue,
-            response_topic=config_response_queue,
+            request_topic=self.config_request_queue,
+            response_topic=self.config_response_queue,
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
             default_timeout=self.config_timeout,
