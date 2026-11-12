@@ -59,8 +59,18 @@ class AsyncProcessor:
             processor_id=self.id,
         )
 
-        self.config_push_queue = params.get(
-            "config_push_queue", default_config_queue
+        self.config_push_queue = (
+            params.get("config_push_queue")
+            or params.get("config_queue")
+            or default_config_queue
+        )
+        self.config_request_queue = (
+            params.get("config_request_queue")
+            or config_request_queue
+        )
+        self.config_response_queue = (
+            params.get("config_response_queue")
+            or config_response_queue
         )
 
         self.config_timeout = int(params.get(
@@ -86,8 +96,8 @@ class AsyncProcessor:
     async def _create_config_client(self):
         return await RequestResponseClient.create(
             backend=self.async_backend,
-            request_topic=config_request_queue,
-            response_topic=config_response_queue,
+            request_topic=self.config_request_queue,
+            response_topic=self.config_response_queue,
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
             default_timeout=self.config_timeout,
@@ -442,6 +452,8 @@ class AsyncProcessor:
 
         parser.add_argument(
             '--config-push-queue',
+            '--config-queue',
+            dest='config_push_queue',
             default=default_config_queue,
             help=f'Config push queue (default: {default_config_queue})',
         )

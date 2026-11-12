@@ -35,6 +35,30 @@ class TestAsyncProcessorSimple(IsolatedAsyncioTestCase):
 
         mock_get_pubsub.assert_called_once_with(**config)
 
+    @patch('trustgraph.base.async_processor.get_async_pubsub')
+    async def test_async_processor_config_queue_overrides(
+        self, mock_get_pubsub,
+    ):
+        """Test --config-queue and config request/response queue overrides (#582)"""
+        import argparse
+        mock_get_pubsub.return_value = MagicMock()
+
+        parser = argparse.ArgumentParser()
+        AsyncProcessor.add_args(parser)
+        args = parser.parse_args(['--config-queue', 'persistent://tg-dev/config/config'])
+        assert args.config_push_queue == 'persistent://tg-dev/config/config'
+
+        processor = AsyncProcessor(
+            id='test-proc',
+            taskgroup=AsyncMock(),
+            config_queue='persistent://tg-dev/config/config',
+            config_request_queue='persistent://tg-dev/config/req',
+            config_response_queue='persistent://tg-dev/config/resp',
+        )
+        assert processor.config_push_queue == 'persistent://tg-dev/config/config'
+        assert processor.config_request_queue == 'persistent://tg-dev/config/req'
+        assert processor.config_response_queue == 'persistent://tg-dev/config/resp'
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

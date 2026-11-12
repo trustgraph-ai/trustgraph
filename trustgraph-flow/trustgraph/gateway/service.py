@@ -78,6 +78,13 @@ class Api:
         # Config service
         config_req = config.get("config_request_queue")
         config_resp = config.get("config_response_queue")
+        config_push = config.get("config_push_queue") or config.get("config_queue")
+        if config_req:
+            self.config_receiver.config_request_queue = config_req
+        if config_resp:
+            self.config_receiver.config_response_queue = config_resp
+        if config_push:
+            self.config_receiver.config_push_queue = config_push
         if config_req or config_resp:
             queue_overrides["config"] = {}
             if config_req:

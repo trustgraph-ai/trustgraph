@@ -28,10 +28,20 @@ _flow_count_gauge = Gauge(
 
 class ConfigReceiver:
 
-    def __init__(self, backend, auth=None):
+    def __init__(
+        self,
+        backend,
+        auth=None,
+        config_request_queue=config_request_queue,
+        config_response_queue=config_response_queue,
+        config_push_queue=config_push_queue,
+    ):
 
         self.backend = backend
         self.auth = auth
+        self.config_request_queue = config_request_queue or globals()["config_request_queue"]
+        self.config_response_queue = config_response_queue or globals()["config_response_queue"]
+        self.config_push_queue = config_push_queue or globals()["config_push_queue"]
 
         self.flow_handlers = []
 
@@ -98,8 +108,8 @@ class ConfigReceiver:
     async def _create_config_client(self):
         return await RequestResponseClient.create(
             backend=self.backend,
-            request_topic=config_request_queue,
-            response_topic=config_response_queue,
+            request_topic=self.config_request_queue,
+            response_topic=self.config_response_queue,
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
         )
@@ -301,7 +311,7 @@ class ConfigReceiver:
             try:
 
                 consumer = await self.backend.create_consumer(
-                    topic=config_push_queue,
+                    topic=self.config_push_queue,
                     subscription=f"gateway-{uuid.uuid4()}",
                     schema=ConfigPush,
                     initial_position='latest',

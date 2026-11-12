@@ -69,8 +69,10 @@ class Processor(AsyncProcessor):
         self.config_response_queue_base = params.get(
             "config_response_queue", default_config_response_queue
         )
-        self.config_push_queue_name = params.get(
-            "config_push_queue", default_config_push_queue
+        self.config_push_queue_name = (
+            params.get("config_push_queue")
+            or params.get("config_queue")
+            or default_config_push_queue
         )
 
         cassandra_host = params.get("cassandra_host")
