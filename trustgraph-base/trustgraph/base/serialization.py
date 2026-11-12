@@ -83,9 +83,15 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
                     kwargs[key] = value
             # Check if this is a generic type (list, dict, etc.)
             elif hasattr(field_type, '__origin__'):
-                # Handle list[T]
+                # Handle list[T] and list[T | None]
                 if field_type.__origin__ == list:
                     item_type = field_type.__args__[0] if field_type.__args__ else None
+                    # Unwrap Optional/union item types (e.g. list[Term | None] -> Term)
+                    if item_type and isinstance(item_type, types.UnionType):
+                        item_type = next(
+                            (t for t in item_type.__args__ if t is not type(None)),
+                            None,
+                        )
                     if item_type and is_dataclass(item_type) and isinstance(value, list):
                         kwargs[key] = [
                             dict_to_dataclass(item, item_type) if isinstance(item, dict) else item
