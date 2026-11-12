@@ -47,21 +47,6 @@ def valid_language_tag(language):
     """
     return isinstance(language, str) and _LANGTAG.fullmatch(language) is not None
 
-# The body of the LANGTAG production, [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*, which
-# Turtle shares and which is the shape rdflib's Literal(lang=...) accepts.
-# fullmatch, not a trailing $: $ also matches before a trailing newline, so
-# "en\n" would pass and split the quad across two lines.
-_LANGTAG = re.compile(r"[a-zA-Z]+(?:-[a-zA-Z0-9]+)*")
-
-
-def valid_language_tag(language):
-    """True when language can be emitted after the '@' of a LANGTAG.
-
-    The wire schema types the language field as a free-form str, so an
-    unusable tag arrives here as data, not as a bug.
-    """
-    return isinstance(language, str) and _LANGTAG.fullmatch(language) is not None
-
 
 def _escape_literal(value):
     for raw, esc in _ESCAPES:
