@@ -34,6 +34,9 @@ from .translators.decision_scoring import DecisionScoringRequestTranslator, Deci
 from .translators.field_extraction import FieldExtractionRequestTranslator, FieldExtractionResponseTranslator
 from .translators.collection import CollectionManagementRequestTranslator, CollectionManagementResponseTranslator
 from .translators.sparql_query import SparqlQueryRequestTranslator, SparqlQueryResponseTranslator
+from .translators.ontology import OntologyRequestTranslator, OntologyResponseTranslator
+from .translators.nl_sparql import QuestionToSparqlRequestTranslator, QuestionToSparqlResponseTranslator
+from .translators.sparql_nl_query import SparqlNLQueryRequestTranslator, SparqlNLQueryResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -196,6 +199,24 @@ TranslatorRegistry.register_service(
     "field-extraction",
     FieldExtractionRequestTranslator(),
     FieldExtractionResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "ontology",
+    OntologyRequestTranslator(),
+    OntologyResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "nl-sparql",
+    QuestionToSparqlRequestTranslator(),
+    QuestionToSparqlResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "sparql-nl-query",
+    SparqlNLQueryRequestTranslator(),
+    SparqlNLQueryResponseTranslator()
 )
 
 # Register single-direction translators for document loading

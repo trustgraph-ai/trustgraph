@@ -1577,3 +1577,126 @@ class FlowInstance:
 
         return response
 
+    def ontology_subset(self, text, top_k=10, similarity_threshold=0.3):
+        """
+        Select relevant ontology subset for the given text.
+
+        Args:
+            text: Text to match against ontology elements
+            top_k: Number of top elements to retrieve (default: 10)
+            similarity_threshold: Minimum similarity (default: 0.3)
+
+        Returns:
+            dict with ontology-id, classes, object-properties,
+            datatype-properties, namespace
+        """
+
+        input = {
+            "operation": "subset",
+            "text": text,
+            "top-k": top_k,
+            "similarity-threshold": similarity_threshold,
+        }
+
+        response = self.request(
+            "service/ontology",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    def ontology_list(self):
+        """
+        List loaded ontologies and their status.
+
+        Returns:
+            list[dict]: List of ontology info dicts with ontology-id,
+            state, classes-total, properties-total, elements-embedded
+        """
+
+        input = {
+            "operation": "list",
+        }
+
+        response = self.request(
+            "service/ontology",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response.get("ontologies", [])
+
+    def nl_to_sparql(self, question, collection="default", limit=10):
+        """
+        Translate a natural language question to a SPARQL query.
+
+        Args:
+            question: Natural language question
+            collection: Collection identifier (default: "default")
+            limit: Result limit hint for the generated query (default: 10)
+
+        Returns:
+            dict with sparql, resolved-entities
+        """
+
+        input = {
+            "question": question,
+            "collection": collection,
+            "limit": limit,
+        }
+
+        response = self.request(
+            "service/nl-sparql",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    def sparql_nl_query(self, question, collection="default", limit=10):
+        """
+        Answer a natural language question via SPARQL.
+
+        Chains NL-to-SPARQL translation with SPARQL execution.
+
+        Args:
+            question: Natural language question
+            collection: Collection identifier (default: "default")
+            limit: Result limit hint (default: 10)
+
+        Returns:
+            dict with sparql, resolved-entities, query-type,
+            variables, bindings, ask-result
+        """
+
+        input = {
+            "question": question,
+            "collection": collection,
+            "limit": limit,
+        }
+
+        response = self.request(
+            "service/sparql-nl-query",
+            input
+        )
+
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+

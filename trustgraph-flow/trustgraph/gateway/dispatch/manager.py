@@ -40,6 +40,9 @@ from . row_embeddings_query import RowEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
 from . reranker import RerankerRequestor
 from . cloze import ClozeRequestor
+from . ontology import OntologyRequestor
+from . nl_sparql import NlSparqlRequestor
+from . sparql_nl_query import SparqlNLQueryRequestor
 from . decision_scoring import DecisionScoringRequestor
 from . field_extraction import FieldExtractionRequestor
 from . passthrough import PassthroughRequestor
@@ -85,6 +88,9 @@ request_response_dispatchers = {
     "cloze": ClozeRequestor,
     "decision-scoring": DecisionScoringRequestor,
     "field-extraction": FieldExtractionRequestor,
+    "ontology": OntologyRequestor,
+    "nl-sparql": NlSparqlRequestor,
+    "sparql-nl-query": SparqlNLQueryRequestor,
 }
 
 system_dispatchers = {
