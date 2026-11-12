@@ -27,28 +27,30 @@ Unlike other platform ontologies, TrustGraph is built on W3C standards (RDF, OWL
 ## How it works
 
 ```
-   Your ontology                       Your documents & data
-        │                                       │
-        └──────────────────┬────────────────────┘
-                           ▼
-                ┌──────────────────────┐
-     1. EXTRACT │     OntologyRAG      │  Triples that match your classes and properties,
-                │                      │  checked against domain/range constraints
-                └──────────┬───────────┘
-                           ▼
-                ┌──────────────────────┐
-     2. GROUND  │    Context Graph     │  RDF knowledge in named graphs,
-                │                      │  with PROV-O lineage to every source chunk
-                └──────────┬───────────┘
-                           ▼
-                ┌──────────────────────┐
-     3. GOVERN  │  SHACL-AF Policies   │  Every query evaluated per node:
-                │                      │  Allowed · Filtered · Violation
-                └──────────┬───────────┘
-                           ▼
-              GraphRAG · SPARQL · Agents · MCP
-              + a queryable trace of how each answer was produced
+            Your ontology                       Your documents & data
+                 │                                       │
+                 └──────────────────┬────────────────────┘
+                                    ▼
+                         ┌──────────────────────┐
+              1. EXTRACT │     OntologyRAG      │  Triples that match your classes and properties,
+                         │                      │  checked against domain/range constraints
+                         └──────────┬───────────┘
+                                    ▼
+                         ┌──────────────────────┐
+              2. GROUND  │    Context Graph     │  RDF knowledge in named graphs,
+                         │                      │  with PROV-O lineage to every source chunk
+                         └──────────┬───────────┘
+                                    ▼
+                         ┌──────────────────────┐
+              3. GOVERN  │  SHACL-AF Policies   │  Every query evaluated per node:
+                         │                      │  Allowed · Filtered · Violation
+                         └──────────┬───────────┘
+                                    ▼
+                     GraphRAG · SPARQL · Agents · MCP
+           + a queryable trace of how each answer was produced
 ```
+
+[Additional Technical Diagrams](/diagrams/)
  
 ## What makes it different
  
