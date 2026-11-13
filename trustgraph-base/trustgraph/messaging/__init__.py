@@ -39,6 +39,10 @@ from .translators.nl_sparql import QuestionToSparqlRequestTranslator, QuestionTo
 from .translators.sparql_nl_query import SparqlNLQueryRequestTranslator, SparqlNLQueryResponseTranslator
 from .translators.concept_extraction import ConceptExtractionRequestTranslator, ConceptExtractionResponseTranslator
 from .translators.knowledge_retrieval import KnowledgeRetrievalRequestTranslator, KnowledgeRetrievalResponseTranslator
+from .translators.planner import PlannerRequestTranslator, PlannerResponseTranslator
+from .translators.verification import VerificationRequestTranslator, VerificationResponseTranslator
+from .translators.policy_engine import PolicyEngineRequestTranslator, PolicyEngineResponseTranslator
+from .translators.action import ActionRequestTranslator, ActionResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -231,6 +235,30 @@ TranslatorRegistry.register_service(
     "knowledge-retrieval",
     KnowledgeRetrievalRequestTranslator(),
     KnowledgeRetrievalResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "planner",
+    PlannerRequestTranslator(),
+    PlannerResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "verification",
+    VerificationRequestTranslator(),
+    VerificationResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "policy",
+    PolicyEngineRequestTranslator(),
+    PolicyEngineResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "action",
+    ActionRequestTranslator(),
+    ActionResponseTranslator()
 )
 
 # Register single-direction translators for document loading

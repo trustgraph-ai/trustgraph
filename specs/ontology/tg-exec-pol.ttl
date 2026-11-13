@@ -1,0 +1,384 @@
+@prefix tg-exec-pol: <https://trustgraph.ai/ontology/exec-pol/> .
+@prefix tg-exec:    <https://trustgraph.ai/ontology/exec/> .
+@prefix tg:         <https://trustgraph.ai/ns/> .
+@prefix owl:        <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:        <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:       <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:        <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:       <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Ontology declaration
+# =============================================================================
+
+<https://trustgraph.ai/ontology/exec-pol/>
+    a owl:Ontology ;
+    rdfs:label "TrustGraph Execution Policy Ontology" ;
+    rdfs:comment "Execution policy: verdicts, disclosure posture, boundary failure, obligations, and attestations for the TrustGraph execution runtime. Separate from tg-pol (query-time data filtering) -- this covers runtime governance of plans and tool invocations." ;
+    owl:versionInfo "0.1" ;
+    owl:imports <https://trustgraph.ai/ontology/exec/> ,
+                <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Classes
+# =============================================================================
+
+tg-exec-pol:PolicyEvaluation a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Policy Evaluation" ;
+    rdfs:comment "A single evaluation event. Created each time the Policy Engine assesses a plan, step, or artifact. Immutable once written. Links to the subject being evaluated, the rules that matched, and the resulting attestation." .
+
+tg-exec-pol:PolicyAttestation a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Policy Attestation" ;
+    rdfs:comment "Three-axis output of an evaluation: verdict, disclosure, and boundary failure flag. Written to the audit graph; a redacted projection may appear in the working graph depending on disclosure posture." .
+
+tg-exec-pol:RedactionReceipt a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Redaction Receipt" ;
+    rdfs:comment "Created when verdict is FILTER. Records what was removed or masked, which fields/triples were affected, and which rule triggered it. Only surfaces in the working graph under TRANSPARENT disclosure." .
+
+tg-exec-pol:ApprovalRequest a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Approval Request" ;
+    rdfs:comment "Created when verdict is REQUIRE_APPROVAL. Records the step being held, the principal whose approval is needed, and the WebSocket channel for HITL response. Carries a timeout after which the Coordinator treats it as DENY." .
+
+tg-exec-pol:ApprovalDecision a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Approval Decision" ;
+    rdfs:comment "HITL response to an ApprovalRequest. Records who approved or denied, when, and an optional justification. Immutable once written." .
+
+tg-exec-pol:BoundaryFailureRecord a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Boundary Failure Record" ;
+    rdfs:comment "Created when the boundary failure flag is set. Records the artifact that crossed the boundary, the expected constraint, and the quarantine location in the audit graph. Published to tg.security.boundary_failure for out-of-band alerting." .
+
+tg-exec-pol:ExecutionPolicyRule a owl:Class ;
+    rdfs:label "Execution Policy Rule" ;
+    rdfs:comment "A named, versionable policy rule. References the conditions under which it fires and the verdict/disclosure it produces. Scoped to workspace, principal roles, and capability types." .
+
+# =============================================================================
+# Named individuals -- Verdicts
+# =============================================================================
+
+tg-exec-pol:Allow a owl:NamedIndividual ;
+    rdfs:label "ALLOW" ;
+    rdfs:comment "Proceed as planned." .
+
+tg-exec-pol:Filter a owl:NamedIndividual ;
+    rdfs:label "FILTER" ;
+    rdfs:comment "Splice a redaction processor to strip or mask restricted content." .
+
+tg-exec-pol:RequireApproval a owl:NamedIndividual ;
+    rdfs:label "REQUIRE_APPROVAL" ;
+    rdfs:comment "Suspend execution, route to HITL approval over WebSockets." .
+
+tg-exec-pol:Deny a owl:NamedIndividual ;
+    rdfs:label "DENY" ;
+    rdfs:comment "Block the step -- feed violation back to Planner or abort." .
+
+# =============================================================================
+# Named individuals -- Disclosure postures
+# =============================================================================
+
+tg-exec-pol:Silent a owl:NamedIndividual ;
+    rdfs:label "SILENT" ;
+    rdfs:comment "Nothing visible -- lineage rewritten, indistinguishable from normal response." .
+
+tg-exec-pol:Opaque a owl:NamedIndividual ;
+    rdfs:label "OPAQUE" ;
+    rdfs:comment "Generic notice: 'some restricted items were omitted' or 'action unavailable due to policy'." .
+
+tg-exec-pol:Transparent a owl:NamedIndividual ;
+    rdfs:label "TRANSPARENT" ;
+    rdfs:comment "Full RedactionReceipt with policy citations -- what, why, which rule." .
+
+# =============================================================================
+# Named individuals -- Redaction methods
+# =============================================================================
+
+tg-exec-pol:Strip a owl:NamedIndividual ;
+    rdfs:label "strip" ;
+    rdfs:comment "Remove the field or triple entirely." .
+
+tg-exec-pol:Mask a owl:NamedIndividual ;
+    rdfs:label "mask" ;
+    rdfs:comment "Replace the value with a mask token (e.g. '***')." .
+
+tg-exec-pol:Generalise a owl:NamedIndividual ;
+    rdfs:label "generalise" ;
+    rdfs:comment "Replace a specific value with a broader category." .
+
+tg-exec-pol:SyntheticReplace a owl:NamedIndividual ;
+    rdfs:label "synthetic-replace" ;
+    rdfs:comment "Replace with a synthetic but structurally valid value." .
+
+# =============================================================================
+# Named individuals -- Evaluation types
+# =============================================================================
+
+tg-exec-pol:PlanPreflight a owl:NamedIndividual ;
+    rdfs:label "plan-preflight" ;
+    rdfs:comment "Evaluation of a plan before execution begins." .
+
+tg-exec-pol:StepIngress a owl:NamedIndividual ;
+    rdfs:label "step-ingress" ;
+    rdfs:comment "Evaluation of inputs as a step begins." .
+
+tg-exec-pol:StepEgress a owl:NamedIndividual ;
+    rdfs:label "step-egress" ;
+    rdfs:comment "Evaluation of outputs as a step completes." .
+
+tg-exec-pol:ArtifactEgress a owl:NamedIndividual ;
+    rdfs:label "artifact-egress" ;
+    rdfs:comment "Evaluation of an artifact leaving the execution boundary." .
+
+# =============================================================================
+# Named individuals -- Approval decisions
+# =============================================================================
+
+tg-exec-pol:Approved a owl:NamedIndividual ;
+    rdfs:label "approved" .
+
+tg-exec-pol:Denied a owl:NamedIndividual ;
+    rdfs:label "denied" .
+
+# =============================================================================
+# Properties -- PolicyEvaluation (subject linkage)
+# =============================================================================
+
+tg-exec-pol:evaluates a owl:ObjectProperty ;
+    rdfs:label "evaluates" ;
+    rdfs:comment "What is being evaluated (a Plan, Step, or Artifact IRI)." ;
+    rdfs:domain tg-exec-pol:PolicyEvaluation .
+
+tg-exec-pol:evaluationType a owl:ObjectProperty ;
+    rdfs:label "evaluation type" ;
+    rdfs:comment "The evaluation context: plan-preflight, step-ingress, step-egress, artifact-egress." ;
+    rdfs:domain tg-exec-pol:PolicyEvaluation .
+
+tg-exec-pol:evaluatedAt a owl:DatatypeProperty ;
+    rdfs:label "evaluated at" ;
+    rdfs:comment "Timestamp of the evaluation." ;
+    rdfs:domain tg-exec-pol:PolicyEvaluation ;
+    rdfs:range xsd:dateTime .
+
+tg-exec-pol:evaluatedBy a owl:ObjectProperty ;
+    rdfs:label "evaluated by" ;
+    rdfs:comment "The Policy Engine instance that performed the evaluation." ;
+    rdfs:domain tg-exec-pol:PolicyEvaluation .
+
+# =============================================================================
+# Properties -- PolicyEvaluation (rule linkage)
+# =============================================================================
+
+tg-exec-pol:matchedRule a owl:ObjectProperty ;
+    rdfs:label "matched rule" ;
+    rdfs:comment "The ExecutionPolicyRule(s) that fired during this evaluation." ;
+    rdfs:domain tg-exec-pol:PolicyEvaluation ;
+    rdfs:range tg-exec-pol:ExecutionPolicyRule .
+
+tg-exec-pol:producedAttestation a owl:ObjectProperty ;
+    rdfs:label "produced attestation" ;
+    rdfs:comment "The resulting PolicyAttestation from this evaluation." ;
+    rdfs:domain tg-exec-pol:PolicyEvaluation ;
+    rdfs:range tg-exec-pol:PolicyAttestation .
+
+# =============================================================================
+# Properties -- PolicyAttestation (the three axes)
+# =============================================================================
+
+tg-exec-pol:verdict a owl:ObjectProperty ;
+    rdfs:label "verdict" ;
+    rdfs:comment "The action verdict: ALLOW, FILTER, REQUIRE_APPROVAL, or DENY." ;
+    rdfs:domain tg-exec-pol:PolicyAttestation .
+
+tg-exec-pol:disclosure a owl:ObjectProperty ;
+    rdfs:label "disclosure" ;
+    rdfs:comment "How much to reveal in-band: SILENT, OPAQUE, or TRANSPARENT." ;
+    rdfs:domain tg-exec-pol:PolicyAttestation .
+
+tg-exec-pol:boundaryFailure a owl:DatatypeProperty ;
+    rdfs:label "boundary failure" ;
+    rdfs:comment "Boolean flag indicating a security boundary permitted something it should not have. Independent of verdict. Default false." ;
+    rdfs:domain tg-exec-pol:PolicyAttestation ;
+    rdfs:range xsd:boolean .
+
+# =============================================================================
+# Properties -- PolicyAttestation (obligations)
+# =============================================================================
+
+tg-exec-pol:redactionDirective a owl:ObjectProperty ;
+    rdfs:label "redaction directive" ;
+    rdfs:comment "Links to a RedactionReceipt describing what to strip or mask. Present when verdict is FILTER." ;
+    rdfs:domain tg-exec-pol:PolicyAttestation ;
+    rdfs:range tg-exec-pol:RedactionReceipt .
+
+tg-exec-pol:approvalRequest a owl:ObjectProperty ;
+    rdfs:label "approval request" ;
+    rdfs:comment "Links to an ApprovalRequest. Present when verdict is REQUIRE_APPROVAL." ;
+    rdfs:domain tg-exec-pol:PolicyAttestation ;
+    rdfs:range tg-exec-pol:ApprovalRequest .
+
+tg-exec-pol:boundaryFailureRecord a owl:ObjectProperty ;
+    rdfs:label "boundary failure record" ;
+    rdfs:comment "Links to a BoundaryFailureRecord. Present when boundaryFailure is true." ;
+    rdfs:domain tg-exec-pol:PolicyAttestation ;
+    rdfs:range tg-exec-pol:BoundaryFailureRecord .
+
+# =============================================================================
+# Properties -- RedactionReceipt
+# =============================================================================
+
+tg-exec-pol:affectedField a owl:ObjectProperty ;
+    rdfs:label "affected field" ;
+    rdfs:comment "The property or triple pattern that was redacted." ;
+    rdfs:domain tg-exec-pol:RedactionReceipt .
+
+tg-exec-pol:redactionMethod a owl:ObjectProperty ;
+    rdfs:label "redaction method" ;
+    rdfs:comment "How the redaction was applied: strip, mask, generalise, synthetic-replace." ;
+    rdfs:domain tg-exec-pol:RedactionReceipt .
+
+tg-exec-pol:triggeredByRule a owl:ObjectProperty ;
+    rdfs:label "triggered by rule" ;
+    rdfs:comment "Back-link to the ExecutionPolicyRule that caused this redaction." ;
+    rdfs:domain tg-exec-pol:RedactionReceipt ;
+    rdfs:range tg-exec-pol:ExecutionPolicyRule .
+
+# =============================================================================
+# Properties -- ApprovalRequest
+# =============================================================================
+
+tg-exec-pol:heldStep a owl:ObjectProperty ;
+    rdfs:label "held step" ;
+    rdfs:comment "The Step awaiting approval." ;
+    rdfs:domain tg-exec-pol:ApprovalRequest ;
+    rdfs:range tg-exec:Step .
+
+tg-exec-pol:requiredApprover a owl:ObjectProperty ;
+    rdfs:label "required approver" ;
+    rdfs:comment "Principal role or specific user IRI whose approval is needed." ;
+    rdfs:domain tg-exec-pol:ApprovalRequest .
+
+tg-exec-pol:approvalChannel a owl:DatatypeProperty ;
+    rdfs:label "approval channel" ;
+    rdfs:comment "WebSocket channel identifier for HITL response." ;
+    rdfs:domain tg-exec-pol:ApprovalRequest ;
+    rdfs:range xsd:string .
+
+tg-exec-pol:approvalTimeout a owl:DatatypeProperty ;
+    rdfs:label "approval timeout" ;
+    rdfs:comment "Duration after which the Coordinator treats the request as DENY." ;
+    rdfs:domain tg-exec-pol:ApprovalRequest ;
+    rdfs:range xsd:duration .
+
+# =============================================================================
+# Properties -- ApprovalDecision
+# =============================================================================
+
+tg-exec-pol:respondsTo a owl:ObjectProperty ;
+    rdfs:label "responds to" ;
+    rdfs:comment "The ApprovalRequest this decision answers." ;
+    rdfs:domain tg-exec-pol:ApprovalDecision ;
+    rdfs:range tg-exec-pol:ApprovalRequest .
+
+tg-exec-pol:decision a owl:ObjectProperty ;
+    rdfs:label "decision" ;
+    rdfs:comment "Whether the request was approved or denied." ;
+    rdfs:domain tg-exec-pol:ApprovalDecision .
+
+tg-exec-pol:decidedBy a owl:ObjectProperty ;
+    rdfs:label "decided by" ;
+    rdfs:comment "User IRI of the person who made the approval decision." ;
+    rdfs:domain tg-exec-pol:ApprovalDecision .
+
+tg-exec-pol:decidedAt a owl:DatatypeProperty ;
+    rdfs:label "decided at" ;
+    rdfs:comment "Timestamp of the approval decision." ;
+    rdfs:domain tg-exec-pol:ApprovalDecision ;
+    rdfs:range xsd:dateTime .
+
+tg-exec-pol:justification a owl:DatatypeProperty ;
+    rdfs:label "justification" ;
+    rdfs:comment "Free text justification for the approval or denial." ;
+    rdfs:domain tg-exec-pol:ApprovalDecision ;
+    rdfs:range xsd:string .
+
+# =============================================================================
+# Properties -- BoundaryFailureRecord
+# =============================================================================
+
+tg-exec-pol:failedArtifact a owl:ObjectProperty ;
+    rdfs:label "failed artifact" ;
+    rdfs:comment "The artifact that crossed the security boundary." ;
+    rdfs:domain tg-exec-pol:BoundaryFailureRecord ;
+    rdfs:range tg-exec:Artifact .
+
+tg-exec-pol:expectedConstraint a owl:ObjectProperty ;
+    rdfs:label "expected constraint" ;
+    rdfs:comment "The SHACL shape or policy rule that should have prevented the boundary crossing." ;
+    rdfs:domain tg-exec-pol:BoundaryFailureRecord .
+
+tg-exec-pol:quarantineLocation a owl:ObjectProperty ;
+    rdfs:label "quarantine location" ;
+    rdfs:comment "The audit graph URI where the raw artifact is stored for investigation." ;
+    rdfs:domain tg-exec-pol:BoundaryFailureRecord .
+
+# =============================================================================
+# Properties -- ExecutionPolicyRule
+# =============================================================================
+
+tg-exec-pol:ruleId a owl:DatatypeProperty ;
+    rdfs:label "rule ID" ;
+    rdfs:comment "Stable identifier for this policy rule." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule ;
+    rdfs:range xsd:string .
+
+tg-exec-pol:ruleVersion a owl:DatatypeProperty ;
+    rdfs:label "rule version" ;
+    rdfs:comment "Version string for this policy rule." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule ;
+    rdfs:range xsd:string .
+
+tg-exec-pol:appliesTo a owl:ObjectProperty ;
+    rdfs:label "applies to" ;
+    rdfs:comment "Workspace, principal roles, or capability types this rule scopes to. Multiple values allowed." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule .
+
+tg-exec-pol:condition a owl:DatatypeProperty ;
+    rdfs:label "condition" ;
+    rdfs:comment "SPARQL or SHACL condition expression that determines when this rule fires." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule ;
+    rdfs:range xsd:string .
+
+tg-exec-pol:defaultVerdict a owl:ObjectProperty ;
+    rdfs:label "default verdict" ;
+    rdfs:comment "The verdict this rule produces when it fires." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule .
+
+tg-exec-pol:defaultDisclosure a owl:ObjectProperty ;
+    rdfs:label "default disclosure" ;
+    rdfs:comment "The disclosure posture this rule produces when it fires." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule .
+
+tg-exec-pol:effectiveFrom a owl:DatatypeProperty ;
+    rdfs:label "effective from" ;
+    rdfs:comment "Start of the validity period for this rule." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule ;
+    rdfs:range xsd:dateTime .
+
+tg-exec-pol:effectiveTo a owl:DatatypeProperty ;
+    rdfs:label "effective to" ;
+    rdfs:comment "End of the validity period for this rule." ;
+    rdfs:domain tg-exec-pol:ExecutionPolicyRule ;
+    rdfs:range xsd:dateTime .
+
+# =============================================================================
+# Properties -- Working graph flags
+# =============================================================================
+
+tg-exec-pol:containsRedactions a owl:DatatypeProperty ;
+    rdfs:label "contains redactions" ;
+    rdfs:comment "Flag on the working graph under OPAQUE disclosure indicating that redacted content exists." ;
+    rdfs:range xsd:boolean .

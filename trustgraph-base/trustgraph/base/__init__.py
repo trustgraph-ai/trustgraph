@@ -59,4 +59,8 @@ from . concept_extraction_service import ConceptExtractionService
 from . concept_extraction_client import ConceptExtractionClientSpec
 from . knowledge_retrieval_service import KnowledgeRetrievalService
 from . knowledge_retrieval_client import KnowledgeRetrievalClientSpec
+from . planner_service import PlannerService
+from . verification_service import VerificationService
+from . policy_engine_service import PolicyEngineService
+from . action_service import ActionService
 

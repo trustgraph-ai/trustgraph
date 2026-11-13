@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+
+"""
+Loads the default set of planner capabilities into config for a
+workspace.
+"""
+
+import json
+import os
+import sys
+from trustgraph.api import Api
+from trustgraph.api.types import ConfigValue
+
+url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
+token = os.getenv("TRUSTGRAPH_TOKEN", None)
+workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
+
+CAPABILITIES = {
+    "erp-finance-query": {
+        "name": "erp-finance-query",
+        "type": "tool",
+        "description":
+            "Queries the ERP system for financial data — invoices, "
+            "budgets, cost centres. Query is passed as a step parameter.",
+        "inputs": [],
+        "outputs": [
+            {"port": "result", "artifact_type": "TabularArtifact"},
+        ],
+    },
+    "knowledge-graph-query": {
+        "name": "knowledge-graph-query",
+        "type": "retrieval",
+        "description":
+            "Queries the workspace knowledge graph via SPARQL or "
+            "semantic search. Returns matching triples as a subgraph.",
+        "inputs": [],
+        "outputs": [
+            {"port": "result", "artifact_type": "SubgraphArtifact"},
+        ],
+    },
+    "document-retrieval": {
+        "name": "document-retrieval",
+        "type": "retrieval",
+        "description":
+            "Retrieves documents or document chunks by semantic or "
+            "keyword search.",
+        "inputs": [],
+        "outputs": [
+            {"port": "result", "artifact_type": "TextBlobArtifact"},
+        ],
+    },
+    "tabular-redact": {
+        "name": "tabular-redact",
+        "type": "redactor",
+        "description":
+            "Applies redaction rules to a tabular dataset — strips or "
+            "masks rows/columns matching specified criteria.",
+        "inputs": [
+            {"port": "data", "artifact_type": "TabularArtifact"},
+        ],
+        "outputs": [
+            {"port": "result", "artifact_type": "TabularArtifact"},
+        ],
+    },
+    "tabular-join": {
+        "name": "tabular-join",
+        "type": "adapter",
+        "description":
+            "Joins tabular data with a subgraph on a shared key, "
+            "optionally computing derived columns (e.g. variance).",
+        "inputs": [
+            {"port": "tabular-data", "artifact_type": "TabularArtifact"},
+            {"port": "graph-data", "artifact_type": "SubgraphArtifact"},
+        ],
+        "outputs": [
+            {"port": "result", "artifact_type": "TabularArtifact"},
+        ],
+    },
+    "llm-synthesis": {
+        "name": "llm-synthesis",
+        "type": "llm",
+        "description":
+            "Synthesises a human-readable report from structured data "
+            "and reference text using an LLM.",
+        "inputs": [
+            {"port": "data", "artifact_type": "TabularArtifact"},
+            {"port": "context", "artifact_type": "TextBlobArtifact"},
+        ],
+        "outputs": [
+            {"port": "report", "artifact_type": "ReportArtifact"},
+        ],
+    },
+}
+
+try:
+    api = Api(url=url, token=token, workspace=workspace)
+    config = api.config()
+
+    values = [
+        ConfigValue(
+            type="planner-capability",
+            key=key,
+            value=json.dumps(cap),
+        )
+        for key, cap in CAPABILITIES.items()
+    ]
+
+    config.put(values)
+
+    print(f"Loaded {len(values)} planner capabilities into workspace '{workspace}'")
+
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)

@@ -1,0 +1,527 @@
+@prefix tg-exec: <https://trustgraph.ai/ontology/exec/> .
+@prefix tg:    <https://trustgraph.ai/ns/> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Ontology declaration
+# =============================================================================
+
+<https://trustgraph.ai/ontology/exec/>
+    a owl:Ontology ;
+    rdfs:label "TrustGraph Execution Core Ontology" ;
+    rdfs:comment "Plans, steps, DAG edges, artifact types, port contracts, run state machine, and operational governance for the TrustGraph execution runtime." ;
+    owl:versionInfo "0.1" ;
+    owl:imports <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Classes -- Run and Plan
+# =============================================================================
+
+tg-exec:ExecutionRun a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Execution Run" ;
+    rdfs:comment "Top-level container for a single agent execution. Owns run-scoped named graphs (working and audit), carries the goal, principal, workspace, and current status." .
+
+tg-exec:ExecutionPlan a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Execution Plan" ;
+    rdfs:comment "DAG of steps produced by the Planner for a run. Immutable once committed; re-planning creates a new plan that supersedes the previous one." .
+
+tg-exec:Step a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Step" ;
+    rdfs:comment "A single node in the plan DAG. One unit of work: tool invocation, adapter transformation, redaction splice, or LLM call." .
+
+# =============================================================================
+# Classes -- Artifacts
+# =============================================================================
+
+tg-exec:Artifact a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Artifact" ;
+    rdfs:comment "Abstract base for typed step outputs. Every step output is recorded as a typed artifact linked to the step via prov:wasGeneratedBy." .
+
+tg-exec:TextBlobArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Text Blob Artifact" ;
+    rdfs:comment "Prose, RAG chunks, document content. Carries text and optional metadata (source URI, chunk index)." .
+
+tg-exec:TabularArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Tabular Artifact" ;
+    rdfs:comment "Structured rows and columns. References a schema describing column names and types." .
+
+tg-exec:SubgraphArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Subgraph Artifact" ;
+    rdfs:comment "RDF triples conforming to an OWL/SHACL shape. Stored in a step-scoped named graph." .
+
+tg-exec:ExternalReferenceArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "External Reference Artifact" ;
+    rdfs:comment "Pointer to data held outside the execution graph: database cursor, object storage URI, paginated API endpoint, streaming query handle. The consuming step is responsible for dereferencing." .
+
+tg-exec:CompositeArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Composite Artifact" ;
+    rdfs:comment "Ordered manifest of child artifact references with role labels. Distinct from SubgraphArtifact: payloads are references to resolve and assemble, not RDF to store directly." .
+
+tg-exec:ReportArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Report Artifact" ;
+    rdfs:comment "Human-readable document combining narrative text with embedded visualisations (tables, maps, charts, timelines). Distinct from CompositeArtifact: a rendered document for people, not a structural manifest for machines." .
+
+# =============================================================================
+# Classes -- Capabilities and Ports
+# =============================================================================
+
+tg-exec:Capability a owl:Class ;
+    rdfs:label "Capability" ;
+    rdfs:comment "A registered tool or service the system can invoke. MCP servers, GraphRAG, SPARQL query, LLM completion, extractors, adapters. Declares port contracts. MAY carry additional properties from domain ontologies." .
+
+tg-exec:PortContract a owl:Class ;
+    rdfs:label "Port Contract" ;
+    rdfs:comment "Describes one input or output slot on a capability. Specifies the artifact type accepted or emitted and optionally a SHACL shape the artifact must conform to." .
+
+# =============================================================================
+# Classes -- Operational Governance
+# =============================================================================
+
+tg-exec:GovernancePolicy a owl:Class ;
+    rdfs:label "Governance Policy" ;
+    rdfs:comment "Per-capability operational constraints stored as RDF. Execution mechanics: retry behaviour, timeouts, approval requirements, idempotency. Not access control (see tg-exec-pol)." .
+
+# =============================================================================
+# Classes -- Composite Artifact support
+# =============================================================================
+
+tg-exec:ComponentEntry a owl:Class ;
+    rdfs:label "Component Entry" ;
+    rdfs:comment "An entry in a CompositeArtifact's ordered manifest. Links a child artifact with a role label and ordering." .
+
+# =============================================================================
+# Named individuals -- Run status
+# =============================================================================
+
+tg-exec:Planning a owl:NamedIndividual ;
+    rdfs:label "planning" ;
+    rdfs:comment "Run is being planned." .
+
+tg-exec:Executing a owl:NamedIndividual ;
+    rdfs:label "executing" ;
+    rdfs:comment "Run is actively executing steps." .
+
+tg-exec:AwaitingApproval a owl:NamedIndividual ;
+    rdfs:label "awaiting-approval" ;
+    rdfs:comment "Run is suspended pending HITL approval." .
+
+tg-exec:Completed a owl:NamedIndividual ;
+    rdfs:label "completed" ;
+    rdfs:comment "Run completed successfully." .
+
+tg-exec:Failed a owl:NamedIndividual ;
+    rdfs:label "failed" ;
+    rdfs:comment "Run terminated due to failure." .
+
+tg-exec:Aborted a owl:NamedIndividual ;
+    rdfs:label "aborted" ;
+    rdfs:comment "Run was aborted by user or system." .
+
+# =============================================================================
+# Named individuals -- Step status
+# =============================================================================
+
+tg-exec:Pending a owl:NamedIndividual ;
+    rdfs:label "pending" ;
+    rdfs:comment "Step is waiting for dependencies." .
+
+tg-exec:Ready a owl:NamedIndividual ;
+    rdfs:label "ready" ;
+    rdfs:comment "Step dependencies are satisfied, ready to execute." .
+
+tg-exec:StepExecuting a owl:NamedIndividual ;
+    rdfs:label "executing" ;
+    rdfs:comment "Step is currently executing." .
+
+tg-exec:StepCompleted a owl:NamedIndividual ;
+    rdfs:label "completed" ;
+    rdfs:comment "Step completed successfully." .
+
+tg-exec:StepFailed a owl:NamedIndividual ;
+    rdfs:label "failed" ;
+    rdfs:comment "Step execution failed." .
+
+tg-exec:Skipped a owl:NamedIndividual ;
+    rdfs:label "skipped" ;
+    rdfs:comment "Step was skipped (dependency failed or plan revised)." .
+
+tg-exec:StepAwaitingApproval a owl:NamedIndividual ;
+    rdfs:label "awaiting-approval" ;
+    rdfs:comment "Step is suspended pending HITL approval." .
+
+# =============================================================================
+# Named individuals -- Capability types
+# =============================================================================
+
+tg-exec:ToolType a owl:NamedIndividual ;
+    rdfs:label "tool" ;
+    rdfs:comment "External tool or MCP server." .
+
+tg-exec:AdapterType a owl:NamedIndividual ;
+    rdfs:label "adapter" ;
+    rdfs:comment "Format conversion or data joining." .
+
+tg-exec:RedactorType a owl:NamedIndividual ;
+    rdfs:label "redactor" ;
+    rdfs:comment "Redaction or masking processor." .
+
+tg-exec:LlmType a owl:NamedIndividual ;
+    rdfs:label "llm" ;
+    rdfs:comment "LLM completion or synthesis." .
+
+tg-exec:RetrievalType a owl:NamedIndividual ;
+    rdfs:label "retrieval" ;
+    rdfs:comment "Knowledge retrieval (graph, document, semantic search)." .
+
+# =============================================================================
+# Named individuals -- Render hints
+# =============================================================================
+
+tg-exec:RenderMap a owl:NamedIndividual ;
+    rdfs:label "map" .
+
+tg-exec:RenderTimeline a owl:NamedIndividual ;
+    rdfs:label "timeline" .
+
+tg-exec:RenderChart a owl:NamedIndividual ;
+    rdfs:label "chart" .
+
+tg-exec:RenderTable a owl:NamedIndividual ;
+    rdfs:label "table" .
+
+tg-exec:RenderMarkdown a owl:NamedIndividual ;
+    rdfs:label "markdown" .
+
+tg-exec:RenderGraphViz a owl:NamedIndividual ;
+    rdfs:label "graph-viz" .
+
+# =============================================================================
+# Named individuals -- Document formats (ReportArtifact)
+# =============================================================================
+
+tg-exec:FormatMarkdown a owl:NamedIndividual ;
+    rdfs:label "markdown" .
+
+tg-exec:FormatHtml a owl:NamedIndividual ;
+    rdfs:label "html" .
+
+tg-exec:FormatPdf a owl:NamedIndividual ;
+    rdfs:label "pdf" .
+
+# =============================================================================
+# Properties -- ExecutionRun
+# =============================================================================
+
+tg-exec:goal a owl:DatatypeProperty ;
+    rdfs:label "goal" ;
+    rdfs:comment "The natural language or structured goal for this run." ;
+    rdfs:domain tg-exec:ExecutionRun ;
+    rdfs:range xsd:string .
+
+tg-exec:principal a owl:ObjectProperty ;
+    rdfs:label "principal" ;
+    rdfs:comment "The user or agent principal who initiated the run." ;
+    rdfs:domain tg-exec:ExecutionRun .
+
+tg-exec:workspace a owl:ObjectProperty ;
+    rdfs:label "workspace" ;
+    rdfs:comment "Workspace scope for this run." ;
+    rdfs:domain tg-exec:ExecutionRun .
+
+tg-exec:status a owl:ObjectProperty ;
+    rdfs:label "status" ;
+    rdfs:comment "Current run or step status." .
+
+tg-exec:currentPlan a owl:ObjectProperty ;
+    rdfs:label "current plan" ;
+    rdfs:comment "The active ExecutionPlan for this run." ;
+    rdfs:domain tg-exec:ExecutionRun ;
+    rdfs:range tg-exec:ExecutionPlan .
+
+tg-exec:workingGraph a owl:ObjectProperty ;
+    rdfs:label "working graph" ;
+    rdfs:comment "URI of the run's working named graph (urn:tg:run:<run_id>). Visible to agent and downstream steps, subject to redaction." ;
+    rdfs:domain tg-exec:ExecutionRun .
+
+tg-exec:auditGraph a owl:ObjectProperty ;
+    rdfs:label "audit graph" ;
+    rdfs:comment "URI of the run's audit named graph (urn:tg:audit:<run_id>). Immutable, restricted. Contains unredacted provenance and policy attestations." ;
+    rdfs:domain tg-exec:ExecutionRun .
+
+tg-exec:startedAt a owl:DatatypeProperty ;
+    rdfs:label "started at" ;
+    rdfs:comment "Timestamp when the run or step started." ;
+    rdfs:range xsd:dateTime .
+
+tg-exec:completedAt a owl:DatatypeProperty ;
+    rdfs:label "completed at" ;
+    rdfs:comment "Timestamp when the run or step completed." ;
+    rdfs:range xsd:dateTime .
+
+# =============================================================================
+# Properties -- ExecutionPlan
+# =============================================================================
+
+tg-exec:forRun a owl:ObjectProperty ;
+    rdfs:label "for run" ;
+    rdfs:comment "Back-link from plan to the ExecutionRun it belongs to." ;
+    rdfs:domain tg-exec:ExecutionPlan ;
+    rdfs:range tg-exec:ExecutionRun .
+
+tg-exec:supersedes a owl:ObjectProperty ;
+    rdfs:label "supersedes" ;
+    rdfs:comment "The previous plan this one replaces (if re-planned)." ;
+    rdfs:domain tg-exec:ExecutionPlan ;
+    rdfs:range tg-exec:ExecutionPlan .
+
+tg-exec:rootStep a owl:ObjectProperty ;
+    rdfs:label "root step" ;
+    rdfs:comment "Entry point(s) of the DAG (steps with no dependencies)." ;
+    rdfs:domain tg-exec:ExecutionPlan ;
+    rdfs:range tg-exec:Step .
+
+tg-exec:createdBy a owl:ObjectProperty ;
+    rdfs:label "created by" ;
+    rdfs:comment "The Planner instance that produced this plan." ;
+    rdfs:domain tg-exec:ExecutionPlan .
+
+tg-exec:createdAt a owl:DatatypeProperty ;
+    rdfs:label "created at" ;
+    rdfs:comment "Timestamp when the plan or artifact was created." ;
+    rdfs:range xsd:dateTime .
+
+# =============================================================================
+# Properties -- Step
+# =============================================================================
+
+tg-exec:partOfPlan a owl:ObjectProperty ;
+    rdfs:label "part of plan" ;
+    rdfs:comment "The ExecutionPlan this step belongs to." ;
+    rdfs:domain tg-exec:Step ;
+    rdfs:range tg-exec:ExecutionPlan .
+
+tg-exec:dependsOn a owl:ObjectProperty ;
+    rdfs:label "depends on" ;
+    rdfs:comment "Other Step(s) that must complete before this one can execute (DAG edges)." ;
+    rdfs:domain tg-exec:Step ;
+    rdfs:range tg-exec:Step .
+
+tg-exec:invokesCapability a owl:ObjectProperty ;
+    rdfs:label "invokes capability" ;
+    rdfs:comment "The Capability this step calls." ;
+    rdfs:domain tg-exec:Step ;
+    rdfs:range tg-exec:Capability .
+
+tg-exec:inputBinding a owl:ObjectProperty ;
+    rdfs:label "input binding" ;
+    rdfs:comment "Links to the Artifact(s) consumed as input, with the PortContract they bind to." ;
+    rdfs:domain tg-exec:Step ;
+    rdfs:range tg-exec:Artifact .
+
+tg-exec:retryCount a owl:DatatypeProperty ;
+    rdfs:label "retry count" ;
+    rdfs:comment "Current retry attempt number." ;
+    rdfs:domain tg-exec:Step ;
+    rdfs:range xsd:integer .
+
+# =============================================================================
+# Properties -- Artifact
+# =============================================================================
+
+tg-exec:producedByStep a owl:ObjectProperty ;
+    rdfs:label "produced by step" ;
+    rdfs:comment "The Step that created this artifact (mirrors prov:wasGeneratedBy)." ;
+    rdfs:domain tg-exec:Artifact ;
+    rdfs:range tg-exec:Step .
+
+tg-exec:artifactType a owl:ObjectProperty ;
+    rdfs:label "artifact type" ;
+    rdfs:comment "IRI identifying the concrete artifact subclass." ;
+    rdfs:domain tg-exec:Artifact .
+
+tg-exec:conformsToShape a owl:ObjectProperty ;
+    rdfs:label "conforms to shape" ;
+    rdfs:comment "SHACL shape this artifact validates against. Used by the Verification service for structural validation." ;
+    rdfs:domain tg-exec:Artifact .
+
+tg-exec:renderHint a owl:ObjectProperty ;
+    rdfs:label "render hint" ;
+    rdfs:comment "How the UI should display this artifact (e.g. map, timeline, chart, table, markdown, graph-viz). Unknown hints fall back to generic display." ;
+    rdfs:domain tg-exec:Artifact .
+
+tg-exec:contentRef a owl:DatatypeProperty ;
+    rdfs:label "content reference" ;
+    rdfs:comment "For ExternalReferenceArtifact, the external URI or handle." ;
+    rdfs:domain tg-exec:ExternalReferenceArtifact ;
+    rdfs:range xsd:anyURI .
+
+# =============================================================================
+# Properties -- CompositeArtifact
+# =============================================================================
+
+tg-exec:hasComponent a owl:ObjectProperty ;
+    rdfs:label "has component" ;
+    rdfs:comment "Links a CompositeArtifact to an ordered ComponentEntry." ;
+    rdfs:domain tg-exec:CompositeArtifact ;
+    rdfs:range tg-exec:ComponentEntry .
+
+tg-exec:componentRole a owl:DatatypeProperty ;
+    rdfs:label "component role" ;
+    rdfs:comment "Role label for a component (e.g. map, narrative, table, timeline)." ;
+    rdfs:domain tg-exec:ComponentEntry ;
+    rdfs:range xsd:string .
+
+tg-exec:componentArtifact a owl:ObjectProperty ;
+    rdfs:label "component artifact" ;
+    rdfs:comment "IRI of the child Artifact in a component entry." ;
+    rdfs:domain tg-exec:ComponentEntry ;
+    rdfs:range tg-exec:Artifact .
+
+tg-exec:componentOrder a owl:DatatypeProperty ;
+    rdfs:label "component order" ;
+    rdfs:comment "Integer for ordering components within a CompositeArtifact." ;
+    rdfs:domain tg-exec:ComponentEntry ;
+    rdfs:range xsd:integer .
+
+# =============================================================================
+# Properties -- ReportArtifact
+# =============================================================================
+
+tg-exec:documentFormat a owl:ObjectProperty ;
+    rdfs:label "document format" ;
+    rdfs:comment "Output format of the report: markdown, html, pdf." ;
+    rdfs:domain tg-exec:ReportArtifact .
+
+tg-exec:narrative a owl:DatatypeProperty ;
+    rdfs:label "narrative" ;
+    rdfs:comment "The document body text." ;
+    rdfs:domain tg-exec:ReportArtifact ;
+    rdfs:range xsd:string .
+
+tg-exec:embeddedArtifact a owl:ObjectProperty ;
+    rdfs:label "embedded artifact" ;
+    rdfs:comment "References to artifacts rendered inline (tables, maps, charts) with placement and ordering metadata." ;
+    rdfs:domain tg-exec:ReportArtifact ;
+    rdfs:range tg-exec:Artifact .
+
+# =============================================================================
+# Properties -- Capability
+# =============================================================================
+
+tg-exec:capabilityId a owl:DatatypeProperty ;
+    rdfs:label "capability ID" ;
+    rdfs:comment "Stable identifier for this capability." ;
+    rdfs:domain tg-exec:Capability ;
+    rdfs:range xsd:string .
+
+tg-exec:acceptsInput a owl:ObjectProperty ;
+    rdfs:label "accepts input" ;
+    rdfs:comment "PortContract(s) for inputs this capability consumes." ;
+    rdfs:domain tg-exec:Capability ;
+    rdfs:range tg-exec:PortContract .
+
+tg-exec:emitsOutput a owl:ObjectProperty ;
+    rdfs:label "emits output" ;
+    rdfs:comment "PortContract(s) for outputs this capability produces." ;
+    rdfs:domain tg-exec:Capability ;
+    rdfs:range tg-exec:PortContract .
+
+tg-exec:capabilityType a owl:ObjectProperty ;
+    rdfs:label "capability type" ;
+    rdfs:comment "Classification: tool, adapter, redactor, llm, retrieval." ;
+    rdfs:domain tg-exec:Capability .
+
+# =============================================================================
+# Properties -- PortContract
+# =============================================================================
+
+tg-exec:portName a owl:DatatypeProperty ;
+    rdfs:label "port name" ;
+    rdfs:comment "Identifier for this port on the capability." ;
+    rdfs:domain tg-exec:PortContract ;
+    rdfs:range xsd:string .
+
+tg-exec:portArtifactType a owl:ObjectProperty ;
+    rdfs:label "port artifact type" ;
+    rdfs:comment "The Artifact subclass accepted or emitted by this port." ;
+    rdfs:domain tg-exec:PortContract .
+
+tg-exec:shape a owl:ObjectProperty ;
+    rdfs:label "shape" ;
+    rdfs:comment "Optional SHACL shape the artifact must conform to." ;
+    rdfs:domain tg-exec:PortContract .
+
+tg-exec:required a owl:DatatypeProperty ;
+    rdfs:label "required" ;
+    rdfs:comment "Whether this port must be bound." ;
+    rdfs:domain tg-exec:PortContract ;
+    rdfs:range xsd:boolean .
+
+# =============================================================================
+# Properties -- GovernancePolicy
+# =============================================================================
+
+tg-exec:governsCapability a owl:ObjectProperty ;
+    rdfs:label "governs capability" ;
+    rdfs:comment "The Capability this governance policy applies to." ;
+    rdfs:domain tg-exec:GovernancePolicy ;
+    rdfs:range tg-exec:Capability .
+
+tg-exec:maxRetries a owl:DatatypeProperty ;
+    rdfs:label "max retries" ;
+    rdfs:comment "Maximum number of retry attempts for a step." ;
+    rdfs:domain tg-exec:GovernancePolicy ;
+    rdfs:range xsd:integer .
+
+tg-exec:timeoutMs a owl:DatatypeProperty ;
+    rdfs:label "timeout (ms)" ;
+    rdfs:comment "Milliseconds before the step is timed out." ;
+    rdfs:domain tg-exec:GovernancePolicy ;
+    rdfs:range xsd:integer .
+
+tg-exec:requiresApproval a owl:DatatypeProperty ;
+    rdfs:label "requires approval" ;
+    rdfs:comment "Whether HITL approval is required before execution." ;
+    rdfs:domain tg-exec:GovernancePolicy ;
+    rdfs:range xsd:boolean .
+
+tg-exec:idempotencyKeyTemplate a owl:DatatypeProperty ;
+    rdfs:label "idempotency key template" ;
+    rdfs:comment "String template for deduplication of step invocations." ;
+    rdfs:domain tg-exec:GovernancePolicy ;
+    rdfs:range xsd:string .
+
+tg-exec:appliesInWorkspace a owl:ObjectProperty ;
+    rdfs:label "applies in workspace" ;
+    rdfs:comment "Workspace scope for this governance policy (all workspaces if absent)." ;
+    rdfs:domain tg-exec:GovernancePolicy .
+
+# =============================================================================
+# Properties -- Causal justification
+# =============================================================================
+
+tg-exec:justifiedBy a owl:ObjectProperty ;
+    rdfs:label "justified by" ;
+    rdfs:comment "Links a step to the evidence or prior step that justifies its invocation. Complements prov:wasInformedBy for mandatory causal justification." ;
+    rdfs:domain tg-exec:Step .
+
+# =============================================================================
+# Named graphs (documented for reference)
+# =============================================================================
+# urn:tg:run:<run_id>                 -- Working graph (agent-visible, subject to redaction)
+# urn:tg:audit:<run_id>               -- Audit graph (immutable, restricted)
+# urn:tg:run:<run_id>:step:<step_id>  -- Step-scoped graph (SubgraphArtifact content)
