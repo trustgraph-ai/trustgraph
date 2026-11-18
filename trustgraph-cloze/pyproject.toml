@@ -10,8 +10,8 @@ description = "Cloze model classification service for TrustGraph."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "trustgraph-base>=2.11,<2.12",
-    "trustgraph-flow>=2.11,<2.12",
+    "trustgraph-base>=3.0,<3.1",
+    "trustgraph-flow>=3.0,<3.1",
     "torch",
     "transformers",
     "scikit-learn",
