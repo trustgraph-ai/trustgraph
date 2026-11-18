@@ -45,6 +45,8 @@ from . nl_sparql import NlSparqlRequestor
 from . sparql_nl_query import SparqlNLQueryRequestor
 from . decision_scoring import DecisionScoringRequestor
 from . field_extraction import FieldExtractionRequestor
+from . concept_extraction import ConceptExtractionRequestor
+from . knowledge_retrieval import KnowledgeRetrievalRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -91,6 +93,8 @@ request_response_dispatchers = {
     "ontology": OntologyRequestor,
     "nl-sparql": NlSparqlRequestor,
     "sparql-nl-query": SparqlNLQueryRequestor,
+    "concept-extraction": ConceptExtractionRequestor,
+    "knowledge-retrieval": KnowledgeRetrievalRequestor,
 }
 
 system_dispatchers = {
