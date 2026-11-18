@@ -11,8 +11,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass
 
-from trustgraph.retrieval.graph_rag.graph_rag import GraphRag, edge_id
-from trustgraph.schema import Triple as SchemaTriple, Term, IRI, LITERAL
+from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
+from trustgraph.schema import (
+    Triple as SchemaTriple, Term, IRI, LITERAL, TRIPLE,
+    KnowledgeRetrievalResponse, RetrievedEdge,
+)
 from trustgraph.base import PromptResult
 from trustgraph.base.triples_client import Triple as ClientTriple
 from trustgraph.knowledge import Uri, Literal
@@ -59,12 +62,6 @@ def derived_from(triples, subject):
     return t.o.iri if t else None
 
 
-@dataclass
-class EmbeddingMatch:
-    """Mimics the result from graph_embeddings_client.query()."""
-    entity: Term
-
-
 # ---------------------------------------------------------------------------
 # Mock setup
 # ---------------------------------------------------------------------------
@@ -73,17 +70,8 @@ class EmbeddingMatch:
 ENTITY_A = "http://example.com/QuantumComputing"
 ENTITY_B = "http://example.com/Physics"
 EDGE_1 = (ENTITY_A, "http://schema.org/relatedTo", ENTITY_B)
-EDGE_2 = (ENTITY_A, "http://schema.org/name", "Quantum Computing")
-EDGE_3 = (ENTITY_B, "http://schema.org/name", "Physics")
-
-
-def make_schema_triple(s, p, o):
-    """Create a SchemaTriple from string values."""
-    return SchemaTriple(
-        s=Term(type=IRI, iri=s),
-        p=Term(type=IRI, iri=p),
-        o=Term(type=IRI, iri=o) if o.startswith("http") else Term(type=LITERAL, value=o),
-    )
+EDGE_2 = (ENTITY_A, "http://schema.org/name", "urn:literal:quantum-computing")
+EDGE_3 = (ENTITY_B, "http://schema.org/name", "urn:literal:physics")
 
 
 def build_mock_clients():
@@ -91,70 +79,47 @@ def build_mock_clients():
     Build mock clients that simulate a small knowledge graph query.
 
     Client call sequence during query():
-      1. prompt_client.prompt("extract-concepts", ...) -> concepts
-      2. embeddings_client.embed(concepts) -> vectors
-      3. graph_embeddings_client.query(vector, ...) -> entity matches
-      4. triples_client.query_stream(s/p/o, ...) -> edges (hop_and_filter)
-      5. triples_client.query(s, LABEL, ...) -> labels (maybe_label)
-      6. reranker_client.rerank(queries, documents, limit) -> scored edges
-      7. triples_client.query(s, TG_CONTAINS, ...) -> doc tracing (returns [])
-      8. prompt_client.prompt("kg-synthesis", ...) -> final answer
+      1. concept_extraction_client.extract(query) -> concepts
+      2. knowledge_retrieval_client.retrieve(concepts, ...) -> edges
+      3. triples_client.query(o=quoted, p=TG_CONTAINS, ...) -> doc tracing
+      4. prompt_client.prompt("kg-synthesis", ...) -> final answer
     """
-    prompt_client = AsyncMock()
-    embeddings_client = AsyncMock()
-    graph_embeddings_client = AsyncMock()
+    concept_extraction_client = AsyncMock()
+    concept_extraction_client.extract.return_value = [
+        "quantum computing", "physics",
+    ]
+
+    knowledge_retrieval_client = AsyncMock()
+    knowledge_retrieval_client.retrieve.return_value = KnowledgeRetrievalResponse(
+        edges=[
+            RetrievedEdge(
+                s=EDGE_1[0], p=EDGE_1[1], o=EDGE_1[2],
+                s_label="Quantum Computing", p_label="related to",
+                o_label="Physics", score=0.9, concept="quantum computing",
+            ),
+            RetrievedEdge(
+                s=EDGE_2[0], p=EDGE_2[1], o=EDGE_2[2],
+                s_label="Quantum Computing", p_label="name",
+                o_label="Quantum Computing", score=0.8,
+                concept="quantum computing",
+            ),
+            RetrievedEdge(
+                s=EDGE_3[0], p=EDGE_3[1], o=EDGE_3[2],
+                s_label="Physics", p_label="name",
+                o_label="Physics", score=0.7, concept="physics",
+            ),
+        ],
+        seed_entities=[ENTITY_A, ENTITY_B],
+    )
+
     triples_client = AsyncMock()
-    reranker_client = AsyncMock()
+    triples_client.query.return_value = []
 
-    # 1. Concept extraction
-    prompt_responses = {}
-    prompt_responses["extract-concepts"] = "quantum computing\nphysics"
-
-    # 2. Embedding vectors (simple fake vectors)
-    embeddings_client.embed.return_value = [[0.1, 0.2], [0.3, 0.4]]
-
-    # 3. Entity lookup - return our two entities
-    graph_embeddings_client.query.return_value = [
-        EmbeddingMatch(entity=Term(type=IRI, iri=ENTITY_A)),
-        EmbeddingMatch(entity=Term(type=IRI, iri=ENTITY_B)),
-    ]
-
-    # 4. Triple queries (hop_and_filter) - return our edges
-    kg_triples = [
-        make_schema_triple(*EDGE_1),
-        make_schema_triple(*EDGE_2),
-        make_schema_triple(*EDGE_3),
-    ]
-    triples_client.query_stream.return_value = kg_triples
-
-    # 5. Label resolution - return entity as its own label (simplify)
-    async def mock_label_query(s=None, p=None, o=None, limit=1,
-                               collection=None, g=None,
-                               user_context=None):
-        return []  # No labels found, will fall back to URI
-    triples_client.query.side_effect = mock_label_query
-
-    # 6. Reranker: select all documents with high scores
-    async def mock_rerank(queries, documents, limit):
-        results = []
-        for i, doc in enumerate(documents):
-            result = MagicMock()
-            result.document_id = doc["id"]
-            result.query_id = queries[0]["id"] if queries else "0"
-            result.score = 0.9 - (i * 0.1)
-            results.append(result)
-        return results[:limit]
-    reranker_client.rerank.side_effect = mock_rerank
-
+    prompt_client = AsyncMock()
     synthesis_answer = "Quantum computing applies physics principles to computation."
 
     async def mock_prompt(template_id, variables=None, **kwargs):
-        if template_id == "extract-concepts":
-            return PromptResult(
-                response_type="text",
-                text=prompt_responses["extract-concepts"],
-            )
-        elif template_id == "kg-synthesis":
+        if template_id == "kg-synthesis":
             return PromptResult(
                 response_type="text",
                 text=synthesis_answer,
@@ -163,8 +128,8 @@ def build_mock_clients():
 
     prompt_client.prompt.side_effect = mock_prompt
 
-    return (prompt_client, embeddings_client, graph_embeddings_client,
-            triples_client, reranker_client)
+    return (concept_extraction_client, knowledge_retrieval_client,
+            triples_client, prompt_client)
 
 
 # ---------------------------------------------------------------------------
@@ -345,7 +310,6 @@ class TestGraphRagQueryProvenance:
         exp_triples = events[2]["triples"]
         t = find_triple(exp_triples, TG_EDGE_COUNT, exp_uri)
         assert t is not None
-        # Should be non-zero (we provided 3 edges, label edges filtered)
         assert int(t.o.value) > 0
 
     @pytest.mark.asyncio
@@ -540,23 +504,24 @@ DOC_METADATA = {
     ],
 }
 
-EXPECTED_SOURCES = [
+EXPECTED_SOURCES = sorted([
     {"uri": DOC_ALPHA, "title": "Quantum Mechanics Primer"},
     {"uri": DOC_BETA, "title": "Physics Notes"},
     {"uri": DOC_GAMMA, "title": ""},
-]
+], key=lambda s: s["uri"])
 
 # Total triples_client.query calls query() makes against the graph above:
-# 6 label lookups + 3 tg:contains + 9 wasDerivedFrom + 3 doc metadata.
-# Sources are built from the same fetches, so this total must not grow.
-EXPECTED_TRIPLES_QUERY_CALLS = 21
+# 3 tg:contains + 9 wasDerivedFrom + 3 doc metadata = 15.
+# (No label lookups — labels are pre-resolved by the knowledge retrieval
+# service and returned on RetrievedEdge.)
+EXPECTED_TRIPLES_QUERY_CALLS = 15
 
 
 def build_source_tracing_clients(fail_tracing=False):
     """Like build_mock_clients, but the triples client also serves the
     tg:contains + prov:wasDerivedFrom chains and document metadata."""
-    (prompt_client, embeddings_client, graph_embeddings_client,
-     triples_client, reranker_client) = build_mock_clients()
+    (concept_extraction_client, knowledge_retrieval_client,
+     triples_client, prompt_client) = build_mock_clients()
 
     def subgraph_for(quoted):
         t = quoted.triple
@@ -580,12 +545,12 @@ def build_source_tracing_clients(fail_tracing=False):
             ]
         if p is None and str(s) in DOC_METADATA:
             return DOC_METADATA[str(s)]
-        return []  # Label lookups: fall back to URI
+        return []
 
     triples_client.query.side_effect = mock_query
 
-    return (prompt_client, embeddings_client, graph_embeddings_client,
-            triples_client, reranker_client)
+    return (concept_extraction_client, knowledge_retrieval_client,
+            triples_client, prompt_client)
 
 
 class TestGraphRagSourceTracing:
@@ -605,20 +570,20 @@ class TestGraphRagSourceTracing:
         assert resp == (
             "Quantum computing applies physics principles to computation."
         )
-        assert sources == EXPECTED_SOURCES
+        assert sorted(sources, key=lambda s: s["uri"]) == EXPECTED_SOURCES
 
     @pytest.mark.asyncio
     async def test_sources_add_zero_triple_queries(self):
         """Building sources must not add any triple-store queries."""
         clients = build_source_tracing_clients()
-        triples_client = clients[3]
+        triples_client = clients[2]
         rag = GraphRag(*clients)
 
         resp, usage, sources = await rag.query(
             query="What is quantum computing?",
         )
 
-        assert sources == EXPECTED_SOURCES
+        assert sorted(sources, key=lambda s: s["uri"]) == EXPECTED_SOURCES
         assert triples_client.query.call_count == (
             EXPECTED_TRIPLES_QUERY_CALLS
         )
@@ -627,7 +592,7 @@ class TestGraphRagSourceTracing:
     async def test_doc_metadata_still_reaches_synthesis_prompt(self):
         """The kg-synthesis prompt context keeps the document edges."""
         clients = build_source_tracing_clients()
-        prompt_client = clients[0]
+        prompt_client = clients[3]
         rag = GraphRag(*clients)
 
         await rag.query(query="What is quantum computing?")

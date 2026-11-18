@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, call
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
-from trustgraph.schema import EntityMatch, ChunkMatch, Term, IRI
+from trustgraph.schema import ChunkMatch, KnowledgeRetrievalResponse, RetrievedEdge
 from trustgraph.base import PromptResult
 
 
@@ -17,20 +17,19 @@ class TestGraphRagStreamingProtocol:
     """Integration tests for GraphRAG streaming protocol"""
 
     @pytest.fixture
-    def mock_embeddings_client(self):
-        """Mock embeddings client"""
+    def mock_concept_extraction_client(self):
+        """Mock concept extraction client"""
         client = AsyncMock()
-        client.embed.return_value = [[[0.1, 0.2, 0.3]]]
+        client.extract.return_value = ["entity1", "entity2"]
         return client
 
     @pytest.fixture
-    def mock_graph_embeddings_client(self):
-        """Mock graph embeddings client"""
+    def mock_knowledge_retrieval_client(self):
+        """Mock knowledge retrieval client"""
         client = AsyncMock()
-        client.query.return_value = [
-            EntityMatch(entity=Term(type=IRI, iri="entity1"), score=0.95),
-            EntityMatch(entity=Term(type=IRI, iri="entity2"), score=0.90)
-        ]
+        client.retrieve.return_value = KnowledgeRetrievalResponse(
+            edges=[], seed_entities=[],
+        )
         return client
 
     @pytest.fixture
@@ -46,15 +45,12 @@ class TestGraphRagStreamingProtocol:
         client = AsyncMock()
 
         async def prompt_side_effect(prompt_name, variables=None, streaming=False, chunk_callback=None):
-            if prompt_name == "extract-concepts":
-                return PromptResult(response_type="text", text="")
-            elif prompt_name == "kg-synthesis":
+            if prompt_name == "kg-synthesis":
                 if streaming and chunk_callback:
-                    # Simulate realistic streaming: chunks with end_of_stream=False, then final with end_of_stream=True
                     await chunk_callback("The", False)
                     await chunk_callback(" answer", False)
                     await chunk_callback(" is here.", False)
-                    await chunk_callback("", True)  # Empty final chunk with end_of_stream=True
+                    await chunk_callback("", True)
                     return PromptResult(response_type="text", text="")
                 else:
                     return PromptResult(response_type="text", text="The answer is here.")
@@ -64,22 +60,15 @@ class TestGraphRagStreamingProtocol:
         return client
 
     @pytest.fixture
-    def mock_reranker_client(self):
-        """Mock reranker client for cross-encoder edge filtering"""
-        client = AsyncMock()
-        client.rerank.return_value = []
-        return client
-
-    @pytest.fixture
-    def graph_rag(self, mock_embeddings_client, mock_graph_embeddings_client,
-                  mock_triples_client, mock_reranker_client,
+    def graph_rag(self, mock_concept_extraction_client,
+                  mock_knowledge_retrieval_client,
+                  mock_triples_client,
                   mock_streaming_prompt_client):
         """Create GraphRag instance with mocked dependencies"""
         return GraphRag(
-            embeddings_client=mock_embeddings_client,
-            graph_embeddings_client=mock_graph_embeddings_client,
+            concept_extraction_client=mock_concept_extraction_client,
+            knowledge_retrieval_client=mock_knowledge_retrieval_client,
             triples_client=mock_triples_client,
-            reranker_client=mock_reranker_client,
             prompt_client=mock_streaming_prompt_client,
             verbose=False
         )
@@ -336,9 +325,7 @@ class TestStreamingProtocolEdgeCases:
         client = AsyncMock()
 
         async def prompt_with_empties(prompt_name, variables=None, streaming=False, chunk_callback=None):
-            if prompt_name == "extract-concepts":
-                return PromptResult(response_type="text", text="")
-            elif prompt_name == "kg-synthesis":
+            if prompt_name == "kg-synthesis":
                 if streaming and chunk_callback:
                     await chunk_callback("text", False)
                     await chunk_callback("", False)  # Empty but not final
@@ -351,14 +338,16 @@ class TestStreamingProtocolEdgeCases:
 
         client.prompt.side_effect = prompt_with_empties
 
-        mock_reranker = AsyncMock()
-        mock_reranker.rerank.return_value = []
-
         rag = GraphRag(
-            embeddings_client=AsyncMock(embed=AsyncMock(return_value=[[[0.1]]])),
-            graph_embeddings_client=AsyncMock(query=AsyncMock(return_value=[])),
+            concept_extraction_client=AsyncMock(
+                extract=AsyncMock(return_value=["test"]),
+            ),
+            knowledge_retrieval_client=AsyncMock(
+                retrieve=AsyncMock(return_value=KnowledgeRetrievalResponse(
+                    edges=[], seed_entities=[],
+                )),
+            ),
             triples_client=AsyncMock(query=AsyncMock(return_value=[])),
-            reranker_client=mock_reranker,
             prompt_client=client,
             verbose=False
         )
