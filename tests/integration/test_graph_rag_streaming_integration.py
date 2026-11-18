@@ -8,7 +8,7 @@ response delivery through the complete pipeline.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
-from trustgraph.schema import EntityMatch, Term, IRI
+from trustgraph.schema import KnowledgeRetrievalResponse, RetrievedEdge
 from trustgraph.base import PromptResult
 from tests.utils.streaming_assertions import (
     assert_streaming_chunks_valid,
@@ -23,54 +23,54 @@ class TestGraphRagStreaming:
     """Integration tests for GraphRAG streaming"""
 
     @pytest.fixture
-    def mock_embeddings_client(self):
-        """Mock embeddings client"""
+    def mock_concept_extraction_client(self):
+        """Mock concept extraction client"""
         client = AsyncMock()
-        # New batch format: [[[vectors_for_text1]]]
-        client.embed.return_value = [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
+        client.extract.return_value = ["machine learning"]
         return client
 
     @pytest.fixture
-    def mock_graph_embeddings_client(self):
-        """Mock graph embeddings client"""
+    def mock_knowledge_retrieval_client(self):
+        """Mock knowledge retrieval client"""
         client = AsyncMock()
-        client.query.return_value = [
-            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/machine-learning"), score=0.95),
-        ]
+        client.retrieve.return_value = KnowledgeRetrievalResponse(
+            edges=[
+                RetrievedEdge(
+                    s="http://trustgraph.ai/e/machine-learning",
+                    p="http://trustgraph.ai/is_subset_of",
+                    o="http://trustgraph.ai/e/artificial-intelligence",
+                    s_label="Machine Learning",
+                    p_label="is subset of",
+                    o_label="Artificial Intelligence",
+                    score=0.95,
+                    concept="machine learning",
+                ),
+            ],
+            seed_entities=["http://trustgraph.ai/e/machine-learning"],
+        )
         return client
 
     @pytest.fixture
     def mock_triples_client(self):
-        """Mock triples client with minimal responses"""
+        """Mock triples client for document tracing"""
         client = AsyncMock()
-
-        async def query_side_effect(s=None, p=None, o=None, limit=None, user=None, collection=None):
-            if p == "http://www.w3.org/2000/01/rdf-schema#label":
-                return [MagicMock(s=s, p=p, o="Machine Learning")]
-            return []
-
-        client.query.side_effect = query_side_effect
+        client.query.return_value = []
         return client
 
     @pytest.fixture
     def mock_streaming_prompt_client(self, mock_streaming_llm_response):
-        """Mock prompt client with streaming support for two-stage GraphRAG"""
+        """Mock prompt client with streaming support"""
         client = AsyncMock()
 
-        # Full synthesis text
         full_text = "Machine learning is a subset of artificial intelligence that focuses on algorithms that learn from data."
 
         async def prompt_side_effect(prompt_id, variables, streaming=False, chunk_callback=None, **kwargs):
-            if prompt_id == "extract-concepts":
-                return PromptResult(response_type="text", text="")
-            elif prompt_id == "kg-synthesis":
+            if prompt_id == "kg-synthesis":
                 if streaming and chunk_callback:
-                    # Simulate streaming chunks with end_of_stream flags
                     chunks = []
                     async for chunk in mock_streaming_llm_response():
                         chunks.append(chunk)
 
-                    # Send all chunks with end_of_stream=False except the last
                     for i, chunk in enumerate(chunks):
                         is_final = (i == len(chunks) - 1)
                         await chunk_callback(chunk, is_final)
@@ -84,22 +84,15 @@ class TestGraphRagStreaming:
         return client
 
     @pytest.fixture
-    def mock_reranker_client(self):
-        """Mock reranker client for cross-encoder edge filtering"""
-        client = AsyncMock()
-        client.rerank.return_value = []
-        return client
-
-    @pytest.fixture
-    def graph_rag_streaming(self, mock_embeddings_client, mock_graph_embeddings_client,
-                            mock_triples_client, mock_reranker_client,
+    def graph_rag_streaming(self, mock_concept_extraction_client,
+                            mock_knowledge_retrieval_client,
+                            mock_triples_client,
                             mock_streaming_prompt_client):
         """Create GraphRag instance with streaming support"""
         return GraphRag(
-            embeddings_client=mock_embeddings_client,
-            graph_embeddings_client=mock_graph_embeddings_client,
+            concept_extraction_client=mock_concept_extraction_client,
+            knowledge_retrieval_client=mock_knowledge_retrieval_client,
             triples_client=mock_triples_client,
-            reranker_client=mock_reranker_client,
             prompt_client=mock_streaming_prompt_client,
             verbose=True
         )
@@ -111,13 +104,12 @@ class TestGraphRagStreaming:
         query = "What is machine learning?"
         collector = streaming_chunk_collector()
 
-        # Collect provenance events
         provenance_events = []
 
         async def collect_provenance(triples, prov_id):
             provenance_events.append((triples, prov_id))
 
-        # Act - query() returns response, provenance via callback
+        # Act
         response = await graph_rag_streaming.query(
             query=query,
             collection="test_collection",
@@ -131,17 +123,14 @@ class TestGraphRagStreaming:
         assert_streaming_chunks_valid(collector.chunks, min_chunks=1)
         assert_callback_invoked(AsyncMock(call_count=len(collector.chunks)), min_calls=1)
 
-        # Verify streaming protocol compliance
         collector.verify_streaming_protocol()
 
-        # Verify full response matches concatenated chunks
         full_from_chunks = collector.get_full_text()
         assert response == full_from_chunks
 
-        # Verify content is reasonable
         assert "machine" in response.lower() or "learning" in response.lower()
 
-        # Verify provenance was emitted in real-time (5 events: question, grounding, exploration, focus, synthesis)
+        # Verify provenance (5 events)
         assert len(provenance_events) == 5
         for triples, prov_id in provenance_events:
             assert prov_id.startswith("urn:trustgraph:")
@@ -151,7 +140,6 @@ class TestGraphRagStreaming:
         """Test that streaming and non-streaming produce equivalent results"""
         # Arrange
         query = "What is machine learning?"
-        user = "test_user"
         collection = "test_collection"
 
         # Act - Non-streaming
@@ -174,7 +162,7 @@ class TestGraphRagStreaming:
             chunk_callback=collect
         )
 
-        # Assert - Results should be equivalent
+        # Assert
         non_streaming_text, _, _ = non_streaming_response
         streaming_text, _, _ = streaming_response
         assert streaming_text == non_streaming_text
@@ -199,32 +187,33 @@ class TestGraphRagStreaming:
         assert callback.call_count > 0
         assert response is not None
 
-        # Verify all callback invocations had string arguments
         for call in callback.call_args_list:
             assert isinstance(call.args[0], str)
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_without_callback(self, graph_rag_streaming):
         """Test streaming parameter without callback (should fall back to non-streaming)"""
-        # Arrange & Act
+        # Act
         response = await graph_rag_streaming.query(
             query="test query",
             collection="test_collection",
             streaming=True,
-            chunk_callback=None  # No callback provided
+            chunk_callback=None
         )
 
-        # Assert - Should complete without error
+        # Assert
         assert response is not None
         response_text, usage, sources = response
         assert isinstance(response_text, str)
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_with_empty_kg(self, graph_rag_streaming,
-                                                      mock_graph_embeddings_client):
+                                                      mock_knowledge_retrieval_client):
         """Test streaming with empty knowledge graph"""
         # Arrange
-        mock_graph_embeddings_client.query.return_value = []  # No entities
+        mock_knowledge_retrieval_client.retrieve.return_value = (
+            KnowledgeRetrievalResponse(edges=[], seed_entities=[])
+        )
         callback = AsyncMock()
 
         # Act
@@ -235,16 +224,18 @@ class TestGraphRagStreaming:
             chunk_callback=callback
         )
 
-        # Assert - Should still produce streamed response
+        # Assert
         assert response is not None
         assert callback.call_count > 0
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_error_propagation(self, graph_rag_streaming,
-                                                          mock_embeddings_client):
+                                                          mock_concept_extraction_client):
         """Test that errors during streaming are properly propagated"""
         # Arrange
-        mock_embeddings_client.embed.side_effect = Exception("Embeddings error")
+        mock_concept_extraction_client.extract.side_effect = Exception(
+            "Concept extraction error"
+        )
         callback = AsyncMock()
 
         # Act & Assert
@@ -256,11 +247,11 @@ class TestGraphRagStreaming:
                 chunk_callback=callback
             )
 
-        assert "Embeddings error" in str(exc_info.value)
+        assert "Concept extraction error" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_preserves_parameters(self, graph_rag_streaming,
-                                                             mock_graph_embeddings_client):
+                                                             mock_knowledge_retrieval_client):
         """Test that streaming preserves all query parameters"""
         # Arrange
         callback = AsyncMock()
@@ -277,6 +268,7 @@ class TestGraphRagStreaming:
             chunk_callback=callback
         )
 
-        # Assert - Verify parameters were passed to underlying services
-        call_args = mock_graph_embeddings_client.query.call_args
-        assert call_args.kwargs['limit'] == entity_limit
+        # Assert
+        call_args = mock_knowledge_retrieval_client.retrieve.call_args
+        assert call_args.kwargs['entity_limit'] == entity_limit
+        assert call_args.kwargs['triple_limit'] == triple_limit

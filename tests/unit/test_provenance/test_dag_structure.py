@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.schema import (
     AgentRequest, AgentResponse, AgentStep, PlanStep,
     Triple, Term, IRI, LITERAL,
+    KnowledgeRetrievalResponse, RetrievedEdge,
 )
 from trustgraph.base import PromptResult
 
@@ -103,41 +104,36 @@ class TestGraphRagDagStructure:
 
     @pytest.fixture
     def mock_clients(self):
-        prompt_client = AsyncMock()
-        embeddings_client = AsyncMock()
-        graph_embeddings_client = AsyncMock()
-        triples_client = AsyncMock()
-        reranker_client = AsyncMock()
+        concept_extraction_client = AsyncMock()
+        concept_extraction_client.extract.return_value = ["concept"]
 
-        embeddings_client.embed.return_value = [[0.1, 0.2]]
-        graph_embeddings_client.query.return_value = [
-            MagicMock(entity=Term(type=IRI, iri="http://example.com/e1")),
-        ]
-        triples_client.query_stream.return_value = [
-            Triple(
-                s=Term(type=IRI, iri="http://example.com/e1"),
-                p=Term(type=IRI, iri="http://example.com/p"),
-                o=Term(type=LITERAL, value="value"),
-            )
-        ]
+        knowledge_retrieval_client = AsyncMock()
+        knowledge_retrieval_client.retrieve.return_value = KnowledgeRetrievalResponse(
+            edges=[
+                RetrievedEdge(
+                    s="http://example.com/e1",
+                    p="http://example.com/p",
+                    o="http://example.com/e2",
+                    s_label="Entity 1", p_label="relates to",
+                    o_label="Entity 2", score=0.95, concept="concept",
+                ),
+            ],
+            seed_entities=["http://example.com/e1"],
+        )
+
+        triples_client = AsyncMock()
         triples_client.query.return_value = []
 
-        result = MagicMock()
-        result.document_id = "0"
-        result.query_id = "0"
-        result.score = 0.95
-        reranker_client.rerank.return_value = [result]
+        prompt_client = AsyncMock()
 
         async def mock_prompt(template_id, variables=None, **kwargs):
-            if template_id == "extract-concepts":
-                return PromptResult(response_type="text", text="concept")
-            elif template_id == "kg-synthesis":
+            if template_id == "kg-synthesis":
                 return PromptResult(response_type="text", text="Answer.")
             return PromptResult(response_type="text", text="")
 
         prompt_client.prompt.side_effect = mock_prompt
-        return (prompt_client, embeddings_client, graph_embeddings_client,
-                triples_client, reranker_client)
+        return (concept_extraction_client, knowledge_retrieval_client,
+                triples_client, prompt_client)
 
     @pytest.mark.asyncio
     async def test_dag_chain(self, mock_clients):
