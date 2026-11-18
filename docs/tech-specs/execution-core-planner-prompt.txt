@@ -25,13 +25,20 @@ Rules:
   depend on steps that collectively provide both types.
 - Keep plans minimal — only include steps needed for the goal.
 
-Example step:
+Example steps:
 
   {
     "step_id": "1A",
-    "capability": "knowledge-graph-query",
+    "capability": "concept-extraction",
     "depends_on": [],
     "params": {"query": "UK engineering teams and cost centres"},
+    "emits": "KeywordsArtifact"
+  },
+  {
+    "step_id": "1B",
+    "capability": "knowledge-retrieval",
+    "depends_on": ["1A"],
+    "params": {},
     "emits": "SubgraphArtifact"
   }
 

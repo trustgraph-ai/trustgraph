@@ -60,6 +60,16 @@ tg-exec:SubgraphArtifact a owl:Class ;
     rdfs:label "Subgraph Artifact" ;
     rdfs:comment "RDF triples conforming to an OWL/SHACL shape. Stored in a step-scoped named graph." .
 
+tg-exec:KeywordsArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Keywords Artifact" ;
+    rdfs:comment "A list of extracted keywords or concepts. Used for downstream entity retrieval, tagging, or classification." .
+
+tg-exec:EntityListArtifact a owl:Class ;
+    rdfs:subClassOf tg-exec:Artifact ;
+    rdfs:label "Entity List Artifact" ;
+    rdfs:comment "A ranked list of graph entities matched by semantic similarity. Each entry carries the entity URI, similarity score, RDF types, and attributes." .
+
 tg-exec:ExternalReferenceArtifact a owl:Class ;
     rdfs:subClassOf tg-exec:Artifact ;
     rdfs:label "External Reference Artifact" ;

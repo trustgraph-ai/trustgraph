@@ -25,30 +25,124 @@ port:erp-finance-query-out a tg-exec:PortContract ;
     tg-exec:required     true .
 
 
-cap:knowledge-graph-query a tg-exec:Capability ;
-    tg-exec:capabilityId  "knowledge-graph-query" ;
+cap:concept-extraction a tg-exec:Capability ;
+    tg-exec:capabilityId  "concept-extraction" ;
     tg-exec:capabilityType tg-exec:retrieval ;
-    rdfs:label   "Knowledge Graph Query" ;
-    rdfs:comment "Queries the workspace knowledge graph via SPARQL or semantic search. Returns matching triples as a subgraph." ;
-    tg-exec:emitsOutput port:knowledge-graph-query-out .
+    rdfs:label   "Concept Extraction" ;
+    rdfs:comment "Extracts key concepts from a natural-language query using an LLM. Returns keywords suitable for downstream entity retrieval or tagging." ;
+    tg-exec:emitsOutput port:concept-extraction-out .
 
-port:knowledge-graph-query-out a tg-exec:PortContract ;
+port:concept-extraction-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:KeywordsArtifact ;
+    tg-exec:required     true .
+
+
+cap:knowledge-retrieval a tg-exec:Capability ;
+    tg-exec:capabilityId  "knowledge-retrieval" ;
+    tg-exec:capabilityType tg-exec:retrieval ;
+    rdfs:label   "Knowledge Retrieval" ;
+    rdfs:comment "Traverses the workspace knowledge graph from seed concepts or entities, returning scored edges as a subgraph." ;
+    tg-exec:acceptsInput port:knowledge-retrieval-in ;
+    tg-exec:emitsOutput  port:knowledge-retrieval-out .
+
+port:knowledge-retrieval-in a tg-exec:PortContract ;
+    tg-exec:portName     "keywords" ;
+    tg-exec:artifactType tg-exec:KeywordsArtifact ;
+    tg-exec:required     false .
+
+port:knowledge-retrieval-out a tg-exec:PortContract ;
     tg-exec:portName     "result" ;
     tg-exec:artifactType tg-exec:SubgraphArtifact ;
     tg-exec:required     true .
 
 
-cap:document-retrieval a tg-exec:Capability ;
-    tg-exec:capabilityId  "document-retrieval" ;
+cap:graph-rag-query a tg-exec:Capability ;
+    tg-exec:capabilityId  "graph-rag-query" ;
     tg-exec:capabilityType tg-exec:retrieval ;
-    rdfs:label   "Document Retrieval" ;
-    rdfs:comment "Retrieves documents or document chunks by semantic or keyword search." ;
-    tg-exec:emitsOutput port:document-retrieval-out .
+    rdfs:label   "Graph RAG Query" ;
+    rdfs:comment "Full graph RAG pipeline: concept extraction, knowledge retrieval, and LLM synthesis. Returns a natural-language answer." ;
+    tg-exec:emitsOutput port:graph-rag-query-out .
 
-port:document-retrieval-out a tg-exec:PortContract ;
+port:graph-rag-query-out a tg-exec:PortContract ;
     tg-exec:portName     "result" ;
     tg-exec:artifactType tg-exec:TextBlobArtifact ;
     tg-exec:required     true .
+
+
+cap:graph-embeddings-query a tg-exec:Capability ;
+    tg-exec:capabilityId  "graph-embeddings-query" ;
+    tg-exec:capabilityType tg-exec:retrieval ;
+    rdfs:label   "Graph Embeddings Query" ;
+    rdfs:comment "Performs a semantic similarity search over graph entities. Takes a natural-language query, embeds it, and returns ranked entity matches with scores and attributes." ;
+    tg-exec:emitsOutput port:graph-embeddings-query-out .
+
+port:graph-embeddings-query-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:EntityListArtifact ;
+    tg-exec:required     true .
+
+
+cap:entity-triples-query a tg-exec:Capability ;
+    tg-exec:capabilityId  "entity-triples-query" ;
+    tg-exec:capabilityType tg-exec:retrieval ;
+    rdfs:label   "Entity Triples Query" ;
+    rdfs:comment "Queries the knowledge graph for all triples containing the given entities. Accepts an EntityListArtifact or entity URIs as parameters. Returns a subgraph." ;
+    tg-exec:acceptsInput port:entity-triples-query-in ;
+    tg-exec:emitsOutput  port:entity-triples-query-out .
+
+port:entity-triples-query-in a tg-exec:PortContract ;
+    tg-exec:portName     "entities" ;
+    tg-exec:artifactType tg-exec:EntityListArtifact ;
+    tg-exec:required     false .
+
+port:entity-triples-query-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:SubgraphArtifact ;
+    tg-exec:required     true .
+
+
+cap:rerank a tg-exec:Capability ;
+    tg-exec:capabilityId  "rerank" ;
+    tg-exec:capabilityType tg-exec:adapter ;
+    rdfs:label   "Rerank" ;
+    rdfs:comment "Reranks items in an artifact by relevance to a query using a cross-encoder model. Accepts EntityListArtifact, SubgraphArtifact, or KeywordsArtifact. Returns the same type filtered to top-k." ;
+    tg-exec:acceptsInput port:rerank-in-entities ;
+    tg-exec:acceptsInput port:rerank-in-subgraph ;
+    tg-exec:acceptsInput port:rerank-in-keywords ;
+    tg-exec:emitsOutput  port:rerank-out-entities ;
+    tg-exec:emitsOutput  port:rerank-out-subgraph ;
+    tg-exec:emitsOutput  port:rerank-out-keywords .
+
+port:rerank-in-entities a tg-exec:PortContract ;
+    tg-exec:portName     "entities" ;
+    tg-exec:artifactType tg-exec:EntityListArtifact ;
+    tg-exec:required     false .
+
+port:rerank-in-subgraph a tg-exec:PortContract ;
+    tg-exec:portName     "subgraph" ;
+    tg-exec:artifactType tg-exec:SubgraphArtifact ;
+    tg-exec:required     false .
+
+port:rerank-in-keywords a tg-exec:PortContract ;
+    tg-exec:portName     "keywords" ;
+    tg-exec:artifactType tg-exec:KeywordsArtifact ;
+    tg-exec:required     false .
+
+port:rerank-out-entities a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:EntityListArtifact ;
+    tg-exec:required     false .
+
+port:rerank-out-subgraph a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:SubgraphArtifact ;
+    tg-exec:required     false .
+
+port:rerank-out-keywords a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:KeywordsArtifact ;
+    tg-exec:required     false .
 
 
 # ── Transform capabilities ──────────────────────────────────────────

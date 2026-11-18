@@ -63,4 +63,7 @@ from . planner_service import PlannerService
 from . verification_service import VerificationService
 from . policy_engine_service import PolicyEngineService
 from . action_service import ActionService
+from . cloze_client import ClozeClientSpec
+from . decision_scoring_client import DecisionScoringClientSpec
+from . field_extraction_client import FieldExtractionClientSpec
 

@@ -11,6 +11,7 @@ class KnowledgeRetrievalRequestTranslator(MessageTranslator):
         return KnowledgeRetrievalRequest(
             concepts=data.get("concepts", []),
             entities=data.get("entities", []),
+            collection=data.get("collection", "default"),
             entity_limit=data.get("entity-limit", 50),
             triple_limit=data.get("triple-limit", 30),
             max_path_length=data.get("max-path-length", 2),
@@ -26,6 +27,8 @@ class KnowledgeRetrievalRequestTranslator(MessageTranslator):
             result["concepts"] = list(obj.concepts)
         if obj.entities:
             result["entities"] = list(obj.entities)
+        if obj.collection != "default":
+            result["collection"] = obj.collection
         if obj.entity_limit != 50:
             result["entity-limit"] = obj.entity_limit
         if obj.triple_limit != 30:

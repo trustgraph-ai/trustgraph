@@ -27,26 +27,87 @@ CAPABILITIES = {
             {"port": "result", "artifact_type": "TabularArtifact"},
         ],
     },
-    "knowledge-graph-query": {
-        "name": "knowledge-graph-query",
+    "concept-extraction": {
+        "name": "concept-extraction",
         "type": "retrieval",
         "description":
-            "Queries the workspace knowledge graph via SPARQL or "
-            "semantic search. Returns matching triples as a subgraph.",
+            "Extracts key concepts from a natural-language query "
+            "using an LLM. Returns keywords suitable for downstream "
+            "entity retrieval or tagging.",
         "inputs": [],
+        "outputs": [
+            {"port": "result", "artifact_type": "KeywordsArtifact"},
+        ],
+    },
+    "knowledge-retrieval": {
+        "name": "knowledge-retrieval",
+        "type": "retrieval",
+        "description":
+            "Traverses the workspace knowledge graph from seed "
+            "concepts or entities, returning scored edges as a "
+            "subgraph.",
+        "inputs": [
+            {"port": "keywords", "artifact_type": "KeywordsArtifact"},
+        ],
         "outputs": [
             {"port": "result", "artifact_type": "SubgraphArtifact"},
         ],
     },
-    "document-retrieval": {
-        "name": "document-retrieval",
+    "graph-rag-query": {
+        "name": "graph-rag-query",
         "type": "retrieval",
         "description":
-            "Retrieves documents or document chunks by semantic or "
-            "keyword search.",
+            "Full graph RAG pipeline: concept extraction, knowledge "
+            "retrieval, and LLM synthesis. Returns a natural-language "
+            "answer.",
         "inputs": [],
         "outputs": [
             {"port": "result", "artifact_type": "TextBlobArtifact"},
+        ],
+    },
+    "graph-embeddings-query": {
+        "name": "graph-embeddings-query",
+        "type": "retrieval",
+        "description":
+            "Performs a semantic similarity search over graph entities. "
+            "Takes a natural-language query, embeds it, and returns "
+            "ranked entity matches with scores and attributes.",
+        "inputs": [],
+        "outputs": [
+            {"port": "result", "artifact_type": "EntityListArtifact"},
+        ],
+    },
+    "entity-triples-query": {
+        "name": "entity-triples-query",
+        "type": "retrieval",
+        "description":
+            "Queries the knowledge graph for all triples containing "
+            "the given entities. Accepts an EntityListArtifact or "
+            "entity URIs as parameters. Returns a subgraph.",
+        "inputs": [
+            {"port": "entities", "artifact_type": "EntityListArtifact"},
+        ],
+        "outputs": [
+            {"port": "result", "artifact_type": "SubgraphArtifact"},
+        ],
+    },
+    "rerank": {
+        "name": "rerank",
+        "type": "adapter",
+        "description":
+            "Reranks items in an artifact by relevance to a query "
+            "using a cross-encoder model. Accepts EntityListArtifact, "
+            "SubgraphArtifact, or KeywordsArtifact. Returns the same "
+            "artifact type filtered to the top-k most relevant items.",
+        "inputs": [
+            {"port": "entities", "artifact_type": "EntityListArtifact"},
+            {"port": "subgraph", "artifact_type": "SubgraphArtifact"},
+            {"port": "keywords", "artifact_type": "KeywordsArtifact"},
+        ],
+        "outputs": [
+            {"port": "result", "artifact_type": "EntityListArtifact"},
+            {"port": "result", "artifact_type": "SubgraphArtifact"},
+            {"port": "result", "artifact_type": "KeywordsArtifact"},
         ],
     },
     "tabular-redact": {

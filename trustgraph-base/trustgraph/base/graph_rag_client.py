@@ -4,12 +4,17 @@ from .. schema import GraphRagQuery, GraphRagResponse
 
 class GraphRagClient:
     async def rag(self, query, collection="default",
+                  entity_limit=0, triple_limit=0,
+                  max_subgraph_size=0, max_path_length=0,
+                  edge_score_limit=0, edge_limit=0,
+                  max_reranker_input=0,
                   chunk_callback=None, explain_callback=None,
                   parent_uri="",
                   grounding_seeds=None,
                   graph_seeds=None,
                   languages=None,
                   traversal_instructions=None,
+                  graph=None,
                   timeout=600):
         """
         Execute a graph RAG query with optional streaming callbacks.
@@ -53,11 +58,19 @@ class GraphRagClient:
             GraphRagQuery(
                 query = query,
                 collection = collection,
+                entity_limit = entity_limit,
+                triple_limit = triple_limit,
+                max_subgraph_size = max_subgraph_size,
+                max_path_length = max_path_length,
+                edge_score_limit = edge_score_limit,
+                edge_limit = edge_limit,
+                max_reranker_input = max_reranker_input,
                 parent_uri = parent_uri,
                 grounding_seeds = grounding_seeds or [],
                 graph_seeds = graph_seeds or [],
                 languages = languages or [],
                 traversal_instructions = traversal_instructions or [],
+                graph = graph,
             ),
             timeout=timeout,
             recipient=recipient,
