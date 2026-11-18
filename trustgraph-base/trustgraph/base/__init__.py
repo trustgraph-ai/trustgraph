@@ -55,4 +55,8 @@ from . receiver_pool import ReceiverPool, ConsumerRegistration
 from . sender_pool import SenderPool, ProducerHandle
 from . request_response_client import RequestResponseClient
 from . async_librarian_client import AsyncLibrarianClient
+from . concept_extraction_service import ConceptExtractionService
+from . concept_extraction_client import ConceptExtractionClientSpec
+from . knowledge_retrieval_service import KnowledgeRetrievalService
+from . knowledge_retrieval_client import KnowledgeRetrievalClientSpec
 

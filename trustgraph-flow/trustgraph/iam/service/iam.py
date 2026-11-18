@@ -81,6 +81,8 @@ _READER_CAPS = {
     "nl-sparql",
     "sparql-nl-query:read",
     "mcp",
+    "concept-extraction",
+    "knowledge-retrieval",
     "config:read",
     "flows:read",
     "collections:read",

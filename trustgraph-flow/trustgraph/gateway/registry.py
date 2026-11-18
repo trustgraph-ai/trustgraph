@@ -584,6 +584,8 @@ _FLOW_SERVICES = {
     "ontology": "ontology",
     "nl-sparql": "nl-sparql",
     "sparql-nl-query": "sparql-nl-query:read",
+    "concept-extraction": "concept-extraction",
+    "knowledge-retrieval": "knowledge-retrieval",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap, _flow_from_body)

@@ -20,3 +20,5 @@ from .decision_scoring import *
 from .field_extraction import *
 from .ontology import *
 from .nl_sparql import *
+from .concept_extraction import *
+from .knowledge_retrieval import *

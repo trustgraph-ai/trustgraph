@@ -37,6 +37,8 @@ from .translators.sparql_query import SparqlQueryRequestTranslator, SparqlQueryR
 from .translators.ontology import OntologyRequestTranslator, OntologyResponseTranslator
 from .translators.nl_sparql import QuestionToSparqlRequestTranslator, QuestionToSparqlResponseTranslator
 from .translators.sparql_nl_query import SparqlNLQueryRequestTranslator, SparqlNLQueryResponseTranslator
+from .translators.concept_extraction import ConceptExtractionRequestTranslator, ConceptExtractionResponseTranslator
+from .translators.knowledge_retrieval import KnowledgeRetrievalRequestTranslator, KnowledgeRetrievalResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -217,6 +219,18 @@ TranslatorRegistry.register_service(
     "sparql-nl-query",
     SparqlNLQueryRequestTranslator(),
     SparqlNLQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "concept-extraction",
+    ConceptExtractionRequestTranslator(),
+    ConceptExtractionResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "knowledge-retrieval",
+    KnowledgeRetrievalRequestTranslator(),
+    KnowledgeRetrievalResponseTranslator()
 )
 
 # Register single-direction translators for document loading

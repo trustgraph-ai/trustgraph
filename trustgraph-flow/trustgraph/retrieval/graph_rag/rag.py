@@ -1,7 +1,8 @@
 
 """
-Simple RAG service, performs query using graph RAG an LLM.
-Input is query, output is response.
+Graph RAG service.  Composes concept extraction, knowledge retrieval,
+document tracing, and LLM synthesis into a full retrieval-augmented
+generation pipeline.
 """
 
 import logging
@@ -11,9 +12,10 @@ from ... schema import Triples, Metadata
 from ... provenance import GRAPH_RETRIEVAL
 from . graph_rag import GraphRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from ... base import PromptClientSpec, EmbeddingsClientSpec
-from ... base import GraphEmbeddingsClientSpec, TriplesClientSpec
-from ... base import RerankerClientSpec
+from ... base import ConceptExtractionClientSpec
+from ... base import KnowledgeRetrievalClientSpec
+from ... base import TriplesClientSpec
+from ... base import PromptClientSpec
 from ... base import LibrarianSpec
 
 # Module logger
@@ -34,13 +36,9 @@ class Processor(FlowProcessor):
 
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
-        max_subgraph_size = params.get("max_subgraph_size", 150)
         max_path_length = params.get("max_path_length", 2)
         edge_limit = params.get("edge_limit", 25)
         max_reranker_input = params.get("max_reranker_input", 350)
-        max_reranker_text_length = params.get(
-            "max_reranker_text_length", 240
-        )
 
         super(Processor, self).__init__(
             **params | {
@@ -48,25 +46,17 @@ class Processor(FlowProcessor):
                 "concurrency": concurrency,
                 "entity_limit": entity_limit,
                 "triple_limit": triple_limit,
-                "max_subgraph_size": max_subgraph_size,
                 "max_path_length": max_path_length,
                 "edge_limit": edge_limit,
                 "max_reranker_input": max_reranker_input,
-                "max_reranker_text_length": max_reranker_text_length,
             }
         )
 
         self.default_entity_limit = entity_limit
         self.default_triple_limit = triple_limit
-        self.default_max_subgraph_size = max_subgraph_size
         self.default_max_path_length = max_path_length
         self.default_edge_limit = edge_limit
         self.default_max_reranker_input = max_reranker_input
-        self.default_max_reranker_text_length = max_reranker_text_length
-
-        # Workspace isolation is enforced by the flow layer (flow.workspace).
-        # Per-request caching (see GraphRag) keeps within-request state
-        # scoped; no cross-request sharing here.
 
         self.register_specification(
             ConsumerSpec(
@@ -78,16 +68,16 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            EmbeddingsClientSpec(
-                request_name = "embeddings-request",
-                response_name = "embeddings-response",
+            ConceptExtractionClientSpec(
+                request_name = "concept-extraction-request",
+                response_name = "concept-extraction-response",
             )
         )
 
         self.register_specification(
-            GraphEmbeddingsClientSpec(
-                request_name = "graph-embeddings-request",
-                response_name = "graph-embeddings-response",
+            KnowledgeRetrievalClientSpec(
+                request_name = "knowledge-retrieval-request",
+                response_name = "knowledge-retrieval-response",
             )
         )
 
@@ -102,13 +92,6 @@ class Processor(FlowProcessor):
             PromptClientSpec(
                 request_name = "prompt-request",
                 response_name = "prompt-response",
-            )
-        )
-
-        self.register_specification(
-            RerankerClientSpec(
-                request_name = "reranker-request",
-                response_name = "reranker-response",
             )
         )
 
@@ -138,18 +121,13 @@ class Processor(FlowProcessor):
 
             v = msg.value()
 
-            # Sender-produced ID
             id = msg.properties()["id"]
 
             logger.info(f"Handling input {id}...")
 
-            # Track explainability refs for end_of_session signaling
             explainability_refs_emitted = []
 
-            # Real-time explainability callback - emits triples and IDs as they're generated
-            # Triples are stored in the request's collection with a named graph (urn:graph:retrieval)
             async def send_explainability(triples, explain_id):
-                # Send triples to explainability queue - stores in same collection with named graph
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=explain_id,
@@ -158,7 +136,6 @@ class Processor(FlowProcessor):
                     triples=triples,
                 ))
 
-                # Send explain data to response queue
                 await flow("response").send(
                     GraphRagResponse(
                         message_type="explain",
@@ -171,57 +148,43 @@ class Processor(FlowProcessor):
 
                 explainability_refs_emitted.append(explain_id)
 
-            # Create new GraphRag instance per request — its label cache
-            # is request-scoped, and flow clients must not be shared
-            # across requests.
             rag = GraphRag(
-                embeddings_client=flow("embeddings-request"),
-                graph_embeddings_client=flow("graph-embeddings-request"),
+                concept_extraction_client=flow(
+                    "concept-extraction-request",
+                ),
+                knowledge_retrieval_client=flow(
+                    "knowledge-retrieval-request",
+                ),
                 triples_client=flow("triples-request"),
                 prompt_client=flow("prompt-request"),
-                reranker_client=flow("reranker-request"),
                 verbose=True,
             )
 
-            if v.entity_limit:
-                entity_limit = v.entity_limit
-            else:
-                entity_limit = self.default_entity_limit
-
-            if v.triple_limit:
-                triple_limit = v.triple_limit
-            else:
-                triple_limit = self.default_triple_limit
-
-            if v.max_subgraph_size:
-                max_subgraph_size = v.max_subgraph_size
-            else:
-                max_subgraph_size = self.default_max_subgraph_size
-
-            if v.max_path_length:
-                max_path_length = v.max_path_length
-            else:
-                max_path_length = self.default_max_path_length
-
-            if v.edge_limit:
-                edge_limit = v.edge_limit
-            else:
-                edge_limit = self.default_edge_limit
-
-            if v.max_reranker_input:
-                max_reranker_input = v.max_reranker_input
-            else:
-                max_reranker_input = self.default_max_reranker_input
+            entity_limit = (
+                v.entity_limit or self.default_entity_limit
+            )
+            triple_limit = (
+                v.triple_limit or self.default_triple_limit
+            )
+            max_path_length = (
+                v.max_path_length or self.default_max_path_length
+            )
+            edge_limit = (
+                v.edge_limit or self.default_edge_limit
+            )
+            max_reranker_input = (
+                v.max_reranker_input or self.default_max_reranker_input
+            )
 
             grounding_seeds = v.grounding_seeds or []
             graph_seeds = v.graph_seeds or []
             languages = v.languages or []
-            traversal_instructions = v.traversal_instructions or []
             graph = v.graph
 
             if grounding_seeds and graph_seeds:
                 raise ValueError(
-                    "grounding_seeds and graph_seeds are mutually exclusive"
+                    "grounding_seeds and graph_seeds are mutually "
+                    "exclusive"
                 )
 
             async def save_answer(doc_id, answer_text):
@@ -232,10 +195,7 @@ class Processor(FlowProcessor):
                     document_type="answer",
                 )
 
-            # Check if streaming is requested
             if v.streaming:
-                # Define async callback for streaming chunks
-                # Receives chunk text and end_of_stream flag from prompt client
                 async def send_chunk(chunk, end_of_stream):
                     await flow("response").send(
                         GraphRagResponse(
@@ -247,50 +207,43 @@ class Processor(FlowProcessor):
                         properties={"id": id}
                     )
 
-                # Query with streaming and real-time explain
                 response, usage, sources = await rag.query(
-                    query = v.query, collection = v.collection,
-                    entity_limit = entity_limit, triple_limit = triple_limit,
-                    max_subgraph_size = max_subgraph_size,
-                    max_path_length = max_path_length,
-                    edge_limit = edge_limit,
-                    max_reranker_input = max_reranker_input,
-                    max_reranker_text_length = self.default_max_reranker_text_length,
-                    streaming = True,
-                    chunk_callback = send_chunk,
-                    explain_callback = send_explainability,
-                    save_answer_callback = save_answer,
-                    parent_uri = v.parent_uri,
-                    user_context = v.user_context,
-                    grounding_seeds = grounding_seeds,
-                    graph_seeds = graph_seeds,
-                    languages = languages,
-                    traversal_instructions = traversal_instructions,
-                    graph = graph,
+                    query=v.query, collection=v.collection,
+                    entity_limit=entity_limit,
+                    triple_limit=triple_limit,
+                    max_path_length=max_path_length,
+                    edge_limit=edge_limit,
+                    max_reranker_input=max_reranker_input,
+                    streaming=True,
+                    chunk_callback=send_chunk,
+                    explain_callback=send_explainability,
+                    save_answer_callback=save_answer,
+                    parent_uri=v.parent_uri,
+                    user_context=v.user_context,
+                    grounding_seeds=grounding_seeds,
+                    graph_seeds=graph_seeds,
+                    languages=languages,
+                    graph=graph,
                 )
 
             else:
-                # Non-streaming path with real-time explain
                 response, usage, sources = await rag.query(
-                    query = v.query, collection = v.collection,
-                    entity_limit = entity_limit, triple_limit = triple_limit,
-                    max_subgraph_size = max_subgraph_size,
-                    max_path_length = max_path_length,
-                    edge_limit = edge_limit,
-                    max_reranker_input = max_reranker_input,
-                    max_reranker_text_length = self.default_max_reranker_text_length,
-                    explain_callback = send_explainability,
-                    save_answer_callback = save_answer,
-                    parent_uri = v.parent_uri,
-                    user_context = v.user_context,
-                    grounding_seeds = grounding_seeds,
-                    graph_seeds = graph_seeds,
-                    languages = languages,
-                    traversal_instructions = traversal_instructions,
-                    graph = graph,
+                    query=v.query, collection=v.collection,
+                    entity_limit=entity_limit,
+                    triple_limit=triple_limit,
+                    max_path_length=max_path_length,
+                    edge_limit=edge_limit,
+                    max_reranker_input=max_reranker_input,
+                    explain_callback=send_explainability,
+                    save_answer_callback=save_answer,
+                    parent_uri=v.parent_uri,
+                    user_context=v.user_context,
+                    grounding_seeds=grounding_seeds,
+                    graph_seeds=graph_seeds,
+                    languages=languages,
+                    graph=graph,
                 )
 
-                # Send single response with answer and token usage
                 await flow("response").send(
                     GraphRagResponse(
                         message_type="chunk",
@@ -306,7 +259,6 @@ class Processor(FlowProcessor):
                 )
                 return
 
-            # Streaming: send final message to close session with token usage
             await flow("response").send(
                 GraphRagResponse(
                     message_type="chunk",
@@ -324,11 +276,12 @@ class Processor(FlowProcessor):
 
         except Exception as e:
 
-            logger.error(f"Graph RAG service exception: {e}", exc_info=True)
+            logger.error(
+                f"Graph RAG service exception: {e}", exc_info=True,
+            )
 
             logger.debug("Sending error response...")
 
-            # Send error response and close session
             await flow("response").send(
                 GraphRagResponse(
                     message_type="chunk",
@@ -351,55 +304,37 @@ class Processor(FlowProcessor):
             '-e', '--entity-limit',
             type=int,
             default=50,
-            help=f'Default entity vector fetch limit (default: 50)'
+            help='Default entity vector fetch limit (default: 50)'
         )
 
         parser.add_argument(
             '-t', '--triple-limit',
             type=int,
             default=30,
-            help=f'Default triple query limit, per query (default: 30)'
-        )
-
-        parser.add_argument(
-            '-u', '--max-subgraph-size',
-            type=int,
-            default=150,
-            help=f'Default max subgraph size (default: 150)'
+            help='Default triple query limit, per query (default: 30)'
         )
 
         parser.add_argument(
             '-a', '--max-path-length',
             type=int,
             default=2,
-            help=f'Default max path length (default: 2)'
+            help='Default max path length (default: 2)'
         )
 
         parser.add_argument(
             '--edge-limit',
             type=int,
             default=25,
-            help=f'Max edges selected per hop by cross-encoder (default: 25)'
+            help='Max edges selected per hop (default: 25)'
         )
 
         parser.add_argument(
             '--max-reranker-input',
             type=int,
             default=350,
-            help=f'Max candidate edges sent to the reranker per hop (default: 350)'
+            help='Max candidate edges sent to reranker (default: 350)'
         )
-
-        parser.add_argument(
-            '--max-reranker-text-length',
-            type=int,
-            default=240,
-            help=f'Max character length of text sent to the reranker per edge (default: 240)'
-        )
-
-        # Note: Explainability triples are now stored in the request's collection
-        # with the named graph urn:graph:retrieval (no separate collection needed)
 
 def run():
 
     Processor.launch(default_ident, __doc__)
-

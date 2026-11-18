@@ -1,16 +1,10 @@
 
 import asyncio
-import hashlib
-import json
 import logging
-import math
-import time
 import uuid
-from collections import OrderedDict
 from datetime import datetime, timezone
 
 from ... schema import Term, Triple as SchemaTriple, IRI, LITERAL, TRIPLE
-from ... knowledge import Uri, Literal
 
 # Provenance imports
 from trustgraph.provenance import (
@@ -33,887 +27,56 @@ from trustgraph.provenance import (
 # Module logger
 logger = logging.getLogger(__name__)
 
-LABEL="http://www.w3.org/2000/01/rdf-schema#label"
+SKIP_PREDICATES = {
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+    TG_CONTAINS,
+    PROV_WAS_DERIVED_FROM,
+}
 
-RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#"
-OWL_NS = "http://www.w3.org/2002/07/owl#"
-RDF_TYPE = RDF_NS + "type"
-SCHEMA_NAMESPACES = (RDF_NS, RDFS_NS, OWL_NS)
-
-
-def is_schema_predicate(predicate):
-    """Return True if the predicate is an RDF/RDFS/OWL schema predicate.
-
-    rdf:type is excluded from filtering as it carries useful data signal.
-    """
-    if predicate == RDF_TYPE:
-        return False
-    return predicate.startswith(SCHEMA_NAMESPACES)
-
-
-def term_to_string(term):
-    """Extract string value from a Term object."""
-    if term is None:
-        return None
-    if term.type == IRI:
-        return term.iri
-    elif term.type == LITERAL:
-        return term.value
-    # Fallback
-    return term.iri or term.value or str(term)
-
-
-def to_term(val):
-    """Convert a Uri, Literal, or string to a schema Term.
-
-    The triples client returns Uri/Literal (str subclasses) rather than
-    Term objects. This converts them back so provenance quoted triples
-    preserve the correct type.
-    """
-    if isinstance(val, Term):
-        return val
-    if isinstance(val, Uri):
-        return Term(type=IRI, iri=str(val))
-    if isinstance(val, Literal):
-        return Term(type=LITERAL, value=str(val))
-    # Fallback: treat as IRI if it looks like one, otherwise literal
-    s = str(val)
-    if s.startswith(("http://", "https://", "urn:")):
-        return Term(type=IRI, iri=s)
-    return Term(type=LITERAL, value=s)
-
-
-def edge_id(s, p, o):
-    """Generate an 8-character hash ID for an edge (s, p, o)."""
-    edge_str = f"{s}|{p}|{o}"
-    return hashlib.sha256(edge_str.encode()).hexdigest()[:8]
-
-
-
-class LRUCacheWithTTL:
-    """LRU cache with TTL for label caching.
-
-    GraphRag instances are created per-request, so this cache is
-    request-scoped. Cache keys include the collection prefix to keep
-    entries from different collections distinct within one request.
-    """
-
-    def __init__(self, max_size=5000, ttl=300):
-        self.cache = OrderedDict()
-        self.access_times = {}
-        self.max_size = max_size
-        self.ttl = ttl
-
-    def get(self, key):
-        if key not in self.cache:
-            return None
-
-        # Check TTL expiration
-        if time.time() - self.access_times[key] > self.ttl:
-            del self.cache[key]
-            del self.access_times[key]
-            return None
-
-        # Move to end (most recently used)
-        self.cache.move_to_end(key)
-        return self.cache[key]
-
-    def put(self, key, value):
-        if key in self.cache:
-            self.cache.move_to_end(key)
-        else:
-            if len(self.cache) >= self.max_size:
-                # Remove least recently used
-                oldest_key = next(iter(self.cache))
-                del self.cache[oldest_key]
-                del self.access_times[oldest_key]
-
-        self.cache[key] = value
-        self.access_times[key] = time.time()
-
-class Query:
-
-    def __init__(
-            self, rag, collection, verbose,
-            entity_limit=50, triple_limit=30, max_subgraph_size=1000,
-            max_path_length=2, edge_limit=25, max_reranker_input=350,
-            max_reranker_text_length=240,
-            track_usage=None,
-            user_context=None,
-            grounding_seeds=None,
-            graph_seeds=None,
-            languages=None,
-            traversal_instructions=None,
-            graph=None,
-    ):
-        self.rag = rag
-        self.collection = collection
-        self.verbose = verbose
-        self.entity_limit = entity_limit
-        self.triple_limit = triple_limit
-        self.max_subgraph_size = max_subgraph_size
-        self.max_path_length = max_path_length
-        self.edge_limit = edge_limit
-        self.max_reranker_input = max_reranker_input
-        self.max_reranker_text_length = max_reranker_text_length
-        self.track_usage = track_usage
-        self.user_context = user_context
-        self.grounding_seeds = grounding_seeds or []
-        self.graph_seeds = graph_seeds or []
-        self.languages = languages or []
-        self.traversal_instructions = traversal_instructions or []
-        self.graph = graph
-
-    async def extract_concepts(self, query):
-        """Extract key concepts from query for independent embedding."""
-        result = await self.rag.prompt_client.prompt(
-            "extract-concepts",
-            variables={"query": query}
-        )
-        if self.track_usage:
-            self.track_usage(result)
-
-        concepts = []
-        if result.text:
-            for line in result.text.strip().split('\n'):
-                line = line.strip()
-                if line:
-                    concepts.append(line)
-
-        if self.verbose:
-            logger.debug(f"Extracted concepts: {concepts}")
-
-        self.concepts_usage = result
-
-        # Fall back to raw query if extraction returns nothing
-        return concepts if concepts else [query]
-
-    async def get_vectors(self, concepts):
-        """Embed multiple concepts concurrently."""
-        if self.verbose:
-            logger.debug("Computing embeddings...")
-
-        qembeds = await self.rag.embeddings_client.embed(concepts)
-
-        if self.verbose:
-            logger.debug("Done.")
-
-        return qembeds
-
-    async def get_entities(self, query):
-        """
-        Extract concepts from query, embed them, and retrieve matching entities.
-
-        When graph_seeds are provided, bypasses both grounding and entity
-        lookup — returns the seeds directly with an empty concepts list.
-        When grounding_seeds are provided, bypasses LLM concept extraction
-        but still performs entity embedding lookup.
-
-        Returns:
-            tuple: (entities, concepts) where entities is a list of entity URI
-                strings and concepts is the list of concept strings extracted
-                from the query.
-        """
-
-        if self.graph_seeds:
-            logger.info(
-                f"Using {len(self.graph_seeds)} graph seeds, "
-                "skipping grounding and entity lookup"
-            )
-            return list(self.graph_seeds), [query]
-
-        if self.grounding_seeds:
-            logger.info(
-                f"Using {len(self.grounding_seeds)} grounding seeds, "
-                "skipping LLM concept extraction"
-            )
-            concepts = list(self.grounding_seeds)
-            self.concepts_usage = None
-        else:
-            concepts = await self.extract_concepts(query)
-
-        logger.info(f"Concepts: {concepts}")
-
-        vectors = await self.get_vectors(concepts)
-
-        logger.info(f"Got {len(vectors)} embedding vectors")
-
-        # Query entity matches for each concept concurrently
-        per_concept_limit = max(
-            1, self.entity_limit // len(vectors)
-        )
-
-        entity_tasks = [
-            self.rag.graph_embeddings_client.query(
-                vector=v, limit=per_concept_limit,
-                collection=self.collection,
-            )
-            for v in vectors
-        ]
-
-        results = await asyncio.gather(*entity_tasks, return_exceptions=True)
-
-        # Deduplicate while preserving order
-        seen = set()
-        entities = []
-        embed_errors = 0
-        for result in results:
-            if isinstance(result, Exception):
-                embed_errors += 1
-                logger.warning(f"Embedding query error: {result}")
-                continue
-            if not result:
-                continue
-            for e in result:
-                entity = term_to_string(e.entity)
-                if entity not in seen:
-                    seen.add(entity)
-                    entities.append(entity)
-
-        logger.info(
-            f"Seed entities: {len(entities)} "
-            f"(from {len(results)} embedding queries, "
-            f"{embed_errors} errors)"
-        )
-        for ent in entities[:10]:
-            logger.info(f"  seed: {ent}")
-        if len(entities) > 10:
-            logger.info(f"  ... and {len(entities) - 10} more")
-
-        return entities, concepts
-
-    async def maybe_label(self, e):
-
-        cache_key = f"{self.collection}:{e}"
-
-        cached_label = self.rag.label_cache.get(cache_key)
-        if cached_label is not None:
-            return cached_label
-
-        res = await self.rag.triples_client.query(
-            s=e, p=LABEL, o=None, limit=1,
-            collection=self.collection,
-            g=self.graph if self.graph is not None else "",
-            user_context=self.user_context,
-        )
-
-        if len(res) == 0:
-            fallback = self._local_name(e)
-            self.rag.label_cache.put(cache_key, fallback)
-            return fallback
-
-        label = str(res[0].o)
-        self.rag.label_cache.put(cache_key, label)
-        return label
-
-    @staticmethod
-    def _local_name(iri):
-        pos = iri.rfind('#')
-        if pos < 0:
-            pos = iri.rfind('/')
-        if pos >= 0 and pos < len(iri) - 1:
-            return iri[pos + 1:]
-        return iri
-
-    FROM_S = "from_s"
-    FROM_P = "from_p"
-    FROM_O = "from_o"
-
-    async def execute_batch_triple_queries(
-        self, entities, limit_per_entity, graphs=None,
-    ):
-        """Execute triple queries for multiple entities concurrently.
-
-        Args:
-            entities: Entity URIs to query from.
-            limit_per_entity: Max triples per query.
-            graphs: Optional list of named graph URIs. When provided,
-                queries are issued once per graph; otherwise a single
-                query with g="" is used.
-
-        Returns a list of (triple, direction) tuples where direction
-        indicates which position the frontier entity occupied.
-        """
-        if graphs:
-            graph_list = graphs
-        elif self.graph is not None:
-            graph_list = [self.graph]
-        else:
-            graph_list = [None]
-
-        tasks = []
-        directions = []
-
-        for g in graph_list:
-            for entity in entities:
-                tasks.append(
-                    self.rag.triples_client.query_stream(
-                        s=entity, p=None, o=None,
-                        limit=limit_per_entity,
-                        collection=self.collection,
-                        batch_size=20, g=g,
-                        user_context=self.user_context,
-                    ),
-                )
-                directions.append(self.FROM_S)
-
-                tasks.append(
-                    self.rag.triples_client.query_stream(
-                        s=None, p=entity, o=None,
-                        limit=limit_per_entity,
-                        collection=self.collection,
-                        batch_size=20, g=g,
-                        user_context=self.user_context,
-                    ),
-                )
-                directions.append(self.FROM_P)
-
-                tasks.append(
-                    self.rag.triples_client.query_stream(
-                        s=None, p=None, o=entity,
-                        limit=limit_per_entity,
-                        collection=self.collection,
-                        batch_size=20, g=g,
-                        user_context=self.user_context,
-                    ),
-                )
-                directions.append(self.FROM_O)
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        all_triples = []
-        errors = []
-        empty_count = 0
-        for direction, result in zip(directions, results):
-            if isinstance(result, Exception):
-                errors.append(result)
-            elif result is not None and len(result) > 0:
-                all_triples.extend((triple, direction) for triple in result)
-            else:
-                empty_count += 1
-
-        if errors:
-            logger.error(
-                f"Triples query errors: {len(errors)} of "
-                f"{len(results)} queries failed: {errors[0]}"
-            )
-
-        logger.info(
-            f"Batch queries: {len(results)} total, "
-            f"{len(results) - errors.__len__() - empty_count} returned triples, "
-            f"{empty_count} empty, {len(errors)} errors, "
-            f"{len(all_triples)} triples total"
-        )
-
-        return all_triples
-
-    async def resolve_labels_batch(self, entities):
-        """Resolve labels for multiple entities in parallel."""
-        tasks = [self.maybe_label(entity) for entity in entities]
-        return await asyncio.gather(*tasks, return_exceptions=True)
-
-    def _matches_language(self, triple):
-        """Check if a triple's literal values match the language filter.
-
-        Returns True if no language filter is set, if the triple has no
-        literal components, or if at least one literal component matches
-        a specified language tag.
-        """
-        if not self.languages:
-            return True
-
-        lang_set = set(self.languages)
-        has_literal = False
-
-        for val in (triple.s, triple.o):
-            if hasattr(val, 'language'):
-                has_literal = True
-                lang = val.language if val.language is not None else ""
-                if lang in lang_set:
-                    return True
-            elif hasattr(val, 'value'):
-                has_literal = True
-                if "" in lang_set:
-                    return True
-
-        # No literals in this triple — let it through
-        return not has_literal
-
-    async def _get_types_for_entities(self, entities):
-        """Look up rdf:type for a batch of entities.
-
-        Returns a dict mapping entity URI -> set of type IRIs.
-        """
-        tasks = [
-            self.rag.triples_client.query(
-                s=e, p=RDF_TYPE, o=None, limit=20,
-                collection=self.collection,
-                g=self.graph if self.graph is not None else "",
-                user_context=self.user_context,
-            )
-            for e in entities
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        type_map = {}
-        for entity, result in zip(entities, results):
-            types = set()
-            if not isinstance(result, Exception) and result:
-                for triple in result:
-                    types.add(str(triple.o))
-            type_map[entity] = types
-
-        return type_map
-
-    async def hop_and_filter(self, seed_entities, concepts):
-        """Iterative hop-and-filter graph traversal with cross-encoder.
-
-        At each hop:
-        1. Retrieve all edges one hop from the frontier.
-        2. Apply traversal instruction filters (relationship, type, graph).
-        3. Apply language filters.
-        4. Resolve labels and represent each edge as "{p} {o}".
-        5. Score edges against concepts using the cross-encoder.
-        6. Select the top edges; their target nodes become the next
-           frontier.
-
-        Returns:
-            tuple: (selected_edges, uri_map, edge_metadata) where:
-                - selected_edges: list of (label_s, label_p, label_o)
-                - uri_map: dict mapping edge_id -> (Term, Term, Term)
-                - edge_metadata: dict mapping edge_id -> {concept, score}
-        """
-        all_selected_edges = []
-        uri_map = {}
-        edge_metadata = {}
-        frontier = set(seed_entities)
-        visited_entities = set()
-        seen_edges = set()
-
-        logger.info(
-            f"hop_and_filter: {len(seed_entities)} seed entities, "
-            f"{len(concepts)} concepts, "
-            f"max_path_length={self.max_path_length}"
-        )
-
-        # Apply initial type restriction from traversal instructions
-        # (first step can only be a type restriction)
-        if self.traversal_instructions:
-            step0 = self.traversal_instructions[0]
-            if step0.types:
-                before = len(frontier)
-                type_map = await self._get_types_for_entities(
-                    list(frontier)
-                )
-                allowed = set(step0.types)
-                frontier = {
-                    e for e in frontier
-                    if type_map.get(e, set()) & allowed
-                }
-                logger.info(
-                    f"Type filter on seeds: {before} -> {len(frontier)} "
-                    f"(restricted to {step0.types})"
-                )
-
-        for hop in range(self.max_path_length):
-            if not frontier:
-                break
-
-            unvisited = [e for e in frontier if e not in visited_entities]
-            if not unvisited:
-                logger.info(f"Hop {hop + 1}: no unvisited frontier, stopping")
-                break
-
-            logger.info(
-                f"Hop {hop + 1}: {len(unvisited)} unvisited frontier entities "
-                f"(of {len(frontier)} total, {len(visited_entities)} visited)"
-            )
-
-            # Get traversal instruction for this hop (offset by 1 since
-            # step 0 was the seed type filter)
-            ti_index = hop + 1
-            hop_instruction = None
-            if (
-                self.traversal_instructions
-                and ti_index < len(self.traversal_instructions)
-            ):
-                hop_instruction = self.traversal_instructions[ti_index]
-
-            # Retrieve edges one hop from frontier
-            hop_graphs = (
-                hop_instruction.graphs
-                if hop_instruction and hop_instruction.graphs
-                else None
-            )
-            triples = await self.execute_batch_triple_queries(
-                unvisited, self.triple_limit, graphs=hop_graphs,
-            )
-
-            logger.info(
-                f"Hop {hop + 1}: {len(triples)} raw triples from "
-                f"{len(unvisited)} frontier entities"
-            )
-
-            # Deduplicate and filter already-seen edges
-            hop_triples = []
-            hop_term_map = {}
-            hop_directions = {}
-            skip_lang = 0
-            skip_schema = 0
-            skip_seen = 0
-            skip_rel = 0
-            for triple, direction in triples:
-                # Language filter
-                if not self._matches_language(triple):
-                    skip_lang += 1
-                    continue
-
-                triple_tuple = (str(triple.s), str(triple.p), str(triple.o))
-                if is_schema_predicate(triple_tuple[1]):
-                    skip_schema += 1
-                    continue
-                if triple_tuple in seen_edges:
-                    skip_seen += 1
-                    continue
-
-                # Relationship restriction
-                if hop_instruction and hop_instruction.relationships:
-                    if triple_tuple[1] not in hop_instruction.relationships:
-                        skip_rel += 1
-                        continue
-
-                seen_edges.add(triple_tuple)
-                hop_triples.append(triple_tuple)
-                hop_term_map[triple_tuple] = (
-                    to_term(triple.s), to_term(triple.p), to_term(triple.o),
-                )
-                hop_directions[triple_tuple] = direction
-
-            logger.info(
-                f"Hop {hop + 1}: {len(hop_triples)} edges after filtering "
-                f"(from {len(triples)} raw, skipped: "
-                f"lang={skip_lang} schema={skip_schema} "
-                f"seen={skip_seen} rel={skip_rel})"
-            )
-            if hop_triples:
-                for t in hop_triples[:5]:
-                    logger.info(f"  edge: {t[0][:60]} | {t[1][:60]} | {t[2][:60]}")
-                if len(hop_triples) > 5:
-                    logger.info(f"  ... and {len(hop_triples) - 5} more")
-
-            if not hop_triples:
-                visited_entities.update(frontier)
-                break
-
-            # Resolve labels for all entities in hop edges
-            entities_to_resolve = set()
-            for s, p, o in hop_triples:
-                entities_to_resolve.update([s, p, o])
-
-            entity_list = list(entities_to_resolve)
-            resolved = await self.resolve_labels_batch(entity_list)
-
-            label_map = {}
-            label_errors = 0
-            for entity, label in zip(entity_list, resolved):
-                if not isinstance(label, Exception):
-                    label_map[entity] = label
-                else:
-                    label_errors += 1
-                    label_map[entity] = entity
-
-            logger.info(
-                f"Hop {hop + 1}: resolved {len(entity_list)} labels "
-                f"({label_errors} errors)"
-            )
-
-            # Build labeled edges and documents for cross-encoder.
-            # The reranker text highlights the NEW information relative
-            # to the traversal direction: arriving from S means p,o are
-            # new; from O means s,p are new; from P means s,o are new.
-            filtered_triples = []
-            labeled_hop = []
-            documents = []
-            for s, p, o in hop_triples:
-                ls = label_map.get(s, s)
-                lp = label_map.get(p, p)
-                lo = label_map.get(o, o)
-
-                direction = hop_directions[(s, p, o)]
-                if direction == self.FROM_S:
-                    text = f"{lp} {lo}"
-                elif direction == self.FROM_O:
-                    text = f"{ls} {lp}"
-                else:
-                    text = f"{ls} {lo}"
-
-                if len(text) > self.max_reranker_text_length:
-                    text = text[:self.max_reranker_text_length]
-
-                idx = len(filtered_triples)
-                filtered_triples.append((s, p, o))
-                labeled_hop.append((ls, lp, lo))
-                documents.append({"id": str(idx), "text": text})
-
-            hop_triples = filtered_triples
-
-            logger.info(
-                f"Hop {hop + 1}: {len(documents)} documents for reranker"
-            )
-            for doc in documents[:5]:
-                logger.info(f"  doc: {doc['text'][:80]}")
-            if len(documents) > 5:
-                logger.info(f"  ... and {len(documents) - 5} more")
-
-            # Cap the number of candidates sent to the reranker
-            if len(hop_triples) > self.max_reranker_input:
-                logger.info(
-                    f"Hop {hop + 1}: truncating {len(hop_triples)} "
-                    f"candidates to {self.max_reranker_input}"
-                )
-                hop_triples = hop_triples[:self.max_reranker_input]
-                labeled_hop = labeled_hop[:self.max_reranker_input]
-                documents = documents[:self.max_reranker_input]
-
-            queries = [
-                {"id": str(i), "text": c}
-                for i, c in enumerate(concepts)
-            ]
-
-            # Score with cross-encoder
-            results = await self.rag.reranker_client.rerank(
-                queries=queries,
-                documents=documents,
-                limit=self.edge_limit,
-            )
-
-            logger.info(
-                f"Hop {hop + 1}: reranker returned {len(results)} edges"
-            )
-
-            # Collect selected edges and metadata
-            next_frontier = set()
-            for r in results:
-                idx = int(r.document_id)
-                ls, lp, lo = labeled_hop[idx]
-                s, p, o = hop_triples[idx]
-                eid = edge_id(ls, lp, lo)
-
-                all_selected_edges.append((ls, lp, lo))
-                uri_map[eid] = hop_term_map[(s, p, o)]
-                edge_metadata[eid] = {
-                    "concept": concepts[int(r.query_id)],
-                    "score": r.score,
-                }
-
-                # Target nodes become next frontier
-                next_frontier.add(s)
-                next_frontier.add(o)
-
-            for r in results[:5]:
-                idx = int(r.document_id)
-                ls, lp, lo = labeled_hop[idx]
-                logger.info(
-                    f"  selected: {r.score:.4f} "
-                    f"{ls[:40]} | {lp[:40]} | {lo[:40]}"
-                )
-
-            visited_entities.update(frontier)
-            frontier = next_frontier - visited_entities
-
-            logger.info(
-                f"Hop {hop + 1}: next frontier {len(frontier)} entities"
-            )
-
-            # Apply type restriction for the next hop's frontier
-            if hop_instruction and hop_instruction.types:
-                before = len(frontier)
-                type_map = await self._get_types_for_entities(
-                    list(frontier)
-                )
-                allowed = set(hop_instruction.types)
-                frontier = {
-                    e for e in frontier
-                    if type_map.get(e, set()) & allowed
-                }
-                logger.info(
-                    f"Hop {hop + 1}: type filter {before} -> {len(frontier)}"
-                )
-
-        logger.info(
-            f"hop_and_filter complete: {len(all_selected_edges)} total edges"
-        )
-
-        return all_selected_edges, uri_map, edge_metadata
-
-    async def trace_source_documents(self, edge_uris):
-        """
-        Trace selected edges back to their source documents via provenance.
-
-        Follows the chain: edge -> subgraph (via tg:contains) -> chunk ->
-        page -> document (via prov:wasDerivedFrom), all in urn:graph:source.
-
-        Args:
-            edge_uris: List of (s, p, o) URI string tuples
-
-        Returns:
-            (doc_edges, sources): document metadata edges as (s, p, o)
-            string tuples, and per-document source references as
-            {"uri", "title"} dicts sorted by uri
-        """
-        # Step 1: Find subgraphs containing these edges via tg:contains
-        subgraph_tasks = []
-        for s, p, o in edge_uris:
-            s_term = s if isinstance(s, Term) else Term(type=IRI, iri=s)
-            p_term = p if isinstance(p, Term) else Term(type=IRI, iri=p)
-            o_term = o if isinstance(o, Term) else Term(type=IRI, iri=o)
-            quoted = Term(
-                type=TRIPLE,
-                triple=SchemaTriple(
-                    s=s_term, p=p_term, o=o_term,
-                )
-            )
-            subgraph_tasks.append(
-                self.rag.triples_client.query(
-                    s=None, p=TG_CONTAINS, o=quoted, limit=1,
-                    collection=self.collection,
-                    g=GRAPH_SOURCE,
-                    user_context=self.user_context,
-                )
-            )
-
-        subgraph_results = await asyncio.gather(
-            *subgraph_tasks, return_exceptions=True
-        )
-
-        # Collect unique subgraph URIs
-        subgraph_uris = set()
-        for result in subgraph_results:
-            if isinstance(result, Exception) or not result:
-                continue
-            for triple in result:
-                subgraph_uris.add(str(triple.s))
-
-        if not subgraph_uris:
-            return [], []
-
-        # Step 2: Walk prov:wasDerivedFrom chain to find documents
-        current_uris = subgraph_uris
-        doc_uris = set()
-
-        for depth in range(4):
-            if not current_uris:
-                break
-
-            derivation_tasks = [
-                self.rag.triples_client.query(
-                    s=uri, p=PROV_WAS_DERIVED_FROM, o=None, limit=5,
-                    collection=self.collection,
-                    g=GRAPH_SOURCE,
-                    user_context=self.user_context,
-                )
-                for uri in current_uris
-            ]
-
-            derivation_results = await asyncio.gather(
-                *derivation_tasks, return_exceptions=True
-            )
-
-            next_uris = set()
-            for uri, result in zip(current_uris, derivation_results):
-                if isinstance(result, Exception) or not result:
-                    doc_uris.add(uri)
-                    continue
-                for triple in result:
-                    next_uris.add(str(triple.o))
-
-            current_uris = next_uris - doc_uris
-
-        if not doc_uris:
-            return [], []
-
-        # Step 3: Get all document metadata properties
-        SKIP_PREDICATES = {
-            PROV_WAS_DERIVED_FROM,
-            "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
-        }
-
-        sorted_doc_uris = sorted(doc_uris)
-
-        metadata_tasks = [
-            self.rag.triples_client.query(
-                s=uri, p=None, o=None, limit=50,
-                collection=self.collection,
-                user_context=self.user_context,
-            )
-            for uri in sorted_doc_uris
-        ]
-
-        metadata_results = await asyncio.gather(
-            *metadata_tasks, return_exceptions=True
-        )
-
-        doc_edges = []
-        sources = []
-        for uri, result in zip(sorted_doc_uris, metadata_results):
-            title = ""
-            if not isinstance(result, Exception) and result:
-                for triple in result:
-                    p = str(triple.p)
-                    if p in SKIP_PREDICATES:
-                        continue
-                    doc_edges.append((
-                        str(triple.s), p, str(triple.o)
-                    ))
-                    if p == DC_TITLE or (p == RDFS_LABEL and not title):
-                        title = str(triple.o)
-            sources.append({"uri": uri, "title": title})
-
-        return doc_edges, sources
 
 class GraphRag:
     """
-    Must be instantiated per-request so the label cache lives only for
-    the duration of a single request. Workspace isolation is enforced
+    Graph RAG pipeline composed from concept extraction and knowledge
+    retrieval services.  Performs:
+
+    1. Concept extraction (via service)
+    2. Knowledge retrieval (via service)
+    3. Document tracing (local, uses triples client)
+    4. Synthesis (via prompt service)
+    5. Explainability (emitted throughout)
+
+    Must be instantiated per-request.  Workspace isolation is enforced
     by the trusted flow layer (flow.workspace), not by this class.
     """
 
     def __init__(
-            self, prompt_client, embeddings_client, graph_embeddings_client,
-            triples_client, reranker_client, verbose=False,
+            self, concept_extraction_client, knowledge_retrieval_client,
+            triples_client, prompt_client,
+            verbose=False,
     ):
-
         self.verbose = verbose
-
-        self.prompt_client = prompt_client
-        self.embeddings_client = embeddings_client
-        self.graph_embeddings_client = graph_embeddings_client
+        self.concept_extraction_client = concept_extraction_client
+        self.knowledge_retrieval_client = knowledge_retrieval_client
         self.triples_client = triples_client
-        self.reranker_client = reranker_client
-
-        self.label_cache = LRUCacheWithTTL(max_size=5000, ttl=300)
+        self.prompt_client = prompt_client
 
         if self.verbose:
             logger.debug("GraphRag initialized")
 
     async def query(
-            self, query, collection = "default",
-            entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
-            max_path_length = 2, edge_limit = 25, max_reranker_input = 350,
-            max_reranker_text_length = 240,
-            streaming = False,
-            chunk_callback = None,
-            explain_callback = None, save_answer_callback = None,
-            parent_uri = "",
-            user_context = None,
-            grounding_seeds = None,
-            graph_seeds = None,
-            languages = None,
-            traversal_instructions = None,
-            graph = None,
+            self, query, collection="default",
+            entity_limit=50, triple_limit=30,
+            max_path_length=2, edge_limit=25, max_reranker_input=350,
+            streaming=False,
+            chunk_callback=None,
+            explain_callback=None, save_answer_callback=None,
+            parent_uri="",
+            user_context=None,
+            grounding_seeds=None,
+            graph_seeds=None,
+            languages=None,
+            graph=None,
     ):
-        # Accumulate token usage across all prompt calls
         total_in = 0
         total_out = 0
         last_model = None
@@ -931,7 +94,6 @@ class GraphRag:
         if self.verbose:
             logger.debug("Constructing prompt...")
 
-        # Generate explainability URIs upfront
         session_id = str(uuid.uuid4())
         q_uri = question_uri(session_id)
         gnd_uri = make_grounding_uri(session_id)
@@ -943,7 +105,6 @@ class GraphRag:
             "+00:00", "Z",
         )
 
-        # Emit question explainability immediately
         if explain_callback:
             q_triples = set_graph(
                 question_triples(
@@ -954,96 +115,88 @@ class GraphRag:
             )
             await explain_callback(q_triples, q_uri)
 
-        q = Query(
-            rag = self, collection = collection,
-            verbose = self.verbose, entity_limit = entity_limit,
-            triple_limit = triple_limit,
-            max_subgraph_size = max_subgraph_size,
-            max_path_length = max_path_length,
-            edge_limit = edge_limit,
-            max_reranker_input = max_reranker_input,
-            max_reranker_text_length = max_reranker_text_length,
-            track_usage = track_usage,
-            user_context = user_context,
-            grounding_seeds = grounding_seeds,
-            graph_seeds = graph_seeds,
-            languages = languages,
-            traversal_instructions = traversal_instructions,
-            graph = graph,
-        )
+        # Step 1: Concept extraction
+        if graph_seeds:
+            logger.info(
+                f"Using {len(graph_seeds)} graph seeds, "
+                "skipping concept extraction"
+            )
+            concepts = []
+            entities = list(graph_seeds)
+        elif grounding_seeds:
+            logger.info(
+                f"Using {len(grounding_seeds)} grounding seeds"
+            )
+            concepts = list(grounding_seeds)
+            entities = []
+        else:
+            concepts = await self.concept_extraction_client.extract(
+                query, timeout=300,
+            )
+            entities = []
+            logger.info(f"Extracted concepts: {concepts}")
 
-        # Step 1: Extract concepts and find seed entities
-        seed_entities, concepts = await q.get_entities(query)
-
-        # Emit grounding explain after concept extraction
         if explain_callback:
-            cu = getattr(q, 'concepts_usage', None)
             gnd_triples = set_graph(
                 grounding_triples(
-                    gnd_uri, q_uri, concepts,
-                    in_token=cu.in_token if cu else None,
-                    out_token=cu.out_token if cu else None,
-                    model=cu.model if cu else None,
+                    gnd_uri, q_uri, concepts or [query],
                 ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(gnd_triples, gnd_uri)
 
-        # Step 2: Iterative hop-and-filter with cross-encoder
-        selected_edges, uri_map, edge_metadata = await q.hop_and_filter(
-            seed_entities, concepts,
+        # Step 2: Knowledge retrieval
+        kr_resp = await self.knowledge_retrieval_client.retrieve(
+            concepts=concepts or None,
+            entities=entities or None,
+            entity_limit=entity_limit,
+            triple_limit=triple_limit,
+            max_path_length=max_path_length,
+            edge_limit=edge_limit,
+            max_reranker_input=max_reranker_input,
+            languages=languages or [],
+            graph=graph or "",
+            timeout=300,
         )
 
-        # Emit exploration explain
+        seed_entities = kr_resp.seed_entities
+        edges = kr_resp.edges
+
         if explain_callback:
             exp_triples = set_graph(
                 exploration_triples(
-                    exp_uri, gnd_uri, len(selected_edges),
+                    exp_uri, gnd_uri, len(edges),
                     entities=seed_entities,
                 ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(exp_triples, exp_uri)
 
-        logger.info(f"Final: {len(selected_edges)} selected edges")
-        for s, p, o in selected_edges[:10]:
-            eid = edge_id(s, p, o)
-            meta = edge_metadata.get(eid, {})
-            logger.info(
-                f"  {meta.get('score', 0):.4f} "
-                f"[{meta.get('concept', '')}] "
-                f"{s} | {p} | {o}"
-            )
+        logger.info(f"Knowledge retrieval: {len(edges)} edges")
 
-        # Step 3: Document tracing
-        selected_edge_uris = [
-            uri_map[edge_id(s, p, o)]
-            for s, p, o in selected_edges
-            if edge_id(s, p, o) in uri_map
+        # Build edge data for synthesis and explainability
+        selected_edges = [
+            (e.s_label, e.p_label, e.o_label)
+            for e in edges
         ]
 
-        try:
-            source_documents, sources = await q.trace_source_documents(
-                selected_edge_uris,
-            )
-        except Exception as e:
-            logger.warning(f"Document tracing failed: {e}")
-            source_documents, sources = [], []
+        selected_edges_with_reasoning = [
+            {
+                "edge": (
+                    Term(type=IRI, iri=e.s),
+                    Term(type=IRI, iri=e.p),
+                    Term(type=IRI, iri=e.o),
+                ),
+                "concept": e.concept,
+                "score": e.score,
+            }
+            for e in edges
+        ]
 
-        # Build focus explainability data with cross-encoder metadata
-        selected_edges_with_reasoning = []
-        for s, p, o in selected_edges:
-            eid = edge_id(s, p, o)
-            if eid in uri_map:
-                uri_s, uri_p, uri_o = uri_map[eid]
-                meta = edge_metadata.get(eid, {})
-                selected_edges_with_reasoning.append({
-                    "edge": (uri_s, uri_p, uri_o),
-                    "concept": meta.get("concept", ""),
-                    "score": meta.get("score", 0),
-                })
+        edge_uris = [
+            (e.s, e.p, e.o) for e in edges
+        ]
 
-        # Emit focus explain
         if explain_callback:
             foc_triples = set_graph(
                 focus_triples(
@@ -1053,6 +206,15 @@ class GraphRag:
                 GRAPH_RETRIEVAL
             )
             await explain_callback(foc_triples, foc_uri)
+
+        # Step 3: Document tracing
+        try:
+            source_documents, sources = await self.trace_source_documents(
+                edge_uris, collection, graph, user_context,
+            )
+        except Exception as e:
+            logger.warning(f"Document tracing failed: {e}")
+            source_documents, sources = [], []
 
         # Step 4: Synthesis
         selected_edge_dicts = [
@@ -1096,15 +258,18 @@ class GraphRag:
         if self.verbose:
             logger.debug("Query processing complete")
 
-        # Emit synthesis explain
         if explain_callback:
             synthesis_doc_id = None
             answer_text = resp if resp else ""
 
             if save_answer_callback and answer_text:
-                synthesis_doc_id = f"urn:trustgraph:synthesis:{session_id}"
+                synthesis_doc_id = (
+                    f"urn:trustgraph:synthesis:{session_id}"
+                )
                 try:
-                    await save_answer_callback(synthesis_doc_id, answer_text)
+                    await save_answer_callback(
+                        synthesis_doc_id, answer_text,
+                    )
                     if self.verbose:
                         logger.debug(
                             f"Saved answer to librarian: "
@@ -1147,3 +312,107 @@ class GraphRag:
         }
 
         return resp, usage, sources
+
+    async def trace_source_documents(
+        self, edge_uris, collection, graph, user_context,
+    ):
+        """Trace selected edges back to source documents via provenance."""
+
+        subgraph_tasks = []
+        for s, p, o in edge_uris:
+            s_term = Term(type=IRI, iri=s) if isinstance(s, str) else s
+            p_term = Term(type=IRI, iri=p) if isinstance(p, str) else p
+            o_term = Term(type=IRI, iri=o) if isinstance(o, str) else o
+            quoted = Term(
+                type=TRIPLE,
+                triple=SchemaTriple(
+                    s=s_term, p=p_term, o=o_term,
+                )
+            )
+            subgraph_tasks.append(
+                self.triples_client.query(
+                    s=None, p=TG_CONTAINS, o=quoted, limit=1,
+                    collection=collection,
+                    g=GRAPH_SOURCE,
+                    user_context=user_context,
+                )
+            )
+
+        subgraph_results = await asyncio.gather(
+            *subgraph_tasks, return_exceptions=True
+        )
+
+        subgraph_uris = set()
+        for result in subgraph_results:
+            if isinstance(result, Exception) or not result:
+                continue
+            for triple in result:
+                subgraph_uris.add(str(triple.s))
+
+        if not subgraph_uris:
+            return [], []
+
+        current_uris = subgraph_uris
+        doc_uris = set()
+
+        for depth in range(4):
+            if not current_uris:
+                break
+
+            derivation_tasks = [
+                self.triples_client.query(
+                    s=uri, p=PROV_WAS_DERIVED_FROM, o=None, limit=5,
+                    collection=collection,
+                    g=GRAPH_SOURCE,
+                    user_context=user_context,
+                )
+                for uri in current_uris
+            ]
+
+            derivation_results = await asyncio.gather(
+                *derivation_tasks, return_exceptions=True
+            )
+
+            next_uris = set()
+            for uri, result in zip(current_uris, derivation_results):
+                if isinstance(result, Exception) or not result:
+                    doc_uris.add(uri)
+                    continue
+                for triple in result:
+                    next_uris.add(str(triple.o))
+
+            current_uris = next_uris
+
+        doc_uris.update(current_uris)
+
+        metadata_tasks = [
+            self.triples_client.query(
+                s=uri, p=None, o=None, limit=50,
+                collection=collection,
+                g=GRAPH_SOURCE,
+                user_context=user_context,
+            )
+            for uri in doc_uris
+        ]
+
+        metadata_results = await asyncio.gather(
+            *metadata_tasks, return_exceptions=True
+        )
+
+        doc_edges = []
+        sources = []
+        for uri, result in zip(doc_uris, metadata_results):
+            title = ""
+            if not isinstance(result, Exception) and result:
+                for triple in result:
+                    p = str(triple.p)
+                    if p in SKIP_PREDICATES:
+                        continue
+                    doc_edges.append((
+                        str(triple.s), p, str(triple.o)
+                    ))
+                    if p == DC_TITLE or (p == RDFS_LABEL and not title):
+                        title = str(triple.o)
+            sources.append({"uri": uri, "title": title})
+
+        return doc_edges, sources
