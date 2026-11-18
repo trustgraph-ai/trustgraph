@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+
+"""
+Loads sample execution policy rules into config for a workspace.
+"""
+
+import os
+import sys
+from trustgraph.api import Api
+from trustgraph.api.types import ConfigValue
+
+url = os.getenv("TRUSTGRAPH_URL", "http://localhost:8888/")
+token = os.getenv("TRUSTGRAPH_TOKEN", None)
+workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
+
+# Rule 1: Fraud data is only visible to finance-fraud-team.
+# Targets any artifact with classification "fraud-investigation".
+# If the principal doesn't have the required role, verdict is FILTER + SILENT.
+
+FRAUD_DATA_RULE = """\
+@prefix sh:         <http://www.w3.org/ns/shacl#> .
+@prefix rdf:        <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:       <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:        <http://www.w3.org/2001/XMLSchema#> .
+@prefix tg-exec:    <https://trustgraph.ai/ontology/exec/> .
+@prefix tg-exec-pol: <https://trustgraph.ai/ontology/exec-pol/> .
+@prefix tg-uc:      <https://trustgraph.ai/ns/user-context/> .
+
+<urn:tg:policy:fraud-data-filter>
+    a sh:NodeShape ;
+    rdfs:label "Fraud data classification filter" ;
+    sh:order 10 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select \"\"\"
+            SELECT ?this
+            WHERE {
+                ?this tg-exec:classification "fraud-investigation" .
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:role "finance-fraud-team" .
+                }
+            }
+        \"\"\"
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct \"\"\"
+            CONSTRUCT {
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape <urn:tg:policy:fraud-data-filter> ;
+                    sh:resultMessage "Fraud investigation data restricted to finance-fraud-team" ;
+                    tg-exec-pol:verdict tg-exec-pol:Filter ;
+                    tg-exec-pol:disclosure tg-exec-pol:Silent .
+            }
+            WHERE { }
+        \"\"\"
+    ] .
+"""
+
+# Rule 2: External API calls require approval in production.
+# Targets steps invoking capabilities of type "tool".
+# If workspace is "production", verdict is REQUIRE_APPROVAL + OPAQUE.
+
+EXTERNAL_API_APPROVAL = """\
+@prefix sh:         <http://www.w3.org/ns/shacl#> .
+@prefix rdf:        <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:       <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:        <http://www.w3.org/2001/XMLSchema#> .
+@prefix tg-exec:    <https://trustgraph.ai/ontology/exec/> .
+@prefix tg-exec-pol: <https://trustgraph.ai/ontology/exec-pol/> .
+@prefix tg-uc:      <https://trustgraph.ai/ns/user-context/> .
+
+<urn:tg:policy:prod-external-api-approval>
+    a sh:NodeShape ;
+    rdfs:label "Production external API approval" ;
+    sh:order 20 ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select \"\"\"
+            SELECT ?this
+            WHERE {
+                ?this a tg-exec:Step .
+                ?this tg-exec:capabilityType "tool" .
+                ?ctx a tg-uc:UserContext ;
+                     tg-uc:workspace "production" .
+            }
+        \"\"\"
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct \"\"\"
+            CONSTRUCT {
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape <urn:tg:policy:prod-external-api-approval> ;
+                    sh:resultMessage "External tool calls in production require approval" ;
+                    tg-exec-pol:verdict tg-exec-pol:RequireApproval ;
+                    tg-exec-pol:disclosure tg-exec-pol:Opaque .
+            }
+            WHERE { }
+        \"\"\"
+    ] .
+"""
+
+# Rule 3: PII data must be redacted for non-admin roles.
+# Uses sh:targetClass for TabularArtifact — simple target, no SPARQL.
+
+PII_REDACTION = """\
+@prefix sh:         <http://www.w3.org/ns/shacl#> .
+@prefix rdf:        <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:       <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:        <http://www.w3.org/2001/XMLSchema#> .
+@prefix tg-exec:    <https://trustgraph.ai/ontology/exec/> .
+@prefix tg-exec-pol: <https://trustgraph.ai/ontology/exec-pol/> .
+@prefix tg-uc:      <https://trustgraph.ai/ns/user-context/> .
+
+<urn:tg:policy:pii-redaction>
+    a sh:NodeShape ;
+    rdfs:label "PII redaction for non-admin" ;
+    sh:order 5 ;
+    sh:targetClass tg-exec:TabularArtifact ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct \"\"\"
+            CONSTRUCT {
+                _:result a sh:ValidationResult ;
+                    sh:focusNode $this ;
+                    sh:sourceShape <urn:tg:policy:pii-redaction> ;
+                    sh:resultMessage "PII columns redacted for non-admin users" ;
+                    tg-exec-pol:verdict tg-exec-pol:Filter ;
+                    tg-exec-pol:disclosure tg-exec-pol:Transparent ;
+                    tg-exec-pol:affectedField "employee_ssn" ;
+                    tg-exec-pol:redactionMethod tg-exec-pol:Mask .
+            }
+            WHERE {
+                $this tg-exec:containsPII "true" .
+                ?ctx a tg-uc:UserContext .
+                FILTER NOT EXISTS {
+                    ?ctx tg-uc:role "admin" .
+                }
+            }
+        \"\"\"
+    ] .
+"""
+
+RULES = {
+    "fraud-data-filter": FRAUD_DATA_RULE,
+    "prod-external-api-approval": EXTERNAL_API_APPROVAL,
+    "pii-redaction": PII_REDACTION,
+}
+
+try:
+    api = Api(url=url, token=token, workspace=workspace)
+    config = api.config()
+
+    values = [
+        ConfigValue(
+            type="execution-policy-rule",
+            key=key,
+            value=rule,
+        )
+        for key, rule in RULES.items()
+    ]
+
+    config.put(values)
+
+    print(
+        f"Loaded {len(values)} execution policy rules "
+        f"into workspace '{workspace}'"
+    )
+
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)

@@ -189,6 +189,16 @@ class PromptClient:
             timeout = timeout,
         )
 
+    async def plan(self, goal, capabilities, timeout=None):
+        return await self.prompt(
+            id = "planner",
+            variables = {
+                "goal": goal,
+                "capabilities": capabilities,
+            },
+            timeout = timeout,
+        )
+
 class PromptClientSpec(RequestResponseSpec):
 
     timeout_param = "prompt_timeout"

@@ -586,6 +586,10 @@ _FLOW_SERVICES = {
     "sparql-nl-query": "sparql-nl-query:read",
     "concept-extraction": "concept-extraction",
     "knowledge-retrieval": "knowledge-retrieval",
+    "planner": "planner",
+    "verification": "verification",
+    "policy": "policy",
+    "action": "action",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap, _flow_from_body)

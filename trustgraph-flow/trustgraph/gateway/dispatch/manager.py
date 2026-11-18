@@ -47,6 +47,10 @@ from . decision_scoring import DecisionScoringRequestor
 from . field_extraction import FieldExtractionRequestor
 from . concept_extraction import ConceptExtractionRequestor
 from . knowledge_retrieval import KnowledgeRetrievalRequestor
+from . planner import PlannerRequestor
+from . verification import VerificationRequestor
+from . policy_engine import PolicyEngineRequestor
+from . action import ActionRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -95,6 +99,10 @@ request_response_dispatchers = {
     "sparql-nl-query": SparqlNLQueryRequestor,
     "concept-extraction": ConceptExtractionRequestor,
     "knowledge-retrieval": KnowledgeRetrievalRequestor,
+    "planner": PlannerRequestor,
+    "verification": VerificationRequestor,
+    "policy": PolicyEngineRequestor,
+    "action": ActionRequestor,
 }
 
 system_dispatchers = {

@@ -1,0 +1,124 @@
+# Capability definitions for the Financial Spend Review flow trace
+# (execution-core-flow-trace.md, Use Case 1).
+#
+# These are example registrations — the kind of data a workspace would
+# hold in its capability registry for the Planner to browse.
+
+@prefix tg-exec: <https://trustgraph.ai/ontology/exec/> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix cap:     <urn:tg:capability:> .
+@prefix port:    <urn:tg:port:> .
+
+# ── Source capabilities (no input ports) ────────────────────────────
+
+cap:erp-finance-query a tg-exec:Capability ;
+    tg-exec:capabilityId  "erp-finance-query" ;
+    tg-exec:capabilityType tg-exec:tool ;
+    rdfs:label   "ERP Finance Query" ;
+    rdfs:comment "Queries the ERP system for financial data — invoices, budgets, cost centres. The query is passed as a step parameter." ;
+    tg-exec:emitsOutput port:erp-finance-query-out .
+
+port:erp-finance-query-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:TabularArtifact ;
+    tg-exec:required     true .
+
+
+cap:knowledge-graph-query a tg-exec:Capability ;
+    tg-exec:capabilityId  "knowledge-graph-query" ;
+    tg-exec:capabilityType tg-exec:retrieval ;
+    rdfs:label   "Knowledge Graph Query" ;
+    rdfs:comment "Queries the workspace knowledge graph via SPARQL or semantic search. Returns matching triples as a subgraph." ;
+    tg-exec:emitsOutput port:knowledge-graph-query-out .
+
+port:knowledge-graph-query-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:SubgraphArtifact ;
+    tg-exec:required     true .
+
+
+cap:document-retrieval a tg-exec:Capability ;
+    tg-exec:capabilityId  "document-retrieval" ;
+    tg-exec:capabilityType tg-exec:retrieval ;
+    rdfs:label   "Document Retrieval" ;
+    rdfs:comment "Retrieves documents or document chunks by semantic or keyword search." ;
+    tg-exec:emitsOutput port:document-retrieval-out .
+
+port:document-retrieval-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:TextBlobArtifact ;
+    tg-exec:required     true .
+
+
+# ── Transform capabilities ──────────────────────────────────────────
+
+cap:tabular-redact a tg-exec:Capability ;
+    tg-exec:capabilityId  "tabular-redact" ;
+    tg-exec:capabilityType tg-exec:redactor ;
+    rdfs:label   "Tabular Redaction" ;
+    rdfs:comment "Applies redaction rules to a tabular dataset — strips or masks rows/columns matching the specified criteria." ;
+    tg-exec:acceptsInput port:tabular-redact-in ;
+    tg-exec:emitsOutput  port:tabular-redact-out .
+
+port:tabular-redact-in a tg-exec:PortContract ;
+    tg-exec:portName     "data" ;
+    tg-exec:artifactType tg-exec:TabularArtifact ;
+    tg-exec:required     true .
+
+port:tabular-redact-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:TabularArtifact ;
+    tg-exec:required     true .
+
+
+cap:tabular-join a tg-exec:Capability ;
+    tg-exec:capabilityId  "tabular-join" ;
+    tg-exec:capabilityType tg-exec:adapter ;
+    rdfs:label   "Tabular Join" ;
+    rdfs:comment "Joins tabular data with a subgraph on a shared key, optionally computing derived columns (e.g. variance)." ;
+    tg-exec:acceptsInput port:tabular-join-in-tabular ;
+    tg-exec:acceptsInput port:tabular-join-in-graph ;
+    tg-exec:emitsOutput  port:tabular-join-out .
+
+port:tabular-join-in-tabular a tg-exec:PortContract ;
+    tg-exec:portName     "tabular-data" ;
+    tg-exec:artifactType tg-exec:TabularArtifact ;
+    tg-exec:required     true .
+
+port:tabular-join-in-graph a tg-exec:PortContract ;
+    tg-exec:portName     "graph-data" ;
+    tg-exec:artifactType tg-exec:SubgraphArtifact ;
+    tg-exec:required     true .
+
+port:tabular-join-out a tg-exec:PortContract ;
+    tg-exec:portName     "result" ;
+    tg-exec:artifactType tg-exec:TabularArtifact ;
+    tg-exec:required     true .
+
+
+# ── Synthesis capabilities ──────────────────────────────────────────
+
+cap:llm-synthesis a tg-exec:Capability ;
+    tg-exec:capabilityId  "llm-synthesis" ;
+    tg-exec:capabilityType tg-exec:llm ;
+    rdfs:label   "LLM Synthesis" ;
+    rdfs:comment "Synthesises a human-readable report from structured data and reference text using an LLM." ;
+    tg-exec:acceptsInput port:llm-synthesis-in-data ;
+    tg-exec:acceptsInput port:llm-synthesis-in-context ;
+    tg-exec:emitsOutput  port:llm-synthesis-out .
+
+port:llm-synthesis-in-data a tg-exec:PortContract ;
+    tg-exec:portName     "data" ;
+    tg-exec:artifactType tg-exec:TabularArtifact ;
+    tg-exec:required     true .
+
+port:llm-synthesis-in-context a tg-exec:PortContract ;
+    tg-exec:portName     "context" ;
+    tg-exec:artifactType tg-exec:TextBlobArtifact ;
+    tg-exec:required     true .
+
+port:llm-synthesis-out a tg-exec:PortContract ;
+    tg-exec:portName     "report" ;
+    tg-exec:artifactType tg-exec:ReportArtifact ;
+    tg-exec:required     true .
