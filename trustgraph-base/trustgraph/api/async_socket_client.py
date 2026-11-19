@@ -227,6 +227,41 @@ class AsyncSocketClient:
         finally:
             self._pending.pop(request_id, None)
 
+    async def _send_request_streaming_raw(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+        """Send a request and yield raw response dicts."""
+        await self._ensure_connected()
+
+        request_id = self._next_request_id()
+        queue = asyncio.Queue()
+        self._pending[request_id] = queue
+
+        try:
+            message = {
+                "id": request_id,
+                "workspace": self.workspace,
+                "service": service,
+                "request": request
+            }
+            if flow:
+                message["flow"] = flow
+
+            await self._socket.send(json.dumps(message))
+
+            while True:
+                response = await queue.get()
+
+                if "error" in response:
+                    raise ApplicationException(response["error"])
+
+                if "response" in response:
+                    yield response["response"]
+
+                    if response.get("complete"):
+                        break
+
+        finally:
+            self._pending.pop(request_id, None)
+
     def _parse_chunk(self, resp: Dict[str, Any]):
         """Parse response chunk into appropriate type. Returns None for non-content messages."""
         message_type = resp.get("message_type")
@@ -594,3 +629,34 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         return await self.client._send_request("field-extraction", self.flow_id, request)
+
+    async def document_decode(self, document_id: str, mode: str = "page"):
+        """Decode a document from the librarian into sections.
+
+        Returns a list of section dicts with document_id, page,
+        and section_type.
+        """
+        request = {
+            "document_id": document_id,
+            "mode": mode,
+        }
+
+        sections = []
+        async for resp in self.client._send_request_streaming_raw(
+            "document-decode", self.flow_id, request,
+        ):
+            if resp.get("end_of_stream"):
+                break
+            if resp.get("error"):
+                err = resp["error"]
+                raise RuntimeError(
+                    f"{err.get('type', 'error')}: {err.get('message', '')}"
+                )
+            if resp.get("document_id"):
+                sections.append({
+                    "document_id": resp["document_id"],
+                    "page": resp.get("page", 0),
+                    "section_type": resp.get("section_type", "text"),
+                })
+
+        return sections

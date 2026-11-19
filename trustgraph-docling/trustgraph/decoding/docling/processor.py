@@ -21,7 +21,6 @@ import os
 os.environ.setdefault("DOCLING_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
-import base64
 import io
 import logging
 
@@ -31,20 +30,15 @@ from docling.document_converter import DocumentConverter, DocumentStream, PdfFor
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 from docling.chunking import HybridChunker
 
-from ... schema import Document, TextDocument, Chunk, Metadata
+from ... schema import Chunk, Metadata
 from ... schema import Triples, Triple, Term, IRI, LITERAL
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec, LibrarianSpec
+from ... base import DocumentDecoderBase, ConsumerSpec, ProducerSpec
 
 from ... provenance import (
-    document_uri, page_uri as make_page_uri,
-    section_uri as make_section_uri, chunk_uri as make_chunk_uri,
-    image_uri as make_image_uri,
+    document_uri, chunk_uri as make_chunk_uri,
     derived_entity_triples, set_graph, GRAPH_SOURCE,
     TG_PAGE_NUMBER,
 )
-
-COMPONENT_NAME = "docling-decoder"
-COMPONENT_VERSION = "1.0.0"
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +61,12 @@ PAGE_BASED_FORMATS = {
 }
 
 
-class Processor(FlowProcessor):
+class Processor(DocumentDecoderBase):
+
+    COMPONENT_NAME = "docling-decoder"
+    COMPONENT_VERSION = "1.0.0"
 
     def __init__(self, **params):
-
-        id = params.get("id", default_ident)
 
         self.chunking_mode = params.get("chunking_mode", "page")
         self.chunk_max_tokens = params.get("chunk_max_tokens", 512)
@@ -96,26 +91,7 @@ class Processor(FlowProcessor):
             },
         )
 
-        super(Processor, self).__init__(
-            **params | {
-                "id": id,
-            }
-        )
-
-        self.register_specification(
-            ConsumerSpec(
-                name="input",
-                schema=Document,
-                handler=self.on_message,
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name="output",
-                schema=TextDocument,
-            )
-        )
+        super(Processor, self).__init__(**params)
 
         if self.chunking_mode == "hybrid":
             self.register_specification(
@@ -125,28 +101,11 @@ class Processor(FlowProcessor):
                 )
             )
 
-        self.register_specification(
-            ProducerSpec(
-                name="triples",
-                schema=Triples,
-            )
-        )
-
-        self.register_specification(
-            LibrarianSpec()
-        )
-
         logger.info(
             f"Docling decoder initialized (mode: {self.chunking_mode})"
         )
 
     def convert_document(self, blob, mime_type=None, name_hint="document"):
-        """
-        Convert raw bytes to a DoclingDocument.
-
-        Uses single-document convert with raises_on_error=False
-        to capture page-level errors without batch panic.
-        """
         suffix = MIME_EXTENSIONS.get(mime_type, ".bin")
         routing_filename = f"source_file{suffix}"
 
@@ -179,13 +138,7 @@ class Processor(FlowProcessor):
         logger.info(f"Docling conversion complete for {routing_filename}")
         return result.document
 
-    def get_page_texts(self, doc):
-        """
-        Extract text grouped by page from a DoclingDocument.
-
-        Returns list of (page_number, text, table_count, image_count).
-        An item that spans multiple pages is included in each page.
-        """
+    def _get_page_texts(self, doc):
         page_map = {}
 
         for item, _level in doc.iterate_items():
@@ -226,37 +179,27 @@ class Processor(FlowProcessor):
                 if text and text.strip():
                     page_map[page_no]["texts"].append(text)
 
-        pages = []
         for page_no in sorted(page_map.keys()):
             info = page_map[page_no]
             text = "\n\n".join(info["texts"])
             if text.strip():
-                pages.append((
-                    page_no, text,
-                    info["table_count"], info["image_count"],
-                ))
+                section_type = "text"
+                if info["table_count"] > 0 and info["image_count"] == 0:
+                    section_type = "table"
+                elif info["image_count"] > 0 and info["table_count"] == 0:
+                    section_type = "image"
+                yield (text, page_no, section_type)
 
-        return pages
-
-    def get_full_text(self, doc):
-        """
-        Export the full document as markdown text.
-
-        Tables are exported as HTML for structural fidelity.
-        """
+    def _get_full_text(self, doc):
         parts = []
-        table_count = 0
-        image_count = 0
 
         for item, _level in doc.iterate_items():
             item_type = type(item).__name__
 
             if item_type == "PictureItem":
-                image_count += 1
                 continue
 
             if item_type == "TableItem":
-                table_count += 1
                 html = item.export_to_html(doc=doc)
                 if html:
                     parts.append(html)
@@ -266,176 +209,49 @@ class Processor(FlowProcessor):
             if text and text.strip():
                 parts.append(text)
 
-        return "\n\n".join(parts), table_count, image_count
+        full_text = "\n\n".join(parts)
+        if full_text.strip():
+            yield (full_text, None, "text")
 
-    async def emit_section(self, text, parent_doc_id, doc_uri_str,
-                           metadata, flow, mime_type=None,
-                           page_number=None, section_index=None,
-                           table_count=0, image_count=0):
-        """
-        Save a page or section to the librarian, emit provenance,
-        and send a TextDocument downstream.
-        """
-        if not text.strip():
-            return None
+    def decode_pages(self, blob, mime_type=None):
 
-        is_page = page_number is not None
-        char_length = len(text)
+        doc = self.convert_document(blob, mime_type)
 
-        if is_page:
-            entity_uri = make_page_uri()
-            label = f"Page {page_number}"
-        else:
-            entity_uri = make_section_uri()
-            label = f"Section {section_index}" if section_index else "Section"
-
-        doc_id = entity_uri
-        content = text.encode("utf-8")
-
-        await flow.librarian.save_child_document(
-            doc_id=doc_id,
-            parent_id=parent_doc_id,
-            content=content,
-            document_type="page" if is_page else "section",
-            title=label,
-        )
-
-        prov_triples = derived_entity_triples(
-            entity_uri=entity_uri,
-            parent_uri=doc_uri_str,
-            component_name=COMPONENT_NAME,
-            component_version=COMPONENT_VERSION,
-            label=label,
-            page_number=page_number,
-            section=not is_page,
-            char_length=char_length,
-            mime_type=mime_type,
-            table_count=table_count if table_count > 0 else None,
-            image_count=image_count if image_count > 0 else None,
-        )
-
-        await flow("triples").send(Triples(
-            metadata=Metadata(
-                id=entity_uri,
-                root=metadata.root,
-                collection=metadata.collection,
-            ),
-            triples=set_graph(prov_triples, GRAPH_SOURCE),
-        ))
-
-        r = TextDocument(
-            metadata=Metadata(
-                id=entity_uri,
-                root=metadata.root,
-                collection=metadata.collection,
-            ),
-            document_id=doc_id,
-            text=content,
-        )
-
-        await flow("output").send(r)
-
-        return entity_uri
-
-    async def emit_chunk(self, text, chunk_index, parent_doc_id,
-                         doc_uri_str, metadata, flow,
-                         page_numbers=None, char_offset=None):
-        """
-        Save a chunk to the librarian, emit provenance, and send
-        a Chunk message downstream.
-        """
-        if not text.strip():
-            return None
-
-        c_uri = make_chunk_uri()
-        chunk_content = text.encode("utf-8")
-        char_length = len(text)
-
-        primary_page = page_numbers[0] if page_numbers else None
-
-        await flow.librarian.save_child_document(
-            doc_id=c_uri,
-            parent_id=parent_doc_id,
-            content=chunk_content,
-            document_type="chunk",
-            title=f"Chunk {chunk_index}",
-        )
-
-        prov_triples = derived_entity_triples(
-            entity_uri=c_uri,
-            parent_uri=doc_uri_str,
-            component_name=COMPONENT_NAME,
-            component_version=COMPONENT_VERSION,
-            label=f"Chunk {chunk_index}",
-            chunk_index=chunk_index,
-            char_offset=char_offset,
-            char_length=char_length,
-            page_number=primary_page,
-        )
-
-        if page_numbers and len(page_numbers) > 1:
-            for extra_page in page_numbers[1:]:
-                prov_triples.append(Triple(
-                    s=Term(type=IRI, iri=c_uri),
-                    p=Term(type=IRI, iri=TG_PAGE_NUMBER),
-                    o=Term(type=LITERAL, value=str(extra_page)),
-                ))
-
-        await flow("triples").send(Triples(
-            metadata=Metadata(
-                id=c_uri,
-                root=metadata.root,
-                collection=metadata.collection,
-            ),
-            triples=set_graph(prov_triples, GRAPH_SOURCE),
-        ))
-
-        r = Chunk(
-            metadata=Metadata(
-                id=c_uri,
-                root=metadata.root,
-                collection=metadata.collection,
-            ),
-            chunk=chunk_content,
-            document_id=c_uri,
-        )
-
-        await flow("chunks").send(r)
-
-        return c_uri
-
-    async def process_page_mode(self, doc, source_doc_id, doc_uri_str,
-                                metadata, flow, mime_type):
-        """Page mode: emit pages or sections as TextDocument."""
         is_page_based = mime_type in PAGE_BASED_FORMATS if mime_type else False
 
-        logger.info(
-            f"Page mode: mime={mime_type} is_page_based={is_page_based}"
-        )
-
         if is_page_based:
-            pages = self.get_page_texts(doc)
-            logger.info(f"Extracted {len(pages)} pages")
-            for page_num, text, table_count, image_count in pages:
-                await self.emit_section(
-                    text, source_doc_id, doc_uri_str,
-                    metadata, flow,
-                    mime_type=mime_type, page_number=page_num,
-                    table_count=table_count, image_count=image_count,
-                )
+            yield from self._get_page_texts(doc)
         else:
-            text, table_count, image_count = self.get_full_text(doc)
-            if text.strip():
-                await self.emit_section(
-                    text, source_doc_id, doc_uri_str,
-                    metadata, flow,
-                    mime_type=mime_type, section_index=1,
-                    table_count=table_count, image_count=image_count,
-                )
+            yield from self._get_full_text(doc)
 
-    async def process_hybrid_mode(self, doc, source_doc_id, doc_uri_str,
-                                  metadata, flow, mime_type):
-        """Hybrid mode: use Docling HybridChunker, emit Chunk directly."""
+    async def on_message(self, msg, consumer, flow):
+
+        if self.chunking_mode == "hybrid":
+            await self._on_message_hybrid(msg, consumer, flow)
+        else:
+            await super().on_message(msg, consumer, flow)
+
+    async def _on_message_hybrid(self, msg, consumer, flow):
+
+        v = msg.value()
+
+        logger.info(f"Decoding {v.metadata.id} (hybrid mode)...")
+
+        blob, mime_type, source_doc_id = await self.fetch_blob(v, flow)
+        doc_uri_str = document_uri(source_doc_id)
+
+        try:
+            doc = self.convert_document(
+                blob, mime_type, name_hint=source_doc_id,
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to convert {source_doc_id}: "
+                f"{type(e).__name__}: {e}",
+                exc_info=True,
+            )
+            return
+
         chunker = HybridChunker(
             max_tokens=self.chunk_max_tokens,
         )
@@ -461,81 +277,71 @@ class Processor(FlowProcessor):
                     if pages:
                         page_numbers = sorted(pages)
 
-            await self.emit_chunk(
-                text, chunk_index, source_doc_id, doc_uri_str,
-                metadata, flow,
-                page_numbers=page_numbers,
-                char_offset=char_offset,
+            if not text or not text.strip():
+                continue
+
+            c_uri = make_chunk_uri()
+            chunk_content = text.encode("utf-8")
+            char_length = len(text)
+            primary_page = page_numbers[0] if page_numbers else None
+
+            await flow.librarian.save_child_document(
+                doc_id=c_uri,
+                parent_id=source_doc_id,
+                content=chunk_content,
+                document_type="chunk",
+                title=f"Chunk {chunk_index}",
             )
+
+            prov_triples = derived_entity_triples(
+                entity_uri=c_uri,
+                parent_uri=doc_uri_str,
+                component_name=self.COMPONENT_NAME,
+                component_version=self.COMPONENT_VERSION,
+                label=f"Chunk {chunk_index}",
+                chunk_index=chunk_index,
+                char_offset=char_offset,
+                char_length=char_length,
+                page_number=primary_page,
+            )
+
+            if page_numbers and len(page_numbers) > 1:
+                for extra_page in page_numbers[1:]:
+                    prov_triples.append(Triple(
+                        s=Term(type=IRI, iri=c_uri),
+                        p=Term(type=IRI, iri=TG_PAGE_NUMBER),
+                        o=Term(type=LITERAL, value=str(extra_page)),
+                    ))
+
+            await flow("triples").send(Triples(
+                metadata=Metadata(
+                    id=c_uri,
+                    root=v.metadata.root,
+                    collection=v.metadata.collection,
+                ),
+                triples=set_graph(prov_triples, GRAPH_SOURCE),
+            ))
+
+            r = Chunk(
+                metadata=Metadata(
+                    id=c_uri,
+                    root=v.metadata.root,
+                    collection=v.metadata.collection,
+                ),
+                chunk=chunk_content,
+                document_id=c_uri,
+            )
+
+            await flow("chunks").send(r)
 
             char_offset += len(text)
 
-    async def on_message(self, msg, consumer, flow):
-
-        logger.debug("Document message received")
-
-        v = msg.value()
-
-        logger.info(f"Decoding {v.metadata.id}...")
-
-        mime_type = None
-
-        if v.document_id:
-            logger.info(
-                f"Fetching document {v.document_id} from librarian..."
-            )
-
-            doc_meta = await flow.librarian.fetch_document_metadata(
-                document_id=v.document_id,
-            )
-            mime_type = doc_meta.kind if doc_meta else None
-
-            content = await flow.librarian.fetch_document_content(
-                document_id=v.document_id,
-            )
-
-            if isinstance(content, str):
-                content = content.encode('utf-8')
-            blob = base64.b64decode(content)
-
-            logger.info(
-                f"Fetched {len(blob)} bytes, mime: {mime_type}"
-            )
-        else:
-            blob = base64.b64decode(v.data)
-
-        source_doc_id = v.document_id or v.metadata.id
-        doc_uri_str = document_uri(source_doc_id)
-
-        try:
-            doc = self.convert_document(
-                blob, mime_type, name_hint=source_doc_id,
-            )
-        except Exception as e:
-            logger.error(
-                f"Failed to convert {source_doc_id}: "
-                f"{type(e).__name__}: {e}",
-                exc_info=True,
-            )
-            return
-
-        if self.chunking_mode == "hybrid":
-            await self.process_hybrid_mode(
-                doc, source_doc_id, doc_uri_str,
-                v.metadata, flow, mime_type,
-            )
-        else:
-            await self.process_page_mode(
-                doc, source_doc_id, doc_uri_str,
-                v.metadata, flow, mime_type,
-            )
-
-        logger.info("Document decoding complete")
+        logger.info("Document decoding complete (hybrid)")
 
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser)
+        DocumentDecoderBase.add_args(parser)
 
         parser.add_argument(
             '--chunking-mode',

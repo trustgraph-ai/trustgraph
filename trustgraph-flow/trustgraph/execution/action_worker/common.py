@@ -60,6 +60,52 @@ def parse_param_json(params, key, expected_type=None):
     return parsed
 
 
+def schema_term_to_dict(term):
+    if term is None:
+        return None
+    if term.type == 'i':
+        return {"type": "iri", "iri": term.iri}
+    elif term.type == 'l':
+        d = {"type": "literal", "value": term.value}
+        if term.language:
+            d["language"] = term.language
+        if term.datatype:
+            d["datatype"] = term.datatype
+        return d
+    elif term.type == 'b':
+        return {"type": "blank", "id": term.id}
+    elif term.type == 't' and term.triple:
+        return {
+            "type": "triple",
+            "triple": {
+                "s": schema_term_to_dict(term.triple.s),
+                "p": schema_term_to_dict(term.triple.p),
+                "o": schema_term_to_dict(term.triple.o),
+            }
+        }
+    return {"type": "unknown", "value": str(term)}
+
+
+def term_dict_to_str(d):
+    if not d or not isinstance(d, dict):
+        return str(d) if d else ""
+    t = d.get("type", "")
+    if t == "iri":
+        return d.get("iri", "")
+    elif t == "literal":
+        return d.get("value", "")
+    elif t == "blank":
+        return d.get("id", "")
+    elif t == "triple":
+        tri = d.get("triple", {})
+        return " ".join([
+            term_dict_to_str(tri.get("s")),
+            term_dict_to_str(tri.get("p")),
+            term_dict_to_str(tri.get("o")),
+        ])
+    return ""
+
+
 def get_input_artifact(input_artifacts, artifact_type):
     for artifact in input_artifacts:
         if artifact.get("artifact-type") == artifact_type:

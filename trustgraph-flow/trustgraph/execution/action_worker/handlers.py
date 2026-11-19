@@ -10,6 +10,9 @@ from . retrieval import (
     GraphRagQueryHandler,
     GraphEmbeddingsQueryHandler,
     EntityTriplesQueryHandler,
+    DocumentRagQueryHandler,
+    TriplesQueryHandler,
+    SparqlQueryHandler,
 )
 
 from . transform import (
@@ -28,6 +31,8 @@ from . system1 import (
 
 from . external import ErpFinanceQueryHandler
 
+from . decoding import DocumentDecodeHandler
+
 
 BUILTIN_HANDLERS = {
     "concept-extraction": ConceptExtractionHandler(),
@@ -39,8 +44,12 @@ BUILTIN_HANDLERS = {
     "llm-synthesis": LlmSynthesisHandler(),
     "tabular-redact": TabularRedactHandler(),
     "tabular-join": TabularJoinHandler(),
+    "document-rag-query": DocumentRagQueryHandler(),
+    "triples-query": TriplesQueryHandler(),
+    "sparql-query": SparqlQueryHandler(),
     "cloze": ClozeHandler(),
     "decision-scoring": DecisionScoringHandler(),
     "field-extraction": FieldExtractionHandler(),
     "erp-finance-query": ErpFinanceQueryHandler(),
+    "document-decode": DocumentDecodeHandler(),
 }

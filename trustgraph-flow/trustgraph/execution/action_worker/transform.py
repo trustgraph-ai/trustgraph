@@ -3,6 +3,7 @@ import logging
 
 from . common import (
     HandlerError, get_param, get_param_int, get_input_artifact,
+    term_dict_to_str,
 )
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,9 @@ _RERANK_SERIALISERS = {
     "SubgraphArtifact": {
         "items_key": "triples",
         "to_text": lambda item: " ".join([
-            item.get("s", ""), item.get("p", ""), item.get("o", ""),
+            term_dict_to_str(item.get("s")),
+            term_dict_to_str(item.get("p")),
+            term_dict_to_str(item.get("o")),
         ]),
     },
     "KeywordsArtifact": {
@@ -172,9 +175,9 @@ class TabularJoinHandler:
 
         graph_data = {}
         for triple in graph.get("triples", []):
-            s = triple.get("s", "")
-            p = triple.get("p", "")
-            o = triple.get("o", "")
+            s = term_dict_to_str(triple.get("s"))
+            p = term_dict_to_str(triple.get("p"))
+            o = term_dict_to_str(triple.get("o"))
             if s not in graph_data:
                 graph_data[s] = {}
             graph_data[s][p] = o

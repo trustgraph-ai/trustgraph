@@ -1228,3 +1228,35 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         return self.client._send_request_sync("sparql-nl-query", self.flow_id, request, False)
+
+    def document_decode(self, document_id: str, mode: str = "page"):
+        """Decode a document from the librarian into sections.
+
+        Streams section responses. Returns a list of section dicts,
+        each with document_id, page, and section_type.
+        """
+        request = {
+            "document_id": document_id,
+            "mode": mode,
+        }
+
+        sections = []
+        for resp in self.client._send_request_sync(
+            "document-decode", self.flow_id, request,
+            streaming_raw=True,
+        ):
+            if resp.get("end_of_stream"):
+                break
+            if resp.get("error"):
+                err = resp["error"]
+                raise RuntimeError(
+                    f"{err.get('type', 'error')}: {err.get('message', '')}"
+                )
+            if resp.get("document_id"):
+                sections.append({
+                    "document_id": resp["document_id"],
+                    "page": resp.get("page", 0),
+                    "section_type": resp.get("section_type", "text"),
+                })
+
+        return sections
