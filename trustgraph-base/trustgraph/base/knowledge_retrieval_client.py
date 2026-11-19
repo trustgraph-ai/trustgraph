@@ -7,6 +7,7 @@ from .. schema import (
 class KnowledgeRetrievalClient:
     async def retrieve(
         self, concepts=None, entities=None,
+        collection="default",
         entity_limit=50, triple_limit=30,
         max_path_length=2, edge_limit=25,
         max_reranker_input=350,
@@ -18,6 +19,7 @@ class KnowledgeRetrievalClient:
             KnowledgeRetrievalRequest(
                 concepts=concepts or [],
                 entities=entities or [],
+                collection=collection,
                 entity_limit=entity_limit,
                 triple_limit=triple_limit,
                 max_path_length=max_path_length,

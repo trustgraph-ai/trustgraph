@@ -9,9 +9,17 @@ import logging
 from ... schema import ActionRequest, ActionResponse, Error
 from ... base import (
     ActionService,
+    ConceptExtractionClientSpec,
+    KnowledgeRetrievalClientSpec,
     GraphRagClientSpec,
+    EmbeddingsClientSpec,
+    GraphEmbeddingsClientSpec,
+    TriplesClientSpec,
+    RerankerClientSpec,
     TextCompletionClientSpec,
-    PromptClientSpec,
+    ClozeClientSpec,
+    DecisionScoringClientSpec,
+    FieldExtractionClientSpec,
 )
 
 from . handlers import BUILTIN_HANDLERS, HandlerError
@@ -28,9 +36,51 @@ class Processor(ActionService):
         super(Processor, self).__init__(**params)
 
         self.register_specification(
+            ConceptExtractionClientSpec(
+                request_name="concept-extraction-request",
+                response_name="concept-extraction-response",
+            )
+        )
+
+        self.register_specification(
+            KnowledgeRetrievalClientSpec(
+                request_name="knowledge-retrieval-request",
+                response_name="knowledge-retrieval-response",
+            )
+        )
+
+        self.register_specification(
             GraphRagClientSpec(
                 request_name="graph-rag-request",
                 response_name="graph-rag-response",
+            )
+        )
+
+        self.register_specification(
+            EmbeddingsClientSpec(
+                request_name="embeddings-request",
+                response_name="embeddings-response",
+            )
+        )
+
+        self.register_specification(
+            GraphEmbeddingsClientSpec(
+                request_name="graph-embeddings-request",
+                response_name="graph-embeddings-response",
+            )
+        )
+
+        self.register_specification(
+            TriplesClientSpec(
+                request_name="triples-request",
+                response_name="triples-response",
+            )
+        )
+
+        self.register_specification(
+            RerankerClientSpec(
+                request_name="reranker-request",
+                response_name="reranker-response",
             )
         )
 
@@ -42,9 +92,23 @@ class Processor(ActionService):
         )
 
         self.register_specification(
-            PromptClientSpec(
-                request_name="prompt-request",
-                response_name="prompt-response",
+            ClozeClientSpec(
+                request_name="cloze-request",
+                response_name="cloze-response",
+            )
+        )
+
+        self.register_specification(
+            DecisionScoringClientSpec(
+                request_name="decision-scoring-request",
+                response_name="decision-scoring-response",
+            )
+        )
+
+        self.register_specification(
+            FieldExtractionClientSpec(
+                request_name="field-extraction-request",
+                response_name="field-extraction-response",
             )
         )
 

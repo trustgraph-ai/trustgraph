@@ -23,12 +23,14 @@ RUN dnf install -y python3.14 && \
 
 FROM base AS build
 
+COPY trustgraph-base/ /root/build/trustgraph-base/
 COPY trustgraph-mcp/ /root/build/trustgraph-mcp/
 
 WORKDIR /root/build/
 
 RUN pip3 install --no-cache-dir build wheel
 
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-mcp/
 
 RUN ls /root/wheels
@@ -42,6 +44,7 @@ FROM base
 COPY --from=build /root/wheels /root/wheels
 
 RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
     pip3 install --no-cache-dir /root/wheels/trustgraph_mcp-* && \
     rm -rf /root/wheels
 

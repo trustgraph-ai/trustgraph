@@ -149,6 +149,7 @@ class GraphRag:
         kr_resp = await self.knowledge_retrieval_client.retrieve(
             concepts=concepts or None,
             entities=entities or None,
+            collection=collection,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_path_length=max_path_length,

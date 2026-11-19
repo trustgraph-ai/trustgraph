@@ -94,23 +94,23 @@ ExecutionPlan {
       params: { rules: "strip unapproved salary adjustments" },
       emits: "TabularArtifact" },
 
-    { step_id: "2A", capability: "knowledge-graph-query",
+    { step_id: "2A", capability: "concept-extraction",
       depends_on: [], status: "pending",
       params: { query: "UK engineering teams + cost centres" },
+      emits: "KeywordsArtifact" },
+
+    { step_id: "2B", capability: "knowledge-retrieval",
+      depends_on: ["2A"], status: "pending",
+      params: {},
       emits: "SubgraphArtifact" },
 
-    { step_id: "2B", capability: "document-retrieval",
-      depends_on: [], status: "pending",
-      params: { query: "Q3 budget review policy guidelines" },
-      emits: "TextBlobArtifact" },
-
     { step_id: "3", capability: "tabular-join",
-      depends_on: ["1B", "2A"], status: "pending",
+      depends_on: ["1B", "2B"], status: "pending",
       params: { join_key: "cost_centre", compute: "variance" },
       emits: "TabularArtifact" },
 
     { step_id: "4", capability: "llm-synthesis",
-      depends_on: ["3", "2B"], status: "pending",
+      depends_on: ["3"], status: "pending",
       params: { format: "executive summary" },
       emits: "ReportArtifact" },
   ]
@@ -166,8 +166,8 @@ transitions the run to `status: "executing"`.
 
 ### Phase 4: Parallel Dispatch — Ready Steps
 
-Steps 1A, 2A, and 2B have no dependencies — they're immediately
-ready. The Coordinator dispatches all three in parallel.
+Steps 1A and 2A have no dependencies — they're immediately
+ready. The Coordinator dispatches both in parallel.
 
 ```
 Coordinator → request:tg:erp-finance-query:ws1
@@ -179,29 +179,35 @@ StepRequest {
   params: { query: "Q3 contractor invoices + budgets" },
 }
 
-Coordinator → request:tg:knowledge-graph-query:ws1
+Coordinator → request:tg:concept-extraction:ws1
 
 StepRequest {
   run_id: "run-3e7f",
   step_id: "2A",
-  capability: "knowledge-graph-query",
+  capability: "concept-extraction",
   params: { query: "UK engineering teams + cost centres" },
 }
+```
 
-Coordinator → request:tg:document-retrieval:ws1
+### Phase 5: Step Completion — Branches continue
+
+Step 2A (concept-extraction) completes quickly with a
+KeywordsArtifact. The Coordinator checks the DAG — step 2B
+(knowledge-retrieval) depends on 2A and is now ready:
+
+```
+Coordinator → request:tg:knowledge-retrieval:ws1
 
 StepRequest {
   run_id: "run-3e7f",
   step_id: "2B",
-  capability: "document-retrieval",
-  params: { query: "Q3 budget review policy guidelines" },
+  capability: "knowledge-retrieval",
+  params: {},
+  input_artifacts: ["art-2a"],
 }
 ```
 
-### Phase 5: Step Completion — Branch A continues
-
-Step 2A and 2B complete independently and their artifacts are written
-to the working graph. Step 1A completes:
+Step 1A completes:
 
 ```
 ERP Worker → response:tg:erp-finance-query:ws1
@@ -258,7 +264,7 @@ working graph. The attestation is written to the audit graph.
 
 ### Phase 7: Join Step
 
-Steps 1B, 2A, and 2B are all complete. Step 3's dependencies are
+Steps 1B and 2B are both complete. Step 3's dependencies are
 satisfied:
 
 ```
@@ -269,7 +275,7 @@ StepRequest {
   step_id: "3",
   capability: "tabular-join",
   params: { join_key: "cost_centre", compute: "variance" },
-  input_artifacts: ["art-1b", "art-2a"],
+  input_artifacts: ["art-1b", "art-2b"],
 }
 ```
 
@@ -277,7 +283,7 @@ Step 3 completes with a variance-by-team TabularArtifact.
 
 ### Phase 8: Synthesis
 
-Step 4's dependencies (step 3 and step 2B) are both satisfied:
+Step 4's dependency (step 3) is satisfied:
 
 ```
 Coordinator → request:tg:llm-synthesis:ws1
@@ -287,7 +293,7 @@ StepRequest {
   step_id: "4",
   capability: "llm-synthesis",
   params: { format: "executive summary" },
-  input_artifacts: ["art-3", "art-2b"],
+  input_artifacts: ["art-3"],
 }
 ```
 
@@ -332,8 +338,8 @@ request:tg:agent:ws1 ──▶ Coordinator
   │         (pre-flight, per-step egress, final egress)
   │
   ├──┬──▶ request:tg:erp-finance-query:ws1 ──▶ ERP Worker ──▶ response
-  │  ├──▶ request:tg:knowledge-graph-query:ws1 ──▶ KG Worker ──▶ response
-  │  └──▶ request:tg:document-retrieval:ws1 ──▶ Doc Worker ──▶ response
+  │  └──▶ request:tg:concept-extraction:ws1 ──▶ Action Worker ──▶ response
+  │          └──▶ request:tg:knowledge-retrieval:ws1 ──▶ Action Worker ──▶ response
   │
   ├──▶ request:tg:tabular-redact:ws1 ──▶ Redact Worker ──▶ response
   │

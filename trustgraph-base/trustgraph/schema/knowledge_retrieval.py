@@ -27,6 +27,7 @@ class RetrievedEdge:
 class KnowledgeRetrievalRequest:
     concepts: list[str] = field(default_factory=list)
     entities: list[str] = field(default_factory=list)
+    collection: str = "default"
     entity_limit: int = 50
     triple_limit: int = 30
     max_path_length: int = 2

@@ -65,7 +65,7 @@ class Processor(KnowledgeRetrievalService):
             graph_embeddings_client=flow("graph-embeddings-request"),
             triples_client=flow("triples-request"),
             reranker_client=flow("reranker-request"),
-            collection=workspace,
+            collection=request.collection,
             entity_limit=request.entity_limit,
             triple_limit=request.triple_limit,
             max_path_length=request.max_path_length,
