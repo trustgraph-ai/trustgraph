@@ -9,8 +9,10 @@ from unittest import IsolatedAsyncioTestCase
 
 from trustgraph.decoding.docling.processor import (
     Processor, MIME_EXTENSIONS, PAGE_BASED_FORMATS,
-    COMPONENT_NAME, COMPONENT_VERSION,
 )
+
+COMPONENT_NAME = Processor.COMPONENT_NAME
+COMPONENT_VERSION = Processor.COMPONENT_VERSION
 from trustgraph.schema import (
     Document, TextDocument, Chunk, Metadata, Triples,
     Triple, Term, IRI, LITERAL,
