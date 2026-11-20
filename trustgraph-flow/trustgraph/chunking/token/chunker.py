@@ -77,6 +77,9 @@ class Processor(ChunkingService):
 
         logger.info("Token chunker initialized")
 
+    def split_text(self, text, chunk_size, chunk_overlap):
+        return self._split_by_tokens(text, chunk_size, chunk_overlap)
+
     def _split_by_tokens(self, text, chunk_size, chunk_overlap):
         tokens = self.encoding.encode(text)
         chunks = []

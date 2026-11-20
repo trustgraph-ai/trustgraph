@@ -1260,3 +1260,80 @@ class SocketFlowInstance:
                 })
 
         return sections
+
+    def chunk(self, document_id: str, chunk_size: int = 0,
+              chunk_overlap: int = 0):
+        """Chunk a document from the librarian.
+
+        Streams chunk responses. Returns a list of chunk dicts,
+        each with document_id, index, char_offset, and char_length.
+        """
+        request = {
+            "document_id": document_id,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+        }
+
+        chunks = []
+        for resp in self.client._send_request_sync(
+            "chunker", self.flow_id, request,
+            streaming_raw=True,
+        ):
+            if resp.get("end_of_stream"):
+                break
+            if resp.get("error"):
+                err = resp["error"]
+                raise RuntimeError(
+                    f"{err.get('type', 'error')}: {err.get('message', '')}"
+                )
+            if resp.get("document_id"):
+                chunks.append({
+                    "document_id": resp["document_id"],
+                    "index": resp.get("index", 0),
+                    "char_offset": resp.get("char_offset", 0),
+                    "char_length": resp.get("char_length", 0),
+                })
+
+        return chunks
+
+    def extract(self, kind: str, text: str, document_id: str = ""):
+        """Run extraction (definitions, relationships, or ontology).
+
+        Streams extraction responses. Returns a dict with triples,
+        entity_contexts, and provenance_triples lists.
+        """
+        request = {
+            "text": text,
+            "document_id": document_id,
+        }
+
+        result = {
+            "triples": [],
+            "entity_contexts": [],
+            "provenance_triples": [],
+        }
+
+        for resp in self.client._send_request_sync(
+            f"extract-{kind}", self.flow_id, request,
+            streaming_raw=True,
+        ):
+            if resp.get("error"):
+                err = resp["error"]
+                raise RuntimeError(
+                    f"{err.get('type', 'error')}: {err.get('message', '')}"
+                )
+            resp_kind = resp.get("kind", "")
+            if resp_kind == "triples":
+                result["triples"].extend(resp.get("triples", []))
+            elif resp_kind == "entity-contexts":
+                result["entity_contexts"].extend(
+                    resp.get("entity_contexts", [])
+                )
+            elif resp_kind == "provenance":
+                result["provenance_triples"].extend(
+                    resp.get("triples", [])
+                )
+            if resp.get("end_of_stream"):
+                break
+
+        return result

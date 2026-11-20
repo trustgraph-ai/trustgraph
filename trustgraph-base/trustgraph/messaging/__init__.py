@@ -44,6 +44,8 @@ from .translators.verification import VerificationRequestTranslator, Verificatio
 from .translators.policy_engine import PolicyEngineRequestTranslator, PolicyEngineResponseTranslator
 from .translators.action import ActionRequestTranslator, ActionResponseTranslator
 from .translators.document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator
+from .translators.chunker import ChunkerRequestTranslator, ChunkerResponseTranslator
+from .translators.extraction import ExtractionRequestTranslator, ExtractionResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -266,6 +268,18 @@ TranslatorRegistry.register_service(
     "document-decode",
     DocumentDecoderRequestTranslator(),
     DocumentDecoderResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "chunker",
+    ChunkerRequestTranslator(),
+    ChunkerResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "extraction",
+    ExtractionRequestTranslator(),
+    ExtractionResponseTranslator()
 )
 
 # Register single-direction translators for document loading

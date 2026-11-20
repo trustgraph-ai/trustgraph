@@ -75,6 +75,9 @@ class Processor(ChunkingService):
 
     SEPARATORS = ["\n\n", "\n", " ", ""]
 
+    def split_text(self, text, chunk_size, chunk_overlap):
+        return self._recursive_split(text, chunk_size, chunk_overlap)
+
     def _recursive_split(self, text, chunk_size, chunk_overlap):
         return self._split_text(text, self.SEPARATORS, chunk_size, chunk_overlap)
 

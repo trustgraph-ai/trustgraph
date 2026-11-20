@@ -14,27 +14,22 @@ from .. extract_metrics import (
     extraction_empty_metric,
 )
 
-from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
-from .... schema import EntityContext, EntityContexts
+from .... schema import Triple, Term, IRI, LITERAL
+from .... schema import EntityContext
 from .... schema import OntologyRequest, OntologyResponse
-from .... rdf import TRUSTGRAPH_ENTITIES, RDF_TYPE, RDF_LABEL, DEFINITION
-from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from .... base import PromptClientSpec, RequestResponseSpec
+from .... rdf import RDF_TYPE, RDF_LABEL, DEFINITION
+from .... base import ExtractionServiceBase, RequestResponseSpec
 
 from .ontology_selector import OntologySubset
 from .text_processor import TextProcessor
 from .simplified_parser import parse_extraction_response
 from .triple_converter import TripleConverter
 
-from .... provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
 from .... flow_version import __version__ as COMPONENT_VERSION
 
 logger = logging.getLogger(__name__)
 
 default_ident = "kg-extract-ontology"
-default_concurrency = 1
-default_triples_batch_size = 50
-default_entity_batch_size = 5
 
 # URI prefix mappings for common namespaces
 URI_PREFIXES = {
@@ -55,19 +50,13 @@ def make_term(v, is_uri):
         return Term(type=LITERAL, value=v)
 
 
-class Processor(FlowProcessor):
-    """Main OntoRAG extraction processor."""
+class Processor(ExtractionServiceBase):
 
     def __init__(self, **params):
-        id = params.get("id", default_ident)
-        concurrency = params.get("concurrency", default_concurrency)
-        self.triples_batch_size = params.get("triples_batch_size", default_triples_batch_size)
-        self.entity_batch_size = params.get("entity_batch_size", default_entity_batch_size)
 
         super(Processor, self).__init__(
             **params | {
-                "id": id,
-                "concurrency": concurrency,
+                "component_version": COMPONENT_VERSION,
             }
         )
 
@@ -91,43 +80,12 @@ class Processor(FlowProcessor):
                 ["processor"],
             )
 
-        # Register specifications
-        self.register_specification(
-            ConsumerSpec(
-                name="input",
-                schema=Chunk,
-                handler=self.on_message,
-                concurrency=concurrency,
-            )
-        )
-
-        self.register_specification(
-            PromptClientSpec(
-                request_name="prompt-request",
-                response_name="prompt-response",
-            )
-        )
-
         self.register_specification(
             RequestResponseSpec(
                 request_name="ontology-request",
                 response_name="ontology-response",
                 request_schema=OntologyRequest,
                 response_schema=OntologyResponse,
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name="triples",
-                schema=Triples
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name="entity-contexts",
-                schema=EntityContexts
             )
         )
 
@@ -190,120 +148,74 @@ class Processor(FlowProcessor):
             relevance_score=1.0,
         )
 
-    async def on_message(self, msg, consumer, flow):
-        """Process incoming chunk message."""
-        v = msg.value()
-        logger.info(f"Extracting ontology-based triples from {v.metadata.id}...")
+    async def do_extract(self, text, chunk_doc_id, flow):
 
-        chunk = v.chunk.decode("utf-8")
-        logger.debug(f"Processing chunk: {chunk[:200]}...")
+        logger.debug(f"Processing chunk: {text[:200]}...")
 
-        t0 = time.monotonic()
-        extractor_label = "ontology"
+        t_sel = time.monotonic()
+        ontology_subset = await self._select_ontology_subset(flow, text)
+        __class__.ontology_selection_duration_metric.labels(
+            processor=self.id,
+        ).observe(time.monotonic() - t_sel)
 
-        try:
-            # Select ontology subset via per-segment requests
-            t_sel = time.monotonic()
-            ontology_subset = await self._select_ontology_subset(
-                flow, chunk
-            )
-            __class__.ontology_selection_duration_metric.labels(
+        if (
+            not ontology_subset.classes
+            and not ontology_subset.object_properties
+            and not ontology_subset.datatype_properties
+        ):
+            logger.warning("No relevant ontology elements found for chunk")
+            __class__.ontology_no_match_metric.labels(
                 processor=self.id,
-            ).observe(time.monotonic() - t_sel)
+            ).inc()
+            return [], [], []
 
-            if (
-                not ontology_subset.classes
-                and not ontology_subset.object_properties
-                and not ontology_subset.datatype_properties
-            ):
-                logger.warning("No relevant ontology elements found for chunk")
-                __class__.ontology_no_match_metric.labels(
-                    processor=self.id,
-                ).inc()
-                labels = dict(processor=self.id, extractor=extractor_label)
-                extraction_duration_metric.labels(**labels).observe(
-                    time.monotonic() - t0,
-                )
-                extraction_empty_metric.labels(**labels).inc()
-                return
+        selected_count = (
+            len(ontology_subset.classes)
+            + len(ontology_subset.object_properties)
+            + len(ontology_subset.datatype_properties)
+        )
+        __class__.ontology_selection_count_metric.labels(
+            processor=self.id,
+        ).observe(selected_count)
 
-            selected_count = (
-                len(ontology_subset.classes)
-                + len(ontology_subset.object_properties)
-                + len(ontology_subset.datatype_properties)
-            )
-            __class__.ontology_selection_count_metric.labels(
-                processor=self.id,
-            ).observe(selected_count)
+        logger.debug(
+            f"Selected ontology subset with "
+            f"{len(ontology_subset.classes)} classes, "
+            f"{len(ontology_subset.object_properties)} object properties, "
+            f"{len(ontology_subset.datatype_properties)} datatype properties"
+        )
 
-            logger.debug(f"Selected ontology subset with {len(ontology_subset.classes)} classes, "
-                        f"{len(ontology_subset.object_properties)} object properties, "
-                        f"{len(ontology_subset.datatype_properties)} datatype properties")
+        prompt_variables = self.build_extraction_variables(
+            text, ontology_subset
+        )
 
-            # Build extraction prompt variables
-            prompt_variables = self.build_extraction_variables(chunk, ontology_subset)
+        extracted_triples = await self.extract_with_simplified_format(
+            flow, text, ontology_subset, prompt_variables
+        )
 
-            # Extract using simplified entity-relationship-attribute format
-            triples = await self.extract_with_simplified_format(
-                flow, chunk, ontology_subset, prompt_variables
-            )
+        ontology_triples = self.build_ontology_triples(ontology_subset)
 
-            # Generate subgraph provenance for extracted triples
-            if triples:
-                chunk_uri = v.metadata.id
-                sg_uri = subgraph_uri()
-                prov_triples = subgraph_provenance_triples(
-                    subgraph_uri=sg_uri,
-                    extracted_triples=triples,
-                    chunk_uri=chunk_uri,
-                    component_name=default_ident,
-                    component_version=COMPONENT_VERSION,
-                )
+        content_triples = extracted_triples + ontology_triples
 
-            # Generate ontology definition triples
-            ontology_triples = self.build_ontology_triples(ontology_subset)
+        entity_contexts = self.build_entity_contexts(content_triples)
 
-            # Combine extracted triples with ontology triples and provenance
-            all_triples = triples + ontology_triples
-            if triples:
-                all_triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
+        logger.info(
+            f"Extracted {len(extracted_triples)} content triples + "
+            f"{len(ontology_triples)} ontology triples "
+            f"= {len(content_triples)} total triples and "
+            f"{len(entity_contexts)} entity contexts"
+        )
 
-            # Build entity contexts from all triples (including ontology elements)
-            entity_contexts = self.build_entity_contexts(all_triples)
+        return content_triples, entity_contexts, extracted_triples
 
-            # Emit triples in batches
-            for i in range(0, len(all_triples), self.triples_batch_size):
-                batch = all_triples[i:i + self.triples_batch_size]
-                await self.emit_triples(
-                    flow("triples"),
-                    v.metadata,
-                    batch
-                )
-
-            # Emit entity contexts in batches
-            for i in range(0, len(entity_contexts), self.entity_batch_size):
-                batch = entity_contexts[i:i + self.entity_batch_size]
-                await self.emit_entity_contexts(
-                    flow("entity-contexts"),
-                    v.metadata,
-                    batch
-                )
-
-            logger.info(f"Extracted {len(triples)} content triples + {len(ontology_triples)} ontology triples "
-                       f"= {len(all_triples)} total triples and {len(entity_contexts)} entity contexts")
-
-            labels = dict(processor=self.id, extractor=extractor_label)
-            extraction_duration_metric.labels(**labels).observe(
-                time.monotonic() - t0,
-            )
-            extraction_triple_metric.labels(**labels).inc(
-                len(triples),
-            )
-            if not triples:
-                extraction_empty_metric.labels(**labels).inc()
-
-        except Exception as e:
-            logger.error(f"OntoRAG extraction exception: {e}", exc_info=True)
+    def _on_extraction_complete(
+        self, content_triples, entity_contexts, extracted_triples, duration,
+    ):
+        labels = dict(processor=self.id, extractor="ontology")
+        extraction_duration_metric.labels(**labels).observe(duration)
+        extraction_triple_metric.labels(**labels).inc(len(extracted_triples))
+        if not extracted_triples:
+            extraction_empty_metric.labels(**labels).inc()
 
     async def extract_with_simplified_format(
         self,
@@ -579,30 +491,6 @@ class Processor(FlowProcessor):
     def is_uri(self, value: str) -> bool:
         """Check if value is already a full URI."""
         return value.startswith("http://") or value.startswith("https://")
-
-    async def emit_triples(self, pub, metadata: Metadata, triples: List[Triple]):
-        """Emit triples to output."""
-        t = Triples(
-            metadata=Metadata(
-                id=metadata.id,
-                root=metadata.root,
-                collection=metadata.collection,
-            ),
-            triples=triples,
-        )
-        await pub.send(t)
-
-    async def emit_entity_contexts(self, pub, metadata: Metadata, entities: List[EntityContext]):
-        """Emit entity contexts to output."""
-        ec = EntityContexts(
-            metadata=Metadata(
-                id=metadata.id,
-                root=metadata.root,
-                collection=metadata.collection,
-            ),
-            entities=entities,
-        )
-        await pub.send(ec)
 
     def build_ontology_triples(self, ontology_subset: OntologySubset) -> List[Triple]:
         """Build triples describing the ontology elements themselves.
@@ -884,7 +772,6 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
-        """Add command-line arguments."""
         parser.add_argument(
             '--top-k',
             type=int,
@@ -897,21 +784,8 @@ class Processor(FlowProcessor):
             default=0.3,
             help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
         )
-        parser.add_argument(
-            '--triples-batch-size',
-            type=int,
-            default=default_triples_batch_size,
-            help=f'Maximum triples per output message (default: {default_triples_batch_size})'
-        )
-        parser.add_argument(
-            '--entity-batch-size',
-            type=int,
-            default=default_entity_batch_size,
-            help=f'Maximum entity contexts per output message (default: {default_entity_batch_size})'
-        )
-        FlowProcessor.add_args(parser)
+        ExtractionServiceBase.add_args(parser)
 
 
 def run():
-    """Launch the OntoRAG extraction service."""
     Processor.launch(default_ident, __doc__)

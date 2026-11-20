@@ -23,6 +23,8 @@ from ... base import (
     DecisionScoringClientSpec,
     FieldExtractionClientSpec,
     DocumentDecoderClientSpec,
+    ChunkerClientSpec,
+    ExtractionClientSpec,
 )
 
 from . handlers import BUILTIN_HANDLERS, HandlerError
@@ -133,6 +135,34 @@ class Processor(ActionService):
             DocumentDecoderClientSpec(
                 request_name="document-decode-request",
                 response_name="document-decode-response",
+            )
+        )
+
+        self.register_specification(
+            ChunkerClientSpec(
+                request_name="chunker-request",
+                response_name="chunker-response",
+            )
+        )
+
+        self.register_specification(
+            ExtractionClientSpec(
+                request_name="extract-definitions-request",
+                response_name="extract-definitions-response",
+            )
+        )
+
+        self.register_specification(
+            ExtractionClientSpec(
+                request_name="extract-relationships-request",
+                response_name="extract-relationships-response",
+            )
+        )
+
+        self.register_specification(
+            ExtractionClientSpec(
+                request_name="extract-ontology-request",
+                response_name="extract-ontology-response",
             )
         )
 

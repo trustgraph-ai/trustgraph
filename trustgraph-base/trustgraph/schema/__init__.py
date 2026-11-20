@@ -26,4 +26,6 @@ from .planner import *
 from .verification import *
 from .policy_engine import *
 from .document_decoder import *
+from .chunker import *
+from .extraction import *
 from .action import *

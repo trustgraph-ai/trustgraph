@@ -5,250 +5,130 @@ relationship analysis to get entity relationship edges which are output as
 graph edges.
 """
 
-import json
 import logging
-import time
-import urllib.parse
 
 from .. extract_metrics import (
     extraction_duration_metric, extraction_triple_metric,
     extraction_empty_metric,
 )
 
-# Module logger
-logger = logging.getLogger(__name__)
+from .... schema import Triple, Term, IRI, LITERAL
+from .... rdf import RDF_LABEL
 
-from .... schema import Chunk, Triple, Triples
-from .... schema import Metadata, Term, IRI, LITERAL
-from .... schema import PromptRequest, PromptResponse
-from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
+from .... base import ExtractionServiceBase
 
-from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
-from .... base import PromptClientSpec, ParameterSpec
-
-from .... provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
 from .... flow_version import __version__ as COMPONENT_VERSION
 
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
-
 default_ident = "kg-extract-relationships"
-default_concurrency = 1
-default_triples_batch_size = 50
 
-class Processor(FlowProcessor):
+logger = logging.getLogger(__name__)
+
+
+class Processor(ExtractionServiceBase):
 
     def __init__(self, **params):
 
-        id = params.get("id")
-        concurrency = params.get("concurrency", 1)
-        self.triples_batch_size = params.get("triples_batch_size", default_triples_batch_size)
-
         super(Processor, self).__init__(
             **params | {
-                "id": id,
-                "concurrency": concurrency,
+                "component_version": COMPONENT_VERSION,
             }
         )
 
-        self.register_specification(
-            ConsumerSpec(
-                name = "input",
-                schema = Chunk,
-                handler = self.on_message,
-                concurrency = concurrency,
-            )
+    async def do_extract(self, text, chunk_doc_id, flow):
+
+        logger.debug(
+            f"Processing chunk: {text[:100]}..."
+            if len(text) > 100 else f"Processing chunk: {text}"
         )
-
-        self.register_specification(
-            PromptClientSpec(
-                request_name = "prompt-request",
-                response_name = "prompt-response",
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name = "triples",
-                schema = Triples
-            )
-        )
-
-        # Optional flow parameters for provenance
-        self.register_specification(ParameterSpec("llm-model"))
-        self.register_specification(ParameterSpec("ontology"))
-
-    def to_uri(self, text):
-
-        part = text.replace(" ", "-").lower().encode("utf-8")
-        quoted = urllib.parse.quote(part)
-        uri = TRUSTGRAPH_ENTITIES + quoted
-
-        return uri
-
-    async def emit_triples(self, pub, metadata, triples):
-
-        t = Triples(
-            metadata=metadata,
-            triples=triples,
-        )
-        await pub.send(t)
-
-    async def on_message(self, msg, consumer, flow):
-
-        v = msg.value()
-        logger.info(f"Extracting relationships from {v.metadata.id}...")
-
-        chunk = v.chunk.decode("utf-8")
-
-        logger.debug(f"Processing chunk: {chunk[:100]}..." if len(chunk) > 100 else f"Processing chunk: {chunk}")
-
-        t0 = time.monotonic()
-        extractor_label = "relationships"
 
         try:
 
-            try:
+            result = await flow("prompt-request").extract_relationships(
+                text=text
+            )
 
-                result = await flow("prompt-request").extract_relationships(
-                    text = chunk
-                )
+            rels = result.objects
+            logger.debug(f"Prompt response: {rels}")
 
-                rels = result.objects
-                logger.debug(f"Prompt response: {rels}")
-
-                if type(rels) != list:
-                    raise RuntimeError("Expecting array in prompt response")
-
-            except Exception as e:
-                logger.error(f"Prompt exception: {e}", exc_info=True)
-                raise e
-
-            triples = []
-            extracted_triples = []
-
-            # Get chunk document ID for provenance linking
-            chunk_doc_id = v.document_id if v.document_id else v.metadata.id
-            chunk_uri = v.metadata.id  # The URI form for the chunk
-
-            # Get optional provenance parameters
-            llm_model = flow("llm-model")
-            ontology_uri = flow("ontology")
-
-            # Note: Document metadata is now emitted once by librarian at processing
-            # initiation, so we don't need to duplicate it here.
-
-            for rel in rels:
-
-                s = rel["subject"]
-                p = rel["predicate"]
-                o = rel["object"]
-
-                if s == "": continue
-                if p == "": continue
-                if o == "": continue
-
-                if s is None: continue
-                if p is None: continue
-                if o is None: continue
-
-                s_uri = self.to_uri(s)
-                s_value = Term(type=IRI, iri=str(s_uri))
-
-                p_uri = self.to_uri(p)
-                p_value = Term(type=IRI, iri=str(p_uri))
-
-                if rel["object-entity"]:
-                    o_uri = self.to_uri(o)
-                    o_value = Term(type=IRI, iri=str(o_uri))
-                else:
-                    o_value = Term(type=LITERAL, value=str(o))
-
-                # The relationship triple - this is the main extracted fact
-                relationship_triple = Triple(
-                    s=s_value,
-                    p=p_value,
-                    o=o_value
-                )
-                triples.append(relationship_triple)
-                extracted_triples.append(relationship_triple)
-
-                # Label for s
-                triples.append(Triple(
-                    s=s_value,
-                    p=RDF_LABEL_VALUE,
-                    o=Term(type=LITERAL, value=str(s))
-                ))
-
-                # Label for p
-                triples.append(Triple(
-                    s=p_value,
-                    p=RDF_LABEL_VALUE,
-                    o=Term(type=LITERAL, value=str(p))
-                ))
-
-                if rel["object-entity"]:
-                    # Label for o
-                    triples.append(Triple(
-                        s=o_value,
-                        p=RDF_LABEL_VALUE,
-                        o=Term(type=LITERAL, value=str(o))
-                    ))
-
-            # Generate subgraph provenance once for all extracted triples
-            if extracted_triples:
-                sg_uri = subgraph_uri()
-                prov_triples = subgraph_provenance_triples(
-                    subgraph_uri=sg_uri,
-                    extracted_triples=extracted_triples,
-                    chunk_uri=chunk_uri,
-                    component_name=default_ident,
-                    component_version=COMPONENT_VERSION,
-                    llm_model=llm_model,
-                    ontology_uri=ontology_uri,
-                )
-                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
-
-            # Send triples in batches
-            for i in range(0, len(triples), self.triples_batch_size):
-                batch = triples[i:i + self.triples_batch_size]
-                await self.emit_triples(
-                    flow("triples"),
-                    Metadata(
-                        id=v.metadata.id,
-                        root=v.metadata.root,
-                        collection=v.metadata.collection,
-                    ),
-                    batch
-                )
-
-            labels = dict(processor=self.id, extractor=extractor_label)
-            extraction_duration_metric.labels(
-                **labels,
-            ).observe(time.monotonic() - t0)
-            extraction_triple_metric.labels(
-                **labels,
-            ).inc(len(extracted_triples))
-            if not extracted_triples:
-                extraction_empty_metric.labels(**labels).inc()
+            if type(rels) != list:
+                raise RuntimeError("Expecting array in prompt response")
 
         except Exception as e:
-            logger.error(f"Relationship extraction exception: {e}", exc_info=True)
+            logger.error(f"Prompt exception: {e}", exc_info=True)
+            raise e
 
-        logger.debug("Relationship extraction complete")
+        triples = []
+        extracted_triples = []
+
+        for rel in rels:
+
+            s = rel["subject"]
+            p = rel["predicate"]
+            o = rel["object"]
+
+            if s == "": continue
+            if p == "": continue
+            if o == "": continue
+
+            if s is None: continue
+            if p is None: continue
+            if o is None: continue
+
+            s_uri = self.to_uri(s)
+            s_value = Term(type=IRI, iri=str(s_uri))
+
+            p_uri = self.to_uri(p)
+            p_value = Term(type=IRI, iri=str(p_uri))
+
+            if rel["object-entity"]:
+                o_uri = self.to_uri(o)
+                o_value = Term(type=IRI, iri=str(o_uri))
+            else:
+                o_value = Term(type=LITERAL, value=str(o))
+
+            relationship_triple = Triple(
+                s=s_value,
+                p=p_value,
+                o=o_value
+            )
+            triples.append(relationship_triple)
+            extracted_triples.append(relationship_triple)
+
+            triples.append(Triple(
+                s=s_value,
+                p=RDF_LABEL_VALUE,
+                o=Term(type=LITERAL, value=str(s))
+            ))
+
+            triples.append(Triple(
+                s=p_value,
+                p=RDF_LABEL_VALUE,
+                o=Term(type=LITERAL, value=str(p))
+            ))
+
+            if rel["object-entity"]:
+                triples.append(Triple(
+                    s=o_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Term(type=LITERAL, value=str(o))
+                ))
+
+        return triples, [], extracted_triples
+
+    def _on_extraction_complete(
+        self, content_triples, entity_contexts, extracted_triples, duration,
+    ):
+        labels = dict(processor=self.id, extractor="relationships")
+        extraction_duration_metric.labels(**labels).observe(duration)
+        extraction_triple_metric.labels(**labels).inc(len(extracted_triples))
+        if not extracted_triples:
+            extraction_empty_metric.labels(**labels).inc()
 
     @staticmethod
     def add_args(parser):
-
-        parser.add_argument(
-            '--triples-batch-size',
-            type=int,
-            default=default_triples_batch_size,
-            help=f'Maximum triples per output message (default: {default_triples_batch_size})'
-        )
-
-        FlowProcessor.add_args(parser)
+        ExtractionServiceBase.add_args(parser)
 
 def run():
 
     Processor.launch(default_ident, __doc__)
-

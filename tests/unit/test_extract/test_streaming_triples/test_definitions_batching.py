@@ -9,24 +9,27 @@ metadata preservation, provenance, and empty/null filtering.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from trustgraph.extract.kg.definitions.extract import (
-    Processor, default_triples_batch_size, default_entity_batch_size,
-)
+from trustgraph.extract.kg.definitions.extract import Processor
 from trustgraph.base import PromptResult
 from trustgraph.schema import (
     Chunk, Triples, EntityContexts, Triple, Metadata, Term, IRI, LITERAL,
 )
+
+DEFAULT_TRIPLES_BATCH_SIZE = 50
+DEFAULT_ENTITY_BATCH_SIZE = 5
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_processor(triples_batch_size=default_triples_batch_size,
-                    entity_batch_size=default_entity_batch_size):
+def _make_processor(triples_batch_size=DEFAULT_TRIPLES_BATCH_SIZE,
+                    entity_batch_size=DEFAULT_ENTITY_BATCH_SIZE):
     proc = Processor.__new__(Processor)
     proc.triples_batch_size = triples_batch_size
     proc.entity_batch_size = entity_batch_size
+    proc.id = "test-definitions"
+    proc.component_version = "test"
     return proc
 
 
@@ -104,10 +107,12 @@ def _all_entities_flat(mock_pub):
 class TestDefaults:
 
     def test_default_triples_batch_size(self):
-        assert default_triples_batch_size == 50
+        proc = _make_processor()
+        assert proc.triples_batch_size == 50
 
     def test_default_entity_batch_size(self):
-        assert default_entity_batch_size == 5
+        proc = _make_processor()
+        assert proc.entity_batch_size == 5
 
 
 class TestTriplesBatching:

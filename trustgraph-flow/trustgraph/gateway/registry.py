@@ -591,6 +591,10 @@ _FLOW_SERVICES = {
     "policy": "policy",
     "action": "action",
     "document-decode": "document-decode",
+    "chunker": "chunker",
+    "extract-definitions": "extraction",
+    "extract-relationships": "extraction",
+    "extract-ontology": "extraction",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap, _flow_from_body)

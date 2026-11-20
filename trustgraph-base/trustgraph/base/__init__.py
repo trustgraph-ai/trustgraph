@@ -66,6 +66,9 @@ from . action_service import ActionService
 from . document_rag_client import DocumentRagClientSpec
 from . document_decoder_client import DocumentDecoderClientSpec
 from . document_decoder_base import DocumentDecoderBase
+from . chunker_client import ChunkerClientSpec
+from . extraction_client import ExtractionClientSpec
+from . extraction_service import ExtractionServiceBase
 from . cloze_client import ClozeClientSpec
 from . decision_scoring_client import DecisionScoringClientSpec
 from . field_extraction_client import FieldExtractionClientSpec

@@ -24,3 +24,5 @@ from .reranker import RerankerRequestTranslator, RerankerResponseTranslator
 from .cloze import ClozeRequestTranslator, ClozeResponseTranslator
 from .decision_scoring import DecisionScoringRequestTranslator, DecisionScoringResponseTranslator
 from .document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator
+from .chunker import ChunkerRequestTranslator, ChunkerResponseTranslator
+from .extraction import ExtractionRequestTranslator, ExtractionResponseTranslator

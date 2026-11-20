@@ -32,6 +32,8 @@ from . system1 import (
 from . external import ErpFinanceQueryHandler
 
 from . decoding import DocumentDecodeHandler
+from . chunking import ChunkHandler
+from . extraction import ExtractionHandler
 
 
 BUILTIN_HANDLERS = {
@@ -52,4 +54,8 @@ BUILTIN_HANDLERS = {
     "field-extraction": FieldExtractionHandler(),
     "erp-finance-query": ErpFinanceQueryHandler(),
     "document-decode": DocumentDecodeHandler(),
+    "chunk": ChunkHandler(),
+    "extract-definitions": ExtractionHandler("extract-definitions-request"),
+    "extract-relationships": ExtractionHandler("extract-relationships-request"),
+    "extract-ontology": ExtractionHandler("extract-ontology-request"),
 }

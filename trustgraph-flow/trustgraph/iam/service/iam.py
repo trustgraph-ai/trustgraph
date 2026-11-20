@@ -88,6 +88,8 @@ _READER_CAPS = {
     "policy",
     "action",
     "document-decode",
+    "chunker",
+    "extraction",
     "config:read",
     "flows:read",
     "collections:read",
