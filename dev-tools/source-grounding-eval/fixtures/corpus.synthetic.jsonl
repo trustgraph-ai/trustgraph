@@ -1,0 +1,4 @@
+{"source_uri": "urn:example:orbit:plan-v1", "text": "The Orion test flight is planned for 12 June. Budget is 2.4 million credits. Launch site is Port East.", "title": "Orbit Plan v1"}
+{"source_uri": "urn:example:orbit:plan-v2", "text": "The Orion test flight is rescheduled for 16 June. Budget is 2.8 million credits. Launch site remains Port East.", "title": "Orbit Plan v2"}
+{"source_uri": "urn:example:orbit:weather", "text": "Port East weather is expected to be cloudy on 16 June. Wind speed is 8 knots.", "title": "Weather briefing"}
+{"source_uri": "urn:example:orbit:personnel", "text": "Mira Patel leads the Orion test flight, and Arif Shah is safety officer.", "title": "Personnel memo"}

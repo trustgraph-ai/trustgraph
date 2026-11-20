@@ -1,0 +1,12 @@
+{"answer": "Synthetic example answer for q01", "id": "q01", "provenance": [], "sources": [{"title": "Orbit Plan v1", "uri": "urn:example:orbit:plan-v1"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q02", "id": "q02", "provenance": [], "sources": [{"title": "Orbit Plan v2", "uri": "urn:example:orbit:plan-v2"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q03", "id": "q03", "provenance": [], "sources": [{"title": "Orbit Plan v1", "uri": "urn:example:orbit:plan-v1"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q04", "id": "q04", "provenance": [], "sources": [{"title": "Orbit Plan v2", "uri": "urn:example:orbit:plan-v2"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q05", "id": "q05", "provenance": [], "sources": [{"title": "Orbit Plan v2", "uri": "urn:example:orbit:plan-v2"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q06", "id": "q06", "provenance": [], "sources": [{"title": "Orbit Plan v1", "uri": "urn:example:orbit:plan-v1"}, {"title": "Orbit Plan v2", "uri": "urn:example:orbit:plan-v2"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q07", "id": "q07", "provenance": [], "sources": [{"title": "Weather briefing", "uri": "urn:example:orbit:weather"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q08", "id": "q08", "provenance": [], "sources": [{"title": "Personnel memo", "uri": "urn:example:orbit:personnel"}, {"title": "Orbit Plan v2", "uri": "urn:example:orbit:plan-v2"}], "synthetic_example": true}
+{"answer": "Synthetic example answer for q09", "id": "q09", "provenance": [], "sources": [{"title": "Orbit Plan v1", "uri": "urn:example:orbit:plan-v1"}, {"title": "Weather briefing", "uri": "urn:example:orbit:weather"}], "synthetic_example": true}
+{"answer": "Not established by available documents.", "id": "q10", "provenance": [], "sources": [], "synthetic_example": true}
+{"answer": "Not established by available documents.", "id": "q11", "provenance": [], "sources": [{"title": "Orbit Plan v2", "uri": "urn:example:orbit:plan-v2"}], "synthetic_example": true}
+{"answer": "Not established by available documents.", "id": "q12", "provenance": [], "sources": [], "synthetic_example": true}
