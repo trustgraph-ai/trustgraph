@@ -2,6 +2,7 @@
 # VERSION=$(shell git describe | sed 's/^v//')
 
 VERSION=0.0.0
+PYPI_VERSION=$(shell echo '${VERSION}' | sed 's/-//')
 
 DOCKER=podman
 
@@ -40,26 +41,26 @@ packages: update-package-versions
 	cd trustgraph-mcp && python -m build --sdist --outdir ../dist/
 
 pypi-upload:
-	twine upload dist/*-${VERSION}.*
+	twine upload dist/*-${PYPI_VERSION}.*
 
 CONTAINER_BASE=docker.io/trustgraph
 
 update-package-versions:
 	mkdir -p trustgraph-cli/trustgraph
 	mkdir -p trustgraph/trustgraph
-	echo __version__ = \"${VERSION}\" > trustgraph-base/trustgraph/base_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-flow/trustgraph/flow_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-vertexai/trustgraph/vertexai_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-cloze/trustgraph/cloze_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-laya/trustgraph/laya_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-span/trustgraph/span_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-docling/trustgraph/docling_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-base/trustgraph/base_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-flow/trustgraph/flow_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-vertexai/trustgraph/vertexai_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-cloze/trustgraph/cloze_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-laya/trustgraph/laya_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-span/trustgraph/span_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-docling/trustgraph/docling_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
+	echo __version__ = \"${PYPI_VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
 
 containers: container-base container-flow \
 container-bedrock container-vertexai \
