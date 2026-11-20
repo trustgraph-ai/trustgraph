@@ -6,6 +6,7 @@ from trustgraph.schema import TraversalStep
 from . common import (
     HandlerError, get_param, get_param_list, get_param_int,
     parse_param_json, term_to_str, get_input_artifact,
+    schema_term_to_dict, term_dict_to_str,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,7 +113,9 @@ class KnowledgeRetrievalHandler:
 
         triples = [
             {
-                "s": e.s, "p": e.p, "o": e.o,
+                "s": {"type": "iri", "iri": e.s},
+                "p": {"type": "iri", "iri": e.p},
+                "o": {"type": "iri", "iri": e.o},
                 "s_label": e.s_label, "p_label": e.p_label,
                 "o_label": e.o_label,
                 "score": e.score, "concept": e.concept,
@@ -285,31 +288,37 @@ class EntityTriplesQueryHandler:
 
         for entity_uri in entities:
             if direction in ("outbound", "both"):
-                results = await triples_client.query(
+                results = await triples_client.query_terms(
                     s=entity_uri, limit=limit,
                     collection=collection, g=g,
                     timeout=300,
                 )
                 for t in results:
-                    key = (str(t.s), str(t.p), str(t.o))
+                    key = (term_to_str(t.s), term_to_str(t.p),
+                           term_to_str(t.o))
                     if key not in seen:
                         seen.add(key)
                         triples.append({
-                            "s": str(t.s), "p": str(t.p), "o": str(t.o),
+                            "s": schema_term_to_dict(t.s),
+                            "p": schema_term_to_dict(t.p),
+                            "o": schema_term_to_dict(t.o),
                         })
 
             if direction in ("inbound", "both"):
-                results = await triples_client.query(
+                results = await triples_client.query_terms(
                     o=entity_uri, limit=limit,
                     collection=collection, g=g,
                     timeout=300,
                 )
                 for t in results:
-                    key = (str(t.s), str(t.p), str(t.o))
+                    key = (term_to_str(t.s), term_to_str(t.p),
+                           term_to_str(t.o))
                     if key not in seen:
                         seen.add(key)
                         triples.append({
-                            "s": str(t.s), "p": str(t.p), "o": str(t.o),
+                            "s": schema_term_to_dict(t.s),
+                            "p": schema_term_to_dict(t.p),
+                            "o": schema_term_to_dict(t.o),
                         })
 
         logger.info(
@@ -319,4 +328,200 @@ class EntityTriplesQueryHandler:
         return "SubgraphArtifact", {
             "triples": triples,
             "seed_entities": entities,
+        }
+
+
+class DocumentRagQueryHandler:
+
+    async def execute(self, params, input_artifacts, flow):
+
+        query = get_param(params, "query")
+
+        collection = get_param(params, "collection", required=False) \
+            or "default"
+        doc_limit = get_param_int(params, "doc-limit", 0)
+        fetch_limit = get_param_int(params, "fetch-limit", 0)
+
+        logger.info(
+            f"Document RAG query: {query[:80]}... "
+            f"collection={collection}"
+        )
+
+        doc_rag = flow("document-rag-request")
+
+        response = await doc_rag.rag(
+            query=query,
+            collection=collection,
+            doc_limit=doc_limit,
+            fetch_limit=fetch_limit,
+            timeout=300,
+        )
+
+        return "TextBlobArtifact", {
+            "text": response,
+            "query": query,
+        }
+
+
+class TriplesQueryHandler:
+
+    async def execute(self, params, input_artifacts, flow):
+
+        s = get_param(params, "s", required=False) or None
+        p = get_param(params, "p", required=False) or None
+        o = get_param(params, "o", required=False) or None
+
+        if not s and not p and not o:
+            raise HandlerError(
+                "triples-query requires at least one of: "
+                "'s', 'p', or 'o' parameter"
+            )
+
+        limit = get_param_int(params, "limit", 50)
+        collection = get_param(params, "collection", required=False) \
+            or "default"
+        g = get_param(params, "graph", required=False) or None
+        languages = get_param_list(params, "languages")
+
+        logger.info(
+            f"Triples query: s={s}, p={p}, o={o}, "
+            f"limit={limit}, collection={collection}"
+        )
+
+        triples_client = flow("triples-request")
+
+        results = await triples_client.query_terms(
+            s=s, p=p, o=o,
+            limit=limit,
+            collection=collection,
+            g=g,
+            timeout=300,
+        )
+
+        triples = []
+        for t in results:
+            if languages:
+                o_term = t.o
+                if o_term and o_term.type == 'l' and o_term.language:
+                    if o_term.language not in languages:
+                        continue
+
+            triples.append({
+                "s": schema_term_to_dict(t.s),
+                "p": schema_term_to_dict(t.p),
+                "o": schema_term_to_dict(t.o),
+            })
+
+        logger.info(
+            f"Triples query: {len(triples)} triples"
+            + (f" (filtered by languages: {languages})"
+               if languages else "")
+        )
+
+        return "SubgraphArtifact", {
+            "triples": triples,
+        }
+
+
+class SparqlQueryHandler:
+
+    @staticmethod
+    def _format_sparql_value(spec):
+        if isinstance(spec, str):
+            raise HandlerError(
+                "SPARQL variable must be a typed object, "
+                "not a bare string"
+            )
+        vtype = spec.get("type", "")
+        value = spec.get("value", "")
+        if vtype == "iri":
+            escaped = value.replace("\\", "\\\\").replace(">", "\\>")
+            return f"<{escaped}>"
+        elif vtype == "literal":
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            lang = spec.get("language", "")
+            datatype = spec.get("datatype", "")
+            if lang:
+                return f'"{escaped}"@{lang}'
+            elif datatype:
+                dt_escaped = datatype.replace("\\", "\\\\").replace(
+                    ">", "\\>",
+                )
+                return f'"{escaped}"^^<{dt_escaped}>'
+            return f'"{escaped}"'
+        else:
+            raise HandlerError(
+                f"SPARQL variable type must be 'iri' or 'literal', "
+                f"got '{vtype}'"
+            )
+
+    @classmethod
+    def _substitute_variables(cls, query, variables):
+        for name, spec in variables.items():
+            sparql_value = cls._format_sparql_value(spec)
+            query = query.replace(f"${name}", sparql_value)
+        return query
+
+    async def execute(self, params, input_artifacts, flow):
+
+        query = get_param(params, "query")
+
+        variables = parse_param_json(params, "variables", dict)
+        if variables:
+            query = self._substitute_variables(query, variables)
+
+        collection = get_param(params, "collection", required=False) \
+            or "default"
+        limit = get_param_int(params, "limit", 10000)
+
+        logger.info(
+            f"SPARQL query: {query[:80]}... "
+            f"collection={collection}, limit={limit}"
+        )
+
+        sparql = flow("sparql-request")
+        response = await sparql.query(
+            query=query,
+            collection=collection,
+            limit=limit,
+            timeout=300,
+        )
+
+        if response.query_type == "ask":
+            return "TextBlobArtifact", {
+                "text": str(response.ask_result),
+            }
+
+        if response.query_type in ("construct", "describe"):
+            triples = [
+                {
+                    "s": schema_term_to_dict(t.s),
+                    "p": schema_term_to_dict(t.p),
+                    "o": schema_term_to_dict(t.o),
+                }
+                for t in response.triples
+            ]
+            return "SubgraphArtifact", {
+                "triples": triples,
+            }
+
+        columns = [
+            {"name": v, "type": "string"}
+            for v in response.variables
+        ]
+        rows = []
+        for binding in response.bindings:
+            row = {}
+            for var, val in zip(response.variables, binding.values):
+                row[var] = term_to_str(val) if val else ""
+            rows.append(row)
+
+        logger.info(
+            f"SPARQL query: {len(rows)} rows, "
+            f"{len(columns)} columns"
+        )
+
+        return "TabularArtifact", {
+            "columns": columns,
+            "rows": rows,
         }

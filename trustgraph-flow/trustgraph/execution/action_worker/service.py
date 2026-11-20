@@ -12,14 +12,17 @@ from ... base import (
     ConceptExtractionClientSpec,
     KnowledgeRetrievalClientSpec,
     GraphRagClientSpec,
+    DocumentRagClientSpec,
     EmbeddingsClientSpec,
     GraphEmbeddingsClientSpec,
     TriplesClientSpec,
+    SparqlClientSpec,
     RerankerClientSpec,
     TextCompletionClientSpec,
     ClozeClientSpec,
     DecisionScoringClientSpec,
     FieldExtractionClientSpec,
+    DocumentDecoderClientSpec,
 )
 
 from . handlers import BUILTIN_HANDLERS, HandlerError
@@ -92,6 +95,20 @@ class Processor(ActionService):
         )
 
         self.register_specification(
+            DocumentRagClientSpec(
+                request_name="document-rag-request",
+                response_name="document-rag-response",
+            )
+        )
+
+        self.register_specification(
+            SparqlClientSpec(
+                request_name="sparql-request",
+                response_name="sparql-response",
+            )
+        )
+
+        self.register_specification(
             ClozeClientSpec(
                 request_name="cloze-request",
                 response_name="cloze-response",
@@ -109,6 +126,13 @@ class Processor(ActionService):
             FieldExtractionClientSpec(
                 request_name="field-extraction-request",
                 response_name="field-extraction-response",
+            )
+        )
+
+        self.register_specification(
+            DocumentDecoderClientSpec(
+                request_name="document-decode-request",
+                response_name="document-decode-response",
             )
         )
 

@@ -129,6 +129,29 @@ class TriplesClient:
 
         return triples
 
+    async def query_terms(self, s=None, p=None, o=None, limit=20,
+                    collection="default",
+                    timeout=30, g=None,
+                    user_context=None):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                s = from_value(s),
+                p = from_value(p),
+                o = from_value(o),
+                limit = limit,
+                collection = collection,
+                g = g,
+                user_context = user_context,
+            ),
+            timeout=timeout
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.triples
+
     async def query_stream(self, s=None, p=None, o=None, limit=20,
                            collection="default",
                            batch_size=20, timeout=30,

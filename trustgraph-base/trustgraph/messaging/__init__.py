@@ -43,6 +43,7 @@ from .translators.planner import PlannerRequestTranslator, PlannerResponseTransl
 from .translators.verification import VerificationRequestTranslator, VerificationResponseTranslator
 from .translators.policy_engine import PolicyEngineRequestTranslator, PolicyEngineResponseTranslator
 from .translators.action import ActionRequestTranslator, ActionResponseTranslator
+from .translators.document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -259,6 +260,12 @@ TranslatorRegistry.register_service(
     "action",
     ActionRequestTranslator(),
     ActionResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "document-decode",
+    DocumentDecoderRequestTranslator(),
+    DocumentDecoderResponseTranslator()
 )
 
 # Register single-direction translators for document loading

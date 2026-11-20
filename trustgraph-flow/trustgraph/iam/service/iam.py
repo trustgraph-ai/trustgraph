@@ -87,6 +87,7 @@ _READER_CAPS = {
     "verification",
     "policy",
     "action",
+    "document-decode",
     "config:read",
     "flows:read",
     "collections:read",

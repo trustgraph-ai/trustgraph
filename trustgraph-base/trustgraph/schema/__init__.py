@@ -25,4 +25,5 @@ from .knowledge_retrieval import *
 from .planner import *
 from .verification import *
 from .policy_engine import *
+from .document_decoder import *
 from .action import *

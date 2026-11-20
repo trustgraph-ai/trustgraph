@@ -63,6 +63,9 @@ from . planner_service import PlannerService
 from . verification_service import VerificationService
 from . policy_engine_service import PolicyEngineService
 from . action_service import ActionService
+from . document_rag_client import DocumentRagClientSpec
+from . document_decoder_client import DocumentDecoderClientSpec
+from . document_decoder_base import DocumentDecoderBase
 from . cloze_client import ClozeClientSpec
 from . decision_scoring_client import DecisionScoringClientSpec
 from . field_extraction_client import FieldExtractionClientSpec

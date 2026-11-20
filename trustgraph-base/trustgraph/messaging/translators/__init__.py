@@ -23,3 +23,4 @@ from .diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataD
 from .reranker import RerankerRequestTranslator, RerankerResponseTranslator
 from .cloze import ClozeRequestTranslator, ClozeResponseTranslator
 from .decision_scoring import DecisionScoringRequestTranslator, DecisionScoringResponseTranslator
+from .document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator

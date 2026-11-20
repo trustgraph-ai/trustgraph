@@ -51,6 +51,7 @@ from . planner import PlannerRequestor
 from . verification import VerificationRequestor
 from . policy_engine import PolicyEngineRequestor
 from . action import ActionRequestor
+from . document_decode import DocumentDecodeRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -103,6 +104,7 @@ request_response_dispatchers = {
     "verification": VerificationRequestor,
     "policy": PolicyEngineRequestor,
     "action": ActionRequestor,
+    "document-decode": DocumentDecodeRequestor,
 }
 
 system_dispatchers = {
