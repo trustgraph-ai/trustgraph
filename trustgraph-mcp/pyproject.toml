@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = [
     "mcp",
     "websockets",
-    "trustgraph-base>=3.0,<3.1",
+    "trustgraph-base>=3.0.0a0,<3.1",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
