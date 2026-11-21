@@ -52,6 +52,8 @@ from . verification import VerificationRequestor
 from . policy_engine import PolicyEngineRequestor
 from . action import ActionRequestor
 from . document_decode import DocumentDecodeRequestor
+from . chunker import ChunkerRequestor
+from . extraction import ExtractionRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -105,6 +107,10 @@ request_response_dispatchers = {
     "policy": PolicyEngineRequestor,
     "action": ActionRequestor,
     "document-decode": DocumentDecodeRequestor,
+    "chunker": ChunkerRequestor,
+    "extract-definitions": ExtractionRequestor,
+    "extract-relationships": ExtractionRequestor,
+    "extract-ontology": ExtractionRequestor,
 }
 
 system_dispatchers = {

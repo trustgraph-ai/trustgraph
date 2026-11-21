@@ -77,6 +77,10 @@ class TestKnowledgeGraphPipelineIntegration:
                 return triples_producer
             elif service_name == "entity-contexts":
                 return entity_contexts_producer
+            elif service_name == "llm-model":
+                return "test-llm"
+            elif service_name == "ontology":
+                return "test-ontology"
             else:
                 return AsyncMock()
         
@@ -147,23 +151,21 @@ class TestKnowledgeGraphPipelineIntegration:
     @pytest.fixture
     def definitions_processor(self):
         """Create definitions processor with minimal configuration"""
-        processor = MagicMock()
-        processor.to_uri = DefinitionsProcessor.to_uri.__get__(processor, DefinitionsProcessor)
-        processor.emit_triples = DefinitionsProcessor.emit_triples.__get__(processor, DefinitionsProcessor)
-        processor.emit_ecs = DefinitionsProcessor.emit_ecs.__get__(processor, DefinitionsProcessor)
-        processor.on_message = DefinitionsProcessor.on_message.__get__(processor, DefinitionsProcessor)
+        processor = DefinitionsProcessor.__new__(DefinitionsProcessor)
         processor.triples_batch_size = 50
         processor.entity_batch_size = 5
+        processor.id = "test-definitions"
+        processor.component_version = "test"
         return processor
 
     @pytest.fixture
     def relationships_processor(self):
         """Create relationships processor with minimal configuration"""
-        processor = MagicMock()
-        processor.to_uri = RelationshipsProcessor.to_uri.__get__(processor, RelationshipsProcessor)
-        processor.emit_triples = RelationshipsProcessor.emit_triples.__get__(processor, RelationshipsProcessor)
-        processor.on_message = RelationshipsProcessor.on_message.__get__(processor, RelationshipsProcessor)
+        processor = RelationshipsProcessor.__new__(RelationshipsProcessor)
         processor.triples_batch_size = 50
+        processor.entity_batch_size = 5
+        processor.id = "test-relationships"
+        processor.component_version = "test"
         return processor
 
     @pytest.mark.asyncio
