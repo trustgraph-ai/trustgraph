@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from .core.primitives import Error
 from .core.topic import queue
+from .user_context import UserContext
 
 ############################################################################
 
@@ -15,6 +16,7 @@ class ActionRequest:
     capability: str = ""
     params: dict[str, str] = field(default_factory=dict)
     input_artifacts: list[dict] = field(default_factory=list)
+    user_context: UserContext | None = None
 
 @dataclass
 class ActionResponse:

@@ -1,5 +1,5 @@
 """
-Invoke the policy engine with a subject and principal context.
+Invoke the policy engine with a subject and user context.
 Displays the policy attestation result.
 """
 
@@ -80,22 +80,22 @@ def main():
     )
 
     parser.add_argument(
-        '--principal',
+        '--user-context',
         default=None,
-        help='Path to JSON principal context file',
+        help='Path to JSON user context file',
     )
 
     parser.add_argument(
-        '--principal-user',
+        '--user-id',
         default=None,
-        help='Principal user IRI',
+        help='User ID',
     )
 
     parser.add_argument(
-        '--principal-roles',
+        '--roles',
         default=None,
         nargs='+',
-        help='Principal roles',
+        help='User roles',
     )
 
     args = parser.parse_args()
@@ -108,15 +108,15 @@ def main():
             print("Enter subject JSON (Ctrl-D to finish):", file=sys.stderr)
         subject = json.loads(sys.stdin.read())
 
-    if args.principal:
-        with open(args.principal) as f:
-            principal = json.load(f)
+    if args.user_context:
+        with open(args.user_context) as f:
+            user_context = json.load(f)
     else:
-        principal = {}
-        if args.principal_user:
-            principal["user"] = args.principal_user
-        if args.principal_roles:
-            principal["roles"] = args.principal_roles
+        user_context = {}
+        if args.user_id:
+            user_context["user-id"] = args.user_id
+        if args.roles:
+            user_context["roles"] = args.roles
 
     try:
 
@@ -133,7 +133,7 @@ def main():
                     "step-id": args.step_id,
                     "evaluation-type": args.evaluation_type,
                     "subject": subject,
-                    "principal": principal,
+                    "user-context": user_context,
                 },
             )
         finally:

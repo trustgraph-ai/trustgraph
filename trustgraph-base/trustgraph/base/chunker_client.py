@@ -46,7 +46,7 @@ class ChunkerClient:
 
 class ChunkerClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(ChunkerClientSpec, self).__init__(
             request_name=request_name,
@@ -54,4 +54,5 @@ class ChunkerClientSpec(RequestResponseSpec):
             response_name=response_name,
             response_schema=ChunkerResponse,
             impl=ChunkerClient,
+            optional=optional,
         )

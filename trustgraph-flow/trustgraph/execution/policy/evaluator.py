@@ -168,7 +168,7 @@ def _extract_rules(g, shape_iri):
     return rules
 
 
-def build_eval_graph(evaluation_type, subject, principal):
+def build_eval_graph(evaluation_type, subject, user_context):
 
     g = Graph()
 
@@ -214,26 +214,72 @@ def build_eval_graph(evaluation_type, subject, principal):
 
     g.add((CONTEXT_IRI, RDF.type, TG_UC.UserContext))
 
-    user = principal.get("user", "")
-    if user:
-        g.add((CONTEXT_IRI, TG_UC.user, URIRef(user)
-               if user.startswith("urn:") else Literal(user)))
+    if user_context is not None:
 
-    for role in principal.get("roles", []):
-        g.add((CONTEXT_IRI, TG_UC.role, Literal(role)))
+        if user_context.user_id:
+            user_id = user_context.user_id
+            g.add((CONTEXT_IRI, TG_UC.userId, URIRef(user_id)
+                   if user_id.startswith("urn:") else Literal(user_id)))
 
-    workspace = principal.get("workspace", "")
-    if workspace:
-        g.add((CONTEXT_IRI, TG_UC.workspace, Literal(workspace)))
+        for role in user_context.roles:
+            g.add((CONTEXT_IRI, TG_UC.role, Literal(role)))
 
-    for key, value in principal.items():
-        if key in ("user", "roles", "workspace"):
-            continue
-        if isinstance(value, str):
-            g.add((CONTEXT_IRI, TG_UC[key], Literal(value)))
-        elif isinstance(value, list):
-            for item in value:
-                g.add((CONTEXT_IRI, TG_UC[key], Literal(str(item))))
+        for ou in user_context.organisational_units:
+            g.add((CONTEXT_IRI, TG_UC.organisationalUnit, Literal(ou)))
+
+        if user_context.purpose:
+            g.add((CONTEXT_IRI, TG_UC.purpose, Literal(user_context.purpose)))
+
+        for assignment in user_context.assignments:
+            a_node = URIRef(EVAL_NS + f"assignment-{assignment.resource}")
+            g.add((CONTEXT_IRI, TG_UC.assignment, a_node))
+            if assignment.resource:
+                g.add((a_node, TG_UC.resource, Literal(assignment.resource)))
+            if assignment.scope:
+                g.add((a_node, TG_UC.scope, Literal(assignment.scope)))
+            if assignment.status:
+                g.add((a_node, TG_UC.status, Literal(assignment.status)))
+
+        for entitlement in user_context.entitlements:
+            e_node = URIRef(
+                EVAL_NS + f"entitlement-{entitlement.resource_scope}"
+            )
+            g.add((CONTEXT_IRI, TG_UC.entitlement, e_node))
+            if entitlement.resource_scope:
+                g.add((
+                    e_node, TG_UC.resourceScope,
+                    Literal(entitlement.resource_scope),
+                ))
+            if entitlement.access_level:
+                g.add((
+                    e_node, TG_UC.accessLevel,
+                    Literal(entitlement.access_level),
+                ))
+
+        for oa in user_context.override_authorities:
+            oa_node = URIRef(EVAL_NS + f"override-{oa.policy_area}")
+            g.add((CONTEXT_IRI, TG_UC.overrideAuthority, oa_node))
+            if oa.policy_area:
+                g.add((
+                    oa_node, TG_UC.policyArea,
+                    Literal(oa.policy_area),
+                ))
+            if oa.condition:
+                g.add((oa_node, TG_UC.condition, Literal(oa.condition)))
+
+        if user_context.delegation:
+            d_node = URIRef(EVAL_NS + "delegation")
+            g.add((CONTEXT_IRI, TG_UC.delegation, d_node))
+            if user_context.delegation.delegator_id:
+                g.add((
+                    d_node, TG_UC.delegatorId,
+                    Literal(user_context.delegation.delegator_id),
+                ))
+            if user_context.delegation.scope:
+                g.add((
+                    d_node, TG_UC.scope,
+                    Literal(user_context.delegation.scope),
+                ))
 
     return g
 
@@ -337,9 +383,9 @@ def extract_attestation(result_graph):
     }
 
 
-def evaluate_rules(rules, evaluation_type, subject, principal):
+def evaluate_rules(rules, evaluation_type, subject, user_context):
 
-    eval_graph = build_eval_graph(evaluation_type, subject, principal)
+    eval_graph = build_eval_graph(evaluation_type, subject, user_context)
 
     for rule in rules:
 
