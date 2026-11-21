@@ -13,6 +13,8 @@ dependencies = [
     "trustgraph-base>=3.0.0a0,<3.1",
     "aiohttp",
     "anthropic",
+    "beautifulsoup4",
+    "httpx",
     "scylla-driver",
     "cohere",
     "cryptography",
@@ -134,6 +136,9 @@ triples-write-memgraph = "trustgraph.storage.triples.memgraph:run"
 triples-write-neo4j = "trustgraph.storage.triples.neo4j:run"
 wikipedia-lookup = "trustgraph.external.wikipedia:run"
 joke-service = "trustgraph.tool_service.joke:run"
+joke-action-service = "trustgraph.action_service.joke:run"
+erp-finance-action-service = "trustgraph.action_service.erp_finance:run"
+web-action-service = "trustgraph.action_service.web:run"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]

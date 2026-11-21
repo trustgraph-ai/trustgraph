@@ -19,7 +19,7 @@ class ConceptExtractionClient:
 
 class ConceptExtractionClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(ConceptExtractionClientSpec, self).__init__(
             request_name = request_name,
@@ -27,4 +27,5 @@ class ConceptExtractionClientSpec(RequestResponseSpec):
             response_name = response_name,
             response_schema = ConceptExtractionResponse,
             impl = ConceptExtractionClient,
+            optional = optional,
         )

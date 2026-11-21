@@ -1,13 +1,11 @@
 """
 Base class for dynamically pluggable tool services.
 
-Tool services are Pulsar services that can be invoked as agent tools.
+Tool services are standalone services that can be invoked as agent tools.
 They receive a ToolServiceRequest with config and arguments,
 and return a ToolServiceResponse with the result.
 
-Uses direct Pulsar topics (no flow configuration required):
-- Request: non-persistent://tg/request/{topic}
-- Response: non-persistent://tg/response/{topic}
+Uses direct topics (no flow configuration required).
 """
 
 from __future__ import annotations
@@ -21,6 +19,7 @@ import argparse
 from prometheus_client import Counter
 
 from .. schema import ToolServiceRequest, ToolServiceResponse, Error
+from .. schema.core.topic import queue
 from .. exceptions import TooManyRequests
 from . async_processor import AsyncProcessor
 
@@ -64,8 +63,8 @@ class DynamicToolService(AsyncProcessor):
     async def start(self):
         await super(DynamicToolService, self).start()
 
-        request_topic = f"non-persistent://tg/request/{self._topic}"
-        response_topic = f"non-persistent://tg/response/{self._topic}"
+        request_topic = queue(self._topic, cls='request')
+        response_topic = queue(self._topic, cls='response')
 
         logger.info(
             f"Tool service topics: "

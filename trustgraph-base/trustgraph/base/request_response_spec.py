@@ -8,10 +8,11 @@ from . spec import Spec, TimeoutSpec
 # Module logger
 logger = logging.getLogger(__name__)
 
-# This deals with the request/response case.  The caller needs to
-# use another service in request/response mode.  Uses two topics:
-# - we send on the request topic as a producer
-# - we receive on the response topic as a subscriber
+
+class ServiceNotConfiguredError(Exception):
+    pass
+
+
 class RequestResponseSpec(TimeoutSpec, Spec):
 
     default_timeout = 300
@@ -33,10 +34,21 @@ class RequestResponseSpec(TimeoutSpec, Spec):
         from .request_response_client import RequestResponseClient
 
         topics = definition.get("topics", {})
-        if self.optional and (
-                self.request_name not in topics
-                or self.response_name not in topics):
-            return None
+
+        if (
+            self.request_name not in topics
+            or self.response_name not in topics
+        ):
+            if self.optional is True:
+                return None
+            elif self.optional is Exception:
+                wrapper = _make_error_wrapper(
+                    self.request_name, self.impl,
+                )
+                flow.consumer[self.request_name] = wrapper
+                return wrapper
+            else:
+                raise KeyError(self.request_name)
 
         rr_client = await RequestResponseClient.create(
             backend=processor.async_backend,
@@ -55,8 +67,6 @@ class RequestResponseSpec(TimeoutSpec, Spec):
 
 
 def _make_impl_wrapper(rr_client, impl_cls):
-    """Create a domain-specific wrapper that delegates request() to the
-    RequestResponseClient while inheriting business methods from impl_cls."""
 
     bases = (impl_cls,) if impl_cls is not None else ()
 
@@ -83,4 +93,33 @@ def _make_impl_wrapper(rr_client, impl_cls):
             await self._rr_client.close()
 
     return Wrapper()
+
+
+def _make_error_wrapper(service_name, impl_cls):
+
+    bases = (impl_cls,) if impl_cls is not None else ()
+
+    class ErrorWrapper(*bases):
+        def __init__(self):
+            self._service_name = service_name
+
+        def _raise(self):
+            raise ServiceNotConfiguredError(
+                f"Service '{self._service_name}' is not configured "
+                f"in this flow"
+            )
+
+        async def request(self, req, timeout=None, recipient=None):
+            self._raise()
+
+        async def start(self):
+            pass
+
+        async def stop(self):
+            pass
+
+        async def close(self):
+            pass
+
+    return ErrorWrapper()
 

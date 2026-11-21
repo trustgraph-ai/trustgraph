@@ -90,7 +90,7 @@ class Processor(PolicyEngineService):
             rules,
             request.evaluation_type,
             request.subject,
-            request.principal,
+            request.user_context,
         )
 
         matched_rules = []

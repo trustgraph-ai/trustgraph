@@ -9,7 +9,7 @@ from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . parameter_spec import ParameterSpec
 from . producer_spec import ProducerSpec
-from . request_response_spec import RequestResponseSpec
+from . request_response_spec import RequestResponseSpec, ServiceNotConfiguredError
 from . llm_service import LlmService, LlmResult, LlmChunk
 from . librarian_spec import LibrarianSpec
 from . chunking_service import ChunkingService
@@ -72,4 +72,6 @@ from . extraction_service import ExtractionServiceBase
 from . cloze_client import ClozeClientSpec
 from . decision_scoring_client import DecisionScoringClientSpec
 from . field_extraction_client import FieldExtractionClientSpec
+from . remote_action_service import RemoteActionService
+from . remote_action_client import RemoteActionClient
 
