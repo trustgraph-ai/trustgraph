@@ -212,7 +212,7 @@ class TriplesClient:
 
 class TriplesClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(TriplesClientSpec, self).__init__(
             request_name = request_name,
@@ -220,5 +220,6 @@ class TriplesClientSpec(RequestResponseSpec):
             response_name = response_name,
             response_schema = TriplesQueryResponse,
             impl = TriplesClient,
+            optional = optional,
         )
 

@@ -38,7 +38,7 @@ class KnowledgeRetrievalClient:
 
 class KnowledgeRetrievalClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(KnowledgeRetrievalClientSpec, self).__init__(
             request_name = request_name,
@@ -46,4 +46,5 @@ class KnowledgeRetrievalClientSpec(RequestResponseSpec):
             response_name = response_name,
             response_schema = KnowledgeRetrievalResponse,
             impl = KnowledgeRetrievalClient,
+            optional = optional,
         )

@@ -44,6 +44,7 @@ class Processor(ActionService):
             ConceptExtractionClientSpec(
                 request_name="concept-extraction-request",
                 response_name="concept-extraction-response",
+                optional=Exception,
             )
         )
 
@@ -51,6 +52,7 @@ class Processor(ActionService):
             KnowledgeRetrievalClientSpec(
                 request_name="knowledge-retrieval-request",
                 response_name="knowledge-retrieval-response",
+                optional=Exception,
             )
         )
 
@@ -58,6 +60,7 @@ class Processor(ActionService):
             GraphRagClientSpec(
                 request_name="graph-rag-request",
                 response_name="graph-rag-response",
+                optional=Exception,
             )
         )
 
@@ -65,6 +68,7 @@ class Processor(ActionService):
             EmbeddingsClientSpec(
                 request_name="embeddings-request",
                 response_name="embeddings-response",
+                optional=Exception,
             )
         )
 
@@ -72,6 +76,7 @@ class Processor(ActionService):
             GraphEmbeddingsClientSpec(
                 request_name="graph-embeddings-request",
                 response_name="graph-embeddings-response",
+                optional=Exception,
             )
         )
 
@@ -79,6 +84,7 @@ class Processor(ActionService):
             TriplesClientSpec(
                 request_name="triples-request",
                 response_name="triples-response",
+                optional=Exception,
             )
         )
 
@@ -86,6 +92,7 @@ class Processor(ActionService):
             RerankerClientSpec(
                 request_name="reranker-request",
                 response_name="reranker-response",
+                optional=Exception,
             )
         )
 
@@ -93,6 +100,7 @@ class Processor(ActionService):
             TextCompletionClientSpec(
                 request_name="text-completion-request",
                 response_name="text-completion-response",
+                optional=Exception,
             )
         )
 
@@ -100,6 +108,7 @@ class Processor(ActionService):
             DocumentRagClientSpec(
                 request_name="document-rag-request",
                 response_name="document-rag-response",
+                optional=Exception,
             )
         )
 
@@ -107,6 +116,7 @@ class Processor(ActionService):
             SparqlClientSpec(
                 request_name="sparql-request",
                 response_name="sparql-response",
+                optional=Exception,
             )
         )
 
@@ -114,6 +124,7 @@ class Processor(ActionService):
             ClozeClientSpec(
                 request_name="cloze-request",
                 response_name="cloze-response",
+                optional=Exception,
             )
         )
 
@@ -121,6 +132,7 @@ class Processor(ActionService):
             DecisionScoringClientSpec(
                 request_name="decision-scoring-request",
                 response_name="decision-scoring-response",
+                optional=Exception,
             )
         )
 
@@ -128,6 +140,7 @@ class Processor(ActionService):
             FieldExtractionClientSpec(
                 request_name="field-extraction-request",
                 response_name="field-extraction-response",
+                optional=Exception,
             )
         )
 
@@ -135,6 +148,7 @@ class Processor(ActionService):
             DocumentDecoderClientSpec(
                 request_name="document-decode-request",
                 response_name="document-decode-response",
+                optional=Exception,
             )
         )
 
@@ -142,6 +156,7 @@ class Processor(ActionService):
             ChunkerClientSpec(
                 request_name="chunker-request",
                 response_name="chunker-response",
+                optional=Exception,
             )
         )
 
@@ -149,6 +164,7 @@ class Processor(ActionService):
             ExtractionClientSpec(
                 request_name="extract-definitions-request",
                 response_name="extract-definitions-response",
+                optional=Exception,
             )
         )
 
@@ -156,6 +172,7 @@ class Processor(ActionService):
             ExtractionClientSpec(
                 request_name="extract-relationships-request",
                 response_name="extract-relationships-response",
+                optional=Exception,
             )
         )
 
@@ -163,6 +180,7 @@ class Processor(ActionService):
             ExtractionClientSpec(
                 request_name="extract-ontology-request",
                 response_name="extract-ontology-response",
+                optional=Exception,
             )
         )
 

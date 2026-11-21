@@ -25,7 +25,7 @@ class SparqlClient:
 
 class SparqlClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(SparqlClientSpec, self).__init__(
             request_name=request_name,
@@ -33,4 +33,5 @@ class SparqlClientSpec(RequestResponseSpec):
             response_name=response_name,
             response_schema=SparqlQueryResponse,
             impl=SparqlClient,
+            optional=optional,
         )
