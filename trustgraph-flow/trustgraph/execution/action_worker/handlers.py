@@ -34,6 +34,7 @@ from . external import ErpFinanceQueryHandler
 from . decoding import DocumentDecodeHandler
 from . chunking import ChunkHandler
 from . extraction import ExtractionHandler
+from . mcp_tool import McpToolHandler
 
 
 BUILTIN_HANDLERS = {
@@ -58,4 +59,5 @@ BUILTIN_HANDLERS = {
     "extract-definitions": ExtractionHandler("extract-definitions-request"),
     "extract-relationships": ExtractionHandler("extract-relationships-request"),
     "extract-ontology": ExtractionHandler("extract-ontology-request"),
+    "mcp-tool": McpToolHandler(),
 }

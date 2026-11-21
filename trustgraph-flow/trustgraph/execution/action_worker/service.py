@@ -1,7 +1,7 @@
 """
 Action worker service.  Single service that dispatches step execution
 to capability handlers.  Built-in handlers wrap existing TrustGraph
-services.  Future: MCP tool and tool service delegation.
+services including MCP tool delegation.
 """
 
 import logging
@@ -25,6 +25,7 @@ from ... base import (
     DocumentDecoderClientSpec,
     ChunkerClientSpec,
     ExtractionClientSpec,
+    ToolClientSpec,
 )
 
 from . handlers import BUILTIN_HANDLERS, HandlerError
@@ -180,6 +181,14 @@ class Processor(ActionService):
             ExtractionClientSpec(
                 request_name="extract-ontology-request",
                 response_name="extract-ontology-response",
+                optional=Exception,
+            )
+        )
+
+        self.register_specification(
+            ToolClientSpec(
+                request_name="mcp-tool-request",
+                response_name="mcp-tool-response",
                 optional=Exception,
             )
         )
