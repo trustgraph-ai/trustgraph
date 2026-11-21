@@ -192,6 +192,7 @@ def print_graphrag_text(trace, explain_client, flow, collection, api=None, show_
     if focus:
         edges = focus.edge_selections
         print(f"Selected {len(edges)} edges:")
+        _print_llm_usage(focus)
         print()
 
         label_cache = {}
@@ -245,6 +246,7 @@ def print_graphrag_text(trace, explain_client, flow, collection, api=None, show_
             print(f"Document: {synthesis.document}")
         else:
             print("No answer content found")
+        _print_llm_usage(synthesis)
     else:
         print("No synthesis data found")
 
@@ -267,6 +269,7 @@ def print_docrag_text(trace, explain_client, api):
     if grounding:
         print("--- Grounding ---")
         print(f"Concepts: {', '.join(grounding.concepts)}")
+        _print_llm_usage(grounding)
         print()
 
     # Exploration
@@ -295,6 +298,7 @@ def print_docrag_text(trace, explain_client, api):
             print(f"Document: {synthesis.document}")
         else:
             print("No answer content found")
+        _print_llm_usage(synthesis)
     else:
         print("No synthesis data found")
 
@@ -314,6 +318,36 @@ def _print_document_content(explain_client, api, document_uri, label="Answer"):
             print(f"  {line}")
     else:
         print(f"Document: {document_uri}")
+
+
+def _format_llm_usage(entity, duration_ms=None):
+    """Summarise recorded LLM duration, token counts and model, or None."""
+    parts = []
+    if duration_ms is not None:
+        parts.append(f"{duration_ms} ms")
+    if entity.in_token is not None or entity.out_token is not None:
+        in_token = entity.in_token if entity.in_token is not None else "?"
+        out_token = entity.out_token if entity.out_token is not None else "?"
+        parts.append(f"{in_token} in / {out_token} out tokens")
+    if entity.model:
+        parts.append(entity.model)
+    return ", ".join(parts) if parts else None
+
+
+def _print_llm_usage(entity, indent="", duration_ms=None):
+    """Print an 'LLM:' line when usage was recorded for the entity."""
+    usage = _format_llm_usage(entity, duration_ms)
+    if usage:
+        print(f"{indent}LLM: {usage}")
+
+
+def _llm_usage_dict(entity):
+    """LLM usage fields for JSON output (None when not recorded)."""
+    return {
+        "in_token": entity.in_token,
+        "out_token": entity.out_token,
+        "model": entity.model,
+    }
 
 
 def print_agent_text(trace, explain_client, api):
@@ -339,6 +373,7 @@ def print_agent_text(trace, explain_client, api):
             print(f"Decomposed into {len(step.goals)} research threads:")
             for i, goal in enumerate(step.goals):
                 print(f"  {i}: {goal}")
+            _print_llm_usage(step)
             print()
 
         elif isinstance(step, Finding):
@@ -354,6 +389,7 @@ def print_agent_text(trace, explain_client, api):
             print(f"Plan with {len(step.steps)} steps:")
             for i, s in enumerate(step.steps):
                 print(f"  {i}: {s}")
+            _print_llm_usage(step)
             print()
 
         elif isinstance(step, StepResult):
@@ -362,10 +398,13 @@ def print_agent_text(trace, explain_client, api):
             _print_document_content(
                 explain_client, api, step.document, "Result",
             )
+            _print_llm_usage(step)
             print()
 
         elif isinstance(step, Analysis):
             print("--- Analysis ---")
+            if step.step_number is not None:
+                print(f"  Step: {step.step_number}")
             print(f"  Action: {step.action or 'N/A'}")
 
             if step.arguments:
@@ -377,10 +416,15 @@ def print_agent_text(trace, explain_client, api):
                         print(f"    {line}")
                 except Exception:
                     print(f"  Arguments: {step.arguments}")
+            _print_llm_usage(step, "  ", step.llm_duration_ms)
             print()
 
         elif isinstance(step, Observation):
             print("--- Observation ---")
+            if step.tool_duration_ms is not None:
+                print(f"Duration: {step.tool_duration_ms} ms")
+            if step.is_error:
+                print(f"Error: {step.tool_error or 'unspecified'}")
             _print_document_content(
                 explain_client, api, step.document, "Content",
             )
@@ -388,16 +432,22 @@ def print_agent_text(trace, explain_client, api):
 
         elif isinstance(step, Synthesis):
             print("--- Synthesis ---")
+            if step.termination_reason:
+                print(f"Termination: {step.termination_reason}")
             _print_document_content(
                 explain_client, api, step.document, "Answer",
             )
+            _print_llm_usage(step)
             print()
 
         elif isinstance(step, Conclusion):
             print("--- Conclusion ---")
+            if step.termination_reason:
+                print(f"Termination: {step.termination_reason}")
             _print_document_content(
                 explain_client, api, step.document, "Answer",
             )
+            _print_llm_usage(step)
             print()
 
     if not steps:
@@ -416,6 +466,7 @@ def trace_to_dict(trace, trace_type):
                     "type": "decomposition",
                     "id": step.uri,
                     "goals": step.goals,
+                    **_llm_usage_dict(step),
                 }
             elif isinstance(step, Finding):
                 return {
@@ -429,6 +480,7 @@ def trace_to_dict(trace, trace_type):
                     "type": "plan",
                     "id": step.uri,
                     "steps": step.steps,
+                    **_llm_usage_dict(step),
                 }
             elif isinstance(step, StepResult):
                 return {
@@ -436,32 +488,44 @@ def trace_to_dict(trace, trace_type):
                     "id": step.uri,
                     "step": step.step,
                     "document": step.document,
+                    **_llm_usage_dict(step),
                 }
             elif isinstance(step, Observation):
                 return {
                     "type": "observation",
                     "id": step.uri,
                     "document": step.document,
+                    "tool_duration_ms": step.tool_duration_ms,
+                    "tool_error": step.tool_error or None,
+                    "is_error": step.is_error,
                 }
             elif isinstance(step, Analysis):
                 return {
                     "type": "analysis",
                     "id": step.uri,
+                    "step_number": step.step_number,
                     "action": step.action,
                     "arguments": step.arguments,
                     "thought": step.thought,
+                    "tool_candidates": step.tool_candidates,
+                    "llm_duration_ms": step.llm_duration_ms,
+                    **_llm_usage_dict(step),
                 }
             elif isinstance(step, Synthesis):
                 return {
                     "type": "synthesis",
                     "id": step.uri,
                     "document": step.document,
+                    "termination_reason": step.termination_reason or None,
+                    **_llm_usage_dict(step),
                 }
             elif isinstance(step, Conclusion):
                 return {
                     "type": "conclusion",
                     "id": step.uri,
                     "document": step.document,
+                    "termination_reason": step.termination_reason or None,
+                    **_llm_usage_dict(step),
                 }
             return {"type": step.entity_type, "id": step.uri}
 
@@ -488,6 +552,7 @@ def trace_to_dict(trace, trace_type):
             "grounding": {
                 "id": grounding.uri,
                 "concepts": grounding.concepts,
+                **_llm_usage_dict(grounding),
             } if grounding else None,
             "exploration": {
                 "id": exploration.uri,
@@ -496,6 +561,7 @@ def trace_to_dict(trace, trace_type):
             "synthesis": {
                 "id": synthesis.uri,
                 "document": synthesis.document,
+                **_llm_usage_dict(synthesis),
             } if synthesis else None,
         }
     else:
@@ -524,10 +590,12 @@ def trace_to_dict(trace, trace_type):
                     }
                     for edge_sel in focus.edge_selections
                 ],
+                **_llm_usage_dict(focus),
             } if focus else None,
             "synthesis": {
                 "id": synthesis.uri,
                 "document": synthesis.document,
+                **_llm_usage_dict(synthesis),
             } if synthesis else None,
         }
 
