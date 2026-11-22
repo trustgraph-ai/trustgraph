@@ -74,4 +74,8 @@ from . decision_scoring_client import DecisionScoringClientSpec
 from . field_extraction_client import FieldExtractionClientSpec
 from . remote_action_service import RemoteActionService
 from . remote_action_client import RemoteActionClient
+from . planner_client import PlannerClientSpec
+from . policy_engine_client import PolicyEngineClientSpec
+from . action_client import ActionClientSpec
+from . verification_client import VerificationClientSpec
 

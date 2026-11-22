@@ -43,6 +43,7 @@ from .translators.planner import PlannerRequestTranslator, PlannerResponseTransl
 from .translators.verification import VerificationRequestTranslator, VerificationResponseTranslator
 from .translators.policy_engine import PolicyEngineRequestTranslator, PolicyEngineResponseTranslator
 from .translators.action import ActionRequestTranslator, ActionResponseTranslator
+from .translators.orchestrator import OrchestratorRequestTranslator, OrchestratorResponseTranslator
 from .translators.document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator
 from .translators.chunker import ChunkerRequestTranslator, ChunkerResponseTranslator
 from .translators.extraction import ExtractionRequestTranslator, ExtractionResponseTranslator
@@ -280,6 +281,12 @@ TranslatorRegistry.register_service(
     "extraction",
     ExtractionRequestTranslator(),
     ExtractionResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "orchestrator",
+    OrchestratorRequestTranslator(),
+    OrchestratorResponseTranslator()
 )
 
 # Register single-direction translators for document loading
