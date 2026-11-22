@@ -107,12 +107,12 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
                 mock_pdf_writer_class.return_value = mock_pdf_writer
 
                 processor = Processor(**config)
-                result = processor.ocr(b"fake pdf content")
+                result = list(processor.decode_pages(b"fake pdf content"))
 
-        # Returns list of (markdown, page_num) tuples
+        # Returns list of (markdown, page_num, section_type) tuples
         assert len(result) == 2
-        assert result[0] == ("# Page 1\nContent ![img1](data:image/png;base64,abc123)", 1)
-        assert result[1] == ("# Page 2\nMore content", 2)
+        assert result[0] == ("# Page 1\nContent ![img1](data:image/png;base64,abc123)", 1, "text")
+        assert result[1] == ("# Page 2\nMore content", 2, "text")
 
         # Verify PDF writer was used
         assert mock_pdf_writer.add_page.call_count == 3
@@ -158,13 +158,13 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
-        # Mock ocr to return per-page results
-        ocr_result = [
-            ("# Page 1\nContent", 1),
-            ("# Page 2\nMore content", 2),
+        # Mock decode_pages to return per-page results
+        decode_result = [
+            ("# Page 1\nContent", 1, "text"),
+            ("# Page 2\nMore content", 2, "text"),
         ]
 
-        with patch.object(processor, 'ocr', return_value=ocr_result):
+        with patch.object(processor, 'decode_pages', return_value=decode_result):
             await processor.on_message(mock_msg, None, mock_flow)
 
         # Verify output was sent for each page
@@ -176,7 +176,7 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         call_args = mock_output_flow.send.call_args_list[0][0][0]
         assert isinstance(call_args, TextDocument)
         assert call_args.document_id.startswith("urn:page:")
-        assert call_args.text == b""  # Content stored in librarian
+        assert call_args.text == b"# Page 1\nContent"
 
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)

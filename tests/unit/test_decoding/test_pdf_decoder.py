@@ -88,8 +88,8 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_on_message_rejects_librarian_content_that_is_not_pdf(self, mock_pdf_reader_class):
-        """Test rejecting non-PDF content before invoking the PDF loader"""
+    async def test_on_message_handles_invalid_pdf_gracefully(self, mock_pdf_reader_class):
+        """Test that invalid content is handled gracefully with no output"""
         html_content = b"<html><body>Not found</body></html>"
         html_base64 = base64.b64encode(html_content)
 
@@ -117,11 +117,16 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
             'taskgroup': AsyncMock()
         }
 
+        # PdfReader raises on invalid PDF content
+        mock_pdf_reader_class.side_effect = Exception("not a valid PDF file")
+
         processor = Processor(**config)
 
         await processor.on_message(mock_msg, None, mock_flow)
 
-        mock_pdf_reader_class.assert_not_called()
+        # PdfReader was attempted but failed
+        mock_pdf_reader_class.assert_called_once()
+        # No output or triples emitted on failure
         mock_output_flow.send.assert_not_called()
         mock_triples_flow.send.assert_not_called()
         mock_flow.librarian.save_child_document.assert_not_called()
@@ -196,7 +201,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         call_args = mock_output_flow.send.call_args[0][0]
         # PDF decoder now forwards document_id with UUID-based URN
         assert call_args.document_id.startswith("urn:page:")
-        assert call_args.text == b""  # Content stored in librarian, not inline
+        assert call_args.text == "Page with unicode: 你好世界 🌍".encode("utf-8")
 
     @patch('trustgraph.base.flow_processor.FlowProcessor.add_args')
     def test_add_args(self, mock_parent_add_args):
