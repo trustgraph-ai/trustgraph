@@ -90,6 +90,7 @@ _READER_CAPS = {
     "document-decode",
     "chunker",
     "extraction",
+    "orchestrator",
     "config:read",
     "flows:read",
     "collections:read",
