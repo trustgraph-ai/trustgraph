@@ -51,15 +51,18 @@ FROM base
 
 COPY --from=build /root/wheels /root/wheels
 
-RUN \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_docling-* && \
-    rm -rf /root/wheels
+# Libraries used by the pre-download step
+RUN pip install docling
 
 # Pre-initialise Docling PDF pipeline to cache model weights
 RUN python -c "\
 from docling.document_converter import DocumentConverter, InputFormat; \
 converter = DocumentConverter(); \
 converter.initialize_pipeline(InputFormat.PDF)"
+
+RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_docling-* && \
+    rm -rf /root/wheels
 
 WORKDIR /
