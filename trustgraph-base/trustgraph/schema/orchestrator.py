@@ -14,6 +14,13 @@ class OrchestratorRequest:
     run_id: str = ""
     goal: str = ""
     user_context: UserContext | None = None
+    # Continuation state — empty for new goals, populated for step
+    # re-invocations via the "next" queue.
+    plan_id: str = ""
+    response_id: str = ""
+    steps: str = ""
+    step_statuses: str = ""
+    step_results: str = ""
 
 @dataclass
 class OrchestratorResponse:

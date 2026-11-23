@@ -60,6 +60,8 @@ from . concept_extraction_client import ConceptExtractionClientSpec
 from . knowledge_retrieval_service import KnowledgeRetrievalService
 from . knowledge_retrieval_client import KnowledgeRetrievalClientSpec
 from . planner_service import PlannerService
+from . query_formulation_service import QueryFormulationService
+from . query_formulation_client import QueryFormulationClientSpec
 from . verification_service import VerificationService
 from . policy_engine_service import PolicyEngineService
 from . action_service import ActionService

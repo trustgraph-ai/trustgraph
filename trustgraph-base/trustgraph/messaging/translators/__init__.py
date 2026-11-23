@@ -26,3 +26,4 @@ from .decision_scoring import DecisionScoringRequestTranslator, DecisionScoringR
 from .document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator
 from .chunker import ChunkerRequestTranslator, ChunkerResponseTranslator
 from .extraction import ExtractionRequestTranslator, ExtractionResponseTranslator
+from .query_formulation import QueryFormulationRequestTranslator, QueryFormulationResponseTranslator

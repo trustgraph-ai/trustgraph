@@ -33,6 +33,7 @@ from . decoding import DocumentDecodeHandler
 from . chunking import ChunkHandler
 from . extraction import ExtractionHandler
 from . mcp_tool import McpToolHandler
+from . query_formulation import QueryFormulationHandler
 
 
 BUILTIN_HANDLERS = {
@@ -57,4 +58,5 @@ BUILTIN_HANDLERS = {
     "extract-relationships": ExtractionHandler("extract-relationships-request"),
     "extract-ontology": ExtractionHandler("extract-ontology-request"),
     "mcp-tool": McpToolHandler(),
+    "query-formulation": QueryFormulationHandler(),
 }

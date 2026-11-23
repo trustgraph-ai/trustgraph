@@ -91,6 +91,7 @@ _READER_CAPS = {
     "chunker",
     "extraction",
     "orchestrator",
+    "query-formulation",
     "config:read",
     "flows:read",
     "collections:read",
