@@ -56,13 +56,8 @@ FROM base
 
 COPY --from=build /root/wheels /root/wheels
 
-RUN \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_flow-* && \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_laya-* && \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_span-* && \
-    pip3 install --no-cache-dir /root/wheels/trustgraph_cli-* && \
-    rm -rf /root/wheels
+# Libraries used by the pre-download step
+RUN pip install fastembed flashrank
 
 # Pre-download default models so they are available offline
 ENV FASTEMBED_CACHE_PATH=/opt/models/fastembed
@@ -72,6 +67,14 @@ TextEmbedding(model_name='sentence-transformers/all-MiniLM-L6-v2')"
 RUN python -c "\
 from flashrank import Ranker; \
 Ranker(model_name='ms-marco-MiniLM-L-12-v2')"
+
+RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_flow-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_laya-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_span-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_cli-* && \
+    rm -rf /root/wheels
 
 WORKDIR /
 

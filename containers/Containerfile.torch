@@ -24,7 +24,7 @@ RUN pip3 install --no-cache-dir \
     huggingface-hub==1.13.0 click \
     pulsar-client==3.13.0
 
-# Most commonly used embeddings model, just build it into the container
+# Most commonly used embeddings model, pre-download it into the container
 # image
 RUN hf download sentence-transformers/all-MiniLM-L6-v2
 
