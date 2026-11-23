@@ -117,19 +117,30 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
             'taskgroup': AsyncMock()
         }
 
-        # PdfReader raises on invalid PDF content
-        mock_pdf_reader_class.side_effect = Exception("not a valid PDF file")
-
         processor = Processor(**config)
 
         await processor.on_message(mock_msg, None, mock_flow)
 
-        # PdfReader was attempted but failed
-        mock_pdf_reader_class.assert_called_once()
+        # Rejected by %PDF- header check before invoking PdfReader
+        mock_pdf_reader_class.assert_not_called()
         # No output or triples emitted on failure
         mock_output_flow.send.assert_not_called()
         mock_triples_flow.send.assert_not_called()
         mock_flow.librarian.save_child_document.assert_not_called()
+
+    @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    def test_decode_pages_rejects_non_pdf_header(self, mock_pdf_reader_class):
+        """Test that decode_pages raises ValueError on non-PDF content"""
+        processor = Processor(id='test-pdf-decoder', taskgroup=AsyncMock())
+
+        with pytest.raises(ValueError, match="missing %PDF- header"):
+            list(processor.decode_pages(b'{"not": "a pdf"}'))
+
+        with pytest.raises(ValueError, match="missing %PDF- header"):
+            list(processor.decode_pages(b""))
+
+        mock_pdf_reader_class.assert_not_called()
 
     @patch('trustgraph.decoding.pdf.pdf_decoder.PdfReader')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
