@@ -15,7 +15,6 @@ from prometheus_client import Counter, Histogram
 
 from ... schema import (
     OrchestratorRequest, OrchestratorResponse,
-    ExecutionState,
     Error,
 )
 from ... base import (
@@ -60,18 +59,9 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            ConsumerSpec(
-                name="step",
-                schema=ExecutionState,
-                handler=self.on_step,
-                concurrency=concurrency,
-            )
-        )
-
-        self.register_specification(
             ProducerSpec(
-                name="step",
-                schema=ExecutionState,
+                name="next",
+                schema=OrchestratorRequest,
             )
         )
 
@@ -139,88 +129,14 @@ class Processor(FlowProcessor):
             request = msg.value()
             response_id = msg.properties()["id"]
 
-            run_id = request.run_id or str(uuid.uuid4())
-
-            logger.info(
-                f"Orchestrator request {run_id}: {request.goal[:80]}..."
-            )
-
-            planner = flow("planner-request")
-
-            planner_resp = await planner.plan(
-                run_id=run_id,
-                goal=request.goal,
-                user_context=request.user_context,
-            )
-
-            if not planner_resp.steps:
-                await self._send_error(
-                    flow, response_id, run_id, "",
-                    "planner-error", "Planner returned no steps",
+            if request.steps:
+                await self._on_continuation(
+                    request, response_id, flow, t0,
                 )
-                return
-
-            plan_id = planner_resp.plan_id or str(uuid.uuid4())
-
-            logger.info(
-                f"Plan {plan_id} has {len(planner_resp.steps)} steps"
-            )
-
-            policy = flow("policy-request")
-            if policy:
-                policy_resp = await policy.evaluate(
-                    run_id=run_id,
-                    step_id="",
-                    evaluation_type="plan-preflight",
-                    subject={
-                        "type": "ExecutionPlan",
-                        "step-count": len(planner_resp.steps),
-                        "goal": request.goal,
-                    },
-                    user_context=request.user_context,
+            else:
+                await self._on_new_goal(
+                    request, response_id, flow, t0,
                 )
-
-                if policy_resp.verdict == "DENY":
-                    __class__.plan_fail_metric.labels(
-                        processor=self.id, reason="policy-denied",
-                    ).inc()
-                    await self._send_error(
-                        flow, response_id, run_id, plan_id,
-                        "policy-denied",
-                        f"Plan denied by policy: {policy_resp.message}",
-                    )
-                    return
-
-            steps_data = [
-                {
-                    "step-id": s.step_id,
-                    "capability": s.capability,
-                    "depends-on": s.depends_on,
-                    "params": s.params,
-                    "emits": s.emits,
-                }
-                for s in planner_resp.steps
-            ]
-
-            statuses = {s.step_id: "pending" for s in planner_resp.steps}
-
-            uc_str = ""
-            if request.user_context:
-                uc_str = json.dumps(dataclass_to_dict(request.user_context))
-
-            state = ExecutionState(
-                run_id=run_id,
-                plan_id=plan_id,
-                response_id=response_id,
-                steps=json.dumps(steps_data),
-                step_statuses=json.dumps(statuses),
-                step_results=json.dumps({}),
-                user_context=uc_str,
-            )
-
-            await flow("step").send(state)
-
-            logger.info(f"Plan {plan_id} submitted for execution")
 
         except Exception as e:
 
@@ -238,123 +154,183 @@ class Processor(FlowProcessor):
             except Exception:
                 logger.error("Failed to send error response", exc_info=True)
 
-    async def on_step(self, msg, consumer, flow):
+    async def _on_new_goal(self, request, response_id, flow, t0):
 
-        try:
+        run_id = request.run_id or str(uuid.uuid4())
 
-            state = msg.value()
+        logger.info(
+            f"Orchestrator request {run_id}: {request.goal[:80]}..."
+        )
 
-            steps = json.loads(state.steps)
-            statuses = json.loads(state.step_statuses)
-            results = json.loads(state.step_results)
-            user_context = None
-            if state.user_context:
-                from ... schema import UserContext
-                user_context = dict_to_dataclass(
-                    json.loads(state.user_context), UserContext,
-                )
+        planner = flow("planner-request")
 
-            ready = self._find_ready_steps(steps, statuses)
+        planner_resp = await planner.plan(
+            run_id=run_id,
+            goal=request.goal,
+            user_context=request.user_context,
+        )
 
-            if not ready:
-                if all(s == "completed" for s in statuses.values()):
-                    await self._send_response(
-                        flow, state, results,
-                    )
-                else:
-                    __class__.plan_fail_metric.labels(
-                        processor=self.id, reason="deadlock",
-                    ).inc()
-                    await self._send_error(
-                        flow, state.response_id, state.run_id,
-                        state.plan_id, "orchestrator-error",
-                        "No ready steps but plan is not complete",
-                    )
-                return
+        if not planner_resp.steps:
+            await self._send_error(
+                flow, response_id, run_id, "",
+                "planner-error", "Planner returned no steps",
+            )
+            return
 
-            logger.info(
-                f"Executing {len(ready)} step(s) for plan "
-                f"{state.plan_id}: "
-                f"{[s['step-id'] for s in ready]}"
+        plan_id = planner_resp.plan_id or str(uuid.uuid4())
+
+        logger.info(
+            f"Plan {plan_id} has {len(planner_resp.steps)} steps"
+        )
+
+        policy = flow("policy-request")
+        if policy:
+            policy_resp = await policy.evaluate(
+                run_id=run_id,
+                step_id="",
+                evaluation_type="plan-preflight",
+                subject={
+                    "type": "ExecutionPlan",
+                    "step-count": len(planner_resp.steps),
+                    "goal": request.goal,
+                },
+                user_context=request.user_context,
             )
 
-            step_tasks = [
-                self._execute_step(
-                    flow, state, s, results, user_context,
-                )
-                for s in ready
-            ]
-
-            step_results = await asyncio.gather(
-                *step_tasks, return_exceptions=True,
-            )
-
-            for step, result in zip(ready, step_results):
-                step_id = step["step-id"]
-                capability = step["capability"]
-
-                if isinstance(result, Exception):
-                    __class__.step_count_metric.labels(
-                        processor=self.id, status="failed",
-                    ).inc()
-                    __class__.plan_fail_metric.labels(
-                        processor=self.id, reason="step-failed",
-                    ).inc()
-                    logger.error(
-                        f"Step {step_id} ({capability}) failed: "
-                        f"{result}"
-                    )
-                    await self._send_error(
-                        flow, state.response_id, state.run_id,
-                        state.plan_id, "step-failed",
-                        f"Step {step_id} ({capability}) failed: "
-                        f"{result}",
-                    )
-                    return
-
-                artifact_type, artifact = result
-                statuses[step_id] = "completed"
-                results[step_id] = {
-                    "artifact-type": artifact_type,
-                    "artifact": artifact,
-                }
-                __class__.step_count_metric.labels(
-                    processor=self.id, status="completed",
+            if policy_resp.verdict == "DENY":
+                __class__.plan_fail_metric.labels(
+                    processor=self.id, reason="policy-denied",
                 ).inc()
-
-            if all(s == "completed" for s in statuses.values()):
-                await self._send_response(flow, state, results)
+                await self._send_error(
+                    flow, response_id, run_id, plan_id,
+                    "policy-denied",
+                    f"Plan denied by policy: {policy_resp.message}",
+                )
                 return
 
-            updated = ExecutionState(
-                run_id=state.run_id,
-                plan_id=state.plan_id,
-                response_id=state.response_id,
-                steps=state.steps,
-                step_statuses=json.dumps(statuses),
-                step_results=json.dumps(results),
-                user_context=state.user_context,
-            )
+        steps_data = [
+            {
+                "step-id": s.step_id,
+                "capability": s.capability,
+                "depends-on": s.depends_on,
+                "params": s.params,
+                "emits": s.emits,
+            }
+            for s in planner_resp.steps
+        ]
 
-            await flow("step").send(updated)
+        statuses = {s.step_id: "pending" for s in planner_resp.steps}
 
-        except Exception as e:
+        continuation = OrchestratorRequest(
+            run_id=run_id,
+            plan_id=plan_id,
+            response_id=response_id,
+            steps=json.dumps(steps_data),
+            step_statuses=json.dumps(statuses),
+            step_results=json.dumps({}),
+            user_context=request.user_context,
+        )
 
-            logger.error(
-                f"Exception in orchestrator step handler: {e}",
-                exc_info=True,
-            )
+        await flow("next").send(
+            continuation, properties={"id": response_id},
+        )
 
-            try:
-                await self._send_error(
-                    flow, state.response_id, state.run_id,
-                    state.plan_id, "orchestrator-error", str(e),
+        logger.info(f"Plan {plan_id} submitted for execution")
+
+    async def _on_continuation(self, request, response_id, flow, t0):
+
+        steps = json.loads(request.steps)
+        statuses = json.loads(request.step_statuses)
+        results = json.loads(request.step_results)
+
+        ready = self._find_ready_steps(steps, statuses)
+
+        if not ready:
+            if all(s == "completed" for s in statuses.values()):
+                await self._send_response(
+                    flow, request, results,
                 )
-            except Exception:
-                logger.error("Failed to send error response", exc_info=True)
+            else:
+                __class__.plan_fail_metric.labels(
+                    processor=self.id, reason="deadlock",
+                ).inc()
+                await self._send_error(
+                    flow, request.response_id, request.run_id,
+                    request.plan_id, "orchestrator-error",
+                    "No ready steps but plan is not complete",
+                )
+            return
+
+        logger.info(
+            f"Executing {len(ready)} step(s) for plan "
+            f"{request.plan_id}: "
+            f"{[s['step-id'] for s in ready]}"
+        )
+
+        step_tasks = [
+            self._execute_step(
+                flow, request, s, results, request.user_context,
+            )
+            for s in ready
+        ]
+
+        step_results = await asyncio.gather(
+            *step_tasks, return_exceptions=True,
+        )
+
+        for step, result in zip(ready, step_results):
+            step_id = step["step-id"]
+            capability = step["capability"]
+
+            if isinstance(result, Exception):
+                __class__.step_count_metric.labels(
+                    processor=self.id, status="failed",
+                ).inc()
+                __class__.plan_fail_metric.labels(
+                    processor=self.id, reason="step-failed",
+                ).inc()
+                logger.error(
+                    f"Step {step_id} ({capability}) failed: "
+                    f"{result}"
+                )
+                await self._send_error(
+                    flow, request.response_id, request.run_id,
+                    request.plan_id, "step-failed",
+                    f"Step {step_id} ({capability}) failed: "
+                    f"{result}",
+                )
+                return
+
+            artifact_type, artifact = result
+            statuses[step_id] = "completed"
+            results[step_id] = {
+                "artifact-type": artifact_type,
+                "artifact": artifact,
+            }
+            __class__.step_count_metric.labels(
+                processor=self.id, status="completed",
+            ).inc()
+
+        if all(s == "completed" for s in statuses.values()):
+            await self._send_response(flow, request, results)
+            return
+
+        updated = OrchestratorRequest(
+            run_id=request.run_id,
+            plan_id=request.plan_id,
+            response_id=request.response_id,
+            steps=request.steps,
+            step_statuses=json.dumps(statuses),
+            step_results=json.dumps(results),
+            user_context=request.user_context,
+        )
+
+        await flow("next").send(
+            updated, properties={"id": request.response_id},
+        )
 
     async def _execute_step(
-        self, flow, state, step, results, user_context,
+        self, flow, request, step, results, user_context,
     ):
 
         step_id = step["step-id"]
@@ -374,7 +350,7 @@ class Processor(FlowProcessor):
         policy = flow("policy-request")
         if policy:
             ingress = await policy.evaluate(
-                run_id=state.run_id,
+                run_id=request.run_id,
                 step_id=step_id,
                 evaluation_type="step-ingress",
                 subject={
@@ -391,7 +367,7 @@ class Processor(FlowProcessor):
 
         action = flow("action-request")
         action_resp = await action.execute(
-            run_id=state.run_id,
+            run_id=request.run_id,
             step_id=step_id,
             capability=capability,
             params=params,
@@ -405,7 +381,7 @@ class Processor(FlowProcessor):
         verification = flow("verification-request")
         if verification:
             ver_resp = await verification.verify(
-                run_id=state.run_id,
+                run_id=request.run_id,
                 step_id=step_id,
                 expected_type=artifact_type,
                 artifact=artifact,
@@ -422,7 +398,7 @@ class Processor(FlowProcessor):
 
         if policy:
             egress = await policy.evaluate(
-                run_id=state.run_id,
+                run_id=request.run_id,
                 step_id=step_id,
                 evaluation_type="step-egress",
                 subject={
@@ -468,10 +444,10 @@ class Processor(FlowProcessor):
                 input_artifacts.append(dep_result)
         return input_artifacts
 
-    async def _send_response(self, flow, state, results):
+    async def _send_response(self, flow, request, results):
 
         artifacts = {}
-        steps = json.loads(state.steps)
+        steps = json.loads(request.steps)
         for step in steps:
             step_id = step["step-id"]
             emits = step.get("emits", step_id)
@@ -479,17 +455,17 @@ class Processor(FlowProcessor):
                 artifacts[emits] = results[step_id]
 
         response = OrchestratorResponse(
-            run_id=state.run_id,
-            plan_id=state.plan_id,
+            run_id=request.run_id,
+            plan_id=request.plan_id,
             artifacts=artifacts,
         )
 
         await flow("response").send(
-            response, properties={"id": state.response_id},
+            response, properties={"id": request.response_id},
         )
 
         logger.info(
-            f"Plan {state.plan_id} completed with "
+            f"Plan {request.plan_id} completed with "
             f"{len(artifacts)} artifacts"
         )
 

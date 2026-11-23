@@ -47,6 +47,7 @@ from .translators.orchestrator import OrchestratorRequestTranslator, Orchestrato
 from .translators.document_decoder import DocumentDecoderRequestTranslator, DocumentDecoderResponseTranslator
 from .translators.chunker import ChunkerRequestTranslator, ChunkerResponseTranslator
 from .translators.extraction import ExtractionRequestTranslator, ExtractionResponseTranslator
+from .translators.query_formulation import QueryFormulationRequestTranslator, QueryFormulationResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -287,6 +288,12 @@ TranslatorRegistry.register_service(
     "orchestrator",
     OrchestratorRequestTranslator(),
     OrchestratorResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "query-formulation",
+    QueryFormulationRequestTranslator(),
+    QueryFormulationResponseTranslator()
 )
 
 # Register single-direction translators for document loading

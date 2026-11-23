@@ -28,6 +28,7 @@ from ... base import (
     ChunkerClientSpec,
     ExtractionClientSpec,
     ToolClientSpec,
+    QueryFormulationClientSpec,
 )
 
 from . handlers import BUILTIN_HANDLERS, HandlerError
@@ -191,6 +192,14 @@ class Processor(ActionService):
             ToolClientSpec(
                 request_name="mcp-tool-request",
                 response_name="mcp-tool-response",
+                optional=Exception,
+            )
+        )
+
+        self.register_specification(
+            QueryFormulationClientSpec(
+                request_name="query-formulation-request",
+                response_name="query-formulation-response",
                 optional=Exception,
             )
         )

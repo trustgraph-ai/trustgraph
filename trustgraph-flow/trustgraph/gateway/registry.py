@@ -596,6 +596,7 @@ _FLOW_SERVICES = {
     "extract-relationships": "extraction",
     "extract-ontology": "extraction",
     "orchestrator": "orchestrator",
+    "query-formulation": "query-formulation",
 }
 for _kind, _cap in _FLOW_SERVICES.items():
     _register_flow_kind("flow-service", _kind, _cap, _flow_from_body)

@@ -20,6 +20,7 @@ KNOWN_TYPES = {
     "ExternalReferenceArtifact",
     "CompositeArtifact",
     "ReportArtifact",
+    "QuerySpecArtifact",
 }
 
 
@@ -36,6 +37,7 @@ class Processor(VerificationService):
             "ExternalReferenceArtifact": self.validate_external_ref,
             "CompositeArtifact": self.validate_composite,
             "ReportArtifact": self.validate_report,
+            "QuerySpecArtifact": self.validate_query_spec,
         }
 
     async def verify(self, workspace, request, flow):
@@ -301,6 +303,46 @@ class Processor(VerificationService):
                 field="narrative",
                 message="'narrative' is empty",
                 severity="warning",
+            ))
+
+    def validate_query_spec(self, artifact, violations):
+
+        version = artifact.get("version")
+        if version != "1":
+            violations.append(Violation(
+                field="version",
+                message=f"Expected version '1', got '{version}'",
+                severity="error",
+            ))
+
+        qtype = artifact.get("type")
+        if qtype not in ("select",):
+            violations.append(Violation(
+                field="type",
+                message=f"Unknown query type: {qtype}",
+                severity="error",
+            ))
+
+        table = artifact.get("table")
+        if not table or not isinstance(table, str):
+            violations.append(Violation(
+                field="table",
+                message="QuerySpecArtifact missing 'table'",
+                severity="error",
+            ))
+
+        columns = artifact.get("columns")
+        if not columns or not isinstance(columns, list):
+            violations.append(Violation(
+                field="columns",
+                message="QuerySpecArtifact missing 'columns'",
+                severity="error",
+            ))
+        elif len(columns) == 0:
+            violations.append(Violation(
+                field="columns",
+                message="'columns' must not be empty",
+                severity="error",
             ))
 
     @staticmethod

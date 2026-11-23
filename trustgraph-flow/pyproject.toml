@@ -141,6 +141,7 @@ redact-action-service = "trustgraph.action_service.redact:run"
 erp-finance-action-service = "trustgraph.action_service.erp_finance:run"
 web-action-service = "trustgraph.action_service.web:run"
 orchestrator = "trustgraph.execution.orchestrator:run"
+query-formulation = "trustgraph.execution.query_formulation:run"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]
