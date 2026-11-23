@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from .core.primitives import Error
 from .core.topic import queue
+from .user_context import UserContext
 
 ############################################################################
 
@@ -25,7 +26,7 @@ class PolicyEngineRequest:
     step_id: str = ""
     evaluation_type: str = ""  # plan-preflight, step-ingress, step-egress, artifact-egress
     subject: dict = field(default_factory=dict)
-    principal: dict = field(default_factory=dict)
+    user_context: UserContext | None = None
 
 @dataclass
 class PolicyEngineResponse:

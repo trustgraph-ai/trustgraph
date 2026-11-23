@@ -48,7 +48,7 @@ class GraphEmbeddingsClient:
 
 class GraphEmbeddingsClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(GraphEmbeddingsClientSpec, self).__init__(
             request_name = request_name,
@@ -56,5 +56,6 @@ class GraphEmbeddingsClientSpec(RequestResponseSpec):
             response_name = response_name,
             response_schema = GraphEmbeddingsResponse,
             impl = GraphEmbeddingsClient,
+            optional = optional,
         )
 

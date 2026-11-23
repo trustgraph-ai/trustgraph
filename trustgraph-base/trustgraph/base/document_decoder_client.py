@@ -42,7 +42,7 @@ class DocumentDecoderClient:
 
 class DocumentDecoderClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(DocumentDecoderClientSpec, self).__init__(
             request_name=request_name,
@@ -50,4 +50,5 @@ class DocumentDecoderClientSpec(RequestResponseSpec):
             response_name=response_name,
             response_schema=DocumentDecoderResponse,
             impl=DocumentDecoderClient,
+            optional=optional,
         )

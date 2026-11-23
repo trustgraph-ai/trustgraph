@@ -54,6 +54,7 @@ from . action import ActionRequestor
 from . document_decode import DocumentDecodeRequestor
 from . chunker import ChunkerRequestor
 from . extraction import ExtractionRequestor
+from . orchestrator import OrchestratorRequestor
 from . passthrough import PassthroughRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -111,6 +112,7 @@ request_response_dispatchers = {
     "extract-definitions": ExtractionRequestor,
     "extract-relationships": ExtractionRequestor,
     "extract-ontology": ExtractionRequestor,
+    "orchestrator": OrchestratorRequestor,
 }
 
 system_dispatchers = {

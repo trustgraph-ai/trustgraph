@@ -39,7 +39,7 @@ class DocumentRagClient:
 
 class DocumentRagClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(DocumentRagClientSpec, self).__init__(
             request_name=request_name,
@@ -47,4 +47,5 @@ class DocumentRagClientSpec(RequestResponseSpec):
             response_name=response_name,
             response_schema=DocumentRagResponse,
             impl=DocumentRagClient,
+            optional=optional,
         )

@@ -144,15 +144,14 @@ class TestGetPageTexts:
             (make_text_item("More text", page_no=1), 0),
         ]
 
-        pages = processor.get_page_texts(doc)
+        pages = list(processor._get_page_texts(doc))
 
         assert len(pages) == 1
-        page_no, text, table_count, image_count = pages[0]
+        text, page_no, section_type = pages[0]
         assert page_no == 1
         assert "Hello world" in text
         assert "More text" in text
-        assert table_count == 0
-        assert image_count == 0
+        assert section_type == "text"
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
@@ -168,12 +167,12 @@ class TestGetPageTexts:
             (make_text_item("Page 3 text", page_no=3), 0),
         ]
 
-        pages = processor.get_page_texts(doc)
+        pages = list(processor._get_page_texts(doc))
 
         assert len(pages) == 3
-        assert pages[0][0] == 1
-        assert pages[1][0] == 2
-        assert pages[2][0] == 3
+        assert pages[0][1] == 1
+        assert pages[1][1] == 2
+        assert pages[2][1] == 3
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
@@ -189,14 +188,13 @@ class TestGetPageTexts:
             (make_table_item(html=html, page_no=1), 0),
         ]
 
-        pages = processor.get_page_texts(doc)
+        pages = list(processor._get_page_texts(doc))
 
         assert len(pages) == 1
-        _, text, table_count, image_count = pages[0]
+        text, _, section_type = pages[0]
         assert "<table>" in text
         assert "Intro" in text
-        assert table_count == 1
-        assert image_count == 0
+        assert section_type == "table"
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
@@ -211,13 +209,12 @@ class TestGetPageTexts:
             (make_picture_item(page_no=1), 0),
         ]
 
-        pages = processor.get_page_texts(doc)
+        pages = list(processor._get_page_texts(doc))
 
         assert len(pages) == 1
-        _, text, table_count, image_count = pages[0]
+        text, _, section_type = pages[0]
         assert "Text content" in text
-        assert image_count == 1
-        assert table_count == 0
+        assert section_type == "image"
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
@@ -231,10 +228,10 @@ class TestGetPageTexts:
             (make_text_item("No page info"), 0),
         ]
 
-        pages = processor.get_page_texts(doc)
+        pages = list(processor._get_page_texts(doc))
 
         assert len(pages) == 1
-        assert pages[0][0] == 1
+        assert pages[0][1] == 1
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
@@ -247,7 +244,7 @@ class TestGetPageTexts:
         doc = MagicMock()
         doc.iterate_items.return_value = [(item, 0)]
 
-        pages = processor.get_page_texts(doc)
+        pages = list(processor._get_page_texts(doc))
 
         assert len(pages) == 0
 
@@ -268,13 +265,15 @@ class TestGetFullText:
             (make_text_item("Second paragraph"), 0),
         ]
 
-        text, table_count, image_count = processor.get_full_text(doc)
+        result = list(processor._get_full_text(doc))
 
+        assert len(result) == 1
+        text, page_no, section_type = result[0]
         assert "First paragraph" in text
         assert "Second paragraph" in text
         assert "\n\n" in text
-        assert table_count == 0
-        assert image_count == 0
+        assert page_no is None
+        assert section_type == "text"
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
@@ -291,17 +290,17 @@ class TestGetFullText:
             (make_text_item("After"), 0),
         ]
 
-        text, table_count, image_count = processor.get_full_text(doc)
+        result = list(processor._get_full_text(doc))
 
+        assert len(result) == 1
+        text, _, _ = result[0]
         assert "<table>" in text
         assert "Before" in text
         assert "After" in text
-        assert table_count == 1
-        assert image_count == 0
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    def test_pictures_counted_not_included(self, mock_conv):
+    def test_pictures_not_included(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -313,22 +312,38 @@ class TestGetFullText:
             (make_picture_item(), 0),
         ]
 
-        text, table_count, image_count = processor.get_full_text(doc)
+        result = list(processor._get_full_text(doc))
 
+        assert len(result) == 1
+        text, _, _ = result[0]
         assert text == "Text"
-        assert image_count == 2
-        assert table_count == 0
 
 
-class TestEmitSection(IsolatedAsyncioTestCase):
-    """Test emit_section output shape and provenance."""
+class TestPageSectionEmission(IsolatedAsyncioTestCase):
+    """Test that on_message emits pages/sections with correct shape and provenance."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_page_section(self, mock_conv):
+    async def test_page_section_emits_page_uri_and_provenance(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
+
+        content = b"fake document bytes"
+        b64 = base64.b64encode(content)
+
+        mock_metadata = Metadata(id="doc-1", root="root-1", collection="default")
+        mock_document = Document(
+            metadata=mock_metadata, document_id="doc-1",
+        )
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
+
+        doc = MagicMock()
+        doc.iterate_items.return_value = [
+            (make_text_item("Page content here", page_no=3), 0),
+        ]
+        processor.convert_document = MagicMock(return_value=doc)
 
         mock_output_flow = AsyncMock()
         mock_triples_flow = AsyncMock()
@@ -337,26 +352,19 @@ class TestEmitSection(IsolatedAsyncioTestCase):
             "triples": mock_triples_flow,
         }.get(name))
         mock_flow.librarian.save_child_document = AsyncMock()
-
-        metadata = Metadata(id="doc-1", root="root-1", collection="default")
-
-        uri = await processor.emit_section(
-            text="Page content here",
-            parent_doc_id="parent-doc",
-            doc_uri_str="urn:doc:parent",
-            metadata=metadata,
-            flow=mock_flow,
-            mime_type="application/pdf",
-            page_number=3,
+        mock_flow.librarian.fetch_document_metadata = AsyncMock(
+            return_value=MagicMock(kind="application/pdf"),
+        )
+        mock_flow.librarian.fetch_document_content = AsyncMock(
+            return_value=b64,
         )
 
-        assert uri is not None
-        assert uri.startswith("urn:page:")
+        await processor.on_message(mock_msg, None, mock_flow)
 
         mock_flow.librarian.save_child_document.assert_called_once()
-        save_kwargs = mock_flow.librarian.save_child_document.call_args
-        assert save_kwargs[1]["document_type"] == "page"
-        assert save_kwargs[1]["title"] == "Page 3"
+        save_kwargs = mock_flow.librarian.save_child_document.call_args[1]
+        assert save_kwargs["document_type"] == "page"
+        assert save_kwargs["title"] == "Page 3"
 
         mock_triples_flow.send.assert_called_once()
         triples_msg = mock_triples_flow.send.call_args[0][0]
@@ -367,14 +375,29 @@ class TestEmitSection(IsolatedAsyncioTestCase):
         text_doc = mock_output_flow.send.call_args[0][0]
         assert isinstance(text_doc, TextDocument)
         assert text_doc.text == b"Page content here"
-        assert text_doc.metadata.id == uri
+        assert text_doc.document_id.startswith("urn:page:")
+        assert text_doc.metadata.id == text_doc.document_id
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_non_page_section(self, mock_conv):
+    async def test_non_page_section_emits_section_uri(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
+
+        content = b"fake document bytes"
+        b64 = base64.b64encode(content).decode('utf-8')
+
+        mock_metadata = Metadata(id="doc-1", root="root-1", collection="default")
+        mock_document = Document(metadata=mock_metadata, data=b64)
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
+
+        doc = MagicMock()
+        doc.iterate_items.return_value = [
+            (make_text_item("Section content"), 0),
+        ]
+        processor.convert_document = MagicMock(return_value=doc)
 
         mock_output_flow = AsyncMock()
         mock_triples_flow = AsyncMock()
@@ -384,54 +407,83 @@ class TestEmitSection(IsolatedAsyncioTestCase):
         }.get(name))
         mock_flow.librarian.save_child_document = AsyncMock()
 
-        metadata = Metadata(id="doc-1", root="root-1", collection="default")
+        await processor.on_message(mock_msg, None, mock_flow)
 
-        uri = await processor.emit_section(
-            text="Section content",
-            parent_doc_id="parent-doc",
-            doc_uri_str="urn:doc:parent",
-            metadata=metadata,
-            flow=mock_flow,
-            section_index=1,
-        )
+        save_kwargs = mock_flow.librarian.save_child_document.call_args[1]
+        assert save_kwargs["document_type"] == "section"
 
-        assert uri is not None
-        assert uri.startswith("urn:section:")
-
-        save_kwargs = mock_flow.librarian.save_child_document.call_args
-        assert save_kwargs[1]["document_type"] == "section"
+        text_doc = mock_output_flow.send.call_args[0][0]
+        assert text_doc.document_id.startswith("urn:section:")
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_section_skips_blank_text(self, mock_conv):
+    async def test_blank_text_skipped(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
 
-        mock_flow = MagicMock()
-        metadata = Metadata(id="doc-1", collection="default")
+        content = b"fake document bytes"
+        b64 = base64.b64encode(content).decode('utf-8')
 
-        uri = await processor.emit_section(
-            text="   ",
-            parent_doc_id="parent-doc",
-            doc_uri_str="urn:doc:parent",
-            metadata=metadata,
-            flow=mock_flow,
-        )
+        mock_metadata = Metadata(id="doc-1", collection="default")
+        mock_document = Document(metadata=mock_metadata, data=b64)
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
 
-        assert uri is None
+        doc = MagicMock()
+        doc.iterate_items.return_value = [
+            (make_text_item("   ", page_no=1), 0),
+        ]
+        processor.convert_document = MagicMock(return_value=doc)
+
+        mock_output_flow = AsyncMock()
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "output": mock_output_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
+        mock_flow.librarian.save_child_document = AsyncMock()
+
+        await processor.on_message(mock_msg, None, mock_flow)
+
+        mock_output_flow.send.assert_not_called()
+        mock_flow.librarian.save_child_document.assert_not_called()
 
 
-class TestEmitChunk(IsolatedAsyncioTestCase):
-    """Test emit_chunk output shape and multi-page provenance."""
+class TestHybridChunkEmission(IsolatedAsyncioTestCase):
+    """Test hybrid mode chunk emission and multi-page provenance."""
 
+    @patch('trustgraph.decoding.docling.processor.HybridChunker')
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_chunk_single_page(self, mock_conv):
+    async def test_chunk_single_page(self, mock_conv, mock_chunker_class):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             chunking_mode='hybrid',
         )
+
+        content = b"fake document bytes"
+        b64 = base64.b64encode(content).decode('utf-8')
+
+        mock_metadata = Metadata(id="doc-1", root="root-1", collection="default")
+        mock_document = Document(metadata=mock_metadata, data=b64)
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
+
+        mock_doc = MagicMock()
+        processor.convert_document = MagicMock(return_value=mock_doc)
+
+        mock_chunk = MagicMock()
+        prov = MagicMock()
+        prov.page_no = 5
+        doc_item = MagicMock()
+        doc_item.prov = [prov]
+        mock_chunk.meta.doc_items = [doc_item]
+
+        mock_chunker = MagicMock()
+        mock_chunker.chunk.return_value = [mock_chunk]
+        mock_chunker.serialize.return_value = "Chunk text content"
+        mock_chunker_class.return_value = mock_chunker
 
         mock_chunks_flow = AsyncMock()
         mock_triples_flow = AsyncMock()
@@ -441,39 +493,52 @@ class TestEmitChunk(IsolatedAsyncioTestCase):
         }.get(name))
         mock_flow.librarian.save_child_document = AsyncMock()
 
-        metadata = Metadata(id="doc-1", root="root-1", collection="default")
-
-        uri = await processor.emit_chunk(
-            text="Chunk text content",
-            chunk_index=1,
-            parent_doc_id="parent-doc",
-            doc_uri_str="urn:doc:parent",
-            metadata=metadata,
-            flow=mock_flow,
-            page_numbers=[5],
-        )
-
-        assert uri is not None
-        assert uri.startswith("urn:chunk:")
+        await processor.on_message(mock_msg, None, mock_flow)
 
         mock_chunks_flow.send.assert_called_once()
         chunk_msg = mock_chunks_flow.send.call_args[0][0]
         assert isinstance(chunk_msg, Chunk)
         assert chunk_msg.chunk == b"Chunk text content"
+        assert chunk_msg.document_id.startswith("urn:chunk:")
 
         mock_triples_flow.send.assert_called_once()
         triples_msg = mock_triples_flow.send.call_args[0][0]
         assert isinstance(triples_msg, Triples)
 
+    @patch('trustgraph.decoding.docling.processor.HybridChunker')
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_chunk_multi_page_provenance(self, mock_conv):
+    async def test_chunk_multi_page_provenance(self, mock_conv, mock_chunker_class):
         """Chunks spanning multiple pages emit extra TG_PAGE_NUMBER triples."""
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             chunking_mode='hybrid',
         )
 
+        content = b"fake document bytes"
+        b64 = base64.b64encode(content).decode('utf-8')
+
+        mock_metadata = Metadata(id="doc-1", root="root-1", collection="default")
+        mock_document = Document(metadata=mock_metadata, data=b64)
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
+
+        mock_doc = MagicMock()
+        processor.convert_document = MagicMock(return_value=mock_doc)
+
+        mock_chunk = MagicMock()
+        prov3 = MagicMock(); prov3.page_no = 3
+        prov4 = MagicMock(); prov4.page_no = 4
+        prov5 = MagicMock(); prov5.page_no = 5
+        doc_item1 = MagicMock(); doc_item1.prov = [prov3]
+        doc_item2 = MagicMock(); doc_item2.prov = [prov4, prov5]
+        mock_chunk.meta.doc_items = [doc_item1, doc_item2]
+
+        mock_chunker = MagicMock()
+        mock_chunker.chunk.return_value = [mock_chunk]
+        mock_chunker.serialize.return_value = "Chunk spanning pages"
+        mock_chunker_class.return_value = mock_chunker
+
         mock_chunks_flow = AsyncMock()
         mock_triples_flow = AsyncMock()
         mock_flow = MagicMock(side_effect=lambda name: {
@@ -482,19 +547,7 @@ class TestEmitChunk(IsolatedAsyncioTestCase):
         }.get(name))
         mock_flow.librarian.save_child_document = AsyncMock()
 
-        metadata = Metadata(id="doc-1", root="root-1", collection="default")
-
-        uri = await processor.emit_chunk(
-            text="Chunk spanning pages",
-            chunk_index=2,
-            parent_doc_id="parent-doc",
-            doc_uri_str="urn:doc:parent",
-            metadata=metadata,
-            flow=mock_flow,
-            page_numbers=[3, 4, 5],
-        )
-
-        assert uri is not None
+        await processor.on_message(mock_msg, None, mock_flow)
 
         triples_msg = mock_triples_flow.send.call_args[0][0]
         all_triples = triples_msg.triples
@@ -508,35 +561,54 @@ class TestEmitChunk(IsolatedAsyncioTestCase):
         assert "4" in extra_pages
         assert "5" in extra_pages
 
+    @patch('trustgraph.decoding.docling.processor.HybridChunker')
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_emit_chunk_skips_blank(self, mock_conv):
+    async def test_chunk_skips_blank(self, mock_conv, mock_chunker_class):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
             chunking_mode='hybrid',
         )
 
-        mock_flow = MagicMock()
-        metadata = Metadata(id="doc-1", collection="default")
+        content = b"fake document bytes"
+        b64 = base64.b64encode(content).decode('utf-8')
 
-        uri = await processor.emit_chunk(
-            text="  \n  ",
-            chunk_index=1,
-            parent_doc_id="parent-doc",
-            doc_uri_str="urn:doc:parent",
-            metadata=metadata,
-            flow=mock_flow,
-        )
+        mock_metadata = Metadata(id="doc-1", collection="default")
+        mock_document = Document(metadata=mock_metadata, data=b64)
+        mock_msg = MagicMock()
+        mock_msg.value.return_value = mock_document
 
-        assert uri is None
+        mock_doc = MagicMock()
+        processor.convert_document = MagicMock(return_value=mock_doc)
+
+        mock_chunk = MagicMock()
+        mock_chunk.meta.doc_items = []
+
+        mock_chunker = MagicMock()
+        mock_chunker.chunk.return_value = [mock_chunk]
+        mock_chunker.serialize.return_value = "  \n  "
+        mock_chunker_class.return_value = mock_chunker
+
+        mock_chunks_flow = AsyncMock()
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "chunks": mock_chunks_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
+        mock_flow.librarian.save_child_document = AsyncMock()
+
+        await processor.on_message(mock_msg, None, mock_flow)
+
+        mock_chunks_flow.send.assert_not_called()
+        mock_flow.librarian.save_child_document.assert_not_called()
 
 
-class TestProcessPageMode(IsolatedAsyncioTestCase):
-    """Test page mode processing."""
+class TestDecodePages(IsolatedAsyncioTestCase):
+    """Test decode_pages dispatches page-based vs full-text correctly."""
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_page_based_format_emits_per_page(self, mock_conv):
+    async def test_page_based_format_yields_per_page(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -546,28 +618,17 @@ class TestProcessPageMode(IsolatedAsyncioTestCase):
             (make_text_item("Page 1", page_no=1), 0),
             (make_text_item("Page 2", page_no=2), 0),
         ]
+        processor.convert_document = MagicMock(return_value=doc)
 
-        mock_output_flow = AsyncMock()
-        mock_triples_flow = AsyncMock()
-        mock_flow = MagicMock(side_effect=lambda name: {
-            "output": mock_output_flow,
-            "triples": mock_triples_flow,
-        }.get(name))
-        mock_flow.librarian.save_child_document = AsyncMock()
+        pages = list(processor.decode_pages(b"fake", mime_type="application/pdf"))
 
-        metadata = Metadata(id="doc-1", root="root-1", collection="default")
-
-        await processor.process_page_mode(
-            doc, "parent-doc", "urn:doc:parent",
-            metadata, mock_flow, "application/pdf",
-        )
-
-        assert mock_output_flow.send.call_count == 2
-        assert mock_triples_flow.send.call_count == 2
+        assert len(pages) == 2
+        assert pages[0][1] == 1
+        assert pages[1][1] == 2
 
     @patch('trustgraph.decoding.docling.processor.DocumentConverter')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
-    async def test_non_page_format_emits_single_section(self, mock_conv):
+    async def test_non_page_format_yields_single_section(self, mock_conv):
         processor = Processor(
             id='test', taskgroup=MagicMock(),
         )
@@ -576,27 +637,14 @@ class TestProcessPageMode(IsolatedAsyncioTestCase):
         doc.iterate_items.return_value = [
             (make_text_item("Full document text"), 0),
         ]
+        processor.convert_document = MagicMock(return_value=doc)
 
-        mock_output_flow = AsyncMock()
-        mock_triples_flow = AsyncMock()
-        mock_flow = MagicMock(side_effect=lambda name: {
-            "output": mock_output_flow,
-            "triples": mock_triples_flow,
-        }.get(name))
-        mock_flow.librarian.save_child_document = AsyncMock()
+        pages = list(processor.decode_pages(b"fake", mime_type="text/html"))
 
-        metadata = Metadata(id="doc-1", root="root-1", collection="default")
-
-        await processor.process_page_mode(
-            doc, "parent-doc", "urn:doc:parent",
-            metadata, mock_flow, "text/html",
-        )
-
-        assert mock_output_flow.send.call_count == 1
-
-        text_doc = mock_output_flow.send.call_args[0][0]
-        assert isinstance(text_doc, TextDocument)
-        assert text_doc.document_id.startswith("urn:section:")
+        assert len(pages) == 1
+        text, page_no, section_type = pages[0]
+        assert page_no is None
+        assert "Full document text" in text
 
 
 class TestProcessorInitialization(IsolatedAsyncioTestCase):

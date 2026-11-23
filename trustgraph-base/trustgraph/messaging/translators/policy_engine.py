@@ -1,29 +1,34 @@
 from typing import Dict, Any, Tuple
 from ...schema import (
     PolicyEngineRequest, PolicyEngineResponse, RedactionDirective,
+    UserContext,
 )
+from ...base.serialization import dict_to_dataclass, dataclass_to_dict
 from .base import MessageTranslator
 
 
 class PolicyEngineRequestTranslator(MessageTranslator):
 
     def decode(self, data: Dict[str, Any]) -> PolicyEngineRequest:
+        uc = data.get("user-context")
         return PolicyEngineRequest(
             run_id=data.get("run-id", ""),
             step_id=data.get("step-id", ""),
             evaluation_type=data.get("evaluation-type", ""),
             subject=data.get("subject", {}),
-            principal=data.get("principal", {}),
+            user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
     def encode(self, obj: PolicyEngineRequest) -> Dict[str, Any]:
-        return {
+        result = {
             "run-id": obj.run_id,
             "step-id": obj.step_id,
             "evaluation-type": obj.evaluation_type,
             "subject": obj.subject,
-            "principal": obj.principal,
         }
+        if obj.user_context:
+            result["user-context"] = dataclass_to_dict(obj.user_context)
+        return result
 
 
 class PolicyEngineResponseTranslator(MessageTranslator):

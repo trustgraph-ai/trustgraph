@@ -32,7 +32,7 @@ class RerankerClient:
 
 class RerankerClientSpec(RequestResponseSpec):
     def __init__(
-            self, request_name, response_name,
+            self, request_name, response_name, optional=False,
     ):
         super(RerankerClientSpec, self).__init__(
             request_name = request_name,
@@ -40,4 +40,5 @@ class RerankerClientSpec(RequestResponseSpec):
             response_name = response_name,
             response_schema = RerankerResponse,
             impl = RerankerClient,
+            optional = optional,
         )

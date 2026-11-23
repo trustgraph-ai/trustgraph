@@ -1337,3 +1337,32 @@ class SocketFlowInstance:
                 break
 
         return result
+
+    def orchestrator(
+        self,
+        goal: str,
+        run_id: str = "",
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Execute an orchestrated plan for a goal.
+
+        Returns a dict with run-id, plan-id, and artifacts.
+        """
+        request: Dict[str, Any] = {
+            "goal": goal,
+        }
+        if run_id:
+            request["run-id"] = run_id
+        request.update(kwargs)
+
+        result = self.client._send_request_sync(
+            "orchestrator", self.flow_id, request,
+        )
+
+        if isinstance(result, dict) and result.get("error"):
+            err = result["error"]
+            raise RuntimeError(
+                f"{err.get('type', 'error')}: {err.get('message', '')}"
+            )
+
+        return result
