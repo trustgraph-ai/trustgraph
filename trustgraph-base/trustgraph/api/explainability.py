@@ -58,6 +58,20 @@ TG_STEP_RESULT = TG + "StepResult"
 TG_SUBAGENT_GOAL = TG + "subagentGoal"
 TG_PLAN_STEP = TG + "planStep"
 
+# Agent instrumentation predicates
+TG_TOOL_CANDIDATE = TG + "toolCandidate"
+TG_STEP_NUMBER = TG + "stepNumber"
+TG_LLM_DURATION_MS = TG + "llmDurationMs"
+TG_TOOL_DURATION_MS = TG + "toolDurationMs"
+TG_TOOL_ERROR = TG + "toolError"
+TG_TERMINATION_REASON = TG + "terminationReason"
+TG_ERROR_TYPE = TG + "Error"
+
+# LLM usage predicates (agent and RAG events)
+TG_IN_TOKEN = TG + "inToken"
+TG_OUT_TOKEN = TG + "outToken"
+TG_LLM_MODEL = TG + "llmModel"
+
 # PROV-O predicates
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
@@ -65,6 +79,33 @@ PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
 
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
+
+
+def _parse_int(value: Any) -> Optional[int]:
+    """Parse an integer literal, returning None if it is malformed."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_llm_usage(
+    triples: List[Tuple[str, str, Any]]
+) -> Tuple[Optional[int], Optional[int], Optional[str]]:
+    """Extract (in_token, out_token, model) recorded for an LLM call."""
+    in_token = None
+    out_token = None
+    model = None
+
+    for s, p, o in triples:
+        if p == TG_IN_TOKEN:
+            in_token = _parse_int(o)
+        elif p == TG_OUT_TOKEN:
+            out_token = _parse_int(o)
+        elif p == TG_LLM_MODEL:
+            model = o
+
+    return in_token, out_token, model
 
 
 @dataclass
@@ -160,6 +201,9 @@ class Question(ExplainEntity):
 class Grounding(ExplainEntity):
     """Grounding entity - concept decomposition of the query."""
     concepts: List[str] = field(default_factory=list)
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Grounding":
@@ -169,10 +213,15 @@ class Grounding(ExplainEntity):
             if p == TG_CONCEPT:
                 concepts.append(o)
 
+        in_token, out_token, model = _parse_llm_usage(triples)
+
         return cls(
             uri=uri,
             entity_type="grounding",
-            concepts=concepts
+            concepts=concepts,
+            in_token=in_token,
+            out_token=out_token,
+            model=model,
         )
 
 
@@ -217,6 +266,9 @@ class Focus(ExplainEntity):
     """Focus entity - selected edges with cross-encoder scoring (GraphRAG only)."""
     selected_edge_uris: List[str] = field(default_factory=list)
     edge_selections: List[EdgeSelection] = field(default_factory=list)
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Focus":
@@ -226,11 +278,16 @@ class Focus(ExplainEntity):
             if p == TG_SELECTED_EDGE and isinstance(o, str):
                 selected_edge_uris.append(o)
 
+        in_token, out_token, model = _parse_llm_usage(triples)
+
         return cls(
             uri=uri,
             entity_type="focus",
             selected_edge_uris=selected_edge_uris,
-            edge_selections=[]  # Populated separately by fetching each edge URI
+            edge_selections=[],  # Populated separately by fetching each edge URI
+            in_token=in_token,
+            out_token=out_token,
+            model=model,
         )
 
 
@@ -238,19 +295,32 @@ class Focus(ExplainEntity):
 class Synthesis(ExplainEntity):
     """Synthesis entity - the final answer."""
     document: str = ""
+    termination_reason: str = ""
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Synthesis":
         document = ""
+        termination_reason = ""
 
         for s, p, o in triples:
             if p == TG_DOCUMENT:
                 document = o
+            elif p == TG_TERMINATION_REASON:
+                termination_reason = o
+
+        in_token, out_token, model = _parse_llm_usage(triples)
 
         return cls(
             uri=uri,
             entity_type="synthesis",
-            document=document
+            document=document,
+            termination_reason=termination_reason,
+            in_token=in_token,
+            out_token=out_token,
+            model=model,
         )
 
 
@@ -290,12 +360,21 @@ class Analysis(ExplainEntity):
     action: str = ""
     arguments: str = ""  # JSON string
     thought: str = ""
+    tool_candidates: List[str] = field(default_factory=list)
+    step_number: Optional[int] = None
+    llm_duration_ms: Optional[int] = None
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Analysis":
         action = ""
         arguments = ""
         thought = ""
+        tool_candidates = []
+        step_number = None
+        llm_duration_ms = None
 
         for s, p, o in triples:
             if p == TG_ACTION:
@@ -304,6 +383,14 @@ class Analysis(ExplainEntity):
                 arguments = o
             elif p == TG_THOUGHT:
                 thought = o
+            elif p == TG_TOOL_CANDIDATE:
+                tool_candidates.append(o)
+            elif p == TG_STEP_NUMBER:
+                step_number = _parse_int(o)
+            elif p == TG_LLM_DURATION_MS:
+                llm_duration_ms = _parse_int(o)
+
+        in_token, out_token, model = _parse_llm_usage(triples)
 
         return cls(
             uri=uri,
@@ -311,6 +398,12 @@ class Analysis(ExplainEntity):
             action=action,
             arguments=arguments,
             thought=thought,
+            tool_candidates=tool_candidates,
+            step_number=step_number,
+            llm_duration_ms=llm_duration_ms,
+            in_token=in_token,
+            out_token=out_token,
+            model=model,
         )
 
 
@@ -318,19 +411,35 @@ class Analysis(ExplainEntity):
 class Observation(ExplainEntity):
     """Observation entity - standalone tool result (Agent only)."""
     document: str = ""
+    tool_duration_ms: Optional[int] = None
+    tool_error: str = ""
+    is_error: bool = False
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Observation":
         document = ""
+        tool_duration_ms = None
+        tool_error = ""
+        is_error = False
 
         for s, p, o in triples:
             if p == TG_DOCUMENT:
                 document = o
+            elif p == TG_TOOL_DURATION_MS:
+                tool_duration_ms = _parse_int(o)
+            elif p == TG_TOOL_ERROR:
+                tool_error = o
+                is_error = True
+            elif p == RDF_TYPE and o == TG_ERROR_TYPE:
+                is_error = True
 
         return cls(
             uri=uri,
             entity_type="observation",
             document=document,
+            tool_duration_ms=tool_duration_ms,
+            tool_error=tool_error,
+            is_error=is_error,
         )
 
 
@@ -338,19 +447,32 @@ class Observation(ExplainEntity):
 class Conclusion(ExplainEntity):
     """Conclusion entity - final answer (Agent only)."""
     document: str = ""
+    termination_reason: str = ""
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Conclusion":
         document = ""
+        termination_reason = ""
 
         for s, p, o in triples:
             if p == TG_DOCUMENT:
                 document = o
+            elif p == TG_TERMINATION_REASON:
+                termination_reason = o
+
+        in_token, out_token, model = _parse_llm_usage(triples)
 
         return cls(
             uri=uri,
             entity_type="conclusion",
-            document=document
+            document=document,
+            termination_reason=termination_reason,
+            in_token=in_token,
+            out_token=out_token,
+            model=model,
         )
 
 
@@ -358,6 +480,9 @@ class Conclusion(ExplainEntity):
 class Decomposition(ExplainEntity):
     """Decomposition entity - supervisor broke question into sub-goals."""
     goals: List[str] = field(default_factory=list)
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Decomposition":
@@ -365,7 +490,11 @@ class Decomposition(ExplainEntity):
         for s, p, o in triples:
             if p == TG_SUBAGENT_GOAL:
                 goals.append(o)
-        return cls(uri=uri, entity_type="decomposition", goals=goals)
+        in_token, out_token, model = _parse_llm_usage(triples)
+        return cls(
+            uri=uri, entity_type="decomposition", goals=goals,
+            in_token=in_token, out_token=out_token, model=model,
+        )
 
 
 @dataclass
@@ -390,6 +519,9 @@ class Finding(ExplainEntity):
 class Plan(ExplainEntity):
     """Plan entity - a structured plan of steps."""
     steps: List[str] = field(default_factory=list)
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Plan":
@@ -397,7 +529,11 @@ class Plan(ExplainEntity):
         for s, p, o in triples:
             if p == TG_PLAN_STEP:
                 steps.append(o)
-        return cls(uri=uri, entity_type="plan", steps=steps)
+        in_token, out_token, model = _parse_llm_usage(triples)
+        return cls(
+            uri=uri, entity_type="plan", steps=steps,
+            in_token=in_token, out_token=out_token, model=model,
+        )
 
 
 @dataclass
@@ -405,6 +541,9 @@ class StepResult(ExplainEntity):
     """StepResult entity - a plan step's result."""
     step: str = ""
     document: str = ""
+    in_token: Optional[int] = None
+    out_token: Optional[int] = None
+    model: Optional[str] = None
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "StepResult":
@@ -415,7 +554,11 @@ class StepResult(ExplainEntity):
                 step = o
             elif p == TG_DOCUMENT:
                 document = o
-        return cls(uri=uri, entity_type="step-result", step=step, document=document)
+        in_token, out_token, model = _parse_llm_usage(triples)
+        return cls(
+            uri=uri, entity_type="step-result", step=step, document=document,
+            in_token=in_token, out_token=out_token, model=model,
+        )
 
 
 def parse_edge_selection_triples(triples: List[Tuple[str, str, Any]]) -> EdgeSelection:
