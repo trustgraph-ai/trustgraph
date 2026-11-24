@@ -82,11 +82,27 @@ def validate_select(spec, schema):
 
 
 def validate_join(spec, schema):
-    # Join validation is minimal for now — just check structure
     if "left" not in spec or "right" not in spec:
         raise ValueError("Join spec must have 'left' and 'right'")
-    if not spec.get("on"):
-        raise ValueError("Join spec must have at least one 'on' key")
+
+    on = spec.get("on")
+    if not on:
+        raise ValueError("Join spec must have at least one 'on' clause")
+
+    for clause in on:
+        if "left_column" not in clause or "right_column" not in clause:
+            raise ValueError(
+                "Each 'on' clause must have 'left_column' and "
+                "'right_column'"
+            )
+
+    for sub_key in ("left", "right"):
+        sub = spec[sub_key]
+        sub_type = sub.get("type")
+        if sub_type not in ("select", "join"):
+            raise ValueError(
+                f"Join {sub_key}: unknown query type '{sub_type}'"
+            )
 
 
 class Processor(QueryFormulationService):
@@ -126,6 +142,8 @@ class Processor(QueryFormulationService):
             )
 
         validate_query_spec(query_spec, schema)
+
+        query_spec["schema"] = schema
 
         logger.info(
             f"Query formulated: type={query_spec.get('type')}, "

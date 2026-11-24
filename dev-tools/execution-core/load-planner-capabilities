@@ -226,6 +226,22 @@ CAPABILITIES = {
             {"port": "data", "artifact_type": "TabularArtifact"},
         ],
     },
+    "query-spec-join": {
+        "name": "query-spec-join",
+        "type": "adapter",
+        "description":
+            "Joins two QuerySpecArtifacts into a single join-type "
+            "QuerySpec using foreign key relationships declared in "
+            "their embedded schemas. No LLM call — pure data "
+            "transformation.",
+        "inputs": [
+            {"port": "left", "artifact_type": "QuerySpecArtifact"},
+            {"port": "right", "artifact_type": "QuerySpecArtifact"},
+        ],
+        "outputs": [
+            {"port": "query-spec", "artifact_type": "QuerySpecArtifact"},
+        ],
+    },
     "llm-synthesis": {
         "name": "llm-synthesis",
         "type": "llm",

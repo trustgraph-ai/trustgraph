@@ -316,12 +316,18 @@ class Processor(VerificationService):
             ))
 
         qtype = artifact.get("type")
-        if qtype not in ("select",):
+        if qtype == "select":
+            self.validate_query_spec_select(artifact, violations)
+        elif qtype == "join":
+            self.validate_query_spec_join(artifact, violations)
+        else:
             violations.append(Violation(
                 field="type",
                 message=f"Unknown query type: {qtype}",
                 severity="error",
             ))
+
+    def validate_query_spec_select(self, artifact, violations):
 
         table = artifact.get("table")
         if not table or not isinstance(table, str):
@@ -344,6 +350,43 @@ class Processor(VerificationService):
                 message="'columns' must not be empty",
                 severity="error",
             ))
+
+    def validate_query_spec_join(self, artifact, violations):
+
+        for sub_key in ("left", "right"):
+            sub = artifact.get(sub_key)
+            if not sub or not isinstance(sub, dict):
+                violations.append(Violation(
+                    field=sub_key,
+                    message=f"Join spec missing '{sub_key}'",
+                    severity="error",
+                ))
+            else:
+                self.validate_query_spec(sub, violations)
+
+        on = artifact.get("on")
+        if not on or not isinstance(on, list):
+            violations.append(Violation(
+                field="on",
+                message="Join spec missing 'on' clauses",
+                severity="error",
+            ))
+        else:
+            for i, clause in enumerate(on):
+                if not isinstance(clause, dict):
+                    violations.append(Violation(
+                        field=f"on[{i}]",
+                        message="'on' clause must be an object",
+                        severity="error",
+                    ))
+                    continue
+                for col in ("left_column", "right_column"):
+                    if col not in clause:
+                        violations.append(Violation(
+                            field=f"on[{i}].{col}",
+                            message=f"'on' clause missing '{col}'",
+                            severity="error",
+                        ))
 
     @staticmethod
     def add_args(parser):
