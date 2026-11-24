@@ -112,27 +112,31 @@ def main():
 
             print(f"Run:  {run_id}")
             print(f"Plan: {plan_id}")
-            print(f"Artifacts: {len(artifacts)}")
+            artifact_count = sum(
+                len(v) for v in artifacts.values()
+            )
+            print(f"Artifacts: {artifact_count}")
             print()
 
-            for name, art in artifacts.items():
-                artifact_type = art.get("artifact-type", "?")
-                artifact = art.get("artifact", {})
+            for step_id, step_arts in artifacts.items():
+                for port, art in step_arts.items():
+                    artifact_type = art.get("artifact-type", "?")
+                    artifact = art.get("artifact", {})
 
-                print(f"--- {name} ({artifact_type}) ---")
+                    print(f"--- {step_id}/{port} ({artifact_type}) ---")
 
-                if artifact_type == "TabularArtifact":
-                    _print_tabular(artifact)
-                elif artifact_type == "TextBlobArtifact":
-                    _print_text_blob(artifact)
-                elif artifact_type == "SubgraphArtifact":
-                    _print_subgraph(artifact)
-                elif artifact_type == "ReportArtifact":
-                    _print_report(artifact)
-                else:
-                    print(json.dumps(artifact, indent=2))
+                    if artifact_type == "TabularArtifact":
+                        _print_tabular(artifact)
+                    elif artifact_type == "TextBlobArtifact":
+                        _print_text_blob(artifact)
+                    elif artifact_type == "SubgraphArtifact":
+                        _print_subgraph(artifact)
+                    elif artifact_type == "ReportArtifact":
+                        _print_report(artifact)
+                    else:
+                        print(json.dumps(artifact, indent=2))
 
-                print()
+                    print()
 
     except Exception as e:
         print("Exception:", e, flush=True)

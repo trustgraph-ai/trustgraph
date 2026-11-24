@@ -34,6 +34,7 @@ from . chunking import ChunkHandler
 from . extraction import ExtractionHandler
 from . mcp_tool import McpToolHandler
 from . query_formulation import QueryFormulationHandler
+from . query_spec_join import QuerySpecJoinHandler
 
 
 BUILTIN_HANDLERS = {
@@ -59,4 +60,5 @@ BUILTIN_HANDLERS = {
     "extract-ontology": ExtractionHandler("extract-ontology-request"),
     "mcp-tool": McpToolHandler(),
     "query-formulation": QueryFormulationHandler(),
+    "query-spec-join": QuerySpecJoinHandler(),
 }
