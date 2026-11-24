@@ -86,6 +86,7 @@ from .explainability import (
     Finding,
     Plan,
     StepResult,
+    PatternDecision,
     EdgeSelection,
     wire_triples_to_tuples,
     extract_term_value,

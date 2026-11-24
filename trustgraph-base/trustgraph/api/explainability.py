@@ -53,10 +53,13 @@ TG_DECOMPOSITION = TG + "Decomposition"
 TG_FINDING = TG + "Finding"
 TG_PLAN_TYPE = TG + "Plan"
 TG_STEP_RESULT = TG + "StepResult"
+TG_PATTERN_DECISION = TG + "PatternDecision"
 
 # Orchestrator predicates
 TG_SUBAGENT_GOAL = TG + "subagentGoal"
 TG_PLAN_STEP = TG + "planStep"
+TG_PATTERN = TG + "pattern"
+TG_TASK_TYPE = TG + "taskType"
 
 # Agent instrumentation predicates
 TG_TOOL_CANDIDATE = TG + "toolCandidate"
@@ -146,6 +149,8 @@ class ExplainEntity:
             return Plan.from_triples(uri, triples)
         elif TG_STEP_RESULT in types:
             return StepResult.from_triples(uri, triples)
+        elif TG_PATTERN_DECISION in types:
+            return PatternDecision.from_triples(uri, triples)
         elif TG_SYNTHESIS in types:
             return Synthesis.from_triples(uri, triples)
         elif TG_OBSERVATION_TYPE in types and TG_REFLECTION_TYPE not in types:
@@ -473,6 +478,27 @@ class Conclusion(ExplainEntity):
             in_token=in_token,
             out_token=out_token,
             model=model,
+        )
+
+
+@dataclass
+class PatternDecision(ExplainEntity):
+    """PatternDecision entity - the meta-router's choice of execution pattern."""
+    pattern: str = ""
+    task_type: str = ""
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "PatternDecision":
+        pattern = ""
+        task_type = ""
+        for s, p, o in triples:
+            if p == TG_PATTERN:
+                pattern = o
+            elif p == TG_TASK_TYPE:
+                task_type = o
+        return cls(
+            uri=uri, entity_type="pattern-decision",
+            pattern=pattern, task_type=task_type,
         )
 
 
@@ -1139,6 +1165,9 @@ class ExplainabilityClient:
         - Supervisor: Question -> Decomposition -> Finding(s) -> Synthesis
         - Plan-then-Execute: Question -> Plan -> StepResult(s) -> Synthesis
 
+        When the orchestrator records a PatternDecision, it sits between
+        the Question and the first step and is included in the steps list.
+
         Args:
             session_uri: The agent session/question URI
             graph: Named graph (default: urn:graph:retrieval)
@@ -1203,8 +1232,9 @@ class ExplainabilityClient:
             if entity is None:
                 continue
 
-            if isinstance(entity, (Analysis, Observation, Decomposition,
-                                   Finding, Plan, StepResult)):
+            if isinstance(entity, (PatternDecision, Analysis, Observation,
+                                   Decomposition, Finding, Plan,
+                                   StepResult)):
                 trace["steps"].append(entity)
 
                 # Continue following from this entity
