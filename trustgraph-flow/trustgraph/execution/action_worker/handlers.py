@@ -35,6 +35,7 @@ from . extraction import ExtractionHandler
 from . mcp_tool import McpToolHandler
 from . query_formulation import QueryFormulationHandler
 from . query_spec_join import QuerySpecJoinHandler
+from . query_spec_summarise import QuerySpecSummariseHandler
 
 
 BUILTIN_HANDLERS = {
@@ -61,4 +62,5 @@ BUILTIN_HANDLERS = {
     "mcp-tool": McpToolHandler(),
     "query-formulation": QueryFormulationHandler(),
     "query-spec-join": QuerySpecJoinHandler(),
+    "query-spec-summarise": QuerySpecSummariseHandler(),
 }

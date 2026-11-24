@@ -9,8 +9,25 @@ class QueryFormulationClient:
 
         resp = await self.request(
             QueryFormulationRequest(
+                mode="formulate",
                 question=question,
                 schema_name=schema_name,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.query_spec
+
+    async def summarise(self, query_spec, goal, timeout=300):
+
+        resp = await self.request(
+            QueryFormulationRequest(
+                mode="summarise",
+                question=goal,
+                query_spec=query_spec,
             ),
             timeout=timeout,
         )

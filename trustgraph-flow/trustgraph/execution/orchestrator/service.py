@@ -478,22 +478,47 @@ class Processor(FlowProcessor):
                 )
         return resolved
 
+    def _find_terminal_steps(self, steps):
+        referenced = set()
+        for step in steps:
+            for dep in step.get("depends-on", []):
+                referenced.add(dep)
+            for value in step.get("params", {}).values():
+                if isinstance(value, str) and value.startswith("ref:"):
+                    parts = value[4:].split(":", 1)
+                    if len(parts) == 2:
+                        referenced.add(parts[0])
+        return {
+            step["step-id"] for step in steps
+            if step["step-id"] not in referenced
+        }
+
     async def _send_response(self, flow, request, results):
+
+        steps = json.loads(request.steps)
+        terminal = self._find_terminal_steps(steps)
+
+        output = {
+            step_id: artifacts
+            for step_id, artifacts in results.items()
+            if step_id in terminal
+        }
 
         response = OrchestratorResponse(
             run_id=request.run_id,
             plan_id=request.plan_id,
-            artifacts=results,
+            artifacts=output,
         )
 
         await flow("response").send(
             response, properties={"id": request.response_id},
         )
 
-        artifact_count = sum(len(v) for v in results.values())
+        artifact_count = sum(len(v) for v in output.values())
         logger.info(
             f"Plan {request.plan_id} completed with "
-            f"{artifact_count} artifacts from {len(results)} steps"
+            f"{artifact_count} artifacts from {len(terminal)} "
+            f"terminal steps"
         )
 
     async def _send_error(
