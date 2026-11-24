@@ -2,17 +2,25 @@
 import json
 import logging
 
-from . common import HandlerError, get_param
+from . common import ActionHandler
 
 logger = logging.getLogger(__name__)
 
 
-class QueryFormulationHandler:
+class QueryFormulationHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "question": {"artifact-type": "TextBlobArtifact"},
+        "schema-name": {"artifact-type": "TextBlobArtifact"},
+    }
+    outputs = {
+        "query-spec": {"artifact-type": "QuerySpecArtifact"},
+    }
 
-        question = get_param(params, "question")
-        schema_name = get_param(params, "schema-name")
+    async def execute(self, inputs, flow):
+
+        question = inputs["question"]["text"]
+        schema_name = inputs["schema-name"]["text"]
 
         logger.info(
             f"Query formulation: schema={schema_name}, "
@@ -34,4 +42,4 @@ class QueryFormulationHandler:
             f"type={query_spec.get('type', '?')}"
         )
 
-        return "QuerySpecArtifact", query_spec
+        return {"query-spec": query_spec}

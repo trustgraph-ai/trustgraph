@@ -14,8 +14,7 @@ class ExecutionPlanStep:
     step_id: str = ""
     capability: str = ""
     depends_on: list[str] = field(default_factory=list)
-    params: dict[str, str] = field(default_factory=dict)
-    emits: str = ""
+    params: dict = field(default_factory=dict)
 
 ############################################################################
 

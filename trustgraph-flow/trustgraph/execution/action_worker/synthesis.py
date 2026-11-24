@@ -1,61 +1,84 @@
 
 import logging
 
-from . common import (
-    HandlerError, get_param, get_input_artifact, format_tabular,
-    parse_param_json,
-)
+from . common import ActionHandler, HandlerError, format_tabular
 
 logger = logging.getLogger(__name__)
 
 
-class LlmSynthesisHandler:
+class LlmSynthesisHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "data": {
+            "artifact-type": "TabularArtifact",
+            "optional": True,
+        },
+        "context": {
+            "artifact-type": "TextBlobArtifact",
+            "optional": True,
+        },
+        "goal": {
+            "artifact-type": "TextBlobArtifact",
+            "optional": True,
+        },
+        "prompt": {
+            "artifact-type": "TextBlobArtifact",
+            "optional": True,
+        },
+        "system": {
+            "artifact-type": "TextBlobArtifact",
+            "optional": True,
+        },
+        "response-format": {
+            "artifact-type": "TextBlobArtifact",
+            "optional": True,
+        },
+    }
+    outputs = {
+        "report": {"artifact-type": "ReportArtifact"},
+    }
 
-        system = get_param(params, "system", required=False) or (
-            "You are an analyst. Synthesise a clear, structured report "
-            "from the provided data and context."
-        )
+    async def execute(self, inputs, flow):
+
+        if "system" in inputs:
+            system = inputs["system"].get("text", "")
+        else:
+            system = (
+                "You are an analyst. Synthesise a clear, structured "
+                "report from the provided data and context."
+            )
 
         prompt_parts = []
 
-        data_artifact = get_input_artifact(
-            input_artifacts, "TabularArtifact",
-        )
-        if data_artifact:
+        if "data" in inputs:
             prompt_parts.append(
-                "Data:\n" + format_tabular(data_artifact)
+                "Data:\n" + format_tabular(inputs["data"])
             )
 
-        context_artifact = get_input_artifact(
-            input_artifacts, "TextBlobArtifact",
-        )
-        if context_artifact:
+        if "context" in inputs:
             prompt_parts.append(
-                "Context:\n" + context_artifact.get("text", "")
+                "Context:\n" + inputs["context"].get("text", "")
             )
 
-        goal = get_param(params, "goal", required=False)
-        if goal:
-            prompt_parts.append(f"Goal: {goal}")
+        if "goal" in inputs:
+            prompt_parts.append(
+                f"Goal: {inputs['goal'].get('text', '')}"
+            )
 
-        prompt = get_param(params, "prompt", required=False)
-        if prompt:
-            prompt_parts.append(prompt)
+        if "prompt" in inputs:
+            prompt_parts.append(inputs["prompt"].get("text", ""))
 
         if not prompt_parts:
             raise HandlerError(
-                "LLM synthesis requires at least one input artifact "
-                "or a prompt parameter"
+                "LLM synthesis requires at least one of: "
+                "data, context, goal, or prompt"
             )
 
         full_prompt = "\n\n".join(prompt_parts)
 
-        response_format = get_param(
-            params, "response-format", required=False,
-        ) or None
-        response_schema = parse_param_json(params, "schema", dict)
+        response_format = None
+        if "response-format" in inputs:
+            response_format = inputs["response-format"].get("text")
 
         logger.info(f"LLM synthesis: {len(full_prompt)} chars input")
 
@@ -65,11 +88,12 @@ class LlmSynthesisHandler:
             system=system,
             prompt=full_prompt,
             response_format=response_format,
-            schema=response_schema,
             timeout=600,
         )
 
-        return "ReportArtifact", {
-            "format": "markdown",
-            "narrative": result.text or "",
+        return {
+            "report": {
+                "format": "markdown",
+                "narrative": result.text or "",
+            }
         }

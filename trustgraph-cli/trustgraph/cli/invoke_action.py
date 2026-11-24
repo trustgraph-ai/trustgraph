@@ -1,6 +1,6 @@
 """
 Invoke the action worker with a capability and parameters.
-Displays the resulting artifact.
+Displays the resulting artifacts.
 """
 
 import argparse
@@ -67,47 +67,94 @@ def main():
         '-p', '--param',
         action='append',
         default=[],
-        metavar='KEY=VALUE',
-        help='Step parameter (repeatable)',
+        metavar='NAME:TYPE:VALUE',
+        help=(
+            'Input parameter as NAME:TYPE:VALUE '
+            'e.g. question:TextBlobArtifact:\'{"text": "hello"}\' '
+            '(repeatable)'
+        ),
     )
 
     parser.add_argument(
-        '-i', '--input-artifact',
+        '-i', '--input',
         action='append',
         default=[],
-        metavar='TYPE:FILE',
-        help='Input artifact as TYPE:FILE e.g. TabularArtifact:data.json (repeatable)',
+        metavar='NAME:TYPE:FILE',
+        help=(
+            'Input from file as NAME:TYPE:FILE '
+            'e.g. data:TabularArtifact:data.json (repeatable)'
+        ),
+    )
+
+    parser.add_argument(
+        '-T', '--text',
+        action='append',
+        default=[],
+        metavar='NAME=VALUE',
+        help=(
+            'Text input shorthand as NAME=VALUE '
+            'e.g. question="What are total expenses?" (repeatable)'
+        ),
     )
 
     parser.add_argument(
         'capability',
-        help='Capability to invoke (e.g. erp-finance-query)',
+        help='Capability to invoke (e.g. llm-synthesis)',
     )
 
     args = parser.parse_args()
 
     params = {}
-    for p in args.param:
-        if '=' not in p:
-            print(f"Error: parameter must be KEY=VALUE: {p}", file=sys.stderr)
-            sys.exit(1)
-        key, value = p.split('=', 1)
-        params[key] = value
 
-    input_artifacts = []
-    for spec in args.input_artifact:
-        if ':' not in spec:
+    for spec in args.param:
+        parts = spec.split(':', 2)
+        if len(parts) != 3:
             print(
-                f"Error: input artifact must be TYPE:FILE: {spec}",
+                f"Error: parameter must be NAME:TYPE:VALUE: {spec}",
                 file=sys.stderr,
             )
             sys.exit(1)
-        artifact_type, path = spec.split(':', 1)
+        name, artifact_type, value = parts
+        try:
+            artifact = json.loads(value)
+        except json.JSONDecodeError as e:
+            print(
+                f"Error: value for '{name}' is not valid JSON: {e}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        params[name] = {
+            "artifact-type": artifact_type,
+            "artifact": artifact,
+        }
+
+    for spec in args.input:
+        parts = spec.split(':', 2)
+        if len(parts) != 3:
+            print(
+                f"Error: input must be NAME:TYPE:FILE: {spec}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        name, artifact_type, path = parts
         with open(path) as f:
-            input_artifacts.append({
+            params[name] = {
                 "artifact-type": artifact_type,
                 "artifact": json.load(f),
-            })
+            }
+
+    for spec in args.text:
+        if '=' not in spec:
+            print(
+                f"Error: text input must be NAME=VALUE: {spec}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        name, value = spec.split('=', 1)
+        params[name] = {
+            "artifact-type": "TextBlobArtifact",
+            "artifact": {"text": value},
+        }
 
     try:
 
@@ -124,7 +171,6 @@ def main():
                     "step-id": args.step_id,
                     "capability": args.capability,
                     "params": params,
-                    "input-artifacts": input_artifacts,
                 },
             )
         finally:
@@ -133,30 +179,36 @@ def main():
         if result.get("error"):
             err = result["error"]
             print(
-                f"Error: [{err.get('type', '?')}] {err.get('message', '?')}",
+                f"Error: [{err.get('type', '?')}] "
+                f"{err.get('message', '?')}",
                 file=sys.stderr,
             )
             sys.exit(1)
 
+        artifacts = result.get("artifacts", {})
+
         if args.json:
-            print(json.dumps(result, indent=2))
+            print(json.dumps(artifacts, indent=2))
         else:
-            artifact_type = result.get("artifact-type", "?")
-            artifact = result.get("artifact", {})
+            for name, entry in artifacts.items():
+                artifact_type = entry.get("artifact-type", "?")
+                artifact = entry.get("artifact", {})
 
-            print(f"Artifact type: {artifact_type}")
-            print()
+                print(f"--- {name} ({artifact_type}) ---")
+                print()
 
-            if artifact_type == "TabularArtifact":
-                _print_tabular(artifact)
-            elif artifact_type == "TextBlobArtifact":
-                _print_text_blob(artifact)
-            elif artifact_type == "SubgraphArtifact":
-                _print_subgraph(artifact)
-            elif artifact_type == "ReportArtifact":
-                _print_report(artifact)
-            else:
-                print(json.dumps(artifact, indent=2))
+                if artifact_type == "TabularArtifact":
+                    _print_tabular(artifact)
+                elif artifact_type == "TextBlobArtifact":
+                    _print_text_blob(artifact)
+                elif artifact_type == "SubgraphArtifact":
+                    _print_subgraph(artifact)
+                elif artifact_type == "ReportArtifact":
+                    _print_report(artifact)
+                else:
+                    print(json.dumps(artifact, indent=2))
+
+                print()
 
     except Exception as e:
         print("Exception:", e, flush=True)

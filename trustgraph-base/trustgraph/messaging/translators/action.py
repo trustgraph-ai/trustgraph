@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any, Tuple
 from ...schema import ActionRequest, ActionResponse, UserContext
 from ...base.serialization import dict_to_dataclass, dataclass_to_dict
@@ -12,8 +13,7 @@ class ActionRequestTranslator(MessageTranslator):
             run_id=data.get("run-id", ""),
             step_id=data.get("step-id", ""),
             capability=data.get("capability", ""),
-            params=data.get("params", {}),
-            input_artifacts=data.get("input-artifacts", []),
+            params=json.dumps(data.get("params", {})),
             user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
@@ -22,8 +22,7 @@ class ActionRequestTranslator(MessageTranslator):
             "run-id": obj.run_id,
             "step-id": obj.step_id,
             "capability": obj.capability,
-            "params": obj.params,
-            "input-artifacts": obj.input_artifacts,
+            "params": json.loads(obj.params) if obj.params else {},
         }
         if obj.user_context:
             result["user-context"] = dataclass_to_dict(obj.user_context)
@@ -38,11 +37,12 @@ class ActionResponseTranslator(MessageTranslator):
         )
 
     def encode(self, obj: ActionResponse) -> Dict[str, Any]:
+        artifacts = json.loads(obj.artifacts) if obj.artifacts else {}
+
         result = {
             "run-id": obj.run_id,
             "step-id": obj.step_id,
-            "artifact-type": obj.artifact_type,
-            "artifact": obj.artifact,
+            "artifacts": artifacts,
         }
 
         if obj.error:

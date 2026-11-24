@@ -1,19 +1,34 @@
 
+import json
 import logging
 
-from . common import HandlerError, get_param, parse_param_json
+from . common import ActionHandler, HandlerError
 
 logger = logging.getLogger(__name__)
 
 
-class McpToolHandler:
+class McpToolHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "tool-name": {"artifact-type": "TextBlobArtifact"},
+        "parameters": {
+            "artifact-type": "TextBlobArtifact", "optional": True,
+        },
+    }
+    outputs = {
+        "result": {
+            "artifact-type": [
+                "TextBlobArtifact", "CompositeArtifact",
+            ],
+        },
+    }
 
-        tool_name = get_param(params, "tool-name")
-        parameters = parse_param_json(
-            params, "parameters", expected_type=dict,
-        ) or {}
+    async def execute(self, inputs, flow):
+
+        tool_name = inputs["tool-name"]["text"]
+        parameters = {}
+        if "parameters" in inputs:
+            parameters = json.loads(inputs["parameters"]["text"])
 
         logger.info(f"MCP tool invocation: {tool_name}")
 
@@ -34,6 +49,16 @@ class McpToolHandler:
             ) from e
 
         if isinstance(result, str):
-            return "TextBlobArtifact", {"text": result}
+            return {
+                "result": {
+                    "artifact-type": "TextBlobArtifact",
+                    "artifact": {"text": result},
+                }
+            }
 
-        return "CompositeArtifact", result
+        return {
+            "result": {
+                "artifact-type": "CompositeArtifact",
+                "artifact": result,
+            }
+        }

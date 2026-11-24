@@ -1,10 +1,7 @@
 
 import logging
 
-from . common import (
-    HandlerError, get_param, get_param_int, get_input_artifact,
-    term_dict_to_str,
-)
+from . common import ActionHandler, HandlerError, term_dict_to_str
 
 logger = logging.getLogger(__name__)
 
@@ -35,37 +32,60 @@ _RERANK_SERIALISERS = {
 }
 
 
-class RerankHandler:
+class RerankHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "query": {"artifact-type": "TextBlobArtifact"},
+        "data": {
+            "artifact-type": [
+                "EntityListArtifact",
+                "SubgraphArtifact",
+                "KeywordsArtifact",
+            ],
+        },
+        "top-k": {"artifact-type": "TextBlobArtifact", "optional": True},
+    }
+    outputs = {
+        "data": {
+            "artifact-type": [
+                "EntityListArtifact",
+                "SubgraphArtifact",
+                "KeywordsArtifact",
+            ],
+        },
+    }
 
-        query = get_param(params, "query")
-        top_k = get_param_int(params, "top-k", 10)
+    async def execute(self, inputs, flow):
 
-        artifact_type = None
-        artifact = None
+        query = inputs["query"]["text"]
+        data = inputs["data"]
+        top_k = int(inputs["top-k"]["text"]) if "top-k" in inputs else 10
+
         serialiser = None
-
+        artifact_type = None
         for atype, ser in _RERANK_SERIALISERS.items():
-            art = get_input_artifact(input_artifacts, atype)
-            if art is not None:
+            if ser["items_key"] in data:
                 artifact_type = atype
-                artifact = art
                 serialiser = ser
                 break
 
-        if artifact is None:
+        if serialiser is None:
             raise HandlerError(
-                "rerank requires an input artifact of type: "
-                + ", ".join(_RERANK_SERIALISERS.keys())
+                "rerank input data does not match any known "
+                "artifact structure"
             )
 
         items_key = serialiser["items_key"]
         to_text = serialiser["to_text"]
-        items = artifact.get(items_key, [])
+        items = data.get(items_key, [])
 
         if not items:
-            return artifact_type, artifact
+            return {
+                "data": {
+                    "artifact-type": artifact_type,
+                    "artifact": data,
+                }
+            }
 
         documents = [
             {"id": str(i), "text": to_text(item)}
@@ -89,41 +109,55 @@ class RerankHandler:
         reranked_items = [
             items[i] for i in ranked_indices if i < len(items)
         ]
-        # FIXME: limit not being applied by reranker service, enforce here
         reranked_items = reranked_items[:top_k]
 
         logger.info(
             f"Rerank: {len(items)} → {len(reranked_items)} {items_key}"
         )
 
-        result = dict(artifact)
+        result = dict(data)
         result[items_key] = reranked_items
-        return artifact_type, result
+        return {
+            "data": {
+                "artifact-type": artifact_type,
+                "artifact": result,
+            }
+        }
 
 
-class TabularRedactHandler:
+class TabularRedactHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "data": {"artifact-type": "TabularArtifact"},
+        "columns": {"artifact-type": "TextBlobArtifact"},
+        "method": {"artifact-type": "TextBlobArtifact", "optional": True},
+    }
+    outputs = {
+        "data": {"artifact-type": "TabularArtifact"},
+    }
 
-        data = get_input_artifact(input_artifacts, "TabularArtifact")
-        if not data:
-            raise HandlerError(
-                "tabular-redact requires a TabularArtifact input"
-            )
+    async def execute(self, inputs, flow):
+
+        data = inputs["data"]
 
         redact_columns = [
             c.strip()
-            for c in get_param(params, "columns", required=False).split(",")
+            for c in inputs["columns"]["text"].split(",")
             if c.strip()
         ]
 
-        method = get_param(params, "method", required=False) or "strip"
+        method = (
+            inputs["method"]["text"] if "method" in inputs else "strip"
+        )
 
         columns = data.get("columns", [])
         rows = data.get("rows", [])
 
         if method == "strip":
-            columns = [c for c in columns if c.get("name") not in redact_columns]
+            columns = [
+                c for c in columns
+                if c.get("name") not in redact_columns
+            ]
             rows = [
                 {k: v for k, v in row.items() if k not in redact_columns}
                 for row in rows
@@ -142,33 +176,34 @@ class TabularRedactHandler:
             f"method={method}"
         )
 
-        return "TabularArtifact", {
-            "columns": columns,
-            "rows": rows,
+        return {
+            "data": {
+                "columns": columns,
+                "rows": rows,
+            }
         }
 
 
-class TabularJoinHandler:
+class TabularJoinHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "tabular": {"artifact-type": "TabularArtifact"},
+        "graph": {"artifact-type": "SubgraphArtifact"},
+        "join-key": {
+            "artifact-type": "TextBlobArtifact", "optional": True,
+        },
+    }
+    outputs = {
+        "data": {"artifact-type": "TabularArtifact"},
+    }
 
-        tabular = get_input_artifact(
-            input_artifacts, "TabularArtifact",
+    async def execute(self, inputs, flow):
+
+        tabular = inputs["tabular"]
+        graph = inputs["graph"]
+        join_key = (
+            inputs["join-key"]["text"] if "join-key" in inputs else "id"
         )
-        if not tabular:
-            raise HandlerError(
-                "tabular-join requires a TabularArtifact input"
-            )
-
-        graph = get_input_artifact(
-            input_artifacts, "SubgraphArtifact",
-        )
-        if not graph:
-            raise HandlerError(
-                "tabular-join requires a SubgraphArtifact input"
-            )
-
-        join_key = get_param(params, "join-key", required=False) or "id"
 
         columns = list(tabular.get("columns", []))
         rows = list(tabular.get("rows", []))
@@ -189,7 +224,9 @@ class TabularJoinHandler:
             key_value = row.get(join_key, "")
             if key_value in graph_data:
                 for prop, val in graph_data[key_value].items():
-                    col_name = prop.rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+                    col_name = (
+                        prop.rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+                    )
                     new_row[col_name] = val
                     new_columns.add(col_name)
             enriched_rows.append(new_row)
@@ -203,7 +240,9 @@ class TabularJoinHandler:
             f"{len(new_columns)} new columns from graph"
         )
 
-        return "TabularArtifact", {
-            "columns": columns,
-            "rows": enriched_rows,
+        return {
+            "data": {
+                "columns": columns,
+                "rows": enriched_rows,
+            }
         }

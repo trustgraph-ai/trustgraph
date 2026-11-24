@@ -114,17 +114,27 @@ def main():
 
             table = []
             for s in steps:
+                params = s.get("params", {})
+                param_summary = []
+                for k, v in params.items():
+                    if isinstance(v, str):
+                        param_summary.append(f"{k}={v}")
+                    elif isinstance(v, dict):
+                        atype = v.get("artifact-type", "?")
+                        param_summary.append(f"{k}: {atype}")
+                    else:
+                        param_summary.append(f"{k}={v}")
+
                 table.append([
                     s.get("step-id", ""),
                     s.get("capability", ""),
                     ", ".join(s.get("depends-on", [])) or "-",
-                    s.get("emits", ""),
-                    json.dumps(s.get("params", {})),
+                    "; ".join(param_summary) or "-",
                 ])
 
             print(tabulate.tabulate(
                 table,
-                headers=["Step", "Capability", "Depends On", "Emits", "Params"],
+                headers=["Step", "Capability", "Depends On", "Params"],
                 tablefmt="pretty",
                 stralign="left",
             ))

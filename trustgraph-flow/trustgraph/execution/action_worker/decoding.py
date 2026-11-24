@@ -1,17 +1,25 @@
 
 import logging
 
-from . common import HandlerError, get_param
+from . common import ActionHandler, HandlerError
 
 logger = logging.getLogger(__name__)
 
 
-class DocumentDecodeHandler:
+class DocumentDecodeHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "document-id": {"artifact-type": "TextBlobArtifact"},
+        "mode": {"artifact-type": "TextBlobArtifact", "optional": True},
+    }
+    outputs = {
+        "sections": {"artifact-type": "DocumentSectionsArtifact"},
+    }
 
-        document_id = get_param(params, "document-id")
-        mode = get_param(params, "mode", required=False) or "page"
+    async def execute(self, inputs, flow):
+
+        document_id = inputs["document-id"]["text"]
+        mode = inputs["mode"]["text"] if "mode" in inputs else "page"
 
         logger.info(
             f"Document decode: {document_id} (mode={mode})"
@@ -30,14 +38,16 @@ class DocumentDecodeHandler:
                 f"Document decode failed: {e}"
             ) from e
 
-        return "DocumentSectionsArtifact", {
-            "document_id": document_id,
-            "sections": [
-                {
-                    "document_id": s.document_id,
-                    "page": s.page,
-                    "section_type": s.section_type,
-                }
-                for s in sections
-            ],
+        return {
+            "sections": {
+                "document_id": document_id,
+                "sections": [
+                    {
+                        "document_id": s.document_id,
+                        "page": s.page,
+                        "section_type": s.section_type,
+                    }
+                    for s in sections
+                ],
+            }
         }

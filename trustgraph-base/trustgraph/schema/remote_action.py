@@ -10,7 +10,6 @@ class RemoteActionRequest:
     step_id: str = ""
     capability: str = ""
     params: str = ""
-    input_artifacts: str = ""
     user_context: str = ""
 
 
@@ -18,6 +17,5 @@ class RemoteActionRequest:
 class RemoteActionResponse:
     run_id: str = ""
     step_id: str = ""
-    artifact_type: str = ""
-    artifact: str = ""
+    artifacts: str = ""
     error: Error | None = None

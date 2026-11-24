@@ -69,16 +69,16 @@ class Processor(RemoteActionService):
         super(Processor, self).__init__(**params)
         logger.info("ERP finance action service initialized")
 
-    async def execute(self, params, input_artifacts, user_context):
+    async def execute(self, inputs, user_context):
 
-        query = params.get("query", "")
+        query = inputs.get("query", {}).get("text", "")
 
         logger.info(
             f"ERP finance query (mock): {query[:80]}... "
             f"user={user_context.user_id if user_context else 'anonymous'}"
         )
 
-        return "TabularArtifact", MOCK_DATA
+        return {"results": ("TabularArtifact", MOCK_DATA)}
 
     @staticmethod
     def add_args(parser):

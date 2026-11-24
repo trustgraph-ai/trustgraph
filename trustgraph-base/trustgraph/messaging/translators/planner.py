@@ -50,7 +50,6 @@ class PlannerResponseTranslator(MessageTranslator):
                 "capability": s.capability,
                 "depends-on": s.depends_on,
                 "params": s.params,
-                "emits": s.emits,
             }
             for s in obj.steps
         ]
