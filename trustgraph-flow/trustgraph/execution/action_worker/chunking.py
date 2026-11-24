@@ -1,18 +1,35 @@
 
 import logging
 
-from . common import HandlerError, get_param, get_param_int
+from . common import ActionHandler, HandlerError
 
 logger = logging.getLogger(__name__)
 
 
-class ChunkHandler:
+class ChunkHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "document-id": {"artifact-type": "TextBlobArtifact"},
+        "chunk-size": {"artifact-type": "TextBlobArtifact", "optional": True},
+        "chunk-overlap": {
+            "artifact-type": "TextBlobArtifact", "optional": True,
+        },
+    }
+    outputs = {
+        "chunks": {"artifact-type": "ChunksArtifact"},
+    }
 
-        document_id = get_param(params, "document-id")
-        chunk_size = get_param_int(params, "chunk-size", 0)
-        chunk_overlap = get_param_int(params, "chunk-overlap", 0)
+    async def execute(self, inputs, flow):
+
+        document_id = inputs["document-id"]["text"]
+        chunk_size = (
+            int(inputs["chunk-size"]["text"])
+            if "chunk-size" in inputs else 0
+        )
+        chunk_overlap = (
+            int(inputs["chunk-overlap"]["text"])
+            if "chunk-overlap" in inputs else 0
+        )
 
         logger.info(
             f"Chunk: {document_id} "
@@ -33,15 +50,17 @@ class ChunkHandler:
                 f"Chunking failed: {e}"
             ) from e
 
-        return "ChunksArtifact", {
-            "document_id": document_id,
-            "chunks": [
-                {
-                    "document_id": c.document_id,
-                    "index": c.index,
-                    "char_offset": c.char_offset,
-                    "char_length": c.char_length,
-                }
-                for c in chunks
-            ],
+        return {
+            "chunks": {
+                "document_id": document_id,
+                "chunks": [
+                    {
+                        "document_id": c.document_id,
+                        "index": c.index,
+                        "char_offset": c.char_offset,
+                        "char_length": c.char_length,
+                    }
+                    for c in chunks
+                ],
+            }
         }

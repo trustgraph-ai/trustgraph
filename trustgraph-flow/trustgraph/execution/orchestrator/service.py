@@ -26,7 +26,6 @@ from ... base import (
     ActionClientSpec,
     VerificationClientSpec,
 )
-from ... base.serialization import dict_to_dataclass, dataclass_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +213,6 @@ class Processor(FlowProcessor):
                 "capability": s.capability,
                 "depends-on": s.depends_on,
                 "params": s.params,
-                "emits": s.emits,
             }
             for s in planner_resp.steps
         ]
@@ -243,7 +241,7 @@ class Processor(FlowProcessor):
         statuses = json.loads(request.step_statuses)
         results = json.loads(request.step_results)
 
-        ready = self._find_ready_steps(steps, statuses)
+        ready = self._find_ready_steps(steps, statuses, results)
 
         if not ready:
             if all(s == "completed" for s in statuses.values()):
@@ -301,12 +299,8 @@ class Processor(FlowProcessor):
                 )
                 return
 
-            artifact_type, artifact = result
             statuses[step_id] = "completed"
-            results[step_id] = {
-                "artifact-type": artifact_type,
-                "artifact": artifact,
-            }
+            results[step_id] = result
             __class__.step_count_metric.labels(
                 processor=self.id, status="completed",
             ).inc()
@@ -335,7 +329,7 @@ class Processor(FlowProcessor):
 
         step_id = step["step-id"]
         capability = step["capability"]
-        params = step.get("params", {})
+        raw_params = step.get("params", {})
 
         logger.info(
             f"Step {step_id}: {capability}"
@@ -343,9 +337,7 @@ class Processor(FlowProcessor):
 
         t0 = time.monotonic()
 
-        input_artifacts = self._resolve_input_artifacts(
-            step, results,
-        )
+        resolved = self._resolve_params(raw_params, results)
 
         policy = flow("policy-request")
         if policy:
@@ -370,40 +362,46 @@ class Processor(FlowProcessor):
             run_id=request.run_id,
             step_id=step_id,
             capability=capability,
-            params=params,
-            input_artifacts=input_artifacts,
+            params=json.dumps(resolved),
             user_context=user_context,
         )
 
-        artifact_type = action_resp.artifact_type
-        artifact = action_resp.artifact
+        artifacts = json.loads(action_resp.artifacts) if action_resp.artifacts else {}
 
         verification = flow("verification-request")
         if verification:
-            ver_resp = await verification.verify(
-                run_id=request.run_id,
-                step_id=step_id,
-                expected_type=artifact_type,
-                artifact=artifact,
-            )
-
-            if not ver_resp.valid:
-                violations = [
-                    f"[{v.severity}] {v.field}: {v.message}"
-                    for v in ver_resp.violations
-                ]
-                raise RuntimeError(
-                    f"Verification failed: {'; '.join(violations)}"
+            for name, entry in artifacts.items():
+                artifact_type = entry.get("artifact-type", "")
+                artifact = entry.get("artifact", {})
+                ver_resp = await verification.verify(
+                    run_id=request.run_id,
+                    step_id=step_id,
+                    expected_type=artifact_type,
+                    artifact=artifact,
                 )
 
+                if not ver_resp.valid:
+                    violations = [
+                        f"[{v.severity}] {v.field}: {v.message}"
+                        for v in ver_resp.violations
+                    ]
+                    raise RuntimeError(
+                        f"Verification failed for {name}: "
+                        f"{'; '.join(violations)}"
+                    )
+
         if policy:
+            artifact_types = [
+                e.get("artifact-type", "") for e in artifacts.values()
+            ]
             egress = await policy.evaluate(
                 run_id=request.run_id,
                 step_id=step_id,
                 evaluation_type="step-egress",
                 subject={
-                    "type": artifact_type,
+                    "type": "StepOutputs",
                     "capability": capability,
+                    "artifact-types": artifact_types,
                 },
                 user_context=user_context,
             )
@@ -420,53 +418,82 @@ class Processor(FlowProcessor):
 
         logger.info(
             f"Step {step_id} ({capability}) completed in "
-            f"{duration:.1f}s → {artifact_type}"
+            f"{duration:.1f}s → "
+            f"{[e.get('artifact-type') for e in artifacts.values()]}"
         )
 
-        return artifact_type, artifact
+        return artifacts
 
-    def _find_ready_steps(self, steps, statuses):
+    def _find_ready_steps(self, steps, statuses, results):
         ready = []
         for step in steps:
             step_id = step["step-id"]
             if statuses.get(step_id) != "pending":
                 continue
-            deps = step.get("depends-on", [])
+
+            deps = set(step.get("depends-on", []))
+
+            for value in step.get("params", {}).values():
+                if isinstance(value, str) and value.startswith("ref:"):
+                    parts = value[4:].split(":", 1)
+                    if len(parts) == 2:
+                        deps.add(parts[0])
+
             if all(statuses.get(d) == "completed" for d in deps):
                 ready.append(step)
         return ready
 
-    def _resolve_input_artifacts(self, step, results):
-        input_artifacts = []
-        for dep_id in step.get("depends-on", []):
-            dep_result = results.get(dep_id)
-            if dep_result:
-                input_artifacts.append(dep_result)
-        return input_artifacts
+    def _resolve_params(self, raw_params, results):
+        resolved = {}
+        for key, value in raw_params.items():
+            if isinstance(value, str) and value.startswith("ref:"):
+                parts = value[4:].split(":", 1)
+                if len(parts) != 2:
+                    raise RuntimeError(
+                        f"Invalid ref parameter '{value}': "
+                        f"expected 'ref:STEP_ID:OUTPUT_NAME'"
+                    )
+                ref_step_id, output_name = parts
+                step_result = results.get(ref_step_id)
+                if step_result is None:
+                    raise RuntimeError(
+                        f"ref parameter '{value}' references "
+                        f"step '{ref_step_id}' which has no result"
+                    )
+                artifact = step_result.get(output_name)
+                if artifact is None:
+                    raise RuntimeError(
+                        f"ref parameter '{value}' references "
+                        f"output '{output_name}' not found in "
+                        f"step '{ref_step_id}'"
+                    )
+                resolved[key] = artifact
+            elif isinstance(value, dict):
+                resolved[key] = value
+            else:
+                raise RuntimeError(
+                    f"Unexpected param value for '{key}': "
+                    f"expected artifact dict or ref: string, "
+                    f"got {type(value).__name__}"
+                )
+        return resolved
 
     async def _send_response(self, flow, request, results):
-
-        artifacts = {}
-        steps = json.loads(request.steps)
-        for step in steps:
-            step_id = step["step-id"]
-            emits = step.get("emits", step_id)
-            if step_id in results:
-                artifacts[emits] = results[step_id]
 
         response = OrchestratorResponse(
             run_id=request.run_id,
             plan_id=request.plan_id,
-            artifacts=artifacts,
+            artifacts=results,
         )
 
         await flow("response").send(
             response, properties={"id": request.response_id},
         )
 
+        artifact_count = sum(len(v) for v in results.values())
         logger.info(
             f"Plan {request.plan_id} completed with "
-            f"{len(artifacts)} artifacts"
+            f"{artifact_count} artifacts from {len(results)} steps"
         )
 
     async def _send_error(

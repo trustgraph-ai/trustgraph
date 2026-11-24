@@ -9,6 +9,15 @@ class HandlerError(Exception):
     pass
 
 
+class ActionHandler:
+
+    inputs = {}
+    outputs = {}
+
+    async def execute(self, inputs, flow):
+        raise NotImplementedError
+
+
 def get_param(params, key, required=True):
     value = params.get(key, "")
     if required and not value:
@@ -105,12 +114,6 @@ def term_dict_to_str(d):
         ])
     return ""
 
-
-def get_input_artifact(input_artifacts, artifact_type):
-    for artifact in input_artifacts:
-        if artifact.get("artifact-type") == artifact_type:
-            return artifact.get("artifact", {})
-    return None
 
 
 def format_tabular(artifact):

@@ -113,7 +113,7 @@ class Processor(QueryFormulationService):
 
         result = await flow("prompt-request").query_formulation(
             question=request.question,
-            schema=json.dumps(schema),
+            schema=schema,
         )
 
         if result.response_type == "json" and result.object:

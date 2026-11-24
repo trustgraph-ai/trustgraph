@@ -4,11 +4,9 @@ Redact Remote Action Service - A test action service for text redaction.
 This service takes a TextBlobArtifact as input and replaces specified
 words with [REDACTED].
 
-Params:
-    words: Comma-separated list of words to redact (e.g., "horse,bar,face")
-
-Input artifacts:
-    TextBlobArtifact with text to redact.
+Inputs:
+    text: TextBlobArtifact with text to redact.
+    words: TextBlobArtifact with comma-separated list of words to redact.
 
 Returns:
     TextBlobArtifact with redacted text.
@@ -46,22 +44,18 @@ class Processor(RemoteActionService):
         super(Processor, self).__init__(**params)
         logger.info("Redact action service initialized")
 
-    async def execute(self, params, input_artifacts, user_context):
+    async def execute(self, inputs, user_context):
 
-        words_param = params.get("words", "")
+        words_param = inputs.get("words", {}).get("text", "")
         words = [w.strip() for w in words_param.split(",") if w.strip()]
 
         if not words:
             raise ValueError("No words specified for redaction")
 
-        text = ""
-        for artifact in input_artifacts:
-            if artifact.get("artifact-type") == "TextBlobArtifact":
-                text = artifact.get("artifact", {}).get("text", "")
-                break
+        text = inputs.get("text", {}).get("text", "")
 
         if not text:
-            raise ValueError("No TextBlobArtifact input provided")
+            raise ValueError("No text input provided")
 
         redacted = redact_text(text, words)
 
@@ -70,7 +64,7 @@ class Processor(RemoteActionService):
             f"user={user_context.user_id if user_context else 'anonymous'}"
         )
 
-        return "TextBlobArtifact", {"text": redacted}
+        return {"output": ("TextBlobArtifact", {"text": redacted})}
 
     @staticmethod
     def add_args(parser):

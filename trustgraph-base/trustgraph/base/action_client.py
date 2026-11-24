@@ -7,7 +7,7 @@ class ActionClient:
 
     async def execute(
         self, run_id, step_id, capability, params,
-        input_artifacts=None, user_context=None, timeout=300,
+        user_context=None, timeout=300,
     ):
 
         resp = await self.request(
@@ -16,7 +16,6 @@ class ActionClient:
                 step_id=step_id,
                 capability=capability,
                 params=params,
-                input_artifacts=input_artifacts or [],
                 user_context=user_context,
             ),
             timeout=timeout,

@@ -80,27 +80,29 @@ class Processor(RemoteActionService):
         self.fetch_limiter = RateLimiter(requests_per_minute=20)
         logger.info("Web action service initialized")
 
-    async def execute(self, params, input_artifacts, user_context):
+    async def execute(self, inputs, user_context):
 
-        operation = params.get("operation", "")
+        operation = inputs.get("operation", {}).get("text", "")
 
         if operation == "search":
-            return await self._search(params)
+            return await self._search(inputs)
         elif operation == "fetch":
-            return await self._fetch(params)
+            return await self._fetch(inputs)
         else:
             raise ValueError(
                 f"Unknown operation: '{operation}'. "
                 f"Expected 'search' or 'fetch'."
             )
 
-    async def _search(self, params):
+    async def _search(self, inputs):
 
-        query = params.get("query", "")
+        query = inputs.get("query", {}).get("text", "")
         if not query:
-            raise ValueError("Missing required parameter: query")
+            raise ValueError("Missing required input: query")
 
-        max_results = int(params.get("max-results", "10"))
+        max_results = int(
+            inputs.get("max-results", {}).get("text", "10")
+        )
 
         await self.search_limiter.acquire()
 
@@ -119,9 +121,9 @@ class Processor(RemoteActionService):
 
         soup = BeautifulSoup(response.text, "html.parser")
         if not soup:
-            return "TextBlobArtifact", {
+            return {"output": ("TextBlobArtifact", {
                 "text": "Failed to parse search results.",
-            }
+            })}
 
         results = []
         for result in soup.select(".result"):
@@ -176,13 +178,13 @@ class Processor(RemoteActionService):
 
         logger.info(f"Search returned {len(results)} results")
 
-        return "TextBlobArtifact", {"text": text}
+        return {"output": ("TextBlobArtifact", {"text": text})}
 
-    async def _fetch(self, params):
+    async def _fetch(self, inputs):
 
-        url = params.get("url", "")
+        url = inputs.get("url", {}).get("text", "")
         if not url:
-            raise ValueError("Missing required parameter: url")
+            raise ValueError("Missing required input: url")
 
         await self.fetch_limiter.acquire()
 
@@ -218,7 +220,7 @@ class Processor(RemoteActionService):
 
         logger.info(f"Fetched {len(text)} characters from {url}")
 
-        return "TextBlobArtifact", {"text": text}
+        return {"output": ("TextBlobArtifact", {"text": text})}
 
     @staticmethod
     def add_args(parser):

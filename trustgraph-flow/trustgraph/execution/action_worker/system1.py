@@ -2,9 +2,7 @@
 import json
 import logging
 
-from . common import (
-    HandlerError, get_param, get_input_artifact, parse_param_json,
-)
+from . common import ActionHandler, HandlerError
 
 logger = logging.getLogger(__name__)
 
@@ -19,25 +17,23 @@ def _parse_state(value):
     return {"text": value}
 
 
-class ClozeHandler:
+class ClozeHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "model": {"artifact-type": "TextBlobArtifact"},
+        "query": {"artifact-type": "TextBlobArtifact"},
+    }
+    outputs = {
+        "classification": {"artifact-type": "ClassificationArtifact"},
+    }
 
-        model = get_param(params, "model")
+    async def execute(self, inputs, flow):
 
-        text_artifact = get_input_artifact(
-            input_artifacts, "TextBlobArtifact",
-        )
-        if text_artifact:
-            query = text_artifact.get("text", "")
-        else:
-            query = get_param(params, "query")
+        model = inputs["model"]["text"]
+        query = inputs["query"]["text"]
 
         if not query:
-            raise HandlerError(
-                "cloze requires a 'query' parameter or "
-                "TextBlobArtifact input"
-            )
+            raise HandlerError("cloze requires a non-empty 'query'")
 
         logger.info(
             f"Cloze classification: model={model}, "
@@ -51,38 +47,32 @@ class ClozeHandler:
             timeout=300,
         )
 
-        return "ClassificationArtifact", {
-            "label": response.label,
-            "confidence": response.confidence,
+        return {
+            "classification": {
+                "label": response.label,
+                "confidence": response.confidence,
+            }
         }
 
 
-class DecisionScoringHandler:
+class DecisionScoringHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "state": {"artifact-type": "TextBlobArtifact"},
+        "questions": {"artifact-type": "TextBlobArtifact"},
+    }
+    outputs = {
+        "decision": {"artifact-type": "DecisionArtifact"},
+    }
 
-        text_artifact = get_input_artifact(
-            input_artifacts, "TextBlobArtifact",
-        )
-        if text_artifact:
-            state = text_artifact.get("text", "")
-        else:
-            state = get_param(params, "state", required=False)
+    async def execute(self, inputs, flow):
 
-        if not state:
+        state = _parse_state(inputs["state"]["text"])
+
+        questions = json.loads(inputs["questions"]["text"])
+        if not isinstance(questions, dict):
             raise HandlerError(
-                "decision-scoring requires a 'state' parameter or "
-                "TextBlobArtifact input"
-            )
-
-        if isinstance(state, str):
-            state = _parse_state(state)
-
-        questions = parse_param_json(params, "questions", dict)
-        if not questions:
-            raise HandlerError(
-                "decision-scoring requires a 'questions' parameter "
-                "(JSON object)"
+                "'questions' must be a JSON object"
             )
 
         logger.info(
@@ -96,38 +86,32 @@ class DecisionScoringHandler:
             timeout=300,
         )
 
-        return "DecisionArtifact", {
-            "answers": response.answers,
-            "model": response.model,
+        return {
+            "decision": {
+                "answers": response.answers,
+                "model": response.model,
+            }
         }
 
 
-class FieldExtractionHandler:
+class FieldExtractionHandler(ActionHandler):
 
-    async def execute(self, params, input_artifacts, flow):
+    inputs = {
+        "state": {"artifact-type": "TextBlobArtifact"},
+        "fields": {"artifact-type": "TextBlobArtifact"},
+    }
+    outputs = {
+        "extracted": {"artifact-type": "ExtractedFieldsArtifact"},
+    }
 
-        text_artifact = get_input_artifact(
-            input_artifacts, "TextBlobArtifact",
-        )
-        if text_artifact:
-            state = text_artifact.get("text", "")
-        else:
-            state = get_param(params, "state", required=False)
+    async def execute(self, inputs, flow):
 
-        if not state:
+        state = _parse_state(inputs["state"]["text"])
+
+        fields = json.loads(inputs["fields"]["text"])
+        if not isinstance(fields, dict):
             raise HandlerError(
-                "field-extraction requires a 'state' parameter or "
-                "TextBlobArtifact input"
-            )
-
-        if isinstance(state, str):
-            state = _parse_state(state)
-
-        fields = parse_param_json(params, "fields", dict)
-        if not fields:
-            raise HandlerError(
-                "field-extraction requires a 'fields' parameter "
-                "(JSON object)"
+                "'fields' must be a JSON object"
             )
 
         logger.info(
@@ -141,7 +125,9 @@ class FieldExtractionHandler:
             timeout=300,
         )
 
-        return "ExtractedFieldsArtifact", {
-            "answers": response.answers,
-            "model": response.model,
+        return {
+            "extracted": {
+                "answers": response.answers,
+                "model": response.model,
+            }
         }

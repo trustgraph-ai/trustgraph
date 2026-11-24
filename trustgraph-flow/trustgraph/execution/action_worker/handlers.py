@@ -2,7 +2,7 @@
 Capability handler registry for the action worker.
 """
 
-from . common import HandlerError
+from . common import HandlerError, ActionHandler
 
 from . retrieval import (
     ConceptExtractionHandler,

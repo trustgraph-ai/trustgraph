@@ -16,15 +16,19 @@ token = os.getenv("TRUSTGRAPH_TOKEN", None)
 workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
 
 CAPABILITIES = {
-    "erp-finance-query": {
-        "name": "erp-finance-query",
+    "query-formulation": {
+        "name": "query-formulation",
         "type": "tool",
         "description":
-            "Queries the ERP system for financial data — invoices, "
-            "budgets, cost centres. Query is passed as a step parameter.",
-        "inputs": [],
+            "Translates a natural-language question into a structured "
+            "query specification for a named ERP schema. Returns a "
+            "QuerySpecArtifact that downstream services execute.",
+        "inputs": [
+            {"port": "question", "artifact_type": "TextBlobArtifact"},
+            {"port": "schema-name", "artifact_type": "TextBlobArtifact"},
+        ],
         "outputs": [
-            {"port": "result", "artifact_type": "TabularArtifact"},
+            {"port": "query-spec", "artifact_type": "QuerySpecArtifact"},
         ],
     },
     "concept-extraction": {
@@ -34,9 +38,11 @@ CAPABILITIES = {
             "Extracts key concepts from a natural-language query "
             "using an LLM. Returns keywords suitable for downstream "
             "entity retrieval or tagging.",
-        "inputs": [],
+        "inputs": [
+            {"port": "query", "artifact_type": "TextBlobArtifact"},
+        ],
         "outputs": [
-            {"port": "result", "artifact_type": "KeywordsArtifact"},
+            {"port": "keywords", "artifact_type": "KeywordsArtifact"},
         ],
     },
     "knowledge-retrieval": {
@@ -47,10 +53,19 @@ CAPABILITIES = {
             "concepts or entities, returning scored edges as a "
             "subgraph.",
         "inputs": [
-            {"port": "keywords", "artifact_type": "KeywordsArtifact"},
+            {
+                "port": "keywords",
+                "artifact_type": "KeywordsArtifact",
+                "optional": True,
+            },
+            {
+                "port": "entities",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
         ],
         "outputs": [
-            {"port": "result", "artifact_type": "SubgraphArtifact"},
+            {"port": "subgraph", "artifact_type": "SubgraphArtifact"},
         ],
     },
     "graph-rag-query": {
@@ -60,9 +75,11 @@ CAPABILITIES = {
             "Full graph RAG pipeline: concept extraction, knowledge "
             "retrieval, and LLM synthesis. Returns a natural-language "
             "answer.",
-        "inputs": [],
+        "inputs": [
+            {"port": "query", "artifact_type": "TextBlobArtifact"},
+        ],
         "outputs": [
-            {"port": "result", "artifact_type": "TextBlobArtifact"},
+            {"port": "response", "artifact_type": "TextBlobArtifact"},
         ],
     },
     "graph-embeddings-query": {
@@ -72,9 +89,11 @@ CAPABILITIES = {
             "Performs a semantic similarity search over graph entities. "
             "Takes a natural-language query, embeds it, and returns "
             "ranked entity matches with scores and attributes.",
-        "inputs": [],
+        "inputs": [
+            {"port": "query", "artifact_type": "TextBlobArtifact"},
+        ],
         "outputs": [
-            {"port": "result", "artifact_type": "EntityListArtifact"},
+            {"port": "entities", "artifact_type": "EntityListArtifact"},
         ],
     },
     "entity-triples-query": {
@@ -82,13 +101,61 @@ CAPABILITIES = {
         "type": "retrieval",
         "description":
             "Queries the knowledge graph for all triples containing "
-            "the given entities. Accepts an EntityListArtifact or "
-            "entity URIs as parameters. Returns a subgraph.",
+            "the given entities. Accepts an EntityListArtifact from a "
+            "previous step, or entity URIs as text. Returns a subgraph.",
         "inputs": [
-            {"port": "entities", "artifact_type": "EntityListArtifact"},
+            {
+                "port": "entity-list",
+                "artifact_type": "EntityListArtifact",
+                "optional": True,
+            },
+            {
+                "port": "entities",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
         ],
         "outputs": [
-            {"port": "result", "artifact_type": "SubgraphArtifact"},
+            {"port": "subgraph", "artifact_type": "SubgraphArtifact"},
+        ],
+    },
+    "document-rag-query": {
+        "name": "document-rag-query",
+        "type": "retrieval",
+        "description":
+            "Performs document-level RAG: embeds the query, retrieves "
+            "matching document chunks, and synthesises an answer.",
+        "inputs": [
+            {"port": "query", "artifact_type": "TextBlobArtifact"},
+        ],
+        "outputs": [
+            {"port": "response", "artifact_type": "TextBlobArtifact"},
+        ],
+    },
+    "sparql-query": {
+        "name": "sparql-query",
+        "type": "retrieval",
+        "description":
+            "Runs a SPARQL query against the knowledge graph. "
+            "Returns tabular results for SELECT, a subgraph for "
+            "CONSTRUCT/DESCRIBE, or text for ASK.",
+        "inputs": [
+            {"port": "query", "artifact_type": "TextBlobArtifact"},
+            {
+                "port": "variables",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
+        ],
+        "outputs": [
+            {
+                "port": "result",
+                "artifact_type": [
+                    "TextBlobArtifact",
+                    "SubgraphArtifact",
+                    "TabularArtifact",
+                ],
+            },
         ],
     },
     "rerank": {
@@ -100,14 +167,25 @@ CAPABILITIES = {
             "SubgraphArtifact, or KeywordsArtifact. Returns the same "
             "artifact type filtered to the top-k most relevant items.",
         "inputs": [
-            {"port": "entities", "artifact_type": "EntityListArtifact"},
-            {"port": "subgraph", "artifact_type": "SubgraphArtifact"},
-            {"port": "keywords", "artifact_type": "KeywordsArtifact"},
+            {"port": "query", "artifact_type": "TextBlobArtifact"},
+            {
+                "port": "data",
+                "artifact_type": [
+                    "EntityListArtifact",
+                    "SubgraphArtifact",
+                    "KeywordsArtifact",
+                ],
+            },
         ],
         "outputs": [
-            {"port": "result", "artifact_type": "EntityListArtifact"},
-            {"port": "result", "artifact_type": "SubgraphArtifact"},
-            {"port": "result", "artifact_type": "KeywordsArtifact"},
+            {
+                "port": "data",
+                "artifact_type": [
+                    "EntityListArtifact",
+                    "SubgraphArtifact",
+                    "KeywordsArtifact",
+                ],
+            },
         ],
     },
     "tabular-redact": {
@@ -115,12 +193,18 @@ CAPABILITIES = {
         "type": "redactor",
         "description":
             "Applies redaction rules to a tabular dataset — strips or "
-            "masks rows/columns matching specified criteria.",
+            "masks specified columns.",
         "inputs": [
             {"port": "data", "artifact_type": "TabularArtifact"},
+            {"port": "columns", "artifact_type": "TextBlobArtifact"},
+            {
+                "port": "method",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
         ],
         "outputs": [
-            {"port": "result", "artifact_type": "TabularArtifact"},
+            {"port": "data", "artifact_type": "TabularArtifact"},
         ],
     },
     "tabular-join": {
@@ -128,13 +212,18 @@ CAPABILITIES = {
         "type": "adapter",
         "description":
             "Joins tabular data with a subgraph on a shared key, "
-            "optionally computing derived columns (e.g. variance).",
+            "enriching rows with graph properties as new columns.",
         "inputs": [
-            {"port": "tabular-data", "artifact_type": "TabularArtifact"},
-            {"port": "graph-data", "artifact_type": "SubgraphArtifact"},
+            {"port": "tabular", "artifact_type": "TabularArtifact"},
+            {"port": "graph", "artifact_type": "SubgraphArtifact"},
+            {
+                "port": "join-key",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
         ],
         "outputs": [
-            {"port": "result", "artifact_type": "TabularArtifact"},
+            {"port": "data", "artifact_type": "TabularArtifact"},
         ],
     },
     "llm-synthesis": {
@@ -144,8 +233,26 @@ CAPABILITIES = {
             "Synthesises a human-readable report from structured data "
             "and reference text using an LLM.",
         "inputs": [
-            {"port": "data", "artifact_type": "TabularArtifact"},
-            {"port": "context", "artifact_type": "TextBlobArtifact"},
+            {
+                "port": "data",
+                "artifact_type": "TabularArtifact",
+                "optional": True,
+            },
+            {
+                "port": "context",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
+            {
+                "port": "goal",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
+            {
+                "port": "prompt",
+                "artifact_type": "TextBlobArtifact",
+                "optional": True,
+            },
         ],
         "outputs": [
             {"port": "report", "artifact_type": "ReportArtifact"},

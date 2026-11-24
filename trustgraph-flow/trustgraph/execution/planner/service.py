@@ -16,30 +16,41 @@ logger = logging.getLogger(__name__)
 default_ident = "planner"
 
 
-def format_capabilities(capabilities):
-    lines = []
+def _normalize_artifact_type(artifact_type):
+    if isinstance(artifact_type, list):
+        return " | ".join(artifact_type)
+    return artifact_type
+
+
+def prepare_capabilities(capabilities):
+    result = []
     for cap in capabilities.values():
-        lines.append(f"  {cap['name']} ({cap.get('type', 'tool')})")
-        lines.append(f"    {cap.get('description', '')}")
-        inputs = cap.get("inputs", [])
-        if inputs:
-            inp_str = ", ".join(
-                f"{p['port']}: {p['artifact_type']}"
-                for p in inputs
-            )
-            lines.append(f"    Inputs: {inp_str}")
-        else:
-            lines.append(
-                "    Inputs: none (source — query passed as parameter)"
-            )
-        outputs = cap.get("outputs", [])
-        out_str = ", ".join(
-            f"{p['port']}: {p['artifact_type']}"
-            for p in outputs
-        )
-        lines.append(f"    Outputs: {out_str}")
-        lines.append("")
-    return "\n".join(lines)
+        prepared = {
+            "name": cap.get("name", ""),
+            "type": cap.get("type", "tool"),
+            "description": cap.get("description", ""),
+            "inputs": [
+                {
+                    "port": inp["port"],
+                    "artifact_type": _normalize_artifact_type(
+                        inp["artifact_type"],
+                    ),
+                    "optional": inp.get("optional", False),
+                }
+                for inp in cap.get("inputs", [])
+            ],
+            "outputs": [
+                {
+                    "port": out["port"],
+                    "artifact_type": _normalize_artifact_type(
+                        out["artifact_type"],
+                    ),
+                }
+                for out in cap.get("outputs", [])
+            ],
+        }
+        result.append(prepared)
+    return result
 
 
 class Processor(PlannerService):
@@ -104,11 +115,9 @@ class Processor(PlannerService):
             f"Planning for run {request.run_id}: {request.goal[:80]}..."
         )
 
-        capability_text = format_capabilities(capabilities)
-
         result = await flow("prompt-request").plan(
             goal=request.goal,
-            capabilities=capability_text,
+            capabilities=prepare_capabilities(capabilities),
         )
 
         steps = self.parse_plan(result.objects, capabilities)
@@ -135,17 +144,33 @@ class Processor(PlannerService):
 
         steps = []
         for item in raw:
+            capability = str(item.get("capability", ""))
+            cap = capabilities.get(capability)
+            raw_params = item.get("params", {})
+
+            params = {}
+            for key, value in raw_params.items():
+                if isinstance(value, str) and value.startswith("ref:"):
+                    params[key] = value
+                elif isinstance(value, str):
+                    params[key] = self._wrap_literal(
+                        capability, cap, key, value,
+                    )
+                elif isinstance(value, dict):
+                    params[key] = value
+                else:
+                    params[key] = {
+                        "artifact-type": "TextBlobArtifact",
+                        "artifact": {"text": str(value)},
+                    }
+
             step = ExecutionPlanStep(
                 step_id=str(item.get("step_id", "")),
-                capability=str(item.get("capability", "")),
+                capability=capability,
                 depends_on=[
                     str(d) for d in item.get("depends_on", [])
                 ],
-                params={
-                    str(k): str(v)
-                    for k, v in item.get("params", {}).items()
-                },
-                emits=str(item.get("emits", "")),
+                params=params,
             )
             steps.append(step)
 
@@ -153,11 +178,55 @@ class Processor(PlannerService):
 
         return steps
 
+    def _wrap_literal(self, capability, cap, port_name, value):
+        if cap is None:
+            return {
+                "artifact-type": "TextBlobArtifact",
+                "artifact": {"text": value},
+            }
+
+        for inp in cap.get("inputs", []):
+            if inp["port"] == port_name:
+                artifact_type = inp["artifact_type"]
+                if isinstance(artifact_type, list):
+                    artifact_type = "TextBlobArtifact"
+                if artifact_type == "TextBlobArtifact":
+                    return {
+                        "artifact-type": "TextBlobArtifact",
+                        "artifact": {"text": value},
+                    }
+                logger.warning(
+                    f"Capability {capability} port {port_name} "
+                    f"expects {artifact_type} but got literal "
+                    f"string '{value[:40]}...'"
+                )
+                return {
+                    "artifact-type": "TextBlobArtifact",
+                    "artifact": {"text": value},
+                }
+
+        return {
+            "artifact-type": "TextBlobArtifact",
+            "artifact": {"text": value},
+        }
+
+    def _get_output_type(self, capabilities, step_id, output_name, steps):
+        for step in steps:
+            if step.step_id != step_id:
+                continue
+            cap = capabilities.get(step.capability)
+            if cap is None:
+                return None
+            for out in cap.get("outputs", []):
+                if out["port"] == output_name:
+                    return out["artifact_type"]
+            return None
+        return None
+
     def validate_plan(self, steps, capabilities):
 
         step_ids = {s.step_id for s in steps}
 
-        step_outputs = {}
         for step in steps:
             cap = capabilities.get(step.capability)
             if cap is None:
@@ -165,11 +234,7 @@ class Processor(PlannerService):
                     f"Step {step.step_id} references unknown "
                     f"capability '{step.capability}'"
                 )
-            outputs = cap.get("outputs", [])
-            if outputs:
-                step_outputs[step.step_id] = outputs[0]["artifact_type"]
 
-        for step in steps:
             for dep in step.depends_on:
                 if dep not in step_ids:
                     raise ValueError(
@@ -177,21 +242,66 @@ class Processor(PlannerService):
                         f"step '{dep}'"
                     )
 
-            cap = capabilities[step.capability]
-            required_inputs = cap.get("inputs", [])
-            dep_types = [
-                step_outputs.get(d) for d in step.depends_on
-            ]
+            for key, value in step.params.items():
+                if not isinstance(value, str):
+                    continue
+                if not value.startswith("ref:"):
+                    continue
 
-            for port in required_inputs:
-                expected = port["artifact_type"]
-                if expected not in dep_types:
+                parts = value[4:].split(":", 1)
+                if len(parts) != 2:
                     raise ValueError(
-                        f"Step {step.step_id} ({step.capability}) "
-                        f"requires input {port['port']}: {expected} "
-                        f"but dependencies provide: "
-                        f"{dep_types}"
+                        f"Step {step.step_id}: invalid ref "
+                        f"'{value}' — expected ref:STEP_ID:OUTPUT"
                     )
+
+                ref_step_id, output_name = parts
+                if ref_step_id not in step_ids:
+                    raise ValueError(
+                        f"Step {step.step_id}: ref '{value}' "
+                        f"references unknown step '{ref_step_id}'"
+                    )
+
+                source_type = self._get_output_type(
+                    capabilities, ref_step_id, output_name, steps,
+                )
+                if source_type is None:
+                    raise ValueError(
+                        f"Step {step.step_id}: ref '{value}' "
+                        f"references unknown output "
+                        f"'{output_name}' on step '{ref_step_id}'"
+                    )
+
+                expected_type = None
+                for inp in cap.get("inputs", []):
+                    if inp["port"] == key:
+                        expected_type = inp["artifact_type"]
+                        break
+
+                if expected_type is not None:
+                    self._check_type_compat(
+                        step.step_id, key,
+                        source_type, expected_type,
+                    )
+
+    def _check_type_compat(
+        self, step_id, port, source_type, expected_type,
+    ):
+        if isinstance(source_type, list):
+            source_set = set(source_type)
+        else:
+            source_set = {source_type}
+
+        if isinstance(expected_type, list):
+            expected_set = set(expected_type)
+        else:
+            expected_set = {expected_type}
+
+        if not source_set & expected_set:
+            raise ValueError(
+                f"Step {step_id} port '{port}': source provides "
+                f"{source_type} but input expects {expected_type}"
+            )
 
     @staticmethod
     def add_args(parser):

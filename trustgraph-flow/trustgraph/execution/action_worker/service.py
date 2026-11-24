@@ -259,10 +259,11 @@ class Processor(ActionService):
     async def execute(self, workspace, request, flow):
 
         capability = request.capability
+        params = json.loads(request.params) if request.params else {}
 
         remote = self.remote_actions.get(workspace, {}).get(capability)
         if remote:
-            return await self._execute_remote(request, remote)
+            return await self._execute_remote(request, params, remote)
 
         handler = self.handlers.get(capability)
         if handler is None:
@@ -276,11 +277,11 @@ class Processor(ActionService):
         )
 
         try:
-            artifact_type, artifact = await handler.execute(
-                request.params,
-                request.input_artifacts,
-                flow,
+
+            artifacts = await self._execute_typed(
+                handler, params, flow,
             )
+
         except HandlerError:
             raise
         except Exception as e:
@@ -289,18 +290,73 @@ class Processor(ActionService):
             ) from e
 
         logger.info(
-            f"Capability {capability} produced {artifact_type} "
-            f"for step {request.step_id}"
+            f"Capability {capability} produced "
+            f"{list(artifacts.keys())} for step {request.step_id}"
         )
 
         return ActionResponse(
             run_id=request.run_id,
             step_id=request.step_id,
-            artifact_type=artifact_type,
-            artifact=artifact,
+            artifacts=json.dumps(artifacts),
         )
 
-    async def _execute_remote(self, request, client):
+    def _check_artifact_type(self, name, actual, expected):
+        if isinstance(expected, list):
+            if actual not in expected:
+                raise HandlerError(
+                    f"Input '{name}': expected one of "
+                    f"{expected}, got {actual}"
+                )
+        else:
+            if actual != expected:
+                raise HandlerError(
+                    f"Input '{name}': expected {expected}, "
+                    f"got {actual}"
+                )
+
+    async def _execute_typed(self, handler, params, flow):
+
+        inputs = {}
+        for name, decl in handler.inputs.items():
+            entry = params.get(name)
+            if entry is None:
+                if decl.get("optional"):
+                    continue
+                raise HandlerError(
+                    f"Missing input '{name}'"
+                )
+            expected = decl["artifact-type"]
+            actual = entry.get("artifact-type", "")
+            self._check_artifact_type(name, actual, expected)
+            inputs[name] = entry["artifact"]
+
+        result = await handler.execute(inputs, flow)
+
+        artifacts = {}
+        for name, decl in handler.outputs.items():
+            data = result.get(name)
+            if data is None:
+                raise HandlerError(
+                    f"Handler did not produce output '{name}'"
+                )
+            expected = decl["artifact-type"]
+            if isinstance(expected, list):
+                if not isinstance(data, dict) or "artifact-type" not in data:
+                    raise HandlerError(
+                        f"Output '{name}': polymorphic output must "
+                        f"include artifact-type"
+                    )
+                self._check_artifact_type(name, data["artifact-type"], expected)
+                artifacts[name] = data
+            else:
+                artifacts[name] = {
+                    "artifact-type": expected,
+                    "artifact": data,
+                }
+
+        return artifacts
+
+    async def _execute_remote(self, request, params, client):
 
         logger.info(
             f"Executing remote action {request.capability} for "
@@ -308,12 +364,11 @@ class Processor(ActionService):
         )
 
         try:
-            artifact_type, artifact = await client.call(
+            artifacts = await client.call(
                 run_id=request.run_id,
                 step_id=request.step_id,
                 capability=request.capability,
-                params=request.params,
-                input_artifacts=request.input_artifacts,
+                params=params,
                 user_context=request.user_context,
             )
         except Exception as e:
@@ -323,14 +378,13 @@ class Processor(ActionService):
 
         logger.info(
             f"Remote action {request.capability} produced "
-            f"{artifact_type} for step {request.step_id}"
+            f"{list(artifacts.keys())} for step {request.step_id}"
         )
 
         return ActionResponse(
             run_id=request.run_id,
             step_id=request.step_id,
-            artifact_type=artifact_type,
-            artifact=artifact,
+            artifacts=json.dumps(artifacts),
         )
 
     @staticmethod

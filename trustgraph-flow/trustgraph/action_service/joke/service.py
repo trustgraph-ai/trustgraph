@@ -93,10 +93,10 @@ class Processor(RemoteActionService):
         super(Processor, self).__init__(**params)
         logger.info("Joke action service initialized")
 
-    async def execute(self, params, input_artifacts, user_context):
+    async def execute(self, inputs, user_context):
 
-        topic = params.get("topic", "")
-        style = params.get("style", "")
+        topic = inputs.get("topic", {}).get("text", "")
+        style = inputs.get("style", {}).get("text", "")
 
         if not style or style not in ("pun", "dad-joke", "one-liner"):
             style = random.choice(["pun", "dad-joke", "one-liner"])
@@ -114,7 +114,7 @@ class Processor(RemoteActionService):
             f"user={user_context.user_id if user_context else 'anonymous'}"
         )
 
-        return "TextBlobArtifact", {"text": joke}
+        return {"output": ("TextBlobArtifact", {"text": joke})}
 
     @staticmethod
     def add_args(parser):

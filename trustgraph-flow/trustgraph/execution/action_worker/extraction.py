@@ -1,20 +1,33 @@
 
 import logging
 
-from . common import HandlerError, get_param, schema_term_to_dict
+from . common import ActionHandler, HandlerError, schema_term_to_dict
 
 logger = logging.getLogger(__name__)
 
 
-class ExtractionHandler:
+class ExtractionHandler(ActionHandler):
+
+    inputs = {
+        "text": {"artifact-type": "TextBlobArtifact", "optional": True},
+        "document-id": {
+            "artifact-type": "TextBlobArtifact", "optional": True,
+        },
+    }
+    outputs = {
+        "extraction": {"artifact-type": "ExtractionArtifact"},
+    }
 
     def __init__(self, flow_name):
         self.flow_name = flow_name
 
-    async def execute(self, params, input_artifacts, flow):
+    async def execute(self, inputs, flow):
 
-        text = get_param(params, "text", required=False) or ""
-        document_id = get_param(params, "document-id", required=False) or ""
+        text = inputs["text"]["text"] if "text" in inputs else ""
+        document_id = (
+            inputs["document-id"]["text"]
+            if "document-id" in inputs else ""
+        )
 
         if not text and not document_id:
             raise HandlerError(
@@ -60,13 +73,18 @@ class ExtractionHandler:
                 d["chunk_id"] = ec.chunk_id
             return d
 
-        return "ExtractionArtifact", {
-            "triples": [encode_triple(t) for t in result.triples],
-            "entity_contexts": [
-                encode_entity_context(ec)
-                for ec in result.entity_contexts
-            ],
-            "provenance_triples": [
-                encode_triple(t) for t in result.provenance_triples
-            ],
+        return {
+            "extraction": {
+                "triples": [
+                    encode_triple(t) for t in result.triples
+                ],
+                "entity_contexts": [
+                    encode_entity_context(ec)
+                    for ec in result.entity_contexts
+                ],
+                "provenance_triples": [
+                    encode_triple(t)
+                    for t in result.provenance_triples
+                ],
+            }
         }
