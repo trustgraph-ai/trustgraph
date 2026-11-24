@@ -121,7 +121,16 @@ def main():
                         param_summary.append(f"{k}={v}")
                     elif isinstance(v, dict):
                         atype = v.get("artifact-type", "?")
-                        param_summary.append(f"{k}: {atype}")
+                        artifact = v.get("artifact", {})
+                        if atype == "TextBlobArtifact":
+                            text = artifact.get("text", "")
+                            if len(text) > 60:
+                                text = text[:57] + "..."
+                            param_summary.append(
+                                f"{k}=\"{text}\""
+                            )
+                        else:
+                            param_summary.append(f"{k}: {atype}")
                     else:
                         param_summary.append(f"{k}={v}")
 

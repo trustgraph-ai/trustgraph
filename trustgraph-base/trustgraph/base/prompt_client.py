@@ -209,6 +209,16 @@ class PromptClient:
             timeout = timeout,
         )
 
+    async def query_summarisation(self, goal, schemas, timeout=None):
+        return await self.prompt(
+            id = "query-summarisation",
+            variables = {
+                "goal": goal,
+                "schemas": schemas,
+            },
+            timeout = timeout,
+        )
+
 class PromptClientSpec(RequestResponseSpec):
 
     timeout_param = "prompt_timeout"

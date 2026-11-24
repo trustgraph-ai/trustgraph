@@ -3,6 +3,7 @@ Query formulation service.  Takes a natural language question and a
 schema name, calls the prompt service to produce a QuerySpecArtifact.
 """
 
+import copy
 import json
 import logging
 
@@ -105,6 +106,42 @@ def validate_join(spec, schema):
             )
 
 
+def collect_schemas(spec):
+    if spec.get("type") == "select":
+        schema = spec.get("schema")
+        return [schema] if schema else []
+    elif spec.get("type") == "join":
+        return collect_schemas(spec["left"]) + collect_schemas(spec["right"])
+    return []
+
+
+def find_column_table(schemas, column_name):
+    for schema in schemas:
+        field_names = {f["name"] for f in schema.get("fields", [])}
+        if column_name in field_names:
+            return schema.get("name")
+    return None
+
+
+def ensure_column(spec, table_name, column_name):
+    if spec.get("type") == "select":
+        schema = spec.get("schema", {})
+        if schema.get("name") == table_name:
+            if column_name not in spec.get("columns", []):
+                spec = copy.copy(spec)
+                spec["columns"] = list(spec["columns"]) + [column_name]
+        return spec
+    elif spec.get("type") == "join":
+        new_left = ensure_column(spec["left"], table_name, column_name)
+        new_right = ensure_column(spec["right"], table_name, column_name)
+        if new_left is not spec["left"] or new_right is not spec["right"]:
+            spec = copy.copy(spec)
+            spec["left"] = new_left
+            spec["right"] = new_right
+        return spec
+    return spec
+
+
 class Processor(QueryFormulationService):
 
     def __init__(self, **params):
@@ -156,6 +193,69 @@ class Processor(QueryFormulationService):
             run_id=request.run_id,
             step_id=request.step_id,
             query_spec=json.dumps(query_spec),
+        )
+
+    async def summarise(self, workspace, request, flow):
+
+        spec = json.loads(request.query_spec)
+
+        schemas = collect_schemas(spec)
+        if not schemas:
+            raise RuntimeError(
+                "QuerySpec has no embedded schema for summarisation"
+            )
+
+        logger.info(
+            f"Summarising query spec: {request.question[:80]}..."
+        )
+
+        result = await flow("prompt-request").query_summarisation(
+            goal=request.question,
+            schemas=schemas,
+        )
+
+        if result.response_type == "json" and result.object:
+            aggregation = result.object
+        elif result.response_type == "text" and result.text:
+            aggregation = json.loads(result.text)
+        else:
+            raise RuntimeError(
+                "Prompt service returned no usable response"
+            )
+
+        group_by = aggregation.get("group_by", [])
+        aggregations = aggregation.get("aggregations", [])
+
+        if not group_by:
+            raise ValueError("Summarisation must have group_by columns")
+        if not aggregations:
+            raise ValueError("Summarisation must have aggregations")
+
+        for col in group_by:
+            table = find_column_table(schemas, col)
+            if table:
+                spec = ensure_column(spec, table, col)
+        for agg in aggregations:
+            table = find_column_table(schemas, agg["column"])
+            if table:
+                spec = ensure_column(spec, table, agg["column"])
+
+        spec["group_by"] = group_by
+        spec["aggregations"] = aggregations
+        spec["columns"] = group_by + [
+            a["alias"] for a in aggregations
+        ]
+
+        logger.info(
+            f"Summarisation applied: group_by={group_by}, "
+            f"aggregations="
+            f"{[a['function'] + ':' + a['column'] for a in aggregations]}"
+        )
+
+        return QueryFormulationResponse(
+            run_id=request.run_id,
+            step_id=request.step_id,
+            query_spec=json.dumps(spec),
         )
 
     @staticmethod

@@ -21,7 +21,9 @@ CAPABILITIES = {
         "type": "tool",
         "description":
             "Translates a natural-language question into a structured "
-            "query specification for a named ERP schema. Returns a "
+            "query specification for a named ERP schema. Supports "
+            "column selection, filtering, ordering, and group-by "
+            "aggregation (sum, count, avg, min, max). Returns a "
             "QuerySpecArtifact that downstream services execute.",
         "inputs": [
             {"port": "question", "artifact_type": "TextBlobArtifact"},
@@ -237,6 +239,23 @@ CAPABILITIES = {
         "inputs": [
             {"port": "left", "artifact_type": "QuerySpecArtifact"},
             {"port": "right", "artifact_type": "QuerySpecArtifact"},
+        ],
+        "outputs": [
+            {"port": "query-spec", "artifact_type": "QuerySpecArtifact"},
+        ],
+    },
+    "query-spec-summarise": {
+        "name": "query-spec-summarise",
+        "type": "adapter",
+        "description":
+            "Adds group-by aggregation to a QuerySpecArtifact using "
+            "an LLM. Takes a query spec (with embedded schema) and "
+            "a natural-language goal describing the desired summary. "
+            "Produces a modified QuerySpec with group_by and "
+            "aggregations (sum, count, avg, min, max).",
+        "inputs": [
+            {"port": "query-spec", "artifact_type": "QuerySpecArtifact"},
+            {"port": "goal", "artifact_type": "TextBlobArtifact"},
         ],
         "outputs": [
             {"port": "query-spec", "artifact_type": "QuerySpecArtifact"},

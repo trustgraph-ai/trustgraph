@@ -13,8 +13,10 @@ from .user_context import UserContext
 class QueryFormulationRequest:
     run_id: str = ""
     step_id: str = ""
+    mode: str = "formulate"
     question: str = ""
     schema_name: str = ""
+    query_spec: str = ""
     user_context: UserContext | None = None
 
 @dataclass

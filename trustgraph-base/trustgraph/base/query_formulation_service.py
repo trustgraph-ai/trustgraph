@@ -112,7 +112,13 @@ class QueryFormulationService(FlowProcessor):
             workspace = flow.workspace
 
             t0 = time.monotonic()
-            response = await self.formulate(workspace, request, flow)
+
+            mode = request.mode or "formulate"
+            if mode == "summarise":
+                response = await self.summarise(workspace, request, flow)
+            else:
+                response = await self.formulate(workspace, request, flow)
+
             __class__.formulation_duration_metric.labels(
                 processor=self.id,
             ).observe(time.monotonic() - t0)
@@ -153,6 +159,11 @@ class QueryFormulationService(FlowProcessor):
     async def formulate(self, workspace, request, flow):
         raise NotImplementedError(
             "Subclasses must implement formulate"
+        )
+
+    async def summarise(self, workspace, request, flow):
+        raise NotImplementedError(
+            "Subclasses must implement summarise"
         )
 
     @staticmethod
