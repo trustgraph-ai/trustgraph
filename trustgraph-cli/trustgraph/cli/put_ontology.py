@@ -1,12 +1,15 @@
 """
 Loads an ontology from a file into the ontology config. Supports Turtle,
 RDF/XML, N-Triples, and JSON-LD input formats — non-JSON-LD formats are
-converted automatically via rdflib.
+converted automatically via rdflib. Ontologies can also be fetched from
+the ohi.dev ontology catalog with --ohi.
 """
 
 import argparse
+import hashlib
 import os
 import sys
+from ohi import CatalogClient
 from rdflib import Graph
 from trustgraph.api import Api
 from trustgraph.api.types import ConfigValue
@@ -27,6 +30,12 @@ FORMAT_MAP = {
     ".json": "json-ld",
 }
 
+# ohi.dev artifact formats we can load, in order of preference
+OHI_FORMAT_MAP = {
+    "owl-turtle": "turtle",
+    "owl-rdfxml": "xml",
+}
+
 
 def detect_format(filename):
     ext = os.path.splitext(filename)[1].lower()
@@ -45,6 +54,40 @@ def to_jsonld(data, fmt):
     g = Graph()
     g.parse(data=data, format=fmt)
     return g.serialize(format="json-ld")
+
+
+def fetch_ohi_artifact(client, publication):
+    for ohi_fmt, fmt in OHI_FORMAT_MAP.items():
+        for artifact in publication.artifacts:
+            if artifact.format == ohi_fmt:
+                data = client.get(artifact.url)
+                if hashlib.sha256(data).hexdigest() != artifact.sha256:
+                    raise ValueError(f"Checksum mismatch for {artifact.url}")
+                return data, fmt
+    raise ValueError(
+        f"No OWL Turtle or RDF/XML artifact in {publication.base_url}"
+    )
+
+
+def fetch_from_ohi(reference, include_dependencies=False):
+    client = CatalogClient()
+    publication = client.inspect(reference)
+
+    publications = [publication]
+    if include_dependencies:
+        publications += [
+            client.inspect(dep.base_url) for dep in publication.dependencies
+        ]
+
+    # Dependencies are merged into one graph, as the ontology service
+    # does not follow owl:imports
+    g = Graph()
+    for pub in publications:
+        data, fmt = fetch_ohi_artifact(client, pub)
+        g.parse(data=data, format=fmt)
+        print(f"Fetched {pub.namespace}/{pub.name}@{pub.version} from ohi.dev")
+
+    return g.serialize(format="turtle")
 
 
 def put_ontology(url, ontology_id, data, fmt, token=None,
@@ -86,6 +129,20 @@ def main():
     )
 
     parser.add_argument(
+        '--ohi',
+        metavar='REFERENCE',
+        help='Fetch the ontology from the ohi.dev catalog instead of a file, '
+             'e.g. w3c/prov-o@2013 (omit @version for the latest release)',
+    )
+
+    parser.add_argument(
+        '--include-dependencies',
+        action='store_true',
+        help='With --ohi, also fetch the ontologies it depends on and '
+             'merge them into one ontology',
+    )
+
+    parser.add_argument(
         '-u', '--api-url',
         default=default_url,
         help=f'API URL (default: {default_url})',
@@ -105,9 +162,18 @@ def main():
 
     args = parser.parse_args()
 
+    if args.ohi and (args.file or args.format):
+        parser.error("--ohi cannot be used with a file or --format")
+
+    if args.include_dependencies and not args.ohi:
+        parser.error("--include-dependencies requires --ohi")
+
     try:
 
-        if args.file:
+        if args.ohi:
+            data = fetch_from_ohi(args.ohi, args.include_dependencies)
+            fmt = "turtle"
+        elif args.file:
             with open(args.file, 'r') as f:
                 data = f.read()
             fmt = args.format or detect_format(args.file)
