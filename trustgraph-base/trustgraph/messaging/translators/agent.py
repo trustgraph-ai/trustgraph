@@ -86,7 +86,7 @@ class AgentResponseTranslator(MessageTranslator):
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
-            result["error"] = {"message": obj.error.message, "code": obj.error.code}
+            result["error"] = {"message": obj.error.message, "type": obj.error.type}
 
         if obj.in_token is not None:
             result["in_token"] = obj.in_token
