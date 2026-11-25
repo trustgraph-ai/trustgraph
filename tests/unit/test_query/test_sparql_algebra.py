@@ -633,7 +633,12 @@ def make_graph(inner, graph_uri):
     """Build a CompValue Graph node wrapping an inner pattern."""
     node = CompValue("Graph")
     node.p = inner
-    node.term = URIRef(graph_uri) if isinstance(graph_uri, str) else graph_uri
+    if isinstance(graph_uri, Variable):
+        node.term = graph_uri
+    elif isinstance(graph_uri, str):
+        node.term = URIRef(graph_uri)
+    else:
+        node.term = graph_uri
     return node
 
 
