@@ -94,14 +94,18 @@ class AgentManager:
                 if final_answer.startswith('{') or (i < len(lines) and lines[i].strip().startswith('{')):
                     # Collect potential JSON answer
                     json_text = final_answer if final_answer.startswith('{') else ""
-                    brace_count = json_text.count('{') - json_text.count('}')
+                    brace_count, in_string, escaped, _ = scan_braces(
+                        json_text, 0, False, False
+                    )
 
                     while i < len(lines) and (brace_count > 0 or not json_text):
                         current_line = lines[i].strip()
                         if current_line.startswith(("Thought:", "Action:")) and brace_count == 0:
                             break
                         json_text += ("\n" if json_text else "") + current_line
-                        brace_count += current_line.count('{') - current_line.count('}')
+                        brace_count, in_string, escaped, _ = scan_braces(
+                            current_line + "\n", brace_count, in_string, escaped
+                        )
                         i += 1
 
                     # Try to parse as JSON
