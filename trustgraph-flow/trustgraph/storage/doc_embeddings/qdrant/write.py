@@ -163,7 +163,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
             )
             matching_collections = [
                 coll.name for coll in all_collections
-                if coll.name.startswith(prefix)
+                if coll.name.startswith(prefix) and coll.name[len(prefix):].isdecimal()
             ]
 
             if not matching_collections:

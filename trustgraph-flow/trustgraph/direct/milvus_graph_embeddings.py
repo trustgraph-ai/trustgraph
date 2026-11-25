@@ -57,7 +57,7 @@ class EntityVectors:
         base_name = make_safe_collection_name(workspace, collection, self.prefix)
         prefix = f"{base_name}_"
         all_collections = self.client.list_collections()
-        return any(coll.startswith(prefix) for coll in all_collections)
+        return any(coll.startswith(prefix) and coll[len(prefix):].isdecimal() for coll in all_collections)
 
     def create_collection(self, workspace, collection, dimension=384):
         """
@@ -198,7 +198,10 @@ class EntityVectors:
 
         # Get all collections and filter for matches
         all_collections = self.client.list_collections()
-        matching_collections = [coll for coll in all_collections if coll.startswith(prefix)]
+        matching_collections = [
+            coll for coll in all_collections
+            if coll.startswith(prefix) and coll[len(prefix):].isdecimal()
+        ]
 
         if not matching_collections:
             logger.info(f"No collections found matching prefix {prefix}")

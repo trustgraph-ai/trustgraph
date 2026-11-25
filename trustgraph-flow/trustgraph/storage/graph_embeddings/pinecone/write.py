@@ -204,7 +204,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             all_indexes = self.pinecone.list_indexes()
             matching_indexes = [
                 idx.name for idx in all_indexes
-                if idx.name.startswith(prefix)
+                if idx.name.startswith(prefix) and idx.name[len(prefix):].isdecimal()
             ]
 
             if not matching_indexes:
