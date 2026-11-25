@@ -148,6 +148,7 @@ class TestQueryPattern:
             limit=100,
             collection="my-collection",
             user_context=None,
+            g=None,
         )
 
     @pytest.mark.asyncio
@@ -626,3 +627,146 @@ class TestEvaluate:
         solutions = await materialise("not a node", tc, collection="default")
 
         assert solutions == [{}]
+
+
+def make_graph(inner, graph_uri):
+    """Build a CompValue Graph node wrapping an inner pattern."""
+    node = CompValue("Graph")
+    node.p = inner
+    node.term = URIRef(graph_uri) if isinstance(graph_uri, str) else graph_uri
+    return node
+
+
+class TestGraphClause:
+    """Tests for GRAPH <iri> { ... } support."""
+
+    @pytest.mark.asyncio
+    async def test_graph_iri_passes_g_to_query(self):
+        """GRAPH <iri> should pass g=<iri> to the triples client."""
+        queries_issued = []
+
+        async def mock_query(**kwargs):
+            queries_issued.append(kwargs)
+            return [make_triple(iri("http://s"), iri("http://p"), lit("o"))]
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        bgp = make_bgp(
+            (Variable("s"), Variable("p"), Variable("o")),
+        )
+        tree = make_graph(bgp, "urn:graph:hr")
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 1
+        assert len(queries_issued) == 1
+        assert queries_issued[0]["g"] == "urn:graph:hr"
+
+    @pytest.mark.asyncio
+    async def test_no_graph_clause_passes_g_none(self):
+        """Without a GRAPH clause, g should be None."""
+        queries_issued = []
+
+        async def mock_query(**kwargs):
+            queries_issued.append(kwargs)
+            return [make_triple(iri("http://s"), iri("http://p"), lit("o"))]
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        bgp = make_bgp(
+            (Variable("s"), Variable("p"), Variable("o")),
+        )
+
+        solutions = await materialise(bgp, tc, collection="default")
+
+        assert len(solutions) == 1
+        assert queries_issued[0].get("g") is None
+
+    @pytest.mark.asyncio
+    async def test_different_graph_clauses_scope_independently(self):
+        """Two GRAPH clauses with different IRIs should query different
+        named graphs and join the results."""
+        hr_triple = make_triple(
+            iri("http://alice"), iri("http://name"), lit("Alice"),
+        )
+        finance_triple = make_triple(
+            iri("http://alice"), iri("http://budget"), lit("50000"),
+        )
+
+        async def mock_query(**kwargs):
+            g = kwargs.get("g")
+            if g == "urn:graph:hr":
+                return [hr_triple]
+            elif g == "urn:graph:finance":
+                return [finance_triple]
+            return []
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        bgp_hr = make_bgp(
+            (Variable("person"), URIRef("http://name"), Variable("name")),
+        )
+        bgp_finance = make_bgp(
+            (Variable("person"), URIRef("http://budget"), Variable("budget")),
+        )
+
+        tree = make_join(
+            make_graph(bgp_hr, "urn:graph:hr"),
+            make_graph(bgp_finance, "urn:graph:finance"),
+        )
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 1
+        assert solutions[0]["name"].value == "Alice"
+        assert solutions[0]["budget"].value == "50000"
+
+    @pytest.mark.asyncio
+    async def test_graph_variable_falls_through(self):
+        """GRAPH ?g should warn and evaluate without graph filtering."""
+        queries_issued = []
+
+        async def mock_query(**kwargs):
+            queries_issued.append(kwargs)
+            return [make_triple(iri("http://s"), iri("http://p"), lit("o"))]
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        bgp = make_bgp(
+            (Variable("s"), Variable("p"), Variable("o")),
+        )
+        tree = make_graph(bgp, Variable("g"))
+
+        solutions = await materialise(tree, tc, collection="default")
+
+        assert len(solutions) == 1
+        assert queries_issued[0].get("g") is None
+
+    @pytest.mark.asyncio
+    async def test_graph_does_not_leak_to_outer_patterns(self):
+        """Graph scope should not affect patterns outside the GRAPH clause."""
+        queries_issued = []
+
+        async def mock_query(**kwargs):
+            queries_issued.append(kwargs)
+            return [make_triple(iri("http://s"), iri("http://p"), lit("o"))]
+
+        tc = make_tc(query_side_effect=mock_query)
+
+        bgp_inner = make_bgp(
+            (Variable("s"), Variable("p"), Variable("o")),
+        )
+        bgp_outer = make_bgp(
+            (Variable("a"), Variable("b"), Variable("c")),
+        )
+
+        tree = make_join(
+            make_graph(bgp_inner, "urn:graph:scoped"),
+            bgp_outer,
+        )
+
+        await materialise(tree, tc, collection="default")
+
+        g_values = [q.get("g") for q in queries_issued]
+        assert "urn:graph:scoped" in g_values
+        assert None in g_values
