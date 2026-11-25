@@ -70,12 +70,57 @@ class TriplesQueryService(FlowProcessor):
 
             request = msg.value()
 
-            # Sender-produced ID
             id = msg.properties()["id"]
+            workspace = flow.workspace
+
+            operation = request.operation or ""
+
+            if operation == "version-bump":
+                r = await self.handle_version_bump(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "version-map":
+                r = await self.handle_version_map(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "version-list":
+                r = await self.handle_version_list(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "version-label":
+                r = await self.handle_version_label(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "diff":
+                r = await self.handle_diff(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "revert":
+                r = await self.handle_revert(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "delete":
+                r = await self.handle_delete(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "write":
+                r = await self.handle_write(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
+            if operation == "purge":
+                r = await self.handle_purge(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
 
             logger.debug(f"Handling triples query request {id}...")
-
-            workspace = flow.workspace
 
             if request.streaming:
                 t0 = time.monotonic()
@@ -126,6 +171,33 @@ class TriplesQueryService(FlowProcessor):
             )
 
             await flow("response").send(r, properties={"id": id})
+
+    async def handle_version_bump(self, workspace, request):
+        raise NotImplementedError("version-bump not supported by this backend")
+
+    async def handle_version_map(self, workspace, request):
+        raise NotImplementedError("version-map not supported by this backend")
+
+    async def handle_version_list(self, workspace, request):
+        raise NotImplementedError("version-list not supported by this backend")
+
+    async def handle_version_label(self, workspace, request):
+        raise NotImplementedError("version-label not supported by this backend")
+
+    async def handle_diff(self, workspace, request):
+        raise NotImplementedError("diff not supported by this backend")
+
+    async def handle_revert(self, workspace, request):
+        raise NotImplementedError("revert not supported by this backend")
+
+    async def handle_delete(self, workspace, request):
+        raise NotImplementedError("delete not supported by this backend")
+
+    async def handle_write(self, workspace, request):
+        raise NotImplementedError("write not supported by this backend")
+
+    async def handle_purge(self, workspace, request):
+        raise NotImplementedError("purge not supported by this backend")
 
     async def query_triples_stream(self, workspace, request):
         """

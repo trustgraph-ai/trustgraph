@@ -288,7 +288,7 @@ def query_graph(
     url, flow_id, collection, limit, batch_size,
     subject=None, predicate=None, obj=None, graph=None,
     output_format="space", headers=False, token=None,
-    workspace="default",
+    workspace="default", version=None,
 ):
     """Query the triple store with pattern matching.
 
@@ -301,7 +301,7 @@ def query_graph(
 
     try:
         # Use triples_query_stream - accepts Term dicts directly
-        for triples in flow.triples_query_stream(
+        kwargs = dict(
             s=subject,
             p=predicate,
             o=obj,
@@ -309,7 +309,11 @@ def query_graph(
             collection=collection,
             limit=limit,
             batch_size=batch_size,
-        ):
+        )
+        if version:
+            kwargs["version"] = version
+
+        for triples in flow.triples_query_stream(**kwargs):
             if not isinstance(triples, list):
                 triples = [triples] if triples else []
 
@@ -385,8 +389,15 @@ def main():
 
     outer_group.add_argument(
         '-g', '--graph',
+        default='',
         metavar='VALUE',
-        help='Named graph filter',
+        help='Named graph filter (default: default graph)',
+    )
+
+    parser.add_argument(
+        '--all-graphs',
+        action='store_true',
+        help='Query across all named graphs',
     )
 
     # Quoted triple filters (alternative to inline <<s p o>> syntax)
@@ -492,6 +503,12 @@ def main():
         help='Streaming batch size (default: 20)',
     )
 
+    std_group.add_argument(
+        '-V', '--version',
+        default=None,
+        help='Query at a specific graph version number or name (default: current)',
+    )
+
     # Output options
     out_group = parser.add_argument_group('Output options')
 
@@ -542,9 +559,7 @@ def main():
         else:
             obj_term = None
 
-        # Graph is a plain IRI string, not a Term
-        # None = all graphs, "" = default graph only, "uri" = specific graph
-        graph_value = args.graph
+        graph_value = None if args.all_graphs else args.graph
 
         query_graph(
             url=args.api_url,
@@ -559,8 +574,8 @@ def main():
             output_format=args.format,
             headers=args.headers,
             token=args.token,
-
             workspace=args.workspace,
+            version=args.version,
         )
 
     except json.JSONDecodeError as e:

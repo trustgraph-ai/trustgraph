@@ -66,7 +66,7 @@ def term_to_rdflib(term):
 
 
 def show_graph(url, flow_id, collection, limit, batch_size,
-               token=None, workspace="default"):
+               graph='', token=None, workspace="default", version=None):
 
     socket = Api(url, token=token, workspace=workspace).socket()
     flow = socket.flow(flow_id)
@@ -74,12 +74,17 @@ def show_graph(url, flow_id, collection, limit, batch_size,
     g = rdflib.Graph()
 
     try:
-        for batch in flow.triples_query_stream(
+        kwargs = dict(
             s=None, p=None, o=None,
+            g=graph,
             collection=collection,
             limit=limit,
             batch_size=batch_size,
-        ):
+        )
+        if version is not None:
+            kwargs["version"] = version
+
+        for batch in flow.triples_query_stream(**kwargs):
             for triple in batch:
                 sv = term_to_rdflib(triple.get("s"))
                 pv = term_to_rdflib(triple.get("p"))
@@ -148,7 +153,27 @@ def main():
         help='Triples per streaming batch (default: 20)',
     )
 
+    graph_group = parser.add_mutually_exclusive_group()
+    graph_group.add_argument(
+        '-g', '--graph',
+        default='',
+        help='Filter by named graph (default: default graph)',
+    )
+    graph_group.add_argument(
+        '--all-graphs',
+        action='store_true',
+        help='Export across all named graphs',
+    )
+
+    parser.add_argument(
+        '-V', '--version',
+        default=None,
+        help='Query at a specific graph version number or name (default: current)',
+    )
+
     args = parser.parse_args()
+
+    graph = None if args.all_graphs else args.graph
 
     try:
 
@@ -158,8 +183,10 @@ def main():
             collection = args.collection,
             limit = args.limit,
             batch_size = args.batch_size,
+            graph = graph,
             token = args.token,
             workspace = args.workspace,
+            version = args.version,
         )
 
     except Exception as e:

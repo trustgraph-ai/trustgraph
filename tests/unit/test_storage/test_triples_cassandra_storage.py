@@ -97,6 +97,7 @@ class TestCassandraStorageProcessor:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(
@@ -127,6 +128,7 @@ class TestCassandraStorageProcessor:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -151,6 +153,7 @@ class TestCassandraStorageProcessor:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -175,6 +178,7 @@ class TestCassandraStorageProcessor:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -217,11 +221,13 @@ class TestCassandraStorageProcessor:
         assert mock_tg_instance.async_insert.call_count == 2
         mock_tg_instance.async_insert.assert_any_call(
             'collection1', 'subject1', 'predicate1', 'object1',
-            g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
+            g=DEFAULT_GRAPH, version=1, is_deleted=False,
+            otype='l', dtype='', lang=''
         )
         mock_tg_instance.async_insert.assert_any_call(
             'collection1', 'subject2', 'predicate2', 'object2',
-            g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
+            g=DEFAULT_GRAPH, version=1, is_deleted=False,
+            otype='l', dtype='', lang=''
         )
 
     @pytest.mark.asyncio
@@ -231,6 +237,7 @@ class TestCassandraStorageProcessor:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -381,6 +388,7 @@ class TestCassandraStorageProcessor:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -412,6 +420,8 @@ class TestCassandraStorageProcessor:
             'predicate:with/colons',
             'object with "quotes" and unicode: ñáéíóú',
             g=DEFAULT_GRAPH,
+            version=1,
+            is_deleted=False,
             otype='l',
             dtype='',
             lang=''
@@ -454,6 +464,7 @@ class TestCassandraPerformanceOptimizations:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
@@ -475,6 +486,7 @@ class TestCassandraPerformanceOptimizations:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
@@ -496,6 +508,7 @@ class TestCassandraPerformanceOptimizations:
         taskgroup_mock = MagicMock()
         mock_tg_instance = MagicMock()
         mock_tg_instance.async_insert = AsyncMock()
+        mock_tg_instance.async_bootstrap_graph_version = AsyncMock(return_value=1)
         mock_kg_class.return_value = mock_tg_instance
 
         processor = Processor(taskgroup=taskgroup_mock)
@@ -523,7 +536,8 @@ class TestCassandraPerformanceOptimizations:
         # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
         mock_tg_instance.async_insert.assert_called_once_with(
             'collection1', 'test_subject', 'test_predicate', 'test_object',
-            g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
+            g=DEFAULT_GRAPH, version=1, is_deleted=False,
+            otype='l', dtype='', lang=''
         )
 
     def test_environment_variable_controls_mode(self):

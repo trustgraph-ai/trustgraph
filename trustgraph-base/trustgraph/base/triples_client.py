@@ -49,7 +49,7 @@ class TriplesClient:
     async def query_gen(self, s=None, p=None, o=None, limit=20,
                         collection="default",
                         batch_size=20, timeout=30, g=None,
-                        user_context=None):
+                        version=None, user_context=None):
         """Async generator yielding Triple objects as batches arrive."""
         queue = asyncio.Queue()
         done = False
@@ -80,6 +80,7 @@ class TriplesClient:
                 streaming=True,
                 batch_size=batch_size,
                 g=g,
+                version=version or "",
                 user_context=user_context,
             ),
             timeout=timeout,
@@ -209,6 +210,148 @@ class TriplesClient:
 
         if not batch_callback:
             return all_triples
+
+    async def version_bump(self, collection, named_graph, timeout=30):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="version-bump",
+                collection=collection,
+                named_graph=named_graph,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.version
+
+    async def version_map(self, collection, timeout=30):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="version-map",
+                collection=collection,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.version_map
+
+    async def version_list(self, collection, named_graph, timeout=30):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="version-list",
+                collection=collection,
+                named_graph=named_graph,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.version_log
+
+    async def version_label(self, collection, named_graph, version, name,
+                            timeout=30):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="version-label",
+                collection=collection,
+                named_graph=named_graph,
+                version=version,
+                name=name,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+    async def diff(self, collection, named_graph, v1, v2, timeout=60):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="diff",
+                collection=collection,
+                named_graph=named_graph,
+                v1=v1,
+                v2=v2,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.added, resp.removed
+
+    async def revert(self, collection, named_graph, version, timeout=60):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="revert",
+                collection=collection,
+                named_graph=named_graph,
+                version=version,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.version
+
+    async def delete_triples(self, collection, named_graph, triples,
+                             timeout=60):
+        from .. schema import Triple as SchemaTriple
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="delete",
+                collection=collection,
+                named_graph=named_graph,
+                triples=[
+                    SchemaTriple(
+                        s=from_value(t.s), p=from_value(t.p), o=from_value(t.o),
+                    )
+                    for t in triples
+                ],
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+    async def delete_by_pattern(self, collection, named_graph,
+                                s=None, p=None, o=None, g=None,
+                                timeout=60):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="delete",
+                collection=collection,
+                named_graph=named_graph,
+                s=from_value(s),
+                p=from_value(p),
+                o=from_value(o),
+                g=g,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
 
 class TriplesClientSpec(RequestResponseSpec):
     def __init__(
