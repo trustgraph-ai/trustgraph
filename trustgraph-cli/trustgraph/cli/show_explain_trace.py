@@ -32,6 +32,7 @@ from trustgraph.api import (
     Finding,
     Plan,
     StepResult,
+    PatternDecision,
 )
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
@@ -368,7 +369,14 @@ def print_agent_text(trace, explain_client, api):
 
     for step in steps:
 
-        if isinstance(step, Decomposition):
+        if isinstance(step, PatternDecision):
+            print("--- Pattern Decision ---")
+            print(f"Pattern: {step.pattern or 'N/A'}")
+            if step.task_type:
+                print(f"Task type: {step.task_type}")
+            print()
+
+        elif isinstance(step, Decomposition):
             print("--- Decomposition ---")
             print(f"Decomposed into {len(step.goals)} research threads:")
             for i, goal in enumerate(step.goals):
@@ -461,7 +469,14 @@ def trace_to_dict(trace, trace_type):
         question = trace.get("question")
 
         def _step_to_dict(step):
-            if isinstance(step, Decomposition):
+            if isinstance(step, PatternDecision):
+                return {
+                    "type": "pattern-decision",
+                    "id": step.uri,
+                    "pattern": step.pattern,
+                    "task_type": step.task_type or None,
+                }
+            elif isinstance(step, Decomposition):
                 return {
                     "type": "decomposition",
                     "id": step.uri,

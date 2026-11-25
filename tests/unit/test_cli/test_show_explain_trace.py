@@ -15,6 +15,7 @@ from trustgraph.api import (
     Analysis,
     Observation,
     Conclusion,
+    PatternDecision,
 )
 from trustgraph.cli.show_explain_trace import (
     trace_to_dict,
@@ -191,3 +192,46 @@ class TestAgentTraceText:
         assert "LLM:" not in output
         assert "Duration:" not in output
         assert "Error:" not in output
+
+
+def _pattern_trace(task_type="general"):
+    return {
+        "question": None,
+        "steps": [
+            PatternDecision(
+                uri="urn:trustgraph:agent:s1/pattern-decision",
+                entity_type="pattern-decision",
+                pattern="react",
+                task_type=task_type,
+            ),
+            Analysis(uri="urn:trustgraph:agent:s1/i1", entity_type="analysis"),
+        ],
+    }
+
+
+class TestPatternDecision:
+
+    def test_json_includes_pattern_decision(self):
+        steps = trace_to_dict(_pattern_trace(), "agent")["steps"]
+
+        assert steps[0] == {
+            "type": "pattern-decision",
+            "id": "urn:trustgraph:agent:s1/pattern-decision",
+            "pattern": "react",
+            "task_type": "general",
+        }
+        assert steps[1]["type"] == "analysis"
+
+    def test_json_missing_task_type_is_null(self):
+        steps = trace_to_dict(_pattern_trace(task_type=""), "agent")["steps"]
+
+        assert steps[0]["task_type"] is None
+
+    def test_text_shows_pattern(self, capsys):
+        print_agent_text(_pattern_trace(), MagicMock(), api=None)
+
+        output = capsys.readouterr().out
+        assert "--- Pattern Decision ---" in output
+        assert "Pattern: react" in output
+        assert "Task type: general" in output
+        assert "--- Analysis ---" in output
