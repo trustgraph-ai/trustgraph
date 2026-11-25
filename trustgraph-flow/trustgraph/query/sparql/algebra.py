@@ -35,7 +35,7 @@ class EvaluationError(Exception):
 
 
 async def evaluate(node, triples_client, collection, limit=10000,
-                   user_context=None):
+                   user_context=None, graph=None):
     """
     Evaluate a SPARQL algebra node.
 
@@ -56,40 +56,43 @@ async def evaluate(node, triples_client, collection, limit=10000,
         return
 
     async for sol in handler(node, triples_client, collection, limit,
-                             user_context):
+                             user_context, graph):
         yield sol
 
 
 async def materialise(node, triples_client, collection, limit=10000,
-                      user_context=None):
+                      user_context=None, graph=None):
     """Collect all solutions from evaluate() into a list."""
     return [
         sol async for sol in evaluate(
-            node, triples_client, collection, limit, user_context
+            node, triples_client, collection, limit, user_context, graph
         )
     ]
 
 
 # --- Node handlers (async generators) ---
 
-async def _eval_select_query(node, tc, collection, limit, user_context):
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+async def _eval_select_query(node, tc, collection, limit, user_context,
+                             graph):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         yield sol
 
 
-async def _eval_project(node, tc, collection, limit, user_context):
+async def _eval_project(node, tc, collection, limit, user_context, graph):
     variables = [str(v) for v in node.PV]
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         yield {v: sol[v] for v in variables if v in sol}
 
 
-def _query_cache_key(s_val, p_val, o_val):
-    return (_term_key(s_val), _term_key(p_val), _term_key(o_val))
+def _query_cache_key(s_val, p_val, o_val, graph=None):
+    return (_term_key(s_val), _term_key(p_val), _term_key(o_val), graph)
 
 
 async def _cached_query(cache, tc, s_val, p_val, o_val, limit, collection,
-                        user_context):
-    key = _query_cache_key(s_val, p_val, o_val)
+                        user_context, graph=None):
+    key = _query_cache_key(s_val, p_val, o_val, graph)
     if key in cache:
         return cache[key]
 
@@ -98,13 +101,14 @@ async def _cached_query(cache, tc, s_val, p_val, o_val, limit, collection,
         s=s_val, p=p_val, o=o_val,
         limit=limit, collection=collection,
         user_context=user_context,
+        g=graph,
     ):
         results.append(triple)
     cache[key] = results
     return results
 
 
-async def _eval_bgp(node, tc, collection, limit, user_context):
+async def _eval_bgp(node, tc, collection, limit, user_context, graph):
     """
     Evaluate a Basic Graph Pattern.
 
@@ -142,7 +146,7 @@ async def _eval_bgp(node, tc, collection, limit, user_context):
 
                 for triple in await _cached_query(
                     cache, tc, s_val, p_val, o_val,
-                    limit, collection, user_context,
+                    limit, collection, user_context, graph,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -164,7 +168,7 @@ async def _eval_bgp(node, tc, collection, limit, user_context):
 
                 for triple in await _cached_query(
                     cache, tc, s_val, p_val, o_val,
-                    limit, collection, user_context,
+                    limit, collection, user_context, graph,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -193,43 +197,49 @@ def _is_small_node(node):
     return False
 
 
-async def _eval_join(node, tc, collection, limit, user_context):
+async def _eval_join(node, tc, collection, limit, user_context, graph):
     # Bind join: if one side is small (e.g. VALUES), materialise it and
     # substitute its bindings into the other side's evaluation.  This
     # turns wildcard BGP queries into selective ones.
     if _is_small_node(node.p1):
         yield_from = _bind_join(
-            node.p1, node.p2, tc, collection, limit, user_context
+            node.p1, node.p2, tc, collection, limit, user_context, graph
         )
     elif _is_small_node(node.p2):
         yield_from = _bind_join(
-            node.p2, node.p1, tc, collection, limit, user_context
+            node.p2, node.p1, tc, collection, limit, user_context, graph
         )
     else:
-        yield_from = _hash_join(node, tc, collection, limit, user_context)
+        yield_from = _hash_join(
+            node, tc, collection, limit, user_context, graph
+        )
 
     async for sol in yield_from:
         yield sol
 
 
-async def _hash_join(node, tc, collection, limit, user_context):
-    left = await materialise(node.p1, tc, collection, limit, user_context)
-    right = await materialise(node.p2, tc, collection, limit, user_context)
+async def _hash_join(node, tc, collection, limit, user_context, graph):
+    left = await materialise(
+        node.p1, tc, collection, limit, user_context, graph
+    )
+    right = await materialise(
+        node.p2, tc, collection, limit, user_context, graph
+    )
     for sol in hash_join(left, right)[:limit]:
         yield sol
 
 
 async def _bind_join(small_node, big_node, tc, collection, limit,
-                     user_context):
+                     user_context, graph):
     """Iterate over the small side and inject bindings into the big side."""
     small_sols = await materialise(
-        small_node, tc, collection, limit, user_context
+        small_node, tc, collection, limit, user_context, graph
     )
 
     count = 0
     for binding in small_sols:
         async for sol in _evaluate_with_bindings(
-            big_node, binding, tc, collection, limit, user_context
+            big_node, binding, tc, collection, limit, user_context, graph
         ):
             yield sol
             count += 1
@@ -250,7 +260,7 @@ def _merge_compatible(left, right):
 
 
 async def _evaluate_with_bindings(node, bindings, tc, collection, limit,
-                                  user_context):
+                                  user_context, graph):
     """Evaluate a node with pre-seeded variable bindings.
 
     For BGP nodes, the bindings are injected so _resolve_term sees them,
@@ -259,18 +269,20 @@ async def _evaluate_with_bindings(node, bindings, tc, collection, limit,
     """
     if isinstance(node, CompValue) and node.name == "BGP":
         async for sol in _eval_bgp_with_bindings(
-            node, bindings, tc, collection, limit, user_context
+            node, bindings, tc, collection, limit, user_context, graph
         ):
             yield sol
     else:
-        async for sol in evaluate(node, tc, collection, limit, user_context):
+        async for sol in evaluate(
+            node, tc, collection, limit, user_context, graph
+        ):
             merged = _merge_compatible(bindings, sol)
             if merged is not None:
                 yield merged
 
 
 async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
-                                  user_context):
+                                  user_context, graph):
     """Evaluate a BGP with pre-seeded bindings so variables resolve to terms."""
     triples = node.triples
     if not triples:
@@ -306,7 +318,7 @@ async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
 
                 for triple in await _cached_query(
                     cache, tc, s_val, p_val, o_val,
-                    limit, collection, user_context,
+                    limit, collection, user_context, graph,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -328,7 +340,7 @@ async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
 
                 for triple in await _cached_query(
                     cache, tc, s_val, p_val, o_val,
-                    limit, collection, user_context,
+                    limit, collection, user_context, graph,
                 ):
                     binding = dict(sol)
                     if isinstance(s_tmpl, Variable):
@@ -344,11 +356,13 @@ async def _eval_bgp_with_bindings(node, bindings, tc, collection, limit,
                 return
 
 
-async def _eval_left_join(node, tc, collection, limit, user_context):
+async def _eval_left_join(node, tc, collection, limit, user_context, graph):
     # Buffer right side for hash index; stream left through probe
-    left_sols = await materialise(node.p1, tc, collection, limit, user_context)
+    left_sols = await materialise(
+        node.p1, tc, collection, limit, user_context, graph
+    )
     right_sols = await materialise(
-        node.p2, tc, collection, limit, user_context
+        node.p2, tc, collection, limit, user_context, graph
     )
 
     filter_fn = None
@@ -363,16 +377,21 @@ async def _eval_left_join(node, tc, collection, limit, user_context):
         yield sol
 
 
-async def _eval_minus(node, tc, collection, limit, user_context):
-    left = await materialise(node.p1, tc, collection, limit, user_context)
-    right = await materialise(node.p2, tc, collection, limit, user_context)
+async def _eval_minus(node, tc, collection, limit, user_context, graph):
+    left = await materialise(
+        node.p1, tc, collection, limit, user_context, graph
+    )
+    right = await materialise(
+        node.p2, tc, collection, limit, user_context, graph
+    )
     for sol in minus(left, right):
         yield sol
 
 
-async def _eval_distinct(node, tc, collection, limit, user_context):
+async def _eval_distinct(node, tc, collection, limit, user_context, graph):
     seen = set()
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         key = tuple(sorted(
             (k, _term_key(v)) for k, v in sol.items()
         ))
@@ -381,13 +400,16 @@ async def _eval_distinct(node, tc, collection, limit, user_context):
             yield sol
 
 
-async def _eval_reduced(node, tc, collection, limit, user_context):
-    async for sol in _eval_distinct(node, tc, collection, limit, user_context):
+async def _eval_reduced(node, tc, collection, limit, user_context, graph):
+    async for sol in _eval_distinct(node, tc, collection, limit, user_context,
+                                    graph):
         yield sol
 
 
-async def _eval_order_by(node, tc, collection, limit, user_context):
-    solutions = await materialise(node.p, tc, collection, limit, user_context)
+async def _eval_order_by(node, tc, collection, limit, user_context, graph):
+    solutions = await materialise(
+        node.p, tc, collection, limit, user_context, graph
+    )
 
     key_fns = []
     for cond in node.expr:
@@ -410,13 +432,14 @@ async def _eval_order_by(node, tc, collection, limit, user_context):
 
 # --- Streamable operators ---
 
-async def _eval_slice(node, tc, collection, limit, user_context):
+async def _eval_slice(node, tc, collection, limit, user_context, graph):
     offset = node.start or 0
     length = node.length
     skipped = 0
     emitted = 0
 
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         if skipped < offset:
             skipped += 1
             continue
@@ -426,17 +449,20 @@ async def _eval_slice(node, tc, collection, limit, user_context):
             return
 
 
-async def _eval_union(node, tc, collection, limit, user_context):
-    async for sol in evaluate(node.p1, tc, collection, limit, user_context):
+async def _eval_union(node, tc, collection, limit, user_context, graph):
+    async for sol in evaluate(node.p1, tc, collection, limit, user_context,
+                              graph):
         yield sol
-    async for sol in evaluate(node.p2, tc, collection, limit, user_context):
+    async for sol in evaluate(node.p2, tc, collection, limit, user_context,
+                              graph):
         yield sol
 
 
 async def _check_exists(graph_node, sol, tc, collection, limit,
-                        user_context):
+                        user_context, graph):
     """Evaluate an EXISTS graph pattern against a solution."""
-    async for r in evaluate(graph_node, tc, collection, limit, user_context):
+    async for r in evaluate(graph_node, tc, collection, limit, user_context,
+                            graph):
         shared = set(sol.keys()) & set(r.keys())
         if all(
             _term_key(sol[v]) == _term_key(r[v])
@@ -448,7 +474,7 @@ async def _check_exists(graph_node, sol, tc, collection, limit,
 
 
 async def _pre_eval_exists(expr, sol, tc, collection, limit, user_context,
-                           cache):
+                           cache, graph):
     """Walk an expression tree, pre-evaluate EXISTS/NOT EXISTS, cache results."""
     if not isinstance(expr, CompValue):
         return
@@ -456,7 +482,7 @@ async def _pre_eval_exists(expr, sol, tc, collection, limit, user_context,
         key = id(expr.graph), id(sol)
         if key not in cache:
             cache[key] = await _check_exists(
-                expr.graph, sol, tc, collection, limit, user_context
+                expr.graph, sol, tc, collection, limit, user_context, graph
             )
         return
     for attr in ("expr", "other", "arg", "arg1", "arg2", "arg3"):
@@ -465,18 +491,19 @@ async def _pre_eval_exists(expr, sol, tc, collection, limit, user_context,
             continue
         if isinstance(child, CompValue):
             await _pre_eval_exists(
-                child, sol, tc, collection, limit, user_context, cache
+                child, sol, tc, collection, limit, user_context, cache,
+                graph
             )
         elif isinstance(child, (list, tuple)):
             for item in child:
                 if isinstance(item, CompValue):
                     await _pre_eval_exists(
                         item, sol, tc, collection, limit, user_context,
-                        cache
+                        cache, graph
                     )
 
 
-async def _eval_filter(node, tc, collection, limit, user_context):
+async def _eval_filter(node, tc, collection, limit, user_context, graph):
     expr = node.expr
     exists_cache = {}
 
@@ -484,15 +511,17 @@ async def _eval_filter(node, tc, collection, limit, user_context):
         key = id(graph_node), id(sol)
         return exists_cache.get(key, False)
 
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         await _pre_eval_exists(
-            expr, sol, tc, collection, limit, user_context, exists_cache
+            expr, sol, tc, collection, limit, user_context, exists_cache,
+            graph
         )
         if _effective_boolean(evaluate_expression(expr, sol, exists_cb=exists_cb)):
             yield sol
 
 
-async def _eval_extend(node, tc, collection, limit, user_context):
+async def _eval_extend(node, tc, collection, limit, user_context, graph):
     var_name = str(node.var)
     expr = node.expr
     exists_cache = {}
@@ -501,9 +530,11 @@ async def _eval_extend(node, tc, collection, limit, user_context):
         key = id(graph_node), id(sol)
         return exists_cache.get(key, False)
 
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         await _pre_eval_exists(
-            expr, sol, tc, collection, limit, user_context, exists_cache
+            expr, sol, tc, collection, limit, user_context, exists_cache,
+            graph
         )
         val = evaluate_expression(expr, sol, exists_cb=exists_cb)
         new_sol = dict(sol)
@@ -525,8 +556,10 @@ async def _eval_extend(node, tc, collection, limit, user_context):
 
 # --- Aggregation (blocking) ---
 
-async def _eval_group(node, tc, collection, limit, user_context):
-    solutions = await materialise(node.p, tc, collection, limit, user_context)
+async def _eval_group(node, tc, collection, limit, user_context, graph):
+    solutions = await materialise(
+        node.p, tc, collection, limit, user_context, graph
+    )
 
     group_exprs = []
     if hasattr(node, "expr") and node.expr:
@@ -559,8 +592,10 @@ async def _eval_group(node, tc, collection, limit, user_context):
         yield sol
 
 
-async def _eval_aggregate_join(node, tc, collection, limit, user_context):
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+async def _eval_aggregate_join(node, tc, collection, limit, user_context,
+                               graph):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         group = sol.get("__group__", [sol])
         new_sol = {k: v for k, v in sol.items() if k != "__group__"}
 
@@ -573,19 +608,28 @@ async def _eval_aggregate_join(node, tc, collection, limit, user_context):
         yield new_sol
 
 
-async def _eval_graph(node, tc, collection, limit, user_context):
+async def _eval_graph(node, tc, collection, limit, user_context, graph):
     term = node.term
 
     if isinstance(term, URIRef):
-        logger.info(f"GRAPH <{term}> clause - graph filtering not yet wired")
+        inner_graph = str(term)
+        async for sol in evaluate(node.p, tc, collection, limit,
+                                  user_context, inner_graph):
+            yield sol
+
     elif isinstance(term, Variable):
-        logger.info(f"GRAPH ?{term} clause - variable graph not yet wired")
+        logger.warning(f"GRAPH ?{term} — variable graph not yet supported")
+        async for sol in evaluate(node.p, tc, collection, limit,
+                                  user_context, graph):
+            yield sol
 
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
-        yield sol
+    else:
+        async for sol in evaluate(node.p, tc, collection, limit,
+                                  user_context, graph):
+            yield sol
 
 
-async def _eval_values(node, tc, collection, limit, user_context):
+async def _eval_values(node, tc, collection, limit, user_context, graph):
     # rdflib has two representations for VALUES:
     # 1. var=[Variable...], value=[[val, ...], ...] — positional
     # 2. var=None, res=[{Variable: val, ...}, ...] — dict-based
@@ -610,8 +654,10 @@ async def _eval_values(node, tc, collection, limit, user_context):
         yield sol
 
 
-async def _eval_to_multiset(node, tc, collection, limit, user_context):
-    async for sol in evaluate(node.p, tc, collection, limit, user_context):
+async def _eval_to_multiset(node, tc, collection, limit, user_context,
+                            graph):
+    async for sol in evaluate(node.p, tc, collection, limit, user_context,
+                              graph):
         yield sol
 
 
@@ -753,7 +799,8 @@ def _resolve_term(tmpl, solution):
         return rdflib_term_to_term(tmpl)
 
 
-async def _query_pattern(tc, s, p, o, collection, limit, user_context=None):
+async def _query_pattern(tc, s, p, o, collection, limit, user_context=None,
+                         graph=None):
     """
     Issue a streaming triple pattern query via TriplesClient.
 
@@ -764,6 +811,7 @@ async def _query_pattern(tc, s, p, o, collection, limit, user_context=None):
         limit=limit,
         collection=collection,
         user_context=user_context,
+        g=graph,
     )
     return results
 
