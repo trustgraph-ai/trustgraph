@@ -331,3 +331,29 @@ class TestAgentTranslatorCompletionFlags:
         # Assert
         assert is_final is True, "Streaming format must use end_of_dialog for is_final"
         assert response_dict["end_of_dialog"] is True
+
+    def test_agent_translator_encodes_error_type_and_message(self):
+        """
+        Test that an agent error is encoded with the Error schema's type and
+        message, which is the shape the API clients read.
+        """
+        # Arrange
+        translator = TranslatorRegistry.get_response_translator("agent")
+        response = AgentResponse(
+            end_of_message=True,
+            end_of_dialog=True,
+            error=Error(
+                type="agent-error",
+                message="Too many agent iterations",
+            ),
+        )
+
+        # Act
+        response_dict, is_final = translator.encode_with_completion(response)
+
+        # Assert
+        assert is_final is True
+        assert response_dict["error"] == {
+            "type": "agent-error",
+            "message": "Too many agent iterations",
+        }
