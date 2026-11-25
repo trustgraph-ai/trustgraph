@@ -309,7 +309,7 @@ class TestCassandraQueryProcessor:
         mock_result.s = 'all_subject'
         mock_result.p = 'all_predicate'
         mock_result.o = 'all_object'
-        mock_result.d = ''
+        mock_result.g = ''
         mock_result.otype = None
         mock_result.dtype = None
         mock_result.lang = None
@@ -327,7 +327,9 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.async_get_all.assert_called_once_with('test_collection', limit=1000)
+        mock_tg_instance.async_get_all.assert_called_once_with(
+            'test_collection', g=None, version=None, limit=1000,
+        )
         assert len(result) == 1
         assert result[0].s.iri == 'all_subject'
         assert result[0].p.iri == 'all_predicate'

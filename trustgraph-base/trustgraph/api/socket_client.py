@@ -1009,6 +1009,8 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         result = self.client._send_request_sync("triples", self.flow_id, request, False)
+        if request.get("operation"):
+            return result
         if isinstance(result, dict) and "response" in result:
             return result["response"]
         return result

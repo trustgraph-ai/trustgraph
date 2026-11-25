@@ -169,11 +169,20 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
         tg = await self._get_connection(workspace)
 
+        version_cache = {}
+
         for t in message.triples:
             s_val = get_term_value(t.s)
             p_val = get_term_value(t.p)
             o_val = get_term_value(t.o)
             g_val = t.g if t.g is not None else DEFAULT_GRAPH
+
+            if g_val not in version_cache:
+                version_cache[g_val] = (
+                    await tg.async_bootstrap_graph_version(
+                        message.metadata.collection, g_val
+                    )
+                )
 
             otype = get_term_otype(t.o)
             dtype = get_term_dtype(t.o)
@@ -185,6 +194,8 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 p_val,
                 o_val,
                 g=g_val,
+                version=version_cache[g_val],
+                is_deleted=False,
                 otype=otype,
                 dtype=dtype,
                 lang=lang,

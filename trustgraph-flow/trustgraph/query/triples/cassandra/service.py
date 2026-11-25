@@ -8,12 +8,11 @@ import asyncio
 import logging
 import json
 
-from cassandra.query import SimpleStatement
-
 from .... direct.cassandra_kg import (
     EntityCentricKnowledgeGraph, DEFAULT_GRAPH
 )
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
+from .... schema import VersionEntry
 from .... schema import Term, Triple, IRI, LITERAL, TRIPLE, BLANK
 from .... base import TriplesQueryService
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
@@ -70,6 +69,37 @@ def get_term_value(term):
         return term.id or term.value
 
 
+def get_term_otype(term):
+    """Map Term.type to storage otype code."""
+    if term is None:
+        return "u"
+    if term.type == IRI or term.type == BLANK:
+        return "u"
+    elif term.type == LITERAL:
+        return "l"
+    elif term.type == TRIPLE:
+        return "t"
+    return "u"
+
+
+def get_term_dtype(term):
+    """Extract datatype from a Term (for literals)."""
+    if term is None:
+        return ""
+    if term.type == LITERAL:
+        return term.datatype or ""
+    return ""
+
+
+def get_term_lang(term):
+    """Extract language tag from a Term (for literals)."""
+    if term is None:
+        return ""
+    if term.type == LITERAL:
+        return term.language or ""
+    return ""
+
+
 def deserialize_term(term_dict):
     """Deserialize a term from JSON structure."""
     if term_dict is None:
@@ -100,18 +130,15 @@ def deserialize_term(term_dict):
     return Term(type=LITERAL, value=str(term_dict))
 
 
-def create_term(value, term_type=None, datatype=None, language=None):
+def create_term(value, term_type, datatype=None, language=None):
     """
-    Create a Term from a string value, optionally using type metadata.
+    Create a Term from a string value and its storage type code.
 
     Args:
         value: The string value
-        term_type: 'u' (IRI), 'l' (literal), 't' (triple)
+        term_type: 'u' (IRI), 'l' (literal), 't' (triple) — required
         datatype: XSD datatype for literals
         language: Language tag for literals
-
-    If term_type is provided, uses it to determine Term type.
-    Otherwise falls back to URL detection heuristic for object values.
     """
     if term_type == 'u':
         return Term(type=IRI, iri=value)
@@ -139,18 +166,35 @@ def create_term(value, term_type=None, datatype=None, language=None):
             logger.warning(f"Failed to parse triple JSON: {e}")
         # Fallback if parsing fails
         return Term(type=LITERAL, value=str(value))
-    elif term_type is not None:
-        # Unknown term_type, fall back to heuristic
-        pass
-
-    # Heuristic fallback for backwards compatibility (object values only)
-    if value.startswith("http://") or value.startswith("https://"):
-        return Term(type=IRI, iri=value)
-    else:
-        return Term(type=LITERAL, value=value)
+    raise ValueError(f"term_type is required, got {term_type!r}")
 
 
 class Processor(TriplesQueryService):
+
+    async def _resolve_version(self, tg, collection, named_graph, version_str):
+        if not version_str:
+            return None
+
+        if named_graph is None:
+            raise ValueError(
+                "Version filtering requires a specific graph — "
+                "versions are per-graph and have no cross-graph meaning"
+            )
+
+        try:
+            return int(version_str)
+        except (ValueError, TypeError):
+            pass
+
+        log = await tg.async_get_version_log(collection, named_graph)
+        for entry in log:
+            if entry["names"] and version_str in entry["names"]:
+                return entry["version"]
+
+        raise ValueError(
+            f"Unknown version name '{version_str}' "
+            f"for graph {named_graph}"
+        )
 
     def __init__(self, **params):
 
@@ -211,6 +255,10 @@ class Processor(TriplesQueryService):
 
             tg = await self._get_connection(workspace)
 
+            v = await self._resolve_version(
+                tg, query.collection, g_val, query.version
+            )
+
             def get_object_metadata(row):
                 return (
                     getattr(row, 'otype', None),
@@ -225,7 +273,7 @@ class Processor(TriplesQueryService):
                     if o_val is not None:
                         resp = await tg.async_get_spo(
                             query.collection, s_val, p_val, o_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -234,7 +282,7 @@ class Processor(TriplesQueryService):
                     else:
                         resp = await tg.async_get_sp(
                             query.collection, s_val, p_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -244,7 +292,7 @@ class Processor(TriplesQueryService):
                     if o_val is not None:
                         resp = await tg.async_get_os(
                             query.collection, o_val, s_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -253,7 +301,7 @@ class Processor(TriplesQueryService):
                     else:
                         resp = await tg.async_get_s(
                             query.collection, s_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -264,7 +312,7 @@ class Processor(TriplesQueryService):
                     if o_val is not None:
                         resp = await tg.async_get_po(
                             query.collection, p_val, o_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -273,7 +321,7 @@ class Processor(TriplesQueryService):
                     else:
                         resp = await tg.async_get_p(
                             query.collection, p_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -283,7 +331,7 @@ class Processor(TriplesQueryService):
                     if o_val is not None:
                         resp = await tg.async_get_o(
                             query.collection, o_val,
-                            g=g_val, limit=query.limit,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
@@ -291,13 +339,11 @@ class Processor(TriplesQueryService):
                             quads.append((t.s, t.p, o_val, g, term_type, datatype, language))
                     else:
                         resp = await tg.async_get_all(
-                            query.collection, limit=query.limit,
+                            query.collection,
+                            g=g_val, version=v, limit=query.limit,
                         )
                         for t in resp:
-                            g = t.d if hasattr(t, 'd') else DEFAULT_GRAPH
-                            if g_val is not None:
-                                if g != g_val:
-                                    continue
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
                             term_type, datatype, language = get_object_metadata(t)
                             quads.append((t.s, t.p, t.o, g, term_type, datatype, language))
 
@@ -343,59 +389,48 @@ class Processor(TriplesQueryService):
             if s_val is None and p_val is None and o_val is None:
 
                 tg = await self._get_connection(workspace)
-
-                cql = f"SELECT d, s, p, o, otype, dtype, lang FROM {tg.collection_table} WHERE collection = %s"
-                params = [query.collection]
-                statement = SimpleStatement(cql, fetch_size=batch_size)
-                # async_execute only materialises the first page;
-                # this query needs all pages, so use sync execute
-                # in a worker thread where page iteration can block.
-                result_set = await asyncio.to_thread(
-                    lambda: list(tg.session.execute(statement, params))
+                v = await self._resolve_version(
+                    tg, query.collection, g_val, query.version,
                 )
+
+                def to_triple(row):
+                    g = row.g if hasattr(row, 'g') else DEFAULT_GRAPH
+                    term_type, datatype, language = get_object_metadata(row)
+                    return Triple(
+                        s=create_term(row.s, term_type='u'),
+                        p=create_term(row.p, term_type='u'),
+                        o=create_term(
+                            row.o, term_type=term_type,
+                            datatype=datatype, language=language,
+                        ),
+                        g=g if g != DEFAULT_GRAPH else None,
+                    )
+
+                # Stream resolved manifest batches with one-batch look-ahead
+                # so we can tag the last batch as is_final=True.
+                pending = None
+                async for raw_batch in tg.async_stream_manifest(
+                    query.collection,
+                    g=g_val, version=v,
+                    limit=limit, batch_size=batch_size,
+                ):
+                    triples = [to_triple(r) for r in raw_batch]
+                    if not triples:
+                        continue
+                    if pending is not None:
+                        yield pending, False
+                    pending = triples
+
+                if pending is not None:
+                    yield pending, True
+                else:
+                    yield [], True
+                return
 
             else:
                 async for batch, is_final in self._fallback_stream(workspace, query, batch_size):
                     yield batch, is_final
                 return
-
-            batch = []
-            count = 0
-
-            for row in result_set:
-                if count >= limit:
-                    break
-
-                g = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-
-                # Filter by graph
-                # g_val=None means all graphs (no filter)
-                # g_val="" means default graph only
-                # otherwise filter to specific named graph
-                if g_val is not None:
-                    if g != g_val:
-                        continue
-
-                term_type, datatype, language = get_object_metadata(row)
-
-                # s and p are always IRIs in RDF
-                triple = Triple(
-                    s=create_term(row.s, term_type='u'),
-                    p=create_term(row.p, term_type='u'),
-                    o=create_term(row.o, term_type=term_type, datatype=datatype, language=language),
-                    g=g if g != DEFAULT_GRAPH else None
-                )
-                batch.append(triple)
-                count += 1
-
-                # Yield batch when full (never mark as final mid-stream)
-                if len(batch) >= batch_size:
-                    yield batch, False
-                    batch = []
-
-            # Always yield final batch to signal completion
-            # This handles: remaining rows, empty result set, or exact batch boundary
-            yield batch, True
 
         except Exception as e:
             logger.error(f"Exception in streaming query: {e}", exc_info=True)
@@ -412,6 +447,269 @@ class Processor(TriplesQueryService):
 
         if len(triples) == 0:
             yield [], True
+
+    async def handle_version_bump(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        new_version = await tg.async_bump_graph_version(
+            request.collection, named_graph
+        )
+
+        logger.info(
+            f"Bumped version for {request.collection}/{named_graph} "
+            f"to v{new_version}"
+        )
+
+        return TriplesQueryResponse(version=new_version)
+
+    async def handle_version_map(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        version_map = await tg.async_get_version_map(request.collection)
+
+        return TriplesQueryResponse(version_map=version_map)
+
+    async def handle_version_list(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        log = await tg.async_get_version_log(
+            request.collection, named_graph
+        )
+
+        entries = [
+            VersionEntry(
+                version=entry["version"],
+                created_at=str(entry["created_at"]) if entry["created_at"] else "",
+                names=list(entry["names"]) if entry["names"] else [],
+                description=entry["description"] or "",
+            )
+            for entry in log
+        ]
+
+        return TriplesQueryResponse(version_log=entries)
+
+    async def handle_version_label(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.version:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="version-label-error",
+                    message="version is required for version-label",
+                ),
+            )
+
+        if not request.name:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="version-label-error",
+                    message="name is required for version-label",
+                ),
+            )
+
+        version = await self._resolve_version(
+            tg, request.collection, named_graph, request.version
+        )
+
+        await tg.async_label_version(
+            request.collection, named_graph, version, request.name
+        )
+
+        logger.info(
+            f"Labelled {request.collection}/{named_graph} "
+            f"v{request.version} as '{request.name}'"
+        )
+
+        return TriplesQueryResponse()
+
+    def _quad_tuples_to_triples(self, quads):
+        """Convert a set of (s, p, o, g, otype, dtype, lang) tuples to Triple objects."""
+        return [
+            Triple(
+                s=create_term(q[0], term_type='u'),
+                p=create_term(q[1], term_type='u'),
+                o=create_term(q[2], term_type=q[4], datatype=q[5], language=q[6]),
+                g=q[3] if q[3] != DEFAULT_GRAPH else None,
+            )
+            for q in quads
+        ]
+
+    async def handle_diff(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.v1 or not request.v2:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="diff-error",
+                    message="v1 and v2 are required for diff",
+                ),
+            )
+
+        added, removed = await tg.async_diff_versions(
+            request.collection, named_graph, request.v1, request.v2
+        )
+
+        logger.info(
+            f"Diff {request.collection}/{named_graph} "
+            f"v{request.v1}..v{request.v2}: "
+            f"{len(added)} added, {len(removed)} removed"
+        )
+
+        return TriplesQueryResponse(
+            added=self._quad_tuples_to_triples(added),
+            removed=self._quad_tuples_to_triples(removed),
+        )
+
+    async def handle_revert(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.version:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="revert-error",
+                    message="version is required for revert",
+                ),
+            )
+
+        version = await self._resolve_version(
+            tg, request.collection, named_graph, request.version
+        )
+
+        new_version = await tg.async_revert_to_version(
+            request.collection, named_graph, version
+        )
+
+        logger.info(
+            f"Reverted {request.collection}/{named_graph} "
+            f"to v{version} (now v{new_version})"
+        )
+
+        return TriplesQueryResponse(version=new_version)
+
+    async def handle_delete(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        version_cache = {}
+
+        async def get_version(graph):
+            if graph not in version_cache:
+                version_cache[graph] = (
+                    await tg.async_bootstrap_graph_version(
+                        request.collection, graph
+                    )
+                )
+            return version_cache[graph]
+
+        if request.triples:
+            # Explicit triple deletion — blind insert markers
+            count = 0
+            for triple in request.triples:
+                s_val = get_term_value(triple.s)
+                p_val = get_term_value(triple.p)
+                o_val = get_term_value(triple.o)
+                g_val = triple.g if triple.g is not None else named_graph
+
+                if s_val is None or p_val is None or o_val is None:
+                    continue
+
+                version = await get_version(g_val)
+                await tg.async_insert(
+                    request.collection, s_val, p_val, o_val,
+                    g_val, version, True,
+                    otype=get_term_otype(triple.o),
+                    dtype=get_term_dtype(triple.o),
+                    lang=get_term_lang(triple.o),
+                )
+                count += 1
+
+            logger.info(
+                f"Deleted {count} explicit triples from "
+                f"{request.collection}/{named_graph}"
+            )
+
+        else:
+            # Pattern-based deletion — query then mark deleted
+            query = request
+            triples = await self.query_triples(workspace, query)
+            count = 0
+            for triple in triples:
+                s_val = get_term_value(triple.s)
+                p_val = get_term_value(triple.p)
+                o_val = get_term_value(triple.o)
+                g_val = triple.g if triple.g is not None else named_graph
+
+                version = await get_version(g_val)
+                await tg.async_insert(
+                    request.collection, s_val, p_val, o_val,
+                    g_val, version, True,
+                    otype=get_term_otype(triple.o),
+                    dtype=get_term_dtype(triple.o),
+                    lang=get_term_lang(triple.o),
+                )
+                count += 1
+
+            logger.info(
+                f"Deleted {count} triples by pattern from "
+                f"{request.collection}/{named_graph}"
+            )
+
+        return TriplesQueryResponse()
+
+    async def handle_write(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.triples:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="write-error",
+                    message="triples list is required for write",
+                ),
+            )
+
+        version_cache = {}
+
+        async def get_version(graph):
+            if graph not in version_cache:
+                version_cache[graph] = (
+                    await tg.async_bootstrap_graph_version(
+                        request.collection, graph
+                    )
+                )
+            return version_cache[graph]
+
+        count = 0
+        for triple in request.triples:
+            s_val = get_term_value(triple.s)
+            p_val = get_term_value(triple.p)
+            o_val = get_term_value(triple.o)
+            g_val = triple.g if triple.g is not None else named_graph
+
+            if s_val is None or p_val is None or o_val is None:
+                continue
+
+            version = await get_version(g_val)
+            await tg.async_insert(
+                request.collection, s_val, p_val, o_val,
+                g_val, version, False,
+                otype=get_term_otype(triple.o),
+                dtype=get_term_dtype(triple.o),
+                lang=get_term_lang(triple.o),
+            )
+            count += 1
+
+        logger.info(
+            f"Wrote {count} triples to "
+            f"{request.collection}/{named_graph}"
+        )
+
+        return TriplesQueryResponse()
 
     @staticmethod
     def add_args(parser):

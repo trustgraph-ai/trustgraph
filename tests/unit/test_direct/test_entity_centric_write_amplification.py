@@ -76,6 +76,8 @@ class TestWriteAmplification:
             p='http://ex.org/knows',
             o='http://ex.org/Bob',
             g='http://ex.org/g1',
+            version=1,
+            is_deleted=False,
             otype='u',
         )
 
@@ -87,7 +89,7 @@ class TestWriteAmplification:
         assert len(batch._adds) == 5
 
         # Check roles assigned
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
         assert 'S' in roles
         assert 'P' in roles
         assert 'O' in roles
@@ -103,7 +105,9 @@ class TestWriteAmplification:
             s='http://ex.org/Alice',
             p='http://ex.org/name',
             o='Alice Smith',
-            g=None,  # default graph
+            g=None,
+            version=1,
+            is_deleted=False,
             otype='l',
         )
 
@@ -112,7 +116,7 @@ class TestWriteAmplification:
         # S + P + O entity rows + 1 collection = 4 (no G for default)
         assert len(batch._adds) == 4
 
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
         assert 'S' in roles
         assert 'P' in roles
         assert 'O' in roles
@@ -129,6 +133,8 @@ class TestWriteAmplification:
             p='http://ex.org/p',
             o='{"s":{},"p":{},"o":{}}',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='t',
         )
 
@@ -137,7 +143,7 @@ class TestWriteAmplification:
         # S + P + O entity rows + collection = 4 (no G for default graph)
         assert len(batch._adds) == 4
 
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
         assert 'O' in roles
 
     def test_default_graph_no_g_row(self, entity_kg):
@@ -151,6 +157,8 @@ class TestWriteAmplification:
             p='http://ex.org/p',
             o='http://ex.org/o',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='u',
         )
 
@@ -158,7 +166,7 @@ class TestWriteAmplification:
 
         # S + P + O entity rows + collection = 4 (no G)
         assert len(batch._adds) == 4
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
         assert 'G' not in roles
 
     def test_non_default_graph_gets_g_row(self, entity_kg):
@@ -172,6 +180,8 @@ class TestWriteAmplification:
             p='http://ex.org/p',
             o='http://ex.org/o',
             g='http://ex.org/graph1',
+            version=1,
+            is_deleted=False,
             otype='u',
         )
 
@@ -179,7 +189,7 @@ class TestWriteAmplification:
 
         # S + P + O + G entity rows + collection = 5
         assert len(batch._adds) == 5
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
         assert 'G' in roles
 
     def test_dtype_and_lang_passed_to_all_rows(self, entity_kg):
@@ -193,6 +203,8 @@ class TestWriteAmplification:
             p='http://ex.org/label',
             o='thing',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='l',
             dtype='xsd:string',
             lang='en',
@@ -202,7 +214,7 @@ class TestWriteAmplification:
 
         # Check entity rows carry dtype and lang
         for _, params in batch._adds:
-            if len(params) == 10:
+            if len(params) == 12:
                 # Entity row: (collection, entity, role, p, otype, s, o, d, dtype, lang)
                 assert params[8] == 'xsd:string'
                 assert params[9] == 'en'
@@ -230,17 +242,19 @@ class TestLiteralObjectQueryability:
             p='http://www.w3.org/2000/01/rdf-schema#label',
             o='MIL-HDBK-516D',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='l',
         )
 
         batch = ctx["batches"][0]
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
 
         assert 'O' in roles, "Literal objects must have role='O' entity row for get_o() queries"
 
         o_rows = [
             params for _, params in batch._adds
-            if len(params) == 10 and params[2] == 'O'
+            if len(params) == 12 and params[2] == 'O'
         ]
         assert len(o_rows) == 1
         assert o_rows[0][1] == 'MIL-HDBK-516D'  # entity = object value
@@ -257,19 +271,21 @@ class TestLiteralObjectQueryability:
             p='http://www.w3.org/2000/01/rdf-schema#label',
             o='Alice Smith',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='l',
             dtype='xsd:string',
             lang='en',
         )
 
         batch = ctx["batches"][0]
-        roles = [params[2] for _, params in batch._adds if len(params) == 10]
+        roles = [params[2] for _, params in batch._adds if len(params) == 12]
 
         assert 'O' in roles
 
         o_rows = [
             params for _, params in batch._adds
-            if len(params) == 10 and params[2] == 'O'
+            if len(params) == 12 and params[2] == 'O'
         ]
         assert o_rows[0][8] == 'xsd:string'  # dtype
         assert o_rows[0][9] == 'en'           # lang
@@ -285,6 +301,8 @@ class TestLiteralObjectQueryability:
             p='http://ex.org/label',
             o='some label',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='l',
         )
 
@@ -302,6 +320,8 @@ class TestLiteralObjectQueryability:
             p='http://ex.org/label',
             o='some label',
             g='http://ex.org/g1',
+            version=1,
+            is_deleted=False,
             otype='l',
         )
 
@@ -313,7 +333,7 @@ class TestLiteralObjectQueryability:
         kg, ctx = entity_kg
 
         mock_rows = [
-            MagicMock(d='', s='http://ex.org/A', p='http://ex.org/name',
+            MagicMock(g='', s='http://ex.org/A', p='http://ex.org/name',
                       o='Alice', otype='l', dtype='', lang=''),
         ]
         ctx["session"].execute.return_value = mock_rows
@@ -344,11 +364,11 @@ class TestInPartitionFiltering:
         # Simulate rows returned from subject partition (all have same s)
         mock_rows = [
             MagicMock(p='http://ex.org/knows', o='http://ex.org/Bob',
-                      d='', otype='u', dtype='', lang='',
-                      s='http://ex.org/Alice'),
+                      g='', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
             MagicMock(p='http://ex.org/likes', o='http://ex.org/Charlie',
-                      d='', otype='u', dtype='', lang='',
-                      s='http://ex.org/Alice'),
+                      g='', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
         ]
         ctx["session"].execute.return_value = mock_rows
 
@@ -365,8 +385,8 @@ class TestInPartitionFiltering:
 
         mock_rows = [
             MagicMock(p='http://ex.org/knows', o='http://ex.org/Bob',
-                      d='', otype='u', dtype='', lang='',
-                      s='http://ex.org/Alice'),
+                      g='', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
         ]
         ctx["session"].execute.return_value = mock_rows
 
@@ -379,8 +399,10 @@ class TestInPartitionFiltering:
         kg, ctx = entity_kg
 
         mock_rows = [
-            MagicMock(o='http://ex.org/Bob', d='', otype='u', dtype='', lang=''),
-            MagicMock(o='http://ex.org/Charlie', d='', otype='u', dtype='', lang=''),
+            MagicMock(o='http://ex.org/Bob', g='', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
+            MagicMock(o='http://ex.org/Charlie', g='', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
         ]
         ctx["session"].execute.return_value = mock_rows
 
@@ -398,11 +420,11 @@ class TestInPartitionFiltering:
 
         mock_rows = [
             MagicMock(p='http://ex.org/knows', o='http://ex.org/Bob',
-                      d='http://ex.org/g1', otype='u', dtype='', lang='',
-                      s='http://ex.org/Alice'),
+                      g='http://ex.org/g1', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
             MagicMock(p='http://ex.org/knows', o='http://ex.org/Bob',
-                      d='http://ex.org/g2', otype='u', dtype='', lang='',
-                      s='http://ex.org/Alice'),
+                      g='http://ex.org/g2', otype='u', dtype='', lang='',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
         ]
         ctx["session"].execute.return_value = mock_rows
 
@@ -426,9 +448,9 @@ class TestDeleteCollectionBatching:
         kg, ctx = entity_kg
 
         mock_rows = [
-            MagicMock(d='', s='http://ex.org/A', p='http://ex.org/knows',
+            MagicMock(g='', s='http://ex.org/A', p='http://ex.org/knows',
                       o='http://ex.org/B', otype='u', dtype='', lang=''),
-            MagicMock(d='', s='http://ex.org/A', p='http://ex.org/name',
+            MagicMock(g='', s='http://ex.org/A', p='http://ex.org/name',
                       o='Alice', otype='l', dtype='', lang=''),
         ]
         ctx["session"].execute.return_value = mock_rows
@@ -451,7 +473,7 @@ class TestDeleteCollectionBatching:
         kg, ctx = entity_kg
 
         mock_rows = [
-            MagicMock(d='', s='http://ex.org/A', p='http://ex.org/name',
+            MagicMock(g='', s='http://ex.org/A', p='http://ex.org/name',
                       o='Alice', otype='l', dtype='', lang=''),
         ]
         ctx["session"].execute.return_value = mock_rows
@@ -474,7 +496,7 @@ class TestDeleteCollectionBatching:
         kg, ctx = entity_kg
 
         mock_rows = [
-            MagicMock(d='http://ex.org/g1', s='http://ex.org/A',
+            MagicMock(g='http://ex.org/g1', s='http://ex.org/A',
                       p='http://ex.org/p', o='http://ex.org/B',
                       otype='u', dtype='', lang=''),
         ]
@@ -515,8 +537,8 @@ class TestTermTypeMetadata:
 
         mock_rows = [
             MagicMock(p='http://ex.org/name', o='Alice',
-                      d='', otype='l', dtype='xsd:string', lang='en',
-                      s='http://ex.org/Alice'),
+                      g='', otype='l', dtype='xsd:string', lang='en',
+                      s='http://ex.org/Alice', version=1, is_deleted=False),
         ]
         ctx["session"].execute.return_value = mock_rows
 
@@ -537,12 +559,15 @@ class TestTermTypeMetadata:
             s='http://ex.org/s',
             p='http://ex.org/p',
             o='http://ex.org/o',
+            g=None,
+            version=1,
+            is_deleted=False,
         )
 
         batch = ctx["batches"][0]
         # Check otype in entity rows (position 4)
         for _, params in batch._adds:
-            if len(params) == 10:
+            if len(params) == 12:
                 assert params[4] == 'u'
 
     def test_auto_detect_otype_literal(self, entity_kg):
@@ -555,9 +580,12 @@ class TestTermTypeMetadata:
             s='http://ex.org/s',
             p='http://ex.org/p',
             o='plain text',
+            g=None,
+            version=1,
+            is_deleted=False,
         )
 
         batch = ctx["batches"][0]
         for _, params in batch._adds:
-            if len(params) == 10:
+            if len(params) == 12:
                 assert params[4] == 'l'

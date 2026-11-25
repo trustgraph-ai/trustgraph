@@ -13,6 +13,8 @@ upstream into a list at the boundary, then yield results.
 import logging
 from collections import defaultdict
 
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
 from rdflib.term import Variable, URIRef, Literal, BNode
 from rdflib.plugins.sparql.parserutils import CompValue
 
@@ -27,6 +29,44 @@ from . solutions import (
 from . expressions import evaluate_expression, _effective_boolean
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_graph_version(iri):
+    """Parse ?version= suffix from a graph IRI.
+
+    Returns (base_iri, version_str) where version_str is None if no
+    version suffix is present.
+    """
+    parsed = urlparse(iri)
+    params = parse_qs(parsed.query)
+    version_values = params.pop("version", None)
+    if not version_values:
+        return iri, None
+    remaining_query = urlencode(
+        {k: v[0] for k, v in params.items()}
+    ) if params else ""
+    base = urlunparse(parsed._replace(query=remaining_query))
+    return base, version_values[0]
+
+
+class _GraphScopedClient:
+    """Wrapper around TriplesClient that injects graph and version into queries."""
+
+    def __init__(self, tc, graph=None, version=None):
+        self._tc = tc
+        self._graph = graph
+        self._version = version
+
+    async def query_gen(self, **kwargs):
+        if self._graph is not None:
+            kwargs.setdefault("g", self._graph)
+        if self._version is not None:
+            kwargs.setdefault("version", self._version)
+        async for result in self._tc.query_gen(**kwargs):
+            yield result
+
+    def __getattr__(self, name):
+        return getattr(self._tc, name)
 
 
 class EvaluationError(Exception):
@@ -612,9 +652,11 @@ async def _eval_graph(node, tc, collection, limit, user_context, graph):
     term = node.term
 
     if isinstance(term, URIRef):
-        inner_graph = str(term)
-        async for sol in evaluate(node.p, tc, collection, limit,
-                                  user_context, inner_graph):
+        base_iri, version_str = _parse_graph_version(str(term))
+
+        scoped_tc = _GraphScopedClient(tc, graph=base_iri, version=version_str)
+        async for sol in evaluate(node.p, scoped_tc, collection, limit,
+                                  user_context, base_iri):
             yield sol
 
     elif isinstance(term, Variable):

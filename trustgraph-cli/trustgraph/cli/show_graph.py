@@ -23,19 +23,23 @@ GRAPH_SOURCE = "urn:graph:source"
 GRAPH_RETRIEVAL = "urn:graph:retrieval"
 
 
-def show_graph(url, flow_id, collection, limit, batch_size, graph=None, show_graph_column=False, token=None, workspace="default"):
+def show_graph(url, flow_id, collection, limit, batch_size, graph=None, show_graph_column=False, token=None, workspace="default", version=None):
 
     socket = Api(url, token=token, workspace=workspace).socket()
     flow = socket.flow(flow_id)
 
     try:
-        for batch in flow.triples_query_stream(
+        kwargs = dict(
             collection=collection,
             s=None, p=None, o=None,
             g=graph,  # Filter by named graph (None = all graphs)
             limit=limit,
             batch_size=batch_size,
-        ):
+        )
+        if version is not None:
+            kwargs["version"] = version
+
+        for batch in flow.triples_query_stream(**kwargs):
             for triple in batch:
                 s = triple.get("s", {})
                 p = triple.get("p", {})
@@ -104,10 +108,16 @@ def main():
         help='Triples per streaming batch (default: 20)',
     )
 
-    parser.add_argument(
+    graph_group = parser.add_mutually_exclusive_group()
+    graph_group.add_argument(
         '-g', '--graph',
-        default=None,
-        help='Filter by named graph (e.g., urn:graph:source, urn:graph:retrieval). Use "" for default graph only.',
+        default='',
+        help='Filter by named graph (default: default graph)',
+    )
+    graph_group.add_argument(
+        '--all-graphs',
+        action='store_true',
+        help='Query across all named graphs',
     )
 
     parser.add_argument(
@@ -116,12 +126,15 @@ def main():
         help='Show graph column in output',
     )
 
+    parser.add_argument(
+        '-V', '--version',
+        default=None,
+        help='Query at a specific graph version number or name (default: current)',
+    )
+
     args = parser.parse_args()
 
-    # Handle empty string for default graph filter
-    graph = args.graph
-    if graph == '""' or graph == "''":
-        graph = ""  # Filter to default graph only
+    graph = None if args.all_graphs else args.graph
 
     try:
 
@@ -135,6 +148,7 @@ def main():
             show_graph_column = args.show_graph,
             token = args.token,
             workspace=args.workspace,
+            version=args.version,
         )
 
     except Exception as e:

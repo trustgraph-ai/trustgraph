@@ -93,6 +93,8 @@ class TestEntityCentricKnowledgeGraph:
             p='http://example.org/knows',
             o='http://example.org/Bob',
             g='http://example.org/graph1',
+            version=1,
+            is_deleted=False,
             otype='u'
         )
 
@@ -111,6 +113,8 @@ class TestEntityCentricKnowledgeGraph:
             p='http://www.w3.org/2000/01/rdf-schema#label',
             o='Alice Smith',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='l',
             dtype='xsd:string',
             lang='en'
@@ -131,6 +135,8 @@ class TestEntityCentricKnowledgeGraph:
             p='http://example.org/knows',
             o='http://example.org/Bob',
             g=None,
+            version=1,
+            is_deleted=False,
             otype='u'
         )
 
@@ -147,7 +153,10 @@ class TestEntityCentricKnowledgeGraph:
             collection='test_collection',
             s='http://example.org/Alice',
             p='http://example.org/knows',
-            o='http://example.org/Bob'
+            o='http://example.org/Bob',
+            g=None,
+            version=1,
+            is_deleted=False,
         )
         mock_session.execute.assert_called()
 
@@ -158,7 +167,10 @@ class TestEntityCentricKnowledgeGraph:
             collection='test_collection',
             s='http://example.org/Alice',
             p='http://example.org/name',
-            o='Alice'
+            o='Alice',
+            g=None,
+            version=1,
+            is_deleted=False,
         )
         mock_session.execute.assert_called()
 
@@ -169,7 +181,8 @@ class TestEntityCentricKnowledgeGraph:
         # Mock the query result
         mock_result = [
             MagicMock(p='http://example.org/knows', o='http://example.org/Bob',
-                      d='', otype='u', dtype='', lang='', s='http://example.org/Alice')
+                      g='', otype='u', dtype='', lang='', s='http://example.org/Alice',
+                      version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -190,7 +203,8 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(s='http://example.org/Alice', o='http://example.org/Bob',
-                      d='', otype='u', dtype='', lang='', p='http://example.org/knows')
+                      g='', otype='u', dtype='', lang='', p='http://example.org/knows',
+                      version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -205,7 +219,8 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(s='http://example.org/Alice', p='http://example.org/knows',
-                      d='', otype='u', dtype='', lang='', o='http://example.org/Bob')
+                      g='', otype='u', dtype='', lang='', o='http://example.org/Bob',
+                      version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -219,7 +234,8 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(o='http://example.org/Bob', d='', otype='u', dtype='', lang='')
+            MagicMock(o='http://example.org/Bob', g='', otype='u', dtype='', lang='',
+                      s='http://example.org/Alice', version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -234,8 +250,8 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(s='http://example.org/Alice', d='', otype='u', dtype='', lang='',
-                      o='http://example.org/Bob')
+            MagicMock(s='http://example.org/Alice', g='', otype='u', dtype='', lang='',
+                      o='http://example.org/Bob', version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -250,8 +266,9 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(p='http://example.org/knows', d='', otype='u', dtype='', lang='',
-                      s='http://example.org/Alice', o='http://example.org/Bob')
+            MagicMock(p='http://example.org/knows', g='', otype='u', dtype='', lang='',
+                      s='http://example.org/Alice', o='http://example.org/Bob',
+                      version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -266,8 +283,9 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(d='', otype='u', dtype='', lang='',
-                      o='http://example.org/Bob')
+            MagicMock(g='', otype='u', dtype='', lang='',
+                      o='http://example.org/Bob', s='http://example.org/Alice',
+                      version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -295,27 +313,32 @@ class TestEntityCentricKnowledgeGraph:
         """Test get_all returns all quads"""
         kg, mock_session = entity_kg
 
+        # get_all now scans the versioned manifest and resolves version history
+        # in-process, so mock rows need version / is_deleted set.
         mock_result = [
-            MagicMock(d='', s='http://example.org/Alice', p='http://example.org/knows',
-                      o='http://example.org/Bob', otype='u', dtype='', lang='')
+            MagicMock(g='', s='http://example.org/Alice', p='http://example.org/knows',
+                      o='http://example.org/Bob', otype='u', dtype='', lang='',
+                      version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
         results = kg.get_all('test_collection')
 
         mock_session.execute.assert_called()
+        assert len(results) == 1
+        assert results[0].s == 'http://example.org/Alice'
 
     def test_graph_none_returns_all_graphs(self, entity_kg):
         """Test that g=None returns quads from all graphs"""
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(p='http://example.org/knows', d='http://example.org/graph1',
+            MagicMock(p='http://example.org/knows', g='http://example.org/graph1',
                       otype='u', dtype='', lang='', s='http://example.org/Alice',
-                      o='http://example.org/Bob'),
-            MagicMock(p='http://example.org/knows', d='http://example.org/graph2',
+                      o='http://example.org/Bob', version=1, is_deleted=False),
+            MagicMock(p='http://example.org/knows', g='http://example.org/graph2',
                       otype='u', dtype='', lang='', s='http://example.org/Alice',
-                      o='http://example.org/Charlie')
+                      o='http://example.org/Charlie', version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -329,12 +352,12 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(p='http://example.org/knows', d='http://example.org/graph1',
+            MagicMock(p='http://example.org/knows', g='http://example.org/graph1',
                       otype='u', dtype='', lang='', s='http://example.org/Alice',
-                      o='http://example.org/Bob'),
-            MagicMock(p='http://example.org/knows', d='http://example.org/graph2',
+                      o='http://example.org/Bob', version=1, is_deleted=False),
+            MagicMock(p='http://example.org/knows', g='http://example.org/graph2',
                       otype='u', dtype='', lang='', s='http://example.org/Alice',
-                      o='http://example.org/Charlie')
+                      o='http://example.org/Charlie', version=1, is_deleted=False)
         ]
         mock_session.execute.return_value = mock_result
 
@@ -382,7 +405,7 @@ class TestEntityCentricKnowledgeGraph:
 
         # Mock reading quads from collection
         mock_quads = [
-            MagicMock(d='', s='http://example.org/Alice', p='http://example.org/knows',
+            MagicMock(g='', s='http://example.org/Alice', p='http://example.org/knows',
                       o='http://example.org/Bob', otype='u')
         ]
         mock_session.execute.return_value = mock_quads

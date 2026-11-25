@@ -20,8 +20,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 
-def _row(s, d='', otype='u'):
-    return SimpleNamespace(d=d, s=s, p='p' + s, o='o' + s, otype=otype, dtype='', lang='')
+def _row(s, g='', otype='u'):
+    return SimpleNamespace(g=g, s=s, p='p' + s, o='o' + s, otype=otype, dtype='', lang='')
 
 
 # Three pages, two quads each. A truncating read sees only the first two rows.

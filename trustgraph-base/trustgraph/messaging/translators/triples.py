@@ -10,13 +10,15 @@ class TriplesQueryRequestTranslator(MessageTranslator):
     
     def __init__(self):
         self.value_translator = ValueTranslator()
-    
+        self.subgraph_translator = SubgraphTranslator()
+
     def decode(self, data: Dict[str, Any]) -> TriplesQueryRequest:
         s = self.value_translator.decode(data["s"]) if "s" in data else None
         p = self.value_translator.decode(data["p"]) if "p" in data else None
         o = self.value_translator.decode(data["o"]) if "o" in data else None
-        g = data.get("g")  # None=default graph, "*"=all graphs
+        g = data.get("g")
         uc = data.get("user-context")
+        triples_data = data.get("triples", [])
 
         return TriplesQueryRequest(
             s=s,
@@ -25,8 +27,15 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             g=g,
             limit=int(data.get("limit", 10000)),
             collection=data.get("collection", "default"),
+            operation=data.get("operation", ""),
             streaming=data.get("streaming", False),
             batch_size=int(data.get("batch-size", 20)),
+            named_graph=data.get("named-graph", ""),
+            version=str(data.get("version", "")),
+            name=data.get("name", ""),
+            v1=int(data.get("v1", 0)),
+            v2=int(data.get("v2", 0)),
+            triples=self.subgraph_translator.decode(triples_data) if triples_data else [],
             user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
@@ -38,6 +47,8 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             "batch-size": obj.batch_size,
         }
 
+        if obj.operation:
+            result["operation"] = obj.operation
         if obj.s:
             result["s"] = self.value_translator.encode(obj.s)
         if obj.p:
@@ -46,6 +57,18 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             result["o"] = self.value_translator.encode(obj.o)
         if obj.g is not None:
             result["g"] = obj.g
+        if obj.named_graph is not None:
+            result["named-graph"] = obj.named_graph
+        if obj.version is not None and obj.version != "":
+            result["version"] = obj.version
+        if obj.name:
+            result["name"] = obj.name
+        if obj.v1 is not None:
+            result["v1"] = obj.v1
+        if obj.v2 is not None:
+            result["v2"] = obj.v2
+        if obj.triples:
+            result["triples"] = self.subgraph_translator.encode(obj.triples)
         if obj.user_context is not None:
             result["user-context"] = dataclass_to_dict(obj.user_context)
 
@@ -70,6 +93,24 @@ class TriplesQueryResponseTranslator(MessageTranslator):
                 "type": obj.error.type,
                 "message": obj.error.message,
             }
+        if obj.version is not None:
+            result["version"] = obj.version
+        if obj.version_map:
+            result["version-map"] = obj.version_map
+        if obj.version_log:
+            result["version-log"] = [
+                {
+                    "version": e.version,
+                    "created-at": e.created_at,
+                    "names": e.names,
+                    "description": e.description,
+                }
+                for e in obj.version_log
+            ]
+        if obj.added:
+            result["added"] = self.subgraph_translator.encode(obj.added)
+        if obj.removed:
+            result["removed"] = self.subgraph_translator.encode(obj.removed)
         return result
 
     def encode_with_completion(self, obj: TriplesQueryResponse) -> Tuple[Dict[str, Any], bool]:
