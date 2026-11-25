@@ -49,45 +49,19 @@ class FlowConfig:
         flow_params = flow_blueprint["parameters"]
         user_params = user_params if user_params else {}
 
-        # First pass: resolve parameters with explicit values or defaults
+        # First pass: resolve parameters with explicit values or defaults.
+        # Parameters that are controlled by another parameter are left for
+        # the second pass, so the type default does not hide the
+        # controller's value.
         for param_name, param_meta in flow_params.items():
             # Check if user provided a value
             if param_name in user_params:
                 # Store as string
                 resolved[param_name] = str(user_params[param_name])
-            else:
-                # Look up the parameter type definition
-                param_type = param_meta.get("type")
-                if param_type:
-                    cache_key = (workspace, param_type)
-                    # Check cache first
-                    if cache_key not in self.param_type_cache:
-                        try:
-                            # Fetch parameter type definition from config store
-                            type_def = await self.config.get(
-                                workspace, "parameter-type", param_type
-                            )
-                            if type_def:
-                                self.param_type_cache[cache_key] = json.loads(type_def)
-                            else:
-                                logger.warning(f"Parameter type '{param_type}' not found in config")
-                                self.param_type_cache[cache_key] = {}
-                        except Exception as e:
-                            logger.error(f"Error fetching parameter type '{param_type}': {e}")
-                            self.param_type_cache[cache_key] = {}
-
-                    # Apply default from type definition (as string)
-                    type_def = self.param_type_cache[cache_key]
-                    if "default" in type_def:
-                        default_value = type_def["default"]
-                        # Convert to string based on type
-                        if isinstance(default_value, bool):
-                            resolved[param_name] = "true" if default_value else "false"
-                        else:
-                            resolved[param_name] = str(default_value)
-                    elif type_def.get("required", False):
-                        # Required parameter with no default and no user value
-                        raise RuntimeError(f"Required parameter '{param_name}' not provided and has no default")
+            elif "controlled-by" not in param_meta:
+                await self._apply_type_default(
+                    workspace, param_name, param_meta, resolved
+                )
 
         # Second pass: handle controlled-by relationships
         for param_name, param_meta in flow_params.items():
@@ -97,18 +71,10 @@ class FlowConfig:
                     # Inherit value from controlling parameter (already a string)
                     resolved[param_name] = resolved[controller]
                 else:
-                    # Controller has no value, try to get default from type definition
-                    param_type = param_meta.get("type")
-                    cache_key = (workspace, param_type) if param_type else None
-                    if cache_key and cache_key in self.param_type_cache:
-                        type_def = self.param_type_cache[cache_key]
-                        if "default" in type_def:
-                            default_value = type_def["default"]
-                            # Convert to string based on type
-                            if isinstance(default_value, bool):
-                                resolved[param_name] = "true" if default_value else "false"
-                            else:
-                                resolved[param_name] = str(default_value)
+                    # Controller has no value, fall back to the type default
+                    await self._apply_type_default(
+                        workspace, param_name, param_meta, resolved
+                    )
 
         # Include any extra parameters from user that weren't in flow blueprint definition
         # This allows for forward compatibility (ensure they're strings)
@@ -117,6 +83,45 @@ class FlowConfig:
                 resolved[key] = str(value)
 
         return resolved
+
+    async def _apply_type_default(
+        self, workspace, param_name, param_meta, resolved
+    ):
+        """Set a parameter to its type's default, if the type defines one."""
+
+        param_type = param_meta.get("type")
+        if not param_type:
+            return
+
+        cache_key = (workspace, param_type)
+        # Check cache first
+        if cache_key not in self.param_type_cache:
+            try:
+                # Fetch parameter type definition from config store
+                type_def = await self.config.get(
+                    workspace, "parameter-type", param_type
+                )
+                if type_def:
+                    self.param_type_cache[cache_key] = json.loads(type_def)
+                else:
+                    logger.warning(f"Parameter type '{param_type}' not found in config")
+                    self.param_type_cache[cache_key] = {}
+            except Exception as e:
+                logger.error(f"Error fetching parameter type '{param_type}': {e}")
+                self.param_type_cache[cache_key] = {}
+
+        # Apply default from type definition (as string)
+        type_def = self.param_type_cache[cache_key]
+        if "default" in type_def:
+            default_value = type_def["default"]
+            # Convert to string based on type
+            if isinstance(default_value, bool):
+                resolved[param_name] = "true" if default_value else "false"
+            else:
+                resolved[param_name] = str(default_value)
+        elif type_def.get("required", False):
+            # Required parameter with no default and no user value
+            raise RuntimeError(f"Required parameter '{param_name}' not provided and has no default")
 
     async def handle_list_blueprints(self, msg, workspace):
 
