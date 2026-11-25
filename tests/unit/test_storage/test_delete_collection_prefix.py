@@ -10,10 +10,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from trustgraph.storage.doc_embeddings.qdrant.write import Processor as DocQdrant
 from trustgraph.storage.graph_embeddings.qdrant.write import Processor as GraphQdrant
-from trustgraph.storage.doc_embeddings.pinecone.write import Processor as DocPinecone
-from trustgraph.storage.graph_embeddings.pinecone.write import Processor as GraphPinecone
 from trustgraph.direct.milvus_doc_embeddings import DocVectors
 from trustgraph.direct.milvus_graph_embeddings import EntityVectors
+
+try:
+    from trustgraph.storage.doc_embeddings.pinecone.write import Processor as DocPinecone
+    from trustgraph.storage.graph_embeddings.pinecone.write import Processor as GraphPinecone
+    HAS_PINECONE = True
+except (ImportError, ModuleNotFoundError):
+    DocPinecone = GraphPinecone = None
+    HAS_PINECONE = False
 
 
 @pytest.mark.asyncio
@@ -40,6 +46,7 @@ async def test_qdrant_delete_collection_keeps_longer_names(cls, mod, letter):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not HAS_PINECONE, reason="Pinecone SDK not compatible")
 @pytest.mark.parametrize("cls,mod,letter", [
     (DocPinecone, "trustgraph.storage.doc_embeddings.pinecone.write", "d"),
     (GraphPinecone, "trustgraph.storage.graph_embeddings.pinecone.write", "t"),
