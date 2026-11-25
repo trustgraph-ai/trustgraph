@@ -549,8 +549,8 @@ class TestTermTypeMetadata:
         assert results[0].dtype == 'xsd:string'
         assert results[0].lang == 'en'
 
-    def test_auto_detect_otype_uri(self, entity_kg):
-        """Auto-detect should classify http:// as URI."""
+    def test_insert_with_explicit_otype_uri(self, entity_kg):
+        """Explicit otype='u' is stored in entity rows."""
         kg, ctx = entity_kg
         ctx["batches"].clear()
 
@@ -562,16 +562,16 @@ class TestTermTypeMetadata:
             g=None,
             version=1,
             is_deleted=False,
+            otype='u',
         )
 
         batch = ctx["batches"][0]
-        # Check otype in entity rows (position 4)
         for _, params in batch._adds:
             if len(params) == 12:
                 assert params[4] == 'u'
 
-    def test_auto_detect_otype_literal(self, entity_kg):
-        """Auto-detect should classify non-http:// as literal."""
+    def test_insert_with_explicit_otype_literal(self, entity_kg):
+        """Explicit otype='l' is stored in entity rows."""
         kg, ctx = entity_kg
         ctx["batches"].clear()
 
@@ -583,6 +583,7 @@ class TestTermTypeMetadata:
             g=None,
             version=1,
             is_deleted=False,
+            otype='l',
         )
 
         batch = ctx["batches"][0]

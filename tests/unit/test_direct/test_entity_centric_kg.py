@@ -142,13 +142,13 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_session.execute.assert_called()
 
-    def test_insert_auto_detects_otype(self, entity_kg):
-        """Test that otype is auto-detected when not provided"""
+    def test_insert_requires_otype(self, entity_kg):
+        """Test that otype is required (no auto-detection)"""
         kg, mock_session = entity_kg
 
         mock_session.reset_mock()
 
-        # URI should be auto-detected
+        # otype is a required positional argument
         kg.insert(
             collection='test_collection',
             s='http://example.org/Alice',
@@ -157,12 +157,13 @@ class TestEntityCentricKnowledgeGraph:
             g=None,
             version=1,
             is_deleted=False,
+            otype='u',
         )
         mock_session.execute.assert_called()
 
         mock_session.reset_mock()
 
-        # Literal should be auto-detected
+        # Literal with explicit otype
         kg.insert(
             collection='test_collection',
             s='http://example.org/Alice',
@@ -171,6 +172,7 @@ class TestEntityCentricKnowledgeGraph:
             g=None,
             version=1,
             is_deleted=False,
+            otype='l',
         )
         mock_session.execute.assert_called()
 
@@ -610,22 +612,29 @@ class TestServiceHelperFunctions:
         assert term.triple.s.type == IRI
         assert term.triple.s.iri == "http://example.org/Alice"
 
-    def test_create_term_heuristic_fallback_uri(self):
-        """Test create_term uses URL heuristic when otype not provided"""
+    def test_create_term_requires_term_type(self):
+        """Test create_term raises when term_type is not provided"""
+        from trustgraph.query.triples.cassandra.service import create_term
+
+        with pytest.raises(ValueError, match="term_type is required"):
+            create_term('http://example.org/Alice', term_type=None)
+
+    def test_create_term_explicit_uri(self):
+        """Test create_term with explicit URI type"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import IRI
 
-        term = create_term('http://example.org/Alice')
+        term = create_term('http://example.org/Alice', term_type='u')
 
         assert term.type == IRI
         assert term.iri == 'http://example.org/Alice'
 
-    def test_create_term_heuristic_fallback_literal(self):
-        """Test create_term uses literal heuristic when otype not provided"""
+    def test_create_term_explicit_literal(self):
+        """Test create_term with explicit literal type"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import LITERAL
 
-        term = create_term('Alice Smith')
+        term = create_term('Alice Smith', term_type='l')
 
         assert term.type == LITERAL
         assert term.value == 'Alice Smith'

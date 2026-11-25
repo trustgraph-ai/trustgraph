@@ -23,53 +23,53 @@ class TestCassandraQueryProcessor:
             cassandra_host='localhost'
         )
 
-    def test_create_term_with_http_uri(self, processor):
-        """Test create_term with HTTP URI"""
-        result = create_term("http://example.com/resource")
+    def test_create_term_with_uri_type(self, processor):
+        """Test create_term with explicit URI type"""
+        result = create_term("http://example.com/resource", term_type='u')
 
         assert isinstance(result, Term)
         assert result.iri == "http://example.com/resource"
         assert result.type == IRI
 
-    def test_create_term_with_https_uri(self, processor):
-        """Test create_term with HTTPS URI"""
-        result = create_term("https://example.com/resource")
+    def test_create_term_with_urn_uri_type(self, processor):
+        """Test create_term with URN as URI type"""
+        result = create_term("urn:graph:cat", term_type='u')
 
         assert isinstance(result, Term)
-        assert result.iri == "https://example.com/resource"
+        assert result.iri == "urn:graph:cat"
         assert result.type == IRI
 
-    def test_create_term_with_literal(self, processor):
-        """Test create_term with literal value"""
-        result = create_term("just a literal string")
+    def test_create_term_with_literal_type(self, processor):
+        """Test create_term with explicit literal type"""
+        result = create_term("just a literal string", term_type='l')
 
         assert isinstance(result, Term)
         assert result.value == "just a literal string"
         assert result.type == LITERAL
 
-    def test_create_term_with_empty_string(self, processor):
-        """Test create_term with empty string"""
-        result = create_term("")
+    def test_create_term_with_literal_datatype(self, processor):
+        """Test create_term with literal datatype"""
+        result = create_term("42", term_type='l',
+                             datatype="http://www.w3.org/2001/XMLSchema#integer")
 
         assert isinstance(result, Term)
-        assert result.value == ""
+        assert result.value == "42"
         assert result.type == LITERAL
+        assert result.datatype == "http://www.w3.org/2001/XMLSchema#integer"
 
-    def test_create_term_with_partial_uri(self, processor):
-        """Test create_term with string that looks like URI but isn't complete"""
-        result = create_term("http")
+    def test_create_term_with_literal_language(self, processor):
+        """Test create_term with literal language tag"""
+        result = create_term("chat", term_type='l', language="fr")
 
         assert isinstance(result, Term)
-        assert result.value == "http"
+        assert result.value == "chat"
         assert result.type == LITERAL
+        assert result.language == "fr"
 
-    def test_create_term_with_ftp_uri(self, processor):
-        """Test create_term with FTP URI (should not be detected as URI)"""
-        result = create_term("ftp://example.com/file")
-
-        assert isinstance(result, Term)
-        assert result.value == "ftp://example.com/file"
-        assert result.type == LITERAL
+    def test_create_term_requires_term_type(self, processor):
+        """Test create_term raises when term_type is missing"""
+        with pytest.raises(ValueError, match="term_type is required"):
+            create_term("http://example.com/resource", term_type=None)
 
     @pytest.mark.asyncio
     @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
@@ -83,9 +83,9 @@ class TestCassandraQueryProcessor:
         # SPO query returns a list of results (with mock graph attribute)
         mock_result = MagicMock()
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_result.o = 'test_object'
         mock_tg_instance.async_get_spo = AsyncMock(return_value=[mock_result])
 
@@ -114,7 +114,7 @@ class TestCassandraQueryProcessor:
 
         # Verify async_get_spo was called with correct parameters
         mock_tg_instance.async_get_spo.assert_called_once_with(
-            'test_collection', 'test_subject', 'test_predicate', 'test_object', g=None, limit=100
+            'test_collection', 'test_subject', 'test_predicate', 'test_object', g=None, version=None, limit=100
         )
 
         # Verify result contains the queried triple
@@ -165,9 +165,9 @@ class TestCassandraQueryProcessor:
         mock_result = MagicMock()
         mock_result.o = 'result_object'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_sp = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -182,7 +182,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.async_get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', g=None, limit=50)
+        mock_tg_instance.async_get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', g=None, version=None, limit=50)
         assert len(result) == 1
         assert result[0].s.iri == 'test_subject'
         assert result[0].p.iri == 'test_predicate'
@@ -201,9 +201,9 @@ class TestCassandraQueryProcessor:
         mock_result.p = 'result_predicate'
         mock_result.o = 'result_object'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_s = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -218,7 +218,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.async_get_s.assert_called_once_with('test_collection', 'test_subject', g=None, limit=25)
+        mock_tg_instance.async_get_s.assert_called_once_with('test_collection', 'test_subject', g=None, version=None, limit=25)
         assert len(result) == 1
         assert result[0].s.iri == 'test_subject'
         assert result[0].p.iri == 'result_predicate'
@@ -237,9 +237,9 @@ class TestCassandraQueryProcessor:
         mock_result.s = 'result_subject'
         mock_result.o = 'result_object'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_p = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -254,7 +254,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.async_get_p.assert_called_once_with('test_collection', 'test_predicate', g=None, limit=10)
+        mock_tg_instance.async_get_p.assert_called_once_with('test_collection', 'test_predicate', g=None, version=None, limit=10)
         assert len(result) == 1
         assert result[0].s.iri == 'result_subject'
         assert result[0].p.iri == 'test_predicate'
@@ -273,9 +273,9 @@ class TestCassandraQueryProcessor:
         mock_result.s = 'result_subject'
         mock_result.p = 'result_predicate'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_o = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -290,7 +290,7 @@ class TestCassandraQueryProcessor:
 
         result = await processor.query_triples('test_user', query)
 
-        mock_tg_instance.async_get_o.assert_called_once_with('test_collection', 'test_object', g=None, limit=75)
+        mock_tg_instance.async_get_o.assert_called_once_with('test_collection', 'test_object', g=None, version=None, limit=75)
         assert len(result) == 1
         assert result[0].s.iri == 'result_subject'
         assert result[0].p.iri == 'result_predicate'
@@ -310,9 +310,9 @@ class TestCassandraQueryProcessor:
         mock_result.p = 'all_predicate'
         mock_result.o = 'all_object'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_all = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -412,9 +412,9 @@ class TestCassandraQueryProcessor:
         # SPO query returns a list of results
         mock_result = MagicMock()
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_result.o = 'test_object'
         mock_tg_instance.async_get_spo = AsyncMock(return_value=[mock_result])
 
@@ -453,9 +453,9 @@ class TestCassandraQueryProcessor:
         # SPO query returns a list of results
         mock_result = MagicMock()
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_result.o = 'test_object'
         mock_tg_instance.async_get_spo = AsyncMock(return_value=[mock_result])
 
@@ -490,9 +490,9 @@ class TestCassandraQueryProcessor:
         # Setup mock results for both instances
         mock_result = MagicMock()
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_result.p = 'p'
         mock_result.o = 'o'
         mock_tg_instance1.async_get_s = AsyncMock(return_value=[mock_result])
@@ -563,15 +563,15 @@ class TestCassandraQueryProcessor:
         mock_result1 = MagicMock()
         mock_result1.o = 'object1'
         mock_result1.g = ''
-        mock_result1.otype = None
-        mock_result1.dtype = None
-        mock_result1.lang = None
+        mock_result1.otype = 'l'
+        mock_result1.dtype = ''
+        mock_result1.lang = ''
         mock_result2 = MagicMock()
         mock_result2.o = 'object2'
         mock_result2.g = ''
-        mock_result2.otype = None
-        mock_result2.dtype = None
-        mock_result2.lang = None
+        mock_result2.otype = 'l'
+        mock_result2.dtype = ''
+        mock_result2.lang = ''
         mock_tg_instance.async_get_sp = AsyncMock(return_value=[mock_result1, mock_result2])
 
         processor = Processor(taskgroup=MagicMock())
@@ -606,9 +606,9 @@ class TestCassandraQueryPerformanceOptimizations:
         mock_result = MagicMock()
         mock_result.s = 'result_subject'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_po = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -626,7 +626,7 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # Verify async_get_po was called (should use optimized po_table)
         mock_tg_instance.async_get_po.assert_called_once_with(
-            'test_collection', 'test_predicate', 'test_object', g=None, limit=50
+            'test_collection', 'test_predicate', 'test_object', g=None, version=None, limit=50
         )
 
         assert len(result) == 1
@@ -646,9 +646,9 @@ class TestCassandraQueryPerformanceOptimizations:
         mock_result = MagicMock()
         mock_result.p = 'result_predicate'
         mock_result.g = ''
-        mock_result.otype = None
-        mock_result.dtype = None
-        mock_result.lang = None
+        mock_result.otype = 'l'
+        mock_result.dtype = ''
+        mock_result.lang = ''
         mock_tg_instance.async_get_os = AsyncMock(return_value=[mock_result])
 
         processor = Processor(taskgroup=MagicMock())
@@ -666,7 +666,7 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # Verify async_get_os was called (should use optimized subject_table with clustering)
         mock_tg_instance.async_get_os.assert_called_once_with(
-            'test_collection', 'test_object', 'test_subject', g=None, limit=25
+            'test_collection', 'test_object', 'test_subject', g=None, version=None, limit=25
         )
 
         assert len(result) == 1
@@ -760,9 +760,9 @@ class TestCassandraQueryPerformanceOptimizations:
             mock_result = MagicMock()
             mock_result.s = f'subject_{i}'
             mock_result.g = ''
-            mock_result.otype = None
-            mock_result.dtype = None
-            mock_result.lang = None
+            mock_result.otype = 'u'
+            mock_result.dtype = ''
+            mock_result.lang = ''
             mock_results.append(mock_result)
 
         mock_tg_instance.async_get_po = AsyncMock(return_value=mock_results)
@@ -786,6 +786,7 @@ class TestCassandraQueryPerformanceOptimizations:
             'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
             'http://example.com/Person',
             g=None,
+            version=None,
             limit=1000
         )
 
