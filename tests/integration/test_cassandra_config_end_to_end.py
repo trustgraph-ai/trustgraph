@@ -208,6 +208,8 @@ class TestConfigurationPriorityEndToEnd:
             mock_query.o = None
             mock_query.g = None
             mock_query.limit = 100
+            mock_query.version = ""
+            mock_query.named_graph = ""
 
             await processor.query_triples('default_user', mock_query)
 
