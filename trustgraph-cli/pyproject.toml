@@ -15,6 +15,7 @@ dependencies = [
     "pulsar-client",
     "aiohttp",
     "rdflib",
+    "ohi-sdk>=0.18.7,<0.19",
     "tabulate",
     "msgpack",
     "websockets",
