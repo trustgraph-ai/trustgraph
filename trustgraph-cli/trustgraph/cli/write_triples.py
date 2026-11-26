@@ -12,6 +12,7 @@ Examples:
 import argparse
 import json
 import os
+import re
 import sys
 from trustgraph.api import Api
 from . query_graph import build_term
@@ -20,6 +21,30 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8888/')
 default_collection = 'default'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_workspace = os.getenv("TRUSTGRAPH_WORKSPACE", "default")
+
+
+# N-Triples string escapes (ECHAR and UCHAR), the reverse of the escaping in
+# nquads.py.
+_UNESCAPE = re.compile(r"\\(?:u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|(.))", re.DOTALL)
+_ECHARS = {
+    "t": "\t", "b": "\b", "n": "\n", "r": "\r", "f": "\f",
+    '"': '"', "'": "'", "\\": "\\",
+}
+
+
+def unescape_ntriples(value):
+    """Decode the backslash escapes of an N-Triples string literal."""
+
+    def repl(m):
+        code = m.group(1) or m.group(2)
+        if code:
+            try:
+                return chr(int(code, 16))
+            except (ValueError, OverflowError):
+                return m.group(0)
+        return _ECHARS.get(m.group(3), m.group(0))
+
+    return _UNESCAPE.sub(repl, value)
 
 
 def parse_ntriples_line(line):
@@ -45,7 +70,7 @@ def parse_ntriples_line(line):
     while i < len(line) and len(parts) < 3:
         if line[i] == '<':
             end = line.index('>', i)
-            parts.append(build_term(line[i+1:end]))
+            parts.append(build_term(line[i+1:end], term_type='iri'))
             i = end + 1
         elif line[i] == '"':
             end = i + 1
@@ -53,7 +78,7 @@ def parse_ntriples_line(line):
                 if line[end] == '\\':
                     end += 1
                 end += 1
-            value = line[i+1:end]
+            value = unescape_ntriples(line[i+1:end])
             end += 1
             language = None
             datatype = None
