@@ -91,7 +91,7 @@ class TestCassandraStorageProcessor:
         assert processor.cassandra_username == 'new-user'  # Only cassandra_* params work
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_table_switching_with_auth(self, mock_kg_class):
         """Test table switching logic when authentication is provided"""
         taskgroup_mock = MagicMock()
@@ -122,7 +122,7 @@ class TestCassandraStorageProcessor:
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_table_switching_without_auth(self, mock_kg_class):
         """Test table switching logic when no authentication is provided"""
         taskgroup_mock = MagicMock()
@@ -147,7 +147,7 @@ class TestCassandraStorageProcessor:
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_table_reuse_when_same(self, mock_kg_class):
         """Test that TrustGraph is not recreated when table hasn't changed"""
         taskgroup_mock = MagicMock()
@@ -172,7 +172,7 @@ class TestCassandraStorageProcessor:
         assert mock_kg_class.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_triple_insertion(self, mock_kg_class):
         """Test that triples are properly inserted into Cassandra"""
         taskgroup_mock = MagicMock()
@@ -231,7 +231,7 @@ class TestCassandraStorageProcessor:
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_triple_insertion_with_empty_list(self, mock_kg_class):
         """Test behavior when message has no triples"""
         taskgroup_mock = MagicMock()
@@ -253,7 +253,7 @@ class TestCassandraStorageProcessor:
         mock_tg_instance.async_insert.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_exception_handling_on_connection_failure(self, mock_kg_class):
         """Test exception handling during TrustGraph creation"""
         taskgroup_mock = MagicMock()
@@ -352,7 +352,7 @@ class TestCassandraStorageProcessor:
         mock_launch.assert_called_once_with(default_ident, '\nGraph writer.  Input is graph edge.  Writes edges to Cassandra graph.\n')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_store_triples_table_switching_between_different_tables(self, mock_kg_class):
         """Test table switching when different tables are used in sequence"""
         taskgroup_mock = MagicMock()
@@ -382,7 +382,7 @@ class TestCassandraStorageProcessor:
         mock_kg_class.assert_any_call(hosts=['cassandra'], keyspace='user2')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_store_triples_with_special_characters_in_values(self, mock_kg_class):
         """Test storing triples with special characters and unicode"""
         taskgroup_mock = MagicMock()
@@ -428,7 +428,7 @@ class TestCassandraStorageProcessor:
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_connection_failure_does_not_cache_stale_state(self, mock_kg_class):
         """Test that a failed connection doesn't leave stale cached state"""
         taskgroup_mock = MagicMock()
@@ -458,7 +458,7 @@ class TestCassandraPerformanceOptimizations:
     """Test cases for multi-table performance optimizations"""
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_legacy_mode_uses_single_table(self, mock_kg_class):
         """Test that legacy mode still works with single table"""
         taskgroup_mock = MagicMock()
@@ -480,7 +480,7 @@ class TestCassandraPerformanceOptimizations:
             assert mock_tg_instance is not None
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_optimized_mode_uses_multi_table(self, mock_kg_class):
         """Test that optimized mode uses multi-table schema"""
         taskgroup_mock = MagicMock()
@@ -502,7 +502,7 @@ class TestCassandraPerformanceOptimizations:
             assert mock_tg_instance is not None
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricEntityCentricKnowledgeGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.EntityCentricKnowledgeGraph')
     async def test_batch_write_consistency(self, mock_kg_class):
         """Test that all tables stay consistent during batch writes"""
         taskgroup_mock = MagicMock()
