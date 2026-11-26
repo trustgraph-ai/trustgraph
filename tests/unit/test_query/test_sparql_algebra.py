@@ -727,8 +727,8 @@ class TestGraphClause:
         assert solutions[0]["budget"].value == "50000"
 
     @pytest.mark.asyncio
-    async def test_graph_variable_falls_through(self):
-        """GRAPH ?g should warn and evaluate without graph filtering."""
+    async def test_graph_variable_enumerates_and_binds(self):
+        """GRAPH ?g should enumerate named graphs and bind ?g in solutions."""
         queries_issued = []
 
         async def mock_query(**kwargs):
@@ -737,6 +737,11 @@ class TestGraphClause:
 
         tc = make_tc(query_side_effect=mock_query)
 
+        async def mock_version_map(collection, timeout=30):
+            return {"urn:graph:a": 1, "urn:graph:b": 2}
+
+        tc.version_map = mock_version_map
+
         bgp = make_bgp(
             (Variable("s"), Variable("p"), Variable("o")),
         )
@@ -744,8 +749,15 @@ class TestGraphClause:
 
         solutions = await materialise(tree, tc, collection="default")
 
-        assert len(solutions) == 1
-        assert queries_issued[0].get("g") is None
+        assert len(solutions) == 3
+        bound_graphs = sorted(
+            sol["g"].iri if sol["g"].type == IRI else sol["g"].value
+            for sol in solutions
+        )
+        assert bound_graphs == ["", "urn:graph:a", "urn:graph:b"]
+
+        issued_graphs = sorted(q.get("g") for q in queries_issued)
+        assert issued_graphs == ["", "urn:graph:a", "urn:graph:b"]
 
     @pytest.mark.asyncio
     async def test_graph_does_not_leak_to_outer_patterns(self):
