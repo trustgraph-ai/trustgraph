@@ -44,7 +44,7 @@ class TestEndToEndConfigurationFlow:
             mock_message.triples = []
 
             # Mock collection_exists to return True
-            with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+            with patch('trustgraph.direct.cassandra_kg.EntityCentricKnowledgeGraph.collection_exists', return_value=True):
                 # This should create TrustGraph with environment config
                 await processor.store_triples('test_user', mock_message)
             
@@ -148,7 +148,7 @@ class TestConfigurationPriorityEndToEnd:
             mock_message.triples = []
 
             # Mock collection_exists to return True
-            with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+            with patch('trustgraph.direct.cassandra_kg.EntityCentricKnowledgeGraph.collection_exists', return_value=True):
                 await processor.store_triples('test_user', mock_message)
             
             # Should use CLI parameters, not environment
@@ -246,7 +246,7 @@ class TestNoBackwardCompatibilityEndToEnd:
         mock_message.triples = []
 
         # Mock collection_exists to return True
-        with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+        with patch('trustgraph.direct.cassandra_kg.EntityCentricKnowledgeGraph.collection_exists', return_value=True):
             await processor.store_triples('legacy_user', mock_message)
         
         # Should use defaults since old parameters are not recognized
@@ -304,7 +304,7 @@ class TestNoBackwardCompatibilityEndToEnd:
         mock_message.triples = []
 
         # Mock collection_exists to return True
-        with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+        with patch('trustgraph.direct.cassandra_kg.EntityCentricKnowledgeGraph.collection_exists', return_value=True):
             await processor.store_triples('precedence_user', mock_message)
         
         # Should use new parameters, not old ones
@@ -355,7 +355,7 @@ class TestMultipleHostsHandling:
         mock_message.triples = []
 
         # Mock collection_exists to return True
-        with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+        with patch('trustgraph.direct.cassandra_kg.EntityCentricKnowledgeGraph.collection_exists', return_value=True):
             await processor.store_triples('single_user', mock_message)
         
         # Single host should be converted to list
