@@ -282,6 +282,24 @@ class EntityCentricKnowledgeGraph:
             "WHERE collection = ? AND entity = ? AND role = 'S'"
         )
 
+        self.delete_collection_version_stmt = self.session.prepare(
+            f"DELETE FROM {self.collection_table} "
+            "WHERE collection = ? AND g = ? AND s = ? AND p = ? AND o = ? "
+            "AND otype = ? AND dtype = ? AND lang = ? AND version = ?"
+        )
+
+        self.delete_entity_version_stmt = self.session.prepare(
+            f"DELETE FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = ? "
+            "AND p = ? AND otype = ? AND s = ? AND o = ? AND g = ? "
+            "AND dtype = ? AND lang = ? AND version = ?"
+        )
+
+        self.delete_version_log_stmt = self.session.prepare(
+            f"DELETE FROM {self.graph_version_log_table} "
+            "WHERE collection = ? AND named_graph = ? AND version = ?"
+        )
+
         logger.info("Prepared statements initialized")
 
     def insert(self, collection, s, p, o, g, version, is_deleted,
@@ -1124,6 +1142,106 @@ class EntityCentricKnowledgeGraph:
             )
 
         return new_version
+
+    # ========================================================================
+    # Purge — drop version history before a cutoff
+    # ========================================================================
+
+    async def async_purge_graph(self, collection, named_graph, before_version):
+        """
+        Remove version history before ``before_version`` for a named graph.
+
+        For each unique quad, the latest entry with version < before_version
+        is kept (it establishes the state at the cutoff), older entries are
+        deleted.  Dead-end delete markers (no entries >= before_version) are
+        removed entirely.  Version log entries before the cutoff are also
+        deleted.
+        """
+        cql = (
+            f"SELECT g, s, p, o, otype, dtype, lang, version, is_deleted "
+            f"FROM {self.collection_table} "
+            "WHERE collection = %s AND g = %s"
+        )
+        stmt = SimpleStatement(cql, fetch_size=5000)
+
+        rows = await async_scan(
+            self.session, stmt, (collection, named_graph),
+        )
+
+        quads = {}
+        for row in rows:
+            key = (row.g, row.s, row.p, row.o, row.otype, row.dtype, row.lang)
+            quads.setdefault(key, []).append(
+                (row.version, row.is_deleted)
+            )
+
+        to_delete = []
+
+        for key, entries in quads.items():
+            entries.sort(key=lambda e: e[0], reverse=True)
+
+            has_post_cutoff = any(v >= before_version for v, _ in entries)
+            pre_cutoff = [(v, d) for v, d in entries if v < before_version]
+
+            if not pre_cutoff:
+                continue
+
+            keep_version = pre_cutoff[0][0]
+            keep_is_deleted = pre_cutoff[0][1]
+
+            if keep_is_deleted and not has_post_cutoff:
+                for v, _ in pre_cutoff:
+                    to_delete.append((key, v))
+            else:
+                for v, _ in pre_cutoff[1:]:
+                    to_delete.append((key, v))
+
+        batch = BatchStatement()
+        count = 0
+
+        for (g, s, p, o, otype, dtype, lang), version in to_delete:
+            batch.add(self.delete_collection_version_stmt,
+                      (collection, g, s, p, o, otype, dtype, lang, version))
+
+            for entity, role in [(s, 'S'), (p, 'P'), (o, 'O')]:
+                batch.add(self.delete_entity_version_stmt,
+                          (collection, entity, role,
+                           p, otype, s, o, g, dtype, lang, version))
+
+            if g != DEFAULT_GRAPH:
+                batch.add(self.delete_entity_version_stmt,
+                          (collection, g, 'G',
+                           p, otype, s, o, g, dtype, lang, version))
+
+            count += 1
+            if count % 10 == 0:
+                await async_execute(self.session, batch)
+                batch = BatchStatement()
+
+        if count % 10 != 0:
+            await async_execute(self.session, batch)
+
+        log = await self.async_get_version_log(collection, named_graph)
+        log_batch = BatchStatement()
+        log_count = 0
+        for entry in log:
+            if entry["version"] < before_version:
+                log_batch.add(self.delete_version_log_stmt,
+                              (collection, named_graph, entry["version"]))
+                log_count += 1
+                if log_count % 50 == 0:
+                    await async_execute(self.session, log_batch)
+                    log_batch = BatchStatement()
+        if log_count % 50 != 0:
+            await async_execute(self.session, log_batch)
+
+        logger.info(
+            f"Purged {collection}/{named_graph}: "
+            f"{count} quad versions, {log_count} log entries removed "
+            f"(before v{before_version})"
+        )
+
+        return count
 
     def close(self):
         if hasattr(self, 'session') and self.session:

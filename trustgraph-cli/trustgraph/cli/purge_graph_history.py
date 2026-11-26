@@ -2,11 +2,9 @@
 Purge version history older than a cutoff version.
 
 Collapses history before the specified version: for each quad, only the
-latest row before the cutoff is kept. This reclaims storage from
-accumulated version rows.
-
-NOT YET IMPLEMENTED — the backend will return an error. This CLI is
-provided so the interface is ready when the backend is added.
+latest row before the cutoff is kept (preserving current state). Dead-end
+delete markers with no future entries are removed entirely. Version log
+entries before the cutoff are also deleted.
 
 Examples:
   tg-purge-graph-history -g urn:graph:source --before-version 10

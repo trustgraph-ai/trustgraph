@@ -619,6 +619,33 @@ class Processor(TriplesQueryService):
 
         return TriplesQueryResponse(version=new_version)
 
+    async def handle_purge(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.version:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="purge-error",
+                    message="version is required for purge",
+                ),
+            )
+
+        version = await self._resolve_version(
+            tg, request.collection, named_graph, request.version
+        )
+
+        removed = await tg.async_purge_graph(
+            request.collection, named_graph, version
+        )
+
+        logger.info(
+            f"Purged {request.collection}/{named_graph} "
+            f"before v{version}: {removed} quad versions removed"
+        )
+
+        return TriplesQueryResponse()
+
     async def handle_delete(self, workspace, request):
         tg = await self._get_connection(workspace)
 
