@@ -329,6 +329,21 @@ class TriplesClient:
 
         return resp.version
 
+    async def purge(self, collection, named_graph, version, timeout=120):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="purge",
+                collection=collection,
+                named_graph=named_graph,
+                version=str(version),
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
     async def delete_triples(self, collection, named_graph, triples,
                              timeout=60):
         from .. schema import Triple as SchemaTriple
