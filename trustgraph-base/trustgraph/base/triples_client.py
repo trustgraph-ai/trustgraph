@@ -211,13 +211,15 @@ class TriplesClient:
         if not batch_callback:
             return all_triples
 
-    async def version_bump(self, collection, named_graph, timeout=30):
+    async def version_bump(self, collection, named_graph, description="",
+                           timeout=30):
 
         resp = await self.request(
             TriplesQueryRequest(
                 operation="version-bump",
                 collection=collection,
                 named_graph=named_graph,
+                description=description,
             ),
             timeout=timeout,
         )
@@ -268,6 +270,23 @@ class TriplesClient:
                 named_graph=named_graph,
                 version=version,
                 name=name,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+    async def version_describe(self, collection, named_graph, version,
+                               description, timeout=30):
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="version-describe",
+                collection=collection,
+                named_graph=named_graph,
+                version=version,
+                description=description,
             ),
             timeout=timeout,
         )

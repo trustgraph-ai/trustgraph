@@ -52,6 +52,7 @@ class TriplesQueryRequest:
     named_graph: str = ""    # For version operations
     version: str = ""        # For version-label, revert, point-in-time queries
     name: str = ""           # For version-label (symbolic name)
+    description: str = ""    # For version-describe, version-bump
     v1: int = 0              # For diff (first version)
     v2: int = 0              # For diff (second version)
     triples: list[Triple] = field(default_factory=list)  # For delete (explicit)

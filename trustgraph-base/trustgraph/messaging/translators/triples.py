@@ -33,6 +33,7 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             named_graph=data.get("named-graph", ""),
             version=str(data.get("version", "")),
             name=data.get("name", ""),
+            description=data.get("description", ""),
             v1=int(data.get("v1", 0)),
             v2=int(data.get("v2", 0)),
             triples=self.subgraph_translator.decode(triples_data) if triples_data else [],
@@ -63,6 +64,8 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             result["version"] = obj.version
         if obj.name:
             result["name"] = obj.name
+        if obj.description:
+            result["description"] = obj.description
         if obj.v1 is not None:
             result["v1"] = obj.v1
         if obj.v2 is not None:

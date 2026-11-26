@@ -95,6 +95,11 @@ class TriplesQueryService(FlowProcessor):
                 await flow("response").send(r, properties={"id": id})
                 return
 
+            if operation == "version-describe":
+                r = await self.handle_version_describe(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
             if operation == "diff":
                 r = await self.handle_diff(workspace, request)
                 await flow("response").send(r, properties={"id": id})
@@ -183,6 +188,9 @@ class TriplesQueryService(FlowProcessor):
 
     async def handle_version_label(self, workspace, request):
         raise NotImplementedError("version-label not supported by this backend")
+
+    async def handle_version_describe(self, workspace, request):
+        raise NotImplementedError("version-describe not supported by this backend")
 
     async def handle_diff(self, workspace, request):
         raise NotImplementedError("diff not supported by this backend")

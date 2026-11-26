@@ -64,6 +64,12 @@ def main():
         help='Named graph IRI (default: empty = default graph)',
     )
 
+    parser.add_argument(
+        '-d', '--description',
+        default='',
+        help='Description for this version',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -71,10 +77,16 @@ def main():
         flow = socket.flow(args.flow_id)
 
         try:
+            kwargs = {
+                "named-graph": args.named_graph,
+            }
+            if args.description:
+                kwargs["description"] = args.description
+
             result = flow.triples_query(
                 operation="version-bump",
                 collection=args.collection,
-                **{"named-graph": args.named_graph},
+                **kwargs,
             )
         finally:
             socket.close()
