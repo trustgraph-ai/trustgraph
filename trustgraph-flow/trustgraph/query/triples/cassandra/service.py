@@ -453,7 +453,8 @@ class Processor(TriplesQueryService):
 
         named_graph = request.named_graph
         new_version = await tg.async_bump_graph_version(
-            request.collection, named_graph
+            request.collection, named_graph,
+            description=request.description,
         )
 
         logger.info(
@@ -521,6 +522,33 @@ class Processor(TriplesQueryService):
         logger.info(
             f"Labelled {request.collection}/{named_graph} "
             f"v{request.version} as '{request.name}'"
+        )
+
+        return TriplesQueryResponse()
+
+    async def handle_version_describe(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.version:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="version-describe-error",
+                    message="version is required for version-describe",
+                ),
+            )
+
+        version = await self._resolve_version(
+            tg, request.collection, named_graph, request.version
+        )
+
+        await tg.async_describe_version(
+            request.collection, named_graph, version, request.description
+        )
+
+        logger.info(
+            f"Described {request.collection}/{named_graph} "
+            f"v{version}: '{request.description}'"
         )
 
         return TriplesQueryResponse()

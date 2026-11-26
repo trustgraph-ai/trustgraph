@@ -763,7 +763,8 @@ class EntityCentricKnowledgeGraph:
 
         self.insert_version_log_stmt = self.session.prepare(
             f"INSERT INTO {self.graph_version_log_table} "
-            "(collection, named_graph, version, created_at) VALUES (?, ?, ?, ?)"
+            "(collection, named_graph, version, created_at, description) "
+            "VALUES (?, ?, ?, ?, ?)"
         )
 
         self.get_version_log_stmt = self.session.prepare(
@@ -775,6 +776,12 @@ class EntityCentricKnowledgeGraph:
         self.add_version_label_stmt = self.session.prepare(
             f"UPDATE {self.graph_version_log_table} "
             "SET names = names + ? "
+            "WHERE collection = ? AND named_graph = ? AND version = ?"
+        )
+
+        self.set_version_description_stmt = self.session.prepare(
+            f"UPDATE {self.graph_version_log_table} "
+            "SET description = ? "
             "WHERE collection = ? AND named_graph = ? AND version = ?"
         )
 
@@ -1402,14 +1409,14 @@ class EntityCentricKnowledgeGraph:
         )
         self.session.execute(
             self.insert_version_log_stmt,
-            (collection, named_graph, 1, datetime.datetime.now())
+            (collection, named_graph, 1, datetime.datetime.now(), "")
         )
         logger.info(
             f"Bootstrapped version for {collection}/{named_graph} at v1"
         )
         return 1
 
-    def bump_graph_version(self, collection, named_graph):
+    def bump_graph_version(self, collection, named_graph, description=""):
         current = self.bootstrap_graph_version(collection, named_graph)
         new_version = current + 1
 
@@ -1418,7 +1425,8 @@ class EntityCentricKnowledgeGraph:
         )
         self.session.execute(
             self.insert_version_log_stmt,
-            (collection, named_graph, new_version, datetime.datetime.now())
+            (collection, named_graph, new_version, datetime.datetime.now(),
+             description)
         )
         logger.info(
             f"Bumped version for {collection}/{named_graph}: "
@@ -1464,14 +1472,15 @@ class EntityCentricKnowledgeGraph:
         )
         await async_execute(
             self.session, self.insert_version_log_stmt,
-            (collection, named_graph, 1, datetime.datetime.now())
+            (collection, named_graph, 1, datetime.datetime.now(), "")
         )
         logger.info(
             f"Bootstrapped version for {collection}/{named_graph} at v1"
         )
         return 1
 
-    async def async_bump_graph_version(self, collection, named_graph):
+    async def async_bump_graph_version(self, collection, named_graph,
+                                       description=""):
         current = await self.async_bootstrap_graph_version(
             collection, named_graph
         )
@@ -1483,7 +1492,8 @@ class EntityCentricKnowledgeGraph:
         )
         await async_execute(
             self.session, self.insert_version_log_stmt,
-            (collection, named_graph, new_version, datetime.datetime.now())
+            (collection, named_graph, new_version, datetime.datetime.now(),
+             description)
         )
         logger.info(
             f"Bumped version for {collection}/{named_graph}: "
@@ -1520,6 +1530,19 @@ class EntityCentricKnowledgeGraph:
         await async_execute(
             self.session, self.add_version_label_stmt,
             ({name}, collection, named_graph, version)
+        )
+
+    def describe_version(self, collection, named_graph, version, description):
+        self.session.execute(
+            self.set_version_description_stmt,
+            (description, collection, named_graph, version)
+        )
+
+    async def async_describe_version(self, collection, named_graph, version,
+                                     description):
+        await async_execute(
+            self.session, self.set_version_description_stmt,
+            (description, collection, named_graph, version)
         )
 
     def _get_quads_at_version(self, collection, named_graph, version):
