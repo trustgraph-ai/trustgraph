@@ -660,10 +660,21 @@ async def _eval_graph(node, tc, collection, limit, user_context, graph):
             yield sol
 
     elif isinstance(term, Variable):
-        logger.warning(f"GRAPH ?{term} — variable graph not yet supported")
-        async for sol in evaluate(node.p, tc, collection, limit,
-                                  user_context, graph):
-            yield sol
+        var_name = str(term)
+
+        version_map = await tc.version_map(collection)
+        graphs = set(version_map.keys())
+        graphs.add("")
+
+        for g_val in sorted(graphs):
+            g_term = Term(type=IRI, iri=g_val) if g_val else Term(
+                type=LITERAL, value=""
+            )
+            scoped_tc = _GraphScopedClient(tc, graph=g_val)
+            async for sol in evaluate(node.p, scoped_tc, collection, limit,
+                                      user_context, g_val):
+                sol[var_name] = g_term
+                yield sol
 
     else:
         async for sol in evaluate(node.p, tc, collection, limit,

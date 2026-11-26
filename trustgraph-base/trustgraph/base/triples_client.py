@@ -59,7 +59,7 @@ class TriplesClient:
                 raise RuntimeError(resp.error.message)
 
             batch = [
-                Triple(v.s, v.p, v.o)
+                Triple(v.s, v.p, v.o, v.g)
                 for v in resp.triples
             ]
             await queue.put(batch)
