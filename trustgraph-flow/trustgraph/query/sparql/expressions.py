@@ -26,6 +26,41 @@ logger = logging.getLogger(__name__)
 _exists_callback = None
 
 
+def _expand_replacement(match, replacement):
+    r"""
+    Expand a SPARQL REPLACE replacement string for one regex match.
+
+    SPARQL uses the XPath fn:replace rules: $N inserts capture group N
+    (empty when the group did not take part or does not exist), \$ is a
+    literal $ and \\ is a literal backslash. Any other $ or backslash is
+    kept as written. Python's own template syntax (\1, \g<1>) is not part
+    of SPARQL, so the string cannot go to re.sub as is.
+    """
+    out = []
+    i = 0
+    n = len(replacement)
+    while i < n:
+        c = replacement[i]
+        if c == "\\" and i + 1 < n and replacement[i + 1] in "\\$":
+            out.append(replacement[i + 1])
+            i += 2
+        elif c == "$" and i + 1 < n and replacement[i + 1].isdecimal():
+            num = int(replacement[i + 1])
+            i += 2
+            while i < n and replacement[i].isdecimal():
+                longer = num * 10 + int(replacement[i])
+                if longer > match.re.groups:
+                    break
+                num = longer
+                i += 1
+            if num <= match.re.groups:
+                out.append(match.group(num) or "")
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
 class ExpressionError(Exception):
     """Raised when a SPARQL expression cannot be evaluated."""
     pass
@@ -446,7 +481,12 @@ def _eval_builtin(name, node, solution):
         if "s" in flags_str:
             re_flags |= re.DOTALL
         try:
-            result = re.sub(pattern, replacement, string, flags=re_flags)
+            result = re.sub(
+                pattern,
+                lambda m: _expand_replacement(m, replacement),
+                string,
+                flags=re_flags,
+            )
             return Term(type=LITERAL, value=result)
         except re.error:
             return None
