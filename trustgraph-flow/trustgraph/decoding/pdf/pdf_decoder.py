@@ -31,6 +31,12 @@ class Processor(DocumentDecoderBase):
 
     def decode_pages(self, blob, mime_type=None):
 
+        if not blob or b"%PDF-" not in blob[:1024]:
+            preview = blob[:16] if blob else b""
+            raise ValueError(
+                f"Invalid PDF content: missing %PDF- header (starts with {preview!r})"
+            )
+
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as fp:
             temp_path = fp.name
             fp.write(blob)
