@@ -489,6 +489,35 @@ class TestBuiltinFunctions:
         result = evaluate_expression(expr, {"x": lit("HELLO there")})
         assert result.value == "world there"
 
+    def _replace(self, text, pattern, replacement):
+        from rdflib.term import Variable
+        from rdflib import Literal
+        expr = self._make_builtin("REPLACE",
+                                  arg=Variable("x"),
+                                  pattern=Literal(pattern),
+                                  replacement=Literal(replacement),
+                                  flags=None)
+        return evaluate_expression(expr, {"x": lit(text)})
+
+    def test_replace_dollar_group_reference(self):
+        # W3C SPARQL 1.1 section 17.4.3.15 example
+        result = self._replace("abcd", "(ab)|(a)", "[1=$1][2=$2]")
+        assert result.value == "[1=ab][2=]cd"
+
+    def test_replace_dollar_group_zero_and_repeat(self):
+        assert self._replace("ab", "(a)", "$1$1").value == "aab"
+        assert self._replace("abc", "b", "<$0>").value == "a<b>c"
+
+    def test_replace_missing_group_is_empty(self):
+        assert self._replace("abc", "b", "[$3]").value == "a[]c"
+
+    def test_replace_escaped_dollar_and_backslash(self):
+        assert self._replace("abc", "b", r"\$1").value == "a$1c"
+        assert self._replace("abc", "b", r"\\").value == "a" + "\\" + "c"
+
+    def test_replace_python_backreference_is_not_special(self):
+        assert self._replace("abc", "(b)", r"\1").value == "a" + "\\1" + "c"
+
     def test_round_up(self):
         from rdflib.term import Variable
         expr = self._make_builtin("ROUND", arg=Variable("x"))
