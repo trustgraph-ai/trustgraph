@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 default_ident = "query-formulation"
 
-FILTER_OPS = {"eq", "ne", "lt", "lte", "gt", "gte", "in", "like"}
+FILTER_OPS = {"eq", "ne", "lt", "lte", "gt", "gte", "in", "like", "is_null", "is_not_null"}
+NULLARY_OPS = {"is_null", "is_not_null"}
 ORDER_DIRECTIONS = {"asc", "desc"}
 
 
@@ -65,6 +66,10 @@ def validate_select(spec, schema):
             raise ValueError(
                 f"Unknown filter operator '{op}'. "
                 f"Must be one of: {sorted(FILTER_OPS)}"
+            )
+        if op not in NULLARY_OPS and "value" not in f:
+            raise ValueError(
+                f"Filter on '{col}' with op '{op}' requires a value"
             )
 
     for o in spec.get("order_by", []):
