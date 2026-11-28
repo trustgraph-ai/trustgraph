@@ -37,6 +37,9 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             v1=int(data.get("v1", 0)),
             v2=int(data.get("v2", 0)),
             triples=self.subgraph_translator.decode(triples_data) if triples_data else [],
+            s_start=data.get("s-start"),
+            s_end=data.get("s-end"),
+            sync=bool(data.get("sync", False)),
             user_context=dict_to_dataclass(uc, UserContext) if uc else None,
         )
 
@@ -72,6 +75,12 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             result["v2"] = obj.v2
         if obj.triples:
             result["triples"] = self.subgraph_translator.encode(obj.triples)
+        if obj.s_start is not None:
+            result["s-start"] = obj.s_start
+        if obj.s_end is not None:
+            result["s-end"] = obj.s_end
+        if obj.sync:
+            result["sync"] = obj.sync
         if obj.user_context is not None:
             result["user-context"] = dataclass_to_dict(obj.user_context)
 

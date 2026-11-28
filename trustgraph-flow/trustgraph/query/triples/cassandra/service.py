@@ -716,6 +716,51 @@ class Processor(TriplesQueryService):
 
         return TriplesQueryResponse()
 
+    async def handle_sync_triples(self, workspace, request):
+        tg = await self._get_connection(workspace)
+
+        named_graph = request.named_graph
+        if not request.triples and not request.sync:
+            return TriplesQueryResponse(
+                error=Error(
+                    type="sync-triples-error",
+                    message="triples list is required for additive sync",
+                ),
+            )
+
+        version = await tg.async_bootstrap_graph_version(
+            request.collection, named_graph
+        )
+
+        tuples = []
+        for triple in request.triples:
+            s_val = get_term_value(triple.s)
+            p_val = get_term_value(triple.p)
+            o_val = get_term_value(triple.o)
+            if s_val is None or p_val is None or o_val is None:
+                continue
+            tuples.append((
+                s_val, p_val, o_val,
+                get_term_otype(triple.o),
+                get_term_dtype(triple.o),
+                get_term_lang(triple.o),
+            ))
+
+        inserted, deleted = await tg.async_sync_triples(
+            request.collection, named_graph, version,
+            tuples,
+            s_start=request.s_start,
+            s_end=request.s_end,
+            sync=request.sync,
+        )
+
+        logger.info(
+            f"Sync triples {request.collection}/{named_graph}: "
+            f"{inserted} inserted, {deleted} deleted"
+        )
+
+        return TriplesQueryResponse(version=version)
+
     async def handle_write(self, workspace, request):
         tg = await self._get_connection(workspace)
 

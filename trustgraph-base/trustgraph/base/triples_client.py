@@ -366,6 +366,35 @@ class TriplesClient:
         if resp.error:
             raise RuntimeError(resp.error.message)
 
+    async def sync_triples(self, collection, named_graph, triples,
+                           s_start=None, s_end=None, sync=True,
+                           timeout=120):
+        from .. schema import Triple as SchemaTriple
+
+        resp = await self.request(
+            TriplesQueryRequest(
+                operation="sync-triples",
+                collection=collection,
+                named_graph=named_graph,
+                triples=[
+                    SchemaTriple(
+                        s=from_value(t["s"]), p=from_value(t["p"]),
+                        o=from_value(t["o"]),
+                    )
+                    for t in triples
+                ],
+                s_start=s_start,
+                s_end=s_end,
+                sync=sync,
+            ),
+            timeout=timeout,
+        )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
+        return resp.version
+
     async def delete_by_pattern(self, collection, named_graph,
                                 s=None, p=None, o=None, g=None,
                                 timeout=60):

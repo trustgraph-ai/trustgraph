@@ -1243,6 +1243,88 @@ class EntityCentricKnowledgeGraph:
 
         return count
 
+    async def async_sync_triples(self, collection, named_graph, version,
+                                 triples, s_start=None, s_end=None,
+                                 sync=False):
+        """
+        Diff-load triples into a named graph.
+
+        Compares incoming triples against the live state in the subject
+        range [s_start, s_end) and writes only the differences at the
+        given version.
+
+        Args:
+            triples: list of (s, p, o, otype, dtype, lang) tuples
+            s_start: inclusive lower bound on subject (None = unbounded)
+            s_end: exclusive upper bound on subject (None = unbounded)
+            sync: if True, write delete markers for triples in the graph
+                  but not in the incoming set
+        Returns:
+            (inserted, deleted) counts
+        """
+        cql = (
+            f"SELECT g, s, p, o, otype, dtype, lang, version, is_deleted "
+            f"FROM {self.collection_table} "
+            "WHERE collection = %s AND g = %s"
+        )
+        stmt = SimpleStatement(cql, fetch_size=5000)
+
+        rows = await async_scan(
+            self.session, stmt, (collection, named_graph),
+        )
+
+        quads = {}
+        for row in rows:
+            if s_start is not None and row.s < s_start:
+                continue
+            if s_end is not None and row.s >= s_end:
+                continue
+
+            key = (row.s, row.p, row.o, row.otype, row.dtype, row.lang)
+            quads.setdefault(key, []).append(
+                (row.version, row.is_deleted)
+            )
+
+        live = set()
+        for key, entries in quads.items():
+            entries.sort(key=lambda e: e[0], reverse=True)
+            latest_version, latest_deleted = entries[0]
+            if not latest_deleted:
+                live.add(key)
+
+        incoming = set()
+        for t in triples:
+            s, p, o, otype, dtype, lang = t
+            incoming.add((s, p, o, otype, dtype, lang))
+
+        to_insert = incoming - live
+        to_delete = (live - incoming) if sync else set()
+
+        inserted = 0
+        for s, p, o, otype, dtype, lang in to_insert:
+            await self.async_insert(
+                collection, s, p, o, named_graph, version, False,
+                otype=otype, dtype=dtype, lang=lang,
+            )
+            inserted += 1
+
+        deleted = 0
+        for s, p, o, otype, dtype, lang in to_delete:
+            await self.async_insert(
+                collection, s, p, o, named_graph, version, True,
+                otype=otype, dtype=dtype, lang=lang,
+            )
+            deleted += 1
+
+        logger.info(
+            f"Sync {collection}/{named_graph} v{version} "
+            f"[{s_start or ''}..{s_end or ''}): "
+            f"{inserted} inserted, {deleted} deleted, "
+            f"{len(incoming & live)} unchanged"
+        )
+
+        return inserted, deleted
+
     def close(self):
         if hasattr(self, 'session') and self.session:
             self.session.shutdown()

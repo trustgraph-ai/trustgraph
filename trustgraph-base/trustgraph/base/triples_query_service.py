@@ -125,6 +125,11 @@ class TriplesQueryService(FlowProcessor):
                 await flow("response").send(r, properties={"id": id})
                 return
 
+            if operation == "sync-triples":
+                r = await self.handle_sync_triples(workspace, request)
+                await flow("response").send(r, properties={"id": id})
+                return
+
             logger.debug(f"Handling triples query request {id}...")
 
             if request.streaming:
@@ -206,6 +211,9 @@ class TriplesQueryService(FlowProcessor):
 
     async def handle_purge(self, workspace, request):
         raise NotImplementedError("purge not supported by this backend")
+
+    async def handle_sync_triples(self, workspace, request):
+        raise NotImplementedError("sync-triples not supported by this backend")
 
     async def query_triples_stream(self, workspace, request):
         """

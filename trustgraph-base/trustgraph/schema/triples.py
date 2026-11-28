@@ -55,7 +55,10 @@ class TriplesQueryRequest:
     description: str = ""    # For version-describe, version-bump
     v1: int = 0              # For diff (first version)
     v2: int = 0              # For diff (second version)
-    triples: list[Triple] = field(default_factory=list)  # For delete (explicit)
+    triples: list[Triple] = field(default_factory=list)  # For delete (explicit), sync-triples
+    s_start: str | None = None   # For sync-triples: inclusive lower bound on subject
+    s_end: str | None = None     # For sync-triples: exclusive upper bound on subject
+    sync: bool = False           # For sync-triples: True = delete absent triples
     user_context: UserContext | None = None
 
 @dataclass
