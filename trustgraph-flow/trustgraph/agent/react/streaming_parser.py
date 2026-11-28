@@ -157,6 +157,10 @@ class StreamingReActParser:
 
     def _process_thought(self) -> None:
         """Process THOUGHT state - accumulating thought content"""
+        if not self.thought_buffer:
+            # Whitespace after "Thought:" can arrive in a later chunk
+            self.line_buffer = self.line_buffer.lstrip()
+
         # Check for Action or Final Answer delimiter
         action_idx = self.line_buffer.find(self.ACTION_DELIMITER)
         final_idx = self.line_buffer.find(self.FINAL_ANSWER_DELIMITER)
@@ -176,7 +180,9 @@ class StreamingReActParser:
 
         if next_delimiter_idx >= 0:
             # Found next delimiter
-            thought_chunk = self.line_buffer[:next_delimiter_idx].strip()
+            # rstrip only: leading whitespace here separates this text
+            # from thought already emitted
+            thought_chunk = self.line_buffer[:next_delimiter_idx].rstrip()
             if thought_chunk:
                 self.thought_buffer += thought_chunk
                 if self.on_thought_chunk:
